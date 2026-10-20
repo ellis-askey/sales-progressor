@@ -79,21 +79,14 @@ function relWhen(at: Date): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
+const CHANNEL_NAME: Record<FocusChannel, string> = { email: "Email", whatsapp: "WhatsApp", call: "Call" };
+
 function dirLabel(c: FocusChannelContact): string {
   if (c.direction === "in") return "They";
   return c.automated ? "Auto" : "You";
 }
 
-// Exact detail for the hover tooltip — true timestamp, who, and the subject /
-// snippet. This is where the precise, provable record lives.
-function contactTitle(c: FocusChannelContact): string {
-  const who = c.direction === "in" ? "they reached you" : c.automated ? "automated send" : "you reached them";
-  const head = `${CONTACT_STATE[c.state].label} · ${fmtDateTime(c.at)} · ${who}`;
-  const detail = c.channel === "email" ? c.subject : c.preview;
-  return detail ? `${head}\n${detail}` : head;
-}
-
-export function FocusClientComms({ files, totalSides, doneSides }: { files: FocusCommsFile[]; totalSides: number; doneSides: number }) {
+export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }: { files: FocusCommsFile[]; totalSides: number; doneSides: number; showWhatsApp: boolean }) {
   const router = useRouter();
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
@@ -163,6 +156,7 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
                     key={s.side}
                     file={f}
                     side={s}
+                    showWhatsApp={showWhatsApp}
                     callOpen={callOpen === key(f.transactionId, s.side)}
                     onCall={() => setCallOpen(key(f.transactionId, s.side))}
                     onCallCancel={() => setCallOpen(null)}
@@ -186,10 +180,11 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
 }
 
 function SideBlock({
-  file, side, callOpen, onCall, onCallCancel, onCallSave, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, showWhatsApp, callOpen, onCall, onCallCancel, onCallSave, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
+  showWhatsApp: boolean;
   callOpen: boolean;
   onCall: () => void;
   onCallCancel: () => void;
@@ -239,12 +234,14 @@ function SideBlock({
         )}
       </div>
 
-      {/* Last contact per channel — the single most recent real record each, dated
-          by its true event time. Email opens the exact message; WhatsApp / call
-          jump to the file. An empty channel says so plainly. */}
+      {/* Last contact per channel — icon, a status pip, and the true time. The
+          full record (direction, state, exact time, subject/snippet) is one hover
+          away. WhatsApp is dropped entirely when it isn't a live channel here. */}
       <div className="fc-led">
         <ChannelUnit channel="email" c={lc.email} onOpen={(c) => onOpenEmail(c.messageId)} />
-        <ChannelUnit channel="whatsapp" c={lc.whatsapp} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
+        {showWhatsApp ? (
+          <ChannelUnit channel="whatsapp" c={lc.whatsapp} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
+        ) : null}
         <ChannelUnit channel="call" c={lc.call} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
       </div>
     </div>
@@ -257,29 +254,37 @@ const CHANNEL_ICON: Record<FocusChannel, typeof EnvelopeSimple> = {
   call: Phone,
 };
 
+// A bare channel glyph (no backer tile), a status pip, and the relative time.
+// Hovering reveals the full record in a small popover. Empty channels show a
+// dimmed glyph and read "none" on hover — never implied contact.
 function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void }) {
   const Icon = CHANNEL_ICON[channel];
   if (!c) {
     return (
       <span className={`fc-u ${channel} ghost`}>
-        <span className="fc-gl"><Icon size={16} /></span>
-        <span className="fc-um"><span className="fc-ust">{EMPTY_LABEL[channel]}</span></span>
+        <span className="fc-ic"><Icon size={16} /></span>
+        <span className="fc-ut">—</span>
+        <span className="fc-pop" role="tooltip">
+          <span className="fc-pop-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+          <span className="fc-pop-empty">{EMPTY_LABEL[channel]}</span>
+        </span>
       </span>
     );
   }
   const meta = CONTACT_STATE[c.state];
+  const detail = c.channel === "email" ? c.subject : c.preview;
   return (
-    <button type="button" className={`fc-u ${channel}`} onClick={() => onOpen(c)} title={contactTitle(c)}>
-      <span className="fc-gl">
+    <button type="button" className={`fc-u ${channel}`} onClick={() => onOpen(c)}>
+      <span className="fc-ic">
         <Icon size={16} />
         <span className={`fc-pip ${meta.tone}`} aria-hidden />
       </span>
-      <span className="fc-um">
-        <span className="fc-ul">
-          <span className="fc-dir">{dirLabel(c)}</span>
-          <span className={`fc-ust ${meta.tone}`}>{meta.label}</span>
-        </span>
-        <span className="fc-ut">{relWhen(c.at)}</span>
+      <span className="fc-ut">{relWhen(c.at)}</span>
+      <span className="fc-pop" role="tooltip">
+        <span className="fc-pop-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+        <span className={`fc-pop-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
+        <span className="fc-pop-when">{fmtDateTime(c.at)}</span>
+        {detail ? <span className="fc-pop-snip">{detail}</span> : null}
       </span>
     </button>
   );
@@ -451,35 +456,41 @@ const CSS = `
 .fc-ml { font-size:12.5px; font-weight:600; line-height:1.25; }
 .fc-ms { font-size:10.5px; color:var(--agent-text-muted); line-height:1.2; }
 .fc-mdiv { height:1px; margin:5px 6px; background:var(--agent-border-default); }
-/* Last-contact readout: one quiet row of three channels (email · WhatsApp ·
-   call) under each side. Each shows direction, the state word, and the true
-   time; an empty channel is a muted ghost. Hover for the exact timestamp. */
-.fc-led { display:flex; align-items:stretch; margin:9px 0 1px 39px; border:1px solid var(--agent-border-subtle); border-radius:11px; background:var(--agent-surface-glass); }
-.fc-u { position:relative; flex:1; min-width:0; display:flex; align-items:center; gap:9px; padding:9px 12px; background:none; border:0; font-family:inherit; text-align:left; color:inherit; cursor:pointer; border-radius:11px; transition:background .14s; }
-.fc-u + .fc-u { box-shadow:inset 1px 0 0 var(--agent-border-subtle); }
-.fc-u:hover:not(.ghost) { background:var(--agent-surface-elevated); }
-.fc-gl { position:relative; width:30px; height:30px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; background:var(--agent-surface-subtle); color:var(--agent-text-muted); }
-.fc-u.email .fc-gl { color:#3b6ef0; }
-.fc-u.whatsapp .fc-gl { color:#1fa855; }
-.fc-u.call .fc-gl { color:var(--agent-coral-deep); }
-.fc-gl svg { display:block; }
-.fc-pip { position:absolute; right:-2px; bottom:-2px; width:11px; height:11px; border-radius:50%; border:2px solid var(--agent-surface-elevated); }
+/* Last-contact readout (minimal): a bare channel glyph, a status pip, and the
+   true time — no backer tile behind the icon. Direction, state word, exact time
+   and subject/snippet all live in the hover popover. */
+.fc-led { display:flex; flex-wrap:wrap; align-items:center; gap:7px 22px; margin:9px 0 2px 39px; }
+.fc-u { position:relative; display:inline-flex; align-items:center; gap:8px; padding:3px 1px; background:none; border:0; font-family:inherit; font-size:12px; color:var(--agent-text-secondary); cursor:pointer; }
+.fc-u.ghost { cursor:default; }
+.fc-ic { position:relative; display:inline-flex; }
+.fc-ic svg { display:block; }
+.fc-u.email .fc-ic svg { color:#3b6ef0; }
+.fc-u.whatsapp .fc-ic svg { color:#1fa855; }
+.fc-u.call .fc-ic svg { color:var(--agent-coral-deep); }
+.fc-u.ghost .fc-ic svg { color:var(--agent-border-strong); }
+.fc-pip { position:absolute; right:-3px; bottom:-3px; width:9px; height:9px; border-radius:50%; border:2px solid var(--agent-surface-elevated); }
 .fc-pip.ok { background:var(--agent-success); }
 .fc-pip.neutral { background:var(--agent-text-muted); }
 .fc-pip.warn { background:var(--agent-warning); }
 .fc-pip.danger { background:var(--agent-danger); }
-.fc-um { min-width:0; display:flex; flex-direction:column; line-height:1.25; }
-.fc-ul { display:flex; align-items:baseline; gap:6px; min-width:0; }
-.fc-dir { font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--agent-text-muted); flex-shrink:0; }
-.fc-ust { font-size:12.5px; font-weight:700; letter-spacing:-0.01em; white-space:nowrap; }
-.fc-ust.ok { color:var(--agent-success); }
-.fc-ust.neutral { color:var(--agent-text-primary); }
-.fc-ust.warn { color:var(--agent-warning); }
-.fc-ust.danger { color:var(--agent-danger); }
-.fc-ut { font-size:11px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:1px; }
-.fc-u.ghost { cursor:default; }
-.fc-u.ghost .fc-gl { background:transparent; color:var(--agent-border-strong); box-shadow:inset 0 0 0 1px var(--agent-border-default); }
-.fc-u.ghost .fc-ust { color:var(--agent-text-muted); font-weight:600; }
+.fc-ut { font-variant-numeric:tabular-nums; color:var(--agent-text-secondary); }
+.fc-u.ghost .fc-ut { color:var(--agent-text-muted); }
+.fc-u:hover:not(.ghost) .fc-ut { color:var(--agent-text-primary); }
+
+/* Hover popover — the full record. */
+.fc-pop { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+.fc-u:hover .fc-pop, .fc-u:focus-visible .fc-pop { opacity:1; transform:translateY(0); }
+.fc-pop::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
+.fc-pop-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
+.fc-pop-h svg { color:var(--agent-text-muted); }
+.fc-pop-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
+.fc-pop-state.ok { color:var(--agent-success); }
+.fc-pop-state.neutral { color:var(--agent-text-primary); }
+.fc-pop-state.warn { color:var(--agent-warning); }
+.fc-pop-state.danger { color:var(--agent-danger); }
+.fc-pop-when { display:block; font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:2px; }
+.fc-pop-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
+.fc-pop-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
 
 .fc-callform { display:flex; align-items:center; gap:7px; flex:1 1 220px; min-width:0; }
 .fc-callform input { flex:1; min-width:0; height:32px; border:1px solid var(--agent-coral-deep); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); outline:none; background:var(--agent-surface-glass); }
@@ -490,5 +501,5 @@ const CSS = `
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
 @media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
-@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ flex-direction:column; margin-left:0; } .fc-u + .fc-u{ box-shadow:inset 0 1px 0 var(--agent-border-subtle); } }
+@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-pop{ display:none; } }
 `;

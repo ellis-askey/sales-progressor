@@ -52,8 +52,8 @@ export default async function FocusPage() {
            (title, subtext, progress bar) spans the full width across the top; the
            dominant communications list (1fr) and the fixed-width right rail sit in
            the row beneath, so the rail's first card lines up with the first file. */
-        .focus-page { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); padding: 8px 16px 48px; }
-        @media (min-width: 900px) { .focus-page { padding: 8px 32px 48px; } }
+        .focus-page { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); padding: 24px 16px 48px; }
+        @media (min-width: 900px) { .focus-page { padding: 24px 32px 48px; } }
         @media (min-width: 1080px) {
           .focus-page {
             grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
@@ -65,7 +65,7 @@ export default async function FocusPage() {
           .focus-page > .fr { grid-area: rail; }
         }
       `}</style>
-      <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} />
+      <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} showWhatsApp={left.whatsappInUse} />
       <FocusRightRail
         enquiries={right.enquiries}
         openEnquiryCount={right.openEnquiryCount}

@@ -59,7 +59,15 @@ export type FocusSide = WeeklyTouchSide & {
 };
 
 export type FocusLeftFile = Omit<WeeklyTouchFile, "sides"> & { sides: FocusSide[] };
-export type FocusLeft = { files: FocusLeftFile[]; totalSides: number; doneSides: number };
+export type FocusLeft = {
+  files: FocusLeftFile[];
+  totalSides: number;
+  doneSides: number;
+  // Whether WhatsApp is a live channel for this book at all (any WhatsApp message
+  // on any shown file). When false the WhatsApp column is hidden entirely rather
+  // than showing "none" on every side.
+  whatsappInUse: boolean;
+};
 
 const EMPTY_CONTACTS: FocusSideContacts = { email: null, whatsapp: null, call: null };
 
@@ -143,6 +151,7 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
       files: weekly.files.map((f) => ({ ...f, sides: f.sides.map((s) => ({ ...s, lastContact: EMPTY_CONTACTS })) })),
       totalSides: weekly.totalSides,
       doneSides: weekly.doneSides,
+      whatsappInUse: false,
     };
   }
 
@@ -150,25 +159,35 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
   // reduce to the latest per side per channel in JS — per-side attribution is by
   // the contactIds array, which SQL can't group on. Ordered newest-first and
   // generously bounded; a weekly cockpit never has deeper recent history.
-  const rows = await prisma.outboundMessage.findMany({
-    where: {
-      transactionId: { in: fileIds },
-      contactIds: { hasSome: contactIds },
-      OR: [
-        { method: "whatsapp" },
-        { method: "phone", type: "outbound" },
-        { method: "email", type: "outbound" },
-        { channel: "email", type: "outbound" },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    take: 4000,
-    select: {
-      id: true, transactionId: true, contactIds: true, type: true, method: true, channel: true,
-      status: true, isAutomated: true, subject: true, content: true, sentAt: true, createdAt: true,
-      deliveredAt: true, openedAt: true, clickedAt: true, failedAt: true, providerMessageId: true,
-    },
-  });
+  // Alongside: is WhatsApp a live channel here at all? (Any WhatsApp message on
+  // any shown file, including threads not yet mapped to a client contact.) When
+  // not, the WhatsApp column is dropped rather than showing "none" everywhere.
+  const [rows, waAny] = await Promise.all([
+    prisma.outboundMessage.findMany({
+      where: {
+        transactionId: { in: fileIds },
+        contactIds: { hasSome: contactIds },
+        OR: [
+          { method: "whatsapp" },
+          { method: "phone", type: "outbound" },
+          { method: "email", type: "outbound" },
+          { channel: "email", type: "outbound" },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 4000,
+      select: {
+        id: true, transactionId: true, contactIds: true, type: true, method: true, channel: true,
+        status: true, isAutomated: true, subject: true, content: true, sentAt: true, createdAt: true,
+        deliveredAt: true, openedAt: true, clickedAt: true, failedAt: true, providerMessageId: true,
+      },
+    }),
+    prisma.outboundMessage.findFirst({
+      where: { transactionId: { in: fileIds }, method: "whatsapp" },
+      select: { id: true },
+    }),
+  ]);
+  const whatsappInUse = waAny != null;
 
   // Pre-classify once, grouped by file, so each side only scans its own file's rows.
   const byTx = new Map<string, { ids: string[]; c: FocusChannelContact }[]>();
@@ -198,7 +217,7 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
     };
   });
 
-  return { files, totalSides: weekly.totalSides, doneSides: weekly.doneSides };
+  return { files, totalSides: weekly.totalSides, doneSides: weekly.doneSides, whatsappInUse };
 }
 
 // ─── Right: enquiries + searches ──────────────────────────────────────────────
