@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, EnvelopeSimple, WhatsappLogo, WarningCircle, CaretDown, Check, Prohibit } from "@phosphor-icons/react";
+import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
@@ -19,7 +19,7 @@ import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { markSideNotRequiredThisWeek, logSideCall, logSideEmailed } from "@/app/actions/weekly-touch";
-import type { FocusSide, FocusEmailState } from "@/lib/services/focus";
+import type { FocusSide, FocusChannel, FocusChannelContact, FocusContactState } from "@/lib/services/focus";
 
 export type FocusCommsFile = {
   transactionId: string;
@@ -38,13 +38,24 @@ function toWaDigits(phone: string): string {
   return d;
 }
 
-const STATE_META: Record<FocusEmailState, { label: string; color: string }> = {
-  sent: { label: "Sent", color: "var(--agent-text-muted)" },
-  delivered: { label: "Delivered", color: "var(--agent-info)" },
-  opened: { label: "Opened", color: "var(--agent-success)" },
-  clicked: { label: "Clicked", color: "var(--agent-success)" },
-  bounced: { label: "Bounced", color: "var(--agent-danger)" },
-  failed: { label: "Failed", color: "var(--agent-danger)" },
+// Per-state label + tone. Tone drives both the state word's colour and the pip.
+type Tone = "ok" | "neutral" | "warn" | "danger";
+const CONTACT_STATE: Record<FocusContactState, { label: string; tone: Tone }> = {
+  opened: { label: "Opened", tone: "ok" },
+  delivered: { label: "Delivered", tone: "neutral" },
+  sent: { label: "Sent", tone: "neutral" },
+  logged: { label: "Logged", tone: "warn" },
+  bounced: { label: "Bounced", tone: "danger" },
+  failed: { label: "Failed", tone: "danger" },
+  replied: { label: "Replied", tone: "ok" },
+  messaged: { label: "Messaged", tone: "neutral" },
+  called: { label: "Called", tone: "neutral" },
+};
+
+const EMPTY_LABEL: Record<FocusChannel, string> = {
+  email: "No email on record",
+  whatsapp: "No WhatsApp on record",
+  call: "No call logged",
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -53,6 +64,33 @@ function fmtDateTime(d: Date): string {
   const hh = String(x.getHours()).padStart(2, "0");
   const mm = String(x.getMinutes()).padStart(2, "0");
   return `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}, ${hh}:${mm}`;
+}
+
+// Calendar-day relative time: "today", "yesterday", "N days ago", then weeks.
+function relWhen(at: Date): string {
+  const a = new Date(at); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  const days = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 14) return `${days} days ago`;
+  if (days < 56) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
+function dirLabel(c: FocusChannelContact): string {
+  if (c.direction === "in") return "They";
+  return c.automated ? "Auto" : "You";
+}
+
+// Exact detail for the hover tooltip — true timestamp, who, and the subject /
+// snippet. This is where the precise, provable record lives.
+function contactTitle(c: FocusChannelContact): string {
+  const who = c.direction === "in" ? "they reached you" : c.automated ? "automated send" : "you reached them";
+  const head = `${CONTACT_STATE[c.state].label} · ${fmtDateTime(c.at)} · ${who}`;
+  const detail = c.channel === "email" ? c.subject : c.preview;
+  return detail ? `${head}\n${detail}` : head;
 }
 
 export function FocusClientComms({ files, totalSides, doneSides }: { files: FocusCommsFile[]; totalSides: number; doneSides: number }) {
@@ -161,10 +199,11 @@ function SideBlock({
   onNotRequired: () => void;
   onOpenEmail: (id: string) => void;
 }) {
+  const router = useRouter();
   const label = side.side === "vendor" ? "Seller" : "Buyer";
   const names = side.contacts.length ? side.contacts.map((c) => c.name).join(" & ") : side.name;
   const avatars = side.contacts.length ? side.contacts : [{ id: side.primaryContactId, name: side.name }];
-  const auto = side.lastAutoEmail;
+  const lc = side.lastContact;
 
   return (
     <div className={`fc-side ${side.side}`}>
@@ -179,9 +218,7 @@ function SideBlock({
           <span className="fc-names" title={names}>{names}</span>
         </span>
 
-        {side.bounced ? (
-          <Pill glass tone="danger" size="sm" style={{ flexShrink: 0 }}>Email bounced</Pill>
-        ) : side.quiet ? (
+        {side.quiet ? (
           <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>
             {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
           </Pill>
@@ -202,25 +239,49 @@ function SideBlock({
         )}
       </div>
 
-      {side.bounced ? (
-        <div className="fc-auto bounce">
-          <WarningCircle size={13} weight="fill" />
-          <span>Their email bounced. They aren't receiving anything, so reach them another way.</span>
-        </div>
-      ) : auto ? (
-        <button type="button" className="fc-auto" onClick={() => onOpenEmail(auto.id)} title="Open the exact email we sent">
-          <EnvelopeSimple size={13} weight="regular" />
-          <span className="fc-auto-txt">
-            Auto: {auto.kind}{auto.subject ? ` · ${auto.subject}` : ""}
-          </span>
-          <span className="fc-auto-state" style={{ color: STATE_META[auto.state].color }}>
-            <span className="fc-auto-dot" style={{ background: STATE_META[auto.state].color }} aria-hidden />
-            {STATE_META[auto.state].label}
-          </span>
-          <span className="fc-auto-ago">{fmtDateTime(auto.sentAt)}</span>
-        </button>
-      ) : null}
+      {/* Last contact per channel — the single most recent real record each, dated
+          by its true event time. Email opens the exact message; WhatsApp / call
+          jump to the file. An empty channel says so plainly. */}
+      <div className="fc-led">
+        <ChannelUnit channel="email" c={lc.email} onOpen={(c) => onOpenEmail(c.messageId)} />
+        <ChannelUnit channel="whatsapp" c={lc.whatsapp} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
+        <ChannelUnit channel="call" c={lc.call} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
+      </div>
     </div>
+  );
+}
+
+const CHANNEL_ICON: Record<FocusChannel, typeof EnvelopeSimple> = {
+  email: EnvelopeSimple,
+  whatsapp: WhatsappLogo,
+  call: Phone,
+};
+
+function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void }) {
+  const Icon = CHANNEL_ICON[channel];
+  if (!c) {
+    return (
+      <span className={`fc-u ${channel} ghost`}>
+        <span className="fc-gl"><Icon size={16} /></span>
+        <span className="fc-um"><span className="fc-ust">{EMPTY_LABEL[channel]}</span></span>
+      </span>
+    );
+  }
+  const meta = CONTACT_STATE[c.state];
+  return (
+    <button type="button" className={`fc-u ${channel}`} onClick={() => onOpen(c)} title={contactTitle(c)}>
+      <span className="fc-gl">
+        <Icon size={16} />
+        <span className={`fc-pip ${meta.tone}`} aria-hidden />
+      </span>
+      <span className="fc-um">
+        <span className="fc-ul">
+          <span className="fc-dir">{dirLabel(c)}</span>
+          <span className={`fc-ust ${meta.tone}`}>{meta.label}</span>
+        </span>
+        <span className="fc-ut">{relWhen(c.at)}</span>
+      </span>
+    </button>
   );
 }
 
@@ -390,17 +451,35 @@ const CSS = `
 .fc-ml { font-size:12.5px; font-weight:600; line-height:1.25; }
 .fc-ms { font-size:10.5px; color:var(--agent-text-muted); line-height:1.2; }
 .fc-mdiv { height:1px; margin:5px 6px; background:var(--agent-border-default); }
-/* Secondary line: what automation last sent this side, openable. Quiet by design. */
-.fc-auto { display:flex; align-items:center; gap:7px; width:100%; margin-top:8px; padding:6px 9px; border-radius:9px; border:1px solid transparent; background:var(--agent-surface-subtle); color:var(--agent-text-muted); font-family:inherit; font-size:11.5px; text-align:left; cursor:pointer; transition:background .14s,border-color .14s; }
-.fc-auto:hover { background:var(--agent-surface-glass); border-color:var(--agent-border-default); }
-.fc-auto > svg { flex-shrink:0; color:var(--agent-text-muted); }
-.fc-auto-txt { min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--agent-text-secondary); }
-.fc-auto-state { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; font-weight:700; }
-.fc-auto-dot { width:5px; height:5px; border-radius:50%; }
-.fc-auto-ago { flex-shrink:0; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
-.fc-auto.bounce { cursor:default; background:rgba(var(--agent-danger-rgb),0.07); border-color:rgba(var(--agent-danger-rgb),0.25); color:var(--agent-danger); }
-.fc-auto.bounce > svg { color:var(--agent-danger); }
-.fc-auto.bounce span { color:var(--agent-danger); }
+/* Last-contact readout: one quiet row of three channels (email · WhatsApp ·
+   call) under each side. Each shows direction, the state word, and the true
+   time; an empty channel is a muted ghost. Hover for the exact timestamp. */
+.fc-led { display:flex; align-items:stretch; margin:9px 0 1px 39px; border:1px solid var(--agent-border-subtle); border-radius:11px; background:var(--agent-surface-glass); }
+.fc-u { position:relative; flex:1; min-width:0; display:flex; align-items:center; gap:9px; padding:9px 12px; background:none; border:0; font-family:inherit; text-align:left; color:inherit; cursor:pointer; border-radius:11px; transition:background .14s; }
+.fc-u + .fc-u { box-shadow:inset 1px 0 0 var(--agent-border-subtle); }
+.fc-u:hover:not(.ghost) { background:var(--agent-surface-elevated); }
+.fc-gl { position:relative; width:30px; height:30px; flex-shrink:0; border-radius:9px; display:grid; place-items:center; background:var(--agent-surface-subtle); color:var(--agent-text-muted); }
+.fc-u.email .fc-gl { color:#3b6ef0; }
+.fc-u.whatsapp .fc-gl { color:#1fa855; }
+.fc-u.call .fc-gl { color:var(--agent-coral-deep); }
+.fc-gl svg { display:block; }
+.fc-pip { position:absolute; right:-2px; bottom:-2px; width:11px; height:11px; border-radius:50%; border:2px solid var(--agent-surface-elevated); }
+.fc-pip.ok { background:var(--agent-success); }
+.fc-pip.neutral { background:var(--agent-text-muted); }
+.fc-pip.warn { background:var(--agent-warning); }
+.fc-pip.danger { background:var(--agent-danger); }
+.fc-um { min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+.fc-ul { display:flex; align-items:baseline; gap:6px; min-width:0; }
+.fc-dir { font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--agent-text-muted); flex-shrink:0; }
+.fc-ust { font-size:12.5px; font-weight:700; letter-spacing:-0.01em; white-space:nowrap; }
+.fc-ust.ok { color:var(--agent-success); }
+.fc-ust.neutral { color:var(--agent-text-primary); }
+.fc-ust.warn { color:var(--agent-warning); }
+.fc-ust.danger { color:var(--agent-danger); }
+.fc-ut { font-size:11px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:1px; }
+.fc-u.ghost { cursor:default; }
+.fc-u.ghost .fc-gl { background:transparent; color:var(--agent-border-strong); box-shadow:inset 0 0 0 1px var(--agent-border-default); }
+.fc-u.ghost .fc-ust { color:var(--agent-text-muted); font-weight:600; }
 
 .fc-callform { display:flex; align-items:center; gap:7px; flex:1 1 220px; min-width:0; }
 .fc-callform input { flex:1; min-width:0; height:32px; border:1px solid var(--agent-coral-deep); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); outline:none; background:var(--agent-surface-glass); }
@@ -410,6 +489,6 @@ const CSS = `
 .fc-done { grid-area:list; text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-auto,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
-@media (max-width:520px){ .fc-side-top{ gap:8px; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
+@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ flex-direction:column; margin-left:0; } .fc-u + .fc-u{ box-shadow:inset 0 1px 0 var(--agent-border-subtle); } }
 `;

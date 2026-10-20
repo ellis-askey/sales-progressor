@@ -23,44 +23,114 @@ import type { AccessScope } from "@/lib/security/access-scope";
 
 // ─── Left: client communications ──────────────────────────────────────────────
 
-export type FocusEmailState = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "failed";
+export type FocusChannel = "email" | "whatsapp" | "call";
 
-export type FocusAutoEmail = {
-  id: string;             // OutboundMessage id — opens the exact email we sent
-  subject: string | null;
-  kind: string;           // friendly label ("Chase", "Update", …)
-  sentAt: Date;
-  state: FocusEmailState;
+// The visible state word per channel. Email states come from the real send's
+// delivery lifecycle; "logged" is a self-reported "I emailed them" with nothing
+// to prove a send. WhatsApp is "replied" (inbound) / "messaged" (outbound).
+// A call is always a manual log → "called".
+export type FocusContactState =
+  | "opened" | "delivered" | "sent" | "logged" | "bounced" | "failed"
+  | "replied" | "messaged" | "called";
+
+export type FocusChannelContact = {
+  channel: FocusChannel;
+  direction: "out" | "in";  // out = we reached them · in = they reached us
+  automated: boolean;       // true = sent by the engine, not a person (email only)
+  state: FocusContactState;
+  at: Date;                 // the true event time (send / receipt), never import time
+  proven: boolean;          // real provider-handled send vs a self-reported log
+  messageId: string;        // OutboundMessage id — opens the exact message
+  subject: string | null;   // email subject
+  preview: string | null;   // short snippet for whatsapp / call
+};
+
+export type FocusSideContacts = {
+  email: FocusChannelContact | null;
+  whatsapp: FocusChannelContact | null;
+  call: FocusChannelContact | null;
 };
 
 export type FocusSide = WeeklyTouchSide & {
-  // The most recent AUTOMATED email that reached this side's client(s), with its
-  // real delivery status. Shown as a quiet secondary line; does NOT count as a
-  // human touch, so it never resets the quiet clock.
-  lastAutoEmail: FocusAutoEmail | null;
-  // This side's client email has bounced — they're unreachable, nothing is landing.
-  bounced: boolean;
+  // Last contact on each channel — each the single most recent real record for
+  // this side's client(s), dated by its true event time. Null = nothing on
+  // record for that channel (rendered as an honest "none", never implied contact).
+  lastContact: FocusSideContacts;
 };
 
 export type FocusLeftFile = Omit<WeeklyTouchFile, "sides"> & { sides: FocusSide[] };
 export type FocusLeft = { files: FocusLeftFile[]; totalSides: number; doneSides: number };
 
-const PURPOSE_LABEL: Record<string, string> = {
-  chase: "Chase",
-  notification: "Update",
-  digest: "Weekly update",
-  other: "Email",
+const EMPTY_CONTACTS: FocusSideContacts = { email: null, whatsapp: null, call: null };
+
+// Email statuses that mean "not actually sent yet" — excluded so a queued or
+// draft message never reads as a real contact.
+const NOT_SENT = new Set(["draft", "scheduled", "queued", "cancelled"]);
+
+function snippet(s: string | null): string | null {
+  if (!s) return null;
+  const t = s.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  return t.length > 120 ? `${t.slice(0, 117)}…` : t;
+}
+
+// The minimal row shape classify needs. Prisma's richer row (enum fields, extra
+// columns) is structurally assignable to this.
+type RawRow = {
+  id: string; transactionId: string | null; contactIds: string[];
+  type: string; method: string | null; channel: string; status: string;
+  isAutomated: boolean; subject: string | null; content: string;
+  sentAt: Date | null; createdAt: Date;
+  deliveredAt: Date | null; openedAt: Date | null; clickedAt: Date | null; failedAt: Date | null;
+  providerMessageId: string | null;
 };
 
-function emailState(m: {
-  status: string; deliveredAt: Date | null; openedAt: Date | null; clickedAt: Date | null; failedAt: Date | null;
-}): FocusEmailState {
-  if (m.status === "bounced") return "bounced";
-  if (m.failedAt || m.status === "failed") return "failed";
-  if (m.clickedAt) return "clicked";
-  if (m.openedAt) return "opened";
-  if (m.deliveredAt) return "delivered";
-  return "sent";
+// One OutboundMessage row → the channel contact it represents, or null when it
+// isn't a client-reaching event we show (an inbound email, an unsent draft, a
+// non-client method). The true event time is sentAt when the send path stamped
+// it (real emails, WhatsApp messages), else createdAt (logged calls/emails, for
+// which createCommunicationRecord never sets sentAt).
+function classify(r: RawRow): FocusChannelContact | null {
+  const at = r.sentAt ?? r.createdAt;
+
+  if (r.method === "whatsapp") {
+    const inbound = r.type === "inbound";
+    return {
+      channel: "whatsapp", direction: inbound ? "in" : "out", automated: false,
+      state: inbound ? "replied" : "messaged", at, proven: true,
+      messageId: r.id, subject: null, preview: snippet(r.content),
+    };
+  }
+
+  if (r.method === "phone") {
+    if (r.type !== "outbound") return null; // calls only ever exist as outbound logs
+    return {
+      channel: "call", direction: "out", automated: false,
+      state: "called", at, proven: false,
+      messageId: r.id, subject: null, preview: snippet(r.content),
+    };
+  }
+
+  // Email — our outbound only.
+  if (r.type !== "outbound") return null;
+  const isEmail = r.method === "email" || r.channel === "email";
+  if (!isEmail) return null;
+  if (NOT_SENT.has(r.status)) return null;
+
+  const proven = r.sentAt != null || r.providerMessageId != null;
+  let state: FocusContactState;
+  if (r.status === "bounced") state = "bounced";
+  else if (r.status === "failed" || r.failedAt) state = "failed";
+  else if (r.clickedAt || r.status === "clicked" || r.openedAt || r.status === "opened") state = "opened";
+  else if (r.deliveredAt || r.status === "delivered") state = "delivered";
+  else if (proven) state = "sent";
+  else state = "logged"; // sentAt null + default status = self-reported "I emailed them"
+
+  return {
+    channel: "email", direction: "out", automated: r.isAutomated,
+    state, at, proven,
+    messageId: r.id, subject: r.subject, preview: null,
+  };
 }
 
 export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
@@ -70,48 +140,63 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
 
   if (contactIds.length === 0) {
     return {
-      files: weekly.files.map((f) => ({ ...f, sides: f.sides.map((s) => ({ ...s, lastAutoEmail: null, bounced: false })) })),
+      files: weekly.files.map((f) => ({ ...f, sides: f.sides.map((s) => ({ ...s, lastContact: EMPTY_CONTACTS })) })),
       totalSides: weekly.totalSides,
       doneSides: weekly.doneSides,
     };
   }
 
-  const [autoRows, bouncedContacts] = await Promise.all([
-    prisma.outboundMessage.findMany({
-      where: {
-        transactionId: { in: fileIds },
-        contactIds: { hasSome: contactIds },
-        type: "outbound",
-        isAutomated: true,
-        channel: "email",
-        sentAt: { not: null },
-      },
-      orderBy: { sentAt: "desc" },
-      take: 600,
-      select: {
-        id: true, subject: true, purpose: true, sentAt: true, status: true,
-        deliveredAt: true, openedAt: true, clickedAt: true, failedAt: true, contactIds: true,
-      },
-    }),
-    prisma.contact.findMany({
-      where: { id: { in: contactIds }, emailBouncedAt: { not: null } },
-      select: { id: true },
-    }),
-  ]);
-  const bouncedSet = new Set(bouncedContacts.map((c) => c.id));
+  // Every email / WhatsApp / logged-call row touching these sides' clients. We
+  // reduce to the latest per side per channel in JS — per-side attribution is by
+  // the contactIds array, which SQL can't group on. Ordered newest-first and
+  // generously bounded; a weekly cockpit never has deeper recent history.
+  const rows = await prisma.outboundMessage.findMany({
+    where: {
+      transactionId: { in: fileIds },
+      contactIds: { hasSome: contactIds },
+      OR: [
+        { method: "whatsapp" },
+        { method: "phone", type: "outbound" },
+        { method: "email", type: "outbound" },
+        { channel: "email", type: "outbound" },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 4000,
+    select: {
+      id: true, transactionId: true, contactIds: true, type: true, method: true, channel: true,
+      status: true, isAutomated: true, subject: true, content: true, sentAt: true, createdAt: true,
+      deliveredAt: true, openedAt: true, clickedAt: true, failedAt: true, providerMessageId: true,
+    },
+  });
 
-  const files: FocusLeftFile[] = weekly.files.map((f) => ({
-    ...f,
-    sides: f.sides.map((s) => {
-      const sideSet = new Set(s.contactIds);
-      // autoRows are newest-first → the first overlap is the latest auto email.
-      const hit = autoRows.find((m) => m.contactIds.some((id) => sideSet.has(id)));
-      const lastAutoEmail: FocusAutoEmail | null = hit?.sentAt
-        ? { id: hit.id, subject: hit.subject, kind: PURPOSE_LABEL[hit.purpose] ?? "Email", sentAt: hit.sentAt, state: emailState(hit) }
-        : null;
-      return { ...s, lastAutoEmail, bounced: s.contactIds.some((id) => bouncedSet.has(id)) };
-    }),
-  }));
+  // Pre-classify once, grouped by file, so each side only scans its own file's rows.
+  const byTx = new Map<string, { ids: string[]; c: FocusChannelContact }[]>();
+  for (const r of rows) {
+    if (!r.transactionId) continue;
+    const c = classify(r);
+    if (!c) continue;
+    const arr = byTx.get(r.transactionId);
+    if (arr) arr.push({ ids: r.contactIds, c });
+    else byTx.set(r.transactionId, [{ ids: r.contactIds, c }]);
+  }
+
+  const files: FocusLeftFile[] = weekly.files.map((f) => {
+    const pool = byTx.get(f.transactionId) ?? [];
+    return {
+      ...f,
+      sides: f.sides.map((s) => {
+        const sideIds = new Set(s.contactIds);
+        const lc: FocusSideContacts = { email: null, whatsapp: null, call: null };
+        for (const { ids, c } of pool) {
+          if (!ids.some((id) => sideIds.has(id))) continue;
+          const cur = lc[c.channel];
+          if (!cur || c.at.getTime() > cur.at.getTime()) lc[c.channel] = c;
+        }
+        return { ...s, lastContact: lc };
+      }),
+    };
+  });
 
   return { files, totalSides: weekly.totalSides, doneSides: weekly.doneSides };
 }
