@@ -38,6 +38,12 @@ const TEXT: Record<CountTone, string> = {
   muted: "#475569",
   danger: "var(--agent-danger)",
 };
+// Solid fill per tone (for the `solid` form — filled pill, white number).
+const FILL: Record<CountTone, string> = {
+  accent: "var(--agent-coral-deep)",
+  muted: "#64748b",
+  danger: "var(--agent-danger)",
+};
 
 const SIZES: Record<CountSize, { minWidth: number; height: number; padding: string; fontSize: number; fontWeight: number; borderWidth: number }> = {
   md: { minWidth: 18, height: 18, padding: "0 6px", fontSize: 11, fontWeight: 700, borderWidth: 1.25 },
@@ -49,6 +55,7 @@ export function CountBadge({
   tone = "accent",
   size = "md",
   soft = false,
+  solid = false,
   max = 99,
   hideZero = true,
   className,
@@ -61,6 +68,8 @@ export function CountBadge({
   size?: CountSize;
   /** Low-emphasis form — a faded border. Use for inactive tabs. */
   soft?: boolean;
+  /** Filled form — solid tone background with a white number (e.g. the bell). */
+  solid?: boolean;
   /** Numeric cap; above it renders `${max}+`. Ignored for string counts. */
   max?: number;
   /** Render nothing when the count is 0 or less (numeric only). Default true. */
@@ -88,7 +97,7 @@ export function CountBadge({
         whiteSpace: "nowrap",
         borderRadius: 999,
         borderStyle: "solid",
-        background: "transparent",
+        background: solid ? FILL[tone] : "transparent",
         fontVariantNumeric: "tabular-nums",
         letterSpacing: "-0.01em",
         minWidth: sz.minWidth,
@@ -97,8 +106,8 @@ export function CountBadge({
         fontSize: sz.fontSize,
         fontWeight: sz.fontWeight,
         borderWidth: sz.borderWidth,
-        borderColor: soft ? BORDER_SOFT[tone] : BORDER_STRONG[tone],
-        color: TEXT[tone],
+        borderColor: solid ? FILL[tone] : soft ? BORDER_SOFT[tone] : BORDER_STRONG[tone],
+        color: solid ? "#fff" : TEXT[tone],
         ...style,
       }}
     >

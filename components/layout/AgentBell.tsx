@@ -174,7 +174,7 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
           weight={count > 0 ? "fill" : "regular"}
         />
         {count > 0 && (
-          <CountBadge count={count} tone="danger" size="sm" className="absolute -top-0.5 -right-0.5" aria-hidden />
+          <CountBadge count={count} tone="danger" size="sm" solid className="absolute -top-0.5 -right-0.5" aria-hidden />
         )}
       </button>
 

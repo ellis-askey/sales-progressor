@@ -515,17 +515,17 @@ const CSS = `
    a quiet bordered pill; it fills coral on hover/open. The menu floats below-right,
    grouped into "Reach out" and "This week" with a channel-tinted icon per row. */
 .fc-menu { position:relative; flex-shrink:0; }
-.fc-trig { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:1px solid var(--agent-border-default); border-radius:9px; background:var(--agent-surface-glass); color:var(--agent-text-secondary); font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; transition:background .14s,border-color .14s,color .14s,transform .14s; }
+.fc-trig { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:1px solid var(--agent-border-default); border-radius:9px; background:var(--agent-surface-glass); color:var(--agent-text-secondary); font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; transition:background .14s,border-color .14s,color .14s,box-shadow .14s; }
 .fc-trig:hover { color:var(--agent-text-primary); border-color:var(--agent-border-strong); }
-.fc-menu:not(.open) .fc-trig:hover { transform:translateY(-1px); }
+.fc-menu:not(.open) .fc-trig:hover { box-shadow:var(--agent-hover-lift); }
 .fc-menu.open .fc-trig { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
 .fc-cv { transition:transform .16s ease; }
 .fc-menu.open .fc-cv { transform:rotate(180deg); }
 .fc-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:40; min-width:214px; padding:6px; border-radius:12px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); box-shadow:0 14px 34px rgba(0,0,0,0.22); opacity:0; transform:translateY(-4px) scale(0.98); transform-origin:top right; pointer-events:none; transition:opacity .14s ease,transform .14s ease; }
 .fc-menu.open .fc-pop { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
 .fc-mlabel { padding:5px 8px 3px; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--agent-text-muted); }
-.fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s,transform .12s; }
-.fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); transform:translateY(-1px); }
+.fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s,box-shadow .12s; }
+.fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); box-shadow:var(--agent-hover-lift); }
 .fc-mi:disabled { opacity:0.5; cursor:not-allowed; }
 .fc-mic { width:28px; height:28px; flex-shrink:0; display:grid; place-items:center; border-radius:8px; background:var(--agent-surface-subtle); color:var(--agent-text-secondary); transition:color .12s; }
 .fc-mi svg { display:block; }
