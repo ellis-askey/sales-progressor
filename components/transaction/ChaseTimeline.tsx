@@ -16,6 +16,7 @@ import type {
 } from "@/lib/services/chase-timeline";
 import { NextChaseControl } from "@/components/transaction/NextChaseControl";
 import { Pill } from "@/components/ui/Pill";
+import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 
 // State → glossy Pill tone (the app's canonical pill, not a flat chip).
 const STATE_TONE: Record<ChaseThreadState, "info" | "brand" | "warning" | "success" | "danger" | "muted"> = {
@@ -174,9 +175,33 @@ function nextLabel(t: ChaseThread): string {
 }
 
 // ── detail: one event row ────────────────────────────────────────────────────
-function EventRow({ ev, last }: { ev: ChaseThreadEvent; last: boolean }) {
+function EventRow({ ev, last, label, onOpenEmail }: { ev: ChaseThreadEvent; last: boolean; label: string; onOpenEmail: (id: string, label: string) => void }) {
   const m = EVENT_META[ev.kind];
   const dm = ev.delivery ? DELIVERY_META[ev.delivery] : null;
+  const openable = !!ev.sentEmailId;
+  const inner = (
+    <>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{ev.title}</span>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDateTime(ev.at)}</span>
+      </div>
+      {ev.detail && <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>{ev.detail}</p>}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+        {ev.actor && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{ev.actor}</span>}
+        {dm && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: dm.color }}>
+            <span style={{ width: 5, height: 5, borderRadius: 999, background: dm.color }} />{dm.label}
+          </span>
+        )}
+        {openable && (
+          <span className="chase-ev-hint" style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+            <span className="chase-ev-hint-text">Open email</span>
+            <span className="chase-ev-hint-arrow" aria-hidden> →</span>
+          </span>
+        )}
+      </div>
+    </>
+  );
   return (
     <div style={{ display: "flex", gap: 12 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -185,21 +210,18 @@ function EventRow({ ev, last }: { ev: ChaseThreadEvent; last: boolean }) {
         </div>
         {!last && <div style={{ width: 2, flex: 1, minHeight: 18, background: "var(--agent-border-subtle)", marginTop: 2 }} />}
       </div>
-      <div style={{ flex: 1, paddingBottom: last ? 0 : 18, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{ev.title}</span>
-          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDateTime(ev.at)}</span>
-        </div>
-        {ev.detail && <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>{ev.detail}</p>}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-          {ev.actor && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{ev.actor}</span>}
-          {dm && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: dm.color }}>
-              <span style={{ width: 5, height: 5, borderRadius: 999, background: dm.color }} />{dm.label}
-            </span>
-          )}
-        </div>
-      </div>
+      {openable ? (
+        <button
+          type="button"
+          onClick={() => onOpenEmail(ev.sentEmailId as string, label)}
+          className="chase-ev-open"
+          style={{ flex: 1, paddingBottom: last ? 0 : 18, minWidth: 0, textAlign: "left", background: "none", border: "none", font: "inherit", cursor: "pointer", padding: last ? "0" : "0 0 18px", margin: 0 }}
+        >
+          {inner}
+        </button>
+      ) : (
+        <div style={{ flex: 1, paddingBottom: last ? 0 : 18, minWidth: 0 }}>{inner}</div>
+      )}
     </div>
   );
 }
@@ -377,7 +399,7 @@ function FutureRow({ send }: { send: NextSend }) {
 }
 
 // ── detail pane ──────────────────────────────────────────────────────────────
-function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transactionId: string }) {
+function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThread; transactionId: string; onOpenEmail: (id: string, label: string) => void }) {
   const isExchange = thread.track === "exchange";
   // Future nodes lead the timeline (soonest first), then the past events.
   const futureSends = [...thread.nextSends].sort((a, b) => {
@@ -397,6 +419,13 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
         .chase-pager-btn:not(:disabled):hover{background:var(--agent-surface-nested,var(--agent-surface-elevated));border-color:var(--agent-border-default);color:var(--agent-text-primary)}
         .chase-pager-btn:not(:disabled):active{transform:translateY(0.5px)}
         .chase-pager-btn:focus-visible{outline:2px solid var(--agent-primary);outline-offset:1px}
+        /* Open-email hint on a sent row: text darkens on hover; the arrow fades in
+           but its space is reserved, so "Open email" never shifts. */
+        .chase-ev-hint-text{color:var(--agent-coral-deep);opacity:.68;transition:opacity .15s ease}
+        .chase-ev-hint-arrow{color:var(--agent-coral-deep);opacity:0;transition:opacity .15s ease}
+        .chase-ev-open:hover .chase-ev-hint-text{opacity:1}
+        .chase-ev-open:hover .chase-ev-hint-arrow{opacity:1}
+        .chase-ev-open:focus-visible{outline:2px solid var(--agent-primary);outline-offset:2px;border-radius:6px}
         @media (prefers-reduced-motion:reduce){.chase-upnext-card,.chase-pager-btn{transition:none}}`}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
@@ -417,7 +446,7 @@ function ThreadDetail({ thread, transactionId }: { thread: ChaseThread; transact
         <div>
           {futureSends.map((s, i) => <FutureRow key={`f${i}`} send={s} />)}
           {thread.events.map((ev, i) => (
-            <EventRow key={i} ev={ev} last={i === thread.events.length - 1} />
+            <EventRow key={i} ev={ev} last={i === thread.events.length - 1} label={thread.trackLabel} onOpenEmail={onOpenEmail} />
           ))}
         </div>
       </div>
@@ -436,6 +465,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
 
   const [selectedId, setSelectedId] = useState<string>(threads[0]?.id ?? "");
   const [showDone, setShowDone] = useState(false);
+  const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const selected = useMemo(() => threads.find((t) => t.id === selectedId) ?? threads[0], [threads, selectedId]);
 
   return (
@@ -491,7 +521,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
 
         {/* Right: detail */}
         <div data-bloom style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: "18px 20px", minHeight: 200 }}>
-          {selected ? <ThreadDetail thread={selected} transactionId={transactionId} /> : (
+          {selected ? <ThreadDetail thread={selected} transactionId={transactionId} onOpenEmail={(id, label) => setOpenEmail({ id, label })} /> : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, gap: 8, color: "var(--agent-text-muted)" }}>
               <Clock size={16} /> <span style={{ fontSize: 13 }}>Select a thread to see its history.</span>
             </div>
@@ -502,6 +532,8 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
       <p style={{ fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>
         All times UK. Delivery signals are best-effort. Client auto-chases show delivery, not opens.
       </p>
+
+      <SentEmailModal email={openEmail} onClose={() => setOpenEmail(null)} />
     </div>
   );
 }

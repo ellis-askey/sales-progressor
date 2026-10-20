@@ -103,6 +103,10 @@ export type ChaseThreadEvent = {
   actor?: string; // "By Sales Progressor (Ellis)", "System", etc.
   delivery?: ChaseDelivery;
   ordinal?: { n: number; of: number; by: "auto" | "you" };
+  // The stored OutboundMessage this event sent, when there's a true-to-inbox copy
+  // to open (the chase-email viewer). Absent on non-email events (replies, opens,
+  // movements, resolved) and on legacy sends with no saved message.
+  sentEmailId?: string;
 };
 
 export type ChaseThread = {
@@ -226,7 +230,7 @@ export async function getChaseTimeline(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules, chaseSends] = await Promise.all([
+  const [logs, contacts, clientStates, chaseMsgs, solStates, raiseChase, enquiryTracker, completions, solRules, chaseSends, autoChaseMsgs] = await Promise.all([
     prisma.reminderLog.findMany({
       // Relist safety: file-level (null) + active-round only, so a previous
       // buyer's cancelled/completed PM logs don't render as "resolved" threads
@@ -270,7 +274,7 @@ export async function getChaseTimeline(
     }),
     prisma.outboundMessage.findMany({
       where: { transactionId, purpose: "chase", isAutomated: false },
-      select: { chaseTaskId: true, createdAt: true, recipientName: true, deliveredAt: true, openedAt: true, subject: true, createdByRole: true },
+      select: { id: true, chaseTaskId: true, createdAt: true, recipientName: true, deliveredAt: true, openedAt: true, subject: true, createdByRole: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.solicitorChaseState.findMany({
@@ -319,7 +323,40 @@ export async function getChaseTimeline(
       select: { kind: true, recipient: true, recipientName: true, sentAt: true, openedAt: true },
       orderBy: { sentAt: "asc" },
     }),
+    // The AUTOMATED chase emails we sent (client/solicitor auto-chases + every
+    // enquiry nudge). Each stores the exact HTML (sentEmailHtml), so the timeline
+    // rows that came from chase-state dates / ChaseSend records can be matched to
+    // their saved copy by send time and opened. Only metadata here; the body is
+    // fetched on click via getSentChaseEmailAction.
+    prisma.outboundMessage.findMany({
+      where: { transactionId, purpose: "chase", isAutomated: true },
+      select: { id: true, sentAt: true, isEnquiryChase: true },
+      orderBy: { sentAt: "asc" },
+    }),
   ]);
+
+  // Match a "sent" timeline event to its saved email (OutboundMessage) by send
+  // time, so the row can be opened. Auto-chase + enquiry events come from
+  // chase-state dates / ChaseSend records that don't reference the message, but
+  // both are written at the same instant, so a tight time window is exact in
+  // practice. `isEnquiry` keeps enquiry nudges and milestone chases from matching
+  // each other; claiming prevents two rows sharing one message.
+  const autoMsgsClaimed = new Set<string>();
+  function matchAutoSentEmail(at: Date | null | undefined, isEnquiry: boolean): string | undefined {
+    if (!at) return undefined;
+    const t = at.getTime();
+    let best: { id: string; dt: number } | null = null;
+    for (const m of autoChaseMsgs) {
+      if (!m.sentAt || autoMsgsClaimed.has(m.id)) continue;
+      if (!!m.isEnquiryChase !== isEnquiry) continue;
+      const dt = Math.abs(new Date(m.sentAt).getTime() - t);
+      if (dt > 180_000) continue; // within 3 minutes of the recorded send
+      if (!best || dt < best.dt) best = { id: m.id, dt };
+    }
+    if (!best) return undefined;
+    autoMsgsClaimed.add(best.id);
+    return best.id;
+  }
 
   // Milestone completion keyed by "side|code" (side matches SolicitorChaseState.side).
   const completionByKey = new Map<string, (typeof completions)[number]>();
@@ -499,6 +536,7 @@ export async function getChaseTimeline(
           actor: "System",
           delivery: "sent",
           ordinal: { n: i + 1, of: Math.min(autoState.chaseCount, cap), by: "auto" },
+          sentEmailId: matchAutoSentEmail(d, false),
         });
       });
       if (state !== "auto_chasing" && state !== "scheduled" && autoState.chaseCount >= cap && autoState.lastChasedAt) {
@@ -523,6 +561,7 @@ export async function getChaseTimeline(
         actor: m.createdByRole ? `By ${m.createdByRole}` : "Manual chase",
         delivery: m.openedAt ? "opened" : m.deliveredAt ? "delivered" : "sent",
         ordinal: { n: i + 1, of: msgs.length, by: "you" },
+        sentEmailId: m.id,
       });
     });
 
@@ -643,6 +682,7 @@ export async function getChaseTimeline(
           detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
           actor: "System", delivery: cs.openedAt ? "opened" : "sent",
           ordinal: { n: i + 1, of: raiseSends.length, by: "auto" },
+          sentEmailId: matchAutoSentEmail(cs.sentAt, true),
         });
       });
     } else if (raiseChase.lastNudgedAt && n > 0) {
@@ -722,6 +762,7 @@ export async function getChaseTimeline(
           detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
           actor: "System", delivery: cs.openedAt ? "opened" : "sent",
           ordinal: { n: i + 1, of: replySends.length, by: "auto" },
+          sentEmailId: matchAutoSentEmail(cs.sentAt, true),
         });
       });
     } else if (et.lastChasedAt && n > 0) {
