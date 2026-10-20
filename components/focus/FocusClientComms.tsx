@@ -19,7 +19,7 @@ import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { markSideNotRequiredThisWeek, logSideCall, logSideEmailed } from "@/app/actions/weekly-touch";
+import { markSideNotRequiredThisWeek, logSideCall, logSideEmailed, addSideContactPhone } from "@/app/actions/weekly-touch";
 import type { FocusSide, FocusChannel, FocusChannelContact, FocusContactState } from "@/lib/services/focus";
 
 export type FocusCommsFile = {
@@ -190,7 +190,10 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
                         side={s}
                         showWhatsApp={showWhatsApp}
                         done={view === "recent" && touched(f, s)}
-                        onLogCall={(note) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, () => logSideCall(f.transactionId, s.side, s.contactIds, note))}
+                        onLogCall={(note, phone) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, async () => {
+                          if (phone) await addSideContactPhone(f.transactionId, s.primaryContactId, phone).catch(() => {});
+                          await logSideCall(f.transactionId, s.side, s.contactIds, note);
+                        })}
                         onCompose={() => { setComposeTx(f.transactionId); setComposeTo(s.contactIds); }}
                         onMarkEmailed={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · emailed`, () => logSideEmailed(f.transactionId, s.side, s.contactIds))}
                         onNotRequired={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · parked this week`, () => markSideNotRequiredThisWeek(f.transactionId, s.side))}
@@ -255,7 +258,7 @@ function SideBlock({
   side: FocusSide;
   showWhatsApp: boolean;
   done: boolean;
-  onLogCall: (note: string) => void;
+  onLogCall: (note: string, phone?: string) => void;
   onCompose: () => void;
   onMarkEmailed: () => void;
   onNotRequired: () => void;
@@ -366,7 +369,7 @@ function ContactMenu({
   side: FocusSide;
   whatsappConnected: boolean;
   onCompose: () => void;
-  onLogCall: (note: string) => void;
+  onLogCall: (note: string, phone?: string) => void;
   onMarkEmailed: () => void;
   onNotRequired: () => void;
 }) {
@@ -374,8 +377,13 @@ function ContactMenu({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"menu" | "call">("menu");
   const [note, setNote] = useState("");
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [dialed, setDialed] = useState(false);
+  const [coarse, setCoarse] = useState(false); // touch/mobile pointer → offer to dial
   const ref = useRef<HTMLSpanElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setCoarse(window.matchMedia?.("(pointer: coarse)")?.matches ?? false); }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -393,21 +401,40 @@ function ContactMenu({
     };
   }, [open, mode]);
 
-  // Reset to the menu (and clear the note) whenever the popover closes.
-  useEffect(() => { if (!open) { setMode("menu"); setNote(""); } }, [open]);
-  // Focus the note field as the call step opens.
-  useEffect(() => { if (mode === "call") noteRef.current?.focus(); }, [mode]);
+  // Reset to the menu (and clear the draft) whenever the popover closes.
+  useEffect(() => { if (!open) { setMode("menu"); setNote(""); setPhoneDraft(""); setDialed(false); } }, [open]);
+  // Focus the note field as the call step opens, AND when the user returns to the
+  // tab after a dial (the OS hands back here when the call ends).
+  useEffect(() => {
+    if (mode !== "call") return;
+    noteRef.current?.focus();
+    function onVis() { if (document.visibilityState === "visible") noteRef.current?.focus(); }
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [mode]);
 
   const pick = (fn: () => void) => { setOpen(false); fn(); };
   const hasPhone = !!side.phone;
   const waDisabled = whatsappConnected && !hasPhone; // connected but nothing to dial
+  const willDial = coarse && hasPhone;               // mobile + a number → actually call
   const names = side.contacts.length ? side.contacts.map((c) => c.name).join(" & ") : side.name;
 
   function onWhatsApp() {
     if (!whatsappConnected) return pick(() => router.push("/agent/account/connections#whatsapp"));
     if (hasPhone && side.phone) return pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"));
   }
-  function saveCall() { onLogCall(note.trim()); setOpen(false); }
+  function onCallTap() {
+    setMode("call");
+    if (willDial && side.phone) {
+      setDialed(true);
+      window.location.href = `tel:${side.phone.replace(/[^\d+]/g, "")}`;
+    }
+  }
+  function saveCall() {
+    const p = !hasPhone && phoneDraft.trim() ? phoneDraft.trim() : undefined;
+    onLogCall(note.trim(), p);
+    setOpen(false);
+  }
 
   return (
     <span className={`fc-menu${open ? " open" : ""}`} ref={ref}>
@@ -425,7 +452,7 @@ function ContactMenu({
       <div className={`fc-pop${mode === "call" ? " note" : ""}`} role="menu">
         {mode === "call" ? (
           <div className="fc-note">
-            <div className="fc-note-h">Call with {names}</div>
+            <div className="fc-note-h">{dialed ? `How did the call with ${names} go?` : `Call with ${names}`}</div>
             <textarea
               ref={noteRef}
               className="fc-note-in"
@@ -434,6 +461,16 @@ function ContactMenu({
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveCall(); }}
             />
+            {!hasPhone ? (
+              <input
+                className="fc-note-phone"
+                type="tel"
+                inputMode="tel"
+                value={phoneDraft}
+                placeholder="+ Add a mobile number"
+                onChange={(e) => setPhoneDraft(e.target.value)}
+              />
+            ) : null}
             <div className="fc-note-row">
               <button type="button" className="fc-note-back" onClick={() => setMode("menu")}>Back</button>
               <button type="button" className="fc-note-save" onClick={saveCall}>Save call</button>
@@ -446,9 +483,12 @@ function ContactMenu({
               <span className="fc-mic"><EnvelopeSimple size={16} /></span>
               <span className="fc-mtext"><span className="fc-ml">Email</span></span>
             </button>
-            <button type="button" className="fc-mi call" role="menuitem" onClick={() => setMode("call")}>
+            <button type="button" className="fc-mi call" role="menuitem" onClick={onCallTap}>
               <span className="fc-mic"><Phone size={16} /></span>
-              <span className="fc-mtext"><span className="fc-ml">Log a call</span></span>
+              <span className="fc-mtext">
+                <span className="fc-ml">{willDial ? "Call" : "Log a call"}</span>
+                {willDial ? <span className="fc-ms">We'll dial, then you add a note</span> : null}
+              </span>
             </button>
             <button type="button" className="fc-mi wa" role="menuitem" disabled={waDisabled} onClick={onWhatsApp}>
               <span className="fc-mic"><WhatsappLogo size={16} /></span>
@@ -593,6 +633,9 @@ const CSS = `
 .fc-note-in { width:100%; box-sizing:border-box; min-height:88px; resize:vertical; border:1px solid var(--agent-border-default); border-radius:9px; padding:8px 10px; font-family:inherit; font-size:12.5px; line-height:1.45; color:var(--agent-text-primary); background:var(--agent-surface-glass); outline:none; transition:border-color .14s; }
 .fc-note-in::placeholder { color:var(--agent-text-muted); }
 .fc-note-in:focus { border-color:var(--agent-coral-deep); }
+.fc-note-phone { width:100%; box-sizing:border-box; margin-top:7px; height:34px; border:1px solid var(--agent-border-default); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); background:var(--agent-surface-glass); outline:none; transition:border-color .14s; }
+.fc-note-phone::placeholder { color:var(--agent-text-muted); }
+.fc-note-phone:focus { border-color:var(--agent-coral-deep); }
 .fc-note-row { display:flex; align-items:center; justify-content:space-between; margin-top:9px; }
 .fc-note-back { border:none; background:none; font-family:inherit; font-size:12px; font-weight:650; color:var(--agent-text-muted); cursor:pointer; padding:7px 9px; border-radius:8px; transition:background .12s,color .12s; }
 .fc-note-back:hover { color:var(--agent-text-primary); background:var(--agent-surface-glass); }

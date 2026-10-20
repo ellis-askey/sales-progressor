@@ -71,3 +71,21 @@ export async function logSideEmailed(transactionId: string, side: "vendor" | "pu
   revalidatePath("/agent/to-do");
   return { ok: true };
 }
+
+// Captures a mobile number onto a contact — used by the Focus call step when no
+// number is on file (so next time the call can dial). Scoped by file ownership;
+// the contact must belong to the file.
+export async function addSideContactPhone(transactionId: string, contactId: string, phone: string): Promise<{ ok: boolean }> {
+  const g = await guard(transactionId);
+  if (!g) return { ok: false };
+  const p = phone.trim();
+  if (!p) return { ok: false };
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, propertyTransactionId: transactionId },
+    select: { id: true },
+  });
+  if (!contact) return { ok: false };
+  await prisma.contact.update({ where: { id: contactId }, data: { phone: p } });
+  revalidatePath("/agent/focus");
+  return { ok: true };
+}
