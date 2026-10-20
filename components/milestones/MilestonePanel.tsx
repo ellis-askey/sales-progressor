@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { CheckCircle, CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import { MilestoneRow } from "@/components/milestones/MilestoneRow";
 import { NotRequiredRow } from "@/components/milestones/NotRequiredRow";
 import type { PartyNameContext } from "@/lib/milestones/step-name";
 import { RoleIcon } from "@/components/ui/RoleIcon";
-import { AgentBanner } from "@/components/ui/AgentBanner";
+import { ExchangeStageBanner } from "@/components/milestones/ExchangeStageBanner";
 import { Card } from "@/components/ui/Card";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
@@ -115,6 +115,17 @@ export function MilestonePanel({
   const completionDateLabel = completionDate
     ? new Date(completionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" })
     : null;
+
+  // File-level late-stage flags for the top banner (critique #293): the old
+  // exchangeReady-only banner latched "Ready to exchange" forever because the
+  // exchange/completion steps don't block exchange and so never re-entered the
+  // computation. Bilateral — both sides' steps must be confirmed.
+  const stepDone = (c: string) => {
+    const m = allMilestoneLookup.get(c);
+    return !!m && (m.isComplete || m.isNotRequired);
+  };
+  const exchangedBothSides = stepDone("VM19") && stepDone("PM26");
+  const completedBothSides = stepDone("VM20") && stepDone("PM27");
 
   let footerNote: string | null = null;
   if (completionDone) {
@@ -334,13 +345,11 @@ export function MilestonePanel({
 
   return (
     <section>
-      {/* ── Exchange readiness banner ──────────────────────────────────────────── */}
-      {exchangeReady ? (
-        <AgentBanner
-          kind="success"
-          icon={<CheckCircle size={18} weight="fill" />}
-          title="Ready to exchange."
-          body="Everything needed for exchange is done on both sides. Time to push for a date."
+      {/* ── Late-stage banner: ready → exchanged → completed (critique #293) ───── */}
+      {completedBothSides || exchangedBothSides || exchangeReady ? (
+        <ExchangeStageBanner
+          stage={completedBothSides ? "completed" : exchangedBothSides ? "exchanged" : "ready"}
+          completionDateLabel={completionDateLabel}
           className="mb-5"
         />
       ) : (
