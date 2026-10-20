@@ -645,11 +645,11 @@ const CSS = `
 
 .fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 
-/* Compact Seller/Buyer filter — sliding thumb with a spring settle. */
+/* Compact Seller/Buyer filter — sliding thumb (primary coral gradient) with a spring settle. */
 .fc-seg2 { position:relative; display:inline-grid; grid-template-columns:repeat(var(--seg-count),1fr); background:var(--agent-surface-subtle); border:1px solid var(--agent-border-default); border-radius:9px; padding:3px; }
-.fc-seg2-thumb { position:absolute; top:3px; bottom:3px; left:3px; width:calc((100% - 6px)/var(--seg-count)); border-radius:7px; background:var(--agent-surface-elevated); box-shadow:0 1px 2px rgba(45,24,16,0.14); transform:translateX(calc(var(--seg-idx) * 100%)); transition:transform .24s cubic-bezier(.34,1.32,.5,1); }
+.fc-seg2-thumb { position:absolute; top:3px; bottom:3px; left:3px; width:calc((100% - 6px)/var(--seg-count)); border-radius:7px; background:linear-gradient(135deg,var(--agent-coral),var(--agent-coral-deep)); box-shadow:0 2px 6px rgba(var(--agent-coral-rgb),0.34); transform:translateX(calc(var(--seg-idx) * 100%)); transition:transform .24s cubic-bezier(.34,1.32,.5,1); }
 .fc-seg2-b { position:relative; z-index:1; border:0; background:none; font-family:inherit; font-size:12px; font-weight:650; color:var(--agent-text-muted); padding:5px 13px; cursor:pointer; white-space:nowrap; transition:color .16s; }
-.fc-seg2-b.on { color:var(--agent-text-primary); }
+.fc-seg2-b.on { color:#fff; }
 .fc-seg2-b:hover:not(.on) { color:var(--agent-text-secondary); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
