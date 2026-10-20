@@ -128,8 +128,10 @@ export class Connection {
       auth: authState,
       logger: waLogger,
       printQRInTerminal: false,
-      // Agency numbers: don't pull full history (fingerprint reduction — capture
-      // from link-time forward). Internal number keeps full-history backfill.
+      // Agency/business numbers: don't REQUEST full history (fingerprint
+      // reduction on a customer's number) — but the recent-history payload
+      // WhatsApp sends any new device is accepted below (option A, 2026-10-19).
+      // Internal number keeps full-history backfill.
       syncFullHistory: !this.scoped,
       markOnlineOnConnect: false, // stay passive
     });
@@ -219,10 +221,15 @@ export class Connection {
       }
     });
 
-    // Backfill on (re)link — internal number only (agency numbers skip full
-    // history). Forwarded regardless of the live watermark; the PWA dedups by id.
+    // Backfill on (re)link. The internal number requests FULL history
+    // (syncFullHistory above); scoped agency/business connections don't request
+    // it, but WhatsApp still hands a new linked device the recent messages per
+    // chat — since 2026-10-19 (founder: option A) we accept that payload instead
+    // of discarding it, so "I linked on Tuesday but the chain drama happened
+    // last week" is covered without the heavier full-history fingerprint on a
+    // customer's number. Forwarded regardless of the live watermark; the PWA
+    // dedups by id and applies the same scoping + groups-only matching.
     sock.ev.on("messaging-history.set", async ({ messages }) => {
-      if (this.scoped) return;
       if (!messages?.length) return;
       log.info("history sync batch", { id: this.id, count: messages.length });
       for (const wa of messages) {
@@ -232,6 +239,7 @@ export class Connection {
           const name = isGroup ? await this.groupSubject(remoteJid) : null;
           const msg = normaliseMessage(wa, name);
           if (!msg) continue;
+          if (this.scoped) msg.connectionId = this.id;
           await this.delivery.send(msg);
         } catch (err) {
           log.error("history message handling failed", { id: this.id, error: (err as Error).message });
