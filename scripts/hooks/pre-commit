@@ -53,7 +53,11 @@ report_failure() {
 # commits.
 if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(ts|tsx)$'; then
   printf "%sPhase 5%s Running tsc --noEmit ...\n" "$DIM" "$RESET"
-  if ! npx tsc --noEmit 2>&1 | tail -20; then
+  # Capture output rather than piping — a pipeline's exit status is tail's,
+  # not tsc's, so the old `tsc | tail -20` form could never fail the check.
+  tsc_out=$(npx tsc --noEmit 2>&1)
+  if [ $? -ne 0 ]; then
+    printf "%s\n" "$tsc_out" | tail -20
     report_failure "law-2 tsc" "tsc --noEmit reported errors (see above)"
   fi
 else
