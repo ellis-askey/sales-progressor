@@ -500,19 +500,14 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const outboundMessageId = agentId
     ? buildOutboundMessageId(`sol-${tx.id}-${side}-${now.getTime()}`)
     : undefined;
-  await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
-
-  // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
-  // stamped opened/responded when the solicitor uses their /s/ link (opens via
-  // the /s/ page load, responded via solicitorConfirmStepAction). Fire-and-forget.
-  void logChaseSend({
-    transactionId: tx.id,
-    kind: "milestone",
-    recipient: side === "vendor" ? "seller_solicitor" : "buyer_solicitor",
-    recipientName: firmName,
-  }).catch(() => {});
-
-  // Bookkeeping: bump SolicitorChaseState per SENT step + mirror an activity record.
+  // Bookkeeping FIRST, send second (audit AUTO-001). The old order sent and
+  // then bumped SolicitorChaseState; a crash or DB failure in that gap left
+  // chaseCount/lastChasedAt untouched, so the next weekday run re-sent the
+  // identical digest to the solicitor. Claiming the chase before the send
+  // flips the failure mode: a send that then fails is a MISSED chase (the
+  // next due date comes round on the normal cadence) rather than a duplicate,
+  // matching the claim-before-send convention in drainOutboundQueue and
+  // sendRetentionEmail.
   for (const step of sendSteps) {
     await prisma.solicitorChaseState.upsert({
       where: {
@@ -538,6 +533,19 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       },
     });
   }
+
+  await sendChainEmail({ to: email, cc: await solicitorCcForAgency(solicitorContact, tx.agencyId), subject: finalSubject, text: finalText, html: finalHtml, from, replyTo, messageId: outboundMessageId });
+
+  // Effectiveness log for the Chasing hub — one ChaseSend per digest send,
+  // stamped opened/responded when the solicitor uses their /s/ link (opens via
+  // the /s/ page load, responded via solicitorConfirmStepAction). Fire-and-forget.
+  // Stays AFTER the send so a failed send never logs as effective.
+  void logChaseSend({
+    transactionId: tx.id,
+    kind: "milestone",
+    recipient: side === "vendor" ? "seller_solicitor" : "buyer_solicitor",
+    recipientName: firmName,
+  }).catch(() => {});
 
   if (agentId) {
     await prisma.outboundMessage.create({

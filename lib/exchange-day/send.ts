@@ -111,6 +111,21 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
 
     let touchedFile = false;
     for (const s of due) {
+      // Stamp the slot BEFORE sending (audit AUTO-002). The old order sent to
+      // both solicitors and stamped afterwards with no guard: a stamp failure
+      // threw out of the whole run, left the slot unstamped, and the 15-minute
+      // cron re-sent to both solicitors on every tick inside the 2h staleness
+      // window. Claiming the slot first flips the failure mode to a missed
+      // slot email (bounded by the same staleness window) instead of repeats —
+      // the claim-before-send convention used by drainOutboundQueue.
+      try {
+        await prisma.propertyTransaction.update({ where: { id: tx.id }, data: { [s.field]: now } });
+      } catch (err) {
+        console.error(`[exchange-day] slot stamp failed tx=${tx.id} slot=${s.slot}, skipping send:`, err);
+        continue; // never send an unclaimed slot; next tick retries the stamp
+      }
+      touchedFile = true;
+
       for (const sol of recipients) {
         const { subject, text, html } = buildExchangeDaySolicitorEmail(s.slot, {
           firstName: firstName(sol.name), address: tx.propertyAddress, addressShort, completionDate, senderName, agencyName,
@@ -130,10 +145,6 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
           console.error(`[exchange-day] send failed tx=${tx.id} slot=${s.slot} to=${sol.email}:`, err);
         }
       }
-      // Stamp the slot as processed (even if a side had no email — nothing left
-      // to send this activation), so it never re-fires.
-      await prisma.propertyTransaction.update({ where: { id: tx.id }, data: { [s.field]: now } });
-      touchedFile = true;
     }
     if (touchedFile) files++;
   }
