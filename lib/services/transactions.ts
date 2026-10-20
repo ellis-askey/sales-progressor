@@ -245,6 +245,19 @@ export async function listTransactions(
       }
     }
 
+    // The DATE shown under the activity-verb chip must be the SAME event the verb
+    // describes — the most recent of (milestone confirmation, latest comm). The
+    // latest comm includes WhatsApp, so this reads correctly where the cached
+    // PropertyTransaction.lastActivityAt column goes stale (the automatic WhatsApp
+    // capture paths never bump that column). Falls back to the cached column only
+    // when there's no comm/milestone event, preserving the generic "Active Nd ago".
+    const lastEventAt: Date | null =
+      milestoneTs > 0 && milestoneTs >= commTs
+        ? lastMilestoneAt
+        : commTs > 0 && lastComm?.createdAt
+          ? lastComm.createdAt
+          : null;
+
     const completedCount = tx._count.milestoneCompletions;
     // Active-only elapsed: hold periods are subtracted so the on-track
     // signal doesn't drift while the file is paused. Pass 3 B3: anchored
@@ -360,7 +373,8 @@ export async function listTransactions(
       health: {
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,
-        lastActivityAt: tx.lastActivityAt,
+        // Event-derived (matches the verb + counts WhatsApp); cached column is the fallback.
+        lastActivityAt: lastEventAt ?? tx.lastActivityAt,
         lastActivityType,
         lastActivityLabel,
         channelLast: channelLastByTx.get(tx.id) ?? { email: null, whatsapp: null, call: null },

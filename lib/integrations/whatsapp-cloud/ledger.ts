@@ -104,6 +104,17 @@ export async function writeInboundLedgerRow(
     // replay). Exactly the no-op we want.
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
   }
+
+  // A client WhatsApp is real activity — advance the file's last-activity clock
+  // so "last comms" + idle signals count it. Forward-only on the real send time.
+  if (thread.transactionId) {
+    await prisma.propertyTransaction
+      .updateMany({
+        where: { id: thread.transactionId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: at } }] },
+        data: { lastActivityAt: at },
+      })
+      .catch(() => {});
+  }
 }
 
 // On (re)assignment: create ledger rows for every already-routed message of

@@ -338,6 +338,17 @@ async function writeMessage(m: BridgeMessage, txId: string, side: Side | null, m
   } catch (e) {
     console.error("[whatsapp] thread filing failed", e);
   }
+
+  // A WhatsApp is real activity — keep the file's last-activity clock honest so
+  // the all-files "last comms" date + the "idle / last worked" signals count it.
+  // Forward-only on the message's REAL time, so a history backfill of old
+  // messages can't drag "last worked" to now (or backwards).
+  await prisma.propertyTransaction
+    .updateMany({
+      where: { id: txId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: sentAt } }] },
+      data: { lastActivityAt: sentAt },
+    })
+    .catch(() => {});
 }
 
 // Resolve who sent a message into a display label (+ contact/agent link):
