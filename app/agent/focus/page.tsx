@@ -1,8 +1,9 @@
-// Founder-only Focus page. Two columns: LEFT (65%) the merged client-
-// communications cockpit — the weekly touch quota, enriched with what's actually
-// reached each client and their delivery/open status; RIGHT (35%) the enquiries +
-// searches rail. Gated to the founder; anyone else 404s. Never cached — ordering
-// is by live contact recency.
+// Internal-staff Focus page (Sales Progressor's own team + founder/admin). Two
+// columns: LEFT the merged client-communications cockpit — the weekly touch
+// quota, enriched with what's actually reached each client and their
+// delivery/open status; RIGHT the enquiries + searches rail. Each viewer's feeds
+// are scoped to their own book. Agency users 404. Never cached — ordering is by
+// live contact recency.
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
@@ -18,14 +19,14 @@ import { BloomStage } from "@/components/agent/BloomStage";
 export const metadata = { title: "Focus" };
 export const dynamic = "force-dynamic";
 
-const FOUNDER_EMAIL = "ellis@thesalesprogressor.co.uk";
-
 export default async function FocusPage() {
   const session = await requireSession();
-  if (session.user.email !== FOUNDER_EMAIL) notFound();
 
   const role = session.user.role;
+  // Internal staff surface: Sales Progressor's own team (sales_progressor) plus
+  // founder/admin tiers. Each sees their own book via the scoped feeds below.
   const isInternal = role === "sales_progressor" || role === "admin" || role === "superadmin";
+  if (!isInternal) notFound();
   const vis = isInternal
     ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
@@ -68,7 +69,7 @@ export default async function FocusPage() {
           .focus-page > .fr { grid-area: rail; }
         }
       `}</style>
-      <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} showWhatsApp={left.whatsappInUse} />
+      <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} showWhatsApp={left.whatsappInUse} needsYou={Object.fromEntries(right.needsYou.map((n) => [n.transactionId, n.reason]))} />
       <FocusRightRail
         enquiries={right.enquiries}
         openEnquiryCount={right.openEnquiryCount}

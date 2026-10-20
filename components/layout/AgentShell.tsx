@@ -70,9 +70,10 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     // Only shown when the feature is enabled AND the viewer is a business owner
     // (resolved server-side, passed in as showClients).
     ...(showClients ? [{ href: "/agent/clients", label: "Clients", Icon: Handshake }] : []),
-    // Founder-only "what to work on next" cockpit (critiques #12 + #29). Same
-    // literal-email gate as the Admin item below — only Ellis sees it.
-    ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/agent/focus", label: "Focus", Icon: Target }] : []),
+    // "Keep every client in the loop" cockpit — internal staff (the SP team +
+    // founder/admin tiers). Each sees their own scoped book. Page 404s for anyone
+    // else, so the gate here just hides the nav item to match.
+    ...((role === "sales_progressor" || role === "admin" || role === "superadmin") ? [{ href: "/agent/focus", label: "Focus", Icon: Target }] : []),
     ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray, badge: remindersCount > 0 ? remindersCount : undefined }] : []),
     ...(showSelfPages ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck, badge: completionsCount > 0 ? completionsCount : undefined },

@@ -126,10 +126,15 @@ function classify(r: RawRow): FocusChannelContact | null {
     };
   }
 
-  // Email — our outbound only.
-  if (r.type !== "outbound") return null;
+  // Email — either direction. A client's reply is the strongest "engaged" signal,
+  // so (like WhatsApp) the channel shows whichever is most recent: our outbound
+  // with its delivery state, or their inbound "Replied".
   const isEmail = r.method === "email" || r.channel === "email";
   if (!isEmail) return null;
+  if (r.type === "inbound") {
+    return { channel: "email", direction: "in", automated: false, state: "replied", at, proven: true, messageId: r.id, subject: r.subject, preview: snippet(r.content) };
+  }
+  if (r.type !== "outbound") return null;
   if (NOT_SENT.has(r.status)) return null;
 
   const proven = r.sentAt != null || r.providerMessageId != null;
@@ -269,12 +274,20 @@ export type FocusSearch = {
   daysAgo: number;
 };
 
+// Files that need you most right now — an escalating/gone-dark enquiry or a badly
+// overdue search. Cross-referenced onto the left-column sides so a quiet client
+// whose file is also on fire reads as the top priority.
+export type FocusNeedsYou = { transactionId: string; reason: string };
+
 export type FocusRight = {
   enquiries: FocusEnquiry[];
   openEnquiryCount: number;
   searches: FocusSearch[];
   searchCount: number;
+  needsYou: FocusNeedsYou[];
 };
+
+const SEARCH_OVERDUE_DAYS = 21;
 
 // Worst-first ranking for the top-3: gone-dark (stalled) → needs-you → the rest →
 // snoozed, then longest-quiet within each band.
@@ -304,7 +317,31 @@ export async function getFocusRight(scope: AccessScope, vis: AgentVisibility): P
     needsAttention: e.needsAttention,
   }));
 
-  return { enquiries, openEnquiryCount: openEnquiries.length, searches: searches.slice(0, 5), searchCount: searches.length };
+  // "Needs you most": strongest enquiry signal per file (gone-dark > escalating >
+  // needs-you), else a badly overdue search. Computed from the FULL lists, not
+  // just the displayed top few.
+  const enqBest = new Map<string, { rank: number; reason: string }>();
+  for (const e of openEnquiries) {
+    if (e.status === "snoozed") continue;
+    const sig = e.stalled
+      ? { rank: 3, reason: "Enquiry gone dark" }
+      : e.chaseBar.stage === "escalate" || e.chaseBar.stage === "escalated"
+        ? { rank: 2, reason: "Enquiry escalating" }
+        : e.needsAttention
+          ? { rank: 1, reason: "Enquiry needs you" }
+          : null;
+    if (!sig) continue;
+    const cur = enqBest.get(e.transactionId);
+    if (!cur || sig.rank > cur.rank) enqBest.set(e.transactionId, sig);
+  }
+  const hot = new Map<string, string>();
+  for (const s of searches) {
+    if (s.daysAgo >= SEARCH_OVERDUE_DAYS && !hot.has(s.transactionId)) hot.set(s.transactionId, `Searches ${s.daysAgo} days overdue`);
+  }
+  for (const [tx, sig] of enqBest) hot.set(tx, sig.reason); // enquiry overrides search
+  const needsYou: FocusNeedsYou[] = [...hot].map(([transactionId, reason]) => ({ transactionId, reason }));
+
+  return { enquiries, openEnquiryCount: openEnquiries.length, searches: searches.slice(0, 5), searchCount: searches.length, needsYou };
 }
 
 // Files where searches were ordered (PM8 complete) but results aren't back

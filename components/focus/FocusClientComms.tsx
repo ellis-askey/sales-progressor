@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit } from "@phosphor-icons/react";
+import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
@@ -87,7 +87,7 @@ function dirLabel(c: FocusChannelContact): string {
   return c.automated ? "Auto" : "You";
 }
 
-export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }: { files: FocusCommsFile[]; totalSides: number; doneSides: number; showWhatsApp: boolean }) {
+export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, needsYou }: { files: FocusCommsFile[]; totalSides: number; doneSides: number; showWhatsApp: boolean; needsYou: Record<string, string> }) {
   const router = useRouter();
   const { toast } = useAgentToast();
   const [, startTransition] = useTransition();
@@ -112,10 +112,44 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
   const left = Math.max(0, totalSides - localDone);
   const today = Math.min(left, Math.ceil(totalSides / 5));
 
+  // Pending writes, keyed by side. We hide the side optimistically but delay the
+  // real DB write ~5s so Undo can cancel it before anything is logged/parked —
+  // no reverse mutation needed.
+  const pending = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => () => { pending.current.forEach(clearTimeout); }, []);
+
+  // Once the server confirms a side (it comes back touched/parked after a
+  // refresh), drop its optimistic key so the progress bar doesn't count it twice.
+  useEffect(() => {
+    setResolved((prev) => {
+      if (prev.size === 0) return prev;
+      const confirmed = new Set<string>();
+      for (const f of files) for (const s of f.sides) if (s.touchedThisWeek || s.parked) confirmed.add(key(f.transactionId, s.side));
+      let changed = false;
+      const next = new Set(prev);
+      for (const k of prev) if (confirmed.has(k)) { next.delete(k); changed = true; }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
+
+  function undo(k: string) {
+    const t = pending.current.get(k);
+    if (!t) return; // already committed
+    clearTimeout(t);
+    pending.current.delete(k);
+    setResolved((p) => { const n = new Set(p); n.delete(k); return n; });
+  }
+
   function resolve(tx: string, side: string, msg: string, action: () => Promise<unknown>) {
-    setResolved((p) => new Set([...p, key(tx, side)]));
-    toast.success(msg);
-    startTransition(async () => { await action().catch(() => {}); router.refresh(); });
+    const k = key(tx, side);
+    setResolved((p) => new Set([...p, k]));
+    const t = setTimeout(() => {
+      pending.current.delete(k);
+      startTransition(async () => { await action().catch(() => {}); router.refresh(); });
+    }, 5000);
+    pending.current.set(k, t);
+    toast.success(msg, { duration: 5000, action: { label: "Undo", onClick: () => undo(k) } });
   }
 
   // Effective "touched this week" = server truth OR an optimistic local resolve.
@@ -127,14 +161,16 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
     if (view === "awaiting") return s.awaitingReply;
     return true; // recent: every side
   };
-  // Least-recently-contacted first (null = never = most stale).
+  // Least-recently-contacted first (null = never = most stale). Files that "need
+  // you most" (quiet side + something overdue on the file) float above the rest.
   const staleness = (s: FocusSide) => s.daysSince ?? 100_000;
   const worst = (sides: FocusSide[]) => Math.max(...sides.map(staleness));
+  const isHot = (txId: string, sides: FocusSide[]) => (needsYou[txId] && sides.some((s) => s.quiet) ? 1 : 0);
 
   const viewFiles = files
     .map((f) => ({ file: f, sides: f.sides.filter((s) => inView(f, s)) }))
     .filter((x) => x.sides.length > 0)
-    .sort((a, b) => worst(b.sides) - worst(a.sides));
+    .sort((a, b) => isHot(b.file.transactionId, b.sides) - isHot(a.file.transactionId, a.sides) || worst(b.sides) - worst(a.sides));
 
   // Tab counts respect the side filter but not the active view.
   const pool = files.flatMap((f) => f.sides.filter(matchSide).map((s) => ({ f, s })));
@@ -190,6 +226,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
                         side={s}
                         showWhatsApp={showWhatsApp}
                         done={view === "recent" && touched(f, s)}
+                        needsYouReason={needsYou[f.transactionId]}
                         onLogCall={(note, phone) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, async () => {
                           if (phone) await addSideContactPhone(f.transactionId, s.primaryContactId, phone).catch(() => {});
                           await logSideCall(f.transactionId, s.side, s.contactIds, note);
@@ -252,12 +289,13 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
 }
 
 function SideBlock({
-  file, side, showWhatsApp, done, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, showWhatsApp, done, needsYouReason, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
   showWhatsApp: boolean;
   done: boolean;
+  needsYouReason?: string;
   onLogCall: (note: string, phone?: string) => void;
   onCompose: () => void;
   onMarkEmailed: () => void;
@@ -285,6 +323,13 @@ function SideBlock({
 
         {done ? (
           <Pill glass tone="success" size="sm" style={{ flexShrink: 0 }}>Touched</Pill>
+        ) : side.quiet && needsYouReason ? (
+          <span title={needsYouReason} style={{ display: "inline-flex", flexShrink: 0 }}>
+            <Pill glass tone="danger" size="sm">
+              <Flame size={11} weight="fill" style={{ marginRight: 3, verticalAlign: "-1px" }} />
+              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
+            </Pill>
+          </span>
         ) : side.quiet ? (
           <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>
             {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
@@ -307,7 +352,7 @@ function SideBlock({
           full record (direction, state, exact time, subject/snippet) is one hover
           away. WhatsApp is dropped entirely when it isn't a live channel here. */}
       <div className="fc-led">
-        <ChannelUnit channel="email" c={lc.email} onOpen={(c) => onOpenEmail(c.messageId)} />
+        <ChannelUnit channel="email" c={lc.email} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
         {showWhatsApp ? (
           <ChannelUnit channel="whatsapp" c={lc.whatsapp} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
         ) : null}
