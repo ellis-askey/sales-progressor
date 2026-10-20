@@ -208,7 +208,7 @@ export async function maybeFireFirstExchangeEmail(
     if (!tx || tx.serviceType !== "self_managed") return;
 
     const base = process.env.NEXTAUTH_URL ?? "";
-    const ctaUrl = `${base}/transactions/${transactionId}`;
+    const ctaUrl = `${base}/agent/transactions/${transactionId}`;
 
     await sendRetentionEmail({
       user,
@@ -267,7 +267,7 @@ export async function maybeFireFirstOutsourcedFreeEmail(
     }
 
     const base = process.env.NEXTAUTH_URL ?? "";
-    const ctaUrl = `${base}/transactions/${transactionId}`;
+    const ctaUrl = `${base}/agent/transactions/${transactionId}`;
 
     await sendRetentionEmail({
       user: { id: agent.id, email: agent.email, name: agent.name, agencyId: agent.agencyId },
@@ -638,7 +638,7 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
 
     const { sent, errors } = await chunkSend(candidates, emailKey, (u) => ({
       address: candidateAddresses.get(u.id),
-      ctaUrl: `${base}/transactions/${candidateTransactionIds.get(u.id) ?? ""}`,
+      ctaUrl: `${base}/agent/transactions/${candidateTransactionIds.get(u.id) ?? ""}`,
       property: candidateProperty.get(u.id),
     }));
 

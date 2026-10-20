@@ -44,7 +44,7 @@ async function pushToFileOwner(args: {
     await pushToUser(userId, {
       title: args.title,
       body:  args.body,
-      url:   `${base}/transactions/${tx.id}`,
+      url:   `${base}/agent/transactions/${tx.id}`,
     });
   } catch (err) {
     console.error(`[push-events] ${args.key} failed for tx ${args.transactionId}:`, err);
@@ -100,7 +100,7 @@ export async function pushFileAssigned(args: {
     await pushToUser(args.assigneeUserId, {
       title: `${args.assignerName} assigned you a file`,
       body:  shortAddress(tx.propertyAddress),
-      url:   `${base}/transactions/${args.transactionId}`,
+      url:   `${base}/agent/transactions/${args.transactionId}`,
     });
   } catch (err) {
     console.error(`[push-events] fileAssigned failed for tx ${args.transactionId}:`, err);
@@ -212,7 +212,7 @@ export async function pushChainEvent(args: {
 
     const base = process.env.NEXTAUTH_URL ?? "";
     const url = args.transactionId
-      ? `${base}/transactions/${args.transactionId}`
+      ? `${base}/agent/transactions/${args.transactionId}`
       : `${base}/agent/hub`;
 
     await pushToUser(args.recipientUserId, {
@@ -251,7 +251,7 @@ export async function pushTransactionRelisted(args: {
     await pushToUser(args.recipientUserId, {
       title: "Sale relisted",
       body:  `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (sale ${args.newRoundNumber}).`,
-      url:   `${base}/transactions/${args.transactionId}`,
+      url:   `${base}/agent/transactions/${args.transactionId}`,
     });
   } catch (err) {
     console.error(`[push-events] saleRelisted failed for tx ${args.transactionId}:`, err);

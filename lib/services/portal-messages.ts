@@ -139,7 +139,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
   if (agentUserId) {
     const prefs = await getNotificationPrefs(agentUserId);
     if (prefs.push.clientChaseNote) {
-      const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
+      const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/${tx.id}`;
       pushToUser(agentUserId, {
         title: `${contact.name} replied`,
         body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
@@ -150,7 +150,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
 
   if (!tx.assignedUser?.email) return;
 
-  const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/transactions/${tx.id}`;
+  const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/${tx.id}`;
   const roleLabel = contact.roleType === "purchaser" ? "Buyer" : contact.roleType === "vendor" ? "Seller" : contact.roleType;
   const built = buildPortalMessage({
     senderFirstName: extractFirstName(contact.name),

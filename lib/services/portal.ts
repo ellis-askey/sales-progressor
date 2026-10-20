@@ -1614,7 +1614,7 @@ export async function logPortalMilestoneConfirm(
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
   const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
-  const dashUrl = `${base}/transactions/${transactionId}`;
+  const dashUrl = `${base}/agent/transactions/${transactionId}`;
 
   // Per-user opt-outs for both EMAIL (default ON) and PUSH (default OFF) on
   // client milestone confirmations. Bell still fires unconditionally above.
@@ -2548,7 +2548,7 @@ async function sendRichMilestoneEmails(
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
   const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
-  const dashUrl          = `${base}/transactions/${transactionId}`;
+  const dashUrl          = `${base}/agent/transactions/${transactionId}`;
 
   // Compute event-date interpolation vars for milestones that capture a date (PM6, PM9)
   const formattedEventDate = eventDate

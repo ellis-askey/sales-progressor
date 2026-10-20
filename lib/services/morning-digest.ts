@@ -130,7 +130,7 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
   };
   const fileVars = (f: DigestFile, items: { label: string; detail?: string }[]) => {
     const { l1, l2 } = splitAddr(f.address);
-    return { addressLine1: l1, addressLine2: l2, url: `${base}/transactions/${f.id}`, items };
+    return { addressLine1: l1, addressLine2: l2, url: `${base}/agent/transactions/${f.id}`, items };
   };
 
   for (const d of digests) {
