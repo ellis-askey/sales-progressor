@@ -94,8 +94,8 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
 }
 
 export function ComposeEmailModal({
-  open, onClose, initialTransactionId, prefill,
-}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; prefill?: ComposePrefill | null }) {
+  open, onClose, initialTransactionId, initialToContactIds, prefill,
+}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; initialToContactIds?: string[] | null; prefill?: ComposePrefill | null }) {
   const { theme } = usePortalTheme();
   const { toast } = useAgentToast();
   const [mounted, setMounted] = useState(false);
@@ -175,7 +175,7 @@ export function ComposeEmailModal({
     setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (prefill) void selectSale(prefill.transactionId, prefill);
-    else if (initialTransactionId) void selectSale(initialTransactionId);
+    else if (initialTransactionId) void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTransactionId, prefill]);
 
@@ -228,7 +228,7 @@ export function ComposeEmailModal({
     } catch { /* keep the current signature */ }
   }
 
-  async function selectSale(id: string, pf?: ComposePrefill) {
+  async function selectSale(id: string, pf?: ComposePrefill, toContactIds?: string[]) {
     setLoadingSale(true);
     try {
       const c = await getComposeContextAction(id);
@@ -265,7 +265,13 @@ export function ComposeEmailModal({
       // Greeting starts blank and fills in from the To recipients (critique #239).
       autoGreetRef.current = true;
       pendingBodyRef.current = `<p><br></p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
-      setTokens({ to: [], cc: [], bcc: [] });
+      // Pre-address to specific contacts (e.g. opened from Focus for one side) —
+      // match the sale's recipients by contact id so they carry real avatars.
+      const toTokens: Token[] = (toContactIds ?? [])
+        .map((cid) => c.recipients.find((r) => r.id === cid))
+        .filter((r): r is ComposeRecipient => !!r)
+        .map((r) => ({ email: r.email, name: r.name, rec: r }));
+      setTokens({ to: toTokens, cc: [], bcc: [] });
       setSubject(`Update on your sale of ${c.sale.line1}`);
       setCtx(c);
     } finally { setLoadingSale(false); }

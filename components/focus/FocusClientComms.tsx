@@ -93,7 +93,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
   const [, startTransition] = useTransition();
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [composeTx, setComposeTx] = useState<string | null>(null);
-  const [callOpen, setCallOpen] = useState<string | null>(null);
+  const [composeTo, setComposeTo] = useState<string[] | null>(null);
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const [view, setView] = useState<FocusView>("touch");
   const [sideFilter, setSideFilter] = useState<SideFilter>("all");
@@ -114,7 +114,6 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
 
   function resolve(tx: string, side: string, msg: string, action: () => Promise<unknown>) {
     setResolved((p) => new Set([...p, key(tx, side)]));
-    setCallOpen(null);
     toast.success(msg);
     startTransition(async () => { await action().catch(() => {}); router.refresh(); });
   }
@@ -191,11 +190,8 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
                         side={s}
                         showWhatsApp={showWhatsApp}
                         done={view === "recent" && touched(f, s)}
-                        callOpen={callOpen === key(f.transactionId, s.side)}
-                        onCall={() => setCallOpen(key(f.transactionId, s.side))}
-                        onCallCancel={() => setCallOpen(null)}
-                        onCallSave={(note) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, () => logSideCall(f.transactionId, s.side, s.contactIds, note))}
-                        onCompose={() => setComposeTx(f.transactionId)}
+                        onLogCall={(note) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, () => logSideCall(f.transactionId, s.side, s.contactIds, note))}
+                        onCompose={() => { setComposeTx(f.transactionId); setComposeTo(s.contactIds); }}
                         onMarkEmailed={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · emailed`, () => logSideEmailed(f.transactionId, s.side, s.contactIds))}
                         onNotRequired={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · parked this week`, () => markSideNotRequiredThisWeek(f.transactionId, s.side))}
                         onOpenEmail={(id) => setOpenEmail({ id, label: f.addressLine })}
@@ -209,7 +205,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
         </div>
       </section>
 
-      <ComposeEmailModal open={!!composeTx} initialTransactionId={composeTx} onClose={() => { setComposeTx(null); router.refresh(); }} />
+      <ComposeEmailModal open={!!composeTx} initialTransactionId={composeTx} initialToContactIds={composeTo} onClose={() => { setComposeTx(null); setComposeTo(null); router.refresh(); }} />
       <SentEmailModal email={openEmail} onClose={() => setOpenEmail(null)} />
     </>
   );
@@ -253,16 +249,13 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
 }
 
 function SideBlock({
-  file, side, showWhatsApp, done, callOpen, onCall, onCallCancel, onCallSave, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, showWhatsApp, done, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
   showWhatsApp: boolean;
   done: boolean;
-  callOpen: boolean;
-  onCall: () => void;
-  onCallCancel: () => void;
-  onCallSave: (note: string) => void;
+  onLogCall: (note: string) => void;
   onCompose: () => void;
   onMarkEmailed: () => void;
   onNotRequired: () => void;
@@ -297,17 +290,14 @@ function SideBlock({
 
         <span className="fc-sp" />
 
-        {callOpen ? (
-          <CallForm onSave={onCallSave} onCancel={onCallCancel} />
-        ) : (
-          <ContactMenu
-            side={side}
-            onCompose={onCompose}
-            onCall={onCall}
-            onMarkEmailed={onMarkEmailed}
-            onNotRequired={onNotRequired}
-          />
-        )}
+        <ContactMenu
+          side={side}
+          whatsappConnected={showWhatsApp}
+          onCompose={onCompose}
+          onLogCall={onLogCall}
+          onMarkEmailed={onMarkEmailed}
+          onNotRequired={onNotRequired}
+        />
       </div>
 
       {/* Last contact per channel — icon, a status pip, and the true time. The
@@ -368,20 +358,24 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
 
 // One labelled "Contact" trigger opens every action for a side — three ways to
 // reach them (email / call / WhatsApp) and two ways to settle the week (already
-// emailed / not required). Keeps the side-row to a single control. Closes on
-// outside click, Escape, or any selection.
+// emailed / not required). "Log a call" widens the popover into a note field in
+// place. Closes on outside click, Escape, or any selection.
 function ContactMenu({
-  side, onCompose, onCall, onMarkEmailed, onNotRequired,
+  side, whatsappConnected, onCompose, onLogCall, onMarkEmailed, onNotRequired,
 }: {
   side: FocusSide;
+  whatsappConnected: boolean;
   onCompose: () => void;
-  onCall: () => void;
+  onLogCall: (note: string) => void;
   onMarkEmailed: () => void;
   onNotRequired: () => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"menu" | "call">("menu");
+  const [note, setNote] = useState("");
   const ref = useRef<HTMLSpanElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -389,7 +383,7 @@ function ContactMenu({
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") { if (mode === "call") setMode("menu"); else setOpen(false); }
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -397,10 +391,23 @@ function ContactMenu({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, mode]);
+
+  // Reset to the menu (and clear the note) whenever the popover closes.
+  useEffect(() => { if (!open) { setMode("menu"); setNote(""); } }, [open]);
+  // Focus the note field as the call step opens.
+  useEffect(() => { if (mode === "call") noteRef.current?.focus(); }, [mode]);
 
   const pick = (fn: () => void) => { setOpen(false); fn(); };
   const hasPhone = !!side.phone;
+  const waDisabled = whatsappConnected && !hasPhone; // connected but nothing to dial
+  const names = side.contacts.length ? side.contacts.map((c) => c.name).join(" & ") : side.name;
+
+  function onWhatsApp() {
+    if (!whatsappConnected) return pick(() => router.push("/agent/account/connections#whatsapp"));
+    if (hasPhone && side.phone) return pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"));
+  }
+  function saveCall() { onLogCall(note.trim()); setOpen(false); }
 
   return (
     <span className={`fc-menu${open ? " open" : ""}`} ref={ref}>
@@ -415,62 +422,62 @@ function ContactMenu({
         <CaretDown size={12} weight="bold" className="fc-cv" />
       </button>
 
-      <div className="fc-pop" role="menu">
-        <div className="fc-mlabel">Reach out</div>
-        <button type="button" className="fc-mi email" role="menuitem" onClick={() => pick(onCompose)}>
-          <span className="fc-mic"><EnvelopeSimple size={16} /></span>
-          <span className="fc-mtext"><span className="fc-ml">Email</span></span>
-        </button>
-        <button type="button" className="fc-mi call" role="menuitem" onClick={() => pick(onCall)}>
-          <span className="fc-mic"><Phone size={16} /></span>
-          <span className="fc-mtext"><span className="fc-ml">Log a call</span></span>
-        </button>
-        <button
-          type="button"
-          className="fc-mi wa"
-          role="menuitem"
-          onClick={() => hasPhone && side.phone
-            ? pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"))
-            : pick(() => router.push("/agent/account/connections#whatsapp"))}
-        >
-          <span className="fc-mic"><WhatsappLogo size={16} /></span>
-          <span className="fc-mtext">
-            <span className="fc-ml">{hasPhone ? "WhatsApp" : "Connect to WhatsApp"}</span>
-            {!hasPhone ? <span className="fc-ms">Set it up in settings</span> : null}
-          </span>
-        </button>
+      <div className={`fc-pop${mode === "call" ? " note" : ""}`} role="menu">
+        {mode === "call" ? (
+          <div className="fc-note">
+            <div className="fc-note-h">Call with {names}</div>
+            <textarea
+              ref={noteRef}
+              className="fc-note-in"
+              value={note}
+              placeholder="What was said? Internal only."
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveCall(); }}
+            />
+            <div className="fc-note-row">
+              <button type="button" className="fc-note-back" onClick={() => setMode("menu")}>Back</button>
+              <button type="button" className="fc-note-save" onClick={saveCall}>Save call</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="fc-mlabel">Reach out</div>
+            <button type="button" className="fc-mi email" role="menuitem" onClick={() => pick(onCompose)}>
+              <span className="fc-mic"><EnvelopeSimple size={16} /></span>
+              <span className="fc-mtext"><span className="fc-ml">Email</span></span>
+            </button>
+            <button type="button" className="fc-mi call" role="menuitem" onClick={() => setMode("call")}>
+              <span className="fc-mic"><Phone size={16} /></span>
+              <span className="fc-mtext"><span className="fc-ml">Log a call</span></span>
+            </button>
+            <button type="button" className="fc-mi wa" role="menuitem" disabled={waDisabled} onClick={onWhatsApp}>
+              <span className="fc-mic"><WhatsappLogo size={16} /></span>
+              <span className="fc-mtext">
+                <span className="fc-ml">{whatsappConnected ? "WhatsApp" : "Connect to WhatsApp"}</span>
+                {!whatsappConnected ? <span className="fc-ms">Set it up in settings</span> : waDisabled ? <span className="fc-ms">No number on file</span> : null}
+              </span>
+            </button>
 
-        <div className="fc-mdiv" />
+            <div className="fc-mdiv" />
 
-        <div className="fc-mlabel">This week</div>
-        <button type="button" className="fc-mi done" role="menuitem" onClick={() => pick(onMarkEmailed)}>
-          <span className="fc-mic"><Check size={15} weight="bold" /></span>
-          <span className="fc-mtext">
-            <span className="fc-ml">Already emailed</span>
-            <span className="fc-ms">Log it, no composer</span>
-          </span>
-        </button>
-        <button type="button" className="fc-mi skip" role="menuitem" onClick={() => pick(onNotRequired)}>
-          <span className="fc-mic"><Prohibit size={15} /></span>
-          <span className="fc-mtext">
-            <span className="fc-ml">Not required</span>
-            <span className="fc-ms">Parks till Monday</span>
-          </span>
-        </button>
+            <div className="fc-mlabel">This week</div>
+            <button type="button" className="fc-mi done" role="menuitem" onClick={() => pick(onMarkEmailed)}>
+              <span className="fc-mic"><Check size={15} weight="bold" /></span>
+              <span className="fc-mtext">
+                <span className="fc-ml">Already emailed</span>
+                <span className="fc-ms">Log it, no composer</span>
+              </span>
+            </button>
+            <button type="button" className="fc-mi skip" role="menuitem" onClick={() => pick(onNotRequired)}>
+              <span className="fc-mic"><Prohibit size={15} /></span>
+              <span className="fc-mtext">
+                <span className="fc-ml">Not required</span>
+                <span className="fc-ms">Parks till Monday</span>
+              </span>
+            </button>
+          </>
+        )}
       </div>
-    </span>
-  );
-}
-
-function CallForm({ onSave, onCancel }: { onSave: (note: string) => void; onCancel: () => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const [v, setV] = useState("");
-  useEffect(() => { ref.current?.focus(); }, []);
-  return (
-    <span className="fc-callform">
-      <input ref={ref} value={v} placeholder="What happened on the call? Internal only." onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSave(v); if (e.key === "Escape") onCancel(); }} />
-      <button className="fc-sv" onClick={() => onSave(v)}>Log call</button>
-      <button className="fc-cx" aria-label="Cancel" onClick={onCancel}>✕</button>
     </span>
   );
 }
@@ -523,8 +530,9 @@ const CSS = `
 .fc-menu.open .fc-trig { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
 .fc-cv { transition:transform .16s ease; }
 .fc-menu.open .fc-cv { transform:rotate(180deg); }
-.fc-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:40; min-width:214px; padding:6px; border-radius:12px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); box-shadow:0 14px 34px rgba(0,0,0,0.22); opacity:0; transform:translateY(-4px) scale(0.98); transform-origin:top right; pointer-events:none; transition:opacity .14s ease,transform .14s ease; }
+.fc-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:40; min-width:214px; padding:6px; border-radius:12px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); box-shadow:0 14px 34px rgba(0,0,0,0.22); opacity:0; transform:translateY(-4px) scale(0.98); transform-origin:top right; pointer-events:none; transition:opacity .14s ease,transform .14s ease,min-width .2s cubic-bezier(.3,.8,.3,1); }
 .fc-menu.open .fc-pop { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+.fc-pop.note { min-width:308px; padding:8px; }
 .fc-mlabel { padding:5px 8px 3px; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--agent-text-muted); }
 .fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s,box-shadow .12s; }
 .fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); box-shadow:var(--agent-hover-lift); }
@@ -579,10 +587,17 @@ const CSS = `
 .fcl-tip-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
 .fcl-tip-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
 
-.fc-callform { display:flex; align-items:center; gap:7px; flex:1 1 220px; min-width:0; }
-.fc-callform input { flex:1; min-width:0; height:32px; border:1px solid var(--agent-coral-deep); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); outline:none; background:var(--agent-surface-glass); }
-.fc-sv { border:none; background:var(--agent-coral-deep); color:#fff; border-radius:9px; height:32px; padding:0 12px; font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; }
-.fc-cx { border:none; background:none; color:var(--agent-text-muted); cursor:pointer; font-size:14px; padding:0 3px; }
+/* Log-a-call note step, shown in place of the menu list when the popover widens. */
+.fc-note { display:flex; flex-direction:column; }
+.fc-note-h { padding:4px 6px 7px; font-size:12.5px; font-weight:700; letter-spacing:-0.01em; color:var(--agent-text-primary); }
+.fc-note-in { width:100%; box-sizing:border-box; min-height:88px; resize:vertical; border:1px solid var(--agent-border-default); border-radius:9px; padding:8px 10px; font-family:inherit; font-size:12.5px; line-height:1.45; color:var(--agent-text-primary); background:var(--agent-surface-glass); outline:none; transition:border-color .14s; }
+.fc-note-in::placeholder { color:var(--agent-text-muted); }
+.fc-note-in:focus { border-color:var(--agent-coral-deep); }
+.fc-note-row { display:flex; align-items:center; justify-content:space-between; margin-top:9px; }
+.fc-note-back { border:none; background:none; font-family:inherit; font-size:12px; font-weight:650; color:var(--agent-text-muted); cursor:pointer; padding:7px 9px; border-radius:8px; transition:background .12s,color .12s; }
+.fc-note-back:hover { color:var(--agent-text-primary); background:var(--agent-surface-glass); }
+.fc-note-save { border:none; background:var(--agent-coral-deep); color:#fff; font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; padding:8px 15px; border-radius:9px; transition:box-shadow .14s,filter .14s; }
+.fc-note-save:hover { box-shadow:var(--agent-hover-lift); filter:brightness(1.04); }
 
 .fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 
