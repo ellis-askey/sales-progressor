@@ -31,6 +31,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { prisma } from "@/lib/prisma";
+import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { preheader } from "@/lib/email/preheader";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { recordEvent } from "@/lib/command/events/write";
@@ -546,7 +547,12 @@ export async function enqueueClientChaseDigest(input: {
   contactId: string;
   milestoneCodes: string[];
 }): Promise<{ enqueued: boolean; rowId: string | null }> {
-  const { transactionId, contactId, milestoneCodes } = input;
+  const { transactionId, contactId } = input;
+  // Belt and braces (critique #299): never build a digest for a step clients
+  // can't be chased about (completion, readiness, exchange...). The cron
+  // filters via isClientChaseable before calling here, but this is the last
+  // gate before a real email exists — enforce it regardless of caller.
+  const milestoneCodes = input.milestoneCodes.filter(isClientChaseable);
   if (milestoneCodes.length === 0) {
     return { enqueued: false, rowId: null };
   }

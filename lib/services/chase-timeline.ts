@@ -11,6 +11,7 @@
 // access (getTransactionByScope / agencyId), so this scopes by transactionId.
 
 import { prisma } from "@/lib/prisma";
+import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
@@ -235,10 +236,15 @@ export async function getChaseTimeline(
       // Relist safety: file-level (null) + active-round only, so a previous
       // buyer's cancelled/completed PM logs don't render as "resolved" threads
       // in the new buyer's timeline.
+      // Completion steps (VM20/PM27) are excluded outright (critique #299):
+      // clients can't confirm completion and the client-chase cron never sends
+      // for these codes, so showing a "queued" completion chase here predicted
+      // an email that can never exist.
       where: {
         transactionId,
         status: { in: ["active", "completed", "cancelled"] },
         OR: [{ buyerRoundId: null }, { buyerRoundId: tx.activeBuyerRoundId }],
+        reminderRule: { targetMilestoneCode: { notIn: [...COMPLETION_REMINDER_CODES] } },
       },
       select: {
         id: true,
