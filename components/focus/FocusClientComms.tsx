@@ -47,13 +47,12 @@ const STATE_META: Record<FocusEmailState, { label: string; color: string }> = {
   failed: { label: "Failed", color: "var(--agent-danger)" },
 };
 
-function agoShort(d: Date): string {
-  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  return `${Math.floor(days / 30)}mo ago`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtDateTime(d: Date): string {
+  const x = new Date(d);
+  const hh = String(x.getHours()).padStart(2, "0");
+  const mm = String(x.getMinutes()).padStart(2, "0");
+  return `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()}, ${hh}:${mm}`;
 }
 
 export function FocusClientComms({ files, totalSides, doneSides }: { files: FocusCommsFile[]; totalSides: number; doneSides: number }) {
@@ -70,7 +69,6 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
   const pct = totalSides ? Math.round((localDone / totalSides) * 100) : 100;
   const left = Math.max(0, totalSides - localDone);
   const today = Math.min(left, Math.ceil(totalSides / 5));
-  const quietCount = files.reduce((n, f) => n + f.sides.filter((s) => s.quiet && !resolved.has(key(f.transactionId, s.side))).length, 0);
 
   function resolve(tx: string, side: string, msg: string, action: () => Promise<unknown>) {
     setResolved((p) => new Set([...p, key(tx, side)]));
@@ -88,14 +86,12 @@ export function FocusClientComms({ files, totalSides, doneSides }: { files: Focu
       <style>{CSS}</style>
       <section className="fc">
         <header className="fc-hd">
-          <div className="fc-eyebrow">Client communications</div>
           <h1 className="fc-h1">Keep every client in the loop</h1>
           <p className="fc-sub">Both sides of every active file, touched each week. See what's reached them and act right here. Resets Monday.</p>
 
           <div className="fc-bar"><i style={{ width: `${pct}%` }} /></div>
           <div className="fc-barlbl">
             <span><b>{localDone}</b> of {totalSides} sides moved this week{today > 0 && left > 0 ? ` · ${today} to aim for today` : ""}</span>
-            <Pill glass tone={quietCount > 0 ? "danger" : "success"} size="sm">{quietCount > 0 ? `${quietCount} gone quiet` : "all caught up"}</Pill>
           </div>
         </header>
 
@@ -177,11 +173,11 @@ function SideBlock({
 
         {side.bounced ? (
           <Pill glass tone="danger" size="sm" style={{ flexShrink: 0 }}>Email bounced</Pill>
-        ) : (
-          <Pill glass tone={side.quiet ? "warning" : "muted"} size="sm" style={{ flexShrink: 0 }}>
-            {side.quiet ? (side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted") : "To touch"}
+        ) : side.quiet ? (
+          <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>
+            {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
           </Pill>
-        )}
+        ) : null}
 
         <span className="fc-sp" />
 
@@ -189,9 +185,11 @@ function SideBlock({
           <CallForm onSave={onCallSave} onCancel={onCallCancel} />
         ) : (
           <span className="fc-acts">
-            <button className="fc-ib email" title={`Email ${label.toLowerCase()}`} onClick={onCompose}><EnvelopeSimple size={16} /></button>
-            <button className="fc-ib call" title="Log a call" onClick={onCall}><Phone size={16} /></button>
-            <button className="fc-ib wa" title={`WhatsApp ${label.toLowerCase()}`} disabled={!side.phone} onClick={() => side.phone && window.open(`https://wa.me/${toWaDigits(side.phone)}`, "_blank", "noopener")}><WhatsappLogo size={16} /></button>
+            <span className="fc-seg">
+              <button className="fc-sb email" title={`Email ${label.toLowerCase()}`} onClick={onCompose}><EnvelopeSimple size={16} /></button>
+              <button className="fc-sb call" title="Log a call" onClick={onCall}><Phone size={16} /></button>
+              <button className="fc-sb wa" title={`WhatsApp ${label.toLowerCase()}`} disabled={!side.phone} onClick={() => side.phone && window.open(`https://wa.me/${toWaDigits(side.phone)}`, "_blank", "noopener")}><WhatsappLogo size={16} /></button>
+            </span>
             <span className="fc-txt-acts">
               <button className="fc-txt" onClick={onMarkEmailed}>Emailed</button>
               <span className="fc-dot-sep" aria-hidden>·</span>
@@ -216,7 +214,7 @@ function SideBlock({
             <span className="fc-auto-dot" style={{ background: STATE_META[auto.state].color }} aria-hidden />
             {STATE_META[auto.state].label}
           </span>
-          <span className="fc-auto-ago">{agoShort(auto.sentAt)}</span>
+          <span className="fc-auto-ago">{fmtDateTime(auto.sentAt)}</span>
         </button>
       ) : null}
     </div>
@@ -239,9 +237,7 @@ function CallForm({ onSave, onCancel }: { onSave: (note: string) => void; onCanc
 const CSS = `
 .fc { display:flex; flex-direction:column; }
 .fc-hd { margin-bottom:16px; }
-.fc-eyebrow { font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--agent-coral-deep); display:inline-flex; align-items:center; gap:7px; }
-.fc-eyebrow::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--agent-coral-deep); box-shadow:0 0 0 3px rgba(var(--agent-coral-rgb),0.18); }
-.fc-h1 { font-size:23px; font-weight:800; letter-spacing:-0.02em; margin:8px 0 3px; color:var(--agent-text-primary); }
+.fc-h1 { font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:0 0 3px; color:var(--agent-text-primary); }
 .fc-sub { margin:0 0 16px; font-size:13.5px; color:var(--agent-text-secondary); max-width:60ch; }
 .fc-bar { height:8px; border-radius:99px; background:rgba(var(--agent-coral-rgb),0.10); overflow:hidden; }
 .fc-bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--agent-coral),var(--agent-coral-deep)); transition:width .55s cubic-bezier(.22,1,.36,1); }
@@ -269,15 +265,20 @@ const CSS = `
 .fc-side.purchaser .fc-role { color:#085041; }
 .fc-sp { flex:1 1 4px; min-width:0; }
 
-.fc-acts { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; }
-.fc-ib { width:32px; height:32px; border-radius:9px; border:1px solid var(--agent-border-default); background:var(--agent-surface-glass); color:var(--agent-text-secondary); display:grid; place-items:center; cursor:pointer; transition:background .14s,color .14s,transform .14s,box-shadow .14s,border-color .14s; }
-.fc-ib:hover:not(:disabled) { color:#fff; transform:translateY(-1px); box-shadow:0 3px 9px rgba(45,24,16,0.16); }
-.fc-ib:disabled { opacity:0.4; cursor:not-allowed; }
-.fc-ib.email:hover:not(:disabled) { background:#3b6ef0; border-color:#3b6ef0; }
-.fc-ib.call:hover:not(:disabled) { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); }
-.fc-ib.wa:hover:not(:disabled) { background:#25a75a; border-color:#25a75a; }
-.fc-ib svg { display:block; }
-.fc-txt-acts { display:inline-flex; align-items:center; gap:7px; margin-left:3px; }
+.fc-acts { display:inline-flex; align-items:center; gap:10px; flex-shrink:0; }
+/* The three channel actions bundle into ONE segmented control, each segment
+   filling its channel colour on hover. Reads as a single tidy unit, not three
+   loose buttons. */
+.fc-seg { display:inline-flex; border:1px solid var(--agent-border-default); border-radius:10px; overflow:hidden; background:var(--agent-surface-glass); }
+.fc-sb { width:36px; height:30px; border:none; background:none; color:var(--agent-text-secondary); display:grid; place-items:center; cursor:pointer; transition:background .14s,color .14s; }
+.fc-sb + .fc-sb { border-left:1px solid var(--agent-border-default); }
+.fc-sb:hover:not(:disabled) { color:#fff; }
+.fc-sb:disabled { opacity:0.4; cursor:not-allowed; }
+.fc-sb.email:hover:not(:disabled) { background:#3b6ef0; }
+.fc-sb.call:hover:not(:disabled) { background:var(--agent-coral-deep); }
+.fc-sb.wa:hover:not(:disabled) { background:#25a75a; }
+.fc-sb svg { display:block; }
+.fc-txt-acts { display:inline-flex; align-items:center; gap:7px; }
 .fc-txt { border:none; background:none; cursor:pointer; font-family:inherit; font-size:11px; font-weight:600; color:var(--agent-text-muted); padding:3px 0; white-space:nowrap; transition:color .14s; }
 .fc-txt:hover { color:var(--agent-coral-deep); }
 .fc-dot-sep { color:var(--agent-border-strong); font-size:11px; }
@@ -302,6 +303,6 @@ const CSS = `
 .fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-ib,.fc-auto{ transition:none; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-sb,.fc-auto{ transition:none; } }
 @media (max-width:520px){ .fc-side-top{ gap:8px; } .fc-txt-acts{ width:100%; justify-content:flex-start; } }
 `;

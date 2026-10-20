@@ -47,9 +47,14 @@ export default async function FocusPage() {
   return (
     <div className="focus-page">
       <style>{`
-        .focus-page { max-width: 1240px; margin: 0 auto; padding: 4px 0 56px; display: grid; gap: 22px; grid-template-columns: minmax(0,1fr); }
-        @media (min-width: 980px) {
-          .focus-page { grid-template-columns: minmax(0, 65fr) minmax(0, 35fr); align-items: start; }
+        /* Sits where every other agent page sits: full width, ~32px side padding,
+           8px off the top (matches the enquiries/hub content pad). The left
+           communications column is dominant (1fr); the right rail is a tidy
+           fixed-width sidebar, not a 35%-of-everything slab. */
+        .focus-page { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); padding: 8px 16px 48px; }
+        @media (min-width: 900px) { .focus-page { padding: 8px 32px 48px; } }
+        @media (min-width: 1080px) {
+          .focus-page { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); align-items: start; }
         }
       `}</style>
       <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} />
