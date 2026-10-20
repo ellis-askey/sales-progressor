@@ -16,7 +16,7 @@ import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake, WhatsappLogo,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -86,9 +86,9 @@ function buildNavGroups(role: UserRole, email: string | null | undefined, hasSel
     // Chains: internal staff + self-managing agencies (+ the named allowlist).
     // Same canSeeChains gate as the server route guard.
     ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined, hoverPrefetch: true }] : []),
-    // WhatsApp reading room (pivot 2026-10-18): captured conversations across
-    // the user's permitted files. Read-only; scoping in the service layer.
-    { href: "/agent/messages", label: "WhatsApp", Icon: WhatsappLogo, hoverPrefetch: true },
+    // WhatsApp reading room nav link removed 2026-10-19 (founder): WhatsApp
+    // lives on each file's own tab; a standalone page duplicated it. The
+    // /agent/messages route is parked (404s) alongside this.
     { href: "/agent/analytics",   label: "Analytics",   Icon: ChartBar, hoverPrefetch: true },
     ...(ADMIN_NAV_EMAILS.has(email ?? "") ? [{ href: "/command/overview", label: "Admin", Icon: GearSix }] : []),
   ];

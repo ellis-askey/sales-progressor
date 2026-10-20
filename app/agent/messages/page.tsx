@@ -1,15 +1,22 @@
 // The WhatsApp reading room (pivot 2026-10-18): every captured conversation
 // across the caller's permitted sales, read-only unless a thread lives on a
-// real Cloud number. Linked in the nav; shows a connect-guide empty state
-// when nothing's captured. Access scoping happens in the service layer
+// real Cloud number. Access scoping happens in the service layer
 // (listInboxThreads → scopeTransactionWhere, Law 7).
+//
+// PARKED 2026-10-19 (founder): WhatsApp lives on each file's own tab; a
+// standalone cross-file page duplicated it, so this route 404s and its nav
+// link is gone. The machinery stays — delete the notFound() to revive it.
+import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { listInboxThreads } from "@/lib/services/whatsapp-cloud-inbox";
 import { WhatsAppInboxView } from "@/components/whatsapp/WhatsAppInboxView";
 
 export const dynamic = "force-dynamic";
 
+const PARKED = true;
+
 export default async function MessagesPage() {
+  if (PARKED) notFound();
   const session = await requireSession();
   const threads = await listInboxThreads(session);
 
