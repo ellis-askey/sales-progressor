@@ -76,7 +76,8 @@ function originFromReason(reason: string | null): ReviewOrigin {
 // internal staff see their assigned / all files.
 function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput {
   if (scope.kind === "all") return { status: "on_hold", serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
-  if (scope.kind === "platform") return { status: "on_hold" }; // founder — every held file
+  // Founder lists behave like "all" — god doesn't flood his reviews queue (fix 2026-10-20).
+  if (scope.kind === "platform") return { status: "on_hold", serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { status: "on_hold", serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { status: "on_hold", serviceType: "outsourced", progressionBusinessId: scope.businessId };
   return { status: "on_hold", serviceType: "self_managed", agencyId: { in: scope.agencyIds } };
@@ -90,7 +91,8 @@ function reviewTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInpu
   // Internal staff (all / assigned) only handle OUTSOURCED files; self-managed
   // files never appear on the internal side. Agency users keep their own.
   if (scope.kind === "all") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
-  if (scope.kind === "platform") return {}; // founder — every file's reviews
+  // Founder lists behave like "all" — god doesn't flood his reviews (fix 2026-10-20).
+  if (scope.kind === "platform") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { progressionBusinessId: scope.businessId };
   return { agencyId: { in: scope.agencyIds } };

@@ -160,11 +160,13 @@ describe("scope -> where helpers", () => {
     });
   });
 
-  it("'platform' (founder god scope) imposes NO tenant filter: every file, no TSP wall", () => {
+  it("'platform' (founder god scope): LISTS are TSP-only like 'all', SINGLE-FILE guards are god", () => {
     const god: AccessScope = { kind: "platform" };
-    // Lists: all real files (demo still excluded for cleanliness), NO TSP_ONLY wall.
-    expect(scopeTransactionWhere(god)).toEqual({ isDemo: false });
-    // Single-file + related-model guards: bare id, no business/agency constraint.
+    // Lists behave exactly like "all" — god does NOT flood the founder's personal
+    // dashboard/chains/search with every agency's files (regression fix 2026-10-20).
+    expect(scopeTransactionWhere(god)).toEqual({ isDemo: false, ...TSP_ONLY_TX_WHERE });
+    // Single-file + related-model guards stay god: open ANY file by id (used when
+    // drilling into a specific file from the Command Centre).
     expect(scopeOwnershipWhere(god, "tx_1")).toEqual({ id: "tx_1" });
     expect(scopeChaseTaskWhere(god, "task_1")).toEqual({ id: "task_1" });
     expect(scopeReminderLogWhere(god, "log_1")).toEqual({ id: "log_1" });

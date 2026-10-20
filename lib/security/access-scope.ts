@@ -106,9 +106,12 @@ export function scopeTransactionWhere(
   // partner directories, or analytics. Agency users keep seeing their OWN demo
   // (they created it to look through), so the "agency" branch stays unfiltered.
   if (scope.kind === "all")      return { isDemo: false, ...TSP_ONLY_TX_WHERE };
-  // Founder: every real file across every business book. Demo files still hidden
-  // from cross-platform lists (they'd pollute), consistent with "all".
-  if (scope.kind === "platform") return { isDemo: false };
+  // Founder LISTS behave exactly like "all" (TSP's own files only). God mode must
+  // NOT flood his personal dashboard / chains / search / reminders with every
+  // agency's files — his everyday agent app looks like it always did. Platform's
+  // extra reach is SINGLE-FILE only (scopeOwnershipWhere), used when he opens a
+  // specific file from the Command Centre. (Regression fix 2026-10-20.)
+  if (scope.kind === "platform") return { isDemo: false, ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
   // External progression business — its own book only, keyed on the transaction
   // tag. Demo files are excluded like the other non-agency scopes.
