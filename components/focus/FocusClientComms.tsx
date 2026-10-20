@@ -264,9 +264,9 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
       <span className={`fc-u ${channel} ghost`}>
         <span className="fc-ic"><Icon size={16} /></span>
         <span className="fc-ut">—</span>
-        <span className="fc-pop" role="tooltip">
-          <span className="fc-pop-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-          <span className="fc-pop-empty">{EMPTY_LABEL[channel]}</span>
+        <span className="fc-tip" role="tooltip">
+          <span className="fc-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+          <span className="fc-tip-empty">{EMPTY_LABEL[channel]}</span>
         </span>
       </span>
     );
@@ -280,11 +280,11 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
         <span className={`fc-pip ${meta.tone}`} aria-hidden />
       </span>
       <span className="fc-ut">{relWhen(c.at)}</span>
-      <span className="fc-pop" role="tooltip">
-        <span className="fc-pop-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-        <span className={`fc-pop-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
-        <span className="fc-pop-when">{fmtDateTime(c.at)}</span>
-        {detail ? <span className="fc-pop-snip">{detail}</span> : null}
+      <span className="fc-tip" role="tooltip">
+        <span className="fc-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+        <span className={`fc-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
+        <span className="fc-tip-when">{fmtDateTime(c.at)}</span>
+        {detail ? <span className="fc-tip-snip">{detail}</span> : null}
       </span>
     </button>
   );
@@ -435,8 +435,9 @@ const CSS = `
    a quiet bordered pill; it fills coral on hover/open. The menu floats below-right,
    grouped into "Reach out" and "This week" with a channel-tinted icon per row. */
 .fc-menu { position:relative; flex-shrink:0; }
-.fc-trig { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:1px solid var(--agent-border-default); border-radius:9px; background:var(--agent-surface-glass); color:var(--agent-text-secondary); font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; transition:background .14s,border-color .14s,color .14s; }
+.fc-trig { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:1px solid var(--agent-border-default); border-radius:9px; background:var(--agent-surface-glass); color:var(--agent-text-secondary); font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; transition:background .14s,border-color .14s,color .14s,transform .14s; }
 .fc-trig:hover { color:var(--agent-text-primary); border-color:var(--agent-border-strong); }
+.fc-menu:not(.open) .fc-trig:hover { transform:translateY(-1px); }
 .fc-menu.open .fc-trig { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
 .fc-cv { transition:transform .16s ease; }
 .fc-menu.open .fc-cv { transform:rotate(180deg); }
@@ -460,7 +461,8 @@ const CSS = `
    true time — no backer tile behind the icon. Direction, state word, exact time
    and subject/snippet all live in the hover popover. */
 .fc-led { display:flex; flex-wrap:wrap; align-items:center; gap:7px 22px; margin:9px 0 2px 39px; }
-.fc-u { position:relative; display:inline-flex; align-items:center; gap:8px; padding:3px 1px; background:none; border:0; font-family:inherit; font-size:12px; color:var(--agent-text-secondary); cursor:pointer; }
+.fc-u { position:relative; display:inline-flex; align-items:center; gap:8px; padding:3px 1px; background:none; border:0; font-family:inherit; font-size:12px; color:var(--agent-text-secondary); cursor:pointer; transition:transform .14s ease; }
+.fc-u:hover:not(.ghost) { transform:translateY(-1px); }
 .fc-u.ghost { cursor:default; }
 .fc-ic { position:relative; display:inline-flex; }
 .fc-ic svg { display:block; }
@@ -477,20 +479,21 @@ const CSS = `
 .fc-u.ghost .fc-ut { color:var(--agent-text-muted); }
 .fc-u:hover:not(.ghost) .fc-ut { color:var(--agent-text-primary); }
 
-/* Hover popover — the full record. */
-.fc-pop { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
-.fc-u:hover .fc-pop, .fc-u:focus-visible .fc-pop { opacity:1; transform:translateY(0); }
-.fc-pop::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
-.fc-pop-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
-.fc-pop-h svg { color:var(--agent-text-muted); }
-.fc-pop-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
-.fc-pop-state.ok { color:var(--agent-success); }
-.fc-pop-state.neutral { color:var(--agent-text-primary); }
-.fc-pop-state.warn { color:var(--agent-warning); }
-.fc-pop-state.danger { color:var(--agent-danger); }
-.fc-pop-when { display:block; font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:2px; }
-.fc-pop-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
-.fc-pop-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
+/* Hover tooltip — the full record. Distinct class from the Contact dropdown's
+   .fc-pop so the two never collide. */
+.fc-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+.fc-u:hover .fc-tip, .fc-u:focus-visible .fc-tip { opacity:1; transform:translateY(0); }
+.fc-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
+.fc-tip-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
+.fc-tip-h svg { color:var(--agent-text-muted); }
+.fc-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
+.fc-tip-state.ok { color:var(--agent-success); }
+.fc-tip-state.neutral { color:var(--agent-text-primary); }
+.fc-tip-state.warn { color:var(--agent-warning); }
+.fc-tip-state.danger { color:var(--agent-danger); }
+.fc-tip-when { display:block; font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; margin-top:2px; }
+.fc-tip-snip { display:block; margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--agent-surface-subtle); font-size:11.5px; color:var(--agent-text-secondary); line-height:1.45; }
+.fc-tip-empty { display:block; font-size:12.5px; color:var(--agent-text-muted); }
 
 .fc-callform { display:flex; align-items:center; gap:7px; flex:1 1 220px; min-width:0; }
 .fc-callform input { flex:1; min-width:0; height:32px; border:1px solid var(--agent-coral-deep); border-radius:9px; padding:0 10px; font-family:inherit; font-size:12.5px; color:var(--agent-text-primary); outline:none; background:var(--agent-surface-glass); }
@@ -500,6 +503,6 @@ const CSS = `
 .fc-done { grid-area:list; text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
-@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-pop{ display:none; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip{ transition:none; } }
+@media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-tip{ display:none; } }
 `;
