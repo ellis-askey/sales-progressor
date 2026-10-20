@@ -41,6 +41,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ to
       },
     }).catch(() => {});
 
+    // The client responding counts on the file's activity clock (audit
+    // DATA-004, confirmed rule 2026-10-20). Fire-and-forget.
+    prisma.propertyTransaction
+      .update({ where: { id: contact.propertyTransactionId }, data: { lastActivityAt: new Date() } })
+      .catch(() => {});
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

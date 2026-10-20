@@ -84,6 +84,13 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // A client uploading a document is the other side responding — it counts on
+  // the file's activity clock (hub quiet files / health / risk), per the
+  // confirmed rule of 2026-10-20 (audit DATA-004). Fire-and-forget.
+  prisma.propertyTransaction
+    .update({ where: { id: contact.transactionId }, data: { lastActivityAt: new Date() } })
+    .catch(() => {});
+
   // Invalidate the client's portal pages so the new document shows in the
   // overview "Latest updates" and the Updates-tab timeline (not just the
   // Documents tab, which refetches its own list client-side).

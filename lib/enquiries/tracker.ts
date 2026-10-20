@@ -359,6 +359,15 @@ export async function logEnquiryMovement(args: {
       .then((m) => m.evaluateTransactionReminders(args.transactionId))
       .catch(() => {});
   }
+
+  // A logged enquiry movement is a human dealing with the file (or a solicitor
+  // replying) — it counts on the file's activity clock, so the hub's quiet
+  // files / health / risk surfaces don't call a worked file stalled (audit
+  // DATA-004, confirmed rule 2026-10-20). Fire-and-forget like the reminder
+  // recompute above.
+  prisma.propertyTransaction
+    .update({ where: { id: args.transactionId }, data: { lastActivityAt: new Date() } })
+    .catch(() => {});
   return true;
 }
 
