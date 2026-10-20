@@ -1557,34 +1557,90 @@ export type SelfLinkContext =
   | { kind: "between"; anchorLinkId: string; placement: "above" | "below" }
   | { kind: "branch"; forkFromLinkId: string };
 
+export type SelfLinkFailReason =
+  | "not_found"
+  | "at_limit"
+  | "ineligible"
+  // The sale is already a link in THIS chain — nothing to do.
+  | "same_chain"
+  // The sale's own chain contains a joined sale outside the caller's scope
+  // (someone else's file) — we never silently restructure another agent's chain.
+  | "chain_shared"
+  // The sale sits on a BRANCH of its own chain — the splice maths only folds in
+  // a sale whose own ladder is the spine. Rare; shown as not-joinable in the UI.
+  | "chain_shape";
+
 // Link one of the adder's OWN live files into the chain as a real, claimed node
 // (instead of a hand-typed stub). This is a self-claim: the new link points at
-// the transaction and is claimed by the adder, and the file's active chainLinkId
-// is set so it can't be double-linked. Silent by design — no invite, no chain
-// notifications (Ellis, 2026-09-01). Positioning reuses the same rules as the
-// stub adds. The route is responsible for the agency-scope check (Law 7); the
-// chainLinkId-null guard here is the final backstop against double-linking.
+// the transaction and is claimed by the adder. Silent by design — no invite, no
+// chain notifications (Ellis, 2026-09-01). Positioning reuses the same rules as
+// the stub adds.
+//
+// CHAIN MERGE (2026-10-20, Ellis-approved in chat): when the chosen file is
+// ALREADY the origin of its own chain, the whole chain comes with it. Its spine
+// splices into the chosen slot as a block (order preserved), its branches move
+// across untouched (branchKeys are uuids, fork anchors are link ids — both
+// survive a chainId flip), queued notifications are re-pointed, and the emptied
+// chain row is deleted. This is the inverse of lib/chain/split.ts, which has
+// moved links between chains the same way since 2026-06. Guards: every joined
+// sale in the incoming chain must be inside the caller's access scope
+// (chain_shared), and the chosen sale must sit on its chain's spine
+// (chain_shape). The route is responsible for the agency-scope check on the
+// chosen file itself (Law 7); `scope` here is the backstop for its companions.
 export async function selfLinkOwnSale(input: {
   chainId: string;
   userId: string;
   transactionId: string;
   context: SelfLinkContext;
-}): Promise<
-  { ok: true; chain: ChainV2 } | { ok: false; reason: "not_found" | "at_limit" | "ineligible" }
-> {
-  const { chainId, userId, transactionId, context } = input;
+  // Caller's access scope — required to authorise a merge's companion sales.
+  // Without it, any merge with a second joined sale is refused (fail closed).
+  scope?: AccessScope;
+}): Promise<{ ok: true; chain: ChainV2 } | { ok: false; reason: SelfLinkFailReason }> {
+  const { chainId, userId, transactionId, context, scope } = input;
 
   const result = await prisma.$transaction(async (tx) => {
-    // Final eligibility backstop: the file must not already be a link in any
-    // chain (its active chainLinkId must be null).
     const txn = await tx.propertyTransaction.findFirst({
-      where: { id: transactionId, chainLinkId: null },
-      select: { id: true },
+      where: { id: transactionId },
+      select: { id: true, chainLinkId: true, chainLink: { select: { id: true, chainId: true, branchKey: true } } },
     });
     if (!txn) return { ok: false as const, reason: "ineligible" as const };
 
+    // ── Merge eligibility (file already lives in another chain) ──────────────
+    const incomingChainId = txn.chainLink?.chainId ?? null;
+    let incomingSpine: { id: string; position: number }[] = [];
+    if (incomingChainId) {
+      if (incomingChainId === chainId) return { ok: false as const, reason: "same_chain" as const };
+      if ((txn.chainLink?.branchKey ?? "") !== "") return { ok: false as const, reason: "chain_shape" as const };
+
+      const incomingLinks = await tx.chainLink.findMany({
+        where: { chainId: incomingChainId },
+        select: { id: true, position: true, branchKey: true, transactionId: true },
+      });
+      // Every OTHER joined sale in the incoming chain must be the caller's to
+      // move (inside their access scope). Fail closed when no scope was given.
+      const companionTxIds = incomingLinks
+        .map((l) => l.transactionId)
+        .filter((id): id is string => Boolean(id) && id !== transactionId);
+      if (companionTxIds.length > 0) {
+        if (!scope) return { ok: false as const, reason: "chain_shared" as const };
+        const inScope = await tx.propertyTransaction.count({
+          where: { AND: [scopeTransactionWhere(scope), { id: { in: companionTxIds } }] },
+        });
+        if (inScope !== companionTxIds.length) {
+          return { ok: false as const, reason: "chain_shared" as const };
+        }
+      }
+      incomingSpine = incomingLinks
+        .filter((l) => (l.branchKey ?? "") === "")
+        .sort((a, b) => a.position - b.position);
+    }
+
+    // The block being placed: the incoming chain's whole spine (merge), or the
+    // single new link (plain self-link).
+    const blockSize = incomingChainId ? incomingSpine.length : 1;
+
     let branchKey = "";
-    let position = 0;
+    let basePosition = 0;
     let forkFromLinkId: string | null = null;
 
     if (context.kind === "spine") {
@@ -1594,11 +1650,11 @@ export async function selfLinkOwnSale(input: {
       });
       if (context.direction === "above") {
         for (const l of [...spine].reverse()) {
-          await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+          await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + blockSize } });
         }
-        position = 0;
+        basePosition = 0;
       } else {
-        position = spine.length > 0 ? Math.max(...spine.map((l) => l.position)) + 1 : 0;
+        basePosition = spine.length > 0 ? Math.max(...spine.map((l) => l.position)) + 1 : 0;
       }
     } else if (context.kind === "column") {
       const anchor = await tx.chainLink.findFirst({
@@ -1612,12 +1668,12 @@ export async function selfLinkOwnSale(input: {
         orderBy: { position: "asc" },
       });
       for (const l of [...ladder].reverse()) {
-        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + blockSize } });
       }
-      position = 0;
+      basePosition = 0;
     } else if (context.kind === "between") {
-      // Slot the file at a specific interior position beside an anchor, mirroring
-      // insertLinkAdjacent: shift everything at/below the insert point down one.
+      // Slot the block at a specific interior position beside an anchor, mirroring
+      // insertLinkAdjacent: shift everything at/below the insert point down.
       const anchor = await tx.chainLink.findFirst({
         where: { id: context.anchorLinkId, chainId },
         select: { branchKey: true, position: true },
@@ -1630,9 +1686,9 @@ export async function selfLinkOwnSale(input: {
         orderBy: { position: "desc" },
       });
       for (const l of toShift) {
-        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + 1 } });
+        await tx.chainLink.update({ where: { id: l.id }, data: { position: l.position + blockSize } });
       }
-      position = insertPos;
+      basePosition = insertPos;
     } else {
       const forkNode = await tx.chainLink.findFirst({
         where: { id: context.forkFromLinkId, chainId },
@@ -1642,15 +1698,50 @@ export async function selfLinkOwnSale(input: {
       const onwards = await countOnwardsForNode(tx, chainId, forkNode);
       if (onwards >= MAX_ONWARD_BRANCHES) return { ok: false as const, reason: "at_limit" as const };
       branchKey = randomUUID();
-      position = 0;
+      basePosition = 0;
       forkFromLinkId = forkNode.id;
     }
 
+    if (incomingChainId) {
+      // ── Merge: move the incoming spine into the vacated slot, order kept. A
+      // branch's forkFromLinkId lives on its BOTTOM link (largest position), so
+      // when the block becomes a new branch the marker goes on the last rung.
+      for (let i = 0; i < incomingSpine.length; i++) {
+        await tx.chainLink.update({
+          where: { id: incomingSpine[i].id },
+          data: {
+            chainId,
+            branchKey,
+            position: basePosition + i,
+            forkFromLinkId: forkFromLinkId && i === incomingSpine.length - 1 ? forkFromLinkId : null,
+          },
+        });
+      }
+      // Incoming branches ride across untouched: uuid branchKeys can't collide
+      // and their fork anchors are link ids that just moved with us.
+      await tx.chainLink.updateMany({
+        where: { chainId: incomingChainId },
+        data: { chainId },
+      });
+      // Queued/past chain notifications reference the dying chain row — re-point
+      // them so history survives and nothing pending is cascade-deleted.
+      await tx.chainNotificationQueue.updateMany({
+        where: { chainId: incomingChainId },
+        data: { chainId },
+      });
+      await tx.propertyChain.delete({ where: { id: incomingChainId } });
+      console.log(
+        `[CHAIN_MERGE] fromChain=${incomingChainId} intoChain=${chainId} spineLinks=${incomingSpine.length} tx=${transactionId} by=${userId}`,
+      );
+      return { ok: true as const };
+    }
+
+    // ── Plain self-link: the file has no chain yet — create its claimed node.
     const created = await tx.chainLink.create({
       data: {
         chainId,
         branchKey,
-        position,
+        position: basePosition,
         forkFromLinkId,
         createdByUserId: userId,
         transactionId,

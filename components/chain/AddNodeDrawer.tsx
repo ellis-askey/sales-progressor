@@ -391,8 +391,16 @@ export function AddNodeDrawer({
   const canSelfLink = isExistingChain && !isEditMode;
   const [mode, setMode] = useState<"stub" | "own">("stub");
   const [fileQuery, setFileQuery] = useState("");
-  const [fileResults, setFileResults] = useState<{ id: string; propertyAddress: string }[]>([]);
-  const [selectedFile, setSelectedFile] = useState<{ id: string; propertyAddress: string } | null>(null);
+  // `chain` is set when the file already has its own chain: picking it folds
+  // that chain into this one (others = how many rungs come with it); joinable
+  // false = the join is blocked server-side, shown disabled with the reason.
+  type FileCandidate = {
+    id: string;
+    propertyAddress: string;
+    chain: { others: number; joinable: boolean } | null;
+  };
+  const [fileResults, setFileResults] = useState<FileCandidate[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileCandidate | null>(null);
   const [searching, setSearching] = useState(false);
 
   // Debounced search over your own eligible files when in "own" mode.
@@ -403,7 +411,7 @@ export function AddNodeDrawer({
     const t = setTimeout(() => {
       fetch(`/api/chains/${chainId}/link-candidates?q=${encodeURIComponent(fileQuery.trim())}`)
         .then((r) => r.json().catch(() => ({ files: [] })))
-        .then((data: { files?: { id: string; propertyAddress: string }[] }) => {
+        .then((data: { files?: FileCandidate[] }) => {
           if (active) setFileResults(data.files ?? []);
         })
         .catch(() => { if (active) setFileResults([]); })
@@ -652,17 +660,28 @@ export function AddNodeDrawer({
             <div>
               <SectionLabel>Your sale</SectionLabel>
               {selectedFile ? (
-                <div className="rounded-xl bg-[var(--agent-surface-subtle)] border border-[var(--agent-border-default)] px-4 py-3 flex items-center gap-3">
-                  <p className="text-sm font-semibold text-slate-900/90 flex-1 min-w-0 truncate">
-                    {selectedFile.propertyAddress}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedFile(null); setFileQuery(""); }}
-                    className="text-xs font-semibold text-slate-900/55 hover:text-slate-900/80 transition-colors"
-                  >
-                    Change
-                  </button>
+                <div className="rounded-xl bg-[var(--agent-surface-subtle)] border border-[var(--agent-border-default)] px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-semibold text-slate-900/90 flex-1 min-w-0 truncate">
+                      {selectedFile.propertyAddress}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedFile(null); setFileQuery(""); }}
+                      className="text-xs font-semibold text-slate-900/55 hover:text-slate-900/80 transition-colors"
+                    >
+                      Change
+                    </button>
+                  </div>
+                  {selectedFile.chain && (
+                    <p className="mt-1 text-xs text-slate-900/55">
+                      {selectedFile.chain.others === 0
+                        ? "This sale has its own chain. The two chains will be joined into one."
+                        : selectedFile.chain.others === 1
+                          ? "This sale's chain comes with it: 1 other property joins this chain too."
+                          : `This sale's chain comes with it: ${selectedFile.chain.others} other properties join this chain too.`}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-xl bg-[var(--agent-surface-subtle)] border border-[var(--agent-border-default)] px-4 py-3 space-y-2">
@@ -682,24 +701,41 @@ export function AddNodeDrawer({
                       <p className="px-2 py-2 text-xs text-slate-900/45">
                         {fileQuery.trim()
                           ? "No matching files that can be added."
-                          : "No files ready to add. Only active sales not already in a chain show here."}
+                          : "No files ready to add. Only your active sales show here."}
                       </p>
                     )}
-                    {fileResults.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setSelectedFile(f)}
-                        className="chain-menu-item block w-full text-left px-2 py-2 rounded-lg text-sm text-slate-900/85"
-                      >
-                        {f.propertyAddress}
-                      </button>
-                    ))}
+                    {fileResults.map((f) => {
+                      const blocked = f.chain ? !f.chain.joinable : false;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          disabled={blocked}
+                          onClick={() => { if (!blocked) setSelectedFile(f); }}
+                          className={`chain-menu-item block w-full text-left px-2 py-2 rounded-lg text-sm ${blocked ? "text-slate-900/40 cursor-not-allowed" : "text-slate-900/85"}`}
+                        >
+                          <span className="block truncate">{f.propertyAddress}</span>
+                          {f.chain && (
+                            <span className={`block text-[11px] ${blocked ? "text-slate-900/35" : "text-slate-900/50"}`}>
+                              {blocked
+                                ? "In a chain that can't be joined from here"
+                                : f.chain.others === 0
+                                  ? "Has its own chain, the chains will be joined"
+                                  : f.chain.others === 1
+                                    ? "In its own chain, brings 1 other property"
+                                    : `In its own chain, brings ${f.chain.others} other properties`}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
               <p className="mt-2 text-[11px] text-slate-900/45">
-                We&apos;ll link your file directly, with its real progress. No invite needed.
+                {selectedFile?.chain
+                  ? "We'll link your file directly and fold its chain into this one. Nothing is sent to anyone."
+                  : "We'll link your file directly, with its real progress. No invite needed."}
               </p>
             </div>
           )}

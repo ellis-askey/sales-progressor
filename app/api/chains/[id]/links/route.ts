@@ -77,15 +77,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Self-link mode: link one of the caller's own live files as a claimed node.
   // The stub fields aren't required here (the transaction supplies address +
   // agency). Position mirrors the stub adds: branch / column-top / spine.
+  // A file that already has its own chain is allowed since 2026-10-20 — the
+  // service folds that whole chain in (see selfLinkOwnSale's merge notes).
   if (body.linkTransactionId) {
-    // Law 7: the file must be within the caller's access scope AND eligible
-    // (active/on-hold, not already a link in any chain).
+    // Law 7: the file must be within the caller's access scope AND live. The
+    // service enforces the merge-specific guards (companion sales in scope,
+    // sale on its chain's spine, not already in this chain).
     const scope = getAccessScope(session);
     const eligible = await prisma.propertyTransaction.findFirst({
       where: {
         AND: [
           scopeTransactionWhere(scope),
-          { id: body.linkTransactionId, chainLinkId: null, status: { in: ["active", "on_hold"] } },
+          { id: body.linkTransactionId, status: { in: ["active", "on_hold"] } },
         ],
       },
       select: { id: true },
@@ -121,11 +124,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       userId: session.user.id,
       transactionId: body.linkTransactionId,
       context,
+      scope,
     });
     if (!linkResult.ok) {
-      const msg = linkResult.reason === "at_limit"
-        ? "A sale can have at most three onward purchases."
-        : "That sale can't be added to the chain.";
+      const msg =
+        linkResult.reason === "at_limit"
+          ? "A sale can have at most three onward purchases."
+          : linkResult.reason === "same_chain"
+            ? "That sale is already in this chain."
+            : linkResult.reason === "chain_shared"
+              ? "That sale's chain includes a sale that isn't yours, so the chains can't be joined."
+              : linkResult.reason === "chain_shape"
+                ? "That sale's chain can't be joined automatically. Remove it from its chain first."
+                : "That sale can't be added to the chain.";
       return NextResponse.json({ error: msg }, { status: linkResult.reason === "at_limit" ? 409 : 400 });
     }
     return NextResponse.json({ chain: linkResult.chain, inviteSent: false }, { status: 201 });
