@@ -44,6 +44,7 @@ import { resolveDisplayStages } from "@/lib/milestones/display-stages";
 import { SolicitorSection } from "@/components/solicitors/SolicitorSection";
 import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow";
 import { BrokerContactsList } from "@/components/transaction/BrokerContactsList";
+import { ProfessionalsList } from "@/components/transaction/ProfessionalsList";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { HousingAssociationSection } from "@/components/transaction/HousingAssociationSection";
@@ -470,6 +471,18 @@ export async function OverviewPanel({
     addedByName: r.ownBrokerAddedByName,
   }));
 
+  // Other professionals (free-form: surveyor, managing agent...). Gated to the
+  // founder while being checked — ungate by dropping the role condition here
+  // AND at the render site below (nothing else to flip).
+  const showOtherProfessionals = currentUserRole === "superadmin";
+  const professionalRows = showOtherProfessionals
+    ? await prisma.transactionProfessional.findMany({
+        where: { transactionId: transaction.id },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, firmName: true, role: true, email: true, phone: true },
+      })
+    : [];
+
   // Brokers are professionals, not clients: the Clients tab shows vendor /
   // purchaser / other contacts; any legacy "broker" contacts move to the
   // Professionals tab (read-only). New brokers are attached via BrokerSection.
@@ -581,6 +594,9 @@ export async function OverviewPanel({
             )}
             <ClientOwnBrokerRow brokers={ownBrokers} />
             <BrokerContactsList contacts={brokerContacts} />
+            {showOtherProfessionals && (
+              <ProfessionalsList transactionId={transaction.id} professionals={professionalRows} />
+            )}
           </div>
         }
       />

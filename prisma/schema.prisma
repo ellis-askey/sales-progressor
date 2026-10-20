@@ -1096,6 +1096,7 @@ model PropertyTransaction {
   followupNudgesDisabled           Boolean                           @default(false)
   chaseSends                       ChaseSend[]
   agentEmailLogs                   AgentEmailLog[]
+  professionals                    TransactionProfessional[]
 
   // Phase 0 of the relist feature — shadow only. No reads or writes
   // currently consume these fields; populated by backfill so the
@@ -4811,6 +4812,28 @@ model SolicitorChaseState {
 
   @@unique([transactionId, side, milestoneCode])
   @@index([status, lastChasedAt])
+  @@index([transactionId])
+}
+
+// A free-form professional attached to one file (surveyor, managing agent,
+// a broker on a file whose slot is hidden, a second person at a firm). Shown
+// on the agent file's Professionals tab with call/email actions. Contact-card
+// only: no automation reads this table — nothing chases or emails these
+// people, by design (the wired slots — solicitors, broker — keep that job).
+model TransactionProfessional {
+  id            String   @id @default(cuid())
+  transactionId String
+  name          String // the person (or the firm when no person is known)
+  firmName      String?
+  role          String // plain label shown on the row: Surveyor, Managing agent...
+  email         String?
+  phone         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
   @@index([transactionId])
 }
 
