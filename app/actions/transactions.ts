@@ -3694,6 +3694,15 @@ export async function relistTransactionImpl(
     const initialAvailable = new Set<string>();
     for (const def of allDefs.filter((d) => d.side === "purchaser")) {
       if (autoNrCodes.has(def.code)) continue;
+      // PM25 ("ready to exchange") has no prerequisites, so the empty-array
+      // prereqs.every() below would mark it available immediately. It's an
+      // exchange gate: it must stay locked on relist and open only via
+      // maybeUnlockExchangeGate once every blocksExchange PM is done. Mirrors
+      // the EXCHANGE_GATE_CODES guard in initializeMilestoneCompletions
+      // (lib/services/milestones.ts) and the VM18 guard in resetStateFor above.
+      // Without this, a relisted file chases the buyer's solicitor to confirm
+      // readiness to exchange while the sale is still at searches/enquiries.
+      if (EXCHANGE_GATE_CODES_SET.has(def.code)) continue;
       const prereqs = DIRECT_PREREQUISITES[def.code] ?? [];
       // PM12's only prereq is VM9 (cross-side). The post-reset state of VM9
       // is preserved (VM9 is NOT in the reset list), so we read it from the
