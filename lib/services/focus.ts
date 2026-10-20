@@ -56,6 +56,9 @@ export type FocusSide = WeeklyTouchSide & {
   // this side's client(s), dated by its true event time. Null = nothing on
   // record for that channel (rendered as an honest "none", never implied contact).
   lastContact: FocusSideContacts;
+  // We messaged them (email / WhatsApp, 2+ days ago) and they haven't come back.
+  // Drives the "Awaiting reply" view. Calls don't count as outreach here.
+  awaitingReply: boolean;
 };
 
 export type FocusLeftFile = Omit<WeeklyTouchFile, "sides"> & { sides: FocusSide[] };
@@ -74,6 +77,10 @@ const EMPTY_CONTACTS: FocusSideContacts = { email: null, whatsapp: null, call: n
 // Email statuses that mean "not actually sent yet" — excluded so a queued or
 // draft message never reads as a real contact.
 const NOT_SENT = new Set(["draft", "scheduled", "queued", "cancelled"]);
+
+// A side counts as "awaiting reply" only once our outreach is at least this old
+// with no reply back — so a message sent today doesn't immediately read as stale.
+const AWAIT_REPLY_DAYS = 2;
 
 function snippet(s: string | null): string | null {
   if (!s) return null;
@@ -148,7 +155,7 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
 
   if (contactIds.length === 0) {
     return {
-      files: weekly.files.map((f) => ({ ...f, sides: f.sides.map((s) => ({ ...s, lastContact: EMPTY_CONTACTS })) })),
+      files: weekly.files.map((f) => ({ ...f, sides: f.sides.map((s) => ({ ...s, lastContact: EMPTY_CONTACTS, awaitingReply: false })) })),
       totalSides: weekly.totalSides,
       doneSides: weekly.doneSides,
       whatsappInUse: false,
@@ -172,6 +179,7 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
           { method: "phone", type: "outbound" },
           { method: "email", type: "outbound" },
           { channel: "email", type: "outbound" },
+          { type: "inbound" }, // client replies — for the awaiting-reply signal
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -189,10 +197,21 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
   ]);
   const whatsappInUse = waAny != null;
 
-  // Pre-classify once, grouped by file, so each side only scans its own file's rows.
+  // Pre-process once, grouped by file, so each side only scans its own file's rows.
+  // `classified` feeds the per-channel readout; `raw` feeds the awaiting-reply
+  // signal (last messaging outreach vs last inbound reply). Calls are excluded
+  // from outreach — a phone call doesn't leave you "awaiting a reply".
+  type Raw = { ids: string[]; inbound: boolean; outreach: boolean; at: number };
   const byTx = new Map<string, { ids: string[]; c: FocusChannelContact }[]>();
+  const rawByTx = new Map<string, Raw[]>();
   for (const r of rows) {
     if (!r.transactionId) continue;
+    const at = (r.sentAt ?? r.createdAt).getTime();
+    const inbound = r.type === "inbound";
+    const raw: Raw = { ids: r.contactIds, inbound, outreach: !inbound && r.method !== "phone", at };
+    const rarr = rawByTx.get(r.transactionId);
+    if (rarr) rarr.push(raw); else rawByTx.set(r.transactionId, [raw]);
+
     const c = classify(r);
     if (!c) continue;
     const arr = byTx.get(r.transactionId);
@@ -200,8 +219,10 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
     else byTx.set(r.transactionId, [{ ids: r.contactIds, c }]);
   }
 
+  const awaitCutoff = Date.now() - AWAIT_REPLY_DAYS * 86_400_000;
   const files: FocusLeftFile[] = weekly.files.map((f) => {
     const pool = byTx.get(f.transactionId) ?? [];
+    const rawPool = rawByTx.get(f.transactionId) ?? [];
     return {
       ...f,
       sides: f.sides.map((s) => {
@@ -212,7 +233,14 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
           const cur = lc[c.channel];
           if (!cur || c.at.getTime() > cur.at.getTime()) lc[c.channel] = c;
         }
-        return { ...s, lastContact: lc };
+        let lastOutreach = 0, lastInbound = 0;
+        for (const r of rawPool) {
+          if (!r.ids.some((id) => sideIds.has(id))) continue;
+          if (r.outreach && r.at > lastOutreach) lastOutreach = r.at;
+          if (r.inbound && r.at > lastInbound) lastInbound = r.at;
+        }
+        const awaitingReply = lastOutreach > 0 && lastOutreach > lastInbound && lastOutreach <= awaitCutoff;
+        return { ...s, lastContact: lc, awaitingReply };
       }),
     };
   });

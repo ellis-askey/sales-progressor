@@ -9,12 +9,13 @@
 // unreachable. Human touches still drive the quiet clock; automated sends are a
 // quiet secondary signal and never reset it.
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
+import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -94,6 +95,8 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
   const [composeTx, setComposeTx] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState<string | null>(null);
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
+  const [view, setView] = useState<FocusView>("touch");
+  const [sideFilter, setSideFilter] = useState<SideFilter>("all");
 
   // Bar fills left-to-right on first paint: start at 0, flip to the real
   // percentage on the next frame so the width transition animates in.
@@ -116,9 +119,37 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
     startTransition(async () => { await action().catch(() => {}); router.refresh(); });
   }
 
-  const visibleFiles = files
-    .map((f) => ({ ...f, sides: f.sides.filter((s) => !resolved.has(key(f.transactionId, s.side))) }))
-    .filter((f) => f.sides.length > 0);
+  // Effective "touched this week" = server truth OR an optimistic local resolve.
+  const touched = (f: FocusCommsFile, s: FocusSide) => s.touchedThisWeek || resolved.has(key(f.transactionId, s.side));
+  const matchSide = (s: FocusSide) => sideFilter === "all" || s.side === sideFilter;
+  const inView = (f: FocusCommsFile, s: FocusSide) => {
+    if (!matchSide(s)) return false;
+    if (view === "touch") return !touched(f, s) && !s.parked;
+    if (view === "awaiting") return s.awaitingReply;
+    return true; // recent: every side
+  };
+  // Least-recently-contacted first (null = never = most stale).
+  const staleness = (s: FocusSide) => s.daysSince ?? 100_000;
+  const worst = (sides: FocusSide[]) => Math.max(...sides.map(staleness));
+
+  const viewFiles = files
+    .map((f) => ({ file: f, sides: f.sides.filter((s) => inView(f, s)) }))
+    .filter((x) => x.sides.length > 0)
+    .sort((a, b) => worst(b.sides) - worst(a.sides));
+
+  // Tab counts respect the side filter but not the active view.
+  const pool = files.flatMap((f) => f.sides.filter(matchSide).map((s) => ({ f, s })));
+  const counts = {
+    touch: pool.filter(({ f, s }) => !touched(f, s) && !s.parked).length,
+    recent: pool.length,
+    awaiting: pool.filter(({ s }) => s.awaitingReply).length,
+  };
+  const tabs = [
+    { key: "touch", label: "To touch", count: counts.touch },
+    { key: "recent", label: "Least contacted" }, // neutral list, not a to-do count
+    { key: "awaiting", label: "Awaiting reply", count: counts.awaiting },
+  ];
+  const empty = EMPTY_VIEW[view];
 
   return (
     <>
@@ -134,43 +165,48 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
           </div>
         </header>
 
-        {visibleFiles.length === 0 ? (
-          <div className="fc-done">
-            <div className="fc-done-h">Both sides of every file touched</div>
-            <div className="fc-done-p">Nothing's gone quiet. It resets Monday.</div>
-          </div>
-        ) : (
-          <div className="fc-list">
-            {visibleFiles.map((f) => (
-              <article className="fc-card" key={f.transactionId}>
-                <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
-                  <PropertyThumb photoUrl={f.photoUrl} size={42} />
-                  <span className="fc-addr-wrap">
-                    <span className="fc-addr">{f.addressLine}</span>
-                    <span className="fc-loc">{f.townPostcode.replace(/ · /g, ", ")}</span>
-                  </span>
-                </button>
+        <div className="fc-main">
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} action={<SideSeg value={sideFilter} onChange={setSideFilter} />}>
+            {viewFiles.length === 0 ? (
+              <div className="fc-done">
+                <div className="fc-done-h">{empty.h}</div>
+                <div className="fc-done-p">{empty.p}</div>
+              </div>
+            ) : (
+              <div className="fc-list">
+                {viewFiles.map(({ file: f, sides }) => (
+                  <article className="fc-card" key={f.transactionId}>
+                    <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
+                      <PropertyThumb photoUrl={f.photoUrl} size={42} />
+                      <span className="fc-addr-wrap">
+                        <span className="fc-addr">{f.addressLine}</span>
+                        <span className="fc-loc">{f.townPostcode.replace(/ · /g, ", ")}</span>
+                      </span>
+                    </button>
 
-                {f.sides.map((s) => (
-                  <SideBlock
-                    key={s.side}
-                    file={f}
-                    side={s}
-                    showWhatsApp={showWhatsApp}
-                    callOpen={callOpen === key(f.transactionId, s.side)}
-                    onCall={() => setCallOpen(key(f.transactionId, s.side))}
-                    onCallCancel={() => setCallOpen(null)}
-                    onCallSave={(note) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, () => logSideCall(f.transactionId, s.side, s.contactIds, note))}
-                    onCompose={() => setComposeTx(f.transactionId)}
-                    onMarkEmailed={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · emailed`, () => logSideEmailed(f.transactionId, s.side, s.contactIds))}
-                    onNotRequired={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · parked this week`, () => markSideNotRequiredThisWeek(f.transactionId, s.side))}
-                    onOpenEmail={(id) => setOpenEmail({ id, label: f.addressLine })}
-                  />
+                    {sides.map((s) => (
+                      <SideBlock
+                        key={s.side}
+                        file={f}
+                        side={s}
+                        showWhatsApp={showWhatsApp}
+                        done={view === "recent" && touched(f, s)}
+                        callOpen={callOpen === key(f.transactionId, s.side)}
+                        onCall={() => setCallOpen(key(f.transactionId, s.side))}
+                        onCallCancel={() => setCallOpen(null)}
+                        onCallSave={(note) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, () => logSideCall(f.transactionId, s.side, s.contactIds, note))}
+                        onCompose={() => setComposeTx(f.transactionId)}
+                        onMarkEmailed={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · emailed`, () => logSideEmailed(f.transactionId, s.side, s.contactIds))}
+                        onNotRequired={() => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · parked this week`, () => markSideNotRequiredThisWeek(f.transactionId, s.side))}
+                        onOpenEmail={(id) => setOpenEmail({ id, label: f.addressLine })}
+                      />
+                    ))}
+                  </article>
                 ))}
-              </article>
-            ))}
-          </div>
-        )}
+              </div>
+            )}
+          </TodoTabs>
+        </div>
       </section>
 
       <ComposeEmailModal open={!!composeTx} initialTransactionId={composeTx} onClose={() => { setComposeTx(null); router.refresh(); }} />
@@ -179,12 +215,43 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
   );
 }
 
+type FocusView = "touch" | "recent" | "awaiting";
+type SideFilter = "all" | "vendor" | "purchaser";
+
+const EMPTY_VIEW: Record<FocusView, { h: string; p: string }> = {
+  touch: { h: "Both sides of every file touched", p: "Nothing's gone quiet. It resets Monday." },
+  recent: { h: "No active sales here", p: "Nothing to show for this filter." },
+  awaiting: { h: "Nobody's left hanging", p: "Every message you've sent has had a reply." },
+};
+
+// Compact animated Seller/Buyer filter — a sliding thumb with a spring settle,
+// sitting in the tab row's action slot.
+function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFilter) => void }) {
+  const opts: { k: SideFilter; label: string }[] = [
+    { k: "all", label: "All" },
+    { k: "vendor", label: "Seller" },
+    { k: "purchaser", label: "Buyer" },
+  ];
+  const idx = Math.max(0, opts.findIndex((o) => o.k === value));
+  return (
+    <div className="fc-seg2" style={{ "--seg-count": opts.length, "--seg-idx": idx } as CSSProperties} role="tablist" aria-label="Side">
+      <span className="fc-seg2-thumb" aria-hidden />
+      {opts.map((o) => (
+        <button key={o.k} type="button" role="tab" aria-selected={o.k === value} className={`fc-seg2-b${o.k === value ? " on" : ""}`} onClick={() => onChange(o.k)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SideBlock({
-  file, side, showWhatsApp, callOpen, onCall, onCallCancel, onCallSave, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, showWhatsApp, done, callOpen, onCall, onCallCancel, onCallSave, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
   showWhatsApp: boolean;
+  done: boolean;
   callOpen: boolean;
   onCall: () => void;
   onCallCancel: () => void;
@@ -201,7 +268,7 @@ function SideBlock({
   const lc = side.lastContact;
 
   return (
-    <div className={`fc-side ${side.side}`}>
+    <div className={`fc-side ${side.side}${done ? " done" : ""}`}>
       <div className="fc-side-top">
         <span className="fc-avs">
           {avatars.map((c) => (
@@ -213,7 +280,9 @@ function SideBlock({
           <span className="fc-names" title={names}>{names}</span>
         </span>
 
-        {side.quiet ? (
+        {done ? (
+          <Pill glass tone="success" size="sm" style={{ flexShrink: 0 }}>Touched</Pill>
+        ) : side.quiet ? (
           <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>
             {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
           </Pill>
@@ -410,7 +479,9 @@ const CSS = `
 .fc-barlbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-size:12px; color:var(--agent-text-muted); }
 .fc-barlbl b { color:var(--agent-text-primary); font-weight:700; font-variant-numeric:tabular-nums; }
 
-.fc-list { grid-area:list; display:flex; flex-direction:column; gap:10px; }
+/* The view tabs + list occupy the grid's list area; the tabs/list nest inside. */
+.fc-main { grid-area:list; min-width:0; }
+.fc-list { display:flex; flex-direction:column; gap:10px; }
 .fc-card { padding:13px 15px 14px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); box-shadow:0 1px 2px rgba(45,24,16,0.03),0 6px 20px rgba(45,24,16,0.045); }
 .fc-ph { display:flex; align-items:center; gap:11px; width:100%; border:none; background:none; padding:0; margin:0 0 10px; cursor:pointer; font-family:inherit; text-align:left; }
 .fc-addr-wrap { min-width:0; }
@@ -418,7 +489,8 @@ const CSS = `
 .fc-loc { display:block; font-size:11.5px; color:var(--agent-text-muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fc-ph:hover .fc-addr { color:var(--agent-coral-deep); }
 
-.fc-side { padding:9px 0 2px; }
+.fc-side { padding:9px 0 2px; transition:opacity .2s ease; }
+.fc-side.done { opacity:0.6; }
 .fc-side + .fc-side { border-top:1px solid var(--agent-border-subtle); }
 .fc-side-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .fc-avs { display:inline-flex; align-items:center; flex-shrink:0; }
@@ -500,9 +572,16 @@ const CSS = `
 .fc-sv { border:none; background:var(--agent-coral-deep); color:#fff; border-radius:9px; height:32px; padding:0 12px; font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; }
 .fc-cx { border:none; background:none; color:var(--agent-text-muted); cursor:pointer; font-size:14px; padding:0 3px; }
 
-.fc-done { grid-area:list; text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
+.fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
+
+/* Compact Seller/Buyer filter — sliding thumb with a spring settle. */
+.fc-seg2 { position:relative; display:inline-grid; grid-template-columns:repeat(var(--seg-count),1fr); background:var(--agent-surface-subtle); border:1px solid var(--agent-border-default); border-radius:9px; padding:3px; }
+.fc-seg2-thumb { position:absolute; top:3px; bottom:3px; left:3px; width:calc((100% - 6px)/var(--seg-count)); border-radius:7px; background:var(--agent-surface-elevated); box-shadow:0 1px 2px rgba(45,24,16,0.14); transform:translateX(calc(var(--seg-idx) * 100%)); transition:transform .24s cubic-bezier(.34,1.32,.5,1); }
+.fc-seg2-b { position:relative; z-index:1; border:0; background:none; font-family:inherit; font-size:12px; font-weight:650; color:var(--agent-text-muted); padding:5px 13px; cursor:pointer; white-space:nowrap; transition:color .16s; }
+.fc-seg2-b.on { color:var(--agent-text-primary); }
+.fc-seg2-b:hover:not(.on) { color:var(--agent-text-secondary); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip{ transition:none; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip,.fc-seg2-thumb,.fc-side{ transition:none; } }
 @media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-tip{ display:none; } }
 `;

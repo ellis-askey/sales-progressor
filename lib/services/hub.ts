@@ -1122,16 +1122,19 @@ export type WeeklyTouchSide = {
   primaryContactId: string;
   email: string | null;
   phone: string | null;
-  daysSince: number | null; // since last human contact ever (drives the "quiet" chip)
-  quiet: boolean;           // >= 14 days / never
+  daysSince: number | null;      // since last human contact ever (drives the "quiet" chip)
+  lastContactAt: number | null;  // ms of last human contact (null = never) — for recency sort
+  quiet: boolean;                // >= 14 days / never
+  touchedThisWeek: boolean;      // a human touch since Monday, or the file moved a milestone
+  parked: boolean;               // "not required this week" (dismissed to Monday)
 };
 export type WeeklyTouchFile = {
   transactionId: string;
   addressLine: string;
   townPostcode: string;
   photoStoragePath: string | null;
-  sides: WeeklyTouchSide[]; // only the sides STILL needing a touch this week
-  anyQuiet: boolean;
+  sides: WeeklyTouchSide[]; // EVERY client side of the file (touched + untouched); consumers filter
+  anyQuiet: boolean;        // has an untouched, quiet side (drives the default ordering)
 };
 export type WeeklyTouchSummary = { files: WeeklyTouchFile[]; totalSides: number; doneSides: number };
 
@@ -1209,7 +1212,7 @@ export async function getWeeklyTouch(vis: AgentVisibility): Promise<WeeklyTouchS
   for (const f of files) {
     const dismissed = new Set(f.hubCardDismissals.map((d) => d.signature));
     const movedThisWeek = f.milestoneCompletions.length > 0;
-    const needing: WeeklyTouchSide[] = [];
+    const sides: WeeklyTouchSide[] = [];
     let anyQuiet = false;
     for (const role of ["vendor", "purchaser"] as const) {
       const roleContacts = f.contacts.filter((c) => c.roleType === role);
@@ -1218,22 +1221,25 @@ export async function getWeeklyTouch(vis: AgentVisibility): Promise<WeeklyTouchS
       let lastMs: number | null = null;
       for (const c of roleContacts) { const ms = lastByContact.get(c.id); if (ms !== undefined && (lastMs === null || ms > lastMs)) lastMs = ms; }
       const touchedThisWeek = movedThisWeek || (lastMs !== null && lastMs >= weekStartMs);
-      if (touchedThisWeek || dismissed.has(role)) { doneSides++; continue; }
+      const parked = dismissed.has(role);
+      if (touchedThisWeek || parked) doneSides++;
       const daysSince = lastMs !== null ? Math.floor((now.getTime() - lastMs) / 86_400_000) : null;
       const quiet = lastMs === null || lastMs < commsCutoffMs;
-      if (quiet) anyQuiet = true;
-      needing.push({
+      if (quiet && !touchedThisWeek && !parked) anyQuiet = true;
+      sides.push({
         side: role, name: combineNames(roleContacts.map((c) => c.name)),
         contacts: roleContacts.map((c) => ({ id: c.id, name: c.name })),
         contactIds: roleContacts.map((c) => c.id), primaryContactId: roleContacts[0].id,
         email: roleContacts.find((c) => c.email)?.email ?? null, phone: roleContacts.find((c) => c.phone)?.phone ?? null,
-        daysSince, quiet,
+        daysSince, lastContactAt: lastMs, quiet, touchedThisWeek, parked,
       });
     }
-    if (needing.length === 0) continue;
+    if (sides.length === 0) continue;
     const { line, location } = splitAddressParts(f.propertyAddress);
-    outFiles.push({ transactionId: f.id, addressLine: line, townPostcode: location, photoStoragePath: f.photoStoragePath, sides: needing, anyQuiet });
+    outFiles.push({ transactionId: f.id, addressLine: line, townPostcode: location, photoStoragePath: f.photoStoragePath, sides, anyQuiet });
   }
+  // Default order: files with an untouched quiet side first, then longest-silent.
+  // The Focus client re-sorts per selected view.
   const worst = (f: WeeklyTouchFile) => Math.max(...f.sides.map((s) => s.daysSince ?? 9999));
   outFiles.sort((a, b) => Number(b.anyQuiet) - Number(a.anyQuiet) || worst(b) - worst(a));
   return { files: outFiles, totalSides, doneSides };
