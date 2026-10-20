@@ -1,16 +1,18 @@
-// Founder-only "what to work on next" cockpit (critiques #12 + #29).
-// Gated to the founder's account; anyone else 404s. Always fresh — the ordering
-// is by last human contact, so it must not be cached.
+// Founder-only Focus page. Two columns: LEFT (65%) the merged client-
+// communications cockpit — the weekly touch quota, enriched with what's actually
+// reached each client and their delivery/open status; RIGHT (35%) the enquiries +
+// searches rail. Gated to the founder; anyone else 404s. Never cached — ordering
+// is by live contact recency.
 
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { getNextFiles } from "@/lib/services/next-files";
-import { FilesCockpit } from "@/components/next/FilesCockpit";
-import { getWeeklyTouch } from "@/lib/services/hub";
 import { resolveInternalVisibility, resolveAgentVisibility } from "@/lib/services/agent";
 import { hasAdminPowers } from "@/lib/agent-session";
+import { getAccessScope } from "@/lib/security/access-scope";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
-import { WeeklyTouchCard, type WeeklyTouchFileView } from "@/components/todos/WeeklyTouchCard";
+import { getFocusLeft, getFocusRight } from "@/lib/services/focus";
+import { FocusClientComms, type FocusCommsFile } from "@/components/focus/FocusClientComms";
+import { FocusRightRail } from "@/components/focus/FocusRightRail";
 
 export const metadata = { title: "Focus" };
 export const dynamic = "force-dynamic";
@@ -26,30 +28,37 @@ export default async function FocusPage() {
   const vis = isInternal
     ? resolveInternalVisibility(session.user.id, role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
+  const scope = getAccessScope(session);
 
-  // Weekly "touch every file" (moved here from To-Do, critique #261) — both sides
-  // of every active file, quiet ones first.
-  const [data, weekly] = await Promise.all([getNextFiles(session), getWeeklyTouch(vis)]);
-  const weeklyPhotos = await getSignedUrlMap(
-    weekly.files.map((f) => f.photoStoragePath).filter((p): p is string => !!p),
+  const [left, right] = await Promise.all([getFocusLeft(vis), getFocusRight(scope, vis)]);
+
+  const photos = await getSignedUrlMap(
+    left.files.map((f) => f.photoStoragePath).filter((p): p is string => !!p),
   );
-  const weeklyFiles: WeeklyTouchFileView[] = weekly.files.map((f) => ({
+  const leftFiles: FocusCommsFile[] = left.files.map((f) => ({
     transactionId: f.transactionId,
     addressLine: f.addressLine,
     townPostcode: f.townPostcode,
     sides: f.sides,
     anyQuiet: f.anyQuiet,
-    photoUrl: f.photoStoragePath ? weeklyPhotos.get(f.photoStoragePath) ?? null : null,
+    photoUrl: f.photoStoragePath ? photos.get(f.photoStoragePath) ?? null : null,
   }));
 
   return (
-    <>
-      <FilesCockpit initialFiles={data.files} />
-      {weekly.totalSides > 0 && (
-        <div style={{ padding: "0 clamp(16px, 4vw, 32px) 32px" }}>
-          <WeeklyTouchCard files={weeklyFiles} totalSides={weekly.totalSides} doneSides={weekly.doneSides} />
-        </div>
-      )}
-    </>
+    <div className="focus-page">
+      <style>{`
+        .focus-page { max-width: 1240px; margin: 0 auto; padding: 4px 0 56px; display: grid; gap: 22px; grid-template-columns: minmax(0,1fr); }
+        @media (min-width: 980px) {
+          .focus-page { grid-template-columns: minmax(0, 65fr) minmax(0, 35fr); align-items: start; }
+        }
+      `}</style>
+      <FocusClientComms files={leftFiles} totalSides={left.totalSides} doneSides={left.doneSides} />
+      <FocusRightRail
+        enquiries={right.enquiries}
+        openEnquiryCount={right.openEnquiryCount}
+        searches={right.searches}
+        searchCount={right.searchCount}
+      />
+    </div>
   );
 }

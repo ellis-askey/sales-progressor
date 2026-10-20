@@ -1,9 +1,9 @@
 "use server";
 
-// Fetch one sent chase email (the stored OutboundMessage) so the chase timeline
-// can open a true-to-inbox copy. Read-only + access-scoped: the message's file
-// must be in the viewer's scope (Law 7). Only chase-purpose messages are
-// returnable — never a client-facing portal message or anything else.
+// Fetch one sent email (the stored OutboundMessage) so a surface can open a
+// true-to-inbox copy. Read-only + access-scoped: the message's file must be in
+// the viewer's scope (Law 7) — that scope check is the real guard. Any real sent
+// message is returnable (chase, milestone update, etc.); internal notes are not.
 
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -26,11 +26,11 @@ export async function getSentChaseEmailAction(id: string): Promise<SentChaseEmai
   const msg = await prisma.outboundMessage.findUnique({
     where: { id },
     select: {
-      transactionId: true, purpose: true, subject: true, content: true, sentEmailHtml: true,
+      transactionId: true, type: true, subject: true, content: true, sentEmailHtml: true,
       recipientName: true, recipientEmail: true, sentAt: true, deliveredAt: true, openedAt: true,
     },
   });
-  if (!msg || !msg.transactionId || msg.purpose !== "chase") throw new Error("Email not found");
+  if (!msg || !msg.transactionId || msg.type === "internal_note") throw new Error("Email not found");
 
   // The message's file must be in scope for this viewer.
   const tx = await prisma.propertyTransaction.findFirst({
