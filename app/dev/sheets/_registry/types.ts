@@ -52,7 +52,11 @@ export type SheetArea =
   | "Admin & command"
   | "Global chrome"
   | "Enquiries"
-  | "Client portal";
+  | "Client portal"
+  // 2026-10-20 gap sweep (docs/audits/sheets-catalogue-gaps-2026-10-20.md)
+  | "Clients & team"
+  | "Solicitor portal"
+  | "Advisor portal";
 
 // One inspectable visual state of a component. `id` is stable and feeds the
 // remount key, so switching state re-runs the component's mount effects with

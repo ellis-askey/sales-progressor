@@ -46,6 +46,11 @@ import { MemberManageDrawer, type ManageableMember } from "@/components/account/
 import { NextChaseEmailDrawer } from "@/components/transaction/NextChaseEmailDrawer";
 import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
+// 2026-10-20 gap sweep additions (docs/audits/sheets-catalogue-gaps-2026-10-20.md)
+import { BringInSaleDrawer } from "@/components/progression/BringInSaleDrawer";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
+import type { ActivityEntry } from "@/lib/services/comms";
 import type { IntroCallData } from "@/app/actions/intro-call";
 import type { MoveInfo } from "@/lib/services/portal-info";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -412,6 +417,153 @@ const MEMBER_LONG: ManageableMember = {
   directMobile: "07700 900666",
   image: null,
 };
+
+// Milestone definitions for the bring-in-sale reconciliation picker. Includes the
+// tenure-sensitive codes (VM8/VM9, hidden on freehold) and method-sensitive codes
+// (PM5/PM6/PM11 mortgage-only, PM24 off for cash-from-proceeds) so the drawer's
+// own tenure / purchase-type segments visibly re-filter the picker live.
+const BRING_IN_DEFS: MilestoneDefinitionLite[] = [
+  { id: "demo-md-vm1", code: "VM1", name: "Instruct your solicitor", side: "vendor", orderIndex: 0, blocksExchange: false },
+  { id: "demo-md-vm2", code: "VM2", name: "Receive memorandum of sale", side: "vendor", orderIndex: 1, blocksExchange: false },
+  { id: "demo-md-vm3", code: "VM3", name: "Receive welcome pack from solicitor", side: "vendor", orderIndex: 2, blocksExchange: false },
+  { id: "demo-md-vm4", code: "VM4", name: "Complete ID & AML checks", side: "vendor", orderIndex: 3, blocksExchange: false },
+  { id: "demo-md-vm5", code: "VM5", name: "Receive property information forms", side: "vendor", orderIndex: 4, blocksExchange: false },
+  { id: "demo-md-vm6", code: "VM6", name: "Return completed property forms", side: "vendor", orderIndex: 5, blocksExchange: false },
+  { id: "demo-md-vm7", code: "VM7", name: "Draft contract pack issued", side: "vendor", orderIndex: 6, blocksExchange: true },
+  { id: "demo-md-vm8", code: "VM8", name: "Management pack requested", side: "vendor", orderIndex: 7, blocksExchange: false },
+  { id: "demo-md-vm9", code: "VM9", name: "Management pack received", side: "vendor", orderIndex: 8, blocksExchange: false },
+  { id: "demo-md-vm10", code: "VM10", name: "Initial enquiries received", side: "vendor", orderIndex: 9, blocksExchange: false },
+  { id: "demo-md-vm16", code: "VM16", name: "Contract documents issued to you", side: "vendor", orderIndex: 10, blocksExchange: true },
+  { id: "demo-md-vm18", code: "VM18", name: "Solicitor confirms ready to exchange", side: "vendor", orderIndex: 11, blocksExchange: true },
+  { id: "demo-md-pm1", code: "PM1", name: "Instruct your solicitor", side: "purchaser", orderIndex: 0, blocksExchange: false },
+  { id: "demo-md-pm3", code: "PM3", name: "Complete ID & AML checks", side: "purchaser", orderIndex: 1, blocksExchange: false },
+  { id: "demo-md-pm4", code: "PM4", name: "Pay money on account to solicitor", side: "purchaser", orderIndex: 2, blocksExchange: false },
+  { id: "demo-md-pm5", code: "PM5", name: "Submit mortgage application", side: "purchaser", orderIndex: 3, blocksExchange: false },
+  { id: "demo-md-pm6", code: "PM6", name: "Lender valuation booked", side: "purchaser", orderIndex: 4, blocksExchange: false },
+  { id: "demo-md-pm8", code: "PM8", name: "Searches ordered", side: "purchaser", orderIndex: 5, blocksExchange: false },
+  { id: "demo-md-pm11", code: "PM11", name: "Mortgage offer received", side: "purchaser", orderIndex: 6, blocksExchange: true },
+  { id: "demo-md-pm13", code: "PM13", name: "Search results received", side: "purchaser", orderIndex: 7, blocksExchange: false },
+  { id: "demo-md-pm24", code: "PM24", name: "Transfer the deposit", side: "purchaser", orderIndex: 8, blocksExchange: true },
+  { id: "demo-md-pm25", code: "PM25", name: "Solicitor confirms ready to exchange", side: "purchaser", orderIndex: 9, blocksExchange: true },
+];
+
+// ── Activity timeline fixtures (email conversation drawer) ───────────────────
+
+type TimelineComm = Extract<ActivityEntry, { kind: "comm" }>;
+
+// Full comm shape with safe defaults; each message overrides what it needs.
+function makeTimelineEmail(over: Partial<TimelineComm> & Pick<TimelineComm, "id" | "at" | "type" | "content">): TimelineComm {
+  return {
+    kind: "comm",
+    method: "email",
+    channel: "email",
+    createdById: null,
+    createdByName: null,
+    createdByImage: null,
+    createdByRole: null,
+    contactNames: [],
+    contactIds: [],
+    recipientName: null,
+    visibleToClient: false,
+    wasEdited: false,
+    wasAiGenerated: false,
+    isAutomated: false,
+    tone: null,
+    subject: null,
+    rawOriginal: null,
+    conversationId: "demo-conv-searches",
+    aiRead: null,
+    contactSuggestion: null,
+    senderLabel: null,
+    mediaUrl: null,
+    mediaType: null,
+    actorRole: "solicitor",
+    actorName: "Margaret Osei-Bonsu",
+    actorImage: null,
+    actorSubLabel: "Solicitor",
+    ...over,
+  };
+}
+
+// A completed-step row so the fixture feed reads like a real mixed timeline.
+const TIMELINE_MILESTONE: ActivityEntry = {
+  kind: "milestone",
+  id: "demo-tl-ms-1",
+  at: new Date("2026-09-01T09:15:00Z"),
+  summaryText: null,
+  milestoneName: "Draft contract pack issued",
+  milestoneCode: "VM7",
+  completedByName: "Jordan Hayes",
+  isNotRequired: false,
+  confirmedByClient: false,
+  confirmerName: null,
+  sentence: "Jordan Hayes confirmed the draft contract pack was issued",
+  byName: "Jordan Hayes",
+  byImage: null,
+  actorRole: "agent",
+  actorName: "Jordan Hayes",
+  actorImage: null,
+  subtext: null,
+};
+
+const TIMELINE_SUBJECT = `Subject: Searches update, ${ADDRESS}`;
+const TIMELINE_RE_SUBJECT = `Subject: RE: Searches update, ${ADDRESS}`;
+
+// Three-message back-and-forth sharing a conversationId, newest first (the
+// timeline expects newest-first entries). The newest inbound keeps its untrimmed
+// original so the drawer's show-original toggle is live.
+const TIMELINE_THREAD: ActivityEntry[] = [
+  makeTimelineEmail({
+    id: "demo-tl-c3",
+    at: new Date("2026-09-04T10:40:00Z"),
+    type: "inbound",
+    content: `${TIMELINE_RE_SUBJECT}\nThanks both. The local authority confirmed this morning that the search results are back with us. We will review and come back with any enquiries by Friday.`,
+    rawOriginal: `Thanks both. The local authority confirmed this morning that the search results are back with us. We will review and come back with any enquiries by Friday.\n\nKind regards,\nMargaret Osei-Bonsu\n${FIRM}\n0113 496 0000\n\nOn 3 Sep 2026, Jordan Hayes wrote:\n> Thanks Margaret. Could you let me know as soon as they land, the buyer's mortgage offer expires at the end of next month so timing is tight.`,
+  }),
+  makeTimelineEmail({
+    id: "demo-tl-c2",
+    at: new Date("2026-09-03T16:05:00Z"),
+    type: "outbound",
+    content: `${TIMELINE_RE_SUBJECT}\nThanks Margaret. Could you let me know as soon as they land, the buyer's mortgage offer expires at the end of next month so timing is tight.`,
+    recipientName: "Margaret Osei-Bonsu",
+    createdByName: "Jordan Hayes",
+    actorRole: "agent",
+    actorName: "Jordan Hayes",
+    actorSubLabel: null,
+  }),
+  makeTimelineEmail({
+    id: "demo-tl-c1",
+    at: new Date("2026-09-02T09:20:00Z"),
+    type: "inbound",
+    content: `${TIMELINE_SUBJECT}\nJust to update you, the searches were submitted to the local authority on Friday. Their current turnaround is two to three weeks.`,
+  }),
+  TIMELINE_MILESTONE,
+];
+
+// Longer thread: five messages including one over the collapse threshold, so the
+// drawer's per-message show-more control and the show-original toggle both trip.
+const TIMELINE_THREAD_LONG: ActivityEntry[] = [
+  makeTimelineEmail({
+    id: "demo-tl-l5",
+    at: new Date("2026-09-08T11:30:00Z"),
+    type: "inbound",
+    content: `${TIMELINE_RE_SUBJECT}\n${LONG_NOTE}\n\n${LONG_NOTE}`,
+    rawOriginal: `${LONG_NOTE}\n\n${LONG_NOTE}\n\nKind regards,\nMargaret Osei-Bonsu\n${FIRM}`,
+  }),
+  makeTimelineEmail({
+    id: "demo-tl-l4",
+    at: new Date("2026-09-07T15:10:00Z"),
+    type: "outbound",
+    content: `${TIMELINE_RE_SUBJECT}\nUnderstood, thank you. I have flagged the boundary query to the seller and will come back with their position tomorrow.`,
+    recipientName: "Margaret Osei-Bonsu",
+    createdByName: "Jordan Hayes",
+    actorRole: "agent",
+    actorName: "Jordan Hayes",
+    actorSubLabel: null,
+  }),
+  ...TIMELINE_THREAD.slice(0, 3),
+  TIMELINE_MILESTONE,
+];
 
 export const DRAWER_ENTRIES: SheetEntry[] = [
   // 1 ── Chain drawer ─────────────────────────────────────────────────────────
@@ -845,6 +997,53 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
         onClose={ctx.onClose}
         onSent={ctx.onClose}
         targetStepName="Searches ordered"
+      />
+    ),
+  },
+
+  // ───────────────── Gap sweep additions (2026-10-20) ─────────────────
+
+  {
+    id: "drawer-bring-in-sale",
+    name: "Bring in an existing sale",
+    type: "drawer",
+    area: "Clients & team",
+    usedIn: "Clients · agency workspace · Bring in a sale",
+    file: "components/progression/BringInSaleDrawer.tsx",
+    componentName: "BringInSaleDrawer",
+    note: "Self-owned right-side portal drawer (own scrim, not the canonical Drawer). All data via props, no mount fetch. Submit fires migrateSaleAction against the demo agency id, which fails server-side and surfaces the error toast, nothing mutates. Toggling Leasehold reveals the management-pack steps and the purchase-type segments re-filter the picker live.",
+    preview: "overlay",
+    states: [
+      { id: "typical", label: "Migration window open", hint: "41 hours left, full milestone picker" },
+      { id: "window-closing", label: "Window nearly closed", hint: "2 hours left, countdown pill low" },
+    ],
+    render: (ctx) => (
+      <BringInSaleDrawer
+        agencyId="demo-agency-0000"
+        milestoneDefinitions={BRING_IN_DEFS}
+        hoursLeft={ctx.stateId === "window-closing" ? 2 : 41}
+        onClose={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "drawer-email-conversation",
+    name: "Email conversation",
+    type: "drawer",
+    area: "Updates",
+    usedIn: "Property file · Activity tab · email rows",
+    file: "components/activity/ActivityTimeline.tsx",
+    componentName: "ActivityTimeline (EmailConversationDrawer)",
+    note: "The timeline mounts inline with fixture entries, all data via props, no mount fetch. Click View conversation (N) on an email row to open the canonical Drawer with the full thread. Contacts prop is omitted so edit and remove stay disabled. Long-thread state trips the in-drawer show-more collapse and the show-original toggle.",
+    preview: "inline",
+    states: [
+      { id: "thread", label: "Three-message thread", hint: "inbound and outbound, one original available" },
+      { id: "long-thread", label: "Long thread", hint: "five messages, one over the collapse threshold" },
+    ],
+    render: (ctx) => (
+      <ActivityTimeline
+        entries={ctx.stateId === "long-thread" ? TIMELINE_THREAD_LONG : TIMELINE_THREAD}
+        transactionId={DEMO_TX_ID}
       />
     ),
   },

@@ -6,16 +6,27 @@
 // background. All action handlers are wired to ctx.onClose (or noop) and every
 // id is a "demo-*" so any server action that escapes a handler hits a
 // non-existent record and no-ops rather than mutating live data.
+//
+// NOT REGISTRABLE (inspect in situ — listed here so the sweep is honest):
+//   - MapView's Street View modal (components/transactions/map/MapView.tsx) —
+//     only reachable by clicking a sale pin on the live MapLibre canvas, which
+//     needs client-side postcode geocoding (postcodes.io network calls) plus a
+//     configured Google Maps key before the iframe shows anything beyond the
+//     key-missing line. The overlay is defined inline with no standalone
+//     export to mount.
 
+import { useEffect } from "react";
 import type { SheetEntry } from "./types";
 import {
   DEMO_TX_ID,
   ADDRESS,
   LONG_ADDRESS,
   NAME,
+  LONG_NAME,
   FIRM,
   LONG_FIRM,
   EMAIL,
+  LONG_EMAIL,
   PRICE_PENCE,
   DATE_TODAY,
   DATE_PAST,
@@ -69,6 +80,30 @@ import { TrialExpiredModal } from "@/components/billing/TrialExpiredModal";
 import { WithdrawFileModal } from "@/components/transaction/WithdrawFileModal";
 import { ResumeFileModal } from "@/components/transaction/ResumeFileModal";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
+// Gap sweep additions (2026-10-20)
+import { SentEmailModal } from "@/components/transaction/SentEmailModal";
+import { LogUpdateModal } from "@/components/activity/LogUpdateModal";
+import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
+import { SurveyEmailModal } from "@/components/milestones/SurveyEmailModal";
+import { OnwardNudgeModal } from "@/components/transaction/OnwardNudgeModal";
+import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
+import { SelfManagedWelcomeModal } from "@/components/agent/SelfManagedWelcomeModal";
+import { ProgressorWelcomeModal } from "@/components/agent/ProgressorWelcomeModal";
+import { AddCardGateModal } from "@/components/progression/AddCardGateModal";
+import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
+// Gap sweep batch 2 (2026-10-20) — cards/lists that own an embedded modal
+import { PropertyFlagsCard } from "@/components/transaction/PropertyFlagsCard";
+import { HousingAssociationSection } from "@/components/transaction/HousingAssociationSection";
+import { AttentionCard } from "@/components/hub/AttentionCard";
+import { CheckInsList } from "@/components/chain/CheckInsList";
+import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
+import { DemoTourController } from "@/components/transaction/demo-tour/DemoTourController";
+import { DEMO_TOUR_STEPS, type TourStep } from "@/components/transaction/demo-tour/types";
+import { ClientsWorkspace } from "@/components/progression/ClientsWorkspace";
+import { ClientPeople } from "@/components/progression/ClientPeople";
+import { BusinessTeamView } from "@/components/progression/BusinessTeamView";
+import { ContactsSection } from "@/components/contacts/ContactsSection";
+import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 
 // ── Component prop-shape types (imported so fixtures match precisely) ─────────
 import type { UndoImpact, UndoImpactItem } from "@/lib/services/milestones";
@@ -78,6 +113,20 @@ import type { DiaryItem } from "@/lib/services/hub";
 import type { ChainMember } from "@/components/transaction/ClaimWelcomeModal";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 import type { PendingQueueItem } from "@/app/actions/confirm-review-queue";
+import type { AssignableAgent } from "@/lib/services/agency-team";
+import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs";
+import type { CardGatePreview, GateNotice } from "@/components/progression/AddCardGateModal";
+// Gap sweep batch 2 (2026-10-20) prop-shape types
+import type { ExpiredHoldItem } from "@/lib/services/hub";
+import type { CheckInRow } from "@/lib/services/chains";
+import type { OpenEnquiryRow } from "@/lib/services/enquiries";
+import type {
+  ClientsOverview,
+  OutgoingConnectionRequest,
+  AgencyPerson,
+  RemovedPerson,
+  BusinessTeamMember,
+} from "@/lib/services/progression-clients";
 
 // ── Local fixtures ───────────────────────────────────────────────────────────
 
@@ -222,6 +271,267 @@ const CONFIRM_ITEMS_MERGED: PendingQueueItem[] = [
     editedAt: null,
     isExchangeCompletion: false,
   },
+];
+
+// ── Gap-sweep fixtures (2026-10-20) ──────────────────────────────────────────
+
+// LogUpdateModal takes its own narrow contact/solicitor shapes (roleType drives
+// the seller/buyer split; solicitor role must be "Vendor solicitor" to sit left).
+const LOG_CONTACTS = [
+  { id: "demo-c1", name: NAME, roleType: "vendor", phone: "07700 900111" },
+  { id: "demo-c2", name: "Tom Whitfield", roleType: "purchaser", phone: "07700 900222" },
+  { id: "demo-c3", name: "Rebecca Whitfield", roleType: "purchaser", phone: null },
+];
+const LOG_SOLICITORS = [
+  { id: "demo-s1", name: "Margaret Osei-Bonsu", role: "Vendor solicitor", phone: "0113 496 0000" },
+  { id: "demo-s2", name: LONG_NAME, role: "Purchaser solicitor", phone: "020 7946 0000" },
+];
+
+const ASSIGNABLE_AGENTS: AssignableAgent[] = [
+  { id: "demo-user-1", name: NAME, email: "priya@hartwell.co.uk", role: "director" },
+  { id: "demo-user-2", name: "Jordan Blake", email: "jordan@hartwell.co.uk", role: "negotiator" },
+  { id: "demo-user-3", name: LONG_NAME, email: LONG_EMAIL, role: "negotiator" },
+];
+
+const CHASE_PREFS_ALL: ProgressorChasePrefs = {
+  client: true, solicitor: true, enquiries: true, weekly: true, chain: true,
+};
+
+const CARD_GATE_PREVIEW: CardGatePreview = {
+  dueTodayPence: 4377, // fractional so the 2dp formatting shows
+  daysLeft: 12,
+  monthLabel: "October",
+  nextPaymentLabel: "1 November",
+  basePence: 9900,
+  perSalePence: 500,
+  perMemberPence: 3900,
+};
+
+const CARD_GATE_NOTICE: GateNotice = {
+  title: "Your plan is paused",
+  body: "New sales are on hold while the plan is paused. Restart billing to add this sale.",
+  actionLabel: "Go to billing",
+  actionHref: "/agent/settings/billing",
+};
+
+// useDemoExplore is a hook returning { launch, node } — this thin harness mounts
+// it the way DemoHeroCard / AllFilesEmptyState do, auto-launching the intro on
+// mount. The hook owns its own dismissal (X / Escape / backdrop); there is no
+// close callback to wire, so remounting the entry replays it.
+function DemoExploreHarness() {
+  const { launch, node } = useDemoExplore();
+  useEffect(() => {
+    launch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <>{node}</>;
+}
+
+// ── Gap-sweep batch 2 fixtures (2026-10-20) — embedded-modal owners ───────────
+
+// AttentionCard consumes page-decorated items (photoUrl already signed). Two
+// expired holds put the "Take off hold" / "Extend hold" actions on screen.
+const ATTENTION_HOLDS: Array<ExpiredHoldItem & { photoUrl: string | null }> = [
+  {
+    transactionId: DEMO_TX_ID,
+    propertyAddress: ADDRESS,
+    plannedEndAt: new Date(DATE_PAST),
+    startedAt: new Date("2026-08-01"),
+    agencyName: "Hartwell & Co",
+    reason: "Probate pending",
+    placedByName: NAME,
+    photoStoragePath: null,
+    photoUrl: null,
+  },
+  {
+    transactionId: "demo-transaction-0001",
+    propertyAddress: LONG_ADDRESS,
+    plannedEndAt: new Date(DATE_PAST),
+    startedAt: new Date("2026-07-15"),
+    agencyName: null,
+    reason: null,
+    placedByName: null,
+    photoStoragePath: null,
+    photoUrl: null,
+  },
+];
+
+// Two nodes in one chain: a claimed neighbour WITH history (so the overflow
+// menu offers "Update history") and a never-logged unclaimed stub, which
+// floats to the top of the group by design.
+const CHECK_IN_ROWS: CheckInRow[] = [
+  {
+    linkId: "demo-link-1",
+    transactionId: "demo-transaction-0001",
+    ourTransactionId: DEMO_TX_ID,
+    address: "3 Orchard Way, Surbiton",
+    agentName: "Jordan Blake",
+    firmName: "Oak & Key",
+    agentEmail: "jordan@oakandkey.co.uk",
+    agentPhone: "07700 900444",
+    claimed: true,
+    progressPercent: 62,
+    photoUrl: null,
+    lastUpdateAt: "2026-08-20T10:00:00.000Z",
+    lastUpdateBody: "Spoke to their agent. Searches are back and replies to enquiries are being drafted.",
+    history: [
+      { at: "2026-08-20T10:00:00.000Z", body: "Spoke to their agent. Searches are back and replies to enquiries are being drafted." },
+      { at: "2026-08-06T09:30:00.000Z", body: "Left a voicemail chasing the mortgage offer." },
+      { at: "2026-07-28T16:10:00.000Z", body: "Their agent says the survey is booked for next week." },
+    ],
+    steps: CHECK_IN_STEPS.slice(0, 4).map((s) => s.key),
+    chainId: "demo-chain-1",
+    chainName: "Oakwood Avenue chain",
+    ourAddresses: [ADDRESS],
+  },
+  {
+    linkId: "demo-link-2",
+    transactionId: null,
+    ourTransactionId: DEMO_TX_ID,
+    address: LONG_ADDRESS,
+    agentName: null,
+    firmName: null,
+    agentEmail: null,
+    agentPhone: null,
+    claimed: false,
+    progressPercent: null,
+    photoUrl: null,
+    lastUpdateAt: null,
+    lastUpdateBody: null,
+    history: [],
+    steps: [],
+    chainId: "demo-chain-1",
+    chainName: "Oakwood Avenue chain",
+    ourAddresses: [ADDRESS],
+  },
+];
+
+// One open enquiry loop in each court, so both drag directions on the court
+// slider (and both resting reads) are on screen.
+const ENQUIRY_ROWS: OpenEnquiryRow[] = [
+  {
+    transactionId: DEMO_TX_ID,
+    address: ADDRESS,
+    photoStoragePath: null,
+    price: PRICE_PENCE,
+    tenure: "freehold",
+    currentlyWith: "seller_solicitor",
+    status: "chasing",
+    quietSince: new Date(DATE_PAST),
+    quietDays: 6,
+    chaseCount: 2,
+    outstandingNote: "Replies to 12 enquiries outstanding",
+    expectedDate: null,
+    restingUntil: null,
+    restingReason: null,
+    awaitingPack: false,
+    canHoldForPack: false,
+    needsAttention: true,
+    stalled: false,
+    nextChaseAt: new Date(DATE_TODAY),
+    chaseBar: { stage: "chase", progress: 0.8 },
+    openedAt: new Date("2026-08-05"),
+    partial: false,
+    lastMovement: { note: "Chased the seller's solicitor by phone", kind: "chased", occurredAt: new Date(DATE_PAST), byName: NAME },
+    clientNames: NAME,
+    vendorSolicitor: FIRM,
+    purchaserSolicitor: LONG_FIRM,
+    vendorSolicitorEmail: EMAIL,
+    purchaserSolicitorEmail: LONG_EMAIL,
+    parties: [
+      { id: "vsol", label: FIRM, side: "vendor", kind: "solicitor" },
+      { id: "psol", label: LONG_FIRM, side: "purchaser", kind: "solicitor" },
+      { id: "demo-c-vendor", label: NAME, side: "vendor", kind: "client", contactId: "demo-c-vendor", email: "priya.c@example.com" },
+    ],
+  },
+  {
+    transactionId: "demo-transaction-0001",
+    address: LONG_ADDRESS,
+    photoStoragePath: null,
+    price: 32500000,
+    tenure: "leasehold",
+    currentlyWith: "buyer_solicitor",
+    status: "chasing",
+    quietSince: new Date(DATE_PAST),
+    quietDays: 3,
+    chaseCount: 0,
+    outstandingNote: null,
+    expectedDate: null,
+    restingUntil: null,
+    restingReason: null,
+    awaitingPack: false,
+    canHoldForPack: true,
+    needsAttention: false,
+    stalled: false,
+    nextChaseAt: null,
+    chaseBar: { stage: "chase", progress: 0.35 },
+    openedAt: new Date("2026-08-12"),
+    partial: false,
+    lastMovement: { note: "Replies received in full", kind: "replies_received", occurredAt: new Date(DATE_PAST), byName: null },
+    clientNames: "Tom & Rebecca Whitfield",
+    vendorSolicitor: FIRM,
+    purchaserSolicitor: LONG_FIRM,
+    vendorSolicitorEmail: EMAIL,
+    purchaserSolicitorEmail: LONG_EMAIL,
+    parties: [
+      { id: "vsol", label: FIRM, side: "vendor", kind: "solicitor" },
+      { id: "psol", label: LONG_FIRM, side: "purchaser", kind: "solicitor" },
+    ],
+  },
+];
+
+// The guided tour spotlights whatever its step selector resolves to, so one
+// fixture step (real production copy) targets the stage card the entry mounts.
+// The veil, ring and guide card then render exactly as production draws them;
+// the full 6-step story itself only makes sense on the live demo file.
+const TOUR_FIXTURE_STEPS: TourStep[] = [
+  {
+    id: DEMO_TOUR_STEPS[0].id,
+    target: "[data-demo-tour-stage]",
+    placement: "bottom",
+    title: DEMO_TOUR_STEPS[0].title,
+    body: DEMO_TOUR_STEPS[0].body,
+    advance: "continue",
+  },
+];
+
+const CLIENTS_OVERVIEW: ClientsOverview = {
+  business: { name: "Harbour & Co Sale Progression", shortName: "Harbour & Co" },
+  totals: { agencies: 2, activeSales: 14, pipelinePence: 123400000, exchangedThisMonth: 3 },
+  clients: [
+    { linkId: "demo-cl-1", agencyId: "demo-agency-1", name: "Hartwell & Co Estate Agents", contact: NAME, email: EMAIL, pending: false, logoUrl: null, tileColor: null, people: 4, active: 9, pipelinePence: 89200000, exchanged: 2, status: "active", removed: false },
+    { linkId: "demo-cl-2", agencyId: "demo-agency-2", name: "Featherstonehaugh & Worthington-Smythe Residential Sales and Lettings", contact: "Jordan Blake", email: null, pending: true, logoUrl: null, tileColor: null, people: 1, active: 5, pipelinePence: 34200000, exchanged: 1, status: "invite", removed: false },
+    { linkId: "demo-cl-3", agencyId: "demo-agency-3", name: "Beckside Homes", contact: "Sam Rai", email: null, pending: false, logoUrl: null, tileColor: null, people: 0, active: 0, pipelinePence: 0, exchanged: 0, status: "removed", removed: true },
+  ],
+};
+
+const CLIENT_REQUESTS: OutgoingConnectionRequest[] = [
+  { id: "demo-req-1", agencyId: "demo-agency-4", agencyName: "Oak & Key", createdAt: new Date(DATE_PAST) },
+];
+
+const CLIENT_PEOPLE: AgencyPerson[] = [
+  { id: "demo-p-1", name: NAME, email: EMAIL, role: "director", pending: false, image: null, canViewAll: true, inviteExpiresAt: null, lastLoginAt: Date.now() - 2 * 86400000 },
+  { id: "demo-p-2", name: "Jordan Blake", email: "jordan@hartwell.co.uk", role: "negotiator", pending: false, image: null, canViewAll: false, inviteExpiresAt: null, lastLoginAt: Date.now() - 16 * 86400000 },
+  { id: "demo-p-3", name: LONG_NAME, email: LONG_EMAIL, role: "negotiator", pending: true, image: null, canViewAll: true, inviteExpiresAt: Date.now() + 5 * 86400000, lastLoginAt: null },
+];
+
+const CLIENT_PEOPLE_REMOVED: RemovedPerson[] = [
+  { id: "demo-p-4", name: "Sam Rai", email: "sam@hartwell.co.uk", image: null },
+];
+
+const BUSINESS_TEAM: BusinessTeamMember[] = [
+  { id: "demo-m-1", name: NAME, email: "priya@harbourprogression.co.uk", role: "owner", canViewAllFiles: true, isYou: true, pending: false, removed: false, image: null, imageFocusX: 50, imageFocusY: 50 },
+  { id: "demo-m-2", name: "Jordan Blake", email: "jordan@harbourprogression.co.uk", role: "progressor", canViewAllFiles: false, isYou: false, pending: false, removed: false, image: null, imageFocusX: 50, imageFocusY: 50 },
+  { id: "demo-m-3", name: LONG_NAME, email: LONG_EMAIL, role: "progressor", canViewAllFiles: true, isYou: false, pending: true, removed: false, image: null, imageFocusX: 50, imageFocusY: 50 },
+  { id: "demo-m-4", name: "Sam Rai", email: "sam@harbourprogression.co.uk", role: "progressor", canViewAllFiles: false, isYou: false, pending: false, removed: true, image: null, imageFocusX: 50, imageFocusY: 50 },
+];
+
+// ContactsSection's Contact prop shape is internal to the component, so this
+// fixture matches it structurally: both principals plus a non-principal helper.
+const SECTION_CONTACTS = [
+  { id: "demo-c-vendor", name: NAME, phone: "07700 900111", email: "priya.c@example.com", roleType: "vendor", portalToken: "demo-portal-token", createdAt: new Date(DATE_PAST), lastVisitedPortalAt: new Date(DATE_PAST), isPrincipal: true },
+  { id: "demo-c-purchaser", name: "Tom & Rebecca Whitfield", phone: "07700 900222", email: "t.whitfield@example.com", roleType: "purchaser", portalToken: null, createdAt: new Date(DATE_PAST), isPrincipal: true },
+  { id: "demo-c-helper", name: "Sam Rai", phone: null, email: "sam.rai@example.com", roleType: "vendor", portalToken: null, createdAt: new Date(DATE_PAST), isPrincipal: false, portalEligible: false },
 ];
 
 // ── Entries ──────────────────────────────────────────────────────────────────
@@ -1175,6 +1485,432 @@ export const MODAL_ENTRIES: SheetEntry[] = [
         onClose={ctx.onClose}
         onSaved={ctx.onClose}
       />
+    ),
+  },
+
+  // ───────────────── Gap sweep additions (2026-10-20) ─────────────────
+
+  {
+    id: "modal-sent-email",
+    name: "Sent email viewer",
+    type: "modal",
+    area: "Comms",
+    usedIn: "Focus client comms + chase timeline · open a sent row",
+    file: "components/transaction/SentEmailModal.tsx",
+    componentName: "SentEmailModal",
+    note: "Fetches the stored send by id on mount, so the demo id shows loading then the load error. There is no HTML prop to inject a fixture email, open a real sent row in the app to see the sandboxed iframe. Becomes a bottom drawer at 1024px and below.",
+    preview: "overlay",
+    states: [
+      { id: "default", label: "Default", hint: "loading then load error, no backing record" },
+    ],
+    render: (ctx) => (
+      <SentEmailModal
+        email={{ id: "demo-msg-0000", label: "Solicitor chase" }}
+        onClose={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-log-update",
+    name: "Log an update",
+    type: "modal",
+    area: "Updates",
+    usedIn: "Property file · Activity tab",
+    file: "components/activity/LogUpdateModal.tsx",
+    componentName: "LogUpdateModal",
+    note: "Renders the real Log-an-update trigger, click it for the home screen then Draft for everyone / Log / Record / note panels. Saves target the demo file and surface the inline error. Centred modal desktop, bottom sheet on mobile.",
+    preview: "inline",
+    states: [
+      { id: "default", label: "Full menu", hint: "email log + paste-a-chat shown, private notes on" },
+      { id: "email-connected", label: "Email connected", hint: "log-an-email hidden, no paste option" },
+    ],
+    render: (ctx) => (
+      <LogUpdateModal
+        transactionId={DEMO_TX_ID}
+        contacts={LOG_CONTACTS}
+        solicitors={LOG_SOLICITORS}
+        canPasteChat={ctx.stateId !== "email-connected"}
+        emailConnected={ctx.stateId === "email-connected"}
+        canMarkPrivate
+      />
+    ),
+  },
+  {
+    id: "modal-compose-email",
+    name: "Compose email",
+    type: "modal",
+    area: "Comms",
+    usedIn: "Compose button, Focus page, surveyor email, weekly touch",
+    file: "components/compose/ComposeEmailModal.tsx",
+    componentName: "ComposeEmailModal",
+    note: "CAVEAT: the sale search reads your real files (read-only), and picking one builds a real compose context where Send really sends, so inspect without sending. The demo-sale state shows the couldn't-open toast and falls back to search.",
+    preview: "overlay",
+    states: [
+      { id: "search", label: "Pick a sale", hint: "the sale-search first screen" },
+      { id: "demo-sale", label: "Demo sale id", hint: "context load fails, toast then search" },
+    ],
+    render: (ctx) => (
+      <ComposeEmailModal
+        open={ctx.open}
+        onClose={ctx.onClose}
+        initialTransactionId={ctx.stateId === "demo-sale" ? DEMO_TX_ID : null}
+      />
+    ),
+  },
+  {
+    id: "modal-survey-email",
+    name: "Email the surveyor",
+    type: "modal",
+    area: "Milestones",
+    usedIn: "Milestone engine · survey booked step",
+    file: "components/milestones/SurveyEmailModal.tsx",
+    componentName: "SurveyEmailModal",
+    note: "Access picker (seller / keys / buyer / other, with the other free-text field). Compose builds the draft against the demo file and shows the inline error, with a real file it hands off pre-filled to ComposeEmailModal.",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default" }],
+    render: (ctx) => (
+      <SurveyEmailModal transactionId={DEMO_TX_ID} open={ctx.open} onClose={ctx.onClose} />
+    ),
+  },
+  {
+    id: "modal-onward-nudge",
+    name: "Onward purchase nudge",
+    type: "modal",
+    area: "Property file",
+    usedIn: "Property file · onward purchase card",
+    file: "components/transaction/OnwardNudgeModal.tsx",
+    componentName: "OnwardNudgeModal",
+    note: "Loads its preview via a server action, the demo ids surface the load-error state inside the Ribbon-header chrome. With a real file it shows editable subject / opening / message over a live sandboxed iframe preview.",
+    preview: "overlay",
+    states: [
+      { id: "onward-setup", label: "Onward, set up", hint: "ask the seller to set up their purchase" },
+      { id: "related-update", label: "Related, update", hint: "ask the buyer to update their sale" },
+    ],
+    render: (ctx) => (
+      <OnwardNudgeModal
+        transactionId={DEMO_TX_ID}
+        contactId="demo-c-vendor"
+        direction={ctx.stateId === "related-update" ? "related" : "onward"}
+        mode={ctx.stateId === "related-update" ? "update" : "setup"}
+        onClose={ctx.onClose}
+        onSent={noop}
+      />
+    ),
+  },
+  {
+    id: "modal-reassign-owner",
+    name: "Reassign file owner",
+    type: "modal",
+    area: "Property file",
+    usedIn: "Property file sidebar · director-only Reassign link",
+    file: "components/transaction/ReassignOwnerControl.tsx",
+    componentName: "ReassignOwnerControl",
+    note: "Renders the small Reassign link, click it to open the modal with the agent picker. Confirm calls reassignAgentAction with the demo id, so it shows the inline error rather than reassigning.",
+    preview: "overlay",
+    states: [
+      { id: "assigned", label: "Owned", hint: "currently owned by a named agent" },
+      { id: "unassigned", label: "No owner", hint: "currently owned by no one" },
+    ],
+    render: (ctx) => (
+      <div style={{ display: "flex", justifyContent: "center", paddingTop: 120 }}>
+        <ReassignOwnerControl
+          transactionId={DEMO_TX_ID}
+          currentAgentUserId={ctx.stateId === "unassigned" ? null : "demo-user-1"}
+          currentAgentName={ctx.stateId === "unassigned" ? null : NAME}
+          currentUserId="demo-user-2"
+          assignableAgents={ASSIGNABLE_AGENTS}
+        />
+      </div>
+    ),
+  },
+  {
+    id: "modal-self-managed-welcome",
+    name: "Welcome, self-managed director",
+    type: "modal",
+    area: "Onboarding & account",
+    usedIn: "First login · self-managed director, plus the claim first-run",
+    file: "components/agent/SelfManagedWelcomeModal.tsx",
+    componentName: "SelfManagedWelcomeModal",
+    note: "3-step morphing welcome: what TSP does, choose your chases, add your first sale (with the quick tour). Marks the welcome seen on mount (caught without a session) and the chase toggles save via a caught action. The final CTA routes away. Claim variant re-cuts the copy around the claimed sale.",
+    preview: "overlay",
+    states: [
+      { id: "self", label: "First login" },
+      { id: "claim", label: "Claim variant", hint: "copy speaks to the claimed sale" },
+    ],
+    render: (ctx) => (
+      <SelfManagedWelcomeModal
+        userName="Sarah Hughes"
+        initialPrefs={CHASE_PREFS_ALL}
+        themeMode="system"
+        variant={ctx.stateId === "claim" ? "claim" : "self"}
+        propertyAddress={ctx.stateId === "claim" ? ADDRESS : undefined}
+        onClosed={ctx.onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-progressor-welcome",
+    name: "Welcome, progression owner",
+    type: "modal",
+    area: "Onboarding & account",
+    usedIn: "First login · external progression business owner",
+    file: "components/agent/ProgressorWelcomeModal.tsx",
+    componentName: "ProgressorWelcomeModal",
+    note: "The owner 3-step welcome (what TSP does, chases, add your first client), morphing width between steps. Closes itself via X or Escape, there is no close callback to wire, so reopen the entry to replay. The final CTA routes away.",
+    preview: "overlay",
+    states: [{ id: "default", label: "Default" }],
+    render: () => (
+      <ProgressorWelcomeModal
+        businessName="Harbour & Co Progression"
+        userName="Sarah Hughes"
+        initialPrefs={CHASE_PREFS_ALL}
+        themeMode="system"
+      />
+    ),
+  },
+  {
+    id: "modal-add-card-gate",
+    name: "Add a card gate",
+    type: "modal",
+    area: "Clients & team",
+    usedIn: "New sale · business card-on-file gate",
+    file: "components/progression/AddCardGateModal.tsx",
+    componentName: "AddCardGateModal",
+    note: "Plan rows + pro-rated Due today figure above the Stripe card form. The demo publishable key means the card step shows its error, judge the chrome and figures. The notice state swaps in the message-only gate (paused plan / ask the owner).",
+    preview: "overlay",
+    states: [
+      { id: "due-today", label: "Due today", hint: "pro-rata figure + card form" },
+      { id: "notice", label: "Paused plan", hint: "message-only gate, no card form" },
+    ],
+    render: (ctx) => (
+      <AddCardGateModal
+        publishableKey="pk_test_demo_0000000000000000"
+        onClose={ctx.onClose}
+        onSaved={ctx.onClose}
+        preview={ctx.stateId === "notice" ? null : CARD_GATE_PREVIEW}
+        notice={ctx.stateId === "notice" ? CARD_GATE_NOTICE : null}
+      />
+    ),
+  },
+  {
+    id: "modal-demo-explore",
+    name: "Explore the demo sale",
+    type: "modal",
+    area: "Onboarding & account",
+    usedIn: "New sale hero + all-files empty state",
+    file: "components/transactions-v2/useDemoExplore.tsx",
+    componentName: "useDemoExplore (hook, mounted via a local harness)",
+    note: "CAVEAT: the Explore CTA really provisions (or reopens) your demo sale and navigates into it, so inspect without clicking it. Dismisses via its own X / Escape, reopen the entry to replay. Full-screen pop-up at 1060px and below.",
+    preview: "overlay",
+    states: [{ id: "intro", label: "Intro" }],
+    render: () => <DemoExploreHarness />,
+  },
+
+  // ─────────── Gap sweep batch 2 (2026-10-20) — embedded-modal owners ─────────
+
+  {
+    id: "modal-property-flags-confirm",
+    name: "Property flags confirm",
+    type: "modal",
+    area: "Property file",
+    usedIn: "Property file sidebar · Property card toggles",
+    file: "components/transaction/PropertyFlagsCard.tsx",
+    componentName: "PropertyFlagsCard",
+    note: "The real sidebar Property card. Toggle the active flag OFF to open the confirm, since reversing the pack steps on a freehold asks first. Confirming saves against the demo file and surfaces the error toast.",
+    preview: "inline",
+    states: [
+      { id: "managed-freehold", label: "Managed development", hint: "freehold with the pack on, toggle it off" },
+      { id: "shared-ownership", label: "Shared ownership", hint: "freehold marked shared ownership, toggle it off" },
+    ],
+    render: ({ stateId }) => (
+      <div style={{ maxWidth: 330, margin: "120px auto 0" }}>
+        <PropertyFlagsCard
+          transactionId={DEMO_TX_ID}
+          tenure="freehold"
+          purchaseType="mortgage"
+          isShareOfFreehold={false}
+          hasManagementPack={stateId === "managed-freehold"}
+          isSharedOwnership={stateId === "shared-ownership"}
+          canEdit
+        />
+      </div>
+    ),
+  },
+  {
+    id: "modal-housing-association",
+    name: "Housing association add/edit",
+    type: "modal",
+    area: "Property file",
+    usedIn: "Property file · Professionals view (shared-ownership files)",
+    file: "components/transaction/HousingAssociationSection.tsx",
+    componentName: "HousingAssociationSection",
+    note: "Click Edit (populated) or the add CTA (empty) to open the four-field modal. Save posts to the demo file and surfaces the error toast.",
+    preview: "inline",
+    states: [
+      { id: "populated", label: "On file", hint: "Edit opens the modal prefilled" },
+      { id: "empty", label: "Not set", hint: "the add CTA opens the modal blank" },
+    ],
+    render: ({ stateId }) => (
+      <div style={{ maxWidth: 560, margin: "120px auto 0" }}>
+        <HousingAssociationSection
+          transactionId={DEMO_TX_ID}
+          name={stateId === "empty" ? null : "Peabody"}
+          contactName={stateId === "empty" ? null : "Sarah Hughes"}
+          email={stateId === "empty" ? null : "sales@peabody.org.uk"}
+          phone={stateId === "empty" ? null : "020 7021 4000"}
+          canEdit
+        />
+      </div>
+    ),
+  },
+  {
+    id: "modal-attention-take-off-hold",
+    name: "Take off hold (attention card)",
+    type: "modal",
+    area: "Reminders",
+    usedIn: "Hub · Needs-your-attention card",
+    file: "components/hub/AttentionCard.tsx",
+    componentName: "AttentionCard",
+    note: "The real hub card with two expired holds. Take off hold opens the card's own portalled resume chooser (z1500, distinct from the shared ResumeFileModal); either option hits the demo file and surfaces the error toast. Extend hold shows the inline date extender as a bonus.",
+    preview: "inline",
+    states: [{ id: "default", label: "Expired holds" }],
+    render: () => (
+      <div style={{ maxWidth: 760, margin: "80px auto 0" }}>
+        <AttentionCard holds={ATTENTION_HOLDS} reminders={[]} unassigned={[]} relists={[]} chainSetup={[]} />
+      </div>
+    ),
+  },
+  {
+    id: "modal-checkins-history",
+    name: "Check-in update history",
+    type: "modal",
+    area: "Chains",
+    usedIn: "Chains · Check-ins tab",
+    file: "components/chain/CheckInsList.tsx",
+    componentName: "CheckInsList (HistoryModal)",
+    note: "Real check-in rows. Open the claimed row's overflow menu and pick Update history for the private-notes modal. Log update posts to the demo link and surfaces the error toast; View chain opens the real ChainDrawer, which loads then errors on the demo file (valid to inspect).",
+    preview: "inline",
+    states: [{ id: "default", label: "One chain, two nodes" }],
+    render: () => (
+      <div style={{ maxWidth: 760, margin: "80px auto 0" }}>
+        <CheckInsList rows={CHECK_IN_ROWS} currentUserId="demo-user-1" currentUserRole="director" />
+      </div>
+    ),
+  },
+  {
+    id: "modal-enquiries-drag-confirm",
+    name: "Enquiries drag-to-stage confirm",
+    type: "modal",
+    area: "Enquiries",
+    usedIn: "Enquiries triage · court slider",
+    file: "components/enquiries/EnquiriesTriageList.tsx",
+    componentName: "EnquiriesTriageList",
+    note: "The real triage list with one loop in each court. Drag the ball on a row's court track past halfway and release to open the confirm; confirming logs the handover on the demo file and surfaces the error toast. Expanding a row loads its history, which errors on the demo id (valid to inspect).",
+    preview: "inline",
+    states: [{ id: "default", label: "Two open loops" }],
+    render: () => (
+      <div style={{ maxWidth: 1040, margin: "40px auto 0" }}>
+        <EnquiriesTriageList rows={ENQUIRY_ROWS} signedPhotos={{}} emailConnected={false} />
+      </div>
+    ),
+  },
+  {
+    id: "modal-demo-tour",
+    name: "Demo tour spotlight",
+    type: "modal",
+    area: "Onboarding & account",
+    usedIn: "Demo sale file · guided walkthrough",
+    file: "components/transaction/demo-tour/DemoTourController.tsx",
+    componentName: "DemoTourController",
+    note: "The tour resolves targets by selector, so the spotlight state passes one fixture step (real production copy) ringing the stage card below: the veil, ring and guide card are the real overlay. The finish state mounts the terminal card directly. CAVEAT: the finish card's Add-your-first-sale CTA routes away; Escape or the X skips out cleanly.",
+    preview: "inline",
+    states: [
+      { id: "spotlight", label: "Spotlight step", hint: "veil + ring + guide card on a fixture target" },
+      { id: "finish", label: "Finish card", hint: "the terminal celebration card" },
+    ],
+    render: (ctx) => (
+      <div style={{ maxWidth: 620, margin: "140px auto 0" }}>
+        <div
+          data-demo-tour-stage
+          style={{ padding: "22px 24px", borderRadius: 16, background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-subtle)" }}
+        >
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>{ADDRESS}</p>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-secondary)" }}>A fixture stage card for the tour to spotlight.</p>
+        </div>
+        <DemoTourController
+          autoStart
+          steps={ctx.stateId === "finish" ? [] : TOUR_FIXTURE_STEPS}
+          onClose={() => ctx.onClose()}
+        />
+      </div>
+    ),
+  },
+  {
+    id: "modal-clients-workspace",
+    name: "Add a client + business settings",
+    type: "modal",
+    area: "Clients & team",
+    usedIn: "Clients landing · progression-business owner",
+    file: "components/progression/ClientsWorkspace.tsx",
+    componentName: "ClientsWorkspace",
+    note: "The full Clients landing with fixture agencies. Add a client opens the two-mode modal (new agency or connect an existing one); the gear opens Business settings. Submits hit demo records and surface the inline error or toast. Row links navigate to real routes, so inspect without clicking through.",
+    preview: "inline",
+    states: [{ id: "default", label: "Populated book" }],
+    render: () => (
+      <div style={{ maxWidth: 1000, margin: "40px auto 0" }}>
+        <ClientsWorkspace data={CLIENTS_OVERVIEW} pendingRequests={CLIENT_REQUESTS} />
+      </div>
+    ),
+  },
+  {
+    id: "modal-client-people",
+    name: "Invite / edit client person",
+    type: "modal",
+    area: "Clients & team",
+    usedIn: "Client agency page · People tab",
+    file: "components/progression/ClientPeople.tsx",
+    componentName: "ClientPeople",
+    note: "Real people rows: main contact, colleague, pending invite, one removed. Invite a colleague opens the invite modal; a row's menu then Edit details opens the edit modal. Sends hit the demo agency and surface the inline error. Make-main-contact and remove use window.confirm, not a modal.",
+    preview: "inline",
+    states: [{ id: "default", label: "Director + colleagues" }],
+    render: () => (
+      <div style={{ maxWidth: 760, margin: "60px auto 0" }}>
+        <ClientPeople agencyId="demo-agency-1" agencyName="Hartwell & Co" people={CLIENT_PEOPLE} removed={CLIENT_PEOPLE_REMOVED} />
+      </div>
+    ),
+  },
+  {
+    id: "modal-business-team-invite",
+    name: "Team invite confirm (+£39/mo)",
+    type: "modal",
+    area: "Clients & team",
+    usedIn: "Progression settings · Your team",
+    file: "components/progression/BusinessTeamView.tsx",
+    componentName: "BusinessTeamView",
+    note: "The owner roster with fixture members. Click Invite teammate, enter any name and email, then Send invite to open the portalled seat-cost confirm. Confirming posts the real action and surfaces the error toast. The row Remove is an inline confirm, not a modal.",
+    preview: "inline",
+    states: [{ id: "default", label: "Owner + members + removed" }],
+    render: () => (
+      <div style={{ maxWidth: 820, margin: "40px auto 0" }}>
+        <BusinessTeamView team={BUSINESS_TEAM} />
+      </div>
+    ),
+  },
+  {
+    id: "modal-contacts-remove",
+    name: "Remove contact confirm",
+    type: "modal",
+    area: "Solicitors & contacts",
+    usedIn: "Property file · contacts card",
+    file: "components/contacts/ContactsSection.tsx",
+    componentName: "ContactsSection",
+    note: "The full contacts card with fixture clients (its row menus are noted in the menus registry's in-situ list). Open a row's kebab and pick Remove for the confirm modal; confirming deletes against the demo file, so the row pops back with an error toast. Portal invites and add-contact also post to demo records and error rather than mutate.",
+    preview: "inline",
+    states: [{ id: "default", label: "Seller + buyer + helper" }],
+    render: () => (
+      <div style={{ maxWidth: 860, margin: "40px auto 0" }}>
+        <ContactsSection transactionId={DEMO_TX_ID} contacts={SECTION_CONTACTS} address={ADDRESS} />
+      </div>
     ),
   },
 ];

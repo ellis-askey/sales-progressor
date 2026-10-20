@@ -12,7 +12,13 @@
 // NOT REGISTRABLE (inspect in situ — listed here so the sweep is honest):
 //   - ContactsSection / TransactionRowView / ReminderCard / chain LinkCard +
 //     ChainMapPanel + OnwardPurchaseCard row menus — defined inline inside
-//     those large domain components, no standalone export to mount.
+//     those large domain components, no standalone export to mount. Of
+//     TransactionRowView's two inline hover popovers (2026-10-20 sweep): the
+//     JourneyHover stage popover IS live and is registered below by mounting
+//     the real row (menu-files-journey-hover); the WithdrawnCell reason hover
+//     is currently dead code — renderCell routes the withdrawn columns through
+//     DateCell + ReasonCell and nothing calls WithdrawnCell — so there is no
+//     live trigger to mount or to inspect in situ.
 //   - HeroAddressEdit / HeroSaleFields — inline hero edit popovers requiring
 //     the live file hero context.
 //   - PipelineStageHover — positions off a live pipeline tile's DOMRect with
@@ -22,7 +28,7 @@
 
 import { useState } from "react";
 import type { SheetEntry } from "./types";
-import { NAME } from "./fixtures";
+import { NAME, ADDRESS, SHORT_ADDRESS, LONG_ADDRESS, SHORT_NOTE, DEMO_TX_ID } from "./fixtures";
 
 // ── Real components ──────────────────────────────────────────────────────────
 import { RowActionMenu } from "@/components/hub/RowActionMenu";
@@ -40,6 +46,13 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { InfoTip } from "@/components/ui/InfoTip";
+import { ReviewsSection } from "@/components/agent/ReviewsSection";
+import type { ReviewItem } from "@/lib/services/reviews";
+import { CheckpointsPanel } from "@/components/transaction/CheckpointsPanel";
+import type { CheckpointView } from "@/lib/services/checkpoints";
+import { BuildingInvoiceHero, type BuildingInvoiceHeroProps } from "@/components/billing/v2/BuildingInvoiceHero";
+import { TransactionRowView, type TransactionRow } from "@/components/transactions/TransactionRowView";
 import { Clock, Check, ArrowsClockwise } from "@phosphor-icons/react";
 
 // ── Controlled-component wrappers (state only — the component is real) ───────
@@ -107,6 +120,77 @@ function AgentPickerFixture() {
     />
   );
 }
+
+// ── Fixture data for the 2026-10-20 gap-sweep additions ──────────────────────
+
+// ReviewsSection rows (to-do Reviews tab). Hold rows carry the split button's
+// Extend / Remove-date menu; manual rows carry the Reschedule / Edit / Remove
+// kebab menu. Past dates land in "Due now" (open by default) so both menus are
+// one click away; the 2027 row exercises the Upcoming drawer.
+const REVIEW_ITEMS_MIXED: ReviewItem[] = [
+  { kind: "hold", key: "demo-hold-1", transactionId: DEMO_TX_ID, address: ADDRESS, photoStoragePath: null, reviewDate: new Date("2026-09-28"), reason: "Probate pending, seller is waiting on the grant", origin: "hold", startedAt: new Date("2026-08-30"), placedByName: NAME },
+  { kind: "manual", key: "demo-task-1", id: "demo-task-0001", transactionId: DEMO_TX_ID, address: SHORT_ADDRESS, photoStoragePath: null, title: "Chase the management pack", notes: SHORT_NOTE, reviewDate: new Date("2026-10-01"), status: "open" },
+  { kind: "manual", key: "demo-task-2", id: "demo-task-0002", transactionId: null, address: null, photoStoragePath: null, title: "Call the buyer about their survey date", notes: null, reviewDate: new Date("2027-01-15"), status: "open" },
+];
+const REVIEW_ITEMS_ORIGINS: ReviewItem[] = [
+  { kind: "hold", key: "demo-hold-2", transactionId: DEMO_TX_ID, address: ADDRESS, photoStoragePath: null, reviewDate: new Date("2026-10-05"), reason: "Seller asked for a pause while they consider the asking price", origin: "hold", startedAt: new Date("2026-09-20"), placedByName: NAME },
+  { kind: "hold", key: "demo-hold-3", transactionId: "demo-transaction-0001", address: SHORT_ADDRESS, photoStoragePath: null, reviewDate: new Date("2026-10-12"), reason: "Chain collapsed above, waiting on a new related sale", origin: "chain_wait", startedAt: new Date("2026-09-28"), placedByName: null },
+  { kind: "hold", key: "demo-hold-4", transactionId: "demo-transaction-0002", address: LONG_ADDRESS, photoStoragePath: null, reviewDate: new Date("2026-10-15"), reason: "Back on the market after the buyer withdrew", origin: "remarketing", startedAt: new Date("2026-10-01"), placedByName: NAME },
+];
+
+// CheckpointsPanel rows. First row: shown to both, vendor confirmed, purchaser
+// pending with push available, so its kebab menu carries Nudge + Remove. Second
+// row: no push, so the same menu is Remove-only.
+const CHECKPOINTS_OPEN: CheckpointView[] = [
+  { id: "demo-ckp-1", label: "Probate granted", showTo: "both", targetDate: "2026-11-06T00:00:00.000Z", blocksExchange: true, lastNudgedAt: null, requiredParties: ["vendor", "purchaser"], confirmations: [{ party: "vendor", byName: NAME, byKind: "contact", eventDate: null, at: "2026-10-12T09:30:00.000Z" }], isComplete: false, pushVendor: true, pushPurchaser: true },
+  { id: "demo-ckp-2", label: "Gifted deposit letter received", showTo: "vendor", targetDate: null, blocksExchange: false, lastNudgedAt: null, requiredParties: ["vendor"], confirmations: [], isComplete: false, pushVendor: false, pushPurchaser: false },
+];
+const CHECKPOINTS_COMPLETE: CheckpointView[] = [
+  { id: "demo-ckp-3", label: "Indemnity policy in place", showTo: "none", targetDate: null, blocksExchange: false, lastNudgedAt: null, requiredParties: ["agent"], confirmations: [{ party: "agent", byName: NAME, byKind: "user", eventDate: null, at: "2026-10-05T14:00:00.000Z" }], isComplete: true, pushVendor: false, pushPurchaser: false },
+  { id: "demo-ckp-4", label: "Source of funds provided", showTo: "purchaser", targetDate: "2026-11-20T00:00:00.000Z", blocksExchange: true, lastNudgedAt: null, requiredParties: ["purchaser"], confirmations: [], isComplete: false, pushVendor: false, pushPurchaser: true },
+];
+
+// BuildingInvoiceHero lines. photoUrl null exercises the fallback streetscape
+// in the address popover; the credit line has no fileHref so it renders as
+// plain text (the production synthetic-credit shape).
+const INVOICE_LINES: BuildingInvoiceHeroProps["lines"] = [
+  { transactionId: DEMO_TX_ID, exchangedAt: new Date("2026-10-02"), address: ADDRESS, serviceLabel: "Self-progressed", serviceSub: "Charged on exchange", totalPence: 5900, variant: "normal", fileHref: `/agent/transactions/${DEMO_TX_ID}`, addedAt: new Date("2026-07-14"), photoUrl: null },
+  { transactionId: "demo-transaction-0001", exchangedAt: new Date("2026-10-09"), address: LONG_ADDRESS, serviceLabel: "Outsourced progression", serviceSub: "Progressed for you", totalPence: 25000, variant: "normal", fileHref: "/agent/transactions/demo-transaction-0001", addedAt: null, photoUrl: null },
+];
+const INVOICE_LINES_MIXED: BuildingInvoiceHeroProps["lines"] = [
+  ...INVOICE_LINES,
+  { transactionId: "demo-transaction-0002", exchangedAt: new Date("2026-10-14"), address: SHORT_ADDRESS, serviceLabel: "Self-progressed", serviceSub: "First file free", totalPence: 0, variant: "trial", fileHref: "/agent/transactions/demo-transaction-0002", addedAt: new Date("2026-08-02"), photoUrl: null },
+  { transactionId: "demo-credit-0001", exchangedAt: new Date("2026-10-14"), address: "Account credit", serviceLabel: "Credit applied", totalPence: -5900, variant: "credit" },
+];
+
+// All Files row (fixture). boardStage drives the journey bar, whose hover
+// popover is this entry's inspection target.
+const FILES_ROW_TX: TransactionRow = {
+  id: DEMO_TX_ID,
+  propertyAddress: ADDRESS,
+  photoUrl: null,
+  status: "active",
+  expectedExchangeDate: new Date("2026-11-28"),
+  overridePredictedDate: null,
+  createdAt: new Date("2026-09-01"),
+  assignedUser: null,
+  agentUser: { id: "demo-user-1", name: NAME, role: "director", image: null },
+  serviceType: "self_managed",
+  boardStage: "enquiries",
+  health: {
+    pendingOverdueTasks: 0,
+    escalatedTasks: 0,
+    lastActivityAt: new Date("2026-10-18"),
+    lastActivityType: "chase",
+    activityVerb: "Chased the seller's solicitor",
+    nextActionLabel: null,
+    nextMilestoneLabel: null,
+    daysStuckOnMilestone: 4,
+    onTrack: "on_track",
+    pace: "on_track",
+    nextStep: { text: "Next chase due Thursday", tone: "muted" },
+  },
+};
 
 // Centres a trigger so the flyout has honest room in every direction.
 function Stage({ children }: { children: React.ReactNode }) {
@@ -453,6 +537,148 @@ export const MENU_ENTRIES: SheetEntry[] = [
       <Stage>
         <div style={{ width: 420 }}>
           <GlobalSearch />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "menu-info-tip",
+    name: "Info tip popover",
+    type: "menu",
+    area: "Auto emails",
+    usedIn: "Automated emails list + agency chase grid · the (i) after a title",
+    file: "components/ui/InfoTip.tsx",
+    componentName: "InfoTip",
+    note: "Hover opens with a grace period so you can move into the popover; click pins it. Portalled and fixed-positioned, flips above when the trigger sits low.",
+    preview: "inline",
+    states: [
+      { id: "short", label: "Short tip" },
+      { id: "long", label: "Long tip", hint: "multi-sentence content, tests the 320px clamp and wrapping" },
+    ],
+    render: (ctx) => (
+      <Stage>
+        <span style={{ display: "inline-flex", alignItems: "center", fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+          Weekly client email
+          <InfoTip label="Weekly client email">
+            {ctx.stateId === "long"
+              ? "Sent every Friday morning to both sides of the sale, covering what moved this week and what happens next. If nothing moved, we send a short reassurance note instead, so clients never go a week without hearing from you. Pausing the file pauses these too, and they resume with the file."
+              : "Sent every Friday morning to both sides, covering what moved this week."}
+          </InfoTip>
+        </span>
+      </Stage>
+    ),
+  },
+  {
+    id: "menu-reviews-section",
+    name: "Reviews row menus",
+    type: "menu",
+    area: "To-do",
+    usedIn: "To-do · Reviews tab · hold-row caret + manual-row kebab",
+    file: "components/agent/ReviewsSection.tsx",
+    componentName: "ReviewsSection",
+    note: "Open the hold row's caret (Extend / Remove date) and the manual row's kebab (Reschedule / Edit / Remove). CAUTION: Add a review creates a real to-do on your account; the row-menu actions hit demo ids and error-toast harmlessly.",
+    preview: "inline",
+    states: [
+      { id: "mixed", label: "Hold + manual rows", hint: "both menu kinds, due now" },
+      { id: "origins", label: "All hold origins", hint: "hold / chain wait / remarketing pills" },
+    ],
+    render: (ctx) => (
+      <Stage>
+        <div style={{ width: "100%", maxWidth: 720 }}>
+          <ReviewsSection
+            initialItems={ctx.stateId === "origins" ? REVIEW_ITEMS_ORIGINS : REVIEW_ITEMS_MIXED}
+            initialDone={[]}
+            attachableFiles={[{ id: DEMO_TX_ID, propertyAddress: ADDRESS }]}
+          />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "menu-checkpoints-row",
+    name: "Checkpoint row menu",
+    type: "menu",
+    area: "Property file",
+    usedIn: "Property file · Overview · Checkpoints card row kebab",
+    file: "components/transaction/CheckpointsPanel.tsx",
+    componentName: "CheckpointsPanel",
+    note: "Open a row's kebab: Nudge (when that side has push) + Remove, portalled with a full-screen scrim. CAUTION: Confirm, Nudge and Remove call the real server actions with demo ids; they fail the scope guard and error-toast, nothing is written.",
+    preview: "inline",
+    states: [
+      { id: "open", label: "Open rows", hint: "first row nudgeable, second remove-only" },
+      { id: "complete", label: "Complete + no-push rows", hint: "ticked row hides the kebab" },
+    ],
+    render: (ctx) => (
+      <Stage>
+        <div style={{ width: "100%", maxWidth: 560 }}>
+          <CheckpointsPanel
+            transactionId={DEMO_TX_ID}
+            vendorName={NAME}
+            purchaserName="Tom Whitfield"
+            hasVendor
+            hasPurchaser
+            items={ctx.stateId === "complete" ? CHECKPOINTS_COMPLETE : CHECKPOINTS_OPEN}
+          />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "menu-invoice-address-pop",
+    name: "Invoice address popover",
+    type: "menu",
+    area: "Billing",
+    usedIn: "Billing · current invoice · click a line's address",
+    file: "components/billing/v2/BuildingInvoiceHero.tsx",
+    componentName: "BuildingInvoiceHero (AddressCell)",
+    note: "Click an address for the glassy property card: fallback streetscape photo, added + exchange dates, Go to file link (demo id, so it 404s). The credit line's address is plain text, no popover. PDF preview button hidden here, it hits a live API route.",
+    preview: "inline",
+    states: [
+      { id: "lines", label: "Two billable lines" },
+      { id: "mixed", label: "Trial + credit lines", hint: "credit applied in the totals, plain-text credit address" },
+    ],
+    render: (ctx) => (
+      <Stage>
+        <div style={{ width: "100%", maxWidth: 760 }}>
+          <BuildingInvoiceHero
+            periodLabel="October 2026"
+            lines={ctx.stateId === "mixed" ? INVOICE_LINES_MIXED : INVOICE_LINES}
+            subtotalPence={30900}
+            creditsAppliedPence={ctx.stateId === "mixed" ? 5900 : 0}
+            totalPence={ctx.stateId === "mixed" ? 25000 : 30900}
+            hidePreviewButton
+          />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "menu-files-journey-hover",
+    name: "Files row journey popover",
+    type: "menu",
+    area: "My Files",
+    usedIn: "All Files · hover a row's stage bar",
+    file: "components/transactions/TransactionRowView.tsx",
+    componentName: "TransactionRowView (JourneyHover)",
+    note: "Hover (or focus) the stage bar for the six-stage glass popover, current stage coral. The whole row is a live link to a demo id, so a click navigates to a 404. The sibling WithdrawnCell hover is dead code, see the header note.",
+    preview: "inline",
+    states: [
+      { id: "grid", label: "Desktop grid row" },
+      { id: "card", label: "Card row", hint: "the sub-680px container layout" },
+    ],
+    render: (ctx) => (
+      <Stage>
+        <div
+          className={ctx.stateId === "card" ? "files-table" : "files-table files-switch-680"}
+          style={{ width: "100%", maxWidth: ctx.stateId === "card" ? 420 : 1040 }}
+        >
+          <TransactionRowView
+            tx={FILES_ROW_TX}
+            isLast
+            cols={["stage", "activity", "exchange"]}
+            showAssignedToColumn={false}
+            activeTab="active"
+          />
         </div>
       </Stage>
     ),
