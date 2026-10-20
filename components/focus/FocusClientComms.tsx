@@ -568,7 +568,7 @@ const CSS = `
 .fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
 .fc-u:hover .fcl-tip, .fc-u:focus-visible .fcl-tip { opacity:1; transform:translateY(0); }
 .fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
-.fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:6px; }
+.fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.01em; color:var(--agent-text-muted); margin-bottom:6px; }
 .fcl-tip-h svg { color:var(--agent-text-muted); }
 .fcl-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
 .fcl-tip-state.ok { color:var(--agent-success); }
