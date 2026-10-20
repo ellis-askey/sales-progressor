@@ -2053,6 +2053,30 @@ export async function saveContactEmailAction(contactId: string, email: string) {
   // not an address problem.
   await prisma.contact.update({ where: { id: contactId }, data: { email: clean, emailBouncedAt: null } });
 
+  // Also clear any email-shaped "handed back to agent" marker on this side's
+  // chase tasks. Without this the amber blocker row survives until the next
+  // client-chase cron pass — or forever where that cron is disabled — even
+  // though the agent has just fixed the address (critique #289, 99 Kings Drive).
+  const sideContact = await prisma.contact.findFirst({
+    where: { id: contactId },
+    select: { roleType: true },
+  });
+  if (sideContact?.roleType === "vendor" || sideContact?.roleType === "purchaser") {
+    const codePrefix = sideContact.roleType === "purchaser" ? "PM" : "VM";
+    await prisma.chaseTask.updateMany({
+      where: {
+        status: "pending",
+        fallbackKind: { in: ["no_email_on_contact", "chase_send_failed"] },
+        reminderLog: {
+          transactionId: contact.propertyTransactionId,
+          status: "active",
+          reminderRule: { targetMilestoneCode: { startsWith: codePrefix } },
+        },
+      },
+      data: { fallbackKind: null },
+    });
+  }
+
   const verb = contact.email ? "updated" : "added";
   await logActivity(contact.propertyTransactionId, `${session.user.name} ${verb} a client email address`, session.user.id);
   revalidateTx(contact.propertyTransactionId);

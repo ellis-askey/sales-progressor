@@ -123,7 +123,20 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
     // the agent sees, so a chased row is never hidden from them.
     const manuallyChased = (task?.manualChaseCount ?? 0) > 0;
 
-    if (task?.fallbackKind) { out.set(log.id, { kind: "manual", ...fallbackReason(task.fallbackKind) }); continue; }
+    // Email-shaped fallback markers self-heal on read (critique #289, 99 Kings
+    // Drive): "no email" / "send failed" markers were trusted forever, so a row
+    // stayed blocked on an email problem that no longer exists. If the side now
+    // has a fully reachable client, ignore the stale marker and fall through to
+    // the live evaluation (usually straight back onto autopilot — the cron also
+    // clears the stored marker on its next pass). Non-email kinds still stand.
+    if (task?.fallbackKind) {
+      const emailKind = task.fallbackKind === "no_email_on_contact" || task.fallbackKind === "chase_send_failed";
+      const sideForKind = code?.startsWith("PM") ? "purchaser" : "vendor";
+      const reachableNow = emailKind && tx.contacts.some((c) =>
+        c.roleType === sideForKind && isActiveRoundContact(c, tx.activeBuyerRoundId) &&
+        c.email && c.portalToken && !c.unsubscribedAt && !c.emailBouncedAt);
+      if (!reachableNow) { out.set(log.id, { kind: "manual", ...fallbackReason(task.fallbackKind) }); continue; }
+    }
     if (task?.priority === "escalated") { out.set(log.id, { kind: "manual", reason: "You've chased and escalated it", category: "info" }); continue; }
     // Hand-over schedule reached (computed on read, cron-independent): the
     // autopilot's had its run, so this is now the agent's — surface it.
