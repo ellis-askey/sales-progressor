@@ -523,11 +523,12 @@ function ContactMenu({
 }
 
 const CSS = `
-/* .fc dissolves into the page grid (display:contents) so the header can span
-   the full width while the file list and the right rail sit side-by-side in the
-   row beneath it. Grid areas are defined on .focus-page in the page. */
+/* .fc dissolves into the page grid (display:contents). At the two-column
+   breakpoint the header spans the full width and the list sits beside the rail;
+   below it (page stacks to one column) these take their natural flow order so
+   the grid-area names — which only exist on the wide grid — can't mis-place them. */
 .fc { display:contents; }
-.fc-hd { grid-area:header; margin-bottom:16px; }
+.fc-hd { margin-bottom:16px; }
 .fc-h1 { font-size:var(--agent-text-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin:0 0 4px; color:var(--agent-text-primary); }
 .fcl-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; animation:fcl-sub-fade .26s ease; }
 @keyframes fcl-sub-fade { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
@@ -537,7 +538,7 @@ const CSS = `
 .fc-barlbl b { color:var(--agent-text-primary); font-weight:700; font-variant-numeric:tabular-nums; }
 
 /* The view tabs + list occupy the grid's list area; the tabs/list nest inside. */
-.fc-main { grid-area:list; min-width:0; }
+.fc-main { min-width:0; }
 .fc-list { display:flex; flex-direction:column; gap:10px; }
 .fc-card { padding:13px 15px 14px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); box-shadow:0 1px 2px rgba(45,24,16,0.03),0 6px 20px rgba(45,24,16,0.045); }
 .fc-ph { display:flex; align-items:center; gap:11px; width:100%; border:none; background:none; padding:0; margin:0 0 10px; cursor:pointer; font-family:inherit; text-align:left; }
@@ -652,6 +653,11 @@ const CSS = `
 .fc-seg2-b:hover:not(.on) { color:var(--agent-text-secondary); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
+/* Place the header + list into the wide grid's named areas ONLY where that grid
+   (and its areas) exists — below the breakpoint they stack in natural order. Must
+   live here, not in the page: .fc is display:contents, so these aren't matchable
+   as direct children of .focus-page via a combinator. */
+@media (min-width:1000px){ .fc-hd{ grid-area:header; } .fc-main{ grid-area:list; } }
 @media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fcl-tip,.fc-seg2-thumb,.fc-side,.fc-mi{ transition:none; } .fcl-sub{ animation:none; } }
 @media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fcl-tip{ display:none; } }
 `;

@@ -54,7 +54,9 @@ export default async function FocusPage() {
            the row beneath, so the rail's first card lines up with the first file. */
         .focus-page { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); padding: 24px 16px 48px; }
         @media (min-width: 900px) { .focus-page { padding: 24px 32px 48px; } }
-        @media (min-width: 1080px) {
+        /* Two columns from iPad landscape up; below this everything stacks in a
+           single column (header, tabs + list, then the rail). */
+        @media (min-width: 1000px) {
           .focus-page {
             grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
             grid-template-areas: "header header" "list rail";

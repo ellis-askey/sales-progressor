@@ -137,5 +137,6 @@ const CSS = `
 .fr-row-quiet { flex-shrink:0; font-size:11px; font-weight:650; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 .fr-empty { margin:0; padding:20px 16px; font-size:12.5px; color:var(--agent-text-muted); line-height:1.5; }
-@media (max-width:980px){ .fr { position:static; } }
+/* Only sticky as a sidebar in the two-column layout; stacked below 1000px. */
+@media (max-width:999px){ .fr { position:static; } }
 `;
