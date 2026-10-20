@@ -198,9 +198,11 @@ export function ActivityNotesCard({
 
   return (
     <GlassCard glassId="overview-activity-notes" label="Overview · Activity & notes" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 14 }}>
-      {/* Header: title + All/Notes filter + view all */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 16px 10px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      {/* Header: title + All/Notes filter + Log an update + view all. The compact
+          trigger sits on this row next to the pills (critique #295); flex-wrap
+          drops it to its own line when the card runs out of width. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, rowGap: 6, padding: "12px 16px 10px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, rowGap: 6, minWidth: 0, flexWrap: "wrap" }}>
           <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Activity &amp; notes</h3>
           <div style={{ display: "inline-flex", gap: 4 }}>
             <button className={`agent-segment-pill agent-segment-pill-sm${filter === "all" ? " on" : ""}`} onClick={() => setFilter("all")}>All</button>
@@ -208,20 +210,18 @@ export function ActivityNotesCard({
               Notes{noteCount > 0 ? ` ${noteCount}` : ""}
             </button>
           </div>
+          {/* Composer — the exact Activity-tab "Log an update" button + modal (critique #238) */}
+          <LogUpdateModal
+            transactionId={transactionId}
+            contacts={contacts ?? []}
+            solicitors={solicitors}
+            canPasteChat={canPasteChat}
+            emailConnected={emailConnected}
+            compactTrigger
+            onOptimisticAdd={handleOptimisticAdd}
+          />
         </div>
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all <LinkArrow /></button>
-      </div>
-
-      {/* Composer — the exact Activity-tab "Log an update" button + modal (critique #238) */}
-      <div style={{ padding: "0 16px 12px" }}>
-        <LogUpdateModal
-          transactionId={transactionId}
-          contacts={contacts ?? []}
-          solicitors={solicitors}
-          canPasteChat={canPasteChat}
-          emailConnected={emailConnected}
-          onOptimisticAdd={handleOptimisticAdd}
-        />
       </div>
 
       {/* Pinned setup note(s) — always above the feed, in both filters,
@@ -237,23 +237,24 @@ export function ActivityNotesCard({
           actorImage={e.actorImage}
           time={fmtTime(e)}
           tag="Setup note"
+          onOpen={() => setActiveTab("activity")}
           onDelete={deletingIds.has(e.id) ? undefined : () => handleDelete(e.id)}
           deleting={deletingIds.has(e.id)}
         />
       ))}
 
       {filter === "notes" ? (
-        <NotesView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} />
+        <NotesView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} />
       ) : (
-        <FeedView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} />
+        <FeedView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} />
       )}
     </GlassCard>
   );
 }
 
 // ── All: banded activity feed, with optimistic rows already merged in on top ──
-function FeedView({ entries, removedIds, deletingIds, onDelete }: {
-  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void;
+function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
+  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void;
 }) {
   const visible = entries.filter((e) => !removedIds.has(e.id)).slice(0, FEED_PREVIEW);
   if (visible.length === 0) {
@@ -275,8 +276,8 @@ function FeedView({ entries, removedIds, deletingIds, onDelete }: {
           {band.items.map((entry) => {
             const opt = isOptimistic(entry.id);
             return isNote(entry)
-              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} optimistic={opt} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} />
-              : <ActivityRow key={entry.id} entry={entry} optimistic={opt} />;
+              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} />
+              : <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} />;
           })}
         </div>
       ))}
@@ -285,8 +286,8 @@ function FeedView({ entries, removedIds, deletingIds, onDelete }: {
 }
 
 // ── Notes: flat notes list, paginated ──
-function NotesView({ entries, removedIds, deletingIds, onDelete }: {
-  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void;
+function NotesView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
+  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const notes = entries.filter((e) => isNote(e) && !removedIds.has(e.id));
@@ -309,7 +310,7 @@ function NotesView({ entries, removedIds, deletingIds, onDelete }: {
   return (
     <div>
       {shown.map((r) => (
-        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} optimistic={r.optimistic}
+        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} optimistic={r.optimistic} onOpen={onOpen}
           onDelete={r.optimistic || deletingIds.has(r.id) ? undefined : () => onDelete(r.id)} deleting={deletingIds.has(r.id)} />
       ))}
       {!expanded && hidden > 0 && (
@@ -334,10 +335,16 @@ function Empty({ label }: { label: string }) {
   return <div style={{ padding: 16, textAlign: "center" }}><p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>{label}</p></div>;
 }
 
-function ActivityRow({ entry, optimistic }: { entry: ActivityEntry; optimistic?: boolean }) {
+function ActivityRow({ entry, optimistic, onOpen }: { entry: ActivityEntry; optimistic?: boolean; onOpen?: () => void }) {
   const { Icon: EntryIcon, color } = iconFor(entry);
   return (
-    <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 10, opacity: optimistic ? 0.65 : 1 }}>
+    <div
+      className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 10, opacity: optimistic ? 0.65 : 1, cursor: onOpen ? "pointer" : undefined }}>
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color, flexShrink: 0 }}>
         <EntryIcon size={22} weight="regular" />
       </span>
@@ -356,8 +363,10 @@ function ActivityRow({ entry, optimistic }: { entry: ActivityEntry; optimistic?:
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage }: {
+function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage, onOpen }: {
   content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
+  // Whole-row click → the full Activity tab (critique #296).
+  onOpen?: () => void;
   // Small pill rendered before the author line (e.g. "Setup note" on the
   // pinned note from the new-sale form).
   tag?: string;
@@ -375,7 +384,13 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
   const nameLeadsContent = !!who && content.trimStart().startsWith(who);
   const showByName = !!who && !nameLeadsContent;
   return (
-    <div className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`} style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative" }}>
+    <div
+      className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative", cursor: onOpen ? "pointer" : undefined }}>
       {actorRole ? (
         <ActorAvatar name={actorName || author || "?"} role={actorRole} image={actorImage ?? null} size={28} />
       ) : author ? (
@@ -400,7 +415,7 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
       </div>
       {onDelete && (
         <button
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           disabled={deleting}
           className="agent-icon-btn agent-icon-btn-sm"
           style={{ position: "absolute", top: 6, right: 8, opacity: 0.3 }}

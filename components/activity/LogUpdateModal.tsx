@@ -28,6 +28,9 @@ type Props = {
   canPasteChat?: boolean;
   emailConnected?: boolean;
   canMarkPrivate?: boolean;
+  // Smaller trigger for tight homes (Overview card header row, critique #295) —
+  // height sits between the full trigger and the segment pills beside it.
+  compactTrigger?: boolean;
   onOptimisticAdd?: (type: CommType, method: CommMethod | null, content: string, contactIds: string[]) => void;
 };
 
@@ -56,7 +59,7 @@ function svg(path: string, size = 18, sw = 1.8) {
 }
 
 export function LogUpdateModal(props: Props) {
-  const { transactionId, contacts, solicitors = [], canPasteChat, emailConnected, canMarkPrivate, onOptimisticAdd } = props;
+  const { transactionId, contacts, solicitors = [], canPasteChat, emailConnected, canMarkPrivate, compactTrigger, onOptimisticAdd } = props;
 
   const { toast } = useAgentToast();
   const [open, setOpen] = useState(false);
@@ -302,8 +305,8 @@ export function LogUpdateModal(props: Props) {
           when the modal is closed. */}
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <div className="lum-launch">
-        <button type="button" className="lum-trigger" onClick={openModal}>
-          <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 16, 2) }} />
+        <button type="button" className={"lum-trigger" + (compactTrigger ? " lum-trigger-sm" : "")} onClick={openModal}>
+          <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, compactTrigger ? 13 : 16, 2) }} />
           Log an update
         </button>
       </div>
@@ -513,6 +516,7 @@ const CSS = `
 .lum-divider { height:1px; background:var(--agent-border-subtle,rgba(45,24,16,.06)); margin:20px 0; }
 .lum-trigger { display:inline-flex; align-items:center; gap:9px; font:inherit; font-size:14px; font-weight:600; color:#fff; border:0; cursor:pointer; padding:11px 18px; border-radius:12px; background:linear-gradient(180deg,var(--agent-coral) 0%,var(--agent-coral-deep) 100%); box-shadow:0 2px 0 var(--agent-coral-darker), 0 6px 16px rgba(var(--agent-coral-rgb),.30), inset 0 1px 0 rgba(255,255,255,.3); transition:filter .14s, transform .14s; }
 .lum-trigger:hover { filter:brightness(1.04); } .lum-trigger:active { transform:translateY(1px); }
+.lum-trigger-sm { font-size:12px; padding:6px 12px; border-radius:10px; gap:7px; box-shadow:0 1px 0 var(--agent-coral-darker), 0 4px 10px rgba(var(--agent-coral-rgb),.24), inset 0 1px 0 rgba(255,255,255,.3); }
 .lum-rowwrap { position:relative; }
 .lum-row { display:flex; gap:9px; flex-wrap:wrap; }
 .lum-btn { display:inline-flex; align-items:center; gap:8px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; padding:10px 15px; border-radius:8px; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); background:rgba(255,255,255,.6); color:var(--agent-text-primary,#2D1810); transition:all .14s; }
