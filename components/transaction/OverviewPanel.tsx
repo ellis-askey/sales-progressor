@@ -31,6 +31,7 @@ import { toUKDateStr } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
 import { exchangeBlockerLabel } from "@/lib/milestones/exchange-blocker-label";
+import { isTerminalSale } from "@/lib/transactions/status";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
 import type { MilestoneSideState } from "@/components/transaction/NextMilestoneWidget";
 import { NextActionCardConsumer } from "@/components/transaction/NextActionCardConsumer";
@@ -301,7 +302,7 @@ export async function OverviewPanel({
     ? Math.round((new Date(progress.predictedExchangeDate).getTime() - new Date(progress.twelveWeekTarget).getTime()) / 86400000)
     : 0;
   const isSlipping =
-    !progress.isEarlyEstimate && slipDays > 14 && transaction.status !== "on_hold" && !isExchangedOrDone;
+    !progress.isEarlyEstimate && slipDays > 14 && transaction.status !== "on_hold" && !isTerminalSale(transaction.status) && !isExchangedOrDone;
   const slipBlocker = isSlipping
     ? (() => {
         const blockers = allMilestones
@@ -324,8 +325,11 @@ export async function OverviewPanel({
   const now = new Date();
   const todayUKStr = toUKDateStr(now);
   const onHold = transaction.status === "on_hold";
-  const actionableCount = onHold ? 0 : countActionable(reminderLogs, now);
-  const overdueCount = onHold ? 0 : countOverdue(reminderLogs, now);
+  // Terminal files (withdrawn / completed) mute the actionable counts the same
+  // way on-hold does — surviving vendor-side reminders must not nag (critique 291).
+  const mutedCounts = onHold || isTerminalSale(transaction.status);
+  const actionableCount = mutedCounts ? 0 : countActionable(reminderLogs, now);
+  const overdueCount = mutedCounts ? 0 : countOverdue(reminderLogs, now);
   const activeReminders = reminderLogs.filter((l) => l.status === "active");
 
   // NextActionCard input — top non-snoozed reminder + its earliest pending
@@ -607,6 +611,9 @@ export async function OverviewPanel({
           new card surfaces ONE call-to-action from the top reminder
           (or a milestone fallback), matching the mock. Detailed per-
           side next-milestone view still lives on the Steps tab. */}
+      {/* No next action on a terminal file — withdrawn files act through the
+          Relist banner, completed files are done (critique 291). */}
+      {!isTerminalSale(transaction.status) && (
       <div data-bloom>
       <NextActionCardConsumer
         transactionId={transaction.id}
@@ -623,6 +630,7 @@ export async function OverviewPanel({
         totalActive={actionableCount}
       />
       </div>
+      )}
 
       {/* AI summary hidden 2026-09-02 — not polished enough to show yet.
           Re-enable by removing the `false &&`. Tracked in docs/active/TODO.md. */}
@@ -684,7 +692,7 @@ export async function OverviewPanel({
       {/* Once contracts exchange the sale is legally committed — there's no
           fall-through left to assess, so the risk card simply goes rather than
           showing a stale pace reading (critique 2026-10-02). */}
-      {!isExchangedOrDone && <div data-bloom><RiskScoreWidget input={riskInput} /></div>}
+      {!isExchangedOrDone && !isTerminalSale(transaction.status) && <div data-bloom><RiskScoreWidget input={riskInput} /></div>}
       <div data-bloom><PropertyIntelCard transactionId={transaction.id} /></div>
 
       {/* Email + hold controls moved off the Overview tail into the

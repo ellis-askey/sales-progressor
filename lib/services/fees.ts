@@ -522,7 +522,10 @@ export function calculateProgress(
   const weeksRemaining = Math.ceil(msToExchange / (7 * 86400000));
 
   let onTrack: ProgressResult["onTrack"] = "unknown";
-  if (hold?.status === "on_hold") {
+  if (hold?.status === "withdrawn" || hold?.status === "completed") {
+    // Terminal — the sale is over, so behind/at-risk is meaningless. Stays
+    // "unknown" (neutral) so banners and the hero tone go quiet (critique 290/291).
+  } else if (hold?.status === "on_hold") {
     // Frozen — at_risk/off_track signal is not meaningful while time isn't
     // ticking. UI renders a neutral "On hold" pill from this value.
     onTrack = "on_hold";

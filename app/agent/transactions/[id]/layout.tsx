@@ -23,6 +23,7 @@ import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { getMilestonesCached } from "@/lib/services/cached-fetchers";
 import { calculateProgress, computeEffectiveStartDate, detectPhase } from "@/lib/services/fees";
 import { isExchangeOverdueStuck } from "@/lib/services/exchange-prediction";
+import { isTerminalSale } from "@/lib/transactions/status";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { fileProgressorLabel } from "@/lib/progression/identity";
 import { getProgressorsForAgency, resolveBusinessOwner } from "@/lib/services/progression-clients";
@@ -192,6 +193,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     lastMilestoneConfirmedAt,
   });
   const showExchangeOverdueBanner =
+    !isTerminalSale(transaction.status) &&
     exchangeOverdueStuck.stuck &&
     !!exchangeOverdueStuck.passedDate &&
     (isInternalStaff || session.user.role === "superadmin" || transaction.serviceType === "self_managed");
@@ -409,7 +411,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         previousPurchasePrice={transaction.purchasePrice}
         inChain={transaction.chainLinkId !== null}
       />
-      {exchangeDayActive && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
+      {exchangeDayActive && !isTerminalSale(transaction.status) && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
         <ExchangeDayReadyBanner sellerReady={exchangeDayGate.sellerReady} buyerReady={exchangeDayGate.buyerReady} />
       )}
       {transaction.isDemo && <DemoFileMarker transactionId={transaction.id} />}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { AccessScope } from "@/lib/security/access-scope";
 import { scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { isTerminalSale } from "@/lib/transactions/status";
 
 // Exchange-push: once a sale is ready on both sides but sits in a chain, the job
 // is to chase every OTHER sale until all are ready, then exchange. Readiness is
@@ -248,6 +249,7 @@ export async function getExchangePushForTransaction(
       id: true,
       propertyAddress: true,
       agencyId: true,
+      status: true,
       exchangedAt: true,
       chainLink: { select: { chainId: true } },
       milestoneCompletions: {
@@ -256,7 +258,7 @@ export async function getExchangePushForTransaction(
       },
     },
   });
-  if (!tx || tx.exchangedAt || !tx.chainLink?.chainId) return null;
+  if (!tx || tx.exchangedAt || isTerminalSale(tx.status) || !tx.chainLink?.chainId) return null;
   if (!bothSidesReady(tx)) return null;
 
   const links = await prisma.chainLink.findMany({
