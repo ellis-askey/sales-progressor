@@ -12,12 +12,15 @@ function fmt(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "to be confirmed";
 }
 
-// Whole-day difference in UK calendar days (today = 0), tz-safe via date strings.
+// Whole-day difference in UK calendar days (today = 0). Uses en-CA (YYYY-MM-DD)
+// date strings — en-GB "20/10/2026" is not parseable by new Date() and yielded NaN.
 function daysUntil(d: Date): number {
-  const uk = (x: Date) => new Date(x.toLocaleString("en-GB", { timeZone: "Europe/London" }));
-  const a = uk(new Date()); a.setHours(0, 0, 0, 0);
-  const b = uk(new Date(d)); b.setHours(0, 0, 0, 0);
-  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  const ymd = (x: Date) => x.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const toUtc = (s: string) => {
+    const [y, m, day] = s.split("-").map(Number);
+    return Date.UTC(y, m - 1, day);
+  };
+  return Math.round((toUtc(ymd(new Date(d))) - toUtc(ymd(new Date()))) / 86_400_000);
 }
 
 export function ExchangeToCompletionCard({
@@ -78,7 +81,7 @@ export function ExchangeToCompletionCard({
       <div style={{ padding: "10px 16px", borderTop: "1px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Readiness and completing-day actions live on the Completions page.</span>
         <Link href="/agent/completions" className="agent-link" style={{ fontSize: 12, fontWeight: 650, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-          Track on Completions <ArrowRight size={13} weight="bold" />
+          Track on Completions <ArrowRight className="agent-arrow-i" size={13} weight="bold" />
         </Link>
       </div>
     </div>
