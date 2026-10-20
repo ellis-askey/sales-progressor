@@ -147,6 +147,45 @@ export async function refreshExpectedExchangeDate(
   return predicted;
 }
 
+// ─── Nightly refresh (audit DATA-003) ─────────────────────────────────────────
+//
+// The prediction is anchored to "today", so it correctly slides later while a
+// file is quiet — but the stored column was only recomputed on milestone
+// confirms, so the files list, overview strip, hub filters and client portal
+// all froze between confirms while the file-page sidebar (live recompute)
+// drifted. Founder decision 2026-10-20: the drift is the intended behaviour;
+// every surface must show the same date. This nightly sweep closes the gap.
+// Prediction history stays change-only by calendar day, so a quiet file past
+// the floor writes at most one history row per day.
+
+export async function refreshAllExpectedExchangeDates(): Promise<{
+  considered: number;
+  updated: number;
+  failed: number;
+}> {
+  // Live files only: exchanged files hold their real date (the helper also
+  // guards this), demo files don't forecast, drafts have no prediction surface.
+  const files = await prisma.propertyTransaction.findMany({
+    where: { status: "active", isDemo: false, exchangedAt: null },
+    select: { id: true },
+  });
+
+  let updated = 0;
+  let failed = 0;
+  for (const f of files) {
+    try {
+      const wrote = await refreshExpectedExchangeDate(f.id);
+      if (wrote) updated++;
+    } catch (err) {
+      // Per-file isolation: one bad file must not stall the sweep. A missed
+      // refresh only means that file stays stale until tomorrow's run.
+      failed++;
+      console.error(`[exchange-prediction] nightly refresh failed tx=${f.id}:`, err);
+    }
+  }
+  return { considered: files.length, updated, failed };
+}
+
 // ─── Scenario D: overdue-and-stuck detection ─────────────────────────────────
 // See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
 

@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { reconcileAllActiveMilestoneStates } from "@/lib/services/milestones";
+import { refreshAllExpectedExchangeDates } from "@/lib/services/exchange-prediction";
 import { runJob } from "@/lib/cron/run-job";
 
 export const maxDuration = 300;
@@ -24,7 +25,11 @@ export async function GET(req: NextRequest) {
   return runJob("reconcile-milestone-states", async () => {
     try {
       const result = await reconcileAllActiveMilestoneStates();
-      return NextResponse.json({ ok: true, ...result });
+      // Audit DATA-003: the stored expectedExchangeDate was only recomputed on
+      // milestone confirms, so quiet files froze on every surface except the
+      // live file-page sidebar. Nightly refresh keeps all surfaces in step.
+      const predictions = await refreshAllExpectedExchangeDates();
+      return NextResponse.json({ ok: true, ...result, predictions });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Reconcile error";
       return NextResponse.json({ error: message }, { status: 500 });
