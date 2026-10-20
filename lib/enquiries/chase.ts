@@ -47,10 +47,16 @@ export function enquiryChaseDecision(
     lastTouchAt: Date | null;
     escalatedAt: Date | null;
     snoozedUntil: Date | null;
+    // Open-ended "waiting on the management pack" hold. The agent-facing model
+    // (enquiryNextChaseAt / enquiryNeedsAttention in tracker.ts) treats this as
+    // fully resting, so the cron must too — chases AND escalation pause until
+    // PM12 auto-wakes it or the agent clears it (audit ENQ-001).
+    awaitingPackAt: Date | null;
   },
   now: Date,
 ): { chaseDue: boolean; escalateDue: boolean } {
   if (t.snoozedUntil && t.snoozedUntil > now) return { chaseDue: false, escalateDue: false };
+  if (t.awaitingPackAt) return { chaseDue: false, escalateDue: false };
   // Escalation anchors ONLY on the last genuine movement (or the open) — a touch
   // or a chase never resets it, so a stalling file escalates on schedule. (#282)
   const anchor = t.lastMovementAt ?? t.openedAt;
@@ -120,6 +126,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       lastTouchAt: true,
       escalatedAt: true,
       snoozedUntil: true,
+      awaitingPackAt: true,
       transaction: {
         select: {
           id: true,

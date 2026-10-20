@@ -10,6 +10,7 @@ type Over = Partial<{
   lastTouchAt: Date | null;
   escalatedAt: Date | null;
   snoozedUntil: Date | null;
+  awaitingPackAt: Date | null;
 }>;
 const tracker = (over: Over = {}) => ({
   openedAt: anchor,
@@ -18,6 +19,7 @@ const tracker = (over: Over = {}) => ({
   lastTouchAt: null,
   escalatedAt: null,
   snoozedUntil: null,
+  awaitingPackAt: null,
   ...over,
 });
 
@@ -70,6 +72,23 @@ describe("enquiryChaseDecision", () => {
       chaseDue: false,
       escalateDue: false,
     });
+  });
+
+  // Audit ENQ-001 — the "waiting on management pack" hold previously paused the
+  // UI (no next chase, out of needs-you) while the cron kept chasing AND
+  // escalating. The hold must silence the cron exactly like a snooze, however
+  // overdue the file is, until PM12 auto-wakes it or the agent clears it.
+  it("a management-pack hold suppresses chase and escalation indefinitely", () => {
+    const now = addWorkingDays(anchor, 40); // far past chase + escalation ceilings
+    expect(enquiryChaseDecision(tracker({ awaitingPackAt: addWorkingDays(anchor, 2) }), now)).toEqual({
+      chaseDue: false,
+      escalateDue: false,
+    });
+  });
+
+  it("clearing the pack hold resumes the normal cadence", () => {
+    const now = addWorkingDays(anchor, 6);
+    expect(enquiryChaseDecision(tracker({ awaitingPackAt: null }), now).chaseDue).toBe(true);
   });
 
   // #282 — a soft "touch" (still with them / solicitors spoken) buys a SHORT
