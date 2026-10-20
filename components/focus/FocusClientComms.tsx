@@ -157,7 +157,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp }:
       <section className="fc">
         <header className="fc-hd">
           <h1 className="fc-h1">Keep every client in the loop</h1>
-          <p className="fc-sub">Every active sale, both sides, checked each week. See what's been sent, what's been received and take action right here. Resets every Monday.</p>
+          <p key={view} className="fc-sub">{SUB_COPY[view]}</p>
 
           <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
           <div className="fc-barlbl">
@@ -222,6 +222,13 @@ const EMPTY_VIEW: Record<FocusView, { h: string; p: string }> = {
   touch: { h: "Both sides of every file touched", p: "Nothing's gone quiet. It resets Monday." },
   recent: { h: "No active sales here", p: "Nothing to show for this filter." },
   awaiting: { h: "Nobody's left hanging", p: "Every message you've sent has had a reply." },
+};
+
+// Subtitle explains the active view; it cross-fades as you switch tabs.
+const SUB_COPY: Record<FocusView, string> = {
+  touch: "Every active sale, both sides, checked each week. This is who's still to hear from you. Resets every Monday.",
+  recent: "Every active side, ordered by how long since you last made contact. The quietest sit at the top.",
+  awaiting: "You've reached out and they've gone quiet. These sides still owe you a reply.",
 };
 
 // Compact animated Seller/Buyer filter — a sliding thumb with a spring settle,
@@ -441,7 +448,7 @@ function ContactMenu({
             <span className="fc-ms">Log it, no composer</span>
           </span>
         </button>
-        <button type="button" className="fc-mi" role="menuitem" onClick={() => pick(onNotRequired)}>
+        <button type="button" className="fc-mi skip" role="menuitem" onClick={() => pick(onNotRequired)}>
           <span className="fc-mic"><Prohibit size={15} /></span>
           <span className="fc-mtext">
             <span className="fc-ml">Not required</span>
@@ -473,7 +480,8 @@ const CSS = `
 .fc { display:contents; }
 .fc-hd { grid-area:header; margin-bottom:16px; }
 .fc-h1 { font-size:var(--agent-text-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin:0 0 4px; color:var(--agent-text-primary); }
-.fc-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; }
+.fc-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; animation:fc-sub-fade .26s ease; }
+@keyframes fc-sub-fade { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
 .fc-bar { height:8px; border-radius:99px; background:rgba(var(--agent-coral-rgb),0.10); overflow:hidden; }
 .fc-bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--agent-coral),var(--agent-coral-deep)); transition:width .55s cubic-bezier(.22,1,.36,1); }
 .fc-barlbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; font-size:12px; color:var(--agent-text-muted); }
@@ -516,15 +524,17 @@ const CSS = `
 .fc-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:40; min-width:214px; padding:6px; border-radius:12px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); box-shadow:0 14px 34px rgba(0,0,0,0.22); opacity:0; transform:translateY(-4px) scale(0.98); transform-origin:top right; pointer-events:none; transition:opacity .14s ease,transform .14s ease; }
 .fc-menu.open .fc-pop { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
 .fc-mlabel { padding:5px 8px 3px; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--agent-text-muted); }
-.fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s; }
-.fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); }
+.fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s,transform .12s; }
+.fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); transform:translateY(-1px); }
 .fc-mi:disabled { opacity:0.5; cursor:not-allowed; }
-.fc-mic { width:28px; height:28px; flex-shrink:0; display:grid; place-items:center; border-radius:8px; background:var(--agent-surface-subtle); color:var(--agent-text-secondary); transition:background .12s,color .12s; }
+.fc-mic { width:28px; height:28px; flex-shrink:0; display:grid; place-items:center; border-radius:8px; background:var(--agent-surface-subtle); color:var(--agent-text-secondary); transition:color .12s; }
 .fc-mi svg { display:block; }
-.fc-mi.email:hover:not(:disabled) .fc-mic { background:#3b6ef0; color:#fff; }
-.fc-mi.call:hover:not(:disabled) .fc-mic { background:var(--agent-coral-deep); color:#fff; }
-.fc-mi.wa:hover:not(:disabled) .fc-mic { background:#25a75a; color:#fff; }
-.fc-mi.done:hover:not(:disabled) .fc-mic { background:var(--agent-success); color:#fff; }
+/* On hover the ICON takes the channel colour — the tile stays neutral. */
+.fc-mi.email:hover:not(:disabled) .fc-mic { color:#3b6ef0; }
+.fc-mi.call:hover:not(:disabled) .fc-mic { color:var(--agent-coral-deep); }
+.fc-mi.wa:hover:not(:disabled) .fc-mic { color:#1fa855; }
+.fc-mi.done:hover:not(:disabled) .fc-mic { color:var(--agent-success); }
+.fc-mi.skip:hover:not(:disabled) .fc-mic { color:var(--agent-danger); }
 .fc-mtext { display:flex; flex-direction:column; gap:1px; min-width:0; }
 .fc-ml { font-size:12.5px; font-weight:600; line-height:1.25; }
 .fc-ms { font-size:10.5px; color:var(--agent-text-muted); line-height:1.2; }
@@ -582,6 +592,6 @@ const CSS = `
 .fc-seg2-b:hover:not(.on) { color:var(--agent-text-secondary); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip,.fc-seg2-thumb,.fc-side{ transition:none; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fc-tip,.fc-seg2-thumb,.fc-side,.fc-mi{ transition:none; } .fc-sub{ animation:none; } }
 @media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fc-tip{ display:none; } }
 `;
