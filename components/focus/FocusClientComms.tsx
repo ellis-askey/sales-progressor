@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, EnvelopeSimple, WhatsappLogo, WarningCircle } from "@phosphor-icons/react";
+import { Phone, EnvelopeSimple, WhatsappLogo, WarningCircle, CaretDown, Check, Prohibit } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
@@ -184,18 +184,13 @@ function SideBlock({
         {callOpen ? (
           <CallForm onSave={onCallSave} onCancel={onCallCancel} />
         ) : (
-          <span className="fc-acts">
-            <span className="fc-seg">
-              <button className="fc-sb email" title={`Email ${label.toLowerCase()}`} onClick={onCompose}><EnvelopeSimple size={16} /></button>
-              <button className="fc-sb call" title="Log a call" onClick={onCall}><Phone size={16} /></button>
-              <button className="fc-sb wa" title={`WhatsApp ${label.toLowerCase()}`} disabled={!side.phone} onClick={() => side.phone && window.open(`https://wa.me/${toWaDigits(side.phone)}`, "_blank", "noopener")}><WhatsappLogo size={16} /></button>
-            </span>
-            <span className="fc-txt-acts">
-              <button className="fc-txt" onClick={onMarkEmailed}>Emailed</button>
-              <span className="fc-dot-sep" aria-hidden>·</span>
-              <button className="fc-txt" onClick={onNotRequired}>Not required</button>
-            </span>
-          </span>
+          <ContactMenu
+            side={side}
+            onCompose={onCompose}
+            onCall={onCall}
+            onMarkEmailed={onMarkEmailed}
+            onNotRequired={onNotRequired}
+          />
         )}
       </div>
 
@@ -218,6 +213,100 @@ function SideBlock({
         </button>
       ) : null}
     </div>
+  );
+}
+
+// One labelled "Contact" trigger opens every action for a side — three ways to
+// reach them (email / call / WhatsApp) and two ways to settle the week (already
+// emailed / not required). Keeps the side-row to a single control. Closes on
+// outside click, Escape, or any selection.
+function ContactMenu({
+  side, onCompose, onCall, onMarkEmailed, onNotRequired,
+}: {
+  side: FocusSide;
+  onCompose: () => void;
+  onCall: () => void;
+  onMarkEmailed: () => void;
+  onNotRequired: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const pick = (fn: () => void) => { setOpen(false); fn(); };
+  const hasPhone = !!side.phone;
+
+  return (
+    <span className={`fc-menu${open ? " open" : ""}`} ref={ref}>
+      <button
+        type="button"
+        className="fc-trig"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        Contact
+        <CaretDown size={12} weight="bold" className="fc-cv" />
+      </button>
+
+      <div className="fc-pop" role="menu">
+        <div className="fc-mlabel">Reach out</div>
+        <button type="button" className="fc-mi email" role="menuitem" onClick={() => pick(onCompose)}>
+          <span className="fc-mic"><EnvelopeSimple size={16} /></span>
+          <span className="fc-mtext"><span className="fc-ml">Email</span></span>
+        </button>
+        <button type="button" className="fc-mi call" role="menuitem" onClick={() => pick(onCall)}>
+          <span className="fc-mic"><Phone size={16} /></span>
+          <span className="fc-mtext"><span className="fc-ml">Log a call</span></span>
+        </button>
+        <button
+          type="button"
+          className="fc-mi wa"
+          role="menuitem"
+          disabled={!hasPhone}
+          onClick={() => hasPhone && side.phone && pick(() => window.open(`https://wa.me/${toWaDigits(side.phone!)}`, "_blank", "noopener"))}
+        >
+          <span className="fc-mic"><WhatsappLogo size={16} /></span>
+          <span className="fc-mtext">
+            <span className="fc-ml">WhatsApp</span>
+            {!hasPhone ? <span className="fc-ms">No number on file</span> : null}
+          </span>
+        </button>
+
+        <div className="fc-mdiv" />
+
+        <div className="fc-mlabel">This week</div>
+        <button type="button" className="fc-mi done" role="menuitem" onClick={() => pick(onMarkEmailed)}>
+          <span className="fc-mic"><Check size={15} weight="bold" /></span>
+          <span className="fc-mtext">
+            <span className="fc-ml">Already emailed</span>
+            <span className="fc-ms">Log it, no composer</span>
+          </span>
+        </button>
+        <button type="button" className="fc-mi" role="menuitem" onClick={() => pick(onNotRequired)}>
+          <span className="fc-mic"><Prohibit size={15} /></span>
+          <span className="fc-mtext">
+            <span className="fc-ml">Not required</span>
+            <span className="fc-ms">Parks till Monday</span>
+          </span>
+        </button>
+      </div>
+    </span>
   );
 }
 
@@ -265,24 +354,31 @@ const CSS = `
 .fc-side.purchaser .fc-role { color:#085041; }
 .fc-sp { flex:1 1 4px; min-width:0; }
 
-.fc-acts { display:inline-flex; align-items:center; gap:10px; flex-shrink:0; }
-/* The three channel actions bundle into ONE segmented control, each segment
-   filling its channel colour on hover. Reads as a single tidy unit, not three
-   loose buttons. */
-.fc-seg { display:inline-flex; border:1px solid var(--agent-border-default); border-radius:10px; overflow:hidden; background:var(--agent-surface-glass); }
-.fc-sb { width:36px; height:30px; border:none; background:none; color:var(--agent-text-secondary); display:grid; place-items:center; cursor:pointer; transition:background .14s,color .14s; }
-.fc-sb + .fc-sb { border-left:1px solid var(--agent-border-default); }
-.fc-sb:hover:not(:disabled) { color:#fff; }
-.fc-sb:disabled { opacity:0.4; cursor:not-allowed; }
-.fc-sb.email:hover:not(:disabled) { background:#3b6ef0; }
-.fc-sb.call:hover:not(:disabled) { background:var(--agent-coral-deep); }
-.fc-sb.wa:hover:not(:disabled) { background:#25a75a; }
-.fc-sb svg { display:block; }
-.fc-txt-acts { display:inline-flex; align-items:center; gap:7px; }
-.fc-txt { border:none; background:none; cursor:pointer; font-family:inherit; font-size:11px; font-weight:600; color:var(--agent-text-muted); padding:3px 0; white-space:nowrap; transition:color .14s; }
-.fc-txt:hover { color:var(--agent-coral-deep); }
-.fc-dot-sep { color:var(--agent-border-strong); font-size:11px; }
-
+/* One labelled "Contact" dropdown stands in for all five actions. The trigger is
+   a quiet bordered pill; it fills coral on hover/open. The menu floats below-right,
+   grouped into "Reach out" and "This week" with a channel-tinted icon per row. */
+.fc-menu { position:relative; flex-shrink:0; }
+.fc-trig { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 11px; border:1px solid var(--agent-border-default); border-radius:9px; background:var(--agent-surface-glass); color:var(--agent-text-secondary); font-family:inherit; font-size:12px; font-weight:650; cursor:pointer; white-space:nowrap; transition:background .14s,border-color .14s,color .14s; }
+.fc-trig:hover { color:var(--agent-text-primary); border-color:var(--agent-border-strong); }
+.fc-menu.open .fc-trig { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
+.fc-cv { transition:transform .16s ease; }
+.fc-menu.open .fc-cv { transform:rotate(180deg); }
+.fc-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:40; min-width:214px; padding:6px; border-radius:12px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); box-shadow:0 14px 34px rgba(0,0,0,0.22); opacity:0; transform:translateY(-4px) scale(0.98); transform-origin:top right; pointer-events:none; transition:opacity .14s ease,transform .14s ease; }
+.fc-menu.open .fc-pop { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+.fc-mlabel { padding:5px 8px 3px; font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--agent-text-muted); }
+.fc-mi { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border:none; border-radius:8px; background:none; color:var(--agent-text-primary); font-family:inherit; text-align:left; cursor:pointer; transition:background .12s; }
+.fc-mi:hover:not(:disabled) { background:var(--agent-surface-glass); }
+.fc-mi:disabled { opacity:0.5; cursor:not-allowed; }
+.fc-mic { width:28px; height:28px; flex-shrink:0; display:grid; place-items:center; border-radius:8px; background:var(--agent-surface-subtle); color:var(--agent-text-secondary); transition:background .12s,color .12s; }
+.fc-mi svg { display:block; }
+.fc-mi.email:hover:not(:disabled) .fc-mic { background:#3b6ef0; color:#fff; }
+.fc-mi.call:hover:not(:disabled) .fc-mic { background:var(--agent-coral-deep); color:#fff; }
+.fc-mi.wa:hover:not(:disabled) .fc-mic { background:#25a75a; color:#fff; }
+.fc-mi.done:hover:not(:disabled) .fc-mic { background:var(--agent-success); color:#fff; }
+.fc-mtext { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.fc-ml { font-size:12.5px; font-weight:600; line-height:1.25; }
+.fc-ms { font-size:10.5px; color:var(--agent-text-muted); line-height:1.2; }
+.fc-mdiv { height:1px; margin:5px 6px; background:var(--agent-border-default); }
 /* Secondary line: what automation last sent this side, openable. Quiet by design. */
 .fc-auto { display:flex; align-items:center; gap:7px; width:100%; margin-top:8px; padding:6px 9px; border-radius:9px; border:1px solid transparent; background:var(--agent-surface-subtle); color:var(--agent-text-muted); font-family:inherit; font-size:11.5px; text-align:left; cursor:pointer; transition:background .14s,border-color .14s; }
 .fc-auto:hover { background:var(--agent-surface-glass); border-color:var(--agent-border-default); }
@@ -303,6 +399,6 @@ const CSS = `
 .fc-done { text-align:center; padding:40px 20px; border-radius:16px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); }
 .fc-done-h { font-size:15px; font-weight:700; color:var(--agent-success); }
 .fc-done-p { font-size:12.5px; color:var(--agent-text-muted); margin-top:4px; }
-@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-sb,.fc-auto{ transition:none; } }
-@media (max-width:520px){ .fc-side-top{ gap:8px; } .fc-txt-acts{ width:100%; justify-content:flex-start; } }
+@media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-auto,.fc-trig,.fc-cv,.fc-pop{ transition:none; } }
+@media (max-width:520px){ .fc-side-top{ gap:8px; } }
 `;
