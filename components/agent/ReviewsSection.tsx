@@ -84,7 +84,7 @@ const RV_STYLES = `
   .rv-when { font-size: 11px; font-weight: 700; color: var(--agent-text-muted); padding: 2px 2px 0; }
   .rv-date { width: 100%; font-family: inherit; font-size: 13px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); color: var(--agent-text-primary); transition: border-color .14s ease, box-shadow .14s ease; }
   .rv-date:hover { border-color: var(--agent-coral); }
-  .rv-date:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.12); }
+  .rv-date:focus { outline: none; border-color: var(--agent-coral-deep); box-shadow: none; }
   .rv-primary { width: 100%; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-radius: 9px; padding: 8px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
   .rv-primary:hover:not(:disabled) { filter: brightness(1.05); }
   .rv-primary:disabled { opacity: 0.5; cursor: default; }

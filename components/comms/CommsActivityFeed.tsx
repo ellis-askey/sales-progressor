@@ -301,7 +301,8 @@ const CF_STYLES = `
   .cf-side-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px; }
   .cf-count { font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
   .cf-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:11px; padding:10px 13px; transition:border-color .14s ease, box-shadow .14s ease; }
-  .cf-search:focus-within { border-color:var(--agent-coral-deep); box-shadow:0 0 0 3px rgba(var(--agent-coral-rgb),0.10); }
+  .cf-search:hover { border-color:var(--agent-coral); }
+  .cf-search:focus-within { border-color:var(--agent-coral-deep); box-shadow:none; }
   .cf-search-ico { color:var(--agent-text-muted); flex-shrink:0; }
   .cf-search-input { flex:1; min-width:0; border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary); }
   .cf-search-input::placeholder { color:var(--agent-text-muted); }

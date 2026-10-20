@@ -2,11 +2,12 @@
 #
 # Sales Progressor pre-commit hook — Phase 5 MVP.
 #
-# Runs four checks against the staged files:
+# Runs five checks against the staged files:
 #   1. tsc --noEmit (Law 2: verify before claiming done)
 #   2. em-dash sweep in user-facing strings (Law 21: voice gate)
 #   3. new scripts/ file must have a SCRIPTS_REGISTRY.md entry (Law 15)
 #   4. naive name-split guard — HARD BLOCK (see Check 4)
+#   5. input focus-ring glow guard — HARD BLOCK (see Check 5)
 #
 # Checks 1-3 ship in WARN-ONLY mode until 2026-07-15 (2 weeks after
 # install). During warn-only, their failures print but the commit
@@ -110,9 +111,40 @@ if [ -n "$name_files" ]; then
   fi
 fi
 
+# ── Check 5: input focus-ring glow guard (HARD BLOCK) ──────────────────
+# Inputs get a thin border that darkens on hover and darkens again on
+# focus — NO soft "0 0 0 Npx" glow ring (the washed-out halo rejected in
+# critique #171 and again 2026-10-20). Canonical models: .agent-input,
+# .agent-field, .enq-search, .account-input (all border-only on focus).
+# This flags any :focus / :focus-within / :focus-visible rule on an
+# input-like selector that still paints a box-shadow ring, in CSS or
+# styled-jsx. Boardwalk (its own brand) and /dev mocks are out of scope.
+# Fix: replace the ring with `box-shadow: none;` and keep the border change.
+ring_files=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '\.(css|tsx)$' \
+  | grep -vE '^(app/boardwalk/|app/dev/|scripts/_archive/)' || true)
+if [ -n "$ring_files" ]; then
+  ring_hits=$(printf "%s\n" "$ring_files" | while read -r f; do
+    [ -f "$f" ] || continue
+    awk '
+      {
+        low = tolower($0)
+        if (low ~ /:focus(-within|-visible)?/ && low ~ /input|search|field|date|textarea|select|-inp|-fld/) infocus = 1
+        if (infocus && low ~ /box-shadow:[[:space:]]*0 0 0 [0-9]/) { printf "%s:%d: %s\n", FILENAME, NR, $0; infocus = 0 }
+        if ($0 ~ /}/) infocus = 0
+      }
+    ' "$f"
+  done)
+  if [ -n "$ring_hits" ]; then
+    printf "%sBLOCKED%s [focus-ring] input focus glow ring found. Inputs use a border-only focus (see .agent-input); replace with box-shadow: none:\n" "$RED" "$RESET" >&2
+    printf "%s\n" "$ring_hits" >&2
+    HARDFAIL=1
+  fi
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────
 if [ "$HARDFAIL" = "1" ]; then
-  printf "\n%sCommit blocked%s by the name-split guard (Check 4). Replace the naive split with extractFirstName().\n" "$RED" "$RESET" >&2
+  printf "\n%sCommit blocked%s by a hard-block guard (Check 4 name-split and/or Check 5 focus-ring). Fix the flagged lines above.\n" "$RED" "$RESET" >&2
   exit 1
 fi
 

@@ -9,6 +9,7 @@ Automated enforcement of a subset of the 21 Laws (see [CLAUDE.md](../../CLAUDE.m
 | `tsc --noEmit` | [Law 2](../../CLAUDE.md#law-2--verify-before-claiming-done) | If any `.ts` / `.tsx` file is staged, run tsc. Warn if there are errors. |
 | Em-dash in strings | [Law 21](../../CLAUDE.md#law-21--voice-gate-on-user-facing-strings) | Scan staged `.ts`/`.tsx` for `—` inside double-quoted strings. Comments excluded. |
 | SCRIPTS_REGISTRY entry | [Law 15](../../CLAUDE.md#law-15--scripts-must-justify) | If a new file was added under `scripts/` (excluding `_archive/`), require an entry in `docs/SCRIPTS_REGISTRY.md`. |
+| Input focus-ring glow | [HOVER_STATES](../reference/HOVER_STATES.md) | HARD BLOCK. Flags a `:focus` / `:focus-within` / `:focus-visible` rule on an input-like selector that paints a `0 0 0 Npx` box-shadow glow. Inputs focus with a border, not a halo. Boardwalk + `/dev` excluded. |
 
 ## Install
 

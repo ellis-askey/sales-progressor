@@ -71,7 +71,10 @@
   font-family: inherit;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
+.os-input:hover {
+  border-color: rgba(255, 107, 74, 0.6);
+}
 .os-input:focus {
   border-color: #FF6B4A;
-  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.12);
+  box-shadow: none;
 }

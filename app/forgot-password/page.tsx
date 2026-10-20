@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
         .fp-input:focus {
           background: rgba(255,255,255,0.62) !important;
           border-color: rgba(255,255,255,0.95) !important;
-          box-shadow: 0 0 0 3px rgba(255,138,101,0.16);
+          box-shadow: none;
         }
         .fp-btn:hover:not(:disabled) {
           transform: translateY(-1px);

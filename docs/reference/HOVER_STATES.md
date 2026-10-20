@@ -106,6 +106,7 @@ For cards that act as buttons (clickable hub cards, navigable list cards), add `
 4. **Disabled is the same shape, not removed.** Use `opacity: 0.35` or `:disabled` rules, never `display: none`. Users need to see the element exists but is unavailable.
 5. **Reduced motion stripped globally.** [`agent-system.css:1670–1700`](../../app/agent/styles/agent-system.css) removes `transform` and shadow transitions under `prefers-reduced-motion: reduce`. Don't add per-component overrides.
 6. **Tokens, not values.** Hover colour comes from `--agent-hover-tint` / `--agent-hover-tint-strong` / `--agent-hover-tint-warning`. Never inline-tint with a hex code.
+7. **Text inputs focus with a border, not a glow.** A form field (text / search / date / textarea / select) has a thin border that darkens to `--agent-coral` on hover and `--agent-coral-deep` on focus, with `box-shadow: none`. No soft `0 0 0 Npx` halo ring — it was rejected in critique #171 and again 2026-10-20. Canonical models: `.agent-input`, `.agent-field`, `.enq-search`, `.account-input`. This is enforced by the pre-commit focus-ring guard (Check 5 in [`scripts/hooks/pre-commit`](../../scripts/hooks/pre-commit)). The `--agent-focus-ring` box-shadow is for keyboard focus on links and icon buttons only, never for a mouse-focused input field.
 
 ---
 

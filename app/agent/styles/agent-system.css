@@ -2937,7 +2937,8 @@
   /* The whole field is a clickable control (opens the picker on click); a
      hidden native date input under it carries the value + calendar UI. */
   .enq-bd-field { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 11px; margin-bottom: 2px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease; }
-  .enq-bd-field:hover, .enq-bd-field:focus-visible { outline: none; border-color: var(--agent-coral); box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb), 0.10); }
+  .enq-bd-field:hover { border-color: var(--agent-coral); }
+  .enq-bd-field:focus-visible { outline: none; border-color: var(--agent-coral-deep); box-shadow: none; }
   .enq-bd-cal { color: var(--agent-text-muted); flex-shrink: 0; }
   .enq-bd-field:hover .enq-bd-cal, .enq-bd-field:focus-visible .enq-bd-cal { color: var(--agent-coral-deep); }
   .enq-bd-ph { font-size: 13px; color: var(--agent-text-muted); }
