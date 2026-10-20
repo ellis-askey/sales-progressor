@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hasOpenBlockingCheckpoints } from "@/lib/checkpoints/blocking";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { enqueueChainMilestoneNotifications, maybeEnqueueCelebration } from "@/lib/email/chainNotifications";
+import { cancelQueuedEmailsForReversedMilestones } from "@/lib/email/outboundQueue";
 import { generateSummaryText, resolveTemplateTokens } from "@/lib/services/summary";
 import { solicitorConfirmationSentence, advisorConfirmationSentence, confirmationSentence } from "@/lib/updates-copy";
 import { autoCompleteRemindersForMilestone, evaluateTransactionReminders } from "@/lib/services/reminders";
@@ -2882,6 +2883,12 @@ export async function executeUndoMilestone(input: {
       const code = idToCode.get(defId);
       if (code) await handleExchangeReversal(transactionId, code, ptx);
     }
+
+    // Queued-but-unsent emails announcing the undone steps (portal confirms,
+    // completion pack, chain-mate exchange/completion, celebration) must not
+    // go out after the undo — tear them up in the same transaction so the
+    // cancellation is atomic with the reversal (audit MILE-002).
+    await cancelQueuedEmailsForReversedMilestones(transactionId, Array.from(allReverseCodes), ptx);
   });
 
   touchLastActivity(transactionId).catch(() => {});
@@ -2981,6 +2988,18 @@ export async function reverseMilestoneWithCascade(input: {
       select: { code: true },
     });
     const reversedCodes = reversedDefs.map((d) => d.code);
+
+    // Mirror executeUndoMilestone's exchange handling (audit MILE-001/MILE-002):
+    // this path could previously reverse VM19/PM26 while leaving the file
+    // stamped exchanged + billed, and left queued "contracts exchanged" /
+    // completion emails to drain after the undo. The billing helper
+    // short-circuits for non-exchange codes, so this is a no-op for the
+    // common NR-reinstate / cash-switch reverses.
+    for (const code of reversedCodes) {
+      await handleExchangeReversal(input.transactionId, code, tx);
+    }
+    await cancelQueuedEmailsForReversedMilestones(input.transactionId, reversedCodes, tx);
+
     if (reversedCodes.length > 0) {
       const logs = await tx.reminderLog.findMany({
         where: {

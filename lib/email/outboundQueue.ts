@@ -149,6 +149,88 @@ export async function enqueueEmail({
   }
 }
 
+// ─── Undo cancellation ──────────────────────────────────────────────────────────
+
+// Email types whose sourceId is `${transactionId}:${code}` (one source per
+// milestone): the client confirmation digests and the scheduled completion pack.
+const PER_MILESTONE_EMAIL_TYPES = ["MILESTONE_CONFIRMATION", "COMPLETION_PACK"];
+// Chain-mate notifications are keyed on the sender's chainLinkId (EXCHANGE /
+// COMPLETION) or the chainId (CELEBRATION). Codes mirror maybeStampExchange /
+// enqueueChainMilestoneNotifications call sites in lib/services/milestones.ts —
+// not imported from there to keep this module free of a milestones dependency.
+const EXCHANGE_CODES = ["VM19", "PM26"];
+const COMPLETION_CODES = ["VM20", "PM27"];
+
+type QueueDb = Prisma.TransactionClient | typeof prisma;
+
+// Tears up queued-but-unsent emails that announce milestones which have just
+// been undone (audit full-audit-2026-10, MILE-002). Without this, an exchange
+// marked by mistake and undone inside the quiet-hours window still emails the
+// clients and the chain "contracts exchanged" when the drain runs.
+//
+// Only rows with sentAt IS NULL are deleted — already-sent email cannot be
+// recalled, and keeping sent rows preserves the enqueue dedup (a redo re-sends
+// to nobody who already received it, and re-enqueues cleanly for everyone
+// whose unsent row was torn up here).
+export async function cancelQueuedEmailsForReversedMilestones(
+  transactionId: string,
+  codes: string[],
+  db: QueueDb = prisma,
+): Promise<void> {
+  if (codes.length === 0) return;
+
+  // 1. Per-milestone client emails (portal confirmations, completion pack).
+  const sourceIds = codes.map((c) => `${transactionId}:${c}`);
+  await db.outboundEmailQueue.deleteMany({
+    where: { emailType: { in: PER_MILESTONE_EMAIL_TYPES }, sourceId: { in: sourceIds }, sentAt: null },
+  });
+
+  // 2. Onward-neighbour chain updates batched for the undone steps.
+  await db.chainNeighbourUpdate.deleteMany({
+    where: { transactionId, milestoneCode: { in: codes }, sentAt: null },
+  });
+
+  // 3. Chain-mate exchange/completion notifications + whole-chain celebration.
+  const undoesExchange = codes.some((c) => EXCHANGE_CODES.includes(c));
+  const undoesCompletion = codes.some((c) => COMPLETION_CODES.includes(c));
+  if (!undoesExchange && !undoesCompletion) return;
+
+  const tx = await db.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { chainLinkId: true },
+  });
+  if (!tx?.chainLinkId) return;
+
+  const mateTypes = [
+    ...(undoesExchange ? ["EXCHANGE"] : []),
+    ...(undoesCompletion ? ["COMPLETION"] : []),
+  ];
+  await db.outboundEmailQueue.deleteMany({
+    where: { emailType: { in: mateTypes }, sourceId: tx.chainLinkId, sentAt: null },
+  });
+
+  if (undoesCompletion) {
+    const link = await db.chainLink.findUnique({
+      where: { id: tx.chainLinkId },
+      select: { chainId: true },
+    });
+    if (link) {
+      await db.outboundEmailQueue.deleteMany({
+        where: { emailType: "CELEBRATION", sourceId: link.chainId, sentAt: null },
+      });
+      // The chain is no longer fully complete, so release the once-only
+      // celebration guard. Safe against partial sends: recipients whose
+      // celebration already went out keep their sent queue row, and the
+      // (emailType, sourceId, recipient) unique constraint swallows their
+      // re-enqueue if the completion is later redone.
+      await db.propertyChain.updateMany({
+        where: { id: link.chainId, celebrationSentAt: { not: null } },
+        data: { celebrationSentAt: null },
+      });
+    }
+  }
+}
+
 // ─── Drain (called by hourly cron) ─────────────────────────────────────────────
 
 export async function drainOutboundQueue(): Promise<{
