@@ -676,7 +676,9 @@ export async function enqueueClientChaseDigest(input: {
     tileColor: sender.tileColor,
     // White-label the footer "need help" contact to the file's own reply-to; falls
     // back to our support address when the file has no reply-to (audit SP-polish).
-    supportEmail: sender.canReply ? sender.replyTo : undefined,
+    // visibleEmail (outsourced ladder) keeps capture aliases and login emails
+    // out of the printed footer; legacy senders keep the replyTo behaviour.
+    supportEmail: sender.visibleEmail ?? (sender.canReply ? sender.replyTo : undefined),
   });
 
   // Apply an agent edit (D2): swap subject/body and rebuild the branded chase
@@ -692,7 +694,9 @@ export async function enqueueClientChaseDigest(input: {
       pauseUrl: buildContactPauseUrl(contact.id),
       unsubscribeUrl: payload.unsubscribeUrl,
       theme,
-      supportEmail: sender.canReply ? sender.replyTo : undefined,
+      // visibleEmail (outsourced ladder) keeps capture aliases and login emails
+    // out of the printed footer; legacy senders keep the replyTo behaviour.
+    supportEmail: sender.visibleEmail ?? (sender.canReply ? sender.replyTo : undefined),
       studioTheme: sender.studioTheme,
       identityName: sender.brandName ?? transaction.agency?.name ?? undefined,
       logoUrl: sender.logoUrl,
