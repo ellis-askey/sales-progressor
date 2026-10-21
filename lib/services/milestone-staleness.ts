@@ -18,6 +18,7 @@
 // Threshold: > 1.5× the median (50% over) before any badge fires.
 
 import { MILESTONE_DURATION_MEDIANS } from "@/lib/services/fees";
+import { workingDaysBetween } from "@/lib/emails/working-hours";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 
 // Hardcoded estimates aren't data. The slowness badge stays hidden until
@@ -137,8 +138,8 @@ export function computeSlowness(
 
 export type StalenessSignal = {
   stale: true;
-  daysAwaiting: number; // days since the milestone became available
-  graceDays: number;    // threshold sourced from ReminderRule.graceDays
+  daysAwaiting: number; // WORKING days since the milestone became available
+  graceDays: number;    // threshold sourced from ReminderRule.graceDays (working days)
 };
 
 export function computeStaleness(
@@ -153,7 +154,10 @@ export function computeStaleness(
   const becameAvailableAt = flooredAvailability(code, lookup, floorAt);
   if (!becameAvailableAt) return null;
 
-  const daysAwaiting = Math.floor((now.getTime() - becameAvailableAt.getTime()) / DAY_MS);
+  // graceDays counts WORKING days since step 3 of the business-days work
+  // (critique #281), so the elapsed side of the comparison must too — a
+  // weekend can't eat into a step's allowance.
+  const daysAwaiting = workingDaysBetween(becameAvailableAt, now);
   if (daysAwaiting <= graceDays) return null;
 
   return { stale: true, daysAwaiting, graceDays };

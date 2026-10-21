@@ -159,6 +159,30 @@ export function addWorkingDays(from: Date, n: number): Date {
 }
 
 /**
+ * How many WORKING days have elapsed between two instants — weekends and E&W
+ * bank holidays excluded, judged on the London calendar like everything else
+ * in this module. Counts working days in (from, to]: same London day = 0, the
+ * next working day = 1. The working-day twin of client-chase-cron's
+ * daysBetween, used wherever elapsed time is compared against a grace/repeat
+ * number (those numbers count working days — critique #281, step 3).
+ */
+export function workingDaysBetween(from: Date, to: Date): number {
+  if (to.getTime() <= from.getTime()) return 0;
+  let count = 0;
+  let cursor = new Date(from);
+  let guard = 0;
+  // Walk forward a day at a time; count each working London-day we land on,
+  // stopping once we pass `to`.
+  while (guard < 3660) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+    guard++;
+    if (londonDateKey(cursor) > londonDateKey(to)) break;
+    if (isWorkingDay(cursor)) count++;
+  }
+  return count;
+}
+
+/**
  * Rolls a date FORWARD to the next working day (weekends + E&W bank holidays),
  * preserving the time of day. Already-working days pass through unchanged.
  * The reminder engine wraps every stored due/wake date in this (critique #281,

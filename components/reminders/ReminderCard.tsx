@@ -572,7 +572,7 @@ export function ReminderCard({
                 <p>{totalActiveOnFile - 1} other reminder{totalActiveOnFile - 1 > 1 ? "s" : ""} active on this file</p>
               )}
               {log.reminderRule.description ? null : (log.reminderRule.anchorMilestone?.name) && (
-                <p>Reminder rule: Chase after {log.reminderRule.anchorMilestone.name}{log.reminderRule.graceDays ? ` (${log.reminderRule.graceDays}d grace)` : ""}</p>
+                <p>Reminder rule: Chase after {log.reminderRule.anchorMilestone.name}{log.reminderRule.graceDays ? ` (${log.reminderRule.graceDays} working day${log.reminderRule.graceDays === 1 ? "" : "s"} grace)` : ""}</p>
               )}
             </div>
           )}

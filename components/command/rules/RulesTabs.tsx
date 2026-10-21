@@ -137,8 +137,8 @@ export function RulesTabs({
                         <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Rule</th>
                         <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Starts after</th>
                         <th className="text-left px-4 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Stops at</th>
-                        <th className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Grace</th>
-                        <th className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Repeat</th>
+                        <th className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Grace (wkg days)</th>
+                        <th className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Repeat (wkg days)</th>
                         <th className="text-center px-3 py-2.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">Escalate</th>
                       </tr>
                     </thead>

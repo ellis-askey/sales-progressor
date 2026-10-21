@@ -137,6 +137,12 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 **Decision:** a row hides for 14 days (the manual-dismiss window) when, within the last 14 days, (a) the team contacted a client on the file — compose, drawer chase, logged call/text, outbound WhatsApp, portal chat — or (b) a client sent anything inbound, including WhatsApps the portal-visit detector can't see. Automated sends (`isAutomated: true`: engine chases, milestone emails, weekly updates) and passive in_app chase echoes do NOT count. Solicitor-only touches don't count — the touch must involve a vendor/purchaser contact. If the client still hasn't re-engaged after the window, the row resurfaces. Implemented as a query-time filter in `getGoneQuietFiles` (the nightly detector's flag semantics are untouched).
 **Source:** Ellis, 2026-09-18 ("agree with A"; "includes inbound whatsapps from them and also outbound from us").
 
+## 2026-10-20 · reminders · Chase timings count WORKING days (weekends + E&W bank holidays excluded).
+
+**Why:** grace/repeat counted calendar days, so chases landed due on Saturdays (critique #281) and a timing of "3 days" silently included weekends. Step 2 rolled weekend landings to Monday; step 3 makes the unit honest.
+**Decision:** `ReminderRule.graceDays` / `repeatEveryDays` (and the agency/business override + per-file snapshot copies) count working days, computed via the canonical calendar in `lib/emails/working-hours.ts` (also now used by the chase-timeline predictions, which previously ignored bank holidays). Stored values were converted ONCE via `lib/reminders/working-day-conversion.ts` (0–3 unchanged; 4+ scaled by 5/7: 5→4, 7→5, 10→7, 12→9, 14→10, 21→15, 28→20) so real-world pacing stayed the same. The 14-day silence backstops stay CALENDAR days (silence is real elapsed time). Snooze quick gaps count working days (Thursday "In 2 days" wakes Monday). Every surface that shows these numbers says "working days". Reminder + client-chase crons run Mon–Fri.
+**Source:** Ellis, 2026-10-20 (approved the conversion table and all four sub-decisions; "no guessing… slowly and methodically").
+
 ---
 
 *Append new entries at the bottom. Don't edit historical entries — supersede them with a follow-up.*

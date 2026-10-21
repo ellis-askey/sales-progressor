@@ -37,6 +37,7 @@ import { enqueueClientChaseDigest } from "@/lib/email/client-chase-digest";
 import { createAgentChaseTaskForMilestone, clearFallbackForMilestone, EXPECTED_DATE_GRACE_DAYS } from "@/lib/services/reminders";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { toUKDateStr } from "@/lib/utils";
+import { addWorkingDays, rollToWorkingDay, workingDaysBetween } from "@/lib/emails/working-hours";
 import type { ContactRole } from "@prisma/client";
 
 export const CLIENT_CHASE_GRACE_FLOOR_DAYS = 1;
@@ -89,10 +90,11 @@ function snapshotChaseEnabled(snapshot: unknown, code: string): boolean {
   return true;
 }
 
-// Exported for the timing-baseline tests only (characterisation before any
-// business-day work). NOTE: this addDays differs from the reminder engine's —
-// it adds UTC calendar days and PRESERVES the time of day (no midnight zeroing).
-// The tests pin both so the difference stays visible.
+// CALENDAR-day helper — since step 3 only the 14-day silence backstop uses it
+// (silence is real elapsed time by founder decision, 2026-10-20); every
+// grace/repeat window above uses addWorkingDays. NOTE: differs from the
+// reminder engine's addDays — it adds UTC calendar days and PRESERVES the time
+// of day (no midnight zeroing). Exported for the timing-baseline tests.
 export function addDays(d: Date, n: number): Date {
   const out = new Date(d);
   out.setUTCDate(out.getUTCDate() + n);
@@ -556,7 +558,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       // an expected due-back date, fire ON that date (EXPECTED_DATE_GRACE_DAYS = 0)
       // and bypass the floor, so the chase starts the day it was due, not later.
       const grace = expectedDateAnchored ? EXPECTED_DATE_GRACE_DAYS : Math.max(graceDays, CLIENT_CHASE_GRACE_FLOOR_DAYS);
-      const firstDueDate = addDays(anchorDate, grace);
+      // Grace counts WORKING days (critique #281, step 3); the roll covers the
+      // grace-0 expected-date case landing on a weekend.
+      const firstDueDate = rollToWorkingDay(addWorkingDays(anchorDate, grace));
 
       // Route to vendor or purchaser contacts based on code prefix.
       const side = sideForMilestoneCode(targetCode);
@@ -679,7 +683,7 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
             if (!dueReachedUk(now, firstDueDate)) continue;
             reason = "first_chase";
           } else {
-            const nextDue = addDays(state.lastChasedAt, repeatEveryDays);
+            const nextDue = addWorkingDays(state.lastChasedAt, repeatEveryDays);
             if (!dueReachedUk(now, nextDue)) continue;
             // Engagement gate (couple-as-one): engagement PAUSES the chase, it
             // doesn't kill it. Hold only while engagement is recent (within one
@@ -688,7 +692,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
             // chase" blocked forever — with lastChasedAt frozen at the 1st send,
             // a single engagement wedged the row permanently.)
             const coupleEngagedAt = coupleEngagedByTxCode.get(`${transaction.id}:${targetCode}`) ?? null;
-            if (coupleEngagedAt && daysBetween(now, coupleEngagedAt) < repeatEveryDays) {
+            // Elapsed-vs-repeat comparisons count working days too (step 3) —
+            // a weekend can't silently use up the engagement pause.
+            if (coupleEngagedAt && workingDaysBetween(coupleEngagedAt, now) < repeatEveryDays) {
               continue;
             }
             reason = "repeat_due";
@@ -863,7 +869,7 @@ export async function findEscalationCandidates(now: Date): Promise<EscalationCan
     if (row.chaseCount >= capFor(row.transactionId, row.milestoneCode) && lastChasedAt) {
       const repeat = repeatFor(row.transactionId, row.milestoneCode);
       if (repeat == null) continue; // no rule for this code (data hygiene)
-      const windowEnd = addDays(lastChasedAt, repeat);
+      const windowEnd = addWorkingDays(lastChasedAt, repeat); // repeat counts working days (step 3)
       if (now < windowEnd) continue;
       // Engagement gate (couple-as-one): if either person engaged after this
       // contact's last chase, it's not a no-reply event — don't escalate.

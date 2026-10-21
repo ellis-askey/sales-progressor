@@ -67,9 +67,10 @@ describe("chaseHandoverDate with manual chases", () => {
       7,
       fixed,
     );
-    // Cap path: last chase (9 Oct 10:15) + 7 days = 16 Oct 10:15 — earlier than
-    // the silence backstop (first chase 2 Oct + 14 = 16 Oct 10:15 too; equal here,
-    // so pin the value itself).
+    // Step 3: the cap path counts WORKING days — last chase (Fri 9 Oct 10:15)
+    // + 7 working days = Tue 20 Oct 10:15. The silence backstop stays CALENDAR
+    // (first chase 2 Oct + 14 = Fri 16 Oct 10:15) and wins here as the earlier
+    // of the two.
     expect(capPath?.toISOString()).toBe("2026-10-16T10:15:00.000Z");
 
     // Silence backstop alone (count below cap): first chase + 14 days exactly.
@@ -89,10 +90,10 @@ describe("chaseHandoverDate with manual chases", () => {
     expect(floored?.toISOString()).toBe("2026-10-29T08:00:00.000Z");
   });
 
-  it("STEP 2 BEHAVIOUR: a weekend hand-over rolls to Monday — Needs you never gains a row on a Saturday", () => {
-    // Last chase Monday 19 Oct + 5-day repeat = Saturday 24 Oct, rolled to
-    // Monday 26 Oct. (First chase 12 Oct keeps the 14-day silence backstop at
-    // the 26th too — equal after the roll, so the value itself is pinned.)
+  it("STEP 3 BEHAVIOUR: the repeat gap counts working days and never lands Needs-you on a weekend", () => {
+    // Last chase Monday 19 Oct + 5 WORKING days (Tue-Fri, Mon) = Monday 26 Oct.
+    // (First chase 12 Oct keeps the calendar silence backstop at the 26th too —
+    // equal, so the value itself is pinned.)
     const d = chaseHandoverDate(
       { chaseCount: 2, firstChasedAt: new Date("2026-10-12T09:00:00.000Z"), lastChasedAt: new Date("2026-10-19T09:00:00.000Z"), lastEngagedAt: null },
       5,

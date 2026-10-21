@@ -362,43 +362,48 @@ async function main() {
 
   // ── Reminder Rules ────────────────────────────────────────────────────────
   // Codes are the new spec codes (already remapped from old seed)
+  // graceDays / repeatEveryDays count WORKING DAYS (weekends + E&W bank
+  // holidays excluded) since critique #281 step 3 (2026-10-20). Values were
+  // converted from the original calendar-day defaults via
+  // lib/reminders/working-day-conversion.ts (0-3 unchanged, 4+ scaled by 5/7)
+  // so real-world pacing stayed the same.
   const rules = [
     { name: "Chase: Seller instructed solicitor",                              targetMilestoneCode: "VM1",  anchorCode: null,    graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller MOS received",                                      targetMilestoneCode: "VM2",  anchorCode: null,    graceDays: 0,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller welcome pack received",                             targetMilestoneCode: "VM3",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller ID & AML completed",                               targetMilestoneCode: "VM4",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller property information forms received",               targetMilestoneCode: "VM5",  anchorCode: "VM3",   graceDays: 5,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Seller property information forms returned",               targetMilestoneCode: "VM6",  anchorCode: "VM5",   graceDays: 5,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Draft contract pack issued",                               targetMilestoneCode: "VM7",  anchorCode: "VM6",   graceDays: 5,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Management pack requested",                                targetMilestoneCode: "VM8",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Management pack received (seller)",                        targetMilestoneCode: "VM9",  anchorCode: "VM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Seller welcome pack received",                             targetMilestoneCode: "VM3",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Seller ID & AML completed",                               targetMilestoneCode: "VM4",  anchorCode: "VM1",   graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Seller property information forms received",               targetMilestoneCode: "VM5",  anchorCode: "VM3",   graceDays: 4,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Seller property information forms returned",               targetMilestoneCode: "VM6",  anchorCode: "VM5",   graceDays: 4,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Draft contract pack issued",                               targetMilestoneCode: "VM7",  anchorCode: "VM6",   graceDays: 4,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Management pack requested",                                targetMilestoneCode: "VM8",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Management pack received (seller)",                        targetMilestoneCode: "VM9",  anchorCode: "VM8",   graceDays: 15, repeatEveryDays: 5,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     // Enquiries rework: VM10 (enquiries received) survives but is chased by the
     // enquiries tracker, not the reminder engine — seed it inactive to match
     // migration 20260815260000. VM11–VM15 (the granular seller enquiries loop)
     // are retired (RETIRED_ENQUIRY_CODES) and no longer get a reminder rule.
-    { name: "Chase: Initial enquiries received by seller's solicitor",         targetMilestoneCode: "VM10", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
-    { name: "Chase: Contract documents issued to seller",                      targetMilestoneCode: "VM16", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Signed contracts returned by seller",                      targetMilestoneCode: "VM17", anchorCode: "VM16",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Initial enquiries received by seller's solicitor",         targetMilestoneCode: "VM10", anchorCode: "PM14",  graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
+    { name: "Chase: Contract documents issued to seller",                      targetMilestoneCode: "VM16", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Signed contracts returned by seller",                      targetMilestoneCode: "VM17", anchorCode: "VM16",  graceDays: 4,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Seller's solicitor ready to exchange",                     targetMilestoneCode: "VM18", anchorCode: "VM17",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: true,  useEventDate: false },
     // Single "awaiting exchange" reminder (the PM26 buyer twin is off). Fires ~12
     // days after BOTH sides are ready (later gate; see reminders.ts), then weekly.
     // Exchange is the solicitors'/chain's to make happen, so this is a gentle
     // "worth checking what's holding it up", not a client chase. Retune 2026-08-19.
-    { name: "Awaiting exchange",                                               targetMilestoneCode: "VM19", anchorCode: "VM18",  graceDays: 12, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Awaiting exchange",                                               targetMilestoneCode: "VM19", anchorCode: "VM18",  graceDays: 9,  repeatEveryDays: 5,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Sale completed (seller)",                                  targetMilestoneCode: "VM20", anchorCode: "VM19",  graceDays: 0,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, useCompletionDate: true },
     { name: "Chase: Buyer instructed solicitor",                               targetMilestoneCode: "PM1",  anchorCode: null,    graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer MOS received",                                       targetMilestoneCode: "PM2",  anchorCode: null,    graceDays: 0,  repeatEveryDays: 2,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Buyer ID & AML completed",                                 targetMilestoneCode: "PM3",  anchorCode: "PM1",   graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Buyer money paid on account",                              targetMilestoneCode: "PM4",  anchorCode: "PM1",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Buyer mortgage application submitted",                     targetMilestoneCode: "PM5",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Lender valuation booked",                                  targetMilestoneCode: "PM6",  anchorCode: "PM5",   graceDays: 7,  repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Buyer ID & AML completed",                                 targetMilestoneCode: "PM3",  anchorCode: "PM1",   graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Buyer money paid on account",                              targetMilestoneCode: "PM4",  anchorCode: "PM1",   graceDays: 4,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Buyer mortgage application submitted",                     targetMilestoneCode: "PM5",  anchorCode: null,    graceDays: 3,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Lender valuation booked",                                  targetMilestoneCode: "PM6",  anchorCode: "PM5",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Draft contract pack received by buyer's solicitor",        targetMilestoneCode: "PM7",  anchorCode: "VM7",   graceDays: 2,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Searches ordered",                                         targetMilestoneCode: "PM8",  anchorCode: "PM7",   graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Survey booked",                                            targetMilestoneCode: "PM9",  anchorCode: null,    graceDays: 7,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Survey report received",                                   targetMilestoneCode: "PM10", anchorCode: "PM9",   graceDays: 7,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
-    { name: "Chase: Mortgage offer received",                                  targetMilestoneCode: "PM11", anchorCode: "PM6",   graceDays: 14, repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
-    { name: "Chase: Management pack received (buyer)",                         targetMilestoneCode: "PM12", anchorCode: "VM8",   graceDays: 14, repeatEveryDays: 10, escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 21, repeatEveryDays: 7,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, useExpectedDate: true },
+    { name: "Chase: Survey booked",                                            targetMilestoneCode: "PM9",  anchorCode: null,    graceDays: 5,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Survey report received",                                   targetMilestoneCode: "PM10", anchorCode: "PM9",   graceDays: 5,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
+    { name: "Chase: Mortgage offer received",                                  targetMilestoneCode: "PM11", anchorCode: "PM6",   graceDays: 10, repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: true  },
+    { name: "Chase: Management pack received (buyer)",                         targetMilestoneCode: "PM12", anchorCode: "VM8",   graceDays: 10, repeatEveryDays: 7, escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Search results received",                                  targetMilestoneCode: "PM13", anchorCode: "PM8",   graceDays: 15, repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, useExpectedDate: true },
     // Enquiries rework: PM14 (enquiries raised) is chased by the enquiries
     // tracker, so its milestone-engine rule stays inactive. PM15-PM19 (the
     // granular buyer enquiries loop) are retired (RETIRED_ENQUIRY_CODES); PM20
@@ -407,16 +412,16 @@ async function main() {
     // side-to-side solicitor chase can volley indefinitely, so once enquiries
     // have been open ~4 weeks (28 calendar days) without reaching satisfied we
     // put a repeating (weekly) ChaseTask on the file owner's queue to push it.
-    { name: "Chase: Initial enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM14", anchorCode: "PM7",   graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
-    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM14",  graceDays: 28, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, isActive: true  },
+    { name: "Chase: Initial enquiries raised by buyer's solicitor",            targetMilestoneCode: "PM14", anchorCode: "PM7",   graceDays: 4,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false, isActive: false },
+    { name: "Chase: All enquiries satisfied",                                  targetMilestoneCode: "PM20", anchorCode: "PM14",  graceDays: 20, repeatEveryDays: 5,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, isActive: true  },
     { name: "Chase: Final report received by buyer",                           targetMilestoneCode: "PM21", anchorCode: "PM20",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Contract documents received by buyer",                     targetMilestoneCode: "PM22", anchorCode: "PM21",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
-    { name: "Chase: Signed contracts returned by buyer",                       targetMilestoneCode: "PM23", anchorCode: "PM22",  graceDays: 5,  repeatEveryDays: 5,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
+    { name: "Chase: Signed contracts returned by buyer",                       targetMilestoneCode: "PM23", anchorCode: "PM22",  graceDays: 4,  repeatEveryDays: 4,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Deposit transferred by buyer",                             targetMilestoneCode: "PM24", anchorCode: "PM23",  graceDays: 3,  repeatEveryDays: 3,  escalateAfterChases: 3, requiresExchangeReady: false, useEventDate: false },
     { name: "Chase: Buyer's solicitor ready to exchange",                      targetMilestoneCode: "PM25", anchorCode: "PM24",  graceDays: 2,  repeatEveryDays: 2,  escalateAfterChases: 3, requiresExchangeReady: true,  useEventDate: false },
     // OFF (retune 2026-08-19): the seller-side "Awaiting exchange" reminder above
     // is the single file-level exchange reminder now, so this buyer twin is a dupe.
-    { name: "Chase: Contracts exchanged (buyer)",                              targetMilestoneCode: "PM26", anchorCode: "PM25",  graceDays: 12, repeatEveryDays: 7,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, isActive: false },
+    { name: "Chase: Contracts exchanged (buyer)",                              targetMilestoneCode: "PM26", anchorCode: "PM25",  graceDays: 9,  repeatEveryDays: 5,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, isActive: false },
     { name: "Chase: Purchase completed",                                       targetMilestoneCode: "PM27", anchorCode: "PM26",  graceDays: 0,  repeatEveryDays: 1,  escalateAfterChases: 2, requiresExchangeReady: false, useEventDate: false, useCompletionDate: true },
   ];
 
