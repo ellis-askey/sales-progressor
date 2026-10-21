@@ -874,8 +874,17 @@ export function ContactsSection({
           )}
           {/* The WhatsApp group control moved to the People card's toggle row
               (WhatsAppGroupControl via PeoplePanel headerAction, 2026-10-21).
-              In its place: the hub's email composer, preloaded with this file. */}
-          <ComposeEmailButton variant="ghost" initialTransactionId={transactionId} />
+              In its place: the hub's email composer, preloaded with this file —
+              the hint shows the property instantly (founder feedback 2026-10-21). */}
+          <ComposeEmailButton
+            variant="ghost"
+            initialTransactionId={transactionId}
+            initialSaleHint={{
+              line1: address.split(",")[0]?.trim() || address,
+              location: address.split(",").slice(1).join(",").trim(),
+              photoUrl,
+            }}
+          />
         </div>
       </div>
 
