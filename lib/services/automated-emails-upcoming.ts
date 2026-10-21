@@ -27,6 +27,12 @@ export type PredictedItem = {
   address: string;
   recipientLabel: string;
   milestoneLabel: string;
+  milestoneCode: string;
+  // Preview identity (upgrade phase 2): exactly what previewChaseEmailAction
+  // needs to compose the REAL email this prediction will send, so the Outbox
+  // can show a true-to-send preview of a future email.
+  contactId: string | null;                    // client predictions
+  side: "vendor" | "purchaser" | null;         // solicitor predictions
   chaseNumber: number;
   predictedFor: Date;
 };
@@ -108,6 +114,9 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
         address,
         recipientLabel: `${u.contactName} · ${roleLabelFor(u.contactRole)}`,
         milestoneLabel: u.milestoneLabel,
+        milestoneCode: u.milestoneCode,
+        contactId: u.contactId,
+        side: null,
         chaseNumber: u.chaseNumber,
         predictedFor: u.predictedFireDate,
       });
@@ -140,6 +149,9 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
       address: txAddressById.get(s.transactionId) ?? "(unknown file)",
       recipientLabel: sideLabel(s.side),
       milestoneLabel: milestoneLabel(s.milestoneCode),
+      milestoneCode: s.milestoneCode,
+      contactId: null,
+      side: s.side === "vendor" ? "vendor" : "purchaser",
       chaseNumber: s.chaseCount + 1,
       predictedFor,
     });

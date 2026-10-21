@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
-import { listAutomatedEmails, getSendingToday, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
+import { listAutomatedEmails, getSendingToday, getSentTodayRows, type EmailListTab, type EmailDeliveryStatus } from "@/lib/services/automated-emails-list";
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
 import { getAutomationCoverage, getAutomationFiles } from "@/lib/services/automated-emails-coverage";
 import { getChasePerformance, getEmailHealth } from "@/lib/services/automated-emails-analytics";
@@ -31,8 +31,19 @@ import { SendingTodayPanel } from "@/components/automated-emails/SendingTodayPan
 import { AutoRefresh } from "@/components/automated-emails/AutoRefresh";
 import { BloomStage } from "@/components/agent/BloomStage";
 
-const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files", "chase-performance", "email-health"] as const;
+// Four sections (upgrade phase 2). Old tab values deep-linked from emails /
+// bookmarks map onto their new home rather than 404ing or defaulting blindly.
+const VALID_TABS = ["outbox", "history", "problems", "insights"] as const;
 type PageTab = (typeof VALID_TABS)[number];
+const LEGACY_TAB_MAP: Record<string, PageTab> = {
+  pending: "outbox",
+  upcoming: "outbox",
+  sent: "history",
+  errored: "problems",
+  files: "insights",
+  "chase-performance": "insights",
+  "email-health": "insights",
+};
 const VALID_PERIODS = [7, 30, 90];
 
 function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
@@ -66,9 +77,10 @@ export default async function AutomatedEmailsPage({
   }
   const sp = await searchParams;
 
-  const tab: PageTab = (VALID_TABS as readonly string[]).includes(sp.tab ?? "")
-    ? (sp.tab as PageTab)
-    : "pending";
+  const rawTab = sp.tab ?? "";
+  const tab: PageTab = (VALID_TABS as readonly string[]).includes(rawTab)
+    ? (rawTab as PageTab)
+    : LEGACY_TAB_MAP[rawTab] ?? "outbox";
   const mineOnly = sp.mine === "1";
   const fileId = sp.fileId || undefined;
   const period = VALID_PERIODS.includes(Number(sp.period)) ? Number(sp.period) : 30;
@@ -118,25 +130,22 @@ export default async function AutomatedEmailsPage({
 
   // Each module degrades independently — a failure in the overview or the
   // issues panel must not blank the whole page.
-  // On the Upcoming tab the feed comes from the richer forecast (client +
-  // solicitor predictions + exhausted), so the list only needs its counts —
-  // fetch cheap pending rows to avoid a second per-file prediction fan-out.
-  // The view-only tabs (upcoming, files, chase-performance) render their own
-  // content, so the list only needs its counts there — fetch cheap pending rows.
-  const VIEW_ONLY_TABS: PageTab[] = ["upcoming", "files", "chase-performance", "email-health"];
-  const listTab: EmailListTab = VIEW_ONLY_TABS.includes(tab) ? "pending" : (tab as EmailListTab);
-  const [list, overview, needs, coverage, sendingToday, forecast, fileRows, chasePerformance, emailHealth] = await Promise.all([
+  // Section → underlying feed: Outbox lists the queue (predictions come from
+  // the forecast), History lists sent, Problems lists problem emails. Insights
+  // renders its own views, so the list only supplies counts there.
+  const listTab: EmailListTab = tab === "history" ? "sent" : tab === "problems" ? "errored" : "pending";
+  const [list, sentTodayRows, overview, needs, coverage, sendingToday, forecast, fileRows, chasePerformance, emailHealth] = await Promise.all([
     listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit, periodDays: period }),
+    tab === "outbox" ? getSentTodayRows(scopeBase).catch(() => []) : Promise.resolve([]),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
     getAutomationCoverage(scopeBase).catch(() => null),
     getSendingToday(scopeBase).catch(() => null),
-    // Always fetched so the Upcoming tab count shows on every load (it used to
-    // be blank until you were already on the tab — truth pass 2026-10-21).
+    // Always fetched: the Outbox count and schedule both need the forecast.
     getUpcomingForecast(scopeBase).catch(() => null),
-    tab === "files" ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
-    tab === "chase-performance" ? getChasePerformance({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
-    tab === "email-health" ? getEmailHealth({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
+    tab === "insights" ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
+    tab === "insights" ? getChasePerformance({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
+    tab === "insights" ? getEmailHealth({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
   ]);
 
   if (sp.fileId && !fileLabel) {
@@ -189,6 +198,7 @@ export default async function AutomatedEmailsPage({
       <div data-bloom>
       <AutomatedEmailsListView
         rows={list.rows}
+        sentTodayRows={sentTodayRows}
         counts={list.counts}
         tab={tab}
         mineOnly={mineOnly}
@@ -198,7 +208,6 @@ export default async function AutomatedEmailsPage({
         hasMore={list.hasMore}
         needsTotal={needs?.total ?? 0}
         missingItems={missingItems}
-        filesCount={coverage?.total ?? null}
         forecast={forecast}
         fileRows={fileRows}
         chasePerformance={chasePerformance}

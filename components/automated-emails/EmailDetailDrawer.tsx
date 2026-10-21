@@ -33,6 +33,7 @@ import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
 import { cancelPendingEmail, sendPendingEmailNow, getMessageForPreview } from "@/app/actions/automated-emails";
+import { previewChaseEmailAction } from "@/app/actions/chase-timeline";
 import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
 import { deliveryStatusMeta } from "./deliveryStatus";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -98,13 +99,16 @@ function automationLabel(row: EmailRow): string {
     case "EXCHANGE": return "Exchange confirmation";
     case "COMPLETION": return "Completion confirmation";
     case "CELEBRATION": return "Chain celebration";
-    default: return row.emailType;
+    // Never surface a raw internal code — any unmapped type reads as plain
+    // English (voice pass, upgrade phase 2).
+    default: return "Automated email";
   }
 }
 
 // The human title on the coral band — the automation, framed by its state.
 function headerTitle(row: EmailRow): string {
   const label = automationLabel(row);
+  if (row.predictedTarget) return `Predicted ${label.toLowerCase()}`;
   if (row.status === "pending" || row.status === "upcoming") return `Scheduled ${label.toLowerCase()}`;
   return label;
 }
@@ -176,11 +180,49 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
       return;
     }
     if (!emailId) return;
-    const loader = isQueue
-      ? getEmailForPreview(emailId)
-      : row.source === "message"
-        ? getMessageForPreview(emailId)
-        : null;
+    // Predicted rows: compose the REAL email with the same engine the send
+    // uses (previewChaseEmailAction — identical to the chase page's preview),
+    // so what's shown is what will land (upgrade phase 2).
+    const predicted = row.predictedTarget;
+    const loader = predicted
+      ? previewChaseEmailAction({
+          transactionId: row.transactionId,
+          target: predicted.kind === "client"
+            ? { kind: "client", contactId: predicted.contactId }
+            : { kind: "solicitor", side: predicted.side },
+          milestoneCode: predicted.milestoneCode,
+        }).then((res) =>
+          res.ok
+            ? {
+                ok: true as const,
+                data: {
+                  id: row.id,
+                  emailType: row.emailType,
+                  subject: res.subject,
+                  text: res.text,
+                  html: res.html,
+                  recipientName: res.recipientName,
+                  recipientEmail: "",
+                  recipientRole: res.recipientRole,
+                  scheduledFor: row.scheduledFor ?? new Date(),
+                  sentAt: null,
+                  errorAt: null,
+                  editedAt: null,
+                  editedByName: null,
+                  canEdit: false,
+                  transactionId: row.transactionId,
+                  contextLabel: null,
+                  chaseNumber: row.chaseNumber ?? null,
+                  canOpenInNewWindow: true,
+                } satisfies PreviewData,
+              }
+            : { ok: false as const, error: res.error },
+        )
+      : isQueue
+        ? getEmailForPreview(emailId)
+        : row.source === "message"
+          ? getMessageForPreview(emailId)
+          : null;
     if (!loader) return;
     setLoading(true);
     loader
@@ -233,7 +275,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "rgba(255,255,255,0.9)", display: "inline-flex", alignItems: "center", gap: 7 }}>
               <span style={{ width: 7, height: 7, borderRadius: 999, background: DOT_COLOR[statusMeta.tone] ?? "#F5C451", flexShrink: 0 }} aria-hidden />
-              {statusMeta.label}
+              {row.predictedTarget ? "Predicted" : statusMeta.label}
             </p>
           </div>
         </div>
@@ -319,7 +361,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
               <div style={{ border: "1px solid var(--agent-border-strong)", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
                 <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 7 }}>
                   <MetaRow label="To">
-                    <span style={{ color: "#1f2937" }}>{preview.recipientName} &lt;{preview.recipientEmail}&gt;</span>
+                    <span style={{ color: "#1f2937" }}>{preview.recipientName}{preview.recipientEmail ? <> &lt;{preview.recipientEmail}&gt;</> : null}</span>
                   </MetaRow>
                   <MetaRow label="Subject">
                     {mode === "edit" ? (
