@@ -117,6 +117,11 @@ export function OutboxView({
           Predicted chases are hidden while search or filters are on. They come back when you clear them.
         </p>
       )}
+      {!filtersActive && forecast?.truncated && (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>
+          Predictions cover the first 300 files, so the schedule ahead is a floor, not a total.
+        </p>
+      )}
 
       {ordered.map((g) => {
         const sent = g.rows.filter((r) => r.status === "sent").length;

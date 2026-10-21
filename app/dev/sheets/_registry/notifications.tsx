@@ -205,10 +205,12 @@ const NEEDS_ATTENTION_EMPTY: NeedsAttention = {
   affectedFiles: 0,
   byStatus: { bounced: 0, blocked: 0, missing: 0, failed: 0, errored: 0, deferred: 0 },
   items: [],
+  truncated: false,
 };
 const NEEDS_ATTENTION_POPULATED: NeedsAttention = {
   total: 5,
   affectedFiles: 4,
+  truncated: false,
   byStatus: { bounced: 2, blocked: 1, missing: 1, failed: 0, errored: 0, deferred: 1 },
   items: [
     {
