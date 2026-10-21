@@ -38,7 +38,10 @@ export async function POST(req: NextRequest) {
   const bodyText = String(form.get("text") ?? form.get("html") ?? "");
   const match = to.match(/reply\+([a-z0-9]+)@/i);
   const token = match?.[1] ?? null;
-  if (!token) return NextResponse.json({ ok: true, matched: false });
+  // No reply token → it may be mail to a minted address on an agency's
+  // delegated inbound subdomain (sender-ladder tier 3a) — replies AND fresh
+  // composes both land here.
+  if (!token) return handleMintedInbound(to, form);
 
   const email = await prisma.prospectEmail.findUnique({
     where: { replyToken: token },
@@ -185,6 +188,112 @@ async function handleFileReply(token: string, form: FormData) {
   }
 
   return NextResponse.json({ ok: true, matched: true });
+}
+
+// ─── Minted-address inbound (sender-ladder tier 3a) ──────────────────────────
+// Mail to {first}@progression.{agency-domain} — the per-company address the
+// ladder mints on an agency's delegated inbound subdomain. Resolution:
+// subdomain → VerifiedDomain → agency; local part → the progressor whose
+// minted name it is (first name, or first.surname-initial) among the active
+// progression companies at that agency. The reply is ALWAYS forwarded to that
+// progressor's real inbox (zero-loss promise); filing onto a sale is
+// best-effort by sender match — an unmatched email still reaches the human.
+async function handleMintedInbound(toRaw: string, form: FormData) {
+  const toAddr = parseAddress(toRaw);
+  const at = toAddr.email.indexOf("@");
+  if (at < 1) return NextResponse.json({ ok: true, matched: false });
+  const local = toAddr.email.slice(0, at);
+  const host = toAddr.email.slice(at + 1);
+
+  const vd = await prisma.verifiedDomain.findFirst({
+    where: { inboundHost: host, agencyId: { not: null } },
+    select: { agencyId: true },
+  });
+  if (!vd?.agencyId) return NextResponse.json({ ok: true, matched: false });
+
+  // Resolve the local part to a progressor at this agency's active companies.
+  const links = await prisma.progressionBusinessClient.findMany({
+    where: { agencyId: vd.agencyId, removedAt: null },
+    select: { progressionBusinessId: true },
+  });
+  const bizIds = links.map((l) => l.progressionBusinessId);
+  if (!bizIds.length) return NextResponse.json({ ok: true, matched: false });
+  const members = await prisma.user.findMany({
+    where: { progressionBusinessId: { in: bizIds } },
+    select: { id: true, name: true, email: true, progressionBusinessId: true },
+  });
+  const { mintedLocalPart } = await import("@/lib/progression/sender");
+  const target =
+    members.find((m) => mintedLocalPart(m.name, false) === local) ??
+    members.find((m) => mintedLocalPart(m.name, true) === local);
+  if (!target?.email) return NextResponse.json({ ok: true, matched: false });
+
+  const sender = parseAddress(String(form.get("from") ?? ""));
+  const subject = String(form.get("subject") ?? "").trim() || "(no subject)";
+  const text = String(form.get("text") ?? "");
+  const html = String(form.get("html") ?? "");
+  const body = (text && text.trim()) || stripHtml(html);
+
+  // Best-effort filing: the sender's address → a contact on one of this
+  // company's live sales at this agency. Exactly one match → file it there.
+  let filedTx: string | null = null;
+  if (sender.email) {
+    const contacts = await prisma.contact.findMany({
+      where: {
+        email: { equals: sender.email, mode: "insensitive" },
+        transaction: {
+          agencyId: vd.agencyId,
+          progressionBusinessId: target.progressionBusinessId,
+          status: { in: ["draft", "active", "on_hold"] },
+        },
+      },
+      select: { propertyTransactionId: true },
+    });
+    const txIds = [...new Set(contacts.map((c) => c.propertyTransactionId))];
+    if (txIds.length === 1) {
+      filedTx = txIds[0];
+      const msg: IngestMessage = {
+        id: `minted:${host}:${Date.now()}`,
+        subject,
+        from: sender.email,
+        fromName: sender.name,
+        to: [toRaw],
+        cc: [],
+        receivedDateTime: new Date().toISOString(),
+        bodyPreview: body.replace(/\s+/g, " ").trim().slice(0, 255),
+        body,
+        folder: "Inbox",
+        conversationId: null,
+        internetMessageId: null,
+        inReplyTo: null,
+        references: null,
+        headers: {},
+        attachments: [],
+        outbound: false,
+      };
+      await logSingleIngestMessage(filedTx, msg, "reply-capture").catch((err) =>
+        console.error(`[minted-inbound] filing failed for tx ${filedTx}:`, err),
+      );
+    }
+  }
+
+  // ALWAYS forward — the zero-loss promise. Reads like the sender's own email;
+  // replying goes straight to them.
+  const provenance = filedTx
+    ? "Forwarded by Sales Progressor · filed on the matching sale"
+    : "Forwarded by Sales Progressor · sent to your progression address";
+  await sendEmail({
+    to: target.email,
+    from: buildFrom(sender.name ?? sender.email ?? "Client", "updates@thesalesprogressor.co.uk"),
+    replyTo: sender.email || undefined,
+    subject,
+    text: `${body}\n\n—\n${provenance}`,
+    html: html && html.trim()
+      ? `${html}<p style="color:#8a8a8a;font-size:12px;margin-top:16px">— ${escapeHtml(provenance)}</p>`
+      : undefined,
+  }).catch((err) => console.error(`[minted-inbound] forward failed for ${toAddr.email}:`, err));
+
+  return NextResponse.json({ ok: true, matched: true, filed: !!filedTx });
 }
 
 // "Name <email>" / "email" → parts. email is lowercased; name is null when absent.

@@ -3260,6 +3260,14 @@ model VerifiedDomain {
   cnameRecords          Json
   lastCheckedAt         DateTime?
   verifiedAt            DateTime?
+  // Tier 3a of the progression sender ladder (docs/active/progression-sender-
+  // ladder/PLAN.md): the inbound subdomain (progression.{domain}) the agency can
+  // delegate to us with one MX record. When inboundMxValid, minted per-company
+  // addresses live on it — From = Reply-To — and everything sent to them reaches
+  // our webhook (filed + forwarded). Checked by the check-domains cron.
+  inboundHost           String?
+  inboundMxValid        Boolean      @default(false)
+  inboundCheckedAt      DateTime?
   createdByUserId       String
   createdAt             DateTime     @default(now())
 

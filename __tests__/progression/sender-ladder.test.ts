@@ -87,6 +87,30 @@ describe("resolveOutsourcedClientSender", () => {
     expect(r.replyTo).not.toContain("annie");
   });
 
+  it("tier 3a: delegated inbound subdomain → From = Reply-To on the subdomain (zero-loss)", async () => {
+    db.verifiedDomain.findFirst.mockResolvedValue({
+      domain: "knight-residential.co.uk",
+      inboundHost: "progression.knight-residential.co.uk",
+      inboundMxValid: true,
+    });
+    const r = await resolveOutsourcedClientSender(INPUT);
+    expect(r.tier).toBe(3);
+    expect(r.from).toBe("jo@progression.knight-residential.co.uk");
+    expect(r.replyTo).toBe(r.from);
+    expect(r.visibleEmail).toBe(r.from);
+  });
+
+  it("tier 3a NOT used until the MX record verifies", async () => {
+    db.verifiedDomain.findFirst.mockResolvedValue({
+      domain: "knight-residential.co.uk",
+      inboundHost: "progression.knight-residential.co.uk",
+      inboundMxValid: false,
+    });
+    const r = await resolveOutsourcedClientSender(INPUT);
+    expect(r.from).toBe("jo.updates@knight-residential.co.uk");
+    expect(r.replyTo).toBe("reply+abc123@reply.salesprogressorapp.co.uk");
+  });
+
   it("tier 3: authenticated agency domain mints a per-company From; Reply-To is the capture alias", async () => {
     db.verifiedDomain.findFirst.mockResolvedValue({ domain: "knight-residential.co.uk" });
     const r = await resolveOutsourcedClientSender(INPUT);

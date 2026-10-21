@@ -164,7 +164,7 @@ export async function resolveOutsourcedClientSender(input: {
   // Tier 3: the agency's authenticated domain.
   const domain = await prisma.verifiedDomain.findFirst({
     where: { agencyId: input.agencyId, status: "verified" },
-    select: { domain: true },
+    select: { domain: true, inboundHost: true, inboundMxValid: true },
   });
   const capture = await resolveReplyCaptureAddress(input.transactionId);
   // Login email is the LAST resort only — the environment-regression case.
@@ -174,6 +174,14 @@ export async function resolveOutsourcedClientSender(input: {
     const first = mintedLocalPart(input.assignedUser?.name, false);
     const clash = await firstNameClashes(input.agencyId, input.progressionBusinessId, first);
     const local = mintedLocalPart(input.assignedUser?.name, clash);
+    // 3a: inbound subdomain delegated + MX verified → From = Reply-To on it;
+    // everything mailed there (replies AND fresh composes) reaches our webhook,
+    // which files it and forwards to the progressor. Zero-loss.
+    if (domain.inboundHost && domain.inboundMxValid) {
+      const from = `${local}@${domain.inboundHost.toLowerCase()}`;
+      return { from, replyTo: from, visibleEmail: from, tier: 3 };
+    }
+    // 3b: domain auth only → minted From; replies via the capture alias.
     const from = `${local}.updates@${domain.domain.toLowerCase()}`;
     return { from, replyTo: capture ?? forwardFallback, visibleEmail: from, tier: 3 };
   }
