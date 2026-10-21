@@ -35,7 +35,7 @@ import { prisma } from "@/lib/prisma";
 import { enqueueEmail } from "@/lib/email/outboundQueue";
 import { buildOutsourceIntroEmail } from "@/lib/emails/outsource-intro-template";
 import { clientFacingIdentity, whatsappLink } from "@/lib/progression/identity";
-import { resolveOutsourcedWhiteLabelSender } from "@/lib/progression/sender";
+import { resolveOutsourcedClientSender } from "@/lib/progression/sender";
 import { deliverAtInsideWorkingWindow } from "@/lib/emails/working-hours";
 import { greetingFirstName } from "@/lib/contacts/displayName";
 
@@ -197,19 +197,24 @@ export async function sendOutsourceIntroForTransaction(
     let fromAddress: string;
     let replyTo: string;
     if (isExternalBiz && tx.agencyId) {
-      // External progression business: the per-(company, agency) white-label sender,
-      // so two companies at one agency never share an identity. When none is set up,
-      // From falls to the platform address (deliverability) and Reply-To to the
-      // assigned progressor's own inbox — never our updates@. See lib/progression/sender.ts.
-      const whiteLabel = await resolveOutsourcedWhiteLabelSender({
+      // External progression business: the full client-facing sender ladder
+      // (docs/active/progression-sender-ladder/PLAN.md) — the business's own
+      // domain never faces clients; below the provisioned tiers, Reply-To is
+      // the per-file capture alias (filed + forwarded), never the login email.
+      const ladder = await resolveOutsourcedClientSender({
+        transactionId: tx.id,
         agencyId: tx.agencyId,
         progressionBusinessId: tx.progressionBusinessId ?? null,
         agencyQuoteSenderEmail: tx.agency?.quoteSenderEmail ?? null,
         agencyQuoteSenderVerified: !!tx.agency?.quoteSenderVerified,
-        business: biz,
+        assignedUser: tx.assignedUser
+          ? { name: tx.assignedUser.name ?? null, email: tx.assignedUser.email ?? null }
+          : spUserEmail
+            ? { name: null, email: spUserEmail }
+            : null,
       });
-      fromAddress = whiteLabel ?? DEFAULT_FROM_ADDRESS;
-      replyTo = whiteLabel ?? spUserEmail ?? DEFAULT_FROM_ADDRESS;
+      fromAddress = ladder.from;
+      replyTo = ladder.replyTo;
     } else {
       // TSP-run / legacy: the agency's verified sender, else a domain-authed agent
       // address, else the platform default. Reply-To stays the creator (updates@ is ours).

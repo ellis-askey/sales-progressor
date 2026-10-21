@@ -22,7 +22,7 @@ import { resolveStudioTheme, type StudioTheme } from "@/lib/email/email-theme-st
 import { effectiveLogoMode } from "@/lib/email/studio-render";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import { clientFacingIdentity, progressorSenderAddress } from "@/lib/progression/identity";
-import { resolveOutsourcedWhiteLabelSender } from "@/lib/progression/sender";
+import { resolveOutsourcedClientSender } from "@/lib/progression/sender";
 import { resolveReplyCaptureAddress } from "@/lib/email/reply-capture";
 
 const SP_FROM = "Sales Progressor <updates@thesalesprogressor.co.uk>";
@@ -53,6 +53,10 @@ export type SenderPersona = "personal" | "automated";
 export type ResolvedSender = {
   from: string;
   replyTo: string;
+  // The address footers/contact lines may PRINT. Set on the outsourced ladder,
+  // where Reply-To can be a capture alias that must never render; when absent,
+  // footers keep their legacy replyTo fallback.
+  visibleEmail?: string;
   canReply?: boolean;
   logoUrl?: string | null;
   tileColor?: string | null;
@@ -217,23 +221,29 @@ export async function resolveAgencySenderForTransaction(
       const replyTo = useAgencySender ? agencyAddr! : prog;
       return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
     }
-    // External progression business: resolve the per-(company, agency) white-label
-    // sender, so two companies at one agency NEVER share a sending identity. When none
-    // is set up, From falls to the platform address (deliverability only — we can't
-    // send from an unverified address) and Reply-To falls to the ASSIGNED progressor's
-    // own inbox — never our updates@, which they can't see. See lib/progression/sender.ts.
-    const whiteLabel = tx.agencyId
-      ? await resolveOutsourcedWhiteLabelSender({
-          agencyId: tx.agencyId,
-          progressionBusinessId: tx.progressionBusinessId ?? null,
-          agencyQuoteSenderEmail: agencyAddr,
-          agencyQuoteSenderVerified: agencyVerified,
-          business: tx.progressionBusiness,
-        })
-      : null;
-    const from = whiteLabel ?? SP_REPLY_TO;
-    const replyTo = whiteLabel ?? tx.assignedUser?.email ?? SP_REPLY_TO;
-    return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
+    // External progression business: the full client-facing sender ladder
+    // (docs/active/progression-sender-ladder/PLAN.md). The business's own
+    // domain never faces clients; below the provisioned tiers, Reply-To is the
+    // per-file capture alias (filed on the sale + forwarded to the progressor
+    // by the sendgrid-inbound webhook) — never the progressor's login email.
+    if (tx.agencyId) {
+      const ladder = await resolveOutsourcedClientSender({
+        transactionId,
+        agencyId: tx.agencyId,
+        progressionBusinessId: tx.progressionBusinessId ?? null,
+        agencyQuoteSenderEmail: agencyAddr,
+        agencyQuoteSenderVerified: agencyVerified,
+        assignedUser: tx.assignedUser ?? null,
+      });
+      return {
+        from: buildFrom(display, ladder.from),
+        replyTo: ladder.replyTo,
+        visibleEmail: ladder.visibleEmail,
+        canReply: true,
+        ...logo,
+      };
+    }
+    return { from: buildFrom(display, SP_REPLY_TO), replyTo: SP_REPLY_TO, canReply: true, ...logo };
   }
 
   // ── Self-managed: the agent runs their own file, so the sender is THEIR own
