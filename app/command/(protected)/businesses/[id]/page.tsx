@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
-import { getBusinessDetail, getBusinessWatch, getBusinessFriction, type BusinessDetail, type SetupCheck } from "@/lib/command/businesses";
+import { getBusinessDetail, getBusinessWatch, getBusinessFriction, getBusinessSendingIdentity, type BusinessDetail, type SetupCheck, type AgencySenderStatus, type SenderSource } from "@/lib/command/businesses";
 import { BusinessStatusPill } from "@/components/command/businesses/StatusPill";
 import { eventLabel } from "@/lib/command/event-labels";
 import { formatGBP, formatShortDate } from "@/lib/command/revenue";
@@ -19,7 +19,7 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   const b = await getBusinessDetail(id);
   if (!b) notFound();
-  const [watch, friction] = await Promise.all([getBusinessWatch(b), getBusinessFriction(id)]);
+  const [watch, friction, sending] = await Promise.all([getBusinessWatch(b), getBusinessFriction(id), getBusinessSendingIdentity(id)]);
   const setupDone = watch.setup.filter((c) => c.state === "done").length;
 
   const payment = paymentLine(b);
@@ -161,6 +161,64 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
         </SectionCard>
       </div>
 
+      {/* Sending identity — per (company × agency) pairing. The finest real
+          granularity: who this business sends as for each agency it handles, and
+          whether that's a DNS-authenticated domain, a no-DNS single sender, or the
+          platform fallback. (There is no per-agent sender — it's shared by domain.) */}
+      {sending && (
+        <SectionCard
+          title="Sending identity, per agency"
+          right={
+            <span className="text-xs text-neutral-500">
+              {sending.perAgency.filter((a) => !a.archived && a.method !== "platform").length} of {sending.perAgency.filter((a) => !a.archived).length} sending as their own
+            </span>
+          }
+        >
+          {sending.perAgency.length === 0 ? (
+            <Empty>No client agencies yet.</Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-800">
+                    <th className="text-left py-2 pr-3 text-xs font-medium text-neutral-500">Agency</th>
+                    <th className="text-left py-2 pr-3 text-xs font-medium text-neutral-500">Sends as</th>
+                    <th className="text-left py-2 text-xs font-medium text-neutral-500">How it sends</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/70">
+                  {sending.perAgency.map((a) => (
+                    <tr key={a.agencyId} className={a.archived ? "opacity-50" : ""}>
+                      <td className="py-2.5 pr-3 align-top">
+                        <span className="text-neutral-200">{a.agencyName}</span>
+                        {a.archived && <span className="ml-1.5 text-[10px] text-neutral-600">archived</span>}
+                        {a.agencyProgressorCount > 1 && (
+                          <span className="block text-[10px] text-neutral-600">shared agency · {a.agencyProgressorCount} progressors</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 align-top">
+                        <span className="block font-mono text-[11px] text-neutral-300 break-all">{a.effectiveSender}</span>
+                        <span className="block text-[10px] text-neutral-600">{SOURCE_LABEL[a.source]}</span>
+                      </td>
+                      <td className="py-2.5 align-top"><SenderMethodBadge a={a} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {sending.businessDnsDomains.length > 0 && (
+            <p className="mt-3 text-[11px] text-neutral-600">
+              Company domain{sending.businessDnsDomains.length === 1 ? "" : "s"}:{" "}
+              {sending.businessDnsDomains.map((d) => `${d.domain} ${d.verified ? "✓ authenticated" : "pending"}`).join(" · ")}
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-neutral-600">
+            Sender and DNS are shared by everyone on a domain. There is no per-agent setup; this is the finest level the send pipeline uses.
+          </p>
+        </SectionCard>
+      )}
+
       {/* Activity — what the team is actually doing, from the event rail */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
@@ -207,6 +265,38 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
         </SectionCard>
       </div>
     </div>
+  );
+}
+
+const SOURCE_LABEL: Record<SenderSource, string> = {
+  link: "Own address for this agency",
+  agency: "Agency's own address",
+  business: "Company default address",
+  platform: "No sender set up",
+};
+
+function SenderMethodBadge({ a }: { a: AgencySenderStatus }) {
+  if (a.method === "dns") {
+    return (
+      <span className="inline-flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-900/60 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 w-fit">
+          <BadgeCheck className="w-3 h-3" strokeWidth={2} /> DNS authenticated
+        </span>
+        {a.domain && <span className="text-[10px] text-neutral-600 font-mono">{a.domain}</span>}
+      </span>
+    );
+  }
+  if (a.method === "single_sender") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-sky-900/60 bg-sky-950/50 px-2 py-0.5 text-[10px] font-semibold text-sky-300 w-fit">
+        Single sender · no DNS
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-900/60 bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-300 w-fit">
+      Platform fallback
+    </span>
   );
 }
 
