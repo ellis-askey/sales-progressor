@@ -82,6 +82,17 @@ export default async function OverviewPage({
   const txScope   = serviceTypeScope(mode, agencyIds);
   const userScope = modeProfileScope(mode, agencyIds);
 
+  // Carry the sidebar scope through deep links, but ONLY to pages that honour
+  // it (agencies, outbound, revenue, activity). Linking scope into a page that
+  // ignores it would promise a filter the destination doesn't apply.
+  const scopeQs = (() => {
+    const p = new URLSearchParams();
+    if (mode !== "combined") p.set("mode", mode);
+    if (agencyIds.length > 0) p.set("agency", agencyIds.join(","));
+    const s = p.toString();
+    return s ? `&${s}` : "";
+  })();
+
   // Shared "stuck file" filter — reused by the count and the list so they agree.
   // Excludes demo, admin-migrated, and internal-agency files to match every
   // other metric on this page, and requires the file to be older than the stuck
@@ -105,7 +116,7 @@ export default async function OverviewPage({
     today,
     signalCounts, unacknowledgedSignals,
     activeExperimentsCount, proposedExperimentsCount,
-    dailyRows,
+    txDailyRows, signupDailyRows,
     spWeek, pmWeek,
     stuckCount, stuckList,
     draftRows,
@@ -145,11 +156,20 @@ export default async function OverviewPage({
     }),
     commandDb.experiment.count({ where: { status: "active" } }),
     commandDb.experiment.count({ where: { status: "proposed" } }),
-    // Per-day breakdown (7 completed days) for the pulse strip + averages
+    // Per-day breakdown (7 completed days) for the pulse strip + averages.
+    // Follows the sidebar scope like the tiles (it compared a SCOPED today bar
+    // against GLOBAL history before — systematically misleading in SP/PM or
+    // agency views). Transaction metrics come from the serviceType-scoped rows;
+    // signups from the modeProfile-scoped rows; merged by date below.
     commandDb.dailyMetric.findMany({
-      where: { date: { gte: sevenCompletedStart, lt: todayKey }, agencyId: null, serviceType: null, modeProfile: null },
+      where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...txScope },
       orderBy: { date: "asc" },
-      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, signups: true, chasesSent: true },
+      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, chasesSent: true },
+    }),
+    commandDb.dailyMetric.findMany({
+      where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...userScope },
+      orderBy: { date: "asc" },
+      select: { date: true, signups: true },
     }),
     // SP vs PM weekly split (global roll-ups only)
     commandDb.dailyMetric.aggregate({
@@ -288,8 +308,11 @@ export default async function OverviewPage({
   const portalSkipTotal = portalSkipAggregate._sum.portalInviteSkipCount ?? 0;
   const portalSkipUsers = portalSkipAggregate._count._all;
 
-  function pct(curr: number, prev: number): number {
-    if (!prev || prev === 0) return 0;
+  // Week-on-week delta. null = "no baseline" (prior week was zero but this week
+  // isn't) — rendered as "new", not the old misleading grey "no change" that
+  // hid genuine growth from zero.
+  function pct(curr: number, prev: number): number | null {
+    if (!prev || prev === 0) return curr > 0 ? null : 0;
     return Math.round(((curr - prev) / prev) * 100);
   }
 
@@ -299,25 +322,47 @@ export default async function OverviewPage({
   const statRows: {
     label: string; metric: string; curr: number; prev: number; good: boolean; href?: string;
   }[] = [
-    { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true, href: "/command/agencies?view=agency&since=7d" },
+    { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true, href: `/command/agencies?since=7d${scopeQs}` },
     { label: "Transactions created", metric: "transactions", curr: (currentTx._sum.transactionsCreated ?? 0)  + today.transactionsCreated, prev: previousTx._sum.transactionsCreated ?? 0,  good: true, href: "/command/files?created=7d" },
     { label: "Milestones confirmed", metric: "milestones",   curr: (currentTx._sum.milestonesConfirmed ?? 0)  + today.milestonesConfirmed, prev: previousTx._sum.milestonesConfirmed ?? 0,  good: true },
     { label: "Chases sent",          metric: "chases",       curr: (currentTx._sum.chasesSent ?? 0)           + today.chasesSent,          prev: previousTx._sum.chasesSent ?? 0,           good: true },
     { label: "AI drafts generated",  metric: "ai_drafts",    curr: (currentTx._sum.aiDraftsGenerated ?? 0)    + today.aiDraftsGenerated,   prev: previousTx._sum.aiDraftsGenerated ?? 0,    good: true },
   ];
 
+  // Merge the two scoped row sets into one fixed 7-day series. Under an agency
+  // multi-select the rollup has one row per agency per day, so sum by date; a
+  // day with no rows is a real zero, so the average divides by 7, not by
+  // however many rows happened to exist.
+  const dayAgg = new Map<number, { milestones: number; txns: number; chases: number; signups: number }>();
+  for (let i = 0; i < 7; i++) {
+    dayAgg.set(sevenCompletedStart.getTime() + i * dayMs, { milestones: 0, txns: 0, chases: 0, signups: 0 });
+  }
+  for (const r of txDailyRows) {
+    const d = dayAgg.get(new Date(r.date).getTime());
+    if (!d) continue;
+    d.milestones += r.milestonesConfirmed;
+    d.txns += r.transactionsCreated;
+    d.chases += r.chasesSent;
+  }
+  for (const r of signupDailyRows) {
+    const d = dayAgg.get(new Date(r.date).getTime());
+    if (d) d.signups += r.signups;
+  }
+  const dailySeries = [...dayAgg.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([ts, v]) => ({ date: new Date(ts), ...v }));
+
   // Today vs 7-day average (average over the 7 completed days).
-  const days = dailyRows.length || 1;
-  const avgMilestones = Math.round(dailyRows.reduce((a, r) => a + r.milestonesConfirmed, 0) / days);
-  const avgTxns       = Math.round(dailyRows.reduce((a, r) => a + r.transactionsCreated, 0) / days);
-  const avgSignups    = Math.round(dailyRows.reduce((a, r) => a + r.signups, 0) / days);
+  const avgMilestones = Math.round(dailySeries.reduce((a, r) => a + r.milestones, 0) / 7);
+  const avgTxns       = Math.round(dailySeries.reduce((a, r) => a + r.txns, 0) / 7);
+  const avgSignups    = Math.round(dailySeries.reduce((a, r) => a + r.signups, 0) / 7);
 
   // Pulse strip = 7 completed days + today (live), tinted distinctly.
   const stripRows = [
-    ...dailyRows.map((r) => ({
+    ...dailySeries.map((r) => ({
       label: fmtDay(r.date),
-      milestones: r.milestonesConfirmed,
-      txns: r.transactionsCreated,
+      milestones: r.milestones,
+      txns: r.txns,
       isToday: false,
     })),
     { label: "Today", milestones: today.milestonesConfirmed, txns: today.transactionsCreated, isToday: true },
@@ -363,9 +408,15 @@ export default async function OverviewPage({
                   {s.href && <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>}
                 </p>
                 <p className="text-2xl font-bold text-white tabular-nums">{s.curr.toLocaleString()}</p>
-                <p className={`text-xs tabular-nums mt-0.5 ${deltaColor(d, s.good)}`}>
-                  {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
-                </p>
+                {d === null ? (
+                  <p className={`text-xs tabular-nums mt-0.5 ${s.good ? "text-emerald-400" : "text-red-400"}`}>
+                    new · nothing prev week
+                  </p>
+                ) : (
+                  <p className={`text-xs tabular-nums mt-0.5 ${deltaColor(d, s.good)}`}>
+                    {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
+                  </p>
+                )}
               </>
             );
             return (
@@ -416,9 +467,9 @@ export default async function OverviewPage({
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
           Activity pulse — 7 days + today
           <InfoTip label="What the pulse strip shows">
-            Seven completed days of platform activity with today&apos;s live bar on
-            the right. Today is still filling in, so its bar usually sits lower
-            until the evening.
+            Seven completed days with today&apos;s live bar on the right, all
+            following the sidebar scope filter. Today is still filling in, so its
+            bar usually sits lower until the evening.
           </InfoTip>
         </h2>
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
