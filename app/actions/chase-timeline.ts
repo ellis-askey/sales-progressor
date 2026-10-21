@@ -147,8 +147,26 @@ export async function rescheduleChaseThreadAction(input: {
       },
       update: { snoozeUntil: hold, statusReason: movedBy },
     });
+  } else if (target.scope === "raise") {
+    // The raise chaser holds behind PM14's expected date — the same field the
+    // enquiries page's date control writes. Nudges AND escalation pause, then
+    // resume by themselves once the chosen day arrives. Round-scoped to the
+    // active buyer so a relisted file never parks a previous buyer's row.
+    const tx = await prisma.propertyTransaction.findUnique({
+      where: { id: input.transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    const updated = await prisma.milestoneCompletion.updateMany({
+      where: {
+        transactionId: input.transactionId,
+        buyerRoundId: tx?.activeBuyerRoundId ?? null,
+        milestoneDefinition: { is: { code: "PM14" } },
+        state: { not: "complete" },
+      },
+      data: { expectedDate: hold },
+    });
+    if (updated.count === 0) return { ok: false, error: "This chase has already finished." };
   } else {
-    if (target.scope !== "reply") return { ok: false, error: "This chase can't be moved." };
     const updated = await prisma.enquiryTracker.updateMany({
       where: { transactionId: input.transactionId, closedAt: null },
       data: { snoozedUntil: hold },

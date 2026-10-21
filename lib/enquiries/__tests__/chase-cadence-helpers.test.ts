@@ -104,4 +104,12 @@ describe("raiseChaseEscalateAt", () => {
     expect(raiseChaseEscalateAt(raise())).not.toBeNull();
     expect(raiseChaseEscalateAt(raise({ escalatedAt: new Date() }))).toBeNull();
   });
+  it("a later hold (expected or rescheduled date) pushes the escalate date to the hold", () => {
+    const hold = new Date("2027-01-01T09:00:00.000Z");
+    expect(raiseChaseEscalateAt(raise({ expectedDate: hold }))).toEqual(hold);
+  });
+  it("a hold already behind the schedule leaves the escalate date alone", () => {
+    const stale = new Date("2026-09-02T09:00:00.000Z");
+    expect(raiseChaseEscalateAt(raise({ expectedDate: stale }))).not.toEqual(stale);
+  });
 });

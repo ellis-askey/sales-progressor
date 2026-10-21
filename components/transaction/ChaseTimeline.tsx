@@ -354,11 +354,10 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
         ? "Auto-chase done"
         : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
   const kicker = showsPreview ? kickerBase : `${kickerBase} · ${send.recipientLabel}`;
-  // The date itself is the reschedule control — but only when an automated send
-  // is genuinely scheduled, on a lane with a hold to write (the raise-chase
-  // clock has none).
-  const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget
-    && !(send.overrideTarget.kind === "enquiry" && send.overrideTarget.scope === "raise");
+  // The date itself is the reschedule control — on every lane, whenever an
+  // automated send is genuinely scheduled (each lane has its own hold field the
+  // sender respects; the raise chaser's is PM14's expected date).
+  const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget;
   return (
     <div className="chase-upnext-card" style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",

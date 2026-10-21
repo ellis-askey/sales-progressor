@@ -99,8 +99,12 @@ export function raiseChaseNextNudgeAt(s: RaiseChaseState): Date | null {
 }
 
 // The date the raise chase escalates to the file owner if enquiries still aren't
-// raised, or null once escalated.
+// raised, or null once escalated. A future expected/rescheduled date holds
+// escalation too (raiseChaseDecision returns nothing while it's live), so the
+// shown date is the hold when that's later — it can't fire before the hold ends.
 export function raiseChaseEscalateAt(s: RaiseChaseState): Date | null {
   if (s.escalatedAt) return null;
-  return addWorkingDays(s.openedAt, ESCALATE_AT_WD);
+  const at = addWorkingDays(s.openedAt, ESCALATE_AT_WD);
+  if (s.expectedDate && s.expectedDate > at) return s.expectedDate;
+  return at;
 }

@@ -724,7 +724,10 @@ export async function getChaseTimeline(
       lastTarget: raiseChase.lastTarget,
       nudgeCount: raiseChase.nudgeCount,
       escalatedAt: raiseChase.escalatedAt,
-      expectedDate: null,
+      // The raise chaser's hold: PM14's expected date (set by the enquiries
+      // page's date control OR a reschedule from this timeline). The cron reads
+      // the same field, so the predicted date here matches what actually fires.
+      expectedDate: completionByKey.get("purchaser|PM14")?.expectedDate ?? null,
     };
     const rcNextAt = closed ? null : raiseChaseNextNudgeAt(rcState);
     const rcEscalateAt = closed ? null : raiseChaseEscalateAt(rcState);
