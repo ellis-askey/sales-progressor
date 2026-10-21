@@ -8,6 +8,12 @@
 import { Note } from "@phosphor-icons/react/dist/ssr";
 import "@/components/sticky/sticky.css";
 
+// Fire the spawn event StickyLayer listens for. Shared so the mobile menu row
+// (HeroSmallControls) can trigger the same thing without re-stating the contract.
+export function spawnStickyNote(transactionId: string) {
+  window.dispatchEvent(new CustomEvent("sticky-add", { detail: { transactionId } }));
+}
+
 export function StickyAddButton({ transactionId }: { transactionId: string }) {
   return (
     <button
@@ -15,7 +21,7 @@ export function StickyAddButton({ transactionId }: { transactionId: string }) {
       className="sticky-add"
       title="Add a sticky note"
       aria-label="Add a sticky note"
-      onClick={() => window.dispatchEvent(new CustomEvent("sticky-add", { detail: { transactionId } }))}
+      onClick={() => spawnStickyNote(transactionId)}
     >
       <Note size={17} weight="regular" />
     </button>

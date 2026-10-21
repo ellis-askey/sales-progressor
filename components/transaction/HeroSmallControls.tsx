@@ -11,7 +11,8 @@
 // drawer lives inside it), so nothing is duplicated.
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { DotsThreeVertical, Trash, Camera } from "@phosphor-icons/react/dist/ssr";
+import { DotsThreeVertical, Trash, Camera, Note } from "@phosphor-icons/react/dist/ssr";
+import { StickyAddButton, spawnStickyNote } from "@/components/sticky/StickyAddButton";
 
 export function HeroSmallControls({
   settingsSlot,
@@ -84,6 +85,16 @@ export function HeroSmallControls({
         {open && (
           <div className="hero-ctl-menu" role="menu">
             {settingsSlot}
+            {transactionId && (
+              <button
+                type="button"
+                className="hero-ctl-photo"
+                onClick={() => { spawnStickyNote(transactionId); setOpen(false); }}
+              >
+                <Note size={14} weight="regular" />
+                <span className="hero-ctl-photo-label">Add a sticky note</span>
+              </button>
+            )}
             {photoButton}
           </div>
         )}
@@ -91,9 +102,10 @@ export function HeroSmallControls({
     );
   }
 
-  // Tablet: icon-only cluster.
+  // Tablet: icon-only cluster. Sticky trigger sits left of Settings, as on desktop.
   return (
     <div className="hero-ctl-sm hero-ctl-icononly">
+      {transactionId && <StickyAddButton transactionId={transactionId} />}
       {settingsSlot}
       {photoButton}
     </div>

@@ -28,9 +28,10 @@
 .sn-resize { position: absolute; right: 2px; bottom: 2px; width: 16px; height: 16px; display: grid; place-items: center; color: rgba(59,51,42,.28); cursor: nwse-resize; touch-action: none; }
 .sn:hover .sn-resize { color: rgba(59,51,42,.5); }
 
-/* ── hero trigger (post-it icon next to the Settings pill) ── */
-.sticky-add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); color: var(--agent-text-secondary); cursor: pointer; transition: color .14s, border-color .14s, box-shadow .14s, transform .14s; flex-shrink: 0; }
-.sticky-add:hover { color: var(--agent-coral-deep); border-color: var(--agent-border-strong); box-shadow: var(--agent-hover-lift); transform: translateY(-1px); }
+/* ── hero trigger (post-it icon next to the Settings pill) ──
+   Bare icon at rest (no chrome); lights up to coral and lifts on hover. */
+.sticky-add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--agent-text-secondary); cursor: pointer; transition: color .14s, background .14s, box-shadow .14s, transform .14s; flex-shrink: 0; }
+.sticky-add:hover { color: var(--agent-coral-deep); background: var(--agent-surface-glass); box-shadow: var(--agent-hover-lift); transform: translateY(-1px); }
 .sticky-add:active { transform: translateY(0); }
 
 @media (prefers-reduced-motion: reduce) { .sn, .sticky-add { transition: none !important; } }
