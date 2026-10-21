@@ -392,7 +392,7 @@ export function ReviewsSection({
           )}
           {/* Due now — open by default, most-overdue first */}
           {dueItems.length > 0 && (
-            <ReviewDrawer title="Due now" count={dueItems.length} open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
+            <ReviewDrawer title="Due now" open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
               <div ref={dueRef}>
                 {dueItems.map((item, i) => (
                   <ReviewRow key={item.key} item={item} topBorder={i > 0} {...rowProps} />
@@ -434,7 +434,9 @@ function ReviewDrawer({
   title, count, open, onToggle, children, accent, muted = false,
 }: {
   title: string;
-  count: number;
+  // Omitted on "Due now": its count duplicates the Reviews tab number
+  // (founder, 2026-10-20). Collapsed-by-default drawers keep theirs.
+  count?: number;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -455,7 +457,7 @@ function ReviewDrawer({
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {accent && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 99, background: accent, flexShrink: 0 }} />}
           <span className="agent-acc-title" style={{ color: muted ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>{title}</span>
-          <span className="agent-badge">{count}</span>
+          {count != null && <span className="agent-badge">{count}</span>}
         </div>
         <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4,0,0.2,1)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
       </div>

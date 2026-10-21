@@ -298,19 +298,16 @@ function Section({
   isProgressorView?: boolean;
   emptyText?: string;
 }) {
-  const openCount = overdueGroups.reduce((n, g) => n + g.tasks.length, 0)
-    + openGroups.reduce((n, g) => n + g.tasks.length, 0);
-
   const hasOpen = overdueGroups.length > 0 || openGroups.length > 0;
 
   return (
     <div id={id} className="space-y-3">
-      {/* Section header — matches the top of the No-comms card */}
+      {/* Section header — matches the top of the No-comms card. No count badge:
+          it duplicated the active tab's own number (founder, 2026-10-20). */}
       <SectionHeader
         icon={icon ?? <ListChecks size={22} weight="regular" />}
         title={title}
         subtitle={subtitle ?? ""}
-        count={openCount}
       />
 
       {/* Overdue sub-group */}
