@@ -611,3 +611,149 @@ export async function getBusinessDetail(id: string, now: Date = new Date()): Pro
     lifetimeSaleCount,
   };
 }
+
+// ─── Sending identity, per (company × agency) pairing ─────────────────────────
+// The real-world granularity of "who sends as what". For an external progression
+// business, each agency it handles can have its OWN sending identity. This mirrors
+// resolveOutsourcedWhiteLabelSender (lib/progression/sender.ts) exactly, then
+// classifies HOW each verified sender sends: a DNS-authenticated domain, a no-DNS
+// single sender, or (unset) the platform fallback. There is no per-AGENT sender —
+// sender/DNS is shared by everyone on the domain — so this per-pairing view is the
+// finest granularity the send pipeline actually has.
+
+const PLATFORM_FALLBACK_SENDER = "updates@thesalesprogressor.co.uk";
+
+export type SenderSource = "link" | "agency" | "business" | "platform";
+export type SenderMethod = "dns" | "single_sender" | "platform";
+
+export type AgencySenderStatus = {
+  agencyId: string;
+  agencyName: string;
+  archived: boolean;
+  effectiveSender: string;   // the address that actually sends on this pairing's files
+  source: SenderSource;      // where it resolved from
+  method: SenderMethod;      // dns-authenticated domain / no-DNS single sender / platform fallback
+  domain: string | null;     // the authenticated domain backing it, when method === "dns"
+  // The raw building blocks, so the founder can see what's set up vs verified.
+  linkSender: string | null;
+  linkVerified: boolean;
+  agencySender: string | null;
+  agencyVerified: boolean;
+  agencyProgressorCount: number; // active progressors on this agency (agency sender only usable when ≤1)
+};
+
+export type BusinessSendingIdentity = {
+  businessSenderEmail: string | null;
+  businessSenderDomain: string | null;
+  businessSenderVerified: boolean;
+  businessDnsDomains: { domain: string; verified: boolean }[];
+  perAgency: AgencySenderStatus[];
+};
+
+function domainOf(email: string | null | undefined): string | null {
+  const at = email?.trim().toLowerCase().split("@");
+  return at && at.length === 2 && at[1] ? at[1] : null;
+}
+
+export async function getBusinessSendingIdentity(businessId: string): Promise<BusinessSendingIdentity | null> {
+  const biz = await commandDb.progressionBusiness.findFirst({
+    where: { id: businessId, isTsp: false },
+    select: {
+      senderEmail: true, senderDomain: true, senderVerified: true,
+      clients: {
+        select: {
+          agencyId: true, senderEmail: true, senderVerified: true, removedAt: true,
+          agency: { select: { name: true, quoteSenderEmail: true, quoteSenderVerified: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+  if (!biz) return null;
+
+  const agencyIds = biz.clients.map((c) => c.agencyId);
+
+  // Active-progressor count per agency (ALL businesses, matching the resolver's
+  // `progressionBusinessClient.count` — the agency sender is only usable when there
+  // is exactly one, so a shared address can't be misattributed to one company).
+  const progressorCounts = agencyIds.length
+    ? await commandDb.progressionBusinessClient.groupBy({
+        by: ["agencyId"],
+        where: { agencyId: { in: agencyIds }, removedAt: null },
+        _count: { agencyId: true },
+      })
+    : [];
+  const countByAgency = new Map(progressorCounts.map((r) => [r.agencyId, r._count.agencyId]));
+
+  // Every verified sending domain owned by this business or any of its agencies.
+  const domainRows = await commandDb.verifiedDomain.findMany({
+    where: {
+      OR: [
+        { progressionBusinessId: businessId },
+        ...(agencyIds.length ? [{ agencyId: { in: agencyIds } }] : []),
+      ],
+    },
+    select: { agencyId: true, progressionBusinessId: true, domain: true, status: true },
+  });
+  const verifiedDomainSet = new Set(
+    domainRows.filter((d) => d.status === "verified").map((d) => d.domain.toLowerCase()),
+  );
+  const businessDnsDomains = domainRows
+    .filter((d) => d.progressionBusinessId === businessId)
+    .map((d) => ({ domain: d.domain, verified: d.status === "verified" }));
+
+  // Is the email's domain covered by an authenticated (verified) domain? If so the
+  // verified sender sends via DNS; if the sender is verified but has no matching
+  // domain, it's a no-DNS single sender.
+  const methodFor = (email: string): { method: SenderMethod; domain: string | null } => {
+    const dom = domainOf(email);
+    if (dom && verifiedDomainSet.has(dom)) return { method: "dns", domain: dom };
+    return { method: "single_sender", domain: null };
+  };
+
+  const perAgency: AgencySenderStatus[] = biz.clients.map((c) => {
+    const progressorCount = countByAgency.get(c.agencyId) ?? 0;
+    const linkOk = !!(c.senderVerified && c.senderEmail?.trim());
+    const agencyOk = !!(c.agency?.quoteSenderVerified && c.agency.quoteSenderEmail?.trim());
+    const businessOk = !!(biz.senderVerified && biz.senderEmail?.trim());
+
+    let source: SenderSource;
+    let effectiveSender: string;
+    if (linkOk) {
+      source = "link"; effectiveSender = c.senderEmail!.trim();
+    } else if (agencyOk && progressorCount <= 1) {
+      source = "agency"; effectiveSender = c.agency!.quoteSenderEmail!.trim();
+    } else if (businessOk) {
+      source = "business"; effectiveSender = biz.senderEmail!.trim();
+    } else {
+      source = "platform"; effectiveSender = PLATFORM_FALLBACK_SENDER;
+    }
+
+    const { method, domain } = source === "platform"
+      ? { method: "platform" as SenderMethod, domain: null }
+      : methodFor(effectiveSender);
+
+    return {
+      agencyId: c.agencyId,
+      agencyName: c.agency?.name ?? "Unknown agency",
+      archived: c.removedAt !== null,
+      effectiveSender,
+      source,
+      method,
+      domain,
+      linkSender: c.senderEmail?.trim() || null,
+      linkVerified: !!c.senderVerified,
+      agencySender: c.agency?.quoteSenderEmail?.trim() || null,
+      agencyVerified: !!c.agency?.quoteSenderVerified,
+      agencyProgressorCount: progressorCount,
+    };
+  });
+
+  return {
+    businessSenderEmail: biz.senderEmail,
+    businessSenderDomain: biz.senderDomain,
+    businessSenderVerified: biz.senderVerified,
+    businessDnsDomains,
+    perAgency,
+  };
+}
