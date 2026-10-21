@@ -57,9 +57,14 @@ export function AutomationBanner({
       defaultVariant="v05"
       style={{ padding: "16px 22px", borderRadius: "var(--agent-radius-xl)", marginBottom: 16 }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+      {/* Wrap-safe spread (founder feedback 2026-10-21: the old ml-auto strip
+          left a dead zone mid-card once it wrapped). The lead grows to fill,
+          justify-between keeps the stats hugging the right edge on wide
+          screens, and on narrow screens the strip drops below the lead,
+          left-aligned, with no stranded gap. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px 24px", flexWrap: "wrap" }}>
         {/* Health lead */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 260, flex: "1 1 340px" }}>
           <span
             aria-hidden="true"
             style={{
@@ -90,7 +95,7 @@ export function AutomationBanner({
         {/* Stat strip. "Sent today / still to go" replaces the old "Chasing
             today", which counted only what was still waiting (and client
             chases only) — it read 0 every afternoon while sends had gone. */}
-        <div style={{ marginLeft: "auto", display: "flex", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", rowGap: 12 }}>
           <Stat
             value={banner.sentToday}
             label="Sent today"
