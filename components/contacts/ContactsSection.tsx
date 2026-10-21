@@ -43,8 +43,8 @@ import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, WhatsappLogo, ClipboardText } from "@phosphor-icons/react";
-import { WhatsappGroupModal } from "./WhatsappGroupModal";
+import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
 import { logPortalLinkCopiedAction } from "@/app/actions/comms";
@@ -494,7 +494,6 @@ export function ContactsSection({
   automatedEmailCounts = {},
   lastContactedByContactId = {},
   linkSentByContactId = {},
-  whatsappGroupInviteUrl = null,
   photoUrl = null,
   embedded = false,
   isInternalStaff = false,
@@ -521,9 +520,6 @@ export function ContactsSection({
   // (resilience audit PR 7). Drives the truthful "Invite sent" vs "Ready to
   // invite" portal state. Absent contacts default to "not sent".
   linkSentByContactId?: Record<string, boolean>;
-  // Optional WhatsApp group invite link the agent has already saved.
-  // Null when the agent hasn't set one up yet — Phase 1 of the modal.
-  whatsappGroupInviteUrl?: string | null;
   // Signed URL for the current property photo (or null). Feeds the
   // PropertyPhotoField preview so it doesn't have to fetch itself.
   photoUrl?: string | null;
@@ -545,7 +541,6 @@ export function ContactsSection({
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [whatsappOpen, setWhatsappOpen] = useState(false);
 
   // Optimistic local copy of the contacts list (mirrors SolicitorSection).
   // Add / edit / remove reflect in the card instantly instead of waiting on
@@ -877,43 +872,10 @@ export function ContactsSection({
               + Add contact
             </button>
           )}
-          {whatsappGroupInviteUrl ? (
-            <div style={{ display: "flex", alignItems: "stretch", gap: 6, flex: 1 }}>
-              <a
-                href={whatsappGroupInviteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}
-                title="Open the WhatsApp group"
-              >
-                <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
-                WhatsApp group
-              </a>
-              <button
-                type="button"
-                onClick={() => setWhatsappOpen(true)}
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 8px" }}
-                aria-label="Change the WhatsApp group link"
-                title="Change the WhatsApp group link"
-              >
-                <PencilSimple size={12} weight="regular" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setWhatsappOpen(true)}
-              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}
-              title="Set up a WhatsApp group for this sale"
-            >
-              <WhatsappLogo size={13} weight="fill" style={{ color: "#25D366" }} />
-              <span className="contacts-wagroup-full">Set up WhatsApp group</span>
-              <span className="contacts-wagroup-short">WhatsApp group</span>
-            </button>
-          )}
+          {/* The WhatsApp group control moved to the People card's toggle row
+              (WhatsAppGroupControl via PeoplePanel headerAction, 2026-10-21).
+              In its place: the hub's email composer, preloaded with this file. */}
+          <ComposeEmailButton variant="ghost" initialTransactionId={transactionId} />
         </div>
       </div>
 
@@ -1303,16 +1265,6 @@ export function ContactsSection({
           </Modal.Footer>
         </Modal>
       )}
-
-      {/* WhatsApp group helper modal */}
-      <WhatsappGroupModal
-        open={whatsappOpen}
-        onClose={() => setWhatsappOpen(false)}
-        transactionId={transactionId}
-        address={address}
-        contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone, roleType: c.roleType }))}
-        currentInviteUrl={whatsappGroupInviteUrl}
-      />
 
       {/* Intro call drawer (internal team). The launching side is a separate
           intro; completing it marks only that side done. */}

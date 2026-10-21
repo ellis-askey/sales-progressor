@@ -17,9 +17,13 @@ const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffec
 export function PeoplePanel({
   clients,
   professionals,
+  headerAction,
 }: {
   clients: React.ReactNode;
   professionals: React.ReactNode;
+  // Right-aligned control on the toggle row, opposite the Clients/Professionals
+  // tabs (the WhatsApp group control lives here — founder ask, 2026-10-21).
+  headerAction?: React.ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>("clients");
   const railRef = useRef<HTMLDivElement>(null);
@@ -55,8 +59,8 @@ export function PeoplePanel({
 
   return (
     <GlassCard glassId="overview-people" label="Overview · People" defaultVariant="v05" style={{ borderRadius: 12, overflow: "hidden" }}>
-      {/* Toggle header */}
-      <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
+      {/* Toggle header — tabs left, optional action right */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
         <div ref={railRef} style={{ position: "relative", display: "inline-flex", padding: 3, borderRadius: 10, gap: 2, background: "rgba(15,23,42,0.05)", border: "0.5px solid var(--agent-border-default)" }}>
           {/* Sliding highlight (the carousel motion across the tabs). */}
           <span
@@ -95,6 +99,7 @@ export function PeoplePanel({
             );
           })}
         </div>
+        {headerAction && <div style={{ flexShrink: 0 }}>{headerAction}</div>}
       </div>
 
       {/* Sliding body — keyed on the tab so it re-animates on switch. The

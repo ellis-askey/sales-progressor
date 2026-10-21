@@ -15,6 +15,7 @@ import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame 
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -190,7 +191,11 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
       <style>{CSS}</style>
       <section className="fc">
         <header className="fc-hd" data-bloom>
-          <h1 className="fc-h1">Keep every client in the loop</h1>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <h1 className="fc-h1">Keep every client in the loop</h1>
+            {/* Same composer, same top-right header slot as the hub (founder ask, 2026-10-21). */}
+            <ComposeEmailButton variant="ghost" />
+          </div>
           <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
 
           <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
