@@ -15,6 +15,14 @@
 // blocked from recording it), and the money-on-account gate that used to sit
 // on PM7 lives on PM8 "searches ordered", where it belongs: a solicitor
 // doesn't order searches until funds are on account.
+//
+// Searches unlock (founder decision, 2026-10-20): PM8 needs ONLY money on
+// account (PM4), not the contract pack — a proactive solicitor buys the title
+// themselves and orders searches as soon as they're in funds. Chasing stays
+// anchored on the pack arriving (that's still the expectation): the client
+// ReminderRule and SolicitorReminderRule for PM8 both carry an explicit PM7
+// anchor, so relaxing this edge changed what CAN be confirmed, not when the
+// robot nudges. See docs/MILESTONES_SPEC_v1.md §PM8.
 export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   VM3:  ["VM1"],
   VM4:  ["VM3"],
@@ -31,7 +39,7 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM3:  ["PM1"],
   PM4:  ["PM1"],
   PM6:  ["PM5"],
-  PM8:  ["PM7", "PM4"],
+  PM8:  ["PM4"],
   PM10: ["PM9"],
   PM11: ["PM6"],
   PM12: ["VM9"],

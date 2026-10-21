@@ -615,13 +615,15 @@ Related field: `MilestoneCompletion.keyCollectionRequired` records whether the s
 |---|---|
 | Side | Purchaser |
 | Order | 8 |
-| Predecessor | PM7 |
-| Reminder anchor | `predecessor` |
+| Predecessor | PM4 (money on account) |
+| Reminder anchor | `PM7` (explicit — see note) |
 | Responsibility | Solicitor |
 | Blocks exchange | Yes |
 | Can be marked not required | No |
 | Notification audience | Agent, Progressor, Seller, Buyer |
 | Why it matters | Identifies legal, environmental, and local authority issues. |
+
+**Unlock vs chase anchor (founder decision 2026-10-20).** The step unlocks once the buyer's money on account is confirmed (PM4) — a proactive solicitor buys the title themselves and orders searches as soon as they're in funds, before the contract pack arrives. Ordering searches that early is possible, not the expectation, so automated chasing does NOT move with the unlock: the client reminder rule and the solicitor chase rule both carry an explicit PM7 anchor and only start nudging once the draft contract pack has been received. A file where searches were confirmed early simply has nothing left to chase. (Until 2026-10-20 the unlock required both PM7 and PM4.)
 
 ### PM9 — Buyer has booked a Level 2 or Level 3 survey
 

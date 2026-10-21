@@ -54,8 +54,10 @@ const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM3:  ["PM1"],
   PM4:  ["PM1"],
   PM6:  ["PM5"],
-  PM7:  ["PM4"],
-  PM8:  ["PM7"],
+  // PM7 intentionally absent (no prerequisites — contract-pack pair decision,
+  // 2026-09-17); PM8 unlocks on money on account alone (searches unlock
+  // decision, 2026-10-20). Mirrors lib/milestone-prerequisites.ts.
+  PM8:  ["PM4"],
   PM10: ["PM9"],
   PM11: ["PM6"],
   PM12: ["VM9"],  // cross-side
