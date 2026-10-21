@@ -12,6 +12,7 @@
 
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
@@ -166,7 +167,10 @@ export default async function AutomatedEmailsPage({
         <PageHeader
           title="Automated emails"
           subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
-        />
+        >
+          {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
+          <ComposeEmailButton variant="ghost" />
+        </PageHeader>
         <AutoRefresh />
       </div>
 

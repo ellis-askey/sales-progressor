@@ -12,6 +12,7 @@ import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { toUKDateStr } from "@/lib/utils";
 
 export default async function AgentTodoPage() {
@@ -87,7 +88,10 @@ export default async function AgentTodoPage() {
     <>
       {/* The quick-nav stat pills are gone — the tabs below carry the counts now
           (critique #261). */}
-      <PageHeader title="To-Do" subtitle={subtitle} />
+      <PageHeader title="To-Do" subtitle={subtitle}>
+        {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
+        <ComposeEmailButton variant="ghost" />
+      </PageHeader>
 
       {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) ? (
         // Brand-new agency user OR progression-business owner: the onboarding

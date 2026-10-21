@@ -10,6 +10,7 @@ import {
 } from "@/lib/services/agent";
 import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
 import { MarkBellReadOnView } from "@/components/agent/MarkBellReadOnView";
 import {
@@ -120,7 +121,10 @@ export default async function AgentCommsPage() {
           isProgressor ? "What's happened across your files." :
                          "What's happened across your files."
         }
-      />
+      >
+        {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
+        <ComposeEmailButton variant="ghost" />
+      </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 

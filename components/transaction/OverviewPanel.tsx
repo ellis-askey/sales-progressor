@@ -47,6 +47,7 @@ import { ClientOwnBrokerRow } from "@/components/transaction/ClientOwnBrokerRow"
 import { BrokerContactsList } from "@/components/transaction/BrokerContactsList";
 import { ProfessionalsList } from "@/components/transaction/ProfessionalsList";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
+import { WhatsAppGroupControl } from "@/components/contacts/WhatsAppGroupControl";
 import { BrokerSection } from "@/components/transaction/BrokerSection";
 import { HousingAssociationSection } from "@/components/transaction/HousingAssociationSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
@@ -505,6 +506,14 @@ export async function OverviewPanel({
           anytime" -> here). */}
       <div id="clients-section" data-bloom style={{ scrollMarginTop: 84 }}>
       <PeoplePanel
+        headerAction={
+          <WhatsAppGroupControl
+            transactionId={transaction.id}
+            address={transaction.propertyAddress}
+            contacts={clientContacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone ?? null, roleType: c.roleType }))}
+            currentInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
+          />
+        }
         clients={
           <ContactsSection
             transactionId={transaction.id}
@@ -520,7 +529,6 @@ export async function OverviewPanel({
             automatedEmailCounts={automatedEmailCounts}
             lastContactedByContactId={lastContactedByContactId}
             linkSentByContactId={linkSentByContactId}
-            whatsappGroupInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
             photoUrl={photoUrl}
             embedded
           />
