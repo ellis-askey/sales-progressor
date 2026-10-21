@@ -7,7 +7,7 @@ import { formatGBP, formatMonthLabel } from "@/lib/command/revenue";
 export const dynamic = "force-dynamic";
 
 // Shared desktop grid template so the header and every row line up.
-const COLS = "grid-cols-[minmax(150px,1.8fr)_0.7fr_0.7fr_1fr_0.7fr_0.8fr_1.1fr_auto]";
+const COLS = "grid-cols-[minmax(140px,1.7fr)_0.6fr_0.6fr_0.9fr_0.6fr_0.7fr_0.9fr_1fr_auto]";
 
 export default async function BusinessesPage() {
   const rows = await getBusinessesOverview();
@@ -19,6 +19,8 @@ export default async function BusinessesPage() {
 
   const totalMrr = rows.reduce((n, r) => n + r.mrrPence, 0);
   const totalMonth = rows.reduce((n, r) => n + r.monthTotalPence, 0);
+  const totalPending = rows.reduce((n, r) => n + r.pendingMigratedPence, 0);
+  const totalPendingCount = rows.reduce((n, r) => n + r.pendingMigratedCount, 0);
   const needsAttention = rows.filter((r) => r.status === "payment_failed" || r.status === "blocked").length;
   const totalFriction = [...frictionById.values()].reduce((n, s) => n + s.length, 0);
   const activeYesterday = pulse.rows.filter((r) => r.actions > 0);
@@ -35,10 +37,16 @@ export default async function BusinessesPage() {
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <Kpi label="Businesses" value={String(rows.length)} />
         <Kpi label="Recurring MRR" value={formatGBP(totalMrr)} sub="base + seats, per month" tone="primary" />
-        <Kpi label="Billed this month" value={formatGBP(totalMonth)} sub="MRR + £5 per sale" />
+        <Kpi label="Billed this month" value={formatGBP(totalMonth)} sub="MRR + £5 billed on add" />
+        <Kpi
+          label="On exchange"
+          value={formatGBP(totalPending)}
+          sub={`${totalPendingCount} migrated · bill at exchange`}
+          tone={totalPending > 0 ? "primary" : "muted"}
+        />
         <Kpi
           label="Friction flags"
           value={String(totalFriction)}
@@ -89,6 +97,7 @@ export default async function BusinessesPage() {
             <span className="text-right">MRR</span>
             <span className="text-right">Sales</span>
             <span className="text-right">£5</span>
+            <span className="text-right" title="Migrated sales not yet charged — the £5 bills only when they exchange">On exch.</span>
             <span className="text-right">This month</span>
             <span className="text-right">Status</span>
           </div>
@@ -106,8 +115,20 @@ export default async function BusinessesPage() {
                   <span className="text-right text-sm tabular-nums text-neutral-300">{r.clientCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-300">{r.memberCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-100 font-medium">{formatGBP(r.mrrPence)}</span>
-                  <span className="text-right text-sm tabular-nums text-neutral-300">{r.saleCount}</span>
+                  <span
+                    className="text-right text-sm tabular-nums text-neutral-300"
+                    title={r.migratedBilledCount > 0 ? `${r.addedSaleCount} billed on add · ${r.migratedBilledCount} on exchange` : "billed on add"}
+                  >{r.saleCount}</span>
                   <span className="text-right text-sm tabular-nums text-neutral-300">{formatGBP(r.perSalePence)}</span>
+                  <span className="text-right text-sm tabular-nums">
+                    {r.pendingMigratedCount > 0 ? (
+                      <span className="text-amber-300" title={`${r.pendingMigratedCount} migrated ${r.pendingMigratedCount === 1 ? "sale" : "sales"} waiting to exchange`}>
+                        {r.pendingMigratedCount} · {formatGBP(r.pendingMigratedPence)}
+                      </span>
+                    ) : (
+                      <span className="text-neutral-600">&mdash;</span>
+                    )}
+                  </span>
                   <span className="text-right text-sm tabular-nums text-neutral-100 font-medium">{formatGBP(r.monthTotalPence)}</span>
                   <span className="text-right"><BusinessStatusPill status={r.status} /></span>
                 </div>
@@ -125,6 +146,10 @@ export default async function BusinessesPage() {
                     <Field label="Team" value={String(r.memberCount)} />
                     <Field label="Sales (mo)" value={String(r.saleCount)} />
                     <Field label="£5 (mo)" value={formatGBP(r.perSalePence)} />
+                    <Field
+                      label="On exchange"
+                      value={r.pendingMigratedCount > 0 ? `${r.pendingMigratedCount} · ${formatGBP(r.pendingMigratedPence)}` : "—"}
+                    />
                   </div>
                 </div>
               </Link>

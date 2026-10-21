@@ -44,8 +44,12 @@ export type BusinessOverviewRow = {
   clientCount: number;    // active client agencies (removedAt null)
   memberCount: number;    // active members incl. owner
   mrrPence: number;       // recurring: base + seats
-  saleCount: number;      // sales added this month
-  perSalePence: number;   // £5 × this month's sales
+  saleCount: number;      // sales charged this month (billed on add OR on exchange)
+  perSalePence: number;   // £5 × this month's charged sales
+  addedSaleCount: number;       // of saleCount: billed on ADD (organic)
+  migratedBilledCount: number;  // of saleCount: migrated files that exchanged this month
+  pendingMigratedCount: number; // migrated files not yet charged — billable on exchange
+  pendingMigratedPence: number; // £5 × pendingMigratedCount (the forward pipeline)
   monthTotalPence: number;// mrr + per-sale (this month's total bill)
   status: BusinessStatus;
   quiet: boolean;         // paying but no sales added this month — early churn signal
@@ -80,6 +84,10 @@ export async function getBusinessesOverview(now: Date = new Date()): Promise<Bus
         mrrPence: summary.basePence + summary.seatsPence,
         saleCount: summary.saleCount,
         perSalePence: summary.perSalePence,
+        addedSaleCount: summary.addedSaleCount,
+        migratedBilledCount: summary.migratedBilledCount,
+        pendingMigratedCount: summary.pendingMigratedCount,
+        pendingMigratedPence: summary.pendingMigratedPence,
         monthTotalPence: summary.totalPence,
         status,
         quiet: status === "live" && summary.saleCount === 0,

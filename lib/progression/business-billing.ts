@@ -33,9 +33,18 @@ export type BusinessBillingSummary = {
   extraMembers: number;        // billable seats beyond the owner
   basePence: number;
   seatsPence: number;
-  // Per-sale (sales ADDED this month)
+  // Per-sale (this month's £5 lines — files whose businessPerSaleChargedAt is this month)
   saleCount: number;
-  perSalePence: number;        // total for all sales added this month
+  perSalePence: number;        // total for all sales charged this month
+  // Origin split of this month's billed £5. Organic sales bill when ADDED;
+  // migrated ("brought-in") sales bill when they EXCHANGE — same £5, different
+  // trigger. addedSaleCount + migratedBilledCount === saleCount.
+  addedSaleCount: number;      // billed on add (organic)
+  migratedBilledCount: number; // migrated that exchanged this month (billed on exchange)
+  // Migrated sales accrued but NOT yet charged — billable £5 only when/if they
+  // exchange. Not part of this month's bill; the forward pipeline.
+  pendingMigratedCount: number;
+  pendingMigratedPence: number;
   // Rolled up
   lines: BusinessBillingLine[];
   subtotalPence: number;       // == totalPence (no VAT, no credits yet)
@@ -92,16 +101,26 @@ export async function computeFirstChargeEstimate(businessId: string, now: Date =
 export async function getBusinessBillingSummary(businessId: string, now: Date = new Date()): Promise<BusinessBillingSummary> {
   const { start, end } = billingMonthRange(now);
 
-  const [memberCount, sales] = await Promise.all([
+  const [memberCount, sales, pendingMigratedCount] = await Promise.all([
     // Active members (owner + progressors); deactivated members don't count.
     prisma.user.count({
       where: { progressionBusinessId: businessId, deactivatedAt: null },
     }),
-    // This month's ADDED sales for the business (the £5-per-sale lines).
+    // This month's CHARGED sales for the business (the £5-per-sale lines). isMigrated
+    // tells us the trigger: organic files were charged on ADD, migrated files on EXCHANGE.
     prisma.propertyTransaction.findMany({
       where: { progressionBusinessId: businessId, businessPerSaleChargedAt: { gte: start, lt: end } },
-      select: { id: true, propertyAddress: true, businessPerSaleChargedAt: true },
+      select: { id: true, propertyAddress: true, businessPerSaleChargedAt: true, isMigrated: true },
       orderBy: { businessPerSaleChargedAt: "asc" },
+    }),
+    // Migrated files whose £5 hasn't been charged yet — billable only when/if they
+    // exchange (billing-trigger stamps businessPerSaleChargedAt then). Drafts and
+    // withdrawn files will never bill, so they're excluded from the live pipeline.
+    prisma.propertyTransaction.count({
+      where: {
+        progressionBusinessId: businessId, isDemo: false, isMigrated: true,
+        businessPerSaleChargedAt: null, status: { notIn: ["draft", "withdrawn"] },
+      },
     }),
   ]);
 
@@ -110,6 +129,9 @@ export async function getBusinessBillingSummary(businessId: string, now: Date = 
   const seatsPence = extraMembers * BUSINESS_PER_MEMBER_PENCE;
   const saleCount = sales.length;
   const perSalePence = saleCount * BUSINESS_PER_SALE_PENCE;
+  const migratedBilledCount = sales.filter((s) => s.isMigrated).length;
+  const addedSaleCount = saleCount - migratedBilledCount;
+  const pendingMigratedPence = pendingMigratedCount * BUSINESS_PER_SALE_PENCE;
 
   const lines: BusinessBillingLine[] = [
     { kind: "subscription_base", description: "Subscription (main user)", amountPence: basePence },
@@ -130,6 +152,8 @@ export async function getBusinessBillingSummary(businessId: string, now: Date = 
     monthStart: start, monthEnd: end,
     memberCount, extraMembers, basePence, seatsPence,
     saleCount, perSalePence,
+    addedSaleCount, migratedBilledCount,
+    pendingMigratedCount, pendingMigratedPence,
     lines, subtotalPence: totalPence, totalPence,
   };
 }
