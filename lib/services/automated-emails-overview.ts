@@ -35,6 +35,10 @@ export type AutomationMetrics = {
   filesContacted: number;
   chasesSent: number;
   notificationsSent: number;
+  // True when the in-memory aggregation hit its row cap — the figures are a
+  // floor, not a total, and the UI says so with a "+" (upgrade phase 5;
+  // previously the cap truncated silently).
+  capped: boolean;
 };
 
 export type DayBucket = { key: string; label: string; chase: number; notification: number };
@@ -103,6 +107,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
   const emptyMetrics: AutomationMetrics = {
     emailsSent: 0, emailsSentDeltaPct: null, deliveryRatePct: null,
     queuedNow: 0, filesContacted: 0, chasesSent: 0, notificationsSent: 0,
+    capped: false,
   };
   const emptyBanner: AutomationBanner = {
     activeFiles: 0, automationPaused: chaseGloballyPaused(), nextSendAt: null,
@@ -207,6 +212,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     filesContacted: files.size,
     chasesSent,
     notificationsSent,
+    capped: queueSent.length === 20000 || solSent.length === 20000,
   };
 
   const banner: AutomationBanner = {
@@ -274,6 +280,9 @@ export type NeedsAttention = {
   affectedFiles: number;
   byStatus: Record<IssueStatus, number>;
   items: NeedsAttentionItem[]; // highest-priority first, FULL list (panels cap their own display)
+  // True when any source query hit its row cap — the total is a floor, shown
+  // with a "+" rather than silently under-counting (upgrade phase 5).
+  truncated: boolean;
 };
 
 // Display cap for the compact panel — the Problems tab shows the full list, so
@@ -289,6 +298,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     total: 0, affectedFiles: 0,
     byStatus: EMPTY_BY_STATUS(),
     items: [],
+    truncated: false,
   };
   if (txIds.length === 0) return empty;
 
@@ -416,5 +426,6 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     affectedFiles: files.size,
     byStatus,
     items,
+    truncated: queueProblems.length === 200 || solProblems.length === 200 || missingContacts.length === 200,
   };
 }

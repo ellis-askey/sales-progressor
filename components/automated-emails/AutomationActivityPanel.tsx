@@ -59,10 +59,11 @@ export function AutomationActivityPanel({ overview }: { overview: AutomationOver
       >
         <StatTile
           label="Emails sent"
-          value={metrics.emailsSent.toLocaleString()}
+          value={`${metrics.emailsSent.toLocaleString()}${metrics.capped ? "+" : ""}`}
           delta={metrics.emailsSentDeltaPct}
           deltaGoodWhenUp
-          sub={`${metrics.chasesSent.toLocaleString()} chase · ${metrics.notificationsSent.toLocaleString()} notification`}
+          sub={`${metrics.chasesSent.toLocaleString()} chase · ${metrics.notificationsSent.toLocaleString()} notification${metrics.capped ? " · at least" : ""}`}
+          hint={metrics.capped ? "The count reached its reporting limit, so these figures are a floor, not a total" : undefined}
         />
         <StatTile
           label="Delivery rate"

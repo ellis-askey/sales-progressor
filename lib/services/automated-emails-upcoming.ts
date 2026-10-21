@@ -56,7 +56,27 @@ export type UpcomingForecast = {
   predicted: PredictedBatch[];
   predictedTotal: number;
   exhausted: ExhaustedItem[];
+  // True when the per-file prediction fan-out hit its file cap — the UI says
+  // so instead of silently under-reporting (upgrade phase 5).
+  truncated: boolean;
 };
+
+// The prediction engine runs per file. Bound the fan-out so a huge book can't
+// stampede the database or the request: at most this many files, in small
+// concurrent waves. Beyond it, `truncated` is set and shown.
+const FORECAST_FILE_CAP = 300;
+const FANOUT_WAVE = 8;
+
+// Run fn over items in waves of `limit` — bounded concurrency without pulling
+// in a dependency.
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const wave = items.slice(i, i + limit);
+    out.push(...(await Promise.all(wave.map(fn))));
+  }
+  return out;
+}
 
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" });
 function dayKey(d: Date): string { return dayKeyFmt.format(d); }
@@ -88,23 +108,24 @@ function milestoneLabel(code: string): string {
 
 export async function getUpcomingForecast(input: EmailScopeInput): Promise<UpcomingForecast> {
   const { txIds, txAddressById } = await resolveEmailScope(input);
-  if (txIds.length === 0) return { predicted: [], predictedTotal: 0, exhausted: [] };
+  if (txIds.length === 0) return { predicted: [], predictedTotal: 0, exhausted: [], truncated: false };
 
   const now = new Date();
   const horizon = new Date(now.getTime() + HORIZON_DAYS * DAY);
+  const truncated = txIds.length > FORECAST_FILE_CAP;
+  const forecastTxIds = truncated ? txIds.slice(0, FORECAST_FILE_CAP) : txIds;
 
   // ── Predicted client chases (reuse the per-file projection) ──
-  const previews = await Promise.all(
-    txIds.map((id) =>
-      getAutomatedEmailsForTransaction(id).catch(() => ({
-        pending: [], sentToday: [], upcoming: [],
-        pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null },
-      })),
-    ),
+  // Bounded waves, not one giant Promise.all — see FANOUT_WAVE above.
+  const previews = await mapLimit(forecastTxIds, FANOUT_WAVE, (id) =>
+    getAutomatedEmailsForTransaction(id).catch(() => ({
+      pending: [], sentToday: [], upcoming: [],
+      pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null as string | null, agencyName: null as string | null },
+    })),
   );
   const predicted: PredictedItem[] = [];
   previews.forEach((p, idx) => {
-    const txId = txIds[idx];
+    const txId = forecastTxIds[idx];
     const address = txAddressById.get(txId) ?? "(unknown file)";
     for (const u of p.upcoming) {
       predicted.push({
@@ -173,6 +194,7 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
     predicted: Array.from(batchMap.values()),
     predictedTotal: predicted.length,
     exhausted,
+    truncated,
   };
 }
 

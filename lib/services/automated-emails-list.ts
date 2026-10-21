@@ -39,6 +39,7 @@ import type { Prisma, ContactRole } from "@prisma/client";
 import { londonDayBounds } from "@/lib/utils";
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
 import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
+import { mapLimit } from "@/lib/services/automated-emails-upcoming";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 
 export type EmailListTab = "pending" | "sent" | "errored" | "upcoming";
@@ -591,17 +592,18 @@ async function buildUpcomingRows(
   if (f.deliveryStatus && f.deliveryStatus !== "pending") return [];
   if (f.recipientRole && f.recipientRole !== "vendor" && f.recipientRole !== "purchaser") return [];
 
-  const previews = await Promise.all(
-    txIds.map((id) =>
-      getAutomatedEmailsForTransaction(id).catch(() => ({
-        pending: [], sentToday: [], upcoming: [],
-        pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null, agencyName: null },
-      })),
-    ),
+  // Bounded fan-out (upgrade phase 5): same file cap + wave size as the
+  // forecast, so a huge book can't stampede the database from the export path.
+  const boundedTxIds = txIds.slice(0, 300);
+  const previews = await mapLimit(boundedTxIds, 8, (id) =>
+    getAutomatedEmailsForTransaction(id).catch(() => ({
+      pending: [], sentToday: [], upcoming: [],
+      pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null as string | null, agencyName: null as string | null },
+    })),
   );
   const search = f.search?.trim().toLowerCase();
   const rows = previews.flatMap((preview, idx) => {
-    const txId = txIds[idx];
+    const txId = boundedTxIds[idx];
     const address = txAddressById.get(txId) ?? "(unknown file)";
     return preview.upcoming
       .filter((u) => !f.recipientRole || u.contactRole === f.recipientRole)
