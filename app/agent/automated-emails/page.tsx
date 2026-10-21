@@ -161,19 +161,23 @@ export default async function AutomatedEmailsPage({
     .filter((i) => i.status === "missing")
     .map((i) => ({ id: i.emailId, name: i.recipientName, role: i.recipientRole, transactionId: i.transactionId, address: i.transactionAddress }));
 
+  // Standard agent-page chrome (founder feedback 2026-10-21): PageHeader owns
+  // the header band full-width (compose button in its normal right-hand slot,
+  // exactly where it sits on other pages) and the body uses the same content
+  // pad as the hub/enquiries — no max-width cage, so the page stretches with
+  // the window like every other agent page. AutoRefresh is invisible (silent
+  // 2-minute re-pull).
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <PageHeader
-          title="Automated emails"
-          subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
-        >
-          {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
-          <ComposeEmailButton variant="ghost" />
-        </PageHeader>
-        <AutoRefresh />
-      </div>
+    <div>
+      <PageHeader
+        title="Automated emails"
+        subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
+      >
+        <ComposeEmailButton variant="ghost" />
+      </PageHeader>
+      <AutoRefresh />
 
+      <div style={{ padding: "8px 32px 24px" }}>
       <BloomStage>
       {overview && (
         <div data-bloom>
@@ -219,6 +223,7 @@ export default async function AutomatedEmailsPage({
       />
       </div>
       </BloomStage>
+      </div>
     </div>
   );
 }

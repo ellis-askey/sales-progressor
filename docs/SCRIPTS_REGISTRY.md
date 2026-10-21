@@ -457,3 +457,17 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-10-15.
 - **Deletion criteria:** delete this script together with the other four boardwalk-demo scripts once the demo account has been torn down and is no longer needed.
 - **Justification:** the demo is throwaway prod data that must be cleanly removable in one command; a guarded one-shot teardown, not a feature.
+
+### convert-chase-timings-to-working-days.ts
+- **Purpose:** one-time conversion of every chase timing value from calendar days to working days (critique #281 step 3, founder-approved table 2026-10-20): all ReminderRule grace/repeat values, agency + business override rows, and every per-file chaseRuleSnapshot JSON. Dry-run by default (prints full before→after table); `--confirm` to apply; `--restore <backup>` replays the timestamped JSON backup it writes before any change. Double-run guarded by an inactive marker ReminderRule row.
+- **Lifetime:** one-shot (staging first, then production; keep until both conversions are verified).
+- **Author/date:** Claude, 2026-10-20.
+- **Deletion criteria:** delete together with diff-reminder-due-dates.ts once the production conversion has run clean and two cron mornings have been verified. Keep the backups directory contents until then.
+- **Justification:** a data migration coupled to a code-semantics change; must be reversible and rehearsable, which rules out a plain Prisma migration.
+
+### diff-reminder-due-dates.ts
+- **Purpose:** rehearsal harness for the working-days conversion. `--snapshot <file>` captures every active reminder's due date; `--run-engine` executes the real reminder engine (same code path as the cron); `--diff <file>` prints per-reminder before→after deltas worst-first with a summary. Produces the founder-reviewed evidence that the conversion moved nothing unexpectedly.
+- **Lifetime:** one-shot (used for the staging rehearsal and the production verification).
+- **Author/date:** Claude, 2026-10-20.
+- **Deletion criteria:** delete together with convert-chase-timings-to-working-days.ts once production is verified.
+- **Justification:** the founder-gated safety check for a live-engine change; read-only apart from the deliberate engine run.

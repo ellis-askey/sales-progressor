@@ -654,9 +654,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               {stalenessSignal && !isDone && !isBlocked && (
                 <Pill
                   glass dot tone="warning" size="md" className="ml-2"
-                  title={`Chase rule allows ${stalenessSignal.graceDays} days before this is considered overdue. This file is on day ${stalenessSignal.daysAwaiting}.`}
+                  title={`Chase rule allows ${stalenessSignal.graceDays} working days before this is considered overdue. This file is on working day ${stalenessSignal.daysAwaiting}.`}
                 >
-                  Awaiting {stalenessSignal.daysAwaiting} days
+                  Awaiting {stalenessSignal.daysAwaiting} working days
                 </Pill>
               )}
               {/* Client-chase chip (B6 of the client-chase arc). One of three

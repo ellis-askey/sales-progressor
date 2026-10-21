@@ -15,7 +15,7 @@
 // finished (stalled after one chase). Mirrors the cron's escalation triggers
 // (lib/services/client-chase-cron.ts) so the read side and the cron agree.
 
-import { rollToWorkingDay } from "@/lib/emails/working-hours";
+import { rollToWorkingDay, addWorkingDays } from "@/lib/emails/working-hours";
 
 export const CHASE_HANDOVER_CAP = 2; // matches CLIENT_CHASE_COUNT_CAP
 export const CHASE_HANDOVER_SILENCE_DAYS = 14; // no progress this long → hand over
@@ -72,8 +72,10 @@ export function chaseHandoverDate(
   const dates: Date[] = [];
 
   // Count-cap path: the final chase (autopilot or human) + the repeat gap.
+  // The repeat gap counts WORKING days (critique #281, step 3) so the
+  // hand-over moment matches when the cron's own window actually closes.
   if (s.chaseCount >= cap && effectiveLastChase && !engagedAfterLastChase) {
-    dates.push(addDays(effectiveLastChase, Math.max(repeatEveryDays, 1)));
+    dates.push(addWorkingDays(effectiveLastChase, Math.max(repeatEveryDays, 1)));
   }
 
   // 14-day silence backstop, anchored at the latest sign of life — first

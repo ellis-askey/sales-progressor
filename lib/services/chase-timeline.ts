@@ -11,6 +11,7 @@
 // access (getTransactionByScope / agencyId), so this scopes by transactionId.
 
 import { prisma } from "@/lib/prisma";
+import { addWorkingDays } from "@/lib/emails/working-hours";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { toUKDateStr } from "@/lib/utils";
@@ -51,18 +52,9 @@ function confirmerLabel(
   return names.length ? names.join(" & ") : side === "vendor" ? "The seller" : "The buyer";
 }
 
-// Add N London working days (Mon-Fri) to a date. Mirrors the solicitor-chase
-// sender's cadence unit so predicted solicitor dates match what actually sends.
-function addWorkingDays(from: Date, n: number): Date {
-  const d = new Date(from);
-  let added = 0;
-  while (added < n) {
-    d.setDate(d.getDate() + 1);
-    const day = d.getDay();
-    if (day !== 0 && day !== 6) added++;
-  }
-  return d;
-}
+// (The private Mon-Fri-only addWorkingDays that lived here ignored bank
+// holidays, so its predictions drifted from the senders across holiday weeks —
+// replaced by the canonical calendar import above, critique #281 step 3.)
 // Solicitor cadence fallback when a code has no SolicitorReminderRule row.
 const SOL_FALLBACK = { graceWorkingDays: 5, repeatWorkingDays: 5, maxChases: 2 };
 
@@ -540,7 +532,7 @@ export async function getChaseTimeline(
       kind: "scheduled",
       title: "Chase scheduled",
       detail: rule.graceDays
-        ? `Waiting on ${waitingOn}. If we don't hear back, we'll follow up in ${rule.graceDays} day${rule.graceDays === 1 ? "" : "s"}.`
+        ? `Waiting on ${waitingOn}. If we don't hear back, we'll follow up in ${rule.graceDays} working day${rule.graceDays === 1 ? "" : "s"}.`
         : `Waiting on ${waitingOn}.`,
       actor: "System",
     });

@@ -73,16 +73,16 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
         ))}
       </div>
 
-      {/* Highest-priority affected files, as typed cards. The service returns
-          the FULL list (the Problems tab shows everything); this compact panel
-          shows the top slice and says so. */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Highest-priority affected files, as typed cards. The list scrolls
+          inside a capped viewport so a bad day can't stretch the whole page
+          (founder feedback 2026-10-21); the Problems tab shows everything. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: 420, overflowY: "auto", paddingRight: 6 }}>
         {data.items.slice(0, NEEDS_ATTENTION_PANEL_CAP).map((item) => (
           <IssueCard key={`${item.source}-${item.status}-${item.emailId}`} item={item} />
         ))}
       </div>
       {data.items.length > NEEDS_ATTENTION_PANEL_CAP && (
-        <Link href="/agent/automated-emails?tab=errored" className="agent-link" style={{ display: "inline-block", marginTop: 10, fontSize: 12.5, fontWeight: 600 }}>
+        <Link href="/agent/automated-emails?tab=problems" className="agent-link" style={{ display: "inline-block", marginTop: 10, fontSize: 12.5, fontWeight: 600 }}>
           View all {data.total} on the Problems tab
         </Link>
       )}

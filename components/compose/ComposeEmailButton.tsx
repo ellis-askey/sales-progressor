@@ -6,16 +6,20 @@
 
 import { useState } from "react";
 import { PaperPlaneTilt } from "@phosphor-icons/react";
-import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
+import { ComposeEmailModal, type ComposeSaleHint } from "@/components/compose/ComposeEmailModal";
 
 export function ComposeEmailButton({
   initialTransactionId = null,
   variant = "primary",
   label = "New email",
+  initialSaleHint = null,
 }: {
   initialTransactionId?: string | null;
   variant?: "primary" | "ghost";
   label?: string;
+  // When opened from a file, the address + photo we already have, so the modal
+  // shows WHICH property instantly instead of flashing the sale search box.
+  initialSaleHint?: ComposeSaleHint | null;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -29,7 +33,7 @@ export function ComposeEmailButton({
         <PaperPlaneTilt size={15} weight="fill" />
         {label}
       </button>
-      <ComposeEmailModal open={open} onClose={() => setOpen(false)} initialTransactionId={initialTransactionId} />
+      <ComposeEmailModal open={open} onClose={() => setOpen(false)} initialTransactionId={initialTransactionId} initialSaleHint={initialSaleHint} />
     </>
   );
 }

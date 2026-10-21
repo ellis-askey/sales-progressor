@@ -14,7 +14,7 @@
  * December is GMT (London = UTC+0).
  */
 
-import { addWorkingDays, deliverAtInsideWorkingWindow, rollToWorkingDay, __test__ } from "@/lib/emails/working-hours";
+import { addWorkingDays, deliverAtInsideWorkingWindow, rollToWorkingDay, workingDaysBetween, __test__ } from "@/lib/emails/working-hours";
 
 const { isWorkingDay, nextWorkingDayAt9am, BANK_HOLIDAYS } = __test__;
 const iso = (d: Date) => d.toISOString();
@@ -71,6 +71,29 @@ describe("rollToWorkingDay (the step-2 weekend roll, critique #281)", () => {
     // doesn't count days.
     expect(iso(rollToWorkingDay(new Date("2026-12-25T06:00:00.000Z")))).toBe("2026-12-29T06:00:00.000Z");
     expect(iso(rollToWorkingDay(new Date("2026-12-26T06:00:00.000Z")))).toBe("2026-12-29T06:00:00.000Z");
+  });
+});
+
+describe("workingDaysBetween (elapsed working days, step 3 of critique #281)", () => {
+  it("same London day = 0; next working day = 1", () => {
+    expect(workingDaysBetween(new Date("2026-10-21T09:00:00.000Z"), new Date("2026-10-21T16:00:00.000Z"))).toBe(0);
+    expect(workingDaysBetween(new Date("2026-10-21T09:00:00.000Z"), new Date("2026-10-22T09:00:00.000Z"))).toBe(1);
+  });
+  it("a weekend contributes nothing — Friday to Monday is 1 working day", () => {
+    expect(workingDaysBetween(new Date("2026-10-23T09:00:00.000Z"), new Date("2026-10-26T09:00:00.000Z"))).toBe(1);
+  });
+  it("a full week is 5 working days", () => {
+    expect(workingDaysBetween(new Date("2026-10-19T09:00:00.000Z"), new Date("2026-10-26T09:00:00.000Z"))).toBe(5);
+  });
+  it("the Christmas cluster counts only real working days (24 Dec to 29 Dec = 1)", () => {
+    expect(workingDaysBetween(new Date("2026-12-24T09:00:00.000Z"), new Date("2026-12-29T09:00:00.000Z"))).toBe(1);
+  });
+  it("reversed or equal inputs return 0", () => {
+    expect(workingDaysBetween(new Date("2026-10-26T09:00:00.000Z"), new Date("2026-10-23T09:00:00.000Z"))).toBe(0);
+  });
+  it("is the inverse of addWorkingDays", () => {
+    const from = new Date("2026-12-02T09:00:00.000Z");
+    expect(workingDaysBetween(from, addWorkingDays(from, 7))).toBe(7);
   });
 });
 

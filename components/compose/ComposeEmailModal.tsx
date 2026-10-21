@@ -93,9 +93,14 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
   return <ContactAvatar contact={{ name: rec.name, roleType: rec.kind }} size={size} image={rec.avatarUrl} />;
 }
 
+// A known-sale hint (line1 + location + photo) the caller already has — lets the
+// composer show WHICH property instantly instead of flashing the sale search box
+// while getComposeContextAction loads (founder feedback 2026-10-21).
+export type ComposeSaleHint = { line1: string; location: string; photoUrl?: string | null };
+
 export function ComposeEmailModal({
-  open, onClose, initialTransactionId, initialToContactIds, prefill,
-}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; initialToContactIds?: string[] | null; prefill?: ComposePrefill | null }) {
+  open, onClose, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
+}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null }) {
   const { theme } = usePortalTheme();
   const { toast } = useAgentToast();
   const [mounted, setMounted] = useState(false);
@@ -106,6 +111,9 @@ export function ComposeEmailModal({
   const [results, setResults] = useState<ComposeSaleResult[]>([]);
   const [ctx, setCtx] = useState<ComposeContextWithPhoto | null>(null);
   const [loadingSale, setLoadingSale] = useState(false);
+  // True once the agent hits "Change sale" — flips the preloaded-hint card back
+  // to the sale search box. Reset each time the modal opens.
+  const [saleCleared, setSaleCleared] = useState(false);
 
   // recipients
   const [tokens, setTokens] = useState<Record<Field, Token[]>>({ to: [], cc: [], bcc: [] });
@@ -168,7 +176,7 @@ export function ComposeEmailModal({
   // reset on open/close
   useEffect(() => {
     if (!open) return;
-    setClosing(false);
+    setClosing(false); setSaleCleared(false);
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
@@ -279,6 +287,7 @@ export function ComposeEmailModal({
 
   function clearSale() {
     autoGreetRef.current = true;
+    setSaleCleared(true);
     setCtx(null); setTokens({ to: [], cc: [], bcc: [] }); setSubject(""); setShowCc(false); setShowBcc(false);
     setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false); setShowRefined(false); preRefineRef.current = null;
     if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
@@ -459,6 +468,15 @@ export function ComposeEmailModal({
                 <span className="cem-addr"><span className="cem-a">{ctx.sale.line1}</span><span className="cem-b">{ctx.sale.location}</span></span>
                 <button className="cem-clearx" title="Change sale" onClick={clearSale}>✕</button>
               </div>
+            ) : (initialSaleHint && !saleCleared) ? (
+              // Opened from a file: show the property instantly (we already know
+              // it) with a spinner, instead of flashing the sale search box while
+              // the full context loads (founder feedback 2026-10-21).
+              <div className="cem-sale-selected cem-sale-preload">
+                <PropertyThumb photoUrl={initialSaleHint.photoUrl ?? null} size={44} />
+                <span className="cem-addr"><span className="cem-a">{initialSaleHint.line1}</span><span className="cem-b">{initialSaleHint.location}</span></span>
+                <span className="cem-sale-spin" aria-hidden />
+              </div>
             ) : (
               <div className="cem-posrel">
                 <div className="cem-sale-search">
@@ -482,7 +500,18 @@ export function ComposeEmailModal({
             )}
           </div>
 
-          {!ctx && scheduledList.length > 0 && (
+          {/* Skeleton of the form while a known sale's context loads, so the modal
+              opens at full height and reads as one smooth expand rather than
+              popping taller when the sale resolves (founder feedback 2026-10-21). */}
+          {!ctx && initialSaleHint && !saleCleared && (
+            <div aria-hidden>
+              <div className="cem-row"><p className="cem-eyebrow">To</p><div className="cem-skel" style={{ height: 38, borderRadius: 10 }} /></div>
+              <div className="cem-row"><p className="cem-eyebrow">Subject</p><div className="cem-skel" style={{ height: 40, borderRadius: 10 }} /></div>
+              <div className="cem-row"><p className="cem-eyebrow">Message</p><div className="cem-skel" style={{ height: 160, borderRadius: 12 }} /></div>
+            </div>
+          )}
+
+          {!ctx && (!initialSaleHint || saleCleared) && scheduledList.length > 0 && (
             <div className="cem-row">
               <p className="cem-eyebrow">Scheduled to send</p>
               {scheduledList.map((s) => (
@@ -656,6 +685,12 @@ const CEM_CSS = `
 .cem-sicon{color:var(--agent-text-muted);display:flex}
 .cem-sale-search input{flex:1;border:none;outline:none;background:none;font-family:inherit;font-size:13.5px;color:var(--agent-text-primary)}
 .cem-sale-selected{display:flex;align-items:center;gap:12px;background:var(--agent-surface-elevated,#fff);border:1px solid var(--agent-border-default);border-radius:12px;padding:9px 11px;animation:cemPop .26s cubic-bezier(.34,1.56,.64,1) both}
+.cem-sale-preload{animation:none}
+.cem-sale-spin{width:18px;height:18px;flex-shrink:0;border-radius:50%;border:2px solid var(--agent-border-default);border-top-color:var(--agent-coral-deep,#FF6B4A);animation:cemSpin .7s linear infinite}
+@keyframes cemSpin{to{transform:rotate(360deg)}}
+.cem-skel{background:linear-gradient(100deg,rgba(45,24,16,.05) 30%,rgba(45,24,16,.10) 50%,rgba(45,24,16,.05) 70%);background-size:200% 100%;animation:cemShimmer 1.3s ease-in-out infinite}
+@keyframes cemShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.cem-sale-spin,.cem-skel{animation:none}}
 .cem-pthumb{width:44px;height:44px;border-radius:9px;flex-shrink:0;overflow:hidden;background:#FDE5CF}
 .cem-pthumb.sm{width:34px;height:34px;border-radius:8px}
 .cem-pthumb img{width:100%;height:100%;object-fit:cover;display:block}

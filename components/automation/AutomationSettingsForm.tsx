@@ -282,7 +282,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                             <div className="ct-step-name">{ch && <span className="ct-reddot" />}{s.name}</div>
                             <div className="ct-step-sum">
                               {s.enabled
-                                ? <>First nudge in <b>{s.grace}</b> {s.grace === 1 ? "day" : "days"}, then every <b>{s.repeat}</b>, reaching you after <b>{escOf(s)}</b>.</>
+                                ? <>First nudge in <b>{s.grace}</b> working {s.grace === 1 ? "day" : "days"}, then every <b>{s.repeat}</b>, reaching you after <b>{escOf(s)}</b>.</>
                                 : <><b>Never chased</b>. This step just waits.</>}
                             </div>
                           </div>
@@ -299,10 +299,10 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                                 <>
                                   <PulseSchedule grace={s.grace} repeat={s.repeat} esc={escOf(s)} />
                                   <div className="ct-ctrls">
-                                    <Ctrl label="First nudge" unit="days after it's due">
+                                    <Ctrl label="First nudge" unit="working days after it's due">
                                       <Stepper value={s.grace} onChange={(n) => patch(s.code, { grace: n })} min={MIN_GRACE} max={30} />
                                     </Ctrl>
-                                    <Ctrl label="Then repeat every" unit="days">
+                                    <Ctrl label="Then repeat every" unit="working days">
                                       <Stepper value={s.repeat} onChange={(n) => patch(s.code, { repeat: n })} min={MIN_REPEAT} max={30} />
                                     </Ctrl>
                                     <Ctrl label="Reaches you after" unit={s.escOverride == null ? `chases · your default of ${globalEsc}` : "chases"}>

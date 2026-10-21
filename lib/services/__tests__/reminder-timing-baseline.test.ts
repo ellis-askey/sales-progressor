@@ -21,7 +21,7 @@
  */
 
 import { setUkChaseTime, addDays as engineAddDays, EXPECTED_DATE_GRACE_DAYS } from "@/lib/services/reminders";
-import { rollToWorkingDay } from "@/lib/emails/working-hours";
+import { rollToWorkingDay, addWorkingDays } from "@/lib/emails/working-hours";
 import {
   addDays as cronAddDays,
   daysBetween,
@@ -78,20 +78,26 @@ describe("engine addDays + first-due composition", () => {
     expect(iso(engineAddDays(new Date("2026-10-30T10:00:00.000Z"), 3))).toBe("2026-11-02T00:00:00.000Z");
   });
 
-  it("STEP 2 BEHAVIOUR: a weekend landing rolls to Monday — Wednesday + 3 grace is due MONDAY, not Saturday", () => {
-    // The critique-281 fix, pinned as the engine composes it: anchor confirmed
-    // Wednesday 21 Oct + 3 grace days = Saturday 24 Oct, rolled to Monday
-    // 26 Oct. The roll crosses the BST→GMT clock change (25 Oct), so the 06:00
-    // London wake is 06:00 UTC, not 05:00 — pinned deliberately.
-    const firstDue = setUkChaseTime(rollToWorkingDay(engineAddDays(new Date("2026-10-21T10:00:00.000Z"), 3)));
+  it("STEP 3 BEHAVIOUR: grace counts WORKING days — Wednesday + 3 is due MONDAY (Thu, Fri, Mon)", () => {
+    // The engine's exact composition since step 3: addWorkingDays, then the
+    // grace-0 safety roll, then 06:00 London. Crosses the BST→GMT clock change
+    // (25 Oct), so the 06:00 London wake is 06:00 UTC, not 05:00 — pinned.
+    const firstDue = setUkChaseTime(rollToWorkingDay(addWorkingDays(new Date("2026-10-21T10:00:00.000Z"), 3)));
     expect(iso(firstDue)).toBe("2026-10-26T06:00:00.000Z"); // Monday, 06:00 GMT
     expect(firstDue.getUTCDay()).toBe(1); // Monday
   });
 
-  it("STEP 2 BEHAVIOUR: weekday landings are untouched by the roll", () => {
-    // Wednesday 2 Dec + 2 = Friday 4 Dec — a working day, passes straight through.
-    const firstDue = setUkChaseTime(rollToWorkingDay(engineAddDays(new Date("2026-12-02T10:00:00.000Z"), 2)));
+  it("STEP 3 BEHAVIOUR: mid-week landings are unchanged by working-day counting", () => {
+    // Wednesday 2 Dec + 2 working days = Friday 4 Dec.
+    const firstDue = setUkChaseTime(rollToWorkingDay(addWorkingDays(new Date("2026-12-02T10:00:00.000Z"), 2)));
     expect(iso(firstDue)).toBe("2026-12-04T06:00:00.000Z"); // Friday, 06:00 GMT
+  });
+
+  it("STEP 3 BEHAVIOUR: grace 0 on a weekend anchor still rolls to Monday (the safety roll)", () => {
+    // A milestone confirmed on Saturday 24 Oct with grace 0 — addWorkingDays
+    // leaves it on Saturday, the roll pushes to Monday.
+    const firstDue = setUkChaseTime(rollToWorkingDay(addWorkingDays(new Date("2026-10-24T10:00:00.000Z"), 0)));
+    expect(iso(firstDue)).toBe("2026-10-26T06:00:00.000Z"); // Monday
   });
 
   it("expected-date anchored chases use zero grace (due the day itself)", () => {
@@ -100,14 +106,12 @@ describe("engine addDays + first-due composition", () => {
     expect(iso(due)).toBe("2026-12-02T06:00:00.000Z");
   });
 
-  it("repeat cadence composition: due date + repeat days, rolled off weekends, normalised to 06:00 London", () => {
-    // Mirrors applyChaseToTask: raw = base + repeatEveryDays → rollToWorkingDay
-    // → setUkChaseTime. Chase sent when due Wed 2 Dec, repeat 3 → Saturday
-    // 5 Dec → rolled to MONDAY 7 Dec 06:00 GMT (step 2 behaviour).
+  it("repeat cadence composition: due date + repeat WORKING days, normalised to 06:00 London", () => {
+    // Mirrors applyChaseToTask since step 3: addWorkingDays → roll → 06:00 UK.
+    // Chase sent when due Wed 2 Dec, repeat 3 working days (Thu, Fri, Mon) →
+    // MONDAY 7 Dec 06:00 GMT.
     const base = new Date("2026-12-02T06:00:00.000Z");
-    const raw = new Date(base);
-    raw.setDate(raw.getDate() + 3);
-    const next = setUkChaseTime(rollToWorkingDay(raw));
+    const next = setUkChaseTime(rollToWorkingDay(addWorkingDays(base, 3)));
     expect(iso(next)).toBe("2026-12-07T06:00:00.000Z");
     expect(next.getUTCDay()).toBe(1); // Monday
   });
@@ -185,12 +189,16 @@ describe("snooze wake computation (as composed in snoozeReminderLog)", () => {
   // snoozeReminderLog: base = picked date at noon UTC, OR now + hours; then
   // setUkChaseTime. These pin the two branches' semantics.
 
+  // The quick-gap hour values map to working days in snoozeReminderLog:
+  // 24→1, 48→2, 72→3, 168→5 (founder decision 2026-10-20). Replicated here.
+  const quickDays = (hours: number) => (hours >= 168 ? 5 : Math.max(1, Math.round(hours / 24)));
+
   it("a picked date wakes at 06:00 London on that day (noon-UTC stamp defeats DST drift)", () => {
     const base = new Date("2026-10-23T12:00:00.000Z"); // picked "2026-10-23"
     expect(iso(setUkChaseTime(rollToWorkingDay(base)))).toBe("2026-10-23T05:00:00.000Z"); // Friday 06:00 BST
   });
 
-  it("STEP 2 BEHAVIOUR: picking a Saturday wakes the following Monday at 06:00", () => {
+  it("picking a Saturday wakes the following Monday at 06:00", () => {
     const base = new Date("2026-10-24T12:00:00.000Z"); // picked "2026-10-24", a Saturday
     const wake = setUkChaseTime(rollToWorkingDay(base));
     expect(iso(wake)).toBe("2026-10-26T06:00:00.000Z"); // Monday 06:00 GMT (post clock-change)
@@ -199,15 +207,28 @@ describe("snooze wake computation (as composed in snoozeReminderLog)", () => {
 
   it("a Tomorrow snooze at Monday 13:00 UK wakes TUESDAY at 06:00 UK, not 13:00", () => {
     const snoozedAt = new Date("2026-12-07T13:00:00.000Z"); // Monday 13:00 GMT
-    const base = new Date(snoozedAt.getTime() + 24 * 60 * 60 * 1000);
-    expect(iso(setUkChaseTime(rollToWorkingDay(base)))).toBe("2026-12-08T06:00:00.000Z"); // Tuesday 06:00
+    const wake = setUkChaseTime(rollToWorkingDay(addWorkingDays(snoozedAt, quickDays(24))));
+    expect(iso(wake)).toBe("2026-12-08T06:00:00.000Z"); // Tuesday 06:00
   });
 
-  it("STEP 2 BEHAVIOUR: a Tomorrow snooze on Friday wakes MONDAY morning, never Saturday", () => {
+  it("STEP 3 BEHAVIOUR: In 2 days on a Thursday wakes MONDAY (working days, not calendar)", () => {
+    const snoozedAt = new Date("2026-12-03T13:00:00.000Z"); // Thursday 13:00 GMT
+    const wake = setUkChaseTime(rollToWorkingDay(addWorkingDays(snoozedAt, quickDays(48))));
+    expect(iso(wake)).toBe("2026-12-07T06:00:00.000Z"); // Monday (Fri, Mon)
+    expect(wake.getUTCDay()).toBe(1);
+  });
+
+  it("a Tomorrow snooze on Friday wakes MONDAY morning, never Saturday", () => {
     const snoozedAt = new Date("2026-12-04T13:00:00.000Z"); // Friday 13:00 GMT
-    const base = new Date(snoozedAt.getTime() + 24 * 60 * 60 * 1000);
-    const wake = setUkChaseTime(rollToWorkingDay(base));
+    const wake = setUkChaseTime(rollToWorkingDay(addWorkingDays(snoozedAt, quickDays(24))));
     expect(iso(wake)).toBe("2026-12-07T06:00:00.000Z");
     expect(wake.getUTCDay()).toBe(1); // Monday
+  });
+
+  it("STEP 3 BEHAVIOUR: Next week (168h) means 5 working days — Monday wakes the following Monday", () => {
+    const snoozedAt = new Date("2026-12-07T13:00:00.000Z"); // Monday 13:00 GMT
+    const wake = setUkChaseTime(rollToWorkingDay(addWorkingDays(snoozedAt, quickDays(168))));
+    expect(iso(wake)).toBe("2026-12-14T06:00:00.000Z"); // next Monday
+    expect(wake.getUTCDay()).toBe(1);
   });
 });
