@@ -321,6 +321,44 @@ export async function markEnquiriesRaisedAction(input: {
   return { ok: true };
 }
 
+// ── Manual raise chase (the drawer behind Chase on the escalated reminder) ──
+// Founder plan 2026-10-21. Draft = the exact email the autopilot would send;
+// send / mark-chased stamp the SAME EnquiryRaiseChase ledger (one honest
+// count, autopilot clock reset) and re-arm the reminder 3 working days out
+// via the lane's own hold (the snooze below).
+
+export async function getRaiseChaseDraftAction(input: { transactionId: string }) {
+  await assertInScope(input.transactionId);
+  const { loadManualRaiseChaseDraft } = await import("@/lib/enquiries/manual-raise-chase");
+  return loadManualRaiseChaseDraft(input.transactionId);
+}
+
+export async function sendRaiseChaseAction(input: {
+  transactionId: string;
+  subject?: string | null;
+  bodyText?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const userId = await assertInScope(input.transactionId);
+  const { sendManualRaiseChase } = await import("@/lib/enquiries/manual-raise-chase");
+  const res = await sendManualRaiseChase(
+    input.transactionId,
+    { subject: input.subject, bodyText: input.bodyText },
+    userId,
+  );
+  if (!res.ok) return { ok: false, error: res.reason };
+  // Re-arm: out of Needs-you now, back in 3 working days unless raised first.
+  await snoozeEnquiryRaiseAction({ transactionId: input.transactionId, workingDays: 3 });
+  return { ok: true };
+}
+
+export async function markRaiseChasedAction(input: { transactionId: string }): Promise<{ ok: boolean }> {
+  await assertInScope(input.transactionId);
+  const { markRaiseChased } = await import("@/lib/enquiries/manual-raise-chase");
+  await markRaiseChased(input.transactionId);
+  await snoozeEnquiryRaiseAction({ transactionId: input.transactionId, workingDays: 3 });
+  return { ok: true };
+}
+
 // "Snooze" on the escalated-enquiry reminder. Reuses the engine's hold: set a
 // promised "raised by" date on the active PM14 completion (expectedDate). The
 // chase holds and the reminder stays quiet until that date, then comes back.
