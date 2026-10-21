@@ -14,6 +14,7 @@ import { countEscalatedEnquiries } from "@/lib/services/enquiries";
 import { countChainsNeedsSetup } from "@/lib/services/chains";
 import { countCompletionsToday, resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getHubAttentionItems } from "@/lib/services/hub";
+import { getEscalatedEnquiryReminders } from "@/lib/services/enquiry-escalations";
 
 export type NavBadgeCounts = { todo: number; enquiries: number; reminders: number; chains: number; completions: number };
 
@@ -39,9 +40,15 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
     // only. getHubAttentionItems also carries synthetic "exchange date passed"
     // items (id "xovr-<txId>") that belong on the Hub's own "Exchange dates
     // passed" section, not a reminder — counting them made the badge disagree
-    // with the page (critique 2026-10-01). Count reminder-backed items only.
+    // with the page (critique 2026-10-01). Count reminder-backed items only,
+    // PLUS the escalated get-enquiries-raised chases: those render as Needs-you
+    // reminder cards on the work queue, so the badge must count them too
+    // (founder, 2026-10-21 — the badge said 1 while the page showed 2).
     role !== "admin" && showSelfPages
-      ? getHubAttentionItems(vis).then((a) => a.filter((i) => !i.id.startsWith("xovr-")).length).catch(() => 0)
+      ? Promise.all([
+          getHubAttentionItems(vis).then((a) => a.filter((i) => !i.id.startsWith("xovr-")).length),
+          getEscalatedEnquiryReminders(vis).then((r) => r.length),
+        ]).then(([attention, escalations]) => attention + escalations).catch(() => 0)
       : Promise.resolve(0),
   ]);
 
