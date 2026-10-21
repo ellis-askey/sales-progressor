@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
 import { computeTodayLive } from "@/lib/command/today-live";
-import { getBusinessesRevenue, getBusinessesFriction, getBusinessesPulse } from "@/lib/command/businesses";
-import { formatGBP } from "@/lib/command/revenue";
+import { getBusinessesPulse, getBusinessNameMap } from "@/lib/command/businesses";
+import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
 import WhatChanged from "@/components/command/shared/WhatChanged";
 import InfoTip from "@/components/command/shared/InfoTip";
@@ -117,7 +117,6 @@ export default async function OverviewPage({
     signalCounts, unacknowledgedSignals,
     activeExperimentsCount, proposedExperimentsCount,
     txDailyRows, signupDailyRows,
-    spWeek, pmWeek,
     stuckCount, stuckList,
     draftRows,
     portalSkipAggregate,
@@ -171,15 +170,6 @@ export default async function OverviewPage({
       orderBy: { date: "asc" },
       select: { date: true, signups: true },
     }),
-    // SP vs PM weekly split (global roll-ups only)
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: sevenCompletedStart, lt: todayKey }, agencyId: null, serviceType: null, modeProfile: "self_progressed" },
-      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true },
-    }),
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: sevenCompletedStart, lt: todayKey }, agencyId: null, serviceType: null, modeProfile: "progressor_managed" },
-      _sum: { signups: true, transactionsCreated: true, milestonesConfirmed: true, chasesSent: true },
-    }),
     // Stuck files — count + the actual list (identical filter).
     prisma.propertyTransaction.count({ where: stuckWhere }),
     prisma.propertyTransaction.findMany({
@@ -193,6 +183,7 @@ export default async function OverviewPage({
         status: true,
         agency: { select: { name: true } },
         assignedUser: { select: { name: true } },
+        progressionBusinessId: true,
         milestoneCompletions: {
           where: { state: "complete" },
           orderBy: { completedAt: "desc" },
@@ -232,21 +223,72 @@ export default async function OverviewPage({
   ]);
 
   // Progression businesses are platform-wide (not agency-scoped), so the tile
-  // only shows on the unscoped view. "Sales today" uses the same London-day key
-  // as the rest of the page.
+  // only shows on the unscoped view. Slimmed to FLOW (sales today, actions
+  // yesterday, payment alert) — the stock figures (MRR, friction, quiet) live
+  // on the Businesses page, which also spares the per-business query fan-out
+  // this page used to re-run on every 60s auto-refresh. "Sales today" now
+  // excludes TSP like every other figure here (it previously included TSP
+  // against a TSP-excluded denominator).
   const wholeView = mode === "combined" && agencyIds.length === 0;
-  const [biz, businessSalesToday, bizPulse] = wholeView
+  const [bizCount, businessSalesToday, bizPulse, bizPaymentIssues] = wholeView
     ? await Promise.all([
-        getBusinessesRevenue(),
+        commandDb.progressionBusiness.count({ where: { isTsp: false } }),
         commandDb.propertyTransaction.count({
-          where: { progressionBusinessId: { not: null }, isDemo: false, businessPerSaleChargedAt: { gte: todayKey } },
+          where: {
+            progressionBusiness: { isTsp: false },
+            isDemo: false,
+            businessPerSaleChargedAt: { gte: todayKey },
+          },
         }),
         getBusinessesPulse(),
+        commandDb.progressionBusiness.count({
+          where: { isTsp: false, OR: [{ paymentFailedAt: { not: null } }, { newFileCreationBlockedAt: { not: null } }] },
+        }),
       ])
-    : [null, 0, null];
-  const bizFrictionTotal = wholeView && biz && biz.count > 0
-    ? [...(await getBusinessesFriction(biz.rows.map((r) => r.id))).values()].reduce((n, s) => n + s.length, 0)
-    : 0;
+    : [0, 0, null, 0];
+
+  // Who's doing the work — the three populations (combined view only; an
+  // agency multi-select still applies). Computed live from base tables over
+  // the same window as the tiles (6 completed days + today) because the
+  // rollup cannot split TSP from external businesses: both are serviceType
+  // "outsourced", the discriminator is progressionBusinessId.
+  const popBase = {
+    isDemo: false,
+    isMigrated: false,
+    agency: { isInternal: false },
+    ...(agencyIds.length > 0 ? { agencyId: { in: agencyIds } } : {}),
+  };
+  const POPULATIONS = [
+    { key: "self", label: "Self-progressed", desc: "agencies running their own sales", color: "text-blue-400",
+      tx: { serviceType: "self_managed" as const, progressionBusinessId: null } },
+    { key: "tsp", label: "TSP — our team", desc: "outsourced sales we progress", color: "text-violet-400",
+      tx: { serviceType: "outsourced" as const, progressionBusinessId: null } },
+    { key: "biz", label: "Progression businesses", desc: "sales run by external businesses", color: "text-emerald-400",
+      tx: { progressionBusinessId: { not: null } } },
+  ];
+  const populationStats = mode === "combined"
+    ? await Promise.all(
+        POPULATIONS.map(async (p) => {
+          const txWhere = { ...popBase, ...p.tx };
+          const [transactions, milestones, chases] = await Promise.all([
+            prisma.propertyTransaction.count({ where: { ...txWhere, createdAt: { gte: last7Start } } }),
+            prisma.milestoneCompletion.count({
+              where: { state: "complete", reconciledAtClaim: false, completedAt: { gte: last7Start }, transaction: txWhere },
+            }),
+            prisma.outboundMessage.count({
+              where: { purpose: "chase", sentAt: { gte: last7Start }, transaction: txWhere },
+            }),
+          ]);
+          return { ...p, transactions, milestones, chases };
+        }),
+      )
+    : null;
+  const hasPopulationWork =
+    populationStats?.some((p) => p.transactions + p.milestones + p.chases > 0) ?? false;
+
+  // businessId -> name for the "Managed by" tags on the stuck list (Files
+  // already tags business-run files; the stuck list left them ambiguous).
+  const bizNameMap = await getBusinessNameMap();
 
   // Second pass: which (agencyId, address) pairs from the draft set are already
   // represented by a non-draft transaction? Those are duplicates of already-
@@ -373,11 +415,6 @@ export default async function OverviewPage({
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
   const modeLabel = mode === "sp" ? " · SP" : mode === "pm" ? " · PM" : "";
 
-  const spSums = spWeek._sum;
-  const pmSums = pmWeek._sum;
-  const hasModeSplit = (spSums.signups ?? 0) + (pmSums.signups ?? 0) +
-    (spSums.milestonesConfirmed ?? 0) + (pmSums.milestonesConfirmed ?? 0) > 0;
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-4">
@@ -435,14 +472,15 @@ export default async function OverviewPage({
         </div>
       </section>
 
-      {/* Progression businesses — platform-wide, unscoped view only */}
-      {wholeView && biz && biz.count > 0 && (
+      {/* Progression businesses — flow only; the full picture is the Businesses page */}
+      {wholeView && bizCount > 0 && (
         <section>
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
             Progression businesses
-            <InfoTip label="The business side at a glance">
-              Your external progression businesses: how many are active, the recurring monthly revenue, sales added
-              today, anyone paying but quiet this month, and any payment problems. Opens the Businesses list.
+            <InfoTip label="The business side's day">
+              What your external progression businesses did: sales their teams added today,
+              what they did yesterday, and any payment problems. MRR, friction and the
+              per-business detail live on the Businesses page. Opens the Businesses list.
             </InfoTip>
           </h2>
           <Link
@@ -450,13 +488,10 @@ export default async function OverviewPage({
             className="block bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
           >
             <div className="flex items-start gap-x-8 gap-y-4 flex-wrap">
-              <BizStat value={String(biz.count)} label="active" />
-              <BizStat value={formatGBP(biz.mrrPence)} label="recurring MRR" color="text-emerald-400" />
               <BizStat value={String(businessSalesToday)} label="sales today" />
               <BizStat value={String(bizPulse?.totalActions ?? 0)} label="actions yesterday" />
-              <BizStat value={String(bizFrictionTotal)} label="friction flags" color={bizFrictionTotal > 0 ? "text-amber-400" : undefined} />
-              <BizStat value={String(biz.quietCount)} label="quiet this month" color={biz.quietCount > 0 ? "text-amber-400" : undefined} />
-              <BizStat value={String(biz.needsAttention.length)} label="payment issues" color={biz.needsAttention.length > 0 ? "text-red-400" : undefined} />
+              <BizStat value={String(bizPaymentIssues)} label="payment issues" color={bizPaymentIssues > 0 ? "text-red-400" : undefined} />
+              <span className="ml-auto self-center text-xs text-neutral-500">{bizCount} active →</span>
             </div>
           </Link>
         </section>
@@ -593,6 +628,11 @@ export default async function OverviewPage({
                         <p className="text-neutral-500 truncate">
                           {t.agency?.name ?? "— no agency —"}
                           {t.assignedUser?.name ? ` · ${t.assignedUser.name}` : ""}
+                          {t.progressionBusinessId && bizNameMap.get(t.progressionBusinessId) && (
+                            <span className="ml-1.5 inline-block align-middle">
+                              <ManagedByTag businessName={bizNameMap.get(t.progressionBusinessId)!} />
+                            </span>
+                          )}
                         </p>
                       </div>
                       <span className="shrink-0 tabular-nums text-amber-400/90">
@@ -767,24 +807,30 @@ export default async function OverviewPage({
         </div>
       </section>
 
-      {/* SP vs PM split */}
-      {hasModeSplit && (
+      {/* Who's doing the work — the three populations */}
+      {populationStats && hasPopulationWork && (
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-            SP vs PM — last 7 days
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+            Who&rsquo;s doing the work — last 7 days
+            <InfoTip label="How sales are attributed">
+              Every sale is run by one of three populations: the agency itself,
+              TSP&rsquo;s own team (outsourced to us), or an external progression
+              business. Same window as the tiles above: six completed days plus
+              today live. Replaces the old SP vs PM split, which couldn&rsquo;t
+              tell our team apart from external businesses.
+            </InfoTip>
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: "Self-Progressed (SP)", sums: spSums, color: "text-blue-400" },
-              { label: "Progressor-Managed (PM)", sums: pmSums, color: "text-violet-400" },
-            ].map(({ label, sums, color }) => (
-              <div key={label} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2.5">
-                <p className={`text-xs font-semibold ${color}`}>{label}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {populationStats.map((p) => (
+              <div key={p.key} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2.5">
+                <div>
+                  <p className={`text-xs font-semibold ${p.color}`}>{p.label}</p>
+                  <p className="text-[10.5px] text-neutral-600">{p.desc}</p>
+                </div>
                 {[
-                  { k: "Signups",           v: sums.signups ?? 0 },
-                  { k: "Transactions",      v: sums.transactionsCreated ?? 0 },
-                  { k: "Milestones",        v: sums.milestonesConfirmed ?? 0 },
-                  { k: "Chases",            v: sums.chasesSent ?? 0 },
+                  { k: "Sales started", v: p.transactions },
+                  { k: "Milestones", v: p.milestones },
+                  { k: "Chases", v: p.chases },
                 ].map(({ k, v }) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-xs text-neutral-400">{k}</span>
