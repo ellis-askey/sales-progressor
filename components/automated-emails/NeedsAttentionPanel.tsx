@@ -115,7 +115,8 @@ function IssueCard({ item }: { item: NeedsAttentionItem }) {
         <p style={{ margin: "3px 0 8px", fontSize: 12, color: "var(--agent-text-muted)" }}>{descLine(item)}</p>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {cta && (
-            <Link href={fileHref} className="agent-btn-color-primary" style={{ fontSize: 12, fontWeight: 600, padding: "5px 11px", borderRadius: 8, textDecoration: "none" }}>
+            /* Library button sizes, no ad-hoc inline resizing (upgrade phase 4). */
+            <Link href={fileHref} className="agent-btn agent-btn-xs agent-btn-color-primary" style={{ textDecoration: "none" }}>
               {cta}
             </Link>
           )}

@@ -14,6 +14,7 @@ import { Pill } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendPendingEmailNow, cancelPendingEmail } from "@/app/actions/automated-emails";
+import { CategoryChip } from "@/components/automated-emails/EmailFeedRow";
 import type { SendingTodayRow } from "@/lib/services/automated-emails-list";
 
 const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" } as const;
@@ -93,11 +94,13 @@ function SendingRow({ row }: { row: SendingTodayRow }) {
         {done ? (
           <Pill glass tone={done === "sent" ? "success" : "muted"} size="sm">{done === "sent" ? "Sent" : "Skipped"}</Pill>
         ) : (
+          /* Library buttons only — the Skip button was fully hand-rolled and
+             Send now carried ad-hoc inline sizing (upgrade phase 4). */
           <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
-            <button type="button" onClick={sendNow} disabled={acting} className="agent-btn-color-primary" style={{ fontSize: 11.5, fontWeight: 650, padding: "4px 11px", borderRadius: 8, border: "none", cursor: "pointer" }}>
+            <button type="button" onClick={sendNow} disabled={acting} className="agent-btn agent-btn-xs agent-btn-color-primary">
               {acting ? "…" : "Send now"}
             </button>
-            <button type="button" onClick={skip} disabled={acting} style={{ fontSize: 11.5, fontWeight: 600, padding: "4px 11px", borderRadius: 8, border: "1px solid var(--agent-border-default, rgba(15,23,42,0.16))", background: "transparent", color: "var(--agent-text-secondary)", cursor: "pointer" }}>
+            <button type="button" onClick={skip} disabled={acting} className="agent-btn agent-btn-xs agent-btn-ghost-bordered">
               Skip
             </button>
           </span>
@@ -107,7 +110,3 @@ function SendingRow({ row }: { row: SendingTodayRow }) {
   );
 }
 
-function CategoryChip({ category }: { category: "chase" | "notification" }) {
-  const tone = category === "chase" ? "warning" : "info";
-  return <Pill glass tone={tone} size="sm" style={{ textTransform: "uppercase", letterSpacing: "0.03em", fontSize: 9.5, flexShrink: 0 }}>{category}</Pill>;
-}

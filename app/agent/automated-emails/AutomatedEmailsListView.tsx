@@ -177,16 +177,19 @@ export function AutomatedEmailsListView(props: Props) {
             style={{ flex: 1, minWidth: 0 }}
           />
         </form>
-        <select className="agent-input agent-input-sm" aria-label="Email type" value={current.category} onChange={(e) => go({ category: e.target.value || null })}>
+        {/* .agent-input defaults to width:100%, which stacked every control on
+            its own full-width row — the filter bar reads as ONE compact row
+            now, wrapping only when it genuinely runs out of space. */}
+        <select className="agent-input agent-input-sm" aria-label="Email type" value={current.category} onChange={(e) => go({ category: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
           {CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select className="agent-input agent-input-sm" aria-label="Recipient role" value={current.role} onChange={(e) => go({ role: e.target.value || null })}>
+        <select className="agent-input agent-input-sm" aria-label="Recipient role" value={current.role} onChange={(e) => go({ role: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
           {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })}>
+        <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <input type="date" className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} />
+        <input type="date" className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} style={{ width: 150, flex: "0 1 auto" }} />
         {anyFilter && (
           <button type="button" className="agent-link agent-link-muted" style={{ fontSize: 12 }} onClick={() => { setSearchDraft(""); go({ q: null, category: null, role: null, status: null, from: null }); }}>
             Clear filters
