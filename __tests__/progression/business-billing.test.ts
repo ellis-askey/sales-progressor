@@ -9,7 +9,9 @@ jest.mock("@/lib/billing/period", () => ({
   billingMonthRange: () => ({ start: new Date("2026-10-01T00:00:00Z"), end: new Date("2026-11-01T00:00:00Z") }),
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { count: jest.fn() }, propertyTransaction: { findMany: jest.fn() } },
+  // propertyTransaction.count backs the new migrated-pipeline figure on the
+  // summary (2026-10-21); these tests don't assert it, so zero is fine.
+  prisma: { user: { count: jest.fn() }, propertyTransaction: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) } },
 }));
 
 import { getBusinessBillingSummary } from "@/lib/progression/business-billing";
