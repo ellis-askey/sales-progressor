@@ -120,8 +120,6 @@ export default async function OverviewPage({
     txDailyRows, signupDailyRows,
     stuckCount, stuckList,
     draftRows,
-    portalSkipAggregate,
-    recentPortalSkippers,
   ] = await Promise.all([
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: last7Start, lt: todayKey }, ...txScope },
@@ -200,27 +198,8 @@ export default async function OverviewPage({
     // variants of the same address don't double-count, and exclude drafts where
     // the same agency already has a non-draft transaction at that address.
     prisma.propertyTransaction.findMany({
-      where: { status: "draft", isDemo: false, agency: { isInternal: false } },
+      where: { status: "draft", isDemo: false, isMigrated: false, agency: { isInternal: false } },
       select: { id: true, propertyAddress: true, agencyId: true, createdAt: true, agency: { select: { name: true } } },
-    }),
-    // Portal opt-out telemetry.
-    prisma.user.aggregate({
-      where: { portalInviteSkipCount: { gt: 0 } },
-      _sum: { portalInviteSkipCount: true },
-      _count: { _all: true },
-    }),
-    prisma.user.findMany({
-      where: { portalInviteSkipCount: { gt: 0 } },
-      orderBy: { lastPortalInviteSkipAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        portalInviteSkipCount: true,
-        lastPortalInviteSkipAt: true,
-        agency: { select: { name: true } },
-      },
     }),
   ]);
 
@@ -299,7 +278,7 @@ export default async function OverviewPage({
   const realisedRows = draftAgencyIds.length === 0
     ? []
     : await prisma.propertyTransaction.findMany({
-        where: { agencyId: { in: draftAgencyIds }, status: { not: "draft" }, isDemo: false, agency: { isInternal: false } },
+        where: { agencyId: { in: draftAgencyIds }, status: { not: "draft" }, isDemo: false, isMigrated: false, agency: { isInternal: false } },
         select: { propertyAddress: true, agencyId: true },
       });
   const realisedKeys = new Set(
@@ -347,10 +326,6 @@ export default async function OverviewPage({
   const uniqueRealised = realisedDraftKeys.size;
   const conversionDen = uniqueRealised + potentialPipelineCount;
   const conversionPct = conversionDen > 0 ? Math.round((uniqueRealised / conversionDen) * 100) : 0;
-
-  // Portal opt-out telemetry derived values.
-  const portalSkipTotal = portalSkipAggregate._sum.portalInviteSkipCount ?? 0;
-  const portalSkipUsers = portalSkipAggregate._count._all;
 
   // Week-on-week delta. null = "no baseline" (prior week was zero but this week
   // isn't) — rendered as "new", not the old misleading grey "no change" that
@@ -660,7 +635,9 @@ export default async function OverviewPage({
         </section>
       </div>
 
-      {/* Potential pipeline — agent drafts */}
+      {/* Potential pipeline — agent drafts. Hidden until any draft exists:
+          a permanent 0-and-0% block was pre-launch noise. */}
+      {totalDraftRows > 0 && (
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
           Potential pipeline — agent drafts
@@ -750,69 +727,10 @@ export default async function OverviewPage({
           )}
         </div>
       </section>
+      )}
 
-      {/* Portal opt-out — agents who clicked "I won't be using the portal" */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">
-          Portal opt-out — agents skipping the invite prompt
-        </h2>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
-          <div className="flex items-start gap-6 mb-4 flex-wrap">
-            <div className="flex items-center gap-4">
-              <span className={`text-4xl font-bold tabular-nums ${portalSkipUsers > 0 ? "text-amber-400" : "text-neutral-500"}`}>
-                {portalSkipUsers}
-              </span>
-              <div>
-                <p className="text-xs text-neutral-300 font-medium">
-                  unique {portalSkipUsers === 1 ? "agent has clicked" : "agents have clicked"} &quot;I won&apos;t be using the portal&quot;
-                </p>
-                <p className="text-[11px] text-neutral-500 mt-0.5">
-                  on the new-sale form, when prompted to invite buyer or seller
-                </p>
-              </div>
-            </div>
-            <div className="lg:ml-auto flex items-center gap-5 flex-wrap lg:pl-5 lg:border-l border-neutral-800 self-stretch">
-              <div>
-                <p className="text-xs text-neutral-500 mb-0.5">Total clicks</p>
-                <p className="text-base font-bold text-white tabular-nums">{portalSkipTotal.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {recentPortalSkippers.length > 0 ? (
-            <div className="border-t border-neutral-800 pt-3 mt-1">
-              <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">
-                Most recent
-              </p>
-              <div className="divide-y divide-neutral-800">
-                {recentPortalSkippers.map((u) => (
-                  <div key={u.id} className="py-2 flex items-center gap-3 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-neutral-200 font-medium truncate">
-                        {u.name}{" "}
-                        <span className="text-neutral-500 font-normal">· {u.email}</span>
-                      </p>
-                      <p className="text-neutral-500 truncate">
-                        {u.agency?.name ?? "— no agency —"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 text-neutral-500 tabular-nums shrink-0">
-                      <span>
-                        {u.portalInviteSkipCount} {u.portalInviteSkipCount === 1 ? "click" : "clicks"}
-                      </span>
-                      <span>· {fmtDate(u.lastPortalInviteSkipAt)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="text-[11px] text-neutral-600 border-t border-neutral-800 pt-3">
-              No agents have skipped the portal prompt yet.
-            </p>
-          )}
-        </div>
-      </section>
+      {/* Portal opt-out relocated to App adoption (CC rebuild Today PR4): it is
+          lifetime adoption telemetry, not daily ops, and had no home there. */}
 
       {/* Who's doing the work — the three populations */}
       {populationStats && hasPopulationWork && (
