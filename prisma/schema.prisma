@@ -578,6 +578,7 @@ model User {
   accounts               Account[]
   sessions               Session[]
   transactionNotes       TransactionNote[]
+  stickyNotes            StickyNote[]
   createdManualTasks     ManualTask[]            @relation("ManualTaskCreator")
   assignedManualTasks    ManualTask[]            @relation("ManualTaskAssignee")
   createdDomains         VerifiedDomain[]        @relation("DomainCreatedBy")
@@ -1070,6 +1071,7 @@ model PropertyTransaction {
   communications                   OutboundMessage[]
   priceHistory                     PriceHistory[]
   transactionNotes                 TransactionNote[]
+  stickyNotes                      StickyNote[]
   manualTasks                      ManualTask[]
   chainLinkId                      String?                           @unique
   chainLinks                       ChainLink[]                       @relation("ChainLinkToTransaction")
@@ -2601,6 +2603,33 @@ model TransactionNote {
   createdBy   User?               @relation(fields: [createdById], references: [id])
 
   @@index([transactionId, createdAt])
+}
+
+// Freeform draggable "post-it" notes on a property file (Professionals-style
+// scratchpad). Internal only — rendered to anyone who can open the file, never
+// the client portal. Position (x,y), size (width,height) and stacking (z) are
+// per-note so the board restores exactly. createdByName is a snapshot so the
+// footer shows an author without a user join.
+model StickyNote {
+  id            String   @id @default(cuid())
+  transactionId String
+  x             Int      @default(32)
+  y             Int      @default(32)
+  width         Int      @default(224)
+  height        Int      @default(200)
+  z             Int      @default(1)
+  colour        String   @default("butter")
+  text          String   @default("")
+  collapsed     Boolean  @default(false)
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transaction PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdBy   User?               @relation(fields: [createdById], references: [id])
+
+  @@index([transactionId])
 }
 
 // â”€â”€â”€ TransactionDocument â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

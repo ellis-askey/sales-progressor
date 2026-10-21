@@ -21,6 +21,7 @@ import { StatusControl } from "./StatusControl";
 import { SwitchServiceTypeModal } from "./SwitchServiceTypeModal";
 import type { ProgressorOption } from "@/components/transactions-v2/ProgressorPicker";
 import { HeroSmallControls } from "./HeroSmallControls";
+import { StickyAddButton } from "@/components/sticky/StickyAddButton";
 import { useFileProgress } from "./FileProgressContext";
 import { HeroSaleFields } from "./HeroSaleFields";
 import { HeroExchangeCell } from "./HeroExchangeCell";
@@ -921,6 +922,7 @@ export function PropertyHero({
             alignItems: "center",
             gap: 8,
           }}>
+            {transactionId && <StickyAddButton transactionId={transactionId} />}
             {topRightSlot}
           </div>
         )}

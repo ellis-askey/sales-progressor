@@ -1,0 +1,36 @@
+/* Sticky notes — shared styles for the note, the floating layer, and the hero
+   trigger. Used by the real file feature (StickyLayer) and the /dev sandbox. */
+
+/* ── the floating layer over the file content ── */
+.sticky-layer { position: absolute; inset: 0; pointer-events: none; z-index: 40; overflow: visible; }
+.sticky-layer .sn { pointer-events: auto; }
+
+/* ── the note ── */
+.sn { touch-action: none; }
+.sn-bar { height: 28px; display: flex; align-items: center; gap: 4px; padding: 3px 5px 0 8px; cursor: grab; flex-shrink: 0; }
+.sn-bar:active { cursor: grabbing; }
+.sn-spacer { flex: 1; }
+.sn-dot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); cursor: pointer; padding: 0; flex-shrink: 0; opacity: .72; box-shadow: inset 0 1px 1px rgba(255,255,255,.6), 0 1px 1px rgba(45,30,12,.12); transition: opacity .16s, transform .12s; }
+.sn:hover .sn-dot { opacity: 1; }
+.sn-dot:hover { transform: scale(1.12); }
+.sn-ic { width: 21px; height: 21px; display: grid; place-items: center; border: none; background: none; color: rgba(59,51,42,.5); cursor: pointer; border-radius: 6px; flex-shrink: 0; opacity: 0; transition: opacity .16s, color .14s, background .14s; }
+.sn:hover .sn-ic { opacity: 1; }
+.sn-ic:hover { color: #3b332a; background: rgba(59,51,42,.1); }
+.sn-x:hover { color: #b42318; background: rgba(180,35,24,.12); }
+.sn-palette { position: absolute; top: 29px; left: 6px; z-index: 6; display: flex; gap: 5px; padding: 6px; background: #fff; border: 1px solid var(--agent-border-default); border-radius: 9px; box-shadow: 0 8px 24px rgba(45,30,12,.2); }
+.sn-sw { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); cursor: pointer; padding: 0; transition: transform .12s; }
+.sn-sw:hover { transform: scale(1.14); }
+.sn-sw.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--agent-coral-deep); }
+.sn-body { flex: 1; min-height: 0; width: 100%; box-sizing: border-box; border: none; background: none; resize: none; outline: none; font-family: inherit; font-size: 14px; line-height: 1.6; letter-spacing: -0.003em; color: inherit; padding: 3px 13px 4px; }
+.sn-body::placeholder { color: rgba(59,51,42,.4); }
+.sn-foot { font-size: 10px; color: rgba(59,51,42,.46); padding: 0 13px 9px; flex-shrink: 0; font-variant-numeric: tabular-nums; letter-spacing: .01em; opacity: 0; transition: opacity .16s; }
+.sn:hover .sn-foot { opacity: 1; }
+.sn-resize { position: absolute; right: 2px; bottom: 2px; width: 16px; height: 16px; display: grid; place-items: center; color: rgba(59,51,42,.28); cursor: nwse-resize; touch-action: none; }
+.sn:hover .sn-resize { color: rgba(59,51,42,.5); }
+
+/* ── hero trigger (post-it icon next to the Settings pill) ── */
+.sticky-add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--agent-border-default); background: var(--agent-surface-glass); color: var(--agent-text-secondary); cursor: pointer; transition: color .14s, border-color .14s, box-shadow .14s, transform .14s; flex-shrink: 0; }
+.sticky-add:hover { color: var(--agent-coral-deep); border-color: var(--agent-border-strong); box-shadow: var(--agent-hover-lift); transform: translateY(-1px); }
+.sticky-add:active { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) { .sn, .sticky-add { transition: none !important; } }

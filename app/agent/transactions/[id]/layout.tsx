@@ -62,6 +62,9 @@ import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray
 import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
 import { ShellTimingBadge } from "@/components/transaction/ShellTimingBadge";
 import { TabTimingBadge } from "@/components/transaction/TabTimingBadge";
+import { getAccessScope } from "@/lib/security/access-scope";
+import { getStickyNotesForFile } from "@/lib/services/sticky-notes";
+import { StickyLayer } from "@/components/sticky/StickyLayer";
 
 // Note: unstable_dynamicStaleTime is a page-only segment config (Next rejects it
 // on layouts at build), so the 5-minute client-router reuse is set on each tab
@@ -116,7 +119,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       (r) => { _mark.push({ label, ms: Date.now() - _tBarrier }); return r; },
       (e) => { _mark.push({ label, ms: Date.now() - _tBarrier }); throw e; },
     );
-  const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, exchangeDay, demoTourUser] = await Promise.all([
+  const [milestoneData, agentUser, assignableAgents, heroPhotoUrl, exchangeDay, demoTourUser, stickyNotes] = await Promise.all([
     _timed("ms", getMilestonesCached(id, session.user.agencyId).catch(() => null)),
     _timed("agent", transaction.agentUserId
       ? prisma.user.findUnique({
@@ -143,6 +146,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           .findUnique({ where: { id: session.user.id }, select: { demoTourCompletedAt: true, demoTourSkippedAt: true } })
           .catch(() => null)
       : Promise.resolve(null)),
+    _timed("sticky", getStickyNotesForFile(id, getAccessScope(session)).catch(() => [])),
   ]);
   const _barrierMs = Date.now() - _tBarrier;
 
@@ -378,7 +382,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     transaction.isDemo && !demoTourUser?.demoTourCompletedAt && !demoTourUser?.demoTourSkippedAt;
 
   return (
-    <div className="glass-page agent-page pt-4 px-4 md:px-8">
+    <div className="glass-page agent-page pt-4 px-4 md:px-8" style={{ position: "relative" }}>
       <ScrollTopOnFileChange id={transaction.id} />
       {session.user.role === "superadmin" && (
         <div
@@ -519,6 +523,10 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       </FileProgressProvider>
 
       <ConfirmReviewTray transactionId={transaction.id} />
+
+      {/* Internal sticky-note layer — floats over the whole file, scrolls with it.
+          The hero's post-it button spawns notes into this layer. */}
+      <StickyLayer transactionId={transaction.id} initialNotes={stickyNotes} author={session.user.name ?? "You"} />
     </div>
   );
 }
