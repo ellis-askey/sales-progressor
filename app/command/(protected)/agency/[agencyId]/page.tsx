@@ -6,13 +6,20 @@ import {
   type AgencyTeamMember, type AgencySaleRow, type AgencyEmailRow, type AgencyEmailSummary,
   type EmailDeliveryState, type AgencyReachability, type UnreachableContact,
 } from "@/lib/command/agency-file";
+import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
+import { getManagingBusinesses } from "@/lib/command/businesses";
+import { commandDb } from "@/lib/command/prisma";
 import { ViewAsButton } from "@/components/command/ViewAsButton";
+import { ReadinessDetail, ReadinessPill } from "@/components/command/agencies/ReadinessDetail";
+import { AgencyAutomationControls } from "@/components/command/agency-file/AgencyAutomationControls";
+import { AgencyFeeEditor } from "@/components/command/agency-file/AgencyFeeEditor";
 
 export const dynamic = "force-dynamic";
 
-// The Agency File — the founder's single deep view of one customer agency.
-// Tier 1a: header + settings snapshot + team. Sales health (1b), client email
-// log (1c) and reachability (1d) land as further sections on this same page.
+// The Agency File — the founder's single deep view of one customer agency, and
+// (since the Command Centre rebuild) the ONE place per-agency settings are
+// edited: automation switches, fee tier, and the setup-readiness detail all
+// live here. The Agencies list observes; this page edits.
 export default async function AgencyFilePage({
   params,
 }: {
@@ -20,14 +27,21 @@ export default async function AgencyFilePage({
 }) {
   const { agencyId } = await params;
   const now = new Date();
-  const [data, sales, emails, reach] = await Promise.all([
+  const [data, sales, emails, reach, readiness, managedBy, chaseSettings] = await Promise.all([
     getAgencyFileHeader(agencyId),
     getAgencySales(agencyId, now),
     getAgencyEmailLog(agencyId),
     getAgencyReachability(agencyId, now),
+    getAgencySetupReadiness({ agencyId }),
+    getManagingBusinesses(agencyId),
+    commandDb.solicitorChaseSettings.findUnique({
+      where: { id: "singleton" },
+      select: { enabledByDefault: true },
+    }),
   ]);
   if (!data) notFound();
   const s = data.settings;
+  const setup = readiness.rows[0] ?? null;
 
   return (
     <div className="space-y-8">
@@ -52,6 +66,22 @@ export default async function AgencyFilePage({
           {modeLabel(data.modeProfile)} · {data.activeFileCount} active of {data.totalFileCount} file{data.totalFileCount === 1 ? "" : "s"} · opened {fmtDate(data.createdAt)}
           {data.firstSubmissionAt && <> · first sale {fmtDate(data.firstSubmissionAt)}</>}
         </p>
+        {managedBy.length > 0 && (
+          <p className="text-xs mt-1.5">
+            <span className="text-neutral-500">Progression managed by</span>{" "}
+            {managedBy.map((b, i) => (
+              <span key={b.id}>
+                {i > 0 && <span className="text-neutral-600"> · </span>}
+                <Link
+                  href={`/command/businesses/${b.id}`}
+                  className="text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  {b.name}
+                </Link>
+              </span>
+            ))}
+          </p>
+        )}
       </div>
 
       {/* ── Alerts strip (payment / blocked) ────────────────────── */}
@@ -85,6 +115,7 @@ export default async function AgencyFilePage({
           <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Client emails</h2>
           <p className="text-[11px] text-neutral-500">
             {emails.totalSent} sent · {emails.delivered} delivered · <span className="text-emerald-400">{emails.opened} opened ({emails.openRatePct}%)</span>
+            {emails.clicked > 0 && <> · <span className="text-emerald-300">{emails.clicked} clicked</span></>}
             {emails.bouncedFailed > 0 && <> · <span className="text-red-400">{emails.bouncedFailed} bounced/failed</span></>}
           </p>
         </div>
@@ -123,20 +154,44 @@ export default async function AgencyFilePage({
         </section>
       )}
 
-      {/* ── Settings snapshot ───────────────────────────────────── */}
+      {/* ── Setup readiness (this agency's detail from the board) ── */}
+      {setup && (
+        <section>
+          <div className="flex items-center gap-2.5 mb-3">
+            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Setup</h2>
+            <ReadinessPill level={setup.level} />
+            <span className="text-[11px] font-mono text-neutral-600">
+              {setup.doneCount}/{setup.totalSignals}
+            </span>
+          </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+            <ReadinessDetail r={setup} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Settings (editable where the Command Centre owns the switch) ── */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Settings snapshot</h2>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Settings</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <SettingsGroup title="Automation">
-            <Toggle label="Client chase emails" on={s.chaseEmailsEnabled} />
-            <Toggle label="Solicitor confirmations" on={s.solicitorChaseEnabled} />
-            <Toggle label="Enquiry reply chase" on={s.enquiryReplyChaseEnabled} />
-            <Toggle label="Enquiry raise chase" on={s.enquiryRaiseChaseEnabled} />
-            <Toggle label="Advisor chase" on={s.advisorChaseEnabled} />
-            <Toggle label="Weekly client updates" on={s.weeklyClientUpdatesEnabled} />
-            <Toggle label="Chain-neighbour updates" on={s.chainNeighbourUpdatesEnabled} />
-            <Row label="Hand back after" value={`${s.clientChaseEscalateAfter} unanswered chases`} />
-          </SettingsGroup>
+          <AgencyAutomationControls
+            agencyId={data.id}
+            values={{
+              solicitorChaseEnabled: s.solicitorChaseEnabled,
+              enquiryReplyChaseEnabled: s.enquiryReplyChaseEnabled,
+              enquiryRaiseChaseEnabled: s.enquiryRaiseChaseEnabled,
+              weeklyClientUpdatesEnabled: s.weeklyClientUpdatesEnabled,
+              whatsAppCaptureEnabled: s.whatsAppCaptureEnabled,
+              whatsAppTasksEnabled: s.whatsAppTasksEnabled,
+            }}
+            agencySet={{
+              chaseEmailsEnabled: s.chaseEmailsEnabled,
+              advisorChaseEnabled: s.advisorChaseEnabled,
+              chainNeighbourUpdatesEnabled: s.chainNeighbourUpdatesEnabled,
+              clientChaseEscalateAfter: s.clientChaseEscalateAfter,
+            }}
+            chaseMasterOn={chaseSettings?.enabledByDefault ?? false}
+          />
 
           <SettingsGroup title="Client portal">
             <Toggle label="Key dates card" on={s.showPortalKeyDates} />
@@ -144,8 +199,6 @@ export default async function AgencyFilePage({
             <Toggle label="Progress %" on={s.showPortalProgressPercent} />
             <Toggle label="Welcome sheet" on={s.showPortalWelcomeSheet} />
             <Toggle label="Auto-invite clients on add" on={s.autoInviteClientsOnAdd} />
-            <Toggle label="WhatsApp capture" on={s.whatsAppCaptureEnabled} />
-            <Toggle label="WhatsApp auto to-dos" on={s.whatsAppTasksEnabled} />
           </SettingsGroup>
 
           <SettingsGroup title="Branding & sender">
@@ -161,12 +214,10 @@ export default async function AgencyFilePage({
           </SettingsGroup>
 
           <SettingsGroup title="Money & billing">
-            <Row
-              label="Fee tier"
-              value={s.feeTier === "legacy"
-                ? `Legacy · ${fmtGBP(s.legacyOutsourcedFeePence)} per sale`
-                : "Standard sliding scale"}
-              tone={s.feeTier === "legacy" ? "warn" : "default"}
+            <AgencyFeeEditor
+              agencyId={data.id}
+              feeTier={s.feeTier}
+              legacyOutsourcedFeePence={s.legacyOutsourcedFeePence}
             />
             <Row label="Monthly fee target" value={s.monthlyFeeTargetPence != null ? fmtGBP(s.monthlyFeeTargetPence) : "Not set"} />
             <Row label="VAT" value={s.vatRegisteredAt ? `Registered ${fmtDate(s.vatRegisteredAt)}` : "Not registered"} />
@@ -229,8 +280,10 @@ function SalesTable({ rows }: { rows: AgencySaleRow[] }) {
         <tbody className="divide-y divide-neutral-800">
           {rows.map((f) => (
             <tr key={f.transactionId} className="hover:bg-neutral-800/50 transition-colors">
-              <td className="px-4 py-3 text-xs text-neutral-200">
-                {f.propertyAddress}
+              <td className="px-4 py-3 text-xs">
+                <Link href={`/command/files?tx=${f.transactionId}`} className="text-neutral-200 hover:text-blue-300 transition-colors">
+                  {f.propertyAddress}
+                </Link>
                 {f.onHold && <span className="ml-2 text-[10px] uppercase tracking-wider text-amber-400">on hold</span>}
                 <span className="ml-2 text-[10px] text-neutral-600">{f.serviceType === "self_managed" ? "in-house" : "outsourced"}</span>
               </td>
@@ -292,7 +345,15 @@ function EmailTable({ summary }: { summary: AgencyEmailSummary }) {
                 {m.subject ?? "—"}
                 {m.isAutomated && <span className="ml-1.5 text-[9px] uppercase tracking-wider text-neutral-600">auto</span>}
               </td>
-              <td className="px-4 py-3 text-xs text-neutral-500 max-w-[180px] truncate">{m.propertyAddress ?? "—"}</td>
+              <td className="px-4 py-3 text-xs max-w-[180px] truncate">
+                {m.transactionId ? (
+                  <Link href={`/command/files?tx=${m.transactionId}`} className="text-neutral-500 hover:text-blue-300 transition-colors">
+                    {m.propertyAddress}
+                  </Link>
+                ) : (
+                  <span className="text-neutral-500">{m.propertyAddress ?? "—"}</span>
+                )}
+              </td>
               <td className="px-4 py-3 text-xs whitespace-nowrap">
                 <EmailState m={m} />
               </td>
@@ -360,7 +421,15 @@ function ReachabilityTable({ rows }: { rows: UnreachableContact[] }) {
                 <span className="ml-2 text-[10px] text-neutral-600">{c.role === "vendor" ? "seller" : c.role === "purchaser" ? "buyer" : c.role}</span>
                 {c.email && <div className="text-[10px] text-neutral-600 font-mono">{c.email}</div>}
               </td>
-              <td className="px-4 py-3 text-xs text-neutral-400 max-w-[200px] truncate">{c.propertyAddress}</td>
+              <td className="px-4 py-3 text-xs max-w-[200px] truncate">
+                {c.transactionId ? (
+                  <Link href={`/command/files?tx=${c.transactionId}`} className="text-neutral-400 hover:text-blue-300 transition-colors">
+                    {c.propertyAddress}
+                  </Link>
+                ) : (
+                  <span className="text-neutral-400">{c.propertyAddress}</span>
+                )}
+              </td>
               <td className="px-4 py-3 text-xs whitespace-nowrap">
                 <span className="inline-flex gap-1">
                   {c.issues.map((i) => (
@@ -437,8 +506,10 @@ function TeamTable({ rows, now }: { rows: AgencyTeamMember[]; now: Date }) {
         <tbody className="divide-y divide-neutral-800">
           {rows.map((u) => (
             <tr key={u.id} className="hover:bg-neutral-800/50 transition-colors">
-              <td className="px-4 py-3 text-xs text-neutral-200">
-                {u.name}
+              <td className="px-4 py-3 text-xs">
+                <Link href={`/command/agencies/${u.id}`} className="text-neutral-200 hover:text-blue-300 transition-colors">
+                  {u.name}
+                </Link>
                 {u.canViewAllFiles && <span className="ml-2 text-[10px] text-neutral-500">sees all</span>}
               </td>
               <td className="px-4 py-3 text-xs text-neutral-400 font-mono text-[11px]">{u.email}</td>

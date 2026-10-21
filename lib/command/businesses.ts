@@ -143,6 +143,19 @@ export async function getAgencyBusinessMap(): Promise<Map<string, string>> {
   return new Map(links.map((l) => [l.agencyId, l.progressionBusiness.name]));
 }
 
+/** The progression businesses managing ONE agency (active client links only).
+ *  An agency can be a client of more than one business since the unique
+ *  constraint was widened, so this returns every live link, with ids so the
+ *  Agency File can deep-link to each business. */
+export async function getManagingBusinesses(agencyId: string): Promise<{ id: string; name: string }[]> {
+  const links = await commandDb.progressionBusinessClient.findMany({
+    where: { agencyId, removedAt: null, progressionBusiness: { isTsp: false } },
+    select: { progressionBusiness: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return links.map((l) => l.progressionBusiness);
+}
+
 /** businessId → name, for every non-TSP business. Powers the per-file
  *  "Managed by {business}" tag (files key off progressionBusinessId directly). */
 export async function getBusinessNameMap(): Promise<Map<string, string>> {

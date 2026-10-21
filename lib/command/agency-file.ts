@@ -299,6 +299,7 @@ export type AgencyEmailRow = {
   recipientName: string | null;
   recipientEmail: string | null;
   subject: string | null;
+  transactionId: string | null;
   propertyAddress: string | null;
   isAutomated: boolean;
   state: EmailDeliveryState;
@@ -363,7 +364,7 @@ export async function getAgencyEmailLog(agencyId: string, rowLimit = 100): Promi
         id: true, sentAt: true, recipientName: true, recipientEmail: true, subject: true,
         status: true, deliveredAt: true, openedAt: true, clickedAt: true, failedAt: true,
         failureReason: true, isAutomated: true,
-        transaction: { select: { propertyAddress: true } },
+        transaction: { select: { id: true, propertyAddress: true } },
       },
     }),
   ]);
@@ -382,6 +383,7 @@ export async function getAgencyEmailLog(agencyId: string, rowLimit = 100): Promi
       recipientName: m.recipientName,
       recipientEmail: m.recipientEmail,
       subject: m.subject,
+      transactionId: m.transaction?.id ?? null,
       propertyAddress: m.transaction?.propertyAddress ?? null,
       isAutomated: m.isAutomated,
       state: deliveryState(m),
@@ -399,6 +401,7 @@ export type UnreachableContact = {
   name: string;
   email: string | null;
   role: string;
+  transactionId: string | null;
   propertyAddress: string;
   issues: ReachabilityIssue[];
   since: Date | null;
@@ -441,7 +444,7 @@ export async function getAgencyReachability(agencyId: string, now: Date): Promis
       select: {
         id: true, name: true, email: true, roleType: true,
         emailBouncedAt: true, unsubscribedAt: true, emailsPausedAt: true, chasesPausedUntil: true,
-        transaction: { select: { propertyAddress: true } },
+        transaction: { select: { id: true, propertyAddress: true } },
       },
       take: 200,
     }),
@@ -471,6 +474,7 @@ export async function getAgencyReachability(agencyId: string, now: Date): Promis
       name: c.name,
       email: c.email,
       role: c.roleType,
+      transactionId: c.transaction?.id ?? null,
       propertyAddress: c.transaction?.propertyAddress ?? "—",
       issues,
       since,
