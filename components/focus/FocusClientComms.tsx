@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
-import { Pill } from "@/components/ui/Pill";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
@@ -321,31 +320,32 @@ function SideBlock({
           <span className="fc-names" title={names}>{names}</span>
         </span>
 
-        {done ? (
-          <Pill glass tone="success" size="sm" style={{ flexShrink: 0 }}>Touched</Pill>
-        ) : side.quiet && needsYouReason ? (
-          <span title={needsYouReason} style={{ display: "inline-flex", flexShrink: 0 }}>
-            <Pill glass tone="danger" size="sm">
-              <Flame size={11} weight="fill" style={{ marginRight: 3, verticalAlign: "-1px" }} />
-              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
-            </Pill>
-          </span>
-        ) : side.quiet ? (
-          <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>
-            {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
-          </Pill>
-        ) : null}
-
         <span className="fc-sp" />
 
-        <ContactMenu
-          side={side}
-          whatsappConnected={showWhatsApp}
-          onCompose={onCompose}
-          onLogCall={onLogCall}
-          onMarkEmailed={onMarkEmailed}
-          onNotRequired={onNotRequired}
-        />
+        {/* Status is a quiet line of text (not a pill) sitting right above the
+            Contact control — the button drops only by the height of that line. */}
+        <span className="fc-right">
+          {done ? (
+            <span className="fc-status ok">Touched</span>
+          ) : side.quiet && needsYouReason ? (
+            <span className="fc-status danger" title={needsYouReason}>
+              <Flame size={11} weight="fill" />
+              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
+            </span>
+          ) : side.quiet ? (
+            <span className="fc-status warn">
+              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
+            </span>
+          ) : null}
+          <ContactMenu
+            side={side}
+            whatsappConnected={showWhatsApp}
+            onCompose={onCompose}
+            onLogCall={onLogCall}
+            onMarkEmailed={onMarkEmailed}
+            onNotRequired={onNotRequired}
+          />
+        </span>
       </div>
 
       {/* Last contact per channel — icon, a status pip, and the true time. The
@@ -605,6 +605,14 @@ const CSS = `
 .fc-side.vendor .fc-role { color:#0C447C; }
 .fc-side.purchaser .fc-role { color:#085041; }
 .fc-sp { flex:1 1 4px; min-width:0; }
+
+/* Right-hand stack: the status line above the Contact control, both right-
+   aligned. Rows with no status just show the button at its usual height. */
+.fc-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.fc-status { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:650; line-height:1.2; white-space:nowrap; }
+.fc-status.ok { color:var(--agent-success); }
+.fc-status.warn { color:var(--agent-warning); }
+.fc-status.danger { color:var(--agent-danger); }
 
 /* One labelled "Contact" dropdown stands in for all five actions. The trigger is
    a quiet bordered pill; it fills coral on hover/open. The menu floats below-right,
