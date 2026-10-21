@@ -10,6 +10,7 @@ import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import InfoTip from "@/components/command/shared/InfoTip";
 import { StatusFilterSelect } from "@/components/command/agencies/StatusFilterSelect";
 import { AgentHelpButton } from "@/components/command/agencies/AgentHelpButton";
+import { fmtDuration, fmtHoursShort, fmtRelative, initials, avColor } from "@/lib/command/format";
 import type { AgencyModeProfile, ClientType } from "@prisma/client";
 
 // Agencies & agents — the who's-who roster (CC rebuild PR2).
@@ -22,40 +23,6 @@ import type { AgencyModeProfile, ClientType } from "@prisma/client";
 // admin sections the old page grew are relocated: per-agency editing lives on
 // the Agency File, bulk flipping lives on Controls. This page also honours the
 // sidebar scope filter (mode + agency), which it previously ignored.
-
-function fmtDuration(seconds: number): string {
-  if (seconds <= 0) return "—";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  return `${m}m`;
-}
-function fmtHoursShort(seconds: number): string {
-  const h = seconds / 3600;
-  if (h >= 10) return `${Math.round(h)}h`;
-  if (h >= 1) return `${h.toFixed(1)}h`;
-  const m = Math.round(seconds / 60);
-  return m > 0 ? `${m}m` : "0";
-}
-function fmtRelative(d: Date | null): string {
-  if (!d) return "never";
-  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
-  if (days >= 2) return `${days} days ago`;
-  if (days === 1) return "yesterday";
-  const hrs = Math.floor((Date.now() - new Date(d).getTime()) / 3_600_000);
-  if (hrs >= 1) return `${hrs}h ago`;
-  return "just now";
-}
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
-}
-const AV_COLORS = ["#8b9dff", "#34d399", "#e0a44a", "#f0716f", "#c084fc", "#38bdf8"];
-function avColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AV_COLORS[h % AV_COLORS.length];
-}
 
 const STATUS_STYLE: Record<UsageStatus, string> = {
   active: "text-emerald-400 bg-emerald-950/50 border-emerald-900",
@@ -560,7 +527,7 @@ export default async function AgenciesPage({
                       <span className="inline-flex items-center gap-1">
                         {h}
                         {h === "Activity · 12wk" && <InfoTip label="What the sparkline shows">One bar per week for the last 12 weeks. Bar height is how many sessions that agent had that week.</InfoTip>}
-                        {h === "Files" && <InfoTip label="What Files counts">Distinct files the agent touched in the last 7 days.</InfoTip>}
+                        {h === "Files" && <InfoTip label="What Files counts">Distinct files the agent touched in the last 7 days. Files from sessions still open count here before their time counts toward Hours, so an agent can show files with very low hours.</InfoTip>}
                         {h === "Device" && <InfoTip label="What Device shows">Split of the agent&rsquo;s file sessions by device over the last 12 weeks. Teal is mobile or tablet, blue is desktop. Sessions from before device tracking, or with no signal, aren&rsquo;t counted.</InfoTip>}
                       </span>
                     </th>

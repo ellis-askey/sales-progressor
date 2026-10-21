@@ -178,15 +178,16 @@ export async function getAgencySetupReadiness(opts?: { agencyId?: string }): Pro
   );
 
   // Recent inbound email captured on each agency's files (last 30 days).
+  // One grouped count, not one query per agency (was an N+1 fan-out).
   const inboundSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentInboundCounts = await Promise.all(
-    agencyIds.map((id) =>
-      commandDb.outboundMessage.count({
-        where: { agencyId: id, type: "inbound", method: "email", createdAt: { gte: inboundSince } },
-      }),
-    ),
+  const inboundGroups = await commandDb.outboundMessage.groupBy({
+    by: ["agencyId"],
+    where: { agencyId: { in: agencyIds }, type: "inbound", method: "email", createdAt: { gte: inboundSince } },
+    _count: { _all: true },
+  });
+  const recentInboundByAgency = new Map(
+    inboundGroups.flatMap((g) => (g.agencyId ? [[g.agencyId, g._count._all] as const] : [])),
   );
-  const recentInboundByAgency = new Map(agencyIds.map((id, i) => [id, recentInboundCounts[i]]));
 
   const senderDomainOf = (email: string | null) => email?.split("@")[1]?.toLowerCase() ?? "";
 
