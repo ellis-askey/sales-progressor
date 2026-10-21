@@ -19,6 +19,8 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildContactUnsubscribeUrl, buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import { logChaseSend, logEnquiryChaseComm } from "@/lib/enquiries/chase-log";
 import { addWorkingDays } from "@/lib/emails/working-hours";
+import { logActivity } from "@/lib/services/activity";
+import { toUKDateStr } from "@/lib/utils";
 import { sendChainEmail, buildOutboundMessageId, type EmailAttachment } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveEmailSignature } from "@/lib/email/signature";
@@ -320,16 +322,24 @@ export async function markEnquiriesRaisedAction(input: {
 }
 
 // "Snooze" on the escalated-enquiry reminder. Reuses the engine's hold: set a
-// promised "raised by" date on the active PM14 completion (expectedDate), N working
-// days out (default 3 — the agreed re-surface cadence). The chase holds and the
-// reminder stays quiet until that date, then comes back.
+// promised "raised by" date on the active PM14 completion (expectedDate). The
+// chase holds and the reminder stays quiet until that date, then comes back.
+// Accepts the standard SnoozeMenu choice (a quick gap in hours, or a picked
+// date — noon UTC, the reminders convention) with the original N-working-days
+// form kept as the fallback (default 3).
 export async function snoozeEnquiryRaiseAction(input: {
   transactionId: string;
   workingDays?: number;
+  hours?: number;
+  untilISO?: string;
+  reason?: string | null;
 }): Promise<{ ok: boolean }> {
-  await assertInScope(input.transactionId);
-  const wd = input.workingDays && input.workingDays > 0 ? input.workingDays : 3;
-  const until = addWorkingDays(new Date(), wd);
+  const userId = await assertInScope(input.transactionId);
+  const until = input.untilISO && /^\d{4}-\d{2}-\d{2}/.test(input.untilISO)
+    ? new Date(`${input.untilISO.slice(0, 10)}T12:00:00Z`)
+    : input.hours && input.hours > 0
+      ? new Date(Date.now() + input.hours * 3_600_000)
+      : addWorkingDays(new Date(), input.workingDays && input.workingDays > 0 ? input.workingDays : 3);
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
     select: { activeBuyerRoundId: true },
@@ -342,6 +352,16 @@ export async function snoozeEnquiryRaiseAction(input: {
     },
     data: { expectedDate: until },
   });
+  // A typed reason is worth keeping — it lands on the file's Activity tab, same
+  // as a reminder snooze would.
+  const reason = input.reason?.trim();
+  if (reason) {
+    await logActivity(
+      input.transactionId,
+      `Snoozed the enquiries-raised reminder until ${toUKDateStr(until)}: ${reason}`,
+      userId,
+    ).catch(() => {});
+  }
   revalidatePath("/agent/work-queue");
   revalidatePath(`/agent/transactions/${input.transactionId}/reminders`);
   revalidatePath(`/agent/transactions/${input.transactionId}`);

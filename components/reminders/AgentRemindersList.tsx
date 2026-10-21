@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CaretDown, CheckCircle, CalendarBlank, Clock } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -413,11 +413,16 @@ function EnquiryEscalationCard({
       if (res.ok) router.refresh(); else setExiting(false);
     });
   }
-  function snooze() {
+  function snooze(choice: SnoozeChoice) {
     if (exiting) return;
     setExiting(true);
     startTransition(async () => {
-      await snoozeEnquiryRaiseAction({ transactionId: reminder.transactionId, workingDays: 3 });
+      await snoozeEnquiryRaiseAction({
+        transactionId: reminder.transactionId,
+        hours: choice.hours,
+        untilISO: choice.untilISO,
+        reason: choice.reason,
+      });
       router.refresh();
     });
   }
@@ -442,26 +447,12 @@ function EnquiryEscalationCard({
             </p>
           </div>
           <div className="rem-row-side" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10, borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4 }}>
+            {/* Same controls as every other Needs-you row: the icon-only snooze
+                menu (quick gaps / pick a date / reason) + the Deck primary
+                button — solo here, there's no mark-chased/done equivalent. */}
             <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button
-                type="button"
-                onClick={snooze}
-                disabled={pending || exiting}
-                title="Remind me in 3 working days"
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                <Clock size={12} weight="regular" /> Snooze
-              </button>
-              <Button
-                onClick={markRaised}
-                disabled={pending || exiting}
-                title="Mark enquiries raised"
-                size="sm"
-                style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-              >
-                <CheckCircle size={12} weight="fill" /> Mark raised
-              </Button>
+              <SnoozeMenu variant="row" disabled={pending || exiting} onConfirm={snooze} />
+              <ChaseSplitButton solo label="Mark raised" onChase={markRaised} disabled={pending || exiting} />
             </div>
             <div className="rem-row-date" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Escalated</span>
