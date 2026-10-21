@@ -1,6 +1,7 @@
 import { getPortalAdoption, type AdoptionFunnel, type AdoptionCapabilities, type AdoptionPriority, type AgencyAdoptionRow, type GrowthWeek, type AdoptionBySide, type AdoptionRecency, type AdoptionPrompts, type SideStats } from "@/lib/command/adoption";
 import { AdoptionTable } from "@/components/command/AdoptionTable";
 import InfoTip from "@/components/command/shared/InfoTip";
+import { prisma } from "@/lib/prisma";
 
 // Command Centre → App adoption. Notifications + PWA install + engagement for
 // every client on a live file, per person and as a share of the whole. The
@@ -10,6 +11,33 @@ export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
   const { totalClients, funnel, capabilities, priority, byAgency, growth, clients, bySide, recency, prompts } = await getPortalAdoption();
+
+  // Agent-side opt-out: agents who clicked "I won't be using the portal" on
+  // the new-sale invite prompt. Relocated here from the Today page (CC rebuild)
+  // because it's adoption telemetry, not daily ops. Lifetime counters, not a
+  // window; internal staff excluded (they weren't before).
+  const [portalSkipAggregate, recentPortalSkippers] = await Promise.all([
+    prisma.user.aggregate({
+      where: { portalInviteSkipCount: { gt: 0 }, isInternal: false },
+      _sum: { portalInviteSkipCount: true },
+      _count: { _all: true },
+    }),
+    prisma.user.findMany({
+      where: { portalInviteSkipCount: { gt: 0 }, isInternal: false },
+      orderBy: { lastPortalInviteSkipAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        portalInviteSkipCount: true,
+        lastPortalInviteSkipAt: true,
+        agency: { select: { name: true } },
+      },
+    }),
+  ]);
+  const portalSkipTotal = portalSkipAggregate._sum.portalInviteSkipCount ?? 0;
+  const portalSkipUsers = portalSkipAggregate._count._all;
 
   return (
     <div className="space-y-6">
@@ -68,6 +96,51 @@ export default async function AdoptionPage() {
       <PromptResults prompts={prompts} />
 
       <AdoptionTable clients={clients} />
+
+      {/* Agent-side opt-out — the supply side of adoption: agents who skip
+          inviting clients at all. Shown only once anyone has. */}
+      {portalSkipUsers > 0 && (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+          <div className="flex items-center gap-1.5 mb-3">
+            <p className="text-[11px] uppercase tracking-wider text-neutral-500">Agents skipping the invite prompt</p>
+            <InfoTip label="Agent opt-out">
+              Agents who clicked &ldquo;I won&apos;t be using the portal&rdquo; on the new-sale form when
+              prompted to invite the buyer or seller. All-time totals, not a recent window. If this grows,
+              clients never get the chance to adopt the portal at all.
+            </InfoTip>
+          </div>
+          <div className="flex items-center gap-6 flex-wrap mb-3">
+            <div>
+              <p className="text-2xl font-bold tabular-nums text-amber-400">{portalSkipUsers}</p>
+              <p className="text-[11px] text-neutral-500">unique {portalSkipUsers === 1 ? "agent" : "agents"}</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums text-white">{portalSkipTotal.toLocaleString()}</p>
+              <p className="text-[11px] text-neutral-500">total clicks, all time</p>
+            </div>
+          </div>
+          <div className="divide-y divide-neutral-800 border-t border-neutral-800">
+            {recentPortalSkippers.map((u) => (
+              <div key={u.id} className="py-2 flex items-center gap-3 text-xs">
+                <div className="flex-1 min-w-0">
+                  <p className="text-neutral-200 font-medium truncate">
+                    {u.name} <span className="text-neutral-500 font-normal">· {u.email}</span>
+                  </p>
+                  <p className="text-neutral-500 truncate">{u.agency?.name ?? "no agency"}</p>
+                </div>
+                <div className="flex items-center gap-3 text-neutral-500 tabular-nums shrink-0">
+                  <span>{u.portalInviteSkipCount} {u.portalInviteSkipCount === 1 ? "click" : "clicks"}</span>
+                  {u.lastPortalInviteSkipAt && (
+                    <span>
+                      · {new Date(u.lastPortalInviteSkipAt).toLocaleString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="text-[12px] text-neutral-600 leading-relaxed">
         Installed is recorded when a client opens the portal from their home screen, or on the browser install event.
