@@ -20,17 +20,26 @@ const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)
 
 const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
 
-export function SendingTodayPanel({ rows }: { rows: SendingTodayRow[] }) {
+export function SendingTodayPanel({ rows, sentToday = 0 }: { rows: SendingTodayRow[]; sentToday?: number }) {
   return (
-    <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Sending today" defaultVariant="v05" style={CARD_STYLE}>
+    <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Sending today</h2>
+        {/* "Still to send" is the honest name — this list is the remaining
+            queue, not today's activity (truth pass 2026-10-21). */}
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Still to send today</h2>
         {rows.length > 0 && <Pill glass tone="info" size="sm">{rows.length}</Pill>}
       </div>
 
       {rows.length === 0 ? (
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-          Nothing due to go out today.
+          {sentToday > 0 ? (
+            <>
+              Nothing left to send today. {sentToday === 1 ? "1 email" : `${sentToday} emails`} already went out, in{" "}
+              <Link href="/agent/automated-emails?tab=sent" className="agent-link" style={{ fontWeight: 600 }}>Activity</Link>.
+            </>
+          ) : (
+            "Nothing due to go out today."
+          )}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

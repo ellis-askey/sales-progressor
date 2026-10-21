@@ -13,7 +13,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import type { PillProps } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
-import type { NeedsAttention, NeedsAttentionItem, IssueStatus } from "@/lib/services/automated-emails-overview";
+import { NEEDS_ATTENTION_PANEL_CAP, type NeedsAttention, type NeedsAttentionItem, type IssueStatus } from "@/lib/services/automated-emails-overview";
 
 type Tone = NonNullable<PillProps["tone"]>;
 
@@ -66,12 +66,19 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
         ))}
       </div>
 
-      {/* Highest-priority affected files, as typed cards */}
+      {/* Highest-priority affected files, as typed cards. The service returns
+          the FULL list (the Problems tab shows everything); this compact panel
+          shows the top slice and says so. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {data.items.map((item) => (
+        {data.items.slice(0, NEEDS_ATTENTION_PANEL_CAP).map((item) => (
           <IssueCard key={`${item.source}-${item.status}-${item.emailId}`} item={item} />
         ))}
       </div>
+      {data.items.length > NEEDS_ATTENTION_PANEL_CAP && (
+        <Link href="/agent/automated-emails?tab=errored" className="agent-link" style={{ display: "inline-block", marginTop: 10, fontSize: 12.5, fontWeight: 600 }}>
+          View all {data.total} on the Problems tab
+        </Link>
+      )}
     </GlassCard>
   );
 }

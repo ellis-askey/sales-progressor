@@ -36,7 +36,9 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma, ContactRole } from "@prisma/client";
+import { londonDayBounds } from "@/lib/utils";
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
+import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 
 export type EmailListTab = "pending" | "sent" | "errored" | "upcoming";
@@ -68,6 +70,10 @@ export type EmailFilters = {
 export type EmailListInput = EmailScopeInput & EmailFilters & {
   tab: EmailListTab;
   limit?: number;   // page size; "load more" grows this via the URL. Default 200.
+  // Window for the Problems ("errored") tab — the SAME period the overview's
+  // problem predicate uses, so the tab, the banner and the needs-attention
+  // panel can never disagree on what counts as a problem. Default 30.
+  periodDays?: number;
 };
 
 export type EmailRow = {
@@ -381,24 +387,23 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     return { rows: [], counts: { pending: 0, sentLast7d: 0, sentLast30d: 0, errored: 0 }, hasMore: false };
   }
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+  // Problems window — matches the overview/needs-attention period exactly, so
+  // "a problem" is one definition over one window everywhere (truth pass,
+  // founder 2026-10-21; previously this tab was all-time + errorAt-only, which
+  // produced a 355 next to the overview's 25).
+  const problemsFrom = new Date(now.getTime() - (input.periodDays ?? 30) * 86400000);
 
-  // A solicitor row is an "issue" when the send failed or bounced.
-  const solErroredPred: Prisma.OutboundMessageWhereInput = {
-    OR: [{ status: { in: ["failed", "bounced"] } }, { failedAt: { not: null } }],
-  };
+  // One problem predicate, shared with the overview (bounced / blocked /
+  // genuinely errored / repeatedly deferred; solicitor failed / bounced).
+  const solProblemPred = solicitorProblemWhere({}, problemsFrom, now);
+  const queueProblemPred: Prisma.OutboundEmailQueueWhereInput = { OR: queueProblemOr(problemsFrom, now) };
+
   const solSent7dWhere = sWhere({ sentAt: { gte: sevenDaysAgo } });
   const solSent30dWhere = sWhere({ sentAt: { gte: thirtyDaysAgo } });
-  const solErroredWhere = sWhere(solErroredPred);
-
-  // "Errored" means a GENUINE send failure. Exclude the two non-failures that
-  // also stamp errorAt: dead-round skips (the system correctly refusing to
-  // email a fell-through buyer) and manual cancellations. Neither is an issue.
-  const genuineFailurePred: Prisma.OutboundEmailQueueWhereInput = {
-    errorAt: { not: null },
-    NOT: { OR: [{ errorMessage: { in: ["recipient_round_archived"] } }, { errorMessage: { startsWith: "Cancelled" } }] },
-  };
+  const solErroredWhere = sWhere(solProblemPred);
 
   // Sent-email count that treats a milestone digest (N confirmations delivered
   // to one recipient in one send) as ONE email, matching what the client got.
@@ -420,7 +425,7 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     prisma.outboundEmailQueue.count({ where: qWhere({ sentAt: null, errorAt: null }) }),
     sentEmailCount(sevenDaysAgo),
     sentEmailCount(thirtyDaysAgo),
-    prisma.outboundEmailQueue.count({ where: qWhere(genuineFailurePred) }),
+    prisma.outboundEmailQueue.count({ where: qWhere(queueProblemPred) }),
     solSent7dWhere ? prisma.outboundMessage.count({ where: solSent7dWhere }) : 0,
     solSent30dWhere ? prisma.outboundMessage.count({ where: solSent30dWhere }) : 0,
     solErroredWhere ? prisma.outboundMessage.count({ where: solErroredWhere }) : 0,
@@ -463,18 +468,22 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
     hasMore = merged.length > pageSize;
     rows = merged.slice(0, pageSize);
   } else if (input.tab === "errored") {
-    const errSol = sWhere(solErroredPred);
+    // Problems tab = the same windowed problem predicate as the overview, so a
+    // bounced/blocked/deferred send appears here too, not just hard errors.
     const [queueRows, messageRows] = await Promise.all([
       prisma.outboundEmailQueue.findMany({
-        where: qWhere(genuineFailurePred),
-        select: queueRowSelect, orderBy: { errorAt: "desc" }, take: pageSize + 1,
+        where: qWhere(queueProblemPred),
+        select: queueRowSelect,
+        orderBy: [{ bouncedAt: "desc" }, { blockedAt: "desc" }, { errorAt: "desc" }, { deferredAt: "desc" }],
+        take: pageSize + 1,
       }),
-      errSol ? prisma.outboundMessage.findMany({ where: errSol, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
+      solErroredWhere ? prisma.outboundMessage.findMany({ where: solErroredWhere, select: messageRowSelect, orderBy: { sentAt: "desc" }, take: pageSize + 1 }) : [],
     ]);
+    const problemAt = (r: EmailRow) => (r.errorAt ?? r.sentAt)?.getTime() ?? 0;
     const merged = [
-      ...mapQueueRowsCollapsed(queueRows, "errored", (r) => r.errorAt, txAddressById),
+      ...mapQueueRowsCollapsed(queueRows, "errored", (r) => r.errorAt ?? r.bouncedAt ?? r.blockedAt ?? r.deferredAt ?? r.sentAt, txAddressById),
       ...messageRows.map((m) => mapMessageRow(m, "errored", txAddressById)),
-    ].sort((a, b) => (b.errorAt?.getTime() ?? 0) - (a.errorAt?.getTime() ?? 0));
+    ].sort((a, b) => problemAt(b) - problemAt(a));
     hasMore = merged.length > pageSize;
     rows = merged.slice(0, pageSize);
   } else {
@@ -507,11 +516,9 @@ export async function getSendingToday(input: EmailScopeInput, limit = 8): Promis
   const { txIds, txAddressById, queueScope } = await resolveEmailScope(input);
   if (txIds.length === 0) return [];
 
-  // London end-of-today. Same UTC-midnight approximation used across this
-  // surface (automated-emails-preview.ts) — good enough for a "due today" cut.
-  const endOfToday = new Date();
-  endOfToday.setUTCHours(0, 0, 0, 0);
-  endOfToday.setTime(endOfToday.getTime() + 86_400_000);
+  // DST-correct London end-of-today (truth pass 2026-10-21 — the old UTC
+  // approximation ran an hour out during BST).
+  const { end: endOfToday } = londonDayBounds();
 
   const rows = await prisma.outboundEmailQueue.findMany({
     where: { ...queueScope, sentAt: null, errorAt: null, scheduledFor: { lt: endOfToday } },

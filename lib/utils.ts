@@ -347,6 +347,23 @@ export function toUKDateStr(date: Date | string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(date));
 }
 
+/**
+ * Midnight-to-midnight bounds of "today" in Europe/London, as UTC instants —
+ * DST-correct (the setUTCHours(0,0,0,0) approximation puts "today" an hour out
+ * during BST). start inclusive, end exclusive.
+ */
+export function londonDayBounds(now: Date = new Date()): { start: Date; end: Date } {
+  const dayStr = toUKDateStr(now); // yyyy-mm-dd in London
+  const utcMidnight = new Date(`${dayStr}T00:00:00Z`);
+  // If London is ahead of UTC at that instant (BST), London midnight is the
+  // hour-earlier UTC instant.
+  const londonHourAtUtcMidnight = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(utcMidnight),
+  );
+  const start = new Date(utcMidnight.getTime() - londonHourAtUtcMidnight * 3_600_000);
+  return { start, end: new Date(start.getTime() + 86_400_000) };
+}
+
 /** Days until a future date (negative = past), compared in Europe/London timezone */
 export function daysUntil(date: Date | string): number {
   const todayStr = toUKDateStr(new Date());

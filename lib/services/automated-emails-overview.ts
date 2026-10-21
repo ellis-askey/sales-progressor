@@ -13,7 +13,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { toUKDateStr } from "@/lib/utils";
+import { toUKDateStr, londonDayBounds } from "@/lib/utils";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 
 const DAY = 86_400_000;
@@ -25,23 +25,12 @@ function chaseGloballyPaused(): boolean {
   return process.env.CLIENT_CHASE_ENABLED !== "true";
 }
 
-// London start/end of today. Same UTC-midnight approximation the rest of this
-// surface uses (automated-emails-preview.ts: startOfTodayLondon) — good enough
-// for a "due today" bucket, degrades gracefully across the BST boundary.
-function todayBoundsLondon(now: Date): { start: Date; end: Date } {
-  const start = new Date(now);
-  start.setUTCHours(0, 0, 0, 0);
-  return { start, end: new Date(start.getTime() + DAY) };
-}
-
 export type OverviewInput = EmailScopeInput & { periodDays: number };
 
 export type AutomationMetrics = {
   emailsSent: number;
   emailsSentDeltaPct: number | null; // vs previous equal-length period
   deliveryRatePct: number | null;    // (sent − known failures) / sent
-  issues: number;
-  issuesDeltaPct: number | null;
   queuedNow: number;
   filesContacted: number;
   chasesSent: number;
@@ -54,12 +43,17 @@ export type DayBucket = { key: string; label: string; chase: number; notificatio
 // like the rest of this service, so it can never show more than the viewer may
 // see. `automationPaused` reflects the global chase gate only — per-agency and
 // per-file pauses are surfaced in the coverage rollup, not here.
+//
+// Truth pass (founder, 2026-10-21): the old "Chasing today" stat counted only
+// what was STILL WAITING to send (and client chases only), so it read 0 every
+// afternoon while sends had clearly gone out. Replaced with the honest pair:
+// what actually went today + what's still to go today (all email types).
 export type AutomationBanner = {
   activeFiles: number;         // active transactions in scope (what we're watching)
   automationPaused: boolean;   // global chase gate is off → nothing sends anywhere
   nextSendAt: Date | null;     // earliest still-pending queued send
-  chasingTodayCount: number;   // client chases due to send by end of today
-  chasingTodayFiles: number;   // distinct files those chases land on
+  sentToday: number;           // emails that actually went out today (digest-collapsed, queue + solicitor)
+  stillToGoToday: number;      // queued sends due by end of today, not yet gone
 };
 
 export type AutomationOverview = {
@@ -80,7 +74,9 @@ const NON_FAILURE_ERROR: Prisma.OutboundEmailQueueWhereInput = {
   NOT: { OR: [{ errorMessage: { in: ["recipient_round_archived"] } }, { errorMessage: { startsWith: "Cancelled" } }] },
 };
 
-function queueProblemOr(from: Date, to: Date): Prisma.OutboundEmailQueueWhereInput[] {
+// Exported: the ONE problem predicate. The Problems tab (automated-emails-list)
+// reuses it so "a problem" is one definition, one window, everywhere.
+export function queueProblemOr(from: Date, to: Date): Prisma.OutboundEmailQueueWhereInput[] {
   return [
     { bouncedAt: { gte: from, lt: to } },
     { blockedAt: { gte: from, lt: to } },
@@ -89,7 +85,7 @@ function queueProblemOr(from: Date, to: Date): Prisma.OutboundEmailQueueWhereInp
   ];
 }
 
-function solicitorProblemWhere(scope: Prisma.OutboundMessageWhereInput, from: Date, to: Date): Prisma.OutboundMessageWhereInput {
+export function solicitorProblemWhere(scope: Prisma.OutboundMessageWhereInput, from: Date, to: Date): Prisma.OutboundMessageWhereInput {
   return {
     ...scope,
     sentAt: { gte: from, lt: to },
@@ -105,22 +101,22 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
   const prevStart = new Date(now.getTime() - 2 * input.periodDays * DAY);
 
   const emptyMetrics: AutomationMetrics = {
-    emailsSent: 0, emailsSentDeltaPct: null, deliveryRatePct: null, issues: 0,
-    issuesDeltaPct: null, queuedNow: 0, filesContacted: 0, chasesSent: 0, notificationsSent: 0,
+    emailsSent: 0, emailsSentDeltaPct: null, deliveryRatePct: null,
+    queuedNow: 0, filesContacted: 0, chasesSent: 0, notificationsSent: 0,
   };
   const emptyBanner: AutomationBanner = {
     activeFiles: 0, automationPaused: chaseGloballyPaused(), nextSendAt: null,
-    chasingTodayCount: 0, chasingTodayFiles: 0,
+    sentToday: 0, stillToGoToday: 0,
   };
   if (txIds.length === 0) {
     return { periodDays: input.periodDays, metrics: emptyMetrics, perDay: buildEmptyDays(periodStart, now), banner: emptyBanner };
   }
 
-  const { end: endOfToday } = todayBoundsLondon(now);
+  const { start: startOfToday, end: endOfToday } = londonDayBounds(now);
 
   // Load current-period sent rows once (bounded) — perDay + category counts +
   // filesContacted + delivery failures all derive from these in memory.
-  const [queueSent, solSent, queuedNow, emailsSentPrev, issues, issuesPrev, activeFiles, nextSend, chasingTodayRows] = await Promise.all([
+  const [queueSent, solSent, queuedNow, emailsSentPrev, activeFiles, nextSend, stillToGoToday, sentTodaySol] = await Promise.all([
     prisma.outboundEmailQueue.findMany({
       where: { ...queueScope, sentAt: { gte: periodStart } },
       select: {
@@ -141,16 +137,6 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
       prisma.outboundEmailQueue.groupBy({ by: ["recipientContactId", "sentAt"], where: { ...queueScope, emailType: "MILESTONE_CONFIRMATION", sentAt: { gte: prevStart, lt: periodStart } } }),
       prisma.outboundMessage.count({ where: { ...solicitorScope, sentAt: { gte: prevStart, lt: periodStart } } }),
     ]).then(([a, b, c]) => a + b.length + c),
-    // issues this period (queue problems + solicitor failures)
-    Promise.all([
-      prisma.outboundEmailQueue.count({ where: { ...queueScope, OR: queueProblemOr(periodStart, now) } }),
-      prisma.outboundMessage.count({ where: solicitorProblemWhere(solicitorScope, periodStart, now) }),
-    ]).then(([a, b]) => a + b),
-    // issues previous period
-    Promise.all([
-      prisma.outboundEmailQueue.count({ where: { ...queueScope, OR: queueProblemOr(prevStart, periodStart) } }),
-      prisma.outboundMessage.count({ where: solicitorProblemWhere(solicitorScope, prevStart, periodStart) }),
-    ]).then(([a, b]) => a + b),
     // Banner — active files we're watching
     prisma.propertyTransaction.count({ where: { id: { in: txIds }, status: "active" } }),
     // Banner — earliest still-pending queued send (the "next in …" countdown)
@@ -159,25 +145,14 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
       orderBy: { scheduledFor: "asc" },
       select: { scheduledFor: true },
     }),
-    // Banner — client chases due to go out by end of today (solicitor chases
-    // don't pass through the queue, so this is client-chase only, and honest).
-    prisma.outboundEmailQueue.findMany({
-      where: { ...queueScope, sentAt: null, errorAt: null, emailType: "CLIENT_CHASE", scheduledFor: { lt: endOfToday } },
-      select: { recipientContact: { select: { propertyTransactionId: true } } },
-      take: 5000,
+    // Banner — queued sends (any type) still due to go out by end of today.
+    prisma.outboundEmailQueue.count({
+      where: { ...queueScope, sentAt: null, errorAt: null, scheduledFor: { lt: endOfToday } },
     }),
+    // Banner — solicitor sends that went today (queue sends-today are derived
+    // from the period rows below, digest-collapsed, so bundles count once).
+    prisma.outboundMessage.count({ where: { ...solicitorScope, sentAt: { gte: startOfToday } } }),
   ]);
-
-  const chasingTodayFiles = new Set(
-    chasingTodayRows.map((r) => r.recipientContact?.propertyTransactionId).filter((id): id is string => !!id),
-  );
-  const banner: AutomationBanner = {
-    activeFiles,
-    automationPaused: chaseGloballyPaused(),
-    nextSendAt: nextSend?.scheduledFor ?? null,
-    chasingTodayCount: chasingTodayRows.length,
-    chasingTodayFiles: chasingTodayFiles.size,
-  };
 
   // Aggregate the sent rows in memory.
   const days = buildEmptyDays(periodStart, now);
@@ -191,6 +166,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
   // (recipientContactId, sentAt) groups so a bundle is a single email.
   const seenDigest = new Set<string>();
   let queueEmails = 0;
+  let sentTodayQueue = 0;
   for (const r of queueSent) {
     if (r.recipientContact?.propertyTransactionId) files.add(r.recipientContact.propertyTransactionId);
     if (r.emailType === "MILESTONE_CONFIRMATION" && r.recipientContactId && r.sentAt) {
@@ -199,6 +175,7 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
       seenDigest.add(key);
     }
     queueEmails++;
+    if (r.sentAt && r.sentAt >= startOfToday) sentTodayQueue++;
     const isChase = r.emailType === "CLIENT_CHASE";
     if (isChase) chasesSent++; else notificationsSent++;
     if (r.bouncedAt || r.blockedAt) failures++;
@@ -226,12 +203,18 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     emailsSent,
     emailsSentDeltaPct: pctDelta(emailsSent, emailsSentPrev),
     deliveryRatePct,
-    issues,
-    issuesDeltaPct: pctDelta(issues, issuesPrev),
     queuedNow,
     filesContacted: files.size,
     chasesSent,
     notificationsSent,
+  };
+
+  const banner: AutomationBanner = {
+    activeFiles,
+    automationPaused: chaseGloballyPaused(),
+    nextSendAt: nextSend?.scheduledFor ?? null,
+    sentToday: sentTodayQueue + sentTodaySol,
+    stillToGoToday,
   };
 
   return { periodDays: input.periodDays, metrics, perDay: days, banner };
@@ -290,10 +273,12 @@ export type NeedsAttention = {
   total: number;
   affectedFiles: number;
   byStatus: Record<IssueStatus, number>;
-  items: NeedsAttentionItem[]; // highest-priority first, capped
+  items: NeedsAttentionItem[]; // highest-priority first, FULL list (panels cap their own display)
 };
 
-const ISSUE_ITEM_CAP = 25;
+// Display cap for the compact panel — the Problems tab shows the full list, so
+// the service returns everything and the PANEL slices (truth pass 2026-10-21).
+export const NEEDS_ATTENTION_PANEL_CAP = 25;
 
 const EMPTY_BY_STATUS = (): Record<IssueStatus, number> =>
   ({ bounced: 0, blocked: 0, missing: 0, failed: 0, errored: 0, deferred: 0 });
@@ -430,6 +415,6 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     total: items.length,
     affectedFiles: files.size,
     byStatus,
-    items: items.slice(0, ISSUE_ITEM_CAP),
+    items,
   };
 }
