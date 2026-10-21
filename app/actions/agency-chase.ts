@@ -37,3 +37,22 @@ export async function updateAgencyChaseStreamAction(input: {
   revalidatePath("/command/agencies");
   return { ok: true };
 }
+
+// Column master: set ONE chase stream for every non-internal agency at once.
+// Added with the Controls matrix (CC rebuild PR2) so a whole stream can be
+// flipped without opening each agency.
+export async function setAllAgencyChaseStreamAction(input: {
+  stream: ChaseStream;
+  value: boolean;
+}): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const session = await requireSession();
+  if (!hasAdminPowers(session)) return { ok: false, error: "Forbidden" };
+  if (!STREAMS.includes(input.stream)) return { ok: false, error: "Unknown stream." };
+
+  const res = await prisma.agency.updateMany({
+    where: { isInternal: false },
+    data: { [input.stream]: input.value },
+  });
+  revalidatePath("/command/agencies");
+  return { ok: true, count: res.count };
+}
