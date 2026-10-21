@@ -65,8 +65,11 @@ function relativeWhen(d: Date | null | undefined): string {
   return days > 0 ? `In ${days} days` : `${-days} days ago`;
 }
 
-// Status-dot colour that reads on the coral band. Colour is never the only
-// signal — the word ("Pending") always sits beside it.
+// Status-dot colour that reads on the coral band. Deliberately literal hex,
+// not agent tokens: these are picked for contrast against the fixed coral
+// band, which doesn't change with the theme (same rationale as the always-
+// white email card below). Colour is never the only signal — the word
+// ("Pending") always sits beside it.
 const DOT_COLOR: Record<string, string> = {
   success: "#7EE0A6",
   info: "#B7D4FA",
@@ -561,7 +564,7 @@ function UpwardMenu({ items }: { items: { label: string; onClick: () => void; da
           style={{
             position: "absolute", right: 0, bottom: "calc(100% + 6px)", minWidth: 168,
             background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-strong)",
-            borderRadius: 12, boxShadow: "0 12px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
+            borderRadius: 12, boxShadow: "0 12px 32px rgba(15,23,42,0.16)",
             padding: 6, zIndex: 30, animation: "email-detail-menu-in 130ms cubic-bezier(0.22,1,0.36,1) both",
           }}
         >
