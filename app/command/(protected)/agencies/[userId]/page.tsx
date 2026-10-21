@@ -69,7 +69,17 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ us
         )}
         <div>
           <h1 className="text-2xl font-semibold text-neutral-100 leading-tight">{a.name}</h1>
-          <p className="text-sm text-neutral-400 capitalize">{a.role} · {a.agencyName}</p>
+          <p className="text-sm text-neutral-400">
+            <span className="capitalize">{a.role}</span>
+            {" · "}
+            {a.agencyId ? (
+              <Link href={`/command/agency/${a.agencyId}`} className="hover:text-blue-300 transition-colors">
+                {a.agencyName}
+              </Link>
+            ) : (
+              a.agencyName
+            )}
+          </p>
         </div>
       </div>
 

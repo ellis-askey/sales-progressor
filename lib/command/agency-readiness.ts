@@ -100,13 +100,15 @@ function signaturePersonalised(u: {
   );
 }
 
-export async function getAgencySetupReadiness(): Promise<{
+export async function getAgencySetupReadiness(opts?: { agencyId?: string }): Promise<{
   rows: AgencySetupReadiness[];
   readyCount: number;
   total: number;
 }> {
+  // Single-agency mode (the Agency File's Setup section) skips the isInternal
+  // filter: the founder may inspect internal agencies there, unlike the board.
   const agencies = await commandDb.agency.findMany({
-    where: { isInternal: false },
+    where: opts?.agencyId ? { id: opts.agencyId } : { isInternal: false },
     select: {
       id: true,
       name: true,
