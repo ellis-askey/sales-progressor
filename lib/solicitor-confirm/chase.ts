@@ -551,34 +551,36 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     recipientName: firmName,
   }).catch(() => {});
 
-  if (agentId) {
-    await prisma.outboundMessage.create({
-      data: {
-        transactionId: tx.id,
-        agencyId: tx.agencyId,
-        type: "outbound",
-        method: "email",
-        channel: "email",
-        purpose: "chase",
-        status: "sent",
-        isAutomated: true,
-        recipientEmail: email,
-        recipientName: firmName ?? undefined,
-        subject: finalSubject,
-        content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${sendSteps.map((s) => s.label).join(", ")}.`,
-        // Keep the exact email we sent so the automated-emails drawer can show a
-        // true-to-inbox preview. An edited send has no branded html (sendChainEmail
-        // wraps the plain text), so store null there and let the drawer fall back.
-        sentEmailHtml: finalHtml ?? null,
-        contactIds: [],
-        createdById: agentId,
-        createdByRole: "director",
-        sentAt: now,
-        // Same value set as the send's Message-ID header above. Capture-only.
-        internetMessageId: outboundMessageId,
-      },
-    });
-  }
+  // History mirror — ALWAYS written (upgrade phase 3). Previously gated on an
+  // assigned agent, so solicitor chases on agent-less files vanished from the
+  // automated-emails History and the file timeline. createdById is nullable;
+  // the feeds scope matcher keys on createdByRole + purpose + isAutomated.
+  await prisma.outboundMessage.create({
+    data: {
+      transactionId: tx.id,
+      agencyId: tx.agencyId,
+      type: "outbound",
+      method: "email",
+      channel: "email",
+      purpose: "chase",
+      status: "sent",
+      isAutomated: true,
+      recipientEmail: email,
+      recipientName: firmName ?? undefined,
+      subject: finalSubject,
+      content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${sendSteps.map((s) => s.label).join(", ")}.`,
+      // Keep the exact email we sent so the automated-emails drawer can show a
+      // true-to-inbox preview. An edited send has no branded html (sendChainEmail
+      // wraps the plain text), so store null there and let the drawer fall back.
+      sentEmailHtml: finalHtml ?? null,
+      contactIds: [],
+      createdById: agentId ?? null,
+      createdByRole: "director",
+      sentAt: now,
+      // Same value set as the send's Message-ID header above. Capture-only.
+      internetMessageId: outboundMessageId,
+    },
+  });
 
   return true;
 }

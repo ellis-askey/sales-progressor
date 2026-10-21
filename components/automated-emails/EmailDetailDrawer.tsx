@@ -32,8 +32,9 @@ import { ContactAvatar } from "@/components/ui/Avatar";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
-import { cancelPendingEmail, sendPendingEmailNow, getMessageForPreview } from "@/app/actions/automated-emails";
-import { previewChaseEmailAction } from "@/app/actions/chase-timeline";
+import { cancelPendingEmail, sendPendingEmailNow, movePendingEmail, getMessageForPreview } from "@/app/actions/automated-emails";
+import { previewChaseEmailAction, rescheduleChaseThreadAction } from "@/app/actions/chase-timeline";
+import { DateField } from "@/components/ui/DateField";
 import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
 import { deliveryStatusMeta } from "./deliveryStatus";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -130,9 +131,10 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [mode, setMode] = useState<"view" | "edit" | "move">("view");
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
+  const [moveDate, setMoveDate] = useState("");
   const [saving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [acting, startActing] = useTransition();
@@ -140,7 +142,32 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
   const emailId = row?.id ?? null;
   const isQueue = row?.source === "queue" && row.status !== "upcoming";
   const isPending = row?.status === "pending" && row.source === "queue";
+  // Moveable (upgrade phase 3): a queued send moves its own scheduled day; a
+  // predicted chase moves via the chase hold (same action the chase page uses).
+  const canMove = isPending || !!row?.predictedTarget;
   const txId = row?.transactionId ?? "";
+  const tomorrowISO = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+  function doMove() {
+    if (!row || !moveDate) return;
+    startActing(async () => {
+      if (row.predictedTarget) {
+        const t = row.predictedTarget;
+        const res = await rescheduleChaseThreadAction({
+          transactionId: row.transactionId,
+          target: t.kind === "client" ? { kind: "client", contactId: t.contactId } : { kind: "solicitor", side: t.side },
+          milestoneCode: t.milestoneCode,
+          dateISO: moveDate,
+        });
+        if (res.ok) { toast.success("Chase moved"); onChanged?.(); onClose(); }
+        else toast.error(res.error);
+      } else if (emailId) {
+        const res = await movePendingEmail(emailId, moveDate);
+        if (res.ok) { toast.success(res.message); onChanged?.(); onClose(); }
+        else { toast.error(res.error); onChanged?.(); }
+      }
+    });
+  }
 
   function doSendNow() {
     if (!emailId) return;
@@ -430,6 +457,16 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
                   items={[{ label: "Cancel send", danger: true, onClick: doCancel, disabled: acting }]}
                 />
               )}
+              {canMove && (
+                <button
+                  onClick={() => { setMoveDate(""); setMode("move"); }}
+                  disabled={acting}
+                  className="email-detail-outline-btn"
+                  style={{ ...primaryBtn, background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)", border: "0.5px solid var(--agent-border-strong)" }}
+                >
+                  <CalendarBlank size={14} weight="bold" /> Move
+                </button>
+              )}
               {isQueue && canEdit && (
                 <button
                   onClick={() => setMode("edit")}
@@ -445,6 +482,26 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
                   <PaperPlaneTilt size={14} weight="fill" /> {acting ? "Sending…" : "Send now"}
                 </button>
               )}
+            </span>
+          )}
+
+          {/* Move: pick the day it should send instead. A queued send moves its
+              own schedule; a predicted chase writes the lane's hold, so it
+              genuinely moves (same mechanics as the chase page). */}
+          {mode === "move" && (
+            <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Sends in the morning run on the day you pick.</span>
+              <DateField
+                value={moveDate}
+                min={tomorrowISO}
+                onChange={(e) => setMoveDate(e.target.value)}
+                className="agent-input agent-input-sm"
+                style={{ fontSize: 12, width: 150 }}
+              />
+              <button onClick={() => setMode("view")} className="agent-btn agent-btn-neutral agent-btn-sm" disabled={acting}>Cancel</button>
+              <button onClick={doMove} className="agent-btn-color-primary" style={primaryBtn} disabled={acting || !moveDate}>
+                {acting ? "Moving…" : "Move"}
+              </button>
             </span>
           )}
 
