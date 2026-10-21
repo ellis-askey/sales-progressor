@@ -78,7 +78,15 @@ export function AutomationActivityPanel({ overview }: { overview: AutomationOver
         <StatTile label="Files contacted" value={metrics.filesContacted.toLocaleString()} />
       </div>
 
-      <EmailActivityChart data={overview.perDay} />
+      {/* A zero-send period renders one quiet line, not a tall empty chart
+          (screenshot verification 2026-10-21). */}
+      {metrics.emailsSent > 0 ? (
+        <EmailActivityChart data={overview.perDay} />
+      ) : (
+        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
+          No automated emails sent in this period yet. The daily chart appears once sending starts.
+        </p>
+      )}
     </GlassCard>
   );
 }

@@ -10,6 +10,7 @@
 // files where every automated chase has been sent and the step is still open.
 
 import Link from "next/link";
+import { useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CompactRow, dayKey, dayLabel, rowTime } from "./EmailFeedRow";
@@ -73,14 +74,18 @@ export function OutboxView({
   const todayK = dayKey(new Date());
   const all = [...sentToday, ...pending, ...predictedRows];
 
-  // Group by London day. An overdue-but-unsent queue row belongs to TODAY (it
-  // goes out on the next run), never to the day it originally missed.
+  // Group by London day. An overdue-but-unsent row belongs to TODAY (it goes
+  // out on the next run), never to the day it originally missed — and its
+  // stale original time would mislead, so clamped rows show no time
+  // (screenshot verification 2026-10-21: a wall of overdue predictions all
+  // read "06:00" under Today).
+  const clampedIds = new Set<string>();
   const groups = new Map<string, { label: string; rows: EmailRow[] }>();
   for (const row of all) {
     const t = rowTime(row);
     let k = dayKey(t);
     let label = dayLabel(t);
-    if (row.status !== "sent" && k < todayK) { k = todayK; label = "Today"; }
+    if (row.status !== "sent" && k < todayK) { k = todayK; label = "Today"; clampedIds.add(`${row.source}-${row.id}`); }
     if (!groups.has(k)) groups.set(k, { label, rows: [] });
     groups.get(k)!.rows.push(row);
   }
@@ -131,12 +136,14 @@ export function OutboxView({
             ? [sent > 0 ? `${sent} sent` : null, toGo > 0 ? `${toGo} to go` : null].filter(Boolean).join(" · ") || `${g.rows.length} emails`
             : `${g.rows.length} ${g.rows.length === 1 ? "email" : "emails"}`;
         return (
-          <div key={g.key}>
-            <p className="agent-eyebrow" style={{ marginBottom: 6 }}>{g.label} · {summary}</p>
-            <div className="space-y-1">
-              {g.rows.map((r) => <CompactRow key={`${r.source}-${r.id}`} row={r} onOpen={onOpen} />)}
-            </div>
-          </div>
+          <DayGroup
+            key={g.key}
+            label={g.label}
+            summary={summary}
+            rows={g.rows}
+            clampedIds={clampedIds}
+            onOpen={onOpen}
+          />
         );
       })}
 
@@ -153,6 +160,50 @@ export function OutboxView({
             {exhausted.map((e) => <ExhaustedCard key={`${e.kind}-${e.id}`} item={e} />)}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// One day of the schedule. Big days collapse past 12 rows behind a "Show all"
+// control so a backlog day can't turn the Outbox into a wall (screenshot
+// verification 2026-10-21). Rows clamped into Today from an overdue date show
+// "next run" instead of their stale original time.
+const DAY_GROUP_PREVIEW = 12;
+
+function DayGroup({
+  label, summary, rows, clampedIds, onOpen,
+}: {
+  label: string;
+  summary: string;
+  rows: EmailRow[];
+  clampedIds: Set<string>;
+  onOpen: (row: EmailRow) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? rows : rows.slice(0, DAY_GROUP_PREVIEW);
+  return (
+    <div>
+      <p className="agent-eyebrow" style={{ marginBottom: 6 }}>{label} · {summary}</p>
+      <div className="space-y-1">
+        {visible.map((r) => (
+          <CompactRow
+            key={`${r.source}-${r.id}`}
+            row={r}
+            onOpen={onOpen}
+            timeText={clampedIds.has(`${r.source}-${r.id}`) ? "next run" : undefined}
+          />
+        ))}
+      </div>
+      {rows.length > DAY_GROUP_PREVIEW && !showAll && (
+        <button
+          type="button"
+          className="agent-segment-pill agent-segment-pill-sm"
+          style={{ marginTop: 6 }}
+          onClick={() => setShowAll(true)}
+        >
+          Show all {rows.length}
+        </button>
       )}
     </div>
   );

@@ -192,7 +192,7 @@ export default async function AutomatedEmailsPage({
       {/* Row A — what needs a person, what's about to go out, how well set up we are */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         {needs && <div data-bloom><NeedsAttentionPanel data={needs} /></div>}
-        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} sentToday={overview?.banner.sentToday ?? 0} /></div>}
+        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} sentToday={overview?.banner.sentToday ?? 0} stillToGo={overview?.banner.stillToGoToday} /></div>}
         {coverage && <div data-bloom><AutomationCoveragePanel coverage={coverage} /></div>}
       </div>
 
