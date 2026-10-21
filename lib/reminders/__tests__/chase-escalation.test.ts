@@ -58,6 +58,51 @@ describe("chaseHandoverDate with manual chases", () => {
     expect(chaseHandoverDate({ chaseCount: 0, firstChasedAt: null, lastChasedAt: null, lastEngagedAt: null }, 7, now)).toBeNull();
   });
 
+  it("hand-over dates are exact UTC-day arithmetic (timing baseline, critique #281)", () => {
+    // Pins the schedule maths precisely ahead of the business-days work:
+    // final chase + repeat gap, UTC day addition, time-of-day preserved.
+    const fixed = new Date("2026-10-30T09:00:00.000Z");
+    const capPath = chaseHandoverDate(
+      { chaseCount: 2, firstChasedAt: new Date("2026-10-02T10:15:00.000Z"), lastChasedAt: new Date("2026-10-09T10:15:00.000Z"), lastEngagedAt: null },
+      7,
+      fixed,
+    );
+    // Cap path: last chase (9 Oct 10:15) + 7 days = 16 Oct 10:15 — earlier than
+    // the silence backstop (first chase 2 Oct + 14 = 16 Oct 10:15 too; equal here,
+    // so pin the value itself).
+    expect(capPath?.toISOString()).toBe("2026-10-16T10:15:00.000Z");
+
+    // Silence backstop alone (count below cap): first chase + 14 days exactly.
+    const silence = chaseHandoverDate(
+      { chaseCount: 1, firstChasedAt: new Date("2026-10-02T10:15:00.000Z"), lastChasedAt: new Date("2026-10-02T10:15:00.000Z"), lastEngagedAt: null },
+      7,
+      fixed,
+    );
+    expect(silence?.toISOString()).toBe("2026-10-16T10:15:00.000Z");
+
+    // A repeat gap below 1 is floored to 1 day on the cap path.
+    const floored = chaseHandoverDate(
+      { chaseCount: 2, firstChasedAt: new Date("2026-10-20T08:00:00.000Z"), lastChasedAt: new Date("2026-10-28T08:00:00.000Z"), lastEngagedAt: null },
+      0,
+      fixed,
+    );
+    expect(floored?.toISOString()).toBe("2026-10-29T08:00:00.000Z");
+  });
+
+  it("CURRENT BEHAVIOUR — changes in Step 2/3: the hand-over date can land on a weekend", () => {
+    // Last chase Monday 19 Oct + 5-day repeat = Saturday 24 Oct. (First chase
+    // 12 Oct keeps the 14-day silence backstop at the 26th, so the cap path is
+    // the earlier one and wins.) The work queue would surface this on a
+    // Saturday; the business-days work moves it.
+    const d = chaseHandoverDate(
+      { chaseCount: 2, firstChasedAt: new Date("2026-10-12T09:00:00.000Z"), lastChasedAt: new Date("2026-10-19T09:00:00.000Z"), lastEngagedAt: null },
+      5,
+      new Date("2026-10-30T09:00:00.000Z"),
+    );
+    expect(d?.toISOString()).toBe("2026-10-24T09:00:00.000Z");
+    expect(d?.getUTCDay()).toBe(6); // Saturday
+  });
+
   it("honours a custom per-rule escalate cap", () => {
     const snap = { chaseCount: 2, firstChasedAt: days(-6), lastChasedAt: days(-1), lastEngagedAt: null };
     // Default cap (2): count-cap path is live — last chase (−1d) + 7d repeat is

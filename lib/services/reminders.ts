@@ -1383,7 +1383,11 @@ export async function runReminderEngine(agencyId?: string, assignedUserId?: stri
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function addDays(date: Date, days: number): Date {
+// Exported for the timing-baseline tests only (characterisation of the engine's
+// grace-day arithmetic before any business-day work touches it). Note the mixed
+// semantics the tests pin: local-calendar day addition, then zeroed to UTC
+// midnight. The engine always passes the result through setUkChaseTime.
+export function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   result.setUTCHours(0, 0, 0, 0);

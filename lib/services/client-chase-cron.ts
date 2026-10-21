@@ -89,12 +89,16 @@ function snapshotChaseEnabled(snapshot: unknown, code: string): boolean {
   return true;
 }
 
-function addDays(d: Date, n: number): Date {
+// Exported for the timing-baseline tests only (characterisation before any
+// business-day work). NOTE: this addDays differs from the reminder engine's —
+// it adds UTC calendar days and PRESERVES the time of day (no midnight zeroing).
+// The tests pin both so the difference stays visible.
+export function addDays(d: Date, n: number): Date {
   const out = new Date(d);
   out.setUTCDate(out.getUTCDate() + n);
   return out;
 }
-function daysBetween(a: Date, b: Date): number {
+export function daysBetween(a: Date, b: Date): number {
   // floor((a - b) / day)
   return Math.floor((a.getTime() - b.getTime()) / 86_400_000);
 }
@@ -103,7 +107,7 @@ function daysBetween(a: Date, b: Date): number {
 // ticks once each morning — a full-instant `now >= due` would defer a chase due
 // "today" to tomorrow's tick. Comparing by Europe/London calendar date makes the
 // sender fire on the same day the timeline shows it as due.
-function dueReachedUk(now: Date, due: Date): boolean {
+export function dueReachedUk(now: Date, due: Date): boolean {
   return toUKDateStr(now) >= toUKDateStr(due);
 }
 
