@@ -31,7 +31,8 @@ import type { AutopilotStatus } from "@/lib/services/reminder-autopilot";
 import type { getAgentReminderLogs } from "@/lib/services/reminders";
 import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
 import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
-import { markEnquiriesRaisedAction, snoozeEnquiryRaiseAction } from "@/app/actions/enquiries";
+import { markEnquiriesRaisedAction, snoozeEnquiryRaiseAction, markRaiseChasedAction } from "@/app/actions/enquiries";
+import { RaiseChaseDrawer } from "@/components/reminders/RaiseChaseDrawer";
 import type { EnquiryEscalationReminder } from "@/lib/services/enquiry-escalations";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
@@ -403,6 +404,7 @@ function EnquiryEscalationCard({
   const router = useRouter();
   const [exiting, setExiting] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [chaseOpen, setChaseOpen] = useState(false);
   const who = reminder.solicitorName ?? "the buyer's solicitor";
 
   function markRaised() {
@@ -412,6 +414,22 @@ function EnquiryEscalationCard({
       const res = await markEnquiriesRaisedAction({ transactionId: reminder.transactionId });
       if (res.ok) router.refresh(); else setExiting(false);
     });
+  }
+  // "Mark chased" (no email): stamps the shared nudge ledger and re-arms the
+  // reminder 3 working days out — same contract as every other lane.
+  function markChased() {
+    if (exiting) return;
+    setExiting(true);
+    startTransition(async () => {
+      await markRaiseChasedAction({ transactionId: reminder.transactionId });
+      router.refresh();
+    });
+  }
+  // A sent chase re-arms server-side; ease the card out like a snooze.
+  function chaseSent() {
+    setChaseOpen(false);
+    setExiting(true);
+    startTransition(async () => { router.refresh(); });
   }
   function snooze(choice: SnoozeChoice) {
     if (exiting) return;
@@ -448,11 +466,17 @@ function EnquiryEscalationCard({
           </div>
           <div className="rem-row-side" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 10, borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14, marginLeft: 4 }}>
             {/* Same controls as every other Needs-you row: the icon-only snooze
-                menu (quick gaps / pick a date / reason) + the Deck primary
-                button — solo here, there's no mark-chased/done equivalent. */}
+                menu + the Chase split-button, whose chevron holds Mark chased
+                (stamp + re-arm, no email) and Mark raised (confirms PM14). */}
             <div className="rem-row-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <SnoozeMenu variant="row" disabled={pending || exiting} onConfirm={snooze} />
-              <ChaseSplitButton solo label="Mark raised" onChase={markRaised} disabled={pending || exiting} />
+              <ChaseSplitButton
+                onChase={() => setChaseOpen(true)}
+                onMarkChased={markChased}
+                onMarkDone={markRaised}
+                markDoneLabel="Mark raised"
+                disabled={pending || exiting}
+              />
             </div>
             <div className="rem-row-date" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Escalated</span>
@@ -463,6 +487,14 @@ function EnquiryEscalationCard({
           </div>
         </div>
       </FileCardShell>
+      {chaseOpen && (
+        <RaiseChaseDrawer
+          transactionId={reminder.transactionId}
+          propertyAddress={reminder.propertyAddress}
+          onClose={() => setChaseOpen(false)}
+          onSent={chaseSent}
+        />
+      )}
     </div>
   );
 }
