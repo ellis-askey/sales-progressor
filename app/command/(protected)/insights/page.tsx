@@ -4,7 +4,7 @@ import { SignalActions } from "@/components/command/insights/SignalActions";
 import { BulkAckButton } from "@/components/command/insights/BulkAckButton";
 import { ExpandableBrief } from "@/components/command/insights/ExpandableBrief";
 import InfoTip from "@/components/command/shared/InfoTip";
-import { displayFor } from "@/lib/command/signal-display";
+import { displayFor, SEVERITY_MEANING } from "@/lib/command/signal-display";
 import type { Signal, SignalSeverity } from "@prisma/client";
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -14,12 +14,6 @@ const SEVERITY_BADGE: Record<string, string> = {
   info:        "bg-neutral-800 text-neutral-400 border border-neutral-800",
 };
 const SEVERITY_RANK: Record<string, number> = { critical: 0, leak: 1, opportunity: 2, info: 3 };
-const SEVERITY_MEANING: Record<string, string> = {
-  critical: "Acting late has a real cost. Look today.",
-  leak: "Money or momentum slipping. Worth a look this week.",
-  opportunity: "Something going better than usual, worth leaning into.",
-  info: "Context only. No action needed.",
-};
 
 const CONF_COLOR = (c: number): string =>
   c >= 0.8 ? "text-neutral-100" : c >= 0.5 ? "text-neutral-300" : "text-neutral-500";

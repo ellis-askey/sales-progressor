@@ -6,6 +6,16 @@
 
 type Payload = Record<string, unknown>;
 
+// Plain-English meaning of each severity bucket. One definition for every
+// surface that shows a severity word (Briefing legend, Today badges) so the
+// jargon ("leak") is always explained the same way.
+export const SEVERITY_MEANING: Record<string, string> = {
+  critical: "Acting late has a real cost. Look today.",
+  leak: "Money or momentum slipping. Worth a look this week.",
+  opportunity: "Something going better than usual, worth leaning into.",
+  info: "Context only. No action needed.",
+};
+
 const str = (p: Payload, k: string): string => (p[k] == null ? "" : String(p[k]));
 const num = (p: Payload, k: string): number => (typeof p[k] === "number" ? (p[k] as number) : Number(p[k]) || 0);
 
