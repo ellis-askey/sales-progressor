@@ -97,7 +97,7 @@ export default async function BusinessesPage() {
             <span className="text-right">MRR</span>
             <span className="text-right">Sales</span>
             <span className="text-right">£5</span>
-            <span className="text-right" title="Migrated sales not yet charged — the £5 bills only when they exchange">On exch.</span>
+            <span className="text-right" title="Migrated sales not yet charged; billable only when they exchange">On exch.</span>
             <span className="text-right">This month</span>
             <span className="text-right">Status</span>
           </div>
@@ -126,7 +126,7 @@ export default async function BusinessesPage() {
                         {r.pendingMigratedCount} · {formatGBP(r.pendingMigratedPence)}
                       </span>
                     ) : (
-                      <span className="text-neutral-600">&mdash;</span>
+                      <span className="text-neutral-600">&ndash;</span>
                     )}
                   </span>
                   <span className="text-right text-sm tabular-nums text-neutral-100 font-medium">{formatGBP(r.monthTotalPence)}</span>
@@ -148,7 +148,7 @@ export default async function BusinessesPage() {
                     <Field label="£5 (mo)" value={formatGBP(r.perSalePence)} />
                     <Field
                       label="On exchange"
-                      value={r.pendingMigratedCount > 0 ? `${r.pendingMigratedCount} · ${formatGBP(r.pendingMigratedPence)}` : "—"}
+                      value={r.pendingMigratedCount > 0 ? `${r.pendingMigratedCount} · ${formatGBP(r.pendingMigratedPence)}` : "–"}
                     />
                   </div>
                 </div>
