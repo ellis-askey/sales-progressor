@@ -28,6 +28,7 @@ import { NeedsAttentionPanel } from "@/components/automated-emails/NeedsAttentio
 import { AutomationBanner } from "@/components/automated-emails/AutomationBanner";
 import { AutomationCoveragePanel } from "@/components/automated-emails/AutomationCoveragePanel";
 import { SendingTodayPanel } from "@/components/automated-emails/SendingTodayPanel";
+import { AutoRefresh } from "@/components/automated-emails/AutoRefresh";
 import { BloomStage } from "@/components/agent/BloomStage";
 
 const VALID_TABS = ["pending", "sent", "errored", "upcoming", "files", "chase-performance", "email-health"] as const;
@@ -36,7 +37,9 @@ const VALID_PERIODS = [7, 30, 90];
 
 function subtitleFor(role: string, mineOnly: boolean, fileLabel: string | null, isHybridAdmin: boolean): string {
   if (fileLabel) return `Automated emails for ${fileLabel}.`;
-  if (role === "admin" || role === "superadmin" || isHybridAdmin) return "All automated emails across every agency.";
+  // Honest scope (truth pass 2026-10-21): the admin view is deliberately walled
+  // to the files our team runs (resolveEmailScope), not "every agency".
+  if (role === "admin" || role === "superadmin" || isHybridAdmin) return "Automated emails across the files our team runs.";
   if (role === "sales_progressor") return "Automated emails for files assigned to you.";
   if (role === "negotiator") return "Automated emails for files assigned to you.";
   if (role === "director") {
@@ -123,13 +126,15 @@ export default async function AutomatedEmailsPage({
   const VIEW_ONLY_TABS: PageTab[] = ["upcoming", "files", "chase-performance", "email-health"];
   const listTab: EmailListTab = VIEW_ONLY_TABS.includes(tab) ? "pending" : (tab as EmailListTab);
   const [list, overview, needs, coverage, sendingToday, forecast, fileRows, chasePerformance, emailHealth] = await Promise.all([
-    listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit }),
+    listAutomatedEmails({ ...scopeBase, tab: listTab, search, category, recipientRole, deliveryStatus, fromDate, limit, periodDays: period }),
     getAutomationOverview({ ...scopeBase, periodDays: period }).catch(() => null),
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
     getAutomationCoverage(scopeBase).catch(() => null),
     getSendingToday(scopeBase).catch(() => null),
-    tab === "upcoming" ? getUpcomingForecast(scopeBase).catch(() => null) : Promise.resolve(null),
-    tab === "files" ? getAutomationFiles(scopeBase, search).catch(() => null) : Promise.resolve(null),
+    // Always fetched so the Upcoming tab count shows on every load (it used to
+    // be blank until you were already on the tab — truth pass 2026-10-21).
+    getUpcomingForecast(scopeBase).catch(() => null),
+    tab === "files" ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
     tab === "chase-performance" ? getChasePerformance({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
     tab === "email-health" ? getEmailHealth({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
   ]);
@@ -140,12 +145,21 @@ export default async function AutomatedEmailsPage({
     notFound();
   }
 
+  // The Problems tab shows missing-email gaps as their own strip (they have no
+  // email row to render). Mapped here so the client view stays presentational.
+  const missingItems = (needs?.items ?? [])
+    .filter((i) => i.status === "missing")
+    .map((i) => ({ id: i.emailId, name: i.recipientName, role: i.recipientRole, transactionId: i.transactionId, address: i.transactionAddress }));
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <PageHeader
-        title="Automated emails"
-        subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
-      />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <PageHeader
+          title="Automated emails"
+          subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
+        />
+        <AutoRefresh />
+      </div>
 
       <BloomStage>
       {overview && (
@@ -161,7 +175,7 @@ export default async function AutomatedEmailsPage({
       {/* Row A — what needs a person, what's about to go out, how well set up we are */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         {needs && <div data-bloom><NeedsAttentionPanel data={needs} /></div>}
-        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} /></div>}
+        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} sentToday={overview?.banner.sentToday ?? 0} /></div>}
         {coverage && <div data-bloom><AutomationCoveragePanel coverage={coverage} /></div>}
       </div>
 
@@ -182,6 +196,9 @@ export default async function AutomatedEmailsPage({
         fileLabel={fileLabel}
         showMineToggle={role === "director"}
         hasMore={list.hasMore}
+        needsTotal={needs?.total ?? 0}
+        missingItems={missingItems}
+        filesCount={coverage?.total ?? null}
         forecast={forecast}
         fileRows={fileRows}
         chasePerformance={chasePerformance}

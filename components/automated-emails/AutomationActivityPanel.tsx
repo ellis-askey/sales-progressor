@@ -69,12 +69,10 @@ export function AutomationActivityPanel({ overview }: { overview: AutomationOver
           value={metrics.deliveryRatePct === null ? "n/a" : `${metrics.deliveryRatePct}%`}
           hint="Sent minus known failures"
         />
-        <StatTile
-          label="Issues"
-          value={metrics.issues.toLocaleString()}
-          delta={metrics.issuesDeltaPct}
-          deltaGoodWhenUp={false}
-        />
+        {/* No "Issues" tile: problems have ONE number on this page — the
+            banner / Needs-attention / Problems-tab figure (truth pass
+            2026-10-21). A second, differently-windowed count here is what
+            produced the old 25-vs-355-vs-30 contradiction. */}
         <StatTile label="Queued now" value={metrics.queuedNow.toLocaleString()} />
         <StatTile label="Files contacted" value={metrics.filesContacted.toLocaleString()} />
       </div>

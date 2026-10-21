@@ -44,6 +44,14 @@ type Props = {
   fileLabel: string | null;
   showMineToggle: boolean;
   hasMore: boolean;
+  // ONE problems number (truth pass 2026-10-21): the Problems tab wears the
+  // same figure as the banner and the Needs-attention panel.
+  needsTotal: number;
+  // Missing-email setup gaps — not email rows, so the Problems tab renders
+  // them as their own strip above the problem emails.
+  missingItems: { id: string; name: string; role: string; transactionId: string; address: string }[];
+  // Active-files figure for the Files tab label (always known, tab or not).
+  filesCount: number | null;
   forecast?: UpcomingForecast | null;
   fileRows?: FileAutomationRow[] | null;
   chasePerformance?: ChasePerformance | null;
@@ -53,7 +61,7 @@ type Props = {
 const TABS: { value: FeedTab; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "sent", label: "Activity (30d)" },
-  { value: "errored", label: "Issues" },
+  { value: "errored", label: "Problems" },
   { value: "upcoming", label: "Upcoming (14d)" },
   { value: "files", label: "Files" },
   { value: "chase-performance", label: "Chase performance" },
@@ -84,14 +92,15 @@ const CATEGORY_OPTIONS = [
 ];
 const FILTER_KEYS = ["q", "category", "role", "status", "from"];
 
-function countForTab(t: FeedTab, counts: Props["counts"], rows: EmailRow[], activeTab: FeedTab, forecast?: UpcomingForecast | null, fileCount?: number | null): number | null {
+// Every countable tab shows its number on every load (truth pass 2026-10-21 —
+// Upcoming/Files used to be blank until you were already on them).
+function countForTab(t: FeedTab, counts: Props["counts"], needsTotal: number, forecast?: UpcomingForecast | null, fileCount?: number | null): number | null {
   if (t === "pending") return counts.pending;
   if (t === "sent") return counts.sentLast30d;
-  if (t === "errored") return counts.errored;
+  if (t === "errored") return needsTotal;
   if (t === "files") return fileCount ?? null;
   if (t === "chase-performance" || t === "email-health") return null;
-  if (forecast) return forecast.predictedTotal;
-  return t === activeTab ? rows.length : null;
+  return forecast ? forecast.predictedTotal : null;
 }
 
 function dayKey(d: Date | null | undefined): string {
@@ -126,7 +135,7 @@ function groupByDay(rows: EmailRow[]): { key: string; label: string; rows: Email
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, forecast, fileRows, chasePerformance, emailHealth } = props;
+  const { rows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, needsTotal, missingItems, filesCount, forecast, fileRows, chasePerformance, emailHealth } = props;
   const isFiles = tab === "files";
   const isAnalytics = tab === "chase-performance" || tab === "email-health";
   const router = useRouter();
@@ -171,7 +180,7 @@ export function AutomatedEmailsListView(props: Props) {
       {/* Tabs */}
       <div className="flex flex-wrap gap-1" role="tablist" aria-label="Email views">
         {TABS.map((t) => {
-          const n = countForTab(t.value, counts, rows, tab, t.value === "upcoming" ? forecast : null, t.value === "files" ? (fileRows?.length ?? null) : null);
+          const n = countForTab(t.value, counts, needsTotal, t.value === "upcoming" ? forecast : null, t.value === "files" ? filesCount : null);
           return (
             <Link
               key={t.value}
@@ -266,7 +275,7 @@ export function AutomatedEmailsListView(props: Props) {
         emailHealth ? <EmailHealthView data={emailHealth} /> : <EmptyState title="No automated email activity in this period" compact />
       ) : tab === "upcoming" && forecast ? (
         <UpcomingView forecast={forecast} />
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && !(tab === "errored" && missingItems.length > 0) ? (
         <EmptyState
           title={emptyTitle(tab, anyFilter || !!fileId)}
           description={emptyDescription(tab, anyFilter || !!fileId)}
@@ -274,6 +283,35 @@ export function AutomatedEmailsListView(props: Props) {
         />
       ) : (
         <div className="space-y-4">
+          {/* Missing-email setup gaps lead the Problems tab: they're problems
+              with no email row (nothing was ever queued), so they'd otherwise
+              be invisible here while still counting in the tab's number. */}
+          {tab === "errored" && missingItems.length > 0 && (
+            <div>
+              <p className="agent-eyebrow" style={{ marginBottom: 6 }}>
+                Missing email addresses · {missingItems.length} {missingItems.length === 1 ? "person" : "people"}
+              </p>
+              <div className="space-y-1">
+                {missingItems.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass)" }}
+                  >
+                    <Pill tone="warning" size="sm" outline>Missing</Pill>
+                    <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--agent-text-primary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {m.name}{asRole(m.role) ? ` · ${roleLabel(asRole(m.role)!)}` : ""}
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--agent-text-muted)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {m.address}
+                    </span>
+                    <Link href={`/agent/transactions/${m.transactionId}`} className="agent-link" style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                      Add email
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {grouped ? (
             grouped.map((g) => (
               <div key={g.key}>
@@ -361,7 +399,7 @@ function emptyTitle(tab: FeedTab, filtered: boolean): string {
   switch (tab) {
     case "pending": return "No emails waiting to send";
     case "sent": return "No automated email activity in this period";
-    case "errored": return "No delivery issues";
+    case "errored": return "No problems";
     case "upcoming": return "No automated emails currently predicted in the next 14 days";
     case "files": return "No active files to monitor";
     case "chase-performance": return "No chase performance yet";
@@ -370,6 +408,6 @@ function emptyTitle(tab: FeedTab, filtered: boolean): string {
 }
 function emptyDescription(tab: FeedTab, filtered: boolean): string | undefined {
   if (filtered) return "Try clearing the search or filters.";
-  if (tab === "errored") return "Everything sent is delivered or still in transit.";
+  if (tab === "errored") return "Everything sent is delivered or still in transit, and every contact we need has an email address.";
   return undefined;
 }

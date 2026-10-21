@@ -20,6 +20,7 @@ import { isClientChaseable } from "@/lib/chase/chaseable-milestones";
 import { assembleMilestoneDigest, type MilestoneDigestPayload } from "@/lib/email/milestone-digest";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { londonDayBounds } from "@/lib/utils";
 import type { ContactRole } from "@prisma/client";
 
 export type PendingEmail = {
@@ -143,13 +144,10 @@ function deriveDeliveryStatus(r: DeliveryColumns): DeliveryStatus {
   return "unknown";
 }
 
-// London-zone start of day. Approximation good enough for "today" buckets —
-// we use a UTC midnight that's "early enough" to capture the local day in
-// either GMT or BST. Falls back gracefully near DST boundaries.
+// DST-correct London start of day (truth pass 2026-10-21 — the old UTC
+// approximation ran an hour out during BST).
 function startOfTodayLondon(now: Date): Date {
-  const d = new Date(now);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+  return londonDayBounds(now).start;
 }
 
 export async function getAutomatedEmailsForTransaction(
@@ -542,8 +540,7 @@ export async function getAutomatedEmailsForTransaction(
       return c && (c.state === "complete" || c.state === "not_required");
     });
 
-    const todayStart = new Date(now);
-    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayStart = londonDayBounds(now).start;
 
     for (const rule of chaseableRules) {
       const code = rule.targetMilestoneCode;

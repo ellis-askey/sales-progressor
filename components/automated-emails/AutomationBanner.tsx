@@ -32,6 +32,24 @@ export function AutomationBanner({
   const paused = banner.automationPaused;
   const fileWord = banner.activeFiles === 1 ? "file" : "files";
 
+  // Three honest states (truth pass 2026-10-21): "healthy" previously meant
+  // only "the global switch is on" and sat happily next to 30 problems. Now:
+  // paused > needs attention > healthy — healthy means nothing needs a person.
+  const state: "paused" | "attention" | "healthy" =
+    paused ? "paused" : needsTotal > 0 ? "attention" : "healthy";
+  const headline =
+    state === "paused" ? "Automation paused"
+    : state === "attention" ? "Needs your attention"
+    : "Automation healthy";
+  const subline =
+    state === "paused"
+      ? "Chases are paused right now."
+      : state === "attention"
+        ? `Chasing is running across ${banner.activeFiles} active ${fileWord}, but ${needsTotal === 1 ? "1 thing needs" : `${needsTotal} things need`} a person. They're listed below.`
+        : `We're monitoring and chasing ${banner.activeFiles === 1 ? "" : "across "}${banner.activeFiles} active ${fileWord}. Nothing needs you.`;
+  const tileBg = state === "healthy" ? "var(--agent-success-bg)" : "var(--agent-warning-bg)";
+  const tileFg = state === "healthy" ? "var(--agent-success)" : "var(--agent-warning)";
+
   return (
     <GlassCard
       glassId="auto-emails-banner"
@@ -47,32 +65,39 @@ export function AutomationBanner({
             style={{
               width: 42, height: 42, borderRadius: 12, flexShrink: 0,
               display: "grid", placeItems: "center",
-              background: paused ? "var(--agent-warning-bg)" : "var(--agent-success-bg)",
-              color: paused ? "var(--agent-warning)" : "var(--agent-success)",
+              background: tileBg,
+              color: tileFg,
             }}
           >
-            {paused ? (
+            {state === "paused" ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            ) : state === "attention" ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
             ) : (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
             )}
           </span>
           <div style={{ minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-              {paused ? "Automation paused" : "Automation healthy"}
+              {headline}
             </h2>
             <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-              {paused
-                ? "Chases are paused right now."
-                : `We're monitoring and chasing ${banner.activeFiles === 1 ? "" : "across "}${banner.activeFiles} active ${fileWord}.`}
+              {subline}
             </p>
           </div>
         </div>
 
-        {/* Stat strip */}
+        {/* Stat strip. "Sent today / still to go" replaces the old "Chasing
+            today", which counted only what was still waiting (and client
+            chases only) — it read 0 every afternoon while sends had gone. */}
         <div style={{ marginLeft: "auto", display: "flex", flexWrap: "wrap" }}>
-          <Stat value={queuedNow} label="Queued to send" sub={nextSendLabel(banner.nextSendAt)} first />
-          <Stat value={banner.chasingTodayCount} label="Chasing today" sub={`Across ${banner.chasingTodayFiles} ${banner.chasingTodayFiles === 1 ? "file" : "files"}`} />
+          <Stat
+            value={banner.sentToday}
+            label="Sent today"
+            sub={banner.stillToGoToday > 0 ? `${banner.stillToGoToday} still to go` : "Nothing else due today"}
+            first
+          />
+          <Stat value={queuedNow} label="Queued ahead" sub={nextSendLabel(banner.nextSendAt)} />
           <Stat value={needsTotal} label="Need attention" sub={needsTotal > 0 ? "See below" : "All clear"} alert={needsTotal > 0} />
           <Stat value={banner.activeFiles} label="Files monitored" sub="Automated" />
         </div>

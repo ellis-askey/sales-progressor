@@ -16,8 +16,8 @@
 // is the file-level companion to the "missing email" cards in Needs attention.
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
+import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
 
 // The chase cron's global gate (mirrors automated-emails-preview.ts). Anything
 // other than the literal "true" leaves every file's chases dormant.
@@ -81,24 +81,18 @@ export type FileAutomationRow = {
   issuesCount: number;
 };
 
-// A genuine send failure — excludes the two non-failures that also stamp
-// errorAt (dead-round skips + manual cancellations). Mirrors the feed's
-// genuineFailurePred so "issues" means the same thing everywhere.
-const genuineErrorPred: Prisma.OutboundEmailQueueWhereInput = {
-  AND: [
-    { errorAt: { not: null } },
-    { NOT: { OR: [{ errorMessage: { in: ["recipient_round_archived"] } }, { errorMessage: { startsWith: "Cancelled" } }] } },
-  ],
-};
-
 // One row per ACTIVE file in scope: its coverage status plus the live counts
 // an agent scans for (what's queued, when the next send is, how many issues).
 // Aggregated in memory — Prisma can't groupBy across the recipientContact
 // relation, and pre-launch volumes are small. `search` narrows by address.
-export async function getAutomationFiles(input: EmailScopeInput, search?: string): Promise<FileAutomationRow[]> {
+// Per-file issues use the ONE shared problem predicate + window (truth pass
+// 2026-10-21) so this view can never disagree with the banner or Problems tab.
+export async function getAutomationFiles(input: EmailScopeInput, search?: string, periodDays = 30): Promise<FileAutomationRow[]> {
   const { txIds, txAddressById, queueScope, solicitorScope } = await resolveEmailScope(input);
   if (txIds.length === 0) return [];
   const globalOff = chaseGloballyPaused();
+  const now = new Date();
+  const problemsFrom = new Date(now.getTime() - periodDays * 86_400_000);
 
   const [txs, pendingRows, queueIssues, solIssues] = await Promise.all([
     prisma.propertyTransaction.findMany({
@@ -116,12 +110,12 @@ export async function getAutomationFiles(input: EmailScopeInput, search?: string
       take: 20000,
     }),
     prisma.outboundEmailQueue.findMany({
-      where: { ...queueScope, OR: [{ bouncedAt: { not: null } }, { blockedAt: { not: null } }, genuineErrorPred] },
+      where: { ...queueScope, OR: queueProblemOr(problemsFrom, now) },
       select: { recipientContact: { select: { propertyTransactionId: true } } },
       take: 20000,
     }),
     prisma.outboundMessage.findMany({
-      where: { ...solicitorScope, OR: [{ status: { in: ["failed", "bounced"] } }, { failedAt: { not: null } }] },
+      where: solicitorProblemWhere(solicitorScope, problemsFrom, now),
       select: { transactionId: true },
       take: 20000,
     }),

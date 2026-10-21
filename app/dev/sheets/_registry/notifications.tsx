@@ -189,15 +189,15 @@ const AUTOMATION_BANNER_HEALTHY: AutomationBannerData = {
   activeFiles: 24,
   automationPaused: false,
   nextSendAt: D("2026-09-03T14:30:00Z"),
-  chasingTodayCount: 7,
-  chasingTodayFiles: 5,
+  sentToday: 7,
+  stillToGoToday: 2,
 };
 const AUTOMATION_BANNER_PAUSED: AutomationBannerData = {
   activeFiles: 24,
   automationPaused: true,
   nextSendAt: null,
-  chasingTodayCount: 0,
-  chasingTodayFiles: 0,
+  sentToday: 0,
+  stillToGoToday: 0,
 };
 
 const NEEDS_ATTENTION_EMPTY: NeedsAttention = {
