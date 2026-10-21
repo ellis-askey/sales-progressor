@@ -1,15 +1,32 @@
 # Auto emails page — audit + upgrade plan
 
-Status: APPROVED (founder "Proceed", 2026-10-21). Phase 1 (truth pass) BUILT
-2026-10-21 — one problem definition everywhere (banner = needs-attention =
-Problems tab, incl. a missing-emails strip on the tab), 3-state banner
-(paused / needs attention / healthy), "Sent today N · still to go M" replaces
-the misleading "Chasing today", Issues KPI tile removed from the activity
-strip, Upcoming/Files tab counts always computed, honest admin subtitle,
-"Updated HH:MM · refreshes itself" with a 2-minute self-refresh, DST-correct
-London "today" (lib/utils londonDayBounds) across overview/list/preview.
-Phases 2-5 not started; 4-section shape (Outbox / History / Problems /
-Insights) taken as approved by the same "Proceed".
+Status: ALL FIVE PHASES BUILT 2026-10-21 (founder "Proceed" on the plan, then
+"proceed through phase 2-5, no corner cutting"). Staging, unpushed. Commits:
+  P1 a4dad287 — truth pass (one problem number, 3-state banner, sent today /
+     still to go, always-on tab counts, self-refresh, DST-correct today,
+     honest admin subtitle)
+  P2 9283f36d — the Outbox: 4 sections (Outbox / History / Problems /
+     Insights), day-by-day schedule, TRUE previews of predicted emails via
+     previewChaseEmailAction, shared EmailFeedRow + one CategoryChip,
+     legacy-tab deep-link mapping, UpcomingView retired
+  P3 0207d595 — controls: Move a queued send (movePendingEmail, atomic) and
+     Move a predicted chase (rescheduleChaseThreadAction) from the drawer;
+     per-file Pause/Resume on the Insights file rows; solicitor send mirror
+     now writes on agent-less files (History gap closed)
+  P4 887d14a1 — polish: one-row filter bar (width:100% stacking bug),
+     library buttons everywhere, shared chip adopted by Still-to-send,
+     canonical popover shadow, on-coral dot hexes documented deliberate
+  P5 f3e28bf2 — guardrails: prediction fan-out in waves of 8 capped at 300
+     files with a visible "floor, not total" note; 20k/200 row caps surface
+     as "N+" / "at least" instead of truncating silently
+
+Deliberately NOT done (grandfathered with reasons): the coverage donut stays
+conic-gradient (fully tokenised, audited fine); "(no subject)"/"(unknown
+file)" placeholders kept (honest data-gap labels); period picker on History
+stays 30d via the activity period control. Follow-ups if ever needed: export
+of the Outbox view exports the queue slice only (predictions are synthetic);
+solicitor sends still cannot be edited/cancelled (they send synchronously —
+nothing queued to intercept; Move covers the next one via the chase hold).
 Route: /agent/automated-emails. Audit evidence gathered from the live services
 (lib/services/automated-emails-*) and components; file:line detail lives in the
 audit transcript; this doc is the founder-approved shape for the build arc.
