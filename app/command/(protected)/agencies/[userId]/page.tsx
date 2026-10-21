@@ -4,40 +4,9 @@ import { getAgentDetail } from "@/lib/command/usage";
 import { AgentPhotoManager } from "@/components/command/agents/AgentPhotoManager";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { getAgencyLogoUrl } from "@/lib/supabase-storage";
-
-function fmtDuration(seconds: number): string {
-  if (seconds <= 0) return "0m";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  return `${m}m`;
-}
-function fmtHoursShort(seconds: number): string {
-  const h = seconds / 3600;
-  if (h >= 10) return `${Math.round(h)}h`;
-  if (h >= 1) return `${h.toFixed(1)}h`;
-  const m = Math.round(seconds / 60);
-  return m > 0 ? `${m}m` : "0";
-}
-function fmtRelative(d: Date | null): string {
-  if (!d) return "never";
-  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
-  if (days >= 2) return `${days} days ago`;
-  if (days === 1) return "yesterday";
-  const hrs = Math.floor((Date.now() - new Date(d).getTime()) / 3_600_000);
-  if (hrs >= 1) return `${hrs}h ago`;
-  return "just now";
-}
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/);
-  return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
-}
-const AV_COLORS = ["#8b9dff", "#34d399", "#e0a44a", "#f0716f", "#c084fc", "#38bdf8"];
-function avColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AV_COLORS[h % AV_COLORS.length];
-}
+// Shared CC formatters (PR3): this page's copies had drifted from the list's
+// (zero duration read "0m" here, "—" there). The shared versions win.
+import { fmtDuration, fmtHoursShort, fmtRelative, initials, avColor } from "@/lib/command/format";
 
 export default async function AgentDetailPage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
