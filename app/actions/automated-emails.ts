@@ -12,6 +12,8 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { prisma } from "@/lib/prisma";
 import { sendChainEmail, isUserEmailSuppressed, isContactEmailSuppressed } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
+import { rollToWorkingDay } from "@/lib/emails/working-hours";
+import { toUKDateStr } from "@/lib/utils";
 
 export type PendingActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -212,6 +214,31 @@ export async function getMessageForPreview(messageId: string): Promise<
 // removes the row from the send path without a chance of it also sending. If
 // the row already sent (or was already cancelled) the updateMany matches 0
 // rows and we report that truthfully — no false "cancelled".
+// Move a still-pending queued email to a chosen day (upgrade phase 3). Atomic
+// on (sentAt null, errorAt null) so a row the drain has already sent or a
+// teammate has cancelled can't be moved. Weekend picks roll forward — the
+// drain only sends in working hours, so the stored date matches the real send
+// day. Stored as midnight UTC of the chosen day: before the UK morning drain
+// in both GMT and BST.
+export async function movePendingEmail(emailId: string, dateISO: string): Promise<PendingActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const txId = await scopedTransactionIdForEmail(emailId, scope);
+  if (!txId) return { ok: false, error: "You don't have permission to change this email." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return { ok: false, error: "Pick a date." };
+  if (dateISO <= toUKDateStr(new Date())) return { ok: false, error: "Pick a date from tomorrow onwards." };
+
+  const when = rollToWorkingDay(new Date(`${dateISO}T00:00:00Z`));
+  const res = await prisma.outboundEmailQueue.updateMany({
+    where: { id: emailId, sentAt: null, errorAt: null },
+    data: { scheduledFor: when },
+  });
+  if (res.count === 0) return { ok: false, error: "This email has already been sent or cancelled." };
+  revalidatePath("/agent/automated-emails");
+  revalidatePath(`/agent/transactions/${txId}`);
+  return { ok: true, message: `Moved to ${when.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}` };
+}
+
 export async function cancelPendingEmail(emailId: string): Promise<PendingActionResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);

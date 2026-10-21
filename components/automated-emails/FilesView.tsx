@@ -1,13 +1,20 @@
 "use client";
 
-// Files tab — one row per active file, the coverage donut expanded into a
-// working list. Where the feed is per-email, this is per-file: its automation
-// status, what's queued on it, and whether anything's failing. Attention-first
-// ordering comes from the service. Each row opens the file.
+// Files view (Insights) — one row per active file, the coverage donut expanded
+// into a working list. Where the feed is per-email, this is per-file: its
+// automation status, what's queued on it, and whether anything's failing.
+// Attention-first ordering comes from the service. The address opens the file;
+// file-level automation can be paused/resumed right here (upgrade phase 3) —
+// the same switch the file page has, so no trip to the file just to pause it.
+// Agency-wide and platform-wide pauses can't be lifted from here and say so.
 
 import Link from "next/link";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Pill } from "@/components/ui/Pill";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useAgentToast } from "@/components/agent/AgentToaster";
+import { pauseClientEmails, resumeClientEmails } from "@/app/actions/automation";
 import type { FileAutomationRow, FileCoverageStatus } from "@/lib/services/automated-emails-coverage";
 
 const STATUS_META: Record<FileCoverageStatus, { label: string; tone: "success" | "warning" | "muted" }> = {
@@ -38,35 +45,72 @@ export function FilesView({ rows }: { rows: FileAutomationRow[] }) {
 
   return (
     <div className="space-y-1">
-      {rows.map((r) => {
-        const meta = STATUS_META[r.status];
-        return (
-          <Link
-            key={r.txId}
-            href={`/agent/transactions/${r.txId}`}
-            className="agent-email-feed-row w-full text-left flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
-            style={{ padding: "10px 12px", borderRadius: 8, border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass, transparent)" }}
-          >
-            <div className="min-w-0 flex-1">
-              <span style={{ fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {r.address}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
-                {r.pendingCount > 0 ? `${r.pendingCount} queued · ${nextLabel(r.nextSendAt)}` : "Nothing queued"}
-              </span>
-            </div>
+      {rows.map((r) => <FileRow key={r.txId} row={r} />)}
+    </div>
+  );
+}
 
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              {r.issuesCount > 0 && (
-                <Pill glass tone="danger" size="sm">{r.issuesCount} {r.issuesCount === 1 ? "issue" : "issues"}</Pill>
-              )}
-              <Pill glass tone={meta.tone} size="sm">
-                {r.status === "paused" && r.pauseReason ? PAUSE_LABEL[r.pauseReason] : meta.label}
-              </Pill>
-            </span>
-          </Link>
-        );
-      })}
+function FileRow({ row: r }: { row: FileAutomationRow }) {
+  const { toast } = useAgentToast();
+  const router = useRouter();
+  const [acting, startActing] = useTransition();
+  // Optimistic local flip so the row answers immediately; the refresh confirms.
+  const [localPaused, setLocalPaused] = useState<boolean | null>(null);
+
+  const filePaused = localPaused ?? (r.status === "paused" && r.pauseReason === "file");
+  const lockedPause = r.status === "paused" && (r.pauseReason === "global" || r.pauseReason === "agency");
+  const meta = filePaused ? STATUS_META.paused : lockedPause ? STATUS_META.paused : STATUS_META[r.status === "paused" ? "covered" : r.status];
+
+  function toggle() {
+    startActing(async () => {
+      const res = filePaused ? await resumeClientEmails(r.txId) : await pauseClientEmails(r.txId);
+      if (res.ok) {
+        setLocalPaused(!filePaused);
+        toast.success(filePaused ? "Automation resumed on this file" : "Automation paused on this file");
+        router.refresh();
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  return (
+    <div
+      className="agent-email-feed-row w-full flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
+      style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-md, 8px)", border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass, transparent)" }}
+    >
+      <div className="min-w-0 flex-1">
+        <Link
+          href={`/agent/transactions/${r.txId}`}
+          className="agent-link"
+          style={{ fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          {r.address}
+        </Link>
+        <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
+          {r.pendingCount > 0 ? `${r.pendingCount} queued · ${nextLabel(r.nextSendAt)}` : "Nothing queued"}
+        </span>
+      </div>
+
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        {r.issuesCount > 0 && (
+          <Pill glass tone="danger" size="sm">{r.issuesCount} {r.issuesCount === 1 ? "problem" : "problems"}</Pill>
+        )}
+        <Pill glass tone={filePaused || lockedPause ? "muted" : meta.tone} size="sm">
+          {filePaused ? PAUSE_LABEL.file : lockedPause && r.pauseReason ? PAUSE_LABEL[r.pauseReason] : meta.label}
+        </Pill>
+        {!lockedPause && (
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={acting}
+            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+            title={filePaused ? "Resume automated emails on this file" : "Pause automated emails on this file"}
+          >
+            {acting ? "…" : filePaused ? "Resume" : "Pause"}
+          </button>
+        )}
+      </span>
     </div>
   );
 }
