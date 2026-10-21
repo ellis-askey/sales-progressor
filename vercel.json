@@ -5,7 +5,7 @@
   "crons": [
     {
       "path": "/api/reminders/run",
-      "schedule": "0 4 * * 1-6"
+      "schedule": "0 4 * * 1-5"
     },
     {
       "path": "/api/cron/business-billing",
@@ -133,7 +133,7 @@
     },
     {
       "path": "/api/cron/client-chase",
-      "schedule": "30 9 * * 1-6"
+      "schedule": "30 9 * * 1-5"
     },
     {
       "path": "/api/cron/solicitor-chase",

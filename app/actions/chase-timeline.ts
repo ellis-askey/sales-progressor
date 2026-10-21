@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { rollToWorkingDay } from "@/lib/emails/working-hours";
 import { setChaseOverride, clearChaseOverride, targetKeyFor } from "@/lib/services/chase-overrides";
 import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
@@ -97,6 +98,9 @@ export async function skipChaseThreadAction(input: {
 // The raise-chase lane has no hold field, so it isn't moveable (the UI doesn't
 // offer it there). Stored as midnight UTC of the chosen day: that's before the
 // UK morning runs in both GMT and BST, so the chase fires on the chosen day.
+// Weekend/bank-holiday picks roll forward to the next working day (critique
+// #281, business-days step 2) — the senders only run Mon-Fri, so the stored
+// hold matches the day the chase will actually fire.
 export async function rescheduleChaseThreadAction(input: {
   transactionId: string;
   target: TargetInput;
@@ -110,7 +114,7 @@ export async function rescheduleChaseThreadAction(input: {
   if (input.dateISO <= toUKDateStr(new Date())) {
     return { ok: false, error: "Pick a date from tomorrow onwards." };
   }
-  const hold = new Date(`${input.dateISO}T00:00:00Z`);
+  const hold = rollToWorkingDay(new Date(`${input.dateISO}T00:00:00Z`));
   const movedBy = `Next chase moved by ${session.user.name ?? "the team"}`;
   const target = input.target;
 

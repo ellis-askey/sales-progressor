@@ -39,13 +39,12 @@ describe("classifyReminder buckets", () => {
     expect(classifyReminder(log({ nextDueDate: new Date("2026-10-22T05:00:00.000Z") }), NOW)).toBe("upcoming");
   });
 
-  it("CURRENT BEHAVIOUR — changes in Step 2/3: a reminder due on SATURDAY buckets like any other day", () => {
-    // Saturday 24 Oct: upcoming on Wednesday…
+  it("bucketing stays purely date-based — a (legacy) Saturday due date still buckets like any other day", () => {
+    // Step 2 stops the engine WRITING weekend due dates, but classification
+    // deliberately has no working-day opinion of its own: a pre-step-2 row
+    // with a stored Saturday date still surfaces rather than vanishing.
     const satLog = log({ nextDueDate: new Date("2026-10-24T05:00:00.000Z") });
     expect(classifyReminder(satLog, NOW)).toBe("upcoming");
-    // …and due_today when "now" is that Saturday — the engine has no concept
-    // of a non-working day. Step 2 stops due dates LANDING on Saturdays; this
-    // bucket logic itself stays date-based.
     expect(classifyReminder(satLog, new Date("2026-10-24T09:00:00.000Z"))).toBe("due_today");
   });
 

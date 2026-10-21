@@ -3,7 +3,8 @@
 // Splits each reminder into "the system is chasing this" (auto, with a next-send
 // time) vs "only the agent can move this" (manual, with a reason). Mirrors the
 // two send crons' eligibility so the split + countdown are truthful:
-//   client cron    09:30 UTC Mon–Sat   (CLIENT_CHASE_ENABLED)
+//   client cron    09:30 UTC Mon–Fri   (CLIENT_CHASE_ENABLED; Mon–Sat until
+//                                       critique #281 business-days step 2)
 //   solicitor cron 09:00 UTC Mon–Fri   (SolicitorChaseSettings.enabledByDefault)
 // Both sweep everything due/overdue on their next run, so next-send = the next
 // cron run at/after the row's due date. (Precise for due/overdue rows — the ones
@@ -69,7 +70,7 @@ interface LogShape {
   };
 }
 
-export const CLIENT_CRON = { hour: 9, minute: 30, days: [1, 2, 3, 4, 5, 6] }; // Mon–Sat
+export const CLIENT_CRON = { hour: 9, minute: 30, days: [1, 2, 3, 4, 5] }; // Mon–Fri — must match vercel.json /api/cron/client-chase
 const SOLICITOR_CRON = { hour: 9, minute: 0, days: [1, 2, 3, 4, 5] }; // Mon–Fri
 
 // Exported so the auto-chase preview can group sibling chases by the same send

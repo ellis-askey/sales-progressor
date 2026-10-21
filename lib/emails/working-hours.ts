@@ -159,6 +159,22 @@ export function addWorkingDays(from: Date, n: number): Date {
 }
 
 /**
+ * Rolls a date FORWARD to the next working day (weekends + E&W bank holidays),
+ * preserving the time of day. Already-working days pass through unchanged.
+ * The reminder engine wraps every stored due/wake date in this (critique #281,
+ * business-days step 2) so nothing lands due on a weekend; the actual sends
+ * are separately gated by the Mon-Fri cron schedules. Bounded like the other
+ * walkers so a malformed holiday table can't loop.
+ */
+export function rollToWorkingDay(d: Date): Date {
+  let cursor = new Date(d);
+  for (let i = 0; i < 14 && !isWorkingDay(cursor); i++) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return cursor;
+}
+
+/**
  * Returns the deliver-at instant for a transactional client send.
  *   - Inside working hours (Mon–Fri 09:00–17:00 London, non-bank-holiday)
  *     → returns `now` unchanged. Drain runs hourly and will pick it up

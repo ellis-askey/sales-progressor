@@ -15,6 +15,8 @@
 // finished (stalled after one chase). Mirrors the cron's escalation triggers
 // (lib/services/client-chase-cron.ts) so the read side and the cron agree.
 
+import { rollToWorkingDay } from "@/lib/emails/working-hours";
+
 export const CHASE_HANDOVER_CAP = 2; // matches CLIENT_CHASE_COUNT_CAP
 export const CHASE_HANDOVER_SILENCE_DAYS = 14; // no progress this long → hand over
 export const CHASE_HANDOVER_LEAD_DAYS = 3; // show in "Coming up" this many days early
@@ -80,7 +82,9 @@ export function chaseHandoverDate(
   const silenceAnchor = laterOf(s.firstChasedAt, s.lastEngagedAt, s.lastManualChaseAt) ?? s.firstChasedAt;
   dates.push(addDays(silenceAnchor, CHASE_HANDOVER_SILENCE_DAYS));
 
-  return dates.reduce((min, d) => (d < min ? d : min));
+  // Hand-overs land on working days (critique #281, business-days step 2) —
+  // "Needs you" never gains a row on a Saturday.
+  return rollToWorkingDay(dates.reduce((min, d) => (d < min ? d : min)));
 }
 
 export type HandoverPhase = "now" | "soon" | null;

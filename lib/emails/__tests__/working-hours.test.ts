@@ -14,7 +14,7 @@
  * December is GMT (London = UTC+0).
  */
 
-import { addWorkingDays, deliverAtInsideWorkingWindow, __test__ } from "@/lib/emails/working-hours";
+import { addWorkingDays, deliverAtInsideWorkingWindow, rollToWorkingDay, __test__ } from "@/lib/emails/working-hours";
 
 const { isWorkingDay, nextWorkingDayAt9am, BANK_HOLIDAYS } = __test__;
 const iso = (d: Date) => d.toISOString();
@@ -54,6 +54,23 @@ describe("addWorkingDays", () => {
   it("skips the Christmas cluster (weekend + two bank holidays)", () => {
     // Wed 23 Dec + 2 working days: 24th counts (1), 25/26/27/28 skip, 29th counts (2).
     expect(iso(addWorkingDays(new Date("2026-12-23T10:00:00.000Z"), 2))).toBe("2026-12-29T10:00:00.000Z");
+  });
+});
+
+describe("rollToWorkingDay (the step-2 weekend roll, critique #281)", () => {
+  it("working days pass through unchanged, time preserved", () => {
+    expect(iso(rollToWorkingDay(new Date("2026-10-21T10:30:00.000Z")))).toBe("2026-10-21T10:30:00.000Z"); // Wednesday
+  });
+  it("Saturday and Sunday roll to Monday, time preserved", () => {
+    expect(iso(rollToWorkingDay(new Date("2026-10-24T00:00:00.000Z")))).toBe("2026-10-26T00:00:00.000Z");
+    expect(iso(rollToWorkingDay(new Date("2026-10-25T10:00:00.000Z")))).toBe("2026-10-26T10:00:00.000Z");
+  });
+  it("rolls past the Christmas cluster to the 29th", () => {
+    // 25 Dec (BH) → 26 Sat → 27 Sun → 28 (BH) → 29 Tue; a 26 Dec landing
+    // rolls to the same place — rolling finds the NEXT working day, it
+    // doesn't count days.
+    expect(iso(rollToWorkingDay(new Date("2026-12-25T06:00:00.000Z")))).toBe("2026-12-29T06:00:00.000Z");
+    expect(iso(rollToWorkingDay(new Date("2026-12-26T06:00:00.000Z")))).toBe("2026-12-29T06:00:00.000Z");
   });
 });
 

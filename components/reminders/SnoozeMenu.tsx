@@ -23,11 +23,15 @@ export interface SnoozeChoice {
   reason: string | null;
 }
 
+// Day-based labels (critique #281): the wake maths always lands at 06:00 UK on
+// the target morning (and rolls off weekends/bank holidays), so hour labels
+// ("24 h") described something that never literally happened. The hour values
+// stay as the wire format — snoozeReminderLog turns them into mornings.
 const QUICK = [
-  { label: "24 h", hours: 24 },
-  { label: "48 h", hours: 48 },
-  { label: "72 h", hours: 72 },
-  { label: "7 days", hours: 168 },
+  { label: "Tomorrow", hours: 24 },
+  { label: "In 2 days", hours: 48 },
+  { label: "In 3 days", hours: 72 },
+  { label: "Next week", hours: 168 },
 ];
 
 // Estimated popover height, used only to decide whether it opens above or below
@@ -183,8 +187,11 @@ export function SnoozeMenu({
               onChange={(e) => { setDateVal(e.target.value); setHours(null); }}
               className="agent-input agent-input-sm"
               style={{ width: "100%", fontSize: 12 }}
-              wrapperStyle={{ marginBottom: 8 }}
+              wrapperStyle={{ marginBottom: 6 }}
             />
+            <p style={{ margin: "0 0 8px", fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+              Comes back at 6am on a working day.
+            </p>
 
             {/* Optional reason */}
             <textarea

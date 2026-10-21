@@ -89,18 +89,17 @@ describe("chaseHandoverDate with manual chases", () => {
     expect(floored?.toISOString()).toBe("2026-10-29T08:00:00.000Z");
   });
 
-  it("CURRENT BEHAVIOUR — changes in Step 2/3: the hand-over date can land on a weekend", () => {
-    // Last chase Monday 19 Oct + 5-day repeat = Saturday 24 Oct. (First chase
-    // 12 Oct keeps the 14-day silence backstop at the 26th, so the cap path is
-    // the earlier one and wins.) The work queue would surface this on a
-    // Saturday; the business-days work moves it.
+  it("STEP 2 BEHAVIOUR: a weekend hand-over rolls to Monday — Needs you never gains a row on a Saturday", () => {
+    // Last chase Monday 19 Oct + 5-day repeat = Saturday 24 Oct, rolled to
+    // Monday 26 Oct. (First chase 12 Oct keeps the 14-day silence backstop at
+    // the 26th too — equal after the roll, so the value itself is pinned.)
     const d = chaseHandoverDate(
       { chaseCount: 2, firstChasedAt: new Date("2026-10-12T09:00:00.000Z"), lastChasedAt: new Date("2026-10-19T09:00:00.000Z"), lastEngagedAt: null },
       5,
       new Date("2026-10-30T09:00:00.000Z"),
     );
-    expect(d?.toISOString()).toBe("2026-10-24T09:00:00.000Z");
-    expect(d?.getUTCDay()).toBe(6); // Saturday
+    expect(d?.toISOString()).toBe("2026-10-26T09:00:00.000Z");
+    expect(d?.getUTCDay()).toBe(1); // Monday
   });
 
   it("honours a custom per-rule escalate cap", () => {

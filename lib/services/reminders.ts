@@ -9,6 +9,7 @@ import { createCommunicationRecord } from "@/lib/services/comms";
 import type { AgentVisibility } from "@/lib/services/agent";
 import { scopeOwnershipWhere, scopeChaseTaskWhere, scopeReminderLogWhere, type AccessScope } from "@/lib/security/access-scope";
 import { toUKDateStr } from "@/lib/utils";
+import { rollToWorkingDay } from "@/lib/emails/working-hours";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
@@ -1084,7 +1085,10 @@ export async function evaluateTransactionReminders(
     // the chase weeks after the results were due). Otherwise the rule's normal
     // grace applies. Repeat + escalate are the rule's usual values either way.
     const graceForDue = expectedDateAnchored ? EXPECTED_DATE_GRACE_DAYS : rule.graceDays;
-    let firstDueDate = setUkChaseTime(addDays(anchorDate, graceForDue));
+    // Business-days step 2 (critique #281): a due date landing on a weekend or
+    // bank holiday rolls forward to the next working day — grace still counts
+    // calendar days, nothing just becomes DUE on a Saturday.
+    let firstDueDate = setUkChaseTime(rollToWorkingDay(addDays(anchorDate, graceForDue)));
 
     // Find existing active log (Phase 4: served from the pre-loop snapshot;
     // see the batching comment above the loop for the safety argument).
@@ -1508,8 +1512,9 @@ export async function applyChaseToTask(
   const raw = new Date(base);
   raw.setDate(raw.getDate() + repeatDays);
   // Normalise to 06:00 UK on the resulting calendar day so the next chase
-  // is live before the working day starts.
-  const nextDue = setUkChaseTime(raw);
+  // is live before the working day starts; weekend/bank-holiday landings roll
+  // forward to the next working day (critique #281, business-days step 2).
+  const nextDue = setUkChaseTime(rollToWorkingDay(raw));
 
   await prisma.$transaction([
     prisma.chaseTask.update({
@@ -1672,7 +1677,10 @@ export async function snoozeReminderLog(
   const base = wake.untilISO
     ? new Date(`${wake.untilISO.slice(0, 10)}T12:00:00Z`)
     : new Date(Date.now() + (wake.hours ?? 24) * 60 * 60 * 1000);
-  const snoozedUntil = setUkChaseTime(base);
+  // Wakes never land on a weekend or bank holiday — a Friday "tomorrow" snooze
+  // comes back Monday morning (critique #281, business-days step 2). Applies to
+  // picked dates too: picking a Saturday wakes the following Monday.
+  const snoozedUntil = setUkChaseTime(rollToWorkingDay(base));
 
   await prisma.chaseTask.update({
     where: { id: taskId },
