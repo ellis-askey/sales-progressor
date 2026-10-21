@@ -94,6 +94,12 @@ export type EmailRow = {
   errorMessage: string | null;
   chaseNumber?: number;        // upcoming only — "chase X of 2"
   bundleCount?: number;        // milestone digests: N updates delivered as 1 email
+  // Predicted rows only (upgrade phase 2): the identity previewChaseEmailAction
+  // needs to compose the real email this prediction will send — powers the
+  // true-to-send preview and the move-the-chase control in the drawer.
+  predictedTarget?:
+    | { kind: "client"; contactId: string; milestoneCode: string }
+    | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string };
 };
 
 export type EmailListResponse = {
@@ -546,6 +552,32 @@ export async function getSendingToday(input: EmailScopeInput, limit = 8): Promis
   });
 }
 
+// ── Sent today (Outbox) ──────────────────────────────────────────────────────
+//
+// Everything that actually went out today (queue + solicitor, digest-collapsed),
+// oldest first — the top of the Outbox schedule. Distinct from getSendingToday,
+// which is the REMAINING queue for today.
+export async function getSentTodayRows(input: EmailScopeInput): Promise<EmailRow[]> {
+  const { txIds, txAddressById, queueScope, solicitorScope } = await resolveEmailScope(input);
+  if (txIds.length === 0) return [];
+  const { start } = londonDayBounds();
+
+  const [queueRows, messageRows] = await Promise.all([
+    prisma.outboundEmailQueue.findMany({
+      where: { ...queueScope, sentAt: { gte: start } },
+      select: queueRowSelect, orderBy: { sentAt: "asc" }, take: 500,
+    }),
+    prisma.outboundMessage.findMany({
+      where: { ...solicitorScope, sentAt: { gte: start } },
+      select: messageRowSelect, orderBy: { sentAt: "asc" }, take: 500,
+    }),
+  ]);
+  return [
+    ...mapQueueRowsCollapsed(queueRows, "sent", (r) => r.sentAt, txAddressById),
+    ...messageRows.map((m) => mapMessageRow(m, "sent", txAddressById)),
+  ].sort((a, b) => (a.sentAt?.getTime() ?? 0) - (b.sentAt?.getTime() ?? 0));
+}
+
 // Upcoming = predictions (client chases only in this feed; solicitor prediction
 // + "automation exhausted" live in the Upcoming forecast). Filters are applied
 // in memory — predictions are synthetic, not DB rows.
@@ -598,6 +630,7 @@ async function buildUpcomingRows(
         errorAt: null,
         errorMessage: null,
         chaseNumber: u.chaseNumber,
+        predictedTarget: { kind: "client", contactId: u.contactId, milestoneCode: u.milestoneCode },
       }));
   });
   rows.sort((a, b) => (a.scheduledFor?.getTime() ?? 0) - (b.scheduledFor?.getTime() ?? 0));
