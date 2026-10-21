@@ -13,7 +13,14 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import type { PillProps } from "@/components/ui/Pill";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
-import { NEEDS_ATTENTION_PANEL_CAP, type NeedsAttention, type NeedsAttentionItem, type IssueStatus } from "@/lib/services/automated-emails-overview";
+import type { NeedsAttention, NeedsAttentionItem, IssueStatus } from "@/lib/services/automated-emails-overview";
+
+// Display cap for this compact panel — the Problems tab shows the full list.
+// Deliberately a LOCAL constant: importing a runtime value from the overview
+// service would pull that server-only module (next/headers via the access
+// scope) into the client bundle and break the whole page. Type imports above
+// are erased at build time and safe.
+const NEEDS_ATTENTION_PANEL_CAP = 25;
 
 type Tone = NonNullable<PillProps["tone"]>;
 

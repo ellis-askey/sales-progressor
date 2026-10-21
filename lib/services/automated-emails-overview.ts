@@ -285,9 +285,9 @@ export type NeedsAttention = {
   truncated: boolean;
 };
 
-// Display cap for the compact panel — the Problems tab shows the full list, so
-// the service returns everything and the PANEL slices (truth pass 2026-10-21).
-export const NEEDS_ATTENTION_PANEL_CAP = 25;
+// The compact panel caps its own display (NeedsAttentionPanel keeps a local
+// copy of the cap — a runtime import from this server-only module would break
+// the client bundle). The service returns the FULL list.
 
 const EMPTY_BY_STATUS = (): Record<IssueStatus, number> =>
   ({ bounced: 0, blocked: 0, missing: 0, failed: 0, errored: 0, deferred: 0 });
