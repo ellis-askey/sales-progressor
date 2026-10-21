@@ -6,6 +6,7 @@ import { computeTodayLive } from "@/lib/command/today-live";
 import { getBusinessesPulse, getBusinessNameMap } from "@/lib/command/businesses";
 import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
+import { displayFor, SEVERITY_MEANING } from "@/lib/command/signal-display";
 import WhatChanged from "@/components/command/shared/WhatChanged";
 import InfoTip from "@/components/command/shared/InfoTip";
 import AutoRefresh from "@/components/command/shared/AutoRefresh";
@@ -124,11 +125,11 @@ export default async function OverviewPage({
   ] = await Promise.all([
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: last7Start, lt: todayKey }, ...txScope },
-      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
+      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, transactionsExchanged: true },
     }),
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: prior7Start, lt: last7Start }, ...txScope },
-      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, aiDraftsGenerated: true },
+      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, transactionsExchanged: true },
     }),
     commandDb.dailyMetric.aggregate({
       where: { date: { gte: last7Start, lt: todayKey }, ...userScope },
@@ -142,10 +143,11 @@ export default async function OverviewPage({
     // yesterday, so a "today" rollup row never exists during the day).
     computeTodayLive(mode, agencyIds),
     // Signal health = situations open right now (living signals: unresolved,
-    // not snoozed), not a rolling count of nightly rows.
+    // not snoozed, not yet acknowledged — same filter as the Briefing tally,
+    // so the badge number matches the list it links to).
     commandDb.signal.groupBy({
       by: ["severity"],
-      where: { resolvedAt: null, OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
+      where: { acknowledged: false, resolvedAt: null, OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
       _count: { id: true },
     }),
     commandDb.signal.findMany({
@@ -366,9 +368,13 @@ export default async function OverviewPage({
   }[] = [
     { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true, href: `/command/agencies?since=7d${scopeQs}` },
     { label: "Transactions created", metric: "transactions", curr: (currentTx._sum.transactionsCreated ?? 0)  + today.transactionsCreated, prev: previousTx._sum.transactionsCreated ?? 0,  good: true, href: "/command/files?created=7d" },
-    { label: "Milestones confirmed", metric: "milestones",   curr: (currentTx._sum.milestonesConfirmed ?? 0)  + today.milestonesConfirmed, prev: previousTx._sum.milestonesConfirmed ?? 0,  good: true },
-    { label: "Chases sent",          metric: "chases",       curr: (currentTx._sum.chasesSent ?? 0)           + today.chasesSent,          prev: previousTx._sum.chasesSent ?? 0,           good: true },
-    { label: "AI drafts generated",  metric: "ai_drafts",    curr: (currentTx._sum.aiDraftsGenerated ?? 0)    + today.aiDraftsGenerated,   prev: previousTx._sum.aiDraftsGenerated ?? 0,    good: true },
+    { label: "Milestones confirmed", metric: "milestones",   curr: (currentTx._sum.milestonesConfirmed ?? 0)  + today.milestonesConfirmed, prev: previousTx._sum.milestonesConfirmed ?? 0,  good: true, href: `/command/activity${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
+    { label: "Chases sent",          metric: "chases",       curr: (currentTx._sum.chasesSent ?? 0)           + today.chasesSent,          prev: previousTx._sum.chasesSent ?? 0,           good: true, href: `/command/outbound?from=${last7Start.toISOString().slice(0, 10)}${scopeQs}` },
+    // Exchanges replaced the "AI drafts" tile: AI drafts counted every
+    // AI-generated outbound message (overlapping Chases) with no destination,
+    // while exchanges — the number the business runs on — was computed nightly
+    // and shown nowhere.
+    { label: "Exchanges",            metric: "exchanges",    curr: (currentTx._sum.transactionsExchanged ?? 0) + today.transactionsExchanged, prev: previousTx._sum.transactionsExchanged ?? 0, good: true, href: `/command/revenue${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
   ];
 
   // Merge the two scoped row sets into one fixed 7-day series. Under an agency
@@ -428,8 +434,8 @@ export default async function OverviewPage({
           Platform{modeLabel} — last 7 days vs prior 7 days
           <InfoTip label="How the 7-day totals are counted">
             Last 7 days includes today live plus the six completed days before it,
-            compared against the seven days before that. Internal test files are
-            left out.
+            compared against the seven days before that. Internal, demo and
+            migrated files are left out.
           </InfoTip>
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -601,17 +607,18 @@ export default async function OverviewPage({
             </InfoTip>
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 flex items-center gap-4">
+            <Link href="/command/files?att=idle" className="px-5 py-4 flex items-center gap-4 group hover:bg-neutral-800/40 transition-colors">
               <span className={`text-4xl font-bold tabular-nums ${stuckCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                 {stuckCount}
               </span>
               <div>
                 <p className="text-xs text-neutral-300 font-medium">
                   {stuckCount === 1 ? "transaction" : "transactions"} with no movement
+                  <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>
                 </p>
                 <p className="text-[11px] text-neutral-500 mt-0.5">active/on-hold, {STUCK_DAYS}+ days without a milestone</p>
               </div>
-            </div>
+            </Link>
             {stuckList.length > 0 && (
               <div className="border-t border-neutral-800 divide-y divide-neutral-800 max-h-72 overflow-y-auto">
                 {stuckList.map((t) => {
@@ -851,6 +858,7 @@ export default async function OverviewPage({
             <Link
               key={sev}
               href={`/command/insights?sev=${sev}`}
+              title={SEVERITY_MEANING[sev]}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-opacity hover:opacity-80 ${SEVERITY_BADGE[sev]}`}
             >
               <span className="tabular-nums font-bold">{signalByKey[sev] ?? 0}</span>
@@ -870,19 +878,27 @@ export default async function OverviewPage({
             <div className="divide-y divide-neutral-800">
               {unacknowledgedSignals.map((s) => {
                 const payload = s.payload as Record<string, unknown>;
+                // Plain-English title + per-signal deep link from the same
+                // display layer the Briefing uses (these were raw detector
+                // slugs in unclickable rows before).
+                const d = displayFor(s.detectorName);
                 return (
-                  <div key={s.id} className="px-4 py-3 flex items-start gap-3">
+                  <Link
+                    key={s.id}
+                    href={d.href(payload) ?? "/command/insights"}
+                    className="px-4 py-3 flex items-start gap-3 hover:bg-neutral-800/40 transition-colors"
+                  >
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
                       {s.severity}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-neutral-200">{s.detectorName.replace(/_/g, " ")}</p>
+                      <p className="text-xs font-medium text-neutral-200 truncate">{d.title(payload)}</p>
                       <p className="text-xs text-neutral-500 truncate">
-                        {Math.round(s.confidence * 100)}% conf · {fmtDate(s.detectedAt)}
-                        {payload.indicator ? ` · ${payload.indicator}` : ""}
+                        {d.group} · {Math.round(s.confidence * 100)}% confidence · {fmtDate(s.detectedAt)}
                       </p>
                     </div>
-                  </div>
+                    <span className="shrink-0 text-neutral-600 self-center">→</span>
+                  </Link>
                 );
               })}
             </div>
@@ -892,23 +908,24 @@ export default async function OverviewPage({
         )}
       </section>
 
-      {/* Experiments */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Experiments</h2>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2">
-          <div className="flex items-center justify-between py-0.5">
-            <span className="text-sm text-neutral-300">Active</span>
-            <span className="text-lg font-bold text-white">{activeExperimentsCount}</span>
-          </div>
-          <div className="flex items-center justify-between py-0.5">
-            <span className="text-sm text-neutral-300">Proposed</span>
-            <span className="text-lg font-bold text-white">{proposedExperimentsCount}</span>
-          </div>
-          <Link href="/command/experiments" className="block pt-2 text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
-            Manage experiments →
+      {/* Growth tests — one line, only when there's something to say. The full
+          picture (cards, hypotheses, suggestions) is the Growth tests page;
+          repeating its counts in a zero-state card said nothing. */}
+      {activeExperimentsCount + proposedExperimentsCount > 0 && (
+        <section>
+          <Link
+            href="/command/experiments"
+            className="flex items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-3.5 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
+          >
+            <span className="text-sm text-neutral-300">
+              Growth tests:{" "}
+              <span className="font-bold text-white tabular-nums">{activeExperimentsCount}</span> running ·{" "}
+              <span className="font-bold text-white tabular-nums">{proposedExperimentsCount}</span> proposed
+            </span>
+            <span className="text-neutral-600">→</span>
           </Link>
-        </div>
-      </section>
+        </section>
+      )}
 
     </div>
   );

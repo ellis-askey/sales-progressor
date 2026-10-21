@@ -24,6 +24,7 @@ export interface TodayLive {
   milestonesConfirmed: number;
   chasesSent: number;
   aiDraftsGenerated: number;
+  transactionsExchanged: number;
   signups: number;
 }
 
@@ -33,6 +34,7 @@ function pick(m: MetricValues): TodayLive {
     milestonesConfirmed: m.milestonesConfirmed,
     chasesSent: m.chasesSent,
     aiDraftsGenerated: m.aiDraftsGenerated,
+    transactionsExchanged: m.transactionsExchanged,
     signups: m.signups,
   };
 }
@@ -44,9 +46,10 @@ function sumLive(rows: TodayLive[]): TodayLive {
       milestonesConfirmed: acc.milestonesConfirmed + r.milestonesConfirmed,
       chasesSent: acc.chasesSent + r.chasesSent,
       aiDraftsGenerated: acc.aiDraftsGenerated + r.aiDraftsGenerated,
+      transactionsExchanged: acc.transactionsExchanged + r.transactionsExchanged,
       signups: acc.signups + r.signups,
     }),
-    { transactionsCreated: 0, milestonesConfirmed: 0, chasesSent: 0, aiDraftsGenerated: 0, signups: 0 },
+    { transactionsCreated: 0, milestonesConfirmed: 0, chasesSent: 0, aiDraftsGenerated: 0, transactionsExchanged: 0, signups: 0 },
   );
 }
 
