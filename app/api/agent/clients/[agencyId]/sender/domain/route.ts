@@ -52,6 +52,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
 
   const { id: sendgridDomainId, cnameRecords, alreadyValid } = await createAuthenticatedDomain(domain);
 
+  // Tier 3a of the sender ladder (docs/active/progression-sender-ladder/PLAN.md):
+  // one extra MX record in the same list delegates progression.{domain} to our
+  // inbound handler, so minted per-company addresses on it are fully receivable —
+  // replies AND fresh composes get filed + forwarded, nothing can bounce. The
+  // parse-host registration is ours to do (API, best-effort + idempotent); the
+  // MX record is the agency's, verified by the check-domains cron before use.
+  const inboundHost = `progression.${domain}`;
+  const records = [
+    ...cnameRecords,
+    { host: inboundHost, data: "mx.sendgrid.net", type: "mx" as const },
+  ];
+  const { registerInboundParseHost } = await import("@/lib/services/sendgrid");
+  await registerInboundParseHost(inboundHost);
+
   const verifiedDomain = await prisma.verifiedDomain.create({
     data: {
       agencyId,
@@ -60,7 +74,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       status: alreadyValid ? "verified" : "pending",
       dkimValid: alreadyValid ? true : false,
       spfValid: alreadyValid ? true : false,
-      cnameRecords: cnameRecords as object[],
+      cnameRecords: records as object[],
+      inboundHost,
       createdByUserId: session.user.id,
       verifiedAt: alreadyValid ? new Date() : null,
     },

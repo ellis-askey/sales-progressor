@@ -17,7 +17,9 @@ const TSP_DKIM_SELECTOR = "tsp";
 export type CnameRecord = {
   host: string;
   data: string;
-  type: "cname";
+  // "mx" rows are the inbound-subdomain delegation (tier 3a of the progression
+  // sender ladder) appended alongside SendGrid's CNAMEs in the same records list.
+  type: "cname" | "mx";
 };
 
 export type AuthDomainResult = {
@@ -81,6 +83,34 @@ export async function createAuthenticatedDomain(
   } catch {
     // Domain already exists in SendGrid — look it up instead
     return getExistingAuthenticatedDomain(domain);
+  }
+}
+
+// ─── Inbound Parse (tier 3a: agency inbound subdomain) ───────────────────────
+// Registers progression.{domain} as an Inbound Parse host pointing at our
+// sendgrid-inbound webhook, so everything mailed to a minted address on that
+// subdomain (replies AND fresh composes) reaches us: filed on the sale +
+// forwarded to the progressor. The agency's matching MX record (→
+// mx.sendgrid.net) is appended to their DNS records list; the check-domains
+// cron verifies it before the sender ladder uses the subdomain. Idempotent:
+// an already-registered host is treated as success.
+export async function registerInboundParseHost(hostname: string): Promise<boolean> {
+  const url =
+    (process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://portal.thesalesprogressor.co.uk") +
+    "/api/webhooks/sendgrid-inbound";
+  try {
+    await client.request({
+      method: "POST",
+      url: "/v3/user/webhooks/parse/settings",
+      body: { hostname, url, spam_check: false, send_raw: false },
+    });
+    return true;
+  } catch (err) {
+    // Duplicate hostname → already registered → fine.
+    const msg = (err as { response?: { body?: unknown } })?.response?.body;
+    if (JSON.stringify(msg ?? "").toLowerCase().includes("duplicate")) return true;
+    console.error("[sendgrid] inbound parse host registration failed", hostname, msg ?? err);
+    return false;
   }
 }
 

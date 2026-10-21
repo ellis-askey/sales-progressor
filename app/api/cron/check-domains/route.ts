@@ -84,6 +84,32 @@ export async function GET(req: NextRequest) {
       // Don't let one failure stop the others
       results.push({ domain: domain.domain, wasValid: false, nowValid: false });
     }
+
+    // Tier 3a (sender ladder): verify the inbound subdomain's MX delegation.
+    // Once the agency's MX record for progression.{domain} points at SendGrid,
+    // minted per-company addresses become fully receivable (From = Reply-To,
+    // nothing can bounce) and the ladder upgrades automatically. Checked while
+    // invalid; once valid it stays valid unless the record disappears.
+    if (domain.inboundHost) {
+      try {
+        const { resolveMx } = await import("node:dns/promises");
+        const mx = await resolveMx(domain.inboundHost).catch(() => []);
+        const valid = mx.some((r) => /sendgrid\.net$/i.test(r.exchange));
+        if (valid !== domain.inboundMxValid) {
+          await prisma.verifiedDomain.update({
+            where: { id: domain.id },
+            data: { inboundMxValid: valid, inboundCheckedAt: new Date() },
+          });
+        } else {
+          await prisma.verifiedDomain.update({
+            where: { id: domain.id },
+            data: { inboundCheckedAt: new Date() },
+          }).catch(() => {});
+        }
+      } catch {
+        /* DNS hiccup — try again next run */
+      }
+    }
   }
 
   // ── Stamp each agency's quoteSenderVerified so the sender resolver never
