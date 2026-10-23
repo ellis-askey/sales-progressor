@@ -32,7 +32,12 @@ import {
   openNeighbourChaseInEmailAction,
   getNeighbourChaseContextAction,
   setNeighbourAgentAction,
+  getLinkChaseContextAction,
+  draftLinkChaseAction,
+  sendLinkChaseAction,
+  openLinkChaseInEmailAction,
 } from "@/app/actions/neighbour-chase";
+import { markChainLinkChasedAction } from "@/app/actions/chains";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 
 type Tone = "Friendly" | "Professional" | "Polite Yet Firm" | "Chase Up" | "Urgent" | "Final Reminder";
@@ -68,7 +73,9 @@ function TonePill({ tone }: { tone: Tone }) {
 
 type Props = {
   transactionId: string;
-  direction: NeighbourChaseDirection;
+  // Neighbour mode default. In LINK mode (chainLinkId set) the direction is
+  // derived server-side from the link's position, so this is ignored.
+  direction?: NeighbourChaseDirection;
   neighbourName?: string | null;
   neighbourAddress?: string | null;
   onClose: () => void;
@@ -78,17 +85,29 @@ type Props = {
   // Per-step chase: the specific far-side step to ask about. Omitted → the
   // draft falls back to the tracker's next outstanding step.
   targetStepName?: string | null;
+  // LINK mode (critique #285): chase a SPECIFIC chain link — any position,
+  // claimed or stub — to confirm it's ready to exchange. When set, the drawer
+  // targets that link instead of the immediate neighbour, and the copy + actions
+  // switch to the exchange-readiness chase. `transactionId` is then the file the
+  // push checklist is open on.
+  chainLinkId?: string | null;
 };
 
-function reasonMessage(reason: string, direction: NeighbourChaseDirection): string {
+function reasonMessage(reason: string, direction: NeighbourChaseDirection, linkMode = false): string {
   const where = direction === "onward" ? "above" : "below";
   switch (reason) {
     case "no_chain":
-      return "This sale isn't in a chain yet, so there's no neighbour to chase.";
+      return "This sale isn't in a chain yet, so there's no one to chase.";
     case "no_neighbour":
       return `There's no sale ${where} this one in the chain yet. Add it on the Chain tab first.`;
+    case "not_in_chain":
+      return "That sale is no longer part of this chain.";
+    case "is_self":
+      return "That's your own sale, so there's nothing to chase.";
     case "no_email":
-      return `We don't have an email for the agent ${where} in the chain. Add their email on the Chain tab, then you can chase them.`;
+      return linkMode
+        ? "We don't have an email for this agent yet. Add it on the Chain tab, then you can chase them."
+        : `We don't have an email for the agent ${where} in the chain. Add their email on the Chain tab, then you can chase them.`;
     case "claimed":
       return "That agent already has an account with us and gets their own updates, so there's no need to chase them here.";
     case "ai_unavailable":
@@ -112,9 +131,15 @@ function relativeAgo(value: Date | string | null): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent, targetStepName }: Props) {
+export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent, targetStepName, chainLinkId }: Props) {
   const { theme, isNight } = usePortalTheme();
   const { toast } = useAgentToast();
+  // LINK mode (#285) targets a specific chain link to confirm ready-to-exchange;
+  // neighbour mode cold-emails the immediate unclaimed neighbour. `dir` is only
+  // meaningful in neighbour mode (link mode derives direction server-side).
+  const linkMode = !!chainLinkId;
+  const dir: NeighbourChaseDirection = direction ?? "onward";
+  const [markingChased, setMarkingChased] = useState(false);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -177,7 +202,24 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const loadContext = useCallback(async () => {
     setLoadingContext(true);
     setErrorReason(null);
-    const res = await getNeighbourChaseContextAction({ transactionId, direction, stepName: targetStepName }).catch(() => null);
+    if (linkMode && chainLinkId) {
+      const res = await getLinkChaseContextAction({ fileTransactionId: transactionId, chainLinkId }).catch(() => null);
+      setLoadingContext(false);
+      if (!res) { setErrorReason("no_chain"); return; }
+      if (!res.ok) { setErrorReason(res.reason); return; }
+      const c = res.context;
+      setName(c.recipientName);
+      setEmail(c.recipientEmail);
+      setAddress(c.recipientAddress ?? neighbourAddress ?? null);
+      setLastChasedAt(c.lastChasedAt);
+      setCcCandidates(c.ccCandidates);
+      setSubject(`Ready to exchange on ${c.recipientAddress ?? neighbourAddress ?? "your sale"}?`);
+      // A stub link with no saved email can't be chased from here — add it on the
+      // Chain tab first. Claimed links always carry the agent's login email.
+      if (!c.recipientEmail) setErrorReason("no_email");
+      return;
+    }
+    const res = await getNeighbourChaseContextAction({ transactionId, direction: dir, stepName: targetStepName }).catch(() => null);
     setLoadingContext(false);
     if (!res) { setErrorReason("no_chain"); return; }
     if (!res.ok) { setErrorReason(res.reason); return; }
@@ -189,16 +231,30 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setLastChasedAt(c.lastChasedAt);
     setCcCandidates(c.ccCandidates);
     setSubject(`Quick update on ${c.neighbourAddress ?? neighbourAddress ?? "your side of the chain"}?`);
-  }, [transactionId, direction, targetStepName, neighbourAddress]);
+  }, [transactionId, dir, targetStepName, neighbourAddress, linkMode, chainLinkId]);
 
   useEffect(() => { void loadContext(); }, [loadContext]);
 
   const generate = useCallback(async (withTone: Tone) => {
     setGenerating(true);
-    const res = await draftNeighbourChaseAction({ transactionId, direction, tone: withTone, stepName: targetStepName }).catch(() => null);
+    if (linkMode && chainLinkId) {
+      const res = await draftLinkChaseAction({ fileTransactionId: transactionId, chainLinkId, tone: withTone }).catch(() => null);
+      setGenerating(false);
+      if (!res) { toast.error("We couldn't draft a message just now. Try again in a moment."); return; }
+      if (!res.ok) { toast.error(reasonMessage(res.reason, dir)); return; }
+      setSubject(res.draft.subject);
+      setBodyHtml(textToHtml(res.draft.body));
+      setName(res.draft.recipientName);
+      setEmail(res.draft.recipientEmail);
+      setLastChasedAt(res.draft.lastChasedAt);
+      setCcCandidates(res.draft.ccCandidates);
+      setConfirmResend(false);
+      return;
+    }
+    const res = await draftNeighbourChaseAction({ transactionId, direction: dir, tone: withTone, stepName: targetStepName }).catch(() => null);
     setGenerating(false);
     if (!res) { toast.error("We couldn't draft a message just now. Try again in a moment."); return; }
-    if (!res.ok) { toast.error(reasonMessage(res.reason, direction)); return; }
+    if (!res.ok) { toast.error(reasonMessage(res.reason, dir)); return; }
     setSubject(res.draft.subject);
     setBodyHtml(textToHtml(res.draft.body));
     setName(res.draft.neighbourName);
@@ -207,7 +263,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setLastChasedAt(res.draft.lastChasedAt);
     setCcCandidates(res.draft.ccCandidates);
     setConfirmResend(false);
-  }, [transactionId, direction, targetStepName, toast]);
+  }, [transactionId, dir, targetStepName, toast, linkMode, chainLinkId]);
 
   // Changing tone re-drafts in the new tone once a draft already exists (else it
   // just sets the tone the first Generate will use).
@@ -220,7 +276,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   async function saveAgent() {
     if (!agentEmail.includes("@")) return;
     setSavingAgent(true);
-    const res = await setNeighbourAgentAction({ transactionId, direction, name: titleCaseKeepAcronyms(agentName), email: agentEmail.trim().toLowerCase() }).catch(() => null);
+    const res = await setNeighbourAgentAction({ transactionId, direction: dir, name: titleCaseKeepAcronyms(agentName), email: agentEmail.trim().toLowerCase() }).catch(() => null);
     setSavingAgent(false);
     if (!res || !res.ok) { toast.error("Couldn't save the agent's details. Check the email and try again."); return; }
     setErrorReason(null);
@@ -230,15 +286,9 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   async function handleSend(force: boolean) {
     if (isHtmlEmpty(bodyHtml)) return;
     setSending(true);
-    const res = await sendNeighbourChaseAction({
-      transactionId,
-      direction,
-      subject,
-      bodyHtml,
-      bodyText: htmlToText(bodyHtml),
-      force,
-      includeCc: ccOn,
-    }).catch(() => null);
+    const res = (linkMode && chainLinkId)
+      ? await sendLinkChaseAction({ fileTransactionId: transactionId, chainLinkId, subject, bodyHtml, bodyText: htmlToText(bodyHtml), force, includeCc: ccOn }).catch(() => null)
+      : await sendNeighbourChaseAction({ transactionId, direction: dir, subject, bodyHtml, bodyText: htmlToText(bodyHtml), force, includeCc: ccOn }).catch(() => null);
     setSending(false);
     if (!res || !res.ok) {
       if (res && !res.ok && res.reason === "recently_chased" && !force) {
@@ -246,7 +296,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         setConfirmResend(true);
         return;
       }
-      toast.error(res && !res.ok ? reasonMessage(res.reason, direction) : "Couldn't send the chase, try again.");
+      toast.error(res && !res.ok ? reasonMessage(res.reason, dir) : "Couldn't send the chase, try again.");
       return;
     }
     toast.success(name ? `Chase sent to ${name}` : "Chase sent");
@@ -258,13 +308,9 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   async function handleOpenInMyEmail(force: boolean) {
     if (isHtmlEmpty(bodyHtml) || !email) return;
     setSending(true);
-    const res = await openNeighbourChaseInEmailAction({
-      transactionId,
-      direction,
-      subject,
-      bodyText: htmlToText(bodyHtml),
-      force,
-    }).catch(() => null);
+    const res = (linkMode && chainLinkId)
+      ? await openLinkChaseInEmailAction({ fileTransactionId: transactionId, chainLinkId, subject, bodyText: htmlToText(bodyHtml), force }).catch(() => null)
+      : await openNeighbourChaseInEmailAction({ transactionId, direction: dir, subject, bodyText: htmlToText(bodyHtml), force }).catch(() => null);
     setSending(false);
     if (!res || !res.ok) {
       if (res && !res.ok && res.reason === "recently_chased" && !force) {
@@ -272,7 +318,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         setConfirmResend(true);
         return;
       }
-      toast.error(res && !res.ok ? reasonMessage(res.reason, direction) : "Couldn't open your email, try again.");
+      toast.error(res && !res.ok ? reasonMessage(res.reason, dir) : "Couldn't open your email, try again.");
       return;
     }
     const params = new URLSearchParams();
@@ -286,9 +332,25 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     onClose();
   }
 
-  const whichNeighbour = direction === "onward" ? "above" : "below";
-  // "no_email" gets the inline add-agent form; every other error is a hard block.
-  const blocked = !!errorReason && errorReason !== "no_email";
+  // Already chased another way → stamp lastAgentChasedAt without sending (the
+  // lighter path, inside the drawer, for the push-to-exchange chase). (#285)
+  async function handleMarkChased() {
+    if (!chainLinkId) return;
+    setMarkingChased(true);
+    const res = await markChainLinkChasedAction(chainLinkId).catch(() => null);
+    setMarkingChased(false);
+    if (!res || !res.ok) { toast.error(res && !res.ok ? res.error : "Couldn't mark as chased, try again."); return; }
+    toast.success(name ? `Marked chased · ${name}` : "Marked as chased");
+    onSent?.();
+    onClose();
+  }
+
+  const whichNeighbour = dir === "onward" ? "above" : "below";
+  // Neighbour mode: "no_email" gets the inline add-agent form. Link mode has no
+  // inline form (claimed links always have an email; a stub without one is added
+  // on the Chain tab), so there every error is a hard block.
+  const showAddForm = errorReason === "no_email" && !linkMode;
+  const blocked = !!errorReason && !showAddForm;
 
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
@@ -311,7 +373,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         {/* Header */}
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <SheetBandHeader kicker="Chain" title={`Chase the agent ${whichNeighbour}`} />
+            <SheetBandHeader kicker="Chain" title={linkMode ? "Chase to exchange" : `Chase the agent ${whichNeighbour}`} />
           </div>
           <button
             onClick={doClose}
@@ -331,7 +393,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
             <div className="flex items-center justify-center gap-2 py-10" style={{ color: "var(--agent-text-muted)" }}>
               <CircleNotch size={16} className="animate-spin" /> <span className="text-sm">Loading…</span>
             </div>
-          ) : errorReason === "no_email" ? (
+          ) : showAddForm ? (
             <div className="rounded-xl px-4 py-4 space-y-3" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
               <p className="text-sm" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
                 We don&apos;t have an email for the agent {whichNeighbour}{address ? ` (handling ${address})` : ""}. Add their details to chase them, and we&apos;ll save them against that property for next time.
@@ -362,7 +424,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
           ) : blocked ? (
             <div className="rounded-xl px-4 py-4" style={{ background: "var(--agent-surface-subtle)", border: "1px solid var(--agent-border-default)" }}>
               <p className="text-sm" style={{ color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
-                {reasonMessage(errorReason!, direction)}
+                {reasonMessage(errorReason!, dir, linkMode)}
               </p>
             </div>
           ) : (
@@ -394,9 +456,11 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
 
               {/* What we're asking */}
               <p className="text-xs" style={{ color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-                {stepName
-                  ? `Asking them to confirm whether this has happened on their side: ${stepName}.`
-                  : "Asking them for a general update on their side of the chain."}
+                {linkMode
+                  ? "Asking them to confirm whether their sale is ready to exchange yet."
+                  : stepName
+                    ? `Asking them to confirm whether this has happened on their side: ${stepName}.`
+                    : "Asking them for a general update on their side of the chain."}
               </p>
 
               {/* Channel + Tone row — mirrors the real chase drawer. WhatsApp is
@@ -605,7 +669,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
         <div className="glass-v03" style={{ padding: "14px 20px 18px", border: "none", borderTop: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" }}>
           {loadingContext ? (
             <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
-          ) : errorReason === "no_email" ? (
+          ) : showAddForm ? (
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => void saveAgent()}
@@ -624,7 +688,26 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
               <button onClick={doClose} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
             </div>
           ) : blocked ? (
-            <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
+            linkMode && chainLinkId && errorReason === "no_email" ? (
+              // No email to send to, but you may have chased them another way.
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => void handleMarkChased()}
+                  disabled={markingChased}
+                  style={{
+                    flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, color: "white", border: "none",
+                    cursor: markingChased ? "not-allowed" : "pointer",
+                    background: markingChased ? "rgba(var(--agent-coral-rgb), 0.35)" : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
+                  }}
+                >
+                  {markingChased ? "Marking…" : "Mark as chased"}
+                </button>
+                <button onClick={doClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
+              </div>
+            ) : (
+              <button onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-sm">Close</button>
+            )
           ) : (
             <>
               <button
@@ -669,6 +752,21 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
               <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.5 }}>
                 {email ? `To: ${email}` : "No email on file. This will be logged, not sent"}
               </p>
+
+              {/* Lighter path: you chased them another way, just record it. (#285) */}
+              {linkMode && (
+                <button
+                  onClick={() => void handleMarkChased()}
+                  disabled={markingChased || sending}
+                  style={{
+                    margin: "12px auto 0", display: "block", background: "none", border: "none", padding: "2px 6px",
+                    fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)",
+                    cursor: markingChased || sending ? "not-allowed" : "pointer", textDecoration: "underline", textUnderlineOffset: 2,
+                  }}
+                >
+                  {markingChased ? "Marking…" : "Already chased them another way? Mark as chased"}
+                </button>
+              )}
             </>
           )}
         </div>

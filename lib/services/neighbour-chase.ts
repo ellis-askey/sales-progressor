@@ -229,6 +229,38 @@ function stripDashes(s: string): string {
     .replace(/,\s*,\s*/g, ", ");
 }
 
+// Call the Haiku drafting model with a prepared system + user prompt. Returns the
+// cleaned (dash-stripped) body, or a reason when the key is absent / the call
+// fails. Shared by the neighbour chase and the exchange-push link chase (#285).
+async function runChaseModel(
+  system: string,
+  user: string,
+): Promise<{ ok: true; body: string } | { ok: false; reason: "ai_unavailable" | "ai_failed" }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { ok: false, reason: "ai_unavailable" };
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 500,
+        system,
+        messages: [{ role: "user", content: user }],
+      }),
+    });
+    if (!res.ok) {
+      console.error("[agent-chase] Claude API error:", await res.text());
+      return { ok: false, reason: "ai_failed" };
+    }
+    const data = await res.json();
+    return { ok: true, body: stripDashes(data.content?.[0]?.text ?? "").trim() };
+  } catch (err) {
+    console.error("[agent-chase] draft failed", err);
+    return { ok: false, reason: "ai_failed" };
+  }
+}
+
 async function agencyBrand(transactionId: string): Promise<string> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
@@ -320,47 +352,21 @@ export async function draftNeighbourChase(
     `Keep it brief and collegiate. You are both trying to keep the chain moving.`,
   ].join("\n");
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, reason: "ai_unavailable" };
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 500,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
-      }),
-    });
-    if (!res.ok) {
-      console.error("[neighbour-chase] Claude API error:", await res.text());
-      return { ok: false, reason: "ai_failed" };
-    }
-    const data = await res.json();
-    const body = stripDashes(data.content?.[0]?.text ?? "").trim();
-    const subject = `Quick update on ${target.neighbourAddress ?? "your side of the chain"}?`;
-    return {
-      ok: true,
-      draft: {
-        subject,
-        body,
-        neighbourName: target.neighbourAgentName,
-        neighbourEmail: target.neighbourAgentEmail,
-        stepName: askStepName,
-        lastChasedAt: target.lastChasedAt,
-        ccCandidates,
-      },
-    };
-  } catch (err) {
-    console.error("[neighbour-chase] draft failed", err);
-    return { ok: false, reason: "ai_failed" };
-  }
+  const result = await runChaseModel(systemPrompt, userMessage);
+  if (!result.ok) return { ok: false, reason: result.reason };
+  const subject = `Quick update on ${target.neighbourAddress ?? "your side of the chain"}?`;
+  return {
+    ok: true,
+    draft: {
+      subject,
+      body: result.body,
+      neighbourName: target.neighbourAgentName,
+      neighbourEmail: target.neighbourAgentEmail,
+      stepName: askStepName,
+      lastChasedAt: target.lastChasedAt,
+      ccCandidates,
+    },
+  };
 }
 
 function escapeHtml(s: string): string {
@@ -525,4 +531,348 @@ export async function logNeighbourChaseHandoff(input: {
     .catch(() => {});
 
   return { ok: true, toEmail: target.neighbourAgentEmail };
+}
+
+// ─── Exchange-push link chase (critique #285) ─────────────────────────────────
+//
+// The "Push to exchange" checklist chases a SPECIFIC chain link — any position in
+// the chain, CLAIMED (another agency's live file) or an unclaimed stub — to
+// confirm that sale is ready to exchange. A different target model to the
+// immediate-neighbour chase above (which only cold-emails unclaimed neighbours),
+// but the same voice, sender branding, signature and send plumbing. The ask is
+// fixed ("are you ready to exchange?"); the subject names both sales.
+
+export type LinkChaseTarget = {
+  chainLinkId: string;
+  recipientName: string | null;
+  recipientEmail: string | null; // claimed → claiming agent's login email; stub → saved stub email
+  recipientAddress: string | null;
+  isClaimed: boolean;
+  // Position sign vs our own link — drives the CC side + the above/below wording.
+  direction: NeighbourChaseDirection;
+  lastChasedAt: Date | null;
+  ourAddress: string | null;
+};
+
+export type LinkChaseReason = "no_chain" | "not_in_chain" | "is_self" | "no_email";
+
+export type ResolveLinkResult =
+  | { ok: true; target: LinkChaseTarget }
+  | { ok: false; reason: LinkChaseReason };
+
+// Resolve the chase target for a specific chain link, from the context of the
+// file the push checklist is open on. The link must be in the SAME chain as the
+// open file (the caller has already scope-guarded the file). Claimed links resolve
+// to the claiming agent's account; stubs to the saved stub agent details.
+export async function resolveLinkChaseTarget(
+  fileTransactionId: string,
+  chainLinkId: string,
+): Promise<ResolveLinkResult> {
+  const own = await prisma.propertyTransaction.findUnique({
+    where: { id: fileTransactionId },
+    select: { chainLinkId: true, propertyAddress: true },
+  });
+  if (!own?.chainLinkId) return { ok: false, reason: "no_chain" };
+  const ownLink = await prisma.chainLink.findUnique({
+    where: { id: own.chainLinkId },
+    select: { chainId: true, position: true },
+  });
+  if (!ownLink) return { ok: false, reason: "no_chain" };
+  if (chainLinkId === own.chainLinkId) return { ok: false, reason: "is_self" };
+
+  const link = await prisma.chainLink.findUnique({
+    where: { id: chainLinkId },
+    select: {
+      id: true,
+      chainId: true,
+      position: true,
+      transactionId: true,
+      stubAgentName: true,
+      stubAgentEmail: true,
+      stubPropertyAddress: true,
+      lastAgentChasedAt: true,
+      claimedBy: { select: { name: true, email: true } },
+      transaction: { select: { propertyAddress: true } },
+    },
+  });
+  if (!link || link.chainId !== ownLink.chainId) return { ok: false, reason: "not_in_chain" };
+
+  const isClaimed = link.transactionId !== null;
+  return {
+    ok: true,
+    target: {
+      chainLinkId: link.id,
+      recipientName: isClaimed ? (link.claimedBy?.name ?? null) : (link.stubAgentName ?? null),
+      recipientEmail: isClaimed ? (link.claimedBy?.email ?? null) : (link.stubAgentEmail ?? null),
+      recipientAddress: isClaimed ? (link.transaction?.propertyAddress ?? null) : (link.stubPropertyAddress ?? null),
+      isClaimed,
+      direction: link.position < ownLink.position ? "onward" : "related",
+      lastChasedAt: link.lastAgentChasedAt,
+      ourAddress: own.propertyAddress ?? null,
+    },
+  };
+}
+
+// First comma-segment of an address — keeps the two-sided subject readable.
+function shortAddr(a: string | null): string | null {
+  if (!a) return null;
+  const i = a.indexOf(",");
+  return (i >= 0 ? a.slice(0, i) : a).trim();
+}
+
+function exchangeSubject(ourAddress: string | null, theirAddress: string | null): string {
+  const ours = shortAddr(ourAddress);
+  const theirs = shortAddr(theirAddress) ?? "your sale";
+  return ours ? `${ours} chain: ready to exchange on ${theirs}?` : `Ready to exchange on ${theirs}?`;
+}
+
+export type LinkChaseContext = {
+  recipientName: string | null;
+  recipientEmail: string | null;
+  recipientAddress: string | null;
+  isClaimed: boolean;
+  lastChasedAt: Date | null;
+  ccCandidates: { name: string; email: string }[];
+};
+
+export type LinkContextResult =
+  | { ok: true; context: LinkChaseContext }
+  | { ok: false; reason: LinkChaseReason };
+
+// Everything the drawer needs to SHOW on open (recipient, cc option, last chased)
+// without calling the AI — matching the neighbour-chase context loader.
+export async function getLinkChaseContext(
+  fileTransactionId: string,
+  chainLinkId: string,
+): Promise<LinkContextResult> {
+  const resolved = await resolveLinkChaseTarget(fileTransactionId, chainLinkId);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+  const ccCandidates = await resolveCcClients(fileTransactionId, target.direction);
+  return {
+    ok: true,
+    context: {
+      recipientName: target.recipientName,
+      recipientEmail: target.recipientEmail,
+      recipientAddress: target.recipientAddress,
+      isClaimed: target.isClaimed,
+      lastChasedAt: target.lastChasedAt,
+      ccCandidates,
+    },
+  };
+}
+
+export type LinkDraft = {
+  subject: string;
+  body: string;
+  recipientName: string | null;
+  recipientEmail: string | null;
+  lastChasedAt: Date | null;
+  ccCandidates: { name: string; email: string }[];
+};
+
+export type DraftLinkResult =
+  | { ok: true; draft: LinkDraft }
+  | { ok: false; reason: LinkChaseReason | "ai_unavailable" | "ai_failed" };
+
+// Draft the "are you ready to exchange?" chase for a specific chain link — agent-
+// to-agent voice, reusing the shared tone + channel guidance, signed off as the
+// sending agent. Our own sale is mentioned as the reason we're coordinating.
+export async function draftLinkChase(
+  fileTransactionId: string,
+  chainLinkId: string,
+  tone: string,
+  senderFirstName: string,
+): Promise<DraftLinkResult> {
+  const resolved = await resolveLinkChaseTarget(fileTransactionId, chainLinkId);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+
+  const ccCandidates = await resolveCcClients(fileTransactionId, target.direction);
+  const displayAgency = await agencyBrand(fileTransactionId);
+
+  const toneKey = TONE_KEY_MAP[tone] ?? "professional";
+  const channelGuidance = CHANNEL_GUIDANCE.email.replace(/\{senderFirstName\}/g, senderFirstName);
+  const toneGuidance = (TONE_GUIDANCE[toneKey] ?? TONE_GUIDANCE.professional).replace(
+    /\{expectedExchangeDate\}/g,
+    "the chain's target timeline",
+  );
+
+  const whichNeighbour = target.direction === "onward" ? "above" : "below";
+  const recipientName = target.recipientName ? greetingName(target.recipientName) : "there";
+
+  const systemPrompt = [
+    `You are ${senderFirstName}, an estate agent at ${displayAgency}, writing a short email to a fellow estate agent ${whichNeighbour} you in a residential property chain.`,
+    AGENT_RECIPIENT_GUIDANCE,
+    channelGuidance,
+    toneGuidance,
+    `Rules: British English. Never use em dashes or en dashes. No exclamation marks. Do not invent facts about their sale. Sign off simply as ${senderFirstName} (a full signature is added after your sign-off, so do not add contact details). Output ONLY the email body, with no subject line, no preamble, and no "Here is the email".`,
+  ].join("\n\n");
+
+  const userMessage = [
+    `Write the email.`,
+    `Recipient: ${recipientName}${target.recipientAddress ? `, the agent handling ${target.recipientAddress}` : ""}.`,
+    `Our sale${target.ourAddress ? ` (${target.ourAddress})` : ""} is ready to exchange, and we're working to get the whole chain to exchange together.`,
+    `Ask them to confirm whether their sale is ready to exchange yet: contracts signed, enquiries resolved, and finances or deposit in place. If it isn't, ask what's still outstanding and the likely timescale.`,
+    `Keep it brief and collegiate. You are both trying to get the chain to exchange.`,
+  ].join("\n");
+
+  const result = await runChaseModel(systemPrompt, userMessage);
+  if (!result.ok) return { ok: false, reason: result.reason };
+  return {
+    ok: true,
+    draft: {
+      subject: exchangeSubject(target.ourAddress, target.recipientAddress),
+      body: result.body,
+      recipientName: target.recipientName,
+      recipientEmail: target.recipientEmail,
+      lastChasedAt: target.lastChasedAt,
+      ccCandidates,
+    },
+  };
+}
+
+export type SendLinkResult =
+  | { ok: true; toEmail: string }
+  | { ok: false; reason: LinkChaseReason | "empty_body" | "recently_chased"; lastChasedAt?: Date | null };
+
+// Send the (agent-edited) exchange-readiness chase to the link's agent. Branded
+// from the sending agent with their signature (same plumbing as any chase).
+// Logged via AgentEmailLog (kind chain_neighbour_chase, meta.exchangePush) and
+// stamps lastAgentChasedAt. A resend inside RESEND_WINDOW_MS needs force = true.
+export async function sendLinkChase(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  user: ChaseSender;
+  force?: boolean;
+  includeCc?: boolean;
+}): Promise<SendLinkResult> {
+  const bodyText = input.bodyText.trim();
+  if (!bodyText) return { ok: false, reason: "empty_body" };
+
+  const resolved = await resolveLinkChaseTarget(input.fileTransactionId, input.chainLinkId);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+  if (!target.recipientEmail) return { ok: false, reason: "no_email" };
+
+  const ccClients = input.includeCc ? await resolveCcClients(input.fileTransactionId, target.direction) : [];
+
+  if (
+    !input.force &&
+    target.lastChasedAt &&
+    Date.now() - new Date(target.lastChasedAt).getTime() < RESEND_WINDOW_MS
+  ) {
+    return { ok: false, reason: "recently_chased", lastChasedAt: target.lastChasedAt };
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.fileTransactionId },
+    select: {
+      agencyId: true,
+      agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
+    },
+  });
+
+  const { from, replyTo } = await resolveSenderForTransaction(input.fileTransactionId, {
+    id: input.user.id,
+    email: input.user.email,
+    name: input.user.name,
+    role: input.user.role ?? "",
+    agencyId: input.user.agencyId,
+  });
+
+  const sig = await resolveEmailSignature({
+    userId: input.user.id,
+    agency: tx?.agency ?? null,
+    fallbackName: input.user.name,
+  });
+
+  const renderedBody = input.bodyHtml.trim()
+    ? sanitizeChaseBodyHtml(input.bodyHtml)
+    : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
+  const signOffHtml = sig.mode === "BASIC"
+    ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">Kind regards,</p>`
+    : "";
+  const signOffText = sig.mode === "BASIC" ? `\n\nKind regards,` : "";
+  const html = wrapEmailHtml(renderedBody + signOffHtml, sig.html);
+  const subject = input.subject.trim() || exchangeSubject(target.ourAddress, target.recipientAddress);
+
+  await sendAgentEmail({
+    to: target.recipientEmail,
+    subject,
+    text: bodyText + signOffText + sig.text,
+    html,
+    from,
+    replyTo,
+    cc: ccClients.length ? ccClients.map((c) => c.email) : undefined,
+    kind: "chain_neighbour_chase",
+    userId: input.user.id,
+    agencyId: tx?.agencyId ?? null,
+    transactionId: input.fileTransactionId,
+    meta: { chainLinkId: target.chainLinkId, exchangePush: true, claimed: target.isClaimed, ccCount: ccClients.length || undefined },
+  });
+
+  await prisma.chainLink
+    .update({ where: { id: target.chainLinkId }, data: { lastAgentChasedAt: new Date() } })
+    .catch(() => {});
+
+  return { ok: true, toEmail: target.recipientEmail };
+}
+
+// "Open in my email" handoff for the link chase — record it as chased (logged,
+// not app-sent) and hand the recipient/subject/body back for the mailto.
+export async function logLinkChaseHandoff(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+  subject: string;
+  bodyText: string;
+  user: ChaseSender;
+  force?: boolean;
+}): Promise<SendLinkResult> {
+  const bodyText = input.bodyText.trim();
+  if (!bodyText) return { ok: false, reason: "empty_body" };
+
+  const resolved = await resolveLinkChaseTarget(input.fileTransactionId, input.chainLinkId);
+  if (!resolved.ok) return { ok: false, reason: resolved.reason };
+  const { target } = resolved;
+  if (!target.recipientEmail) return { ok: false, reason: "no_email" };
+
+  if (
+    !input.force &&
+    target.lastChasedAt &&
+    Date.now() - new Date(target.lastChasedAt).getTime() < RESEND_WINDOW_MS
+  ) {
+    return { ok: false, reason: "recently_chased", lastChasedAt: target.lastChasedAt };
+  }
+
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: input.fileTransactionId },
+    select: { agencyId: true },
+  });
+  const subject = input.subject.trim() || exchangeSubject(target.ourAddress, target.recipientAddress);
+
+  await prisma.agentEmailLog
+    .create({
+      data: {
+        toEmail: target.recipientEmail,
+        userId: input.user.id,
+        agencyId: tx?.agencyId ?? null,
+        transactionId: input.fileTransactionId,
+        kind: "chain_neighbour_chase",
+        subject,
+        text: bodyText,
+        html: null,
+        meta: { chainLinkId: target.chainLinkId, exchangePush: true, claimed: target.isClaimed, viaOwnEmail: true },
+      },
+    })
+    .catch(() => {});
+
+  await prisma.chainLink
+    .update({ where: { id: target.chainLinkId }, data: { lastAgentChasedAt: new Date() } })
+    .catch(() => {});
+
+  return { ok: true, toEmail: target.recipientEmail };
 }

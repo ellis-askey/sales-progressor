@@ -16,11 +16,18 @@ import {
   logNeighbourChaseHandoff,
   setNeighbourAgent,
   getNeighbourChaseContext,
+  getLinkChaseContext,
+  draftLinkChase,
+  sendLinkChase,
+  logLinkChaseHandoff,
   type NeighbourChaseDirection,
   type DraftNeighbourResult,
   type SendNeighbourResult,
   type SetNeighbourAgentResult,
   type NeighbourContextResult,
+  type LinkContextResult,
+  type DraftLinkResult,
+  type SendLinkResult,
 } from "@/lib/services/neighbour-chase";
 
 // Ownership gate. Throws if the transaction is out of the caller's scope.
@@ -90,6 +97,81 @@ export async function sendNeighbourChaseAction(input: {
     bodyText: input.bodyText,
     force: input.force,
     includeCc: input.includeCc,
+    user: {
+      id: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      role: session.user.role,
+      agencyId: session.user.agencyId,
+    },
+  });
+}
+
+// ─── Exchange-push link chase (critique #285) ─────────────────────────────────
+// Chase a SPECIFIC chain link (any position, claimed or stub) to confirm it's
+// ready to exchange. The ownership gate is on the FILE the push checklist is open
+// on; the service then verifies the link is in that file's chain.
+
+export async function getLinkChaseContextAction(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+}): Promise<LinkContextResult> {
+  await requireTxInScope(input.fileTransactionId);
+  return getLinkChaseContext(input.fileTransactionId, input.chainLinkId);
+}
+
+export async function draftLinkChaseAction(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+  tone: string;
+}): Promise<DraftLinkResult> {
+  const { session } = await requireTxInScope(input.fileTransactionId);
+  const senderFirstName = session.user.name ? extractFirstName(session.user.name) : "the team";
+  return draftLinkChase(input.fileTransactionId, input.chainLinkId, input.tone, senderFirstName);
+}
+
+export async function sendLinkChaseAction(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  force?: boolean;
+  includeCc?: boolean;
+}): Promise<SendLinkResult> {
+  const { session } = await requireTxInScope(input.fileTransactionId);
+  return sendLinkChase({
+    fileTransactionId: input.fileTransactionId,
+    chainLinkId: input.chainLinkId,
+    subject: input.subject,
+    bodyHtml: input.bodyHtml,
+    bodyText: input.bodyText,
+    force: input.force,
+    includeCc: input.includeCc,
+    user: {
+      id: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      role: session.user.role,
+      agencyId: session.user.agencyId,
+    },
+  });
+}
+
+export async function openLinkChaseInEmailAction(input: {
+  fileTransactionId: string;
+  chainLinkId: string;
+  subject: string;
+  bodyText: string;
+  force?: boolean;
+}): Promise<SendLinkResult> {
+  const { session } = await requireTxInScope(input.fileTransactionId);
+  return logLinkChaseHandoff({
+    fileTransactionId: input.fileTransactionId,
+    chainLinkId: input.chainLinkId,
+    subject: input.subject,
+    bodyText: input.bodyText,
+    force: input.force,
     user: {
       id: session.user.id,
       name: session.user.name,

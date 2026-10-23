@@ -12,10 +12,11 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { setChainLinkExchangeReadyAction, markChainLinkChasedAction } from "@/app/actions/chains";
+import { setChainLinkExchangeReadyAction } from "@/app/actions/chains";
 import type { ExchangePush, ExchangePushRow } from "@/lib/services/exchange-push";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 
 function rel(iso: string | null): string {
   if (!iso) return "never chased";
@@ -30,6 +31,8 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<ExchangePushRow[]>(push.rows);
   const [busy, setBusy] = useState<string | null>(null);
+  // The chain link currently being chased (opens the exchange chase drawer). #285
+  const [chaseTarget, setChaseTarget] = useState<ExchangePushRow | null>(null);
   const [, startTransition] = useTransition();
 
   // Re-seed from the server after a revalidate so both homes stay in step.
@@ -53,20 +56,6 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
         toast.error(res.error);
       } else {
         router.refresh();
-      }
-      setBusy(null);
-    });
-  }
-
-  function chase(row: ExchangePushRow) {
-    setBusy(row.linkId + "-chase");
-    startTransition(async () => {
-      const res = await markChainLinkChasedAction(row.linkId);
-      if (res.ok) {
-        toast.success(`Marked chased${row.firmName ? ` · ${row.firmName}` : ""}`);
-        router.refresh();
-      } else {
-        toast.error(res.error);
       }
       setBusy(null);
     });
@@ -140,8 +129,10 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
                     {row.address}
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                    {row.isUs ? "Your sale" : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
-                    {!row.isUs && !row.ready && row.lastChasedAt ? ` · ${rel(row.lastChasedAt)}` : ""}
+                    {row.ours
+                      ? `Your sale${row.agentName ? ` · added by ${row.agentName}` : ""}`
+                      : [row.agentName, row.firmName].filter(Boolean).join(" · ") || "Not joined"}
+                    {!row.ours && !row.ready && row.lastChasedAt ? ` · ${rel(row.lastChasedAt)}` : ""}
                   </div>
                 </div>
               </div>
@@ -162,11 +153,10 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
               ) : null /* not ready → no pill; the off toggle + Chase say it all */}
               {row.chaseable && !row.ready && (
                 <button
-                  onClick={() => chase(row)}
-                  disabled={busy === row.linkId + "-chase"}
+                  onClick={() => setChaseTarget(row)}
                   style={{ fontSize: 11.5, fontWeight: 650, color: "var(--agent-coral-deep)", background: "none", border: 0, cursor: "pointer", padding: "4px 2px", whiteSpace: "nowrap" }}
                 >
-                  {busy === row.linkId + "-chase" ? "…" : "Chase"}
+                  Chase
                 </button>
               )}
               {/* Toggle (locked green for our own sale) */}
@@ -223,6 +213,18 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
             Book the exchange →
           </Link>
         </div>
+      )}
+
+      {/* Chase a specific chain link to confirm it's ready to exchange. (#285) */}
+      {chaseTarget && (
+        <ChaseNeighbourDrawer
+          transactionId={push.transactionId}
+          chainLinkId={chaseTarget.linkId}
+          neighbourName={chaseTarget.agentName}
+          neighbourAddress={chaseTarget.address}
+          onClose={() => setChaseTarget(null)}
+          onSent={() => { setChaseTarget(null); router.refresh(); }}
+        />
       )}
     </div>
   );

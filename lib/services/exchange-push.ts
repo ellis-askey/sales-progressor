@@ -16,6 +16,10 @@ export type ExchangeReadySource = "exchanged" | "confirmed" | "their_file" | "no
 export type ExchangePushRow = {
   linkId: string;
   isUs: boolean;
+  // A sale the viewer genuinely runs (their agency's file, their business's book,
+  // or a file assigned to them) — not merely one they can see. Reads "Your sale"
+  // even when it isn't the open file; the open file is also `ours`. (critique #284)
+  ours: boolean;
   address: string;
   agentName: string | null;
   firmName: string | null;
@@ -73,6 +77,8 @@ type LinkForPush = {
     id: string;
     propertyAddress: string;
     agencyId: string | null;
+    assignedUserId: string | null;
+    progressionBusinessId: string | null;
     photoStoragePath: string | null;
     exchangedAt: Date | null;
     milestoneCompletions: { state: string; milestoneDefinition: { code: string } }[];
@@ -97,6 +103,8 @@ const LINK_SELECT = {
       id: true,
       propertyAddress: true,
       agencyId: true,
+      assignedUserId: true,
+      progressionBusinessId: true,
       photoStoragePath: true,
       exchangedAt: true,
       milestoneCompletions: {
@@ -153,9 +161,29 @@ function linkPhotoPath(l: LinkForPush, isUs: boolean, claimed: boolean, seeAll: 
 
 type ConfirmerMap = Map<string, { name: string | null; image: string | null }>;
 
+// Does the viewer genuinely RUN this claimed sale (not merely see it)? Mirrors
+// the intent of #284: our agency's file, our business's book, or a file assigned
+// to us. The all / platform scopes (TSP admin / founder) see the whole platform,
+// so "can read" is far too broad for a "Your sale" label — for them a node is
+// ours only when it's assigned to the viewer (the hybrid progressor case) or is
+// the open file (handled separately). Unclaimed stubs are never "ours".
+function linkIsOurs(scope: AccessScope, viewerId: string, l: LinkForPush): boolean {
+  const tx = l.transaction;
+  if (!tx) return false;
+  switch (scope.kind) {
+    case "agency":   return tx.agencyId != null && scope.agencyIds.includes(tx.agencyId);
+    case "business": return tx.progressionBusinessId === scope.businessId;
+    case "assigned": return tx.assignedUserId === scope.userId;
+    case "all":
+    case "platform": return tx.assignedUserId === viewerId;
+  }
+}
+
 function buildRows(
   fileTxId: string,
   links: LinkForPush[],
+  scope: AccessScope,
+  viewerId: string,
   seeAll: boolean,
   ourAgencyId: string | null,
   viewer: ResolvedViewer,
@@ -167,6 +195,12 @@ function buildRows(
     .map((l) => {
       const isUs = l.transactionId === fileTxId;
       const claimed = l.transactionId != null;
+      // "ours" = a sale we run. The open file always counts; other claimed links
+      // count when the viewer runs them. Drives the "Your sale" label and switches
+      // the Chase button off (you don't chase your own sale). Readiness is NOT
+      // forced for our OTHER sales — it comes from their own milestones (or a
+      // manual confirm), only the open file is force-ready. (critique #284)
+      const ours = isUs || (claimed && linkIsOurs(scope, viewerId, l));
       const kind: ExchangePushRow["kind"] = isUs ? "us" : claimed ? "claimed" : "stub";
       const r = isUs ? { ready: true, source: "confirmed" as const } : linkReady(l, seeAll, ourAgencyId);
       const photoPath = linkPhotoPath(l, isUs, claimed, seeAll, ourAgencyId);
@@ -179,14 +213,19 @@ function buildRows(
       return {
         linkId: l.id,
         isUs,
+        ours,
         address: l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "Address not shared",
+        // Keep the agent who added/claimed a link even when it's one of ours, so
+        // the label can read "Your sale · added by {agent}". Only the open file
+        // (isUs) drops it — it's the file you're literally on.
         agentName: isUs ? null : (claimed ? (l.claimedBy?.name ?? null) : null),
         firmName: isUs ? null : (claimed ? (l.claimedBy?.firmName ?? null) : (l.stubAgencyName ?? null)),
         kind,
         ready: r.ready,
         source: r.source,
         lastChasedAt: l.lastAgentChasedAt?.toISOString() ?? null,
-        chaseable: !isUs && (claimed || !!l.stubAgentEmail),
+        // Don't offer to chase a sale we run — only genuinely other sales.
+        chaseable: !ours && (claimed || !!l.stubAgentEmail),
         photoUrl: photoPath ? (photoMap.get(photoPath) ?? null) : null,
         confirmedByName: confirmer.name,
         confirmedByImage: confirmer.image,
@@ -198,13 +237,15 @@ function assemble(
   fileTxId: string,
   address: string,
   links: LinkForPush[],
+  scope: AccessScope,
+  viewerId: string,
   seeAll: boolean,
   ourAgencyId: string | null,
   viewer: ResolvedViewer,
   photoMap: Map<string, string>,
   confirmers: ConfirmerMap,
 ): ExchangePush {
-  const rows = buildRows(fileTxId, links, seeAll, ourAgencyId, viewer, photoMap, confirmers);
+  const rows = buildRows(fileTxId, links, scope, viewerId, seeAll, ourAgencyId, viewer, photoMap, confirmers);
   const readyCount = rows.filter((r) => r.ready).length;
   return {
     transactionId: fileTxId, address, rows, readyCount, total: rows.length,
@@ -269,7 +310,7 @@ export async function getExchangePushForTransaction(
     getSignedUrlMap(photoPathsOf(links)),
     loadUsers([...links.map((l) => l.exchangeReadyConfirmedById), viewer.id]),
   ]);
-  return assemble(tx.id, tx.propertyAddress, links, seesAll(scope), tx.agencyId, resolveViewer(viewer, users), photoMap, users);
+  return assemble(tx.id, tx.propertyAddress, links, scope, viewer.id, seesAll(scope), tx.agencyId, resolveViewer(viewer, users), photoMap, users);
 }
 
 export type ExchangePushSummary = {
@@ -320,7 +361,7 @@ export async function listExchangePushForScope(scope: AccessScope, viewer: Excha
   const out: ExchangePushSummary[] = [];
   for (const t of ready) {
     const chainLinks = byChain.get(t.chainLink!.chainId) ?? [];
-    const push = assemble(t.id, t.propertyAddress, chainLinks, seeAll, t.agencyId, resolvedViewer, photoMap, users);
+    const push = assemble(t.id, t.propertyAddress, chainLinks, scope, viewer.id, seeAll, t.agencyId, resolvedViewer, photoMap, users);
     out.push({ transactionId: t.id, address: t.propertyAddress, readyCount: push.readyCount, total: push.total, allReady: push.allReady, push });
   }
   // Closest to done first (highest ready share), all-ready at the very top.
