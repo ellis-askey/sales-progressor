@@ -20,7 +20,6 @@ import {
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
-import { FloatingThoughtCapture } from "@/components/command/content/FloatingThoughtCapture";
 import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
@@ -679,9 +678,6 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
-
-      {/* Global thought capture — Ellis only; saves feed "Things you think". */}
-      {(role === "superadmin" || session.user.email === "ellis@thesalesprogressor.co.uk") && <FloatingThoughtCapture />}
     </div>
   );
 }
