@@ -328,7 +328,7 @@ export function LogUpdateModal(props: Props) {
         ) : screen !== "home" ? (
           <button className="lum-ic" onClick={goHome} aria-label="Back" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
         ) : null}
-        <h2 className="lum-title">{embedded && screen === "home" && propertyHeader ? propertyHeader.line1 : titles[screen]}</h2>
+        <h2 className="lum-title">{titles[screen]}</h2>
         <button className="lum-ic lum-ic-x" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
       </div>
 
