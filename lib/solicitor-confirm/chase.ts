@@ -497,7 +497,11 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   // keep the branded html.
   const finalSubject = editSubject ?? subject;
   const finalText = editBody ?? text;
-  const finalHtml = editBody ? undefined : html;
+  // An edited send has no branded shell — sendChainEmail wraps the plain text as
+  // `text.replace(/\n/g,"<br>")`. Build that exact wrapper here so the bytes we
+  // SEND and the bytes we STORE are identical, and "view email" shows precisely
+  // what went out instead of a re-rendered branded reconstruction (critique #298A).
+  const finalHtml = editBody ? finalText.replace(/\n/g, "<br>") : html;
   // Deterministic outbound Message-ID, stored on the OutboundMessage row below
   // so an inbound reply can be matched to this chase. Set only when we also
   // write the row (agentId present) so behaviour is otherwise unchanged.
@@ -569,9 +573,10 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       recipientName: firmName ?? undefined,
       subject: finalSubject,
       content: `Automated confirmation request sent to ${firmName ?? "the solicitor"} for: ${sendSteps.map((s) => s.label).join(", ")}.`,
-      // Keep the exact email we sent so the automated-emails drawer can show a
-      // true-to-inbox preview. An edited send has no branded html (sendChainEmail
-      // wraps the plain text), so store null there and let the drawer fall back.
+      // Keep the exact email we sent so the automated-emails drawer and the chase
+      // timeline "view email" show a true-to-inbox copy. Now always set, including
+      // edited sends (finalHtml holds the wrapped edited text) — no reconstruction
+      // (critique #298A).
       sentEmailHtml: finalHtml ?? null,
       contactIds: [],
       createdById: agentId ?? null,
