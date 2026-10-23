@@ -101,20 +101,39 @@ export function canViewNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
   return !!o.txAgencyId && o.txAgencyId === v.agencyId;
 }
 
-export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean {
-  // TSP internal team — by scope, not role (see canViewNodeIntel).
-  const tspInternal = v.scope.kind === "all" || v.scope.kind === "assigned";
+// Optional chain-level context for an edit decision. `viewerProgressesChain` is
+// true when the viewer progresses a claimed file somewhere in the SAME chain —
+// which lets an outsourced progressor manage the placeholder rows around the
+// sale they run, even ones another party added (critique #300). Computed once
+// per chain by the caller via viewerProgressesChainFromTxs below.
+export type ChainEditContext = { viewerProgressesChain?: boolean };
+
+export function canEditNodeIntel(
+  v: IntelViewer,
+  o: ChainNodeOwnership,
+  ctx?: ChainEditContext,
+): boolean {
+  // TSP internal team — by scope, not role (see canViewNodeIntel). The founder
+  // (superadmin → "platform") is the platform operator and must have the fullest
+  // reach, not the least: an earlier gap left "platform" with no branch at all, so
+  // it fell through to false everywhere (critique #300).
+  const tspInternal = v.scope.kind === "all" || v.scope.kind === "platform" || v.scope.kind === "assigned";
   if (o.transactionId === null) {
-    // Unclaimed placeholder: TSP internal team, whoever added it, or a director
-    // in the same agency (mirrors the claimed-node rule: creator / director / us).
-    // An external business member: only a stub they created themselves.
+    // Unclaimed placeholder: TSP internal team, whoever added it, a director in
+    // the same agency (mirrors the claimed-node rule: creator / director / us), or
+    // an external progression business that runs a sale in this chain — whether or
+    // not they built the chain (critique #300). A business member who progresses
+    // no file here still only gets a stub they created themselves.
     if (tspInternal) return true;
     if (o.linkCreatedByUserId === v.userId) return true;
-    return v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId;
+    if (v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId) return true;
+    return v.scope.kind === "business" && ctx?.viewerProgressesChain === true;
   }
   // Claimed node.
+  // The founder edits every claimed node, including an external business's.
+  if (v.scope.kind === "platform") return true;
   // TSP ("all") edits only its OWN nodes; an external business's node is read-only
-  // to TSP (view stays open above). admin / superadmin / hybrid.
+  // to TSP (view stays open above). admin / hybrid.
   if (v.scope.kind === "all") return o.txProgressionBusinessId == null;
   if (v.scope.kind === "assigned") {
     // sales_progressor: only on the file assigned to them.
@@ -130,4 +149,19 @@ export function canEditNodeIntel(v: IntelViewer, o: ChainNodeOwnership): boolean
   if (!o.txAgencyId || o.txAgencyId !== v.agencyId) return false;
   if (v.role === "director") return true;
   return o.txAssignedUserId === v.userId || o.txAgentUserId === v.userId;
+}
+
+// Does this viewer progress a claimed file somewhere in the chain? Powers the
+// outsourced-progressor stub reach in canEditNodeIntel (critique #300). Only the
+// "business" scope needs it — internal TSP (platform/all/assigned) is already an
+// editor via tspInternal, and agency viewers keep the creator/director rule. Pure
+// so both the read path (chains.ts, for the canEditStub flag) and the write guard
+// (stub-permissions.ts, for the mutation routes) agree on one answer.
+export function viewerProgressesChainFromTxs(
+  v: IntelViewer,
+  claimedTxs: { agencyId: string | null; progressionBusinessId: string | null }[],
+): boolean {
+  if (v.scope.kind !== "business") return false;
+  const businessId = v.scope.businessId;
+  return claimedTxs.some((tx) => tx.progressionBusinessId === businessId);
 }

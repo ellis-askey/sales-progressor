@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateChainLinkStub, removeChainLink } from "@/lib/services/chains";
-import { canManageStub, ownershipFromLinkRow, type StubLinkRow } from "@/lib/chain/stub-permissions";
+import { canManageStub, loadChainEditContext, ownershipFromLinkRow, type StubLinkRow } from "@/lib/chain/stub-permissions";
 import { type ChainNodeOwnership } from "@/lib/chain/intel";
 
 type RouteParams = { params: Promise<{ id: string; linkId: string }> };
@@ -38,7 +38,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const found = await getLinkOwnership(linkId);
   if (!found) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!canManageStub(session, found.ownership)) {
+  const editCtx = await loadChainEditContext(session, found.chainId);
+  if (!canManageStub(session, found.ownership, editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -64,7 +65,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const found = await getLinkOwnership(linkId);
   if (!found) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (!canManageStub(session, found.ownership)) {
+  const editCtx = await loadChainEditContext(session, found.chainId);
+  if (!canManageStub(session, found.ownership, editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

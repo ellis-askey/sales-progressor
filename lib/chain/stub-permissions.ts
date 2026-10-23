@@ -12,8 +12,15 @@
 // Server-only (imports getAccessScope). Do not import into client components.
 
 import { type Session } from "next-auth";
+import { prisma } from "@/lib/prisma";
 import { getAccessScope } from "@/lib/security/access-scope";
-import { canEditNodeIntel, type IntelViewer, type ChainNodeOwnership } from "@/lib/chain/intel";
+import {
+  canEditNodeIntel,
+  viewerProgressesChainFromTxs,
+  type IntelViewer,
+  type ChainNodeOwnership,
+  type ChainEditContext,
+} from "@/lib/chain/intel";
 
 // The link fields a stub-management decision needs. Routes select these (plus the
 // creating agency and the claimed file's agency/owners) and map them here.
@@ -36,14 +43,44 @@ export function ownershipFromLinkRow(link: StubLinkRow): ChainNodeOwnership {
   };
 }
 
-export function canManageStub(session: Session | null, ownership: ChainNodeOwnership): boolean {
-  if (!session?.user) return false;
-  if (ownership.transactionId !== null) return false; // claimed = a real file, not a stub
-  const viewer: IntelViewer = {
+function viewerFromSession(session: Session): IntelViewer {
+  return {
     userId: session.user.id,
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
     scope: getAccessScope(session),
   };
-  return canEditNodeIntel(viewer, ownership);
+}
+
+export function canManageStub(
+  session: Session | null,
+  ownership: ChainNodeOwnership,
+  ctx?: ChainEditContext,
+): boolean {
+  if (!session?.user) return false;
+  if (ownership.transactionId !== null) return false; // claimed = a real file, not a stub
+  return canEditNodeIntel(viewerFromSession(session), ownership, ctx);
+}
+
+// Chain-level edit context for the mutation routes. An outsourced progression
+// business may manage any placeholder in a chain where it runs a claimed sale,
+// even one another party added (critique #300). Only the "business" scope needs
+// this lookup — every other editor is decided by node-level facts alone — so we
+// skip the query otherwise and keep the UI flag (chains.ts) and the server guard
+// reading the same rule.
+export async function loadChainEditContext(
+  session: Session | null,
+  chainId: string,
+): Promise<ChainEditContext> {
+  if (!session?.user) return {};
+  const viewer = viewerFromSession(session);
+  if (viewer.scope.kind !== "business") return {};
+  const links = await prisma.chainLink.findMany({
+    where: { chainId },
+    select: { transaction: { select: { agencyId: true, progressionBusinessId: true } } },
+  });
+  const claimedTxs = links
+    .map((l) => l.transaction)
+    .filter((t): t is NonNullable<typeof t> => t != null);
+  return { viewerProgressesChain: viewerProgressesChainFromTxs(viewer, claimedTxs) };
 }
