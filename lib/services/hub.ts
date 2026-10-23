@@ -2887,18 +2887,29 @@ export async function getHubAttentionItems(
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIdsForChase.length > 0 && hasSolCodes) {
-    const [solStates, solRules, roundRows] = await Promise.all([
+    const [solStates, solRules, roundRows, clientStates] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIdsForChase }, resolvedAt: null },
         select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       }),
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
-      // Relist boundary per file (#299) — see reminders.ts getAgentReminderLogs.
-      prisma.propertyTransaction.findMany({ where: { id: { in: txIdsForChase } }, select: { id: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      // Relist boundary + both-lanes hand-off (#299) — see reminders.ts getAgentReminderLogs.
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIdsForChase } }, select: { id: true, activeBuyerRoundId: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      prisma.clientChaseState.findMany({
+        where: { transactionId: { in: txIdsForChase } },
+        select: { transactionId: true, milestoneCode: true, chaseCount: true, status: true, buyerRoundId: true },
+      }),
     ]);
+    const CLIENT_CHASE_CAP = 2;
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
     const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
+    const activeRoundByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRoundId]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    const clientStillAuto = new Set(
+      clientStates
+        .filter((c) => c.status === "active" && c.chaseCount < CLIENT_CHASE_CAP && (c.buyerRoundId == null || c.buyerRoundId === activeRoundByTx.get(c.transactionId)))
+        .map((c) => `${c.transactionId}:${c.milestoneCode}`),
+    );
     for (const l of logs) {
       const code = l.reminderRule.targetMilestoneCode;
       if (!code) continue;
@@ -2913,6 +2924,8 @@ export async function getHubAttentionItems(
       const effStatus = scoped.stale ? "active" : st.status;
       const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
+      // Both lanes (#299): client still auto-chasing → keep on autopilot.
+      if (clientStillAuto.has(`${l.transaction.id}:${code}`)) continue;
       solCappedIds.add(l.id); // never "on autopilot" — the cron is done with it
       // Hand over to Needs-attention only when it's actually due (a human chase
       // advances nextDueDate, so a just-chased capped row isn't boomeranged back).

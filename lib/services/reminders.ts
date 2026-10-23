@@ -605,7 +605,7 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIds.length > 0 && hasSolCodes) {
-    const [solStates, solRules, roundRows] = await Promise.all([
+    const [solStates, solRules, roundRows, clientStates] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIds }, resolvedAt: null },
         select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
@@ -613,11 +613,26 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
       // Relist boundary per file: solicitor chases before the current buyer began
       // belong to the previous buyer and must not count toward the cap (#299).
-      prisma.propertyTransaction.findMany({ where: { id: { in: txIds } }, select: { id: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIds } }, select: { id: true, activeBuyerRoundId: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      // Client lane for the both-lanes hand-off (#299): a step is only handed over
+      // when the client lane is ALSO out of auto-chases, so load it to tell whether
+      // the client is still auto-chasing the same step.
+      prisma.clientChaseState.findMany({
+        where: { transactionId: { in: txIds } },
+        select: { transactionId: true, milestoneCode: true, chaseCount: true, status: true, buyerRoundId: true },
+      }),
     ]);
+    const CLIENT_CHASE_CAP = 2;
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
     const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
+    const activeRoundByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRoundId]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    // Steps whose client lane is still auto-chasing (active, under cap, current round).
+    const clientStillAuto = new Set(
+      clientStates
+        .filter((c) => c.status === "active" && c.chaseCount < CLIENT_CHASE_CAP && (c.buyerRoundId == null || c.buyerRoundId === activeRoundByTx.get(c.transactionId)))
+        .map((c) => `${c.transactionId}:${c.milestoneCode}`),
+    );
     for (const l of visibleLogs) {
       const code = l.reminderRule.targetMilestoneCode;
       if (!code) continue;
@@ -635,6 +650,9 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
       const effStatus = scoped.stale ? "active" : st.status;
       const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
+      // Both lanes (#299): if the client is still auto-chasing this step, autopilot
+      // isn't finished — keep it on autopilot rather than hand the solicitor over.
+      if (clientStillAuto.has(`${l.transaction.id}:${code}`)) continue;
       // Capped: never "on autopilot" (the cron is done with it), regardless of date.
       solCappedIds.add(l.id);
       // Hand over to Needs you only when it's actually DUE. A human "Mark chased"
