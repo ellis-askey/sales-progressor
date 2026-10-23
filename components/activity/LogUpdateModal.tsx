@@ -565,6 +565,9 @@ const CSS = `
 .anb-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated,#fff); border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
 .anb-search:focus-within { border-color:var(--agent-coral-deep,#FF6B4A); }
 .anb-search input { flex:1; border:none; outline:none; background:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary,#2D1810); }
+/* The pill shows focus via its own border — kill the inner element outline so it
+   doesn't draw a second square inside (matches .lum-ta:focus-visible). */
+.anb-search input:focus-visible { outline:none; }
 .anb-results { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
 .anb-mi { display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border:1px solid transparent; border-radius:10px; background:transparent; font:inherit; text-align:left; cursor:pointer; transition:background .12s, border-color .12s; }
 .anb-mi:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); border-color:var(--agent-coral,#FF8A65); }
