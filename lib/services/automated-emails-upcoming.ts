@@ -55,6 +55,12 @@ export type ExhaustedItem = {
 export type UpcomingForecast = {
   predicted: PredictedBatch[];
   predictedTotal: number;
+  // Predicted automated sends due to go out TODAY (today + overdue, which the
+  // Outbox clamps into today). The "Still to send today" tile adds this to the
+  // queued-sends count so it reflects what will actually go out today, not just
+  // what's already materialised in the queue (critique #295A). Team hand-offs are
+  // the separate `exhausted` list and never counted here.
+  dueTodayCount: number;
   exhausted: ExhaustedItem[];
   // True when the per-file prediction fan-out hit its file cap — the UI says
   // so instead of silently under-reporting (upgrade phase 5).
@@ -113,7 +119,7 @@ function milestoneLabel(code: string): string {
 
 export async function getUpcomingForecast(input: EmailScopeInput): Promise<UpcomingForecast> {
   const { txIds, txAddressById } = await resolveEmailScope(input);
-  if (txIds.length === 0) return { predicted: [], predictedTotal: 0, exhausted: [], truncated: false };
+  if (txIds.length === 0) return { predicted: [], predictedTotal: 0, dueTodayCount: 0, exhausted: [], truncated: false };
 
   const now = new Date();
   const horizon = new Date(now.getTime() + HORIZON_DAYS * DAY);
@@ -195,9 +201,18 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
   // ── Automation exhausted ──
   const exhausted = await computeExhausted(txIds, txAddressById, ruleByCode, defMax, now);
 
+  // "Due today" = today's batch plus any overdue batches (the Outbox clamps
+  // overdue-unsent sends into Today, so count them here the same way).
+  const todayK = dayKey(now);
+  const batches = Array.from(batchMap.values());
+  const dueTodayCount = batches
+    .filter((b) => b.key <= todayK)
+    .reduce((n, b) => n + b.items.length, 0);
+
   return {
-    predicted: Array.from(batchMap.values()),
+    predicted: batches,
     predictedTotal: predicted.length,
+    dueTodayCount,
     exhausted,
     truncated,
   };

@@ -22,8 +22,11 @@ const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)
 const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
 
 export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: SendingTodayRow[]; sentToday?: number; stillToGo?: number }) {
-  // The true remaining-today figure comes from the banner service; the rows
-  // here are a capped preview of it.
+  // The true remaining-today figure (`stillToGo`) is the live forecast of
+  // automated emails due to go out today — queued sends PLUS predicted chases
+  // not yet materialised in the queue — so it matches the Outbox below and
+  // drops as steps get confirmed (critique #295A). `rows` is a capped preview of
+  // the queued, send-now/skip-able part; predicted ones are actioned in the Outbox.
   const total = stillToGo ?? rows.length;
   return (
     <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
@@ -34,7 +37,7 @@ export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: Se
         {total > 0 && <Pill glass tone="info" size="sm">{total}</Pill>}
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
           {sentToday > 0 ? (
             <>
@@ -44,6 +47,14 @@ export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: Se
           ) : (
             "Nothing due to go out today."
           )}
+        </p>
+      ) : rows.length === 0 ? (
+        /* The whole of today's remaining sends are predicted chases not yet in
+           the queue (they materialise on the next chase run). Nothing to send-now
+           here yet — point to the Outbox where each can be previewed. */
+        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+          {total === 1 ? "1 automated email is" : `${total} automated emails are`} lined up to go out today.{" "}
+          <Link href="/agent/automated-emails?tab=outbox" className="agent-link" style={{ fontWeight: 600 }}>See the Outbox</Link>.
         </p>
       ) : (
         /* Four rows at most — this is a quick-intercept panel next to two other
