@@ -1128,6 +1128,14 @@ export async function evaluateTransactionReminders(
       existingLog.snoozedUntil = null;
     }
 
+    // A reminder snoozed into the FUTURE is deliberately parked. Elapsed snoozes
+    // were just cleared above, so a snoozedUntil still set here is future-dated.
+    // Don't let the engine move its date or spawn a fresh pending ChaseTask while
+    // it's parked — on a never-yet-chased log that would resurrect the chase with
+    // a past due date and make it reappear as "overdue" (critique #293). Normal
+    // processing resumes automatically the moment the snooze elapses (cleared above).
+    const snoozedInFuture = !!existingLog?.snoozedUntil;
+
     if (existingLog) {
       // Pre-2026-06-01: this branch always recomputed nextDueDate from
       // anchor+graceDays and overwrote when diff > 1 hour. That clobbered
@@ -1146,7 +1154,7 @@ export async function evaluateTransactionReminders(
       // Phase 4: served from the pre-loop snapshot (nothing in this loop
       // ever creates a chaseCount>0 task, so the set cannot go stale).
       const hasChases = hasChasesLogIds.has(existingLog.id);
-      if (!hasChases) {
+      if (!hasChases && !snoozedInFuture) {
         // Update if due date shifted significantly (e.g. event_date changed,
         // or — as of the useCompletionDate rule — the anchor moved from
         // exchange-day to the agreed completion date).
@@ -1259,7 +1267,7 @@ export async function evaluateTransactionReminders(
         pushChaseEscalation(transactionId, milestoneLabel).catch(() => {});
       }
     } else {
-      if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
+      if (!snoozedInFuture && toUKDateStr(log.nextDueDate) <= todayUKStr) {
         // Commit 4c-followup — inherit the buyerRoundId from the parent
         // ReminderLog (now correctly stamped above). Same rule as the
         // ChaseTask.createMany in createInitialRemindersInline.
