@@ -498,6 +498,30 @@ export async function extendHoldAction(
   return { ok: true };
 }
 
+// Edit the reason on an on-hold file's open hold period, inline from the Files
+// list Paused cell. No status change — just relabels why it's paused.
+export async function updateHoldReasonAction(transactionId: string, reason: string): Promise<ActionResult> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, status: true },
+  });
+  if (!tx) return { ok: false, error: "Not found" };
+  if (tx.status !== "on_hold") return { ok: false, error: "File is not on hold." };
+  const clean = reason.trim().slice(0, 500);
+  // Update the currently-open period (endedAt null); updateMany covers the
+  // defensive multiple-open case, like the other hold writes.
+  await prisma.transactionHoldPeriod.updateMany({
+    where: { transactionId: tx.id, endedAt: null },
+    data: { reason: clean || null },
+  });
+  revalidatePath(`/agent/transactions/${transactionId}`);
+  revalidatePath(`/agent/hub`);
+  revalidatePath("/agent", "layout");
+  return { ok: true };
+}
+
 export async function reactivateFile(transactionId: string): Promise<ActionResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);

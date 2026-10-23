@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type ReactNode } from "react";
+import { useState, useRef, type ReactNode, type FormEvent } from "react";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
 import { createPortal } from "react-dom";
@@ -14,6 +14,8 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
+import { useAgentToast } from "@/components/agent/AgentToaster";
+import { updateHoldReasonAction } from "@/app/actions/automation";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
@@ -540,16 +542,83 @@ function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
   return <div>{caption}<span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span></div>;
 }
 
-// On-hold — how long + the typed reason (or "No reason given").
+// On-hold — how long + the typed reason, inline-editable (hover reveals a pencil).
 function PausedCell({ tx }: { tx: TransactionRow }) {
   const h = tx.health?.holdInfo;
-  if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
+  if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>&ndash;</span>;
   return (
-    <div>
+    <div className="paused-cell">
       <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>{h.days} days</p>
-      {h.reason
-        ? <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-secondary)", fontStyle: "italic" }}>&ldquo;{h.reason}&rdquo;</p>
-        : <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>No reason given</p>}
+      <PausedReason txId={tx.id} reason={h.reason ?? null} />
+    </div>
+  );
+}
+
+// Inline add/edit of the hold reason from the Files list. The pencil fades in on
+// hover of the cell; the editor slides in, saves on submit, and animates closed.
+// A single underline on the input, no chunky border; Save sits to its right.
+function PausedReason({ txId, reason: initial }: { txId: string; reason: string | null }) {
+  const [reason, setReason] = useState<string | null>(initial);
+  const [editing, setEditing] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [draft, setDraft] = useState(initial ?? "");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useAgentToast();
+
+  function startClose() {
+    setClosing(true);
+    setTimeout(() => { setEditing(false); setClosing(false); }, 150);
+  }
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    const res = await updateHoldReasonAction(txId, draft);
+    setSaving(false);
+    if (res.ok) { setReason(draft.trim() || null); startClose(); }
+    else toast.error(res.error ?? "Couldn't save the reason");
+  }
+
+  if (editing) {
+    return (
+      <form
+        className={`paused-edit${closing ? " closing" : ""}`}
+        onSubmit={save}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      >
+        <input
+          ref={inputRef}
+          className="paused-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); startClose(); } }}
+          placeholder="Add a reason"
+          maxLength={500}
+          aria-label="Hold reason"
+        />
+        <button type="submit" className="paused-save" disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+      </form>
+    );
+  }
+  return (
+    <div className="paused-reason-row">
+      {reason
+        ? <span style={{ fontSize: 11.5, color: "var(--agent-text-secondary)", fontStyle: "italic" }}>&ldquo;{reason}&rdquo;</span>
+        : <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>No reason given</span>}
+      <button
+        type="button"
+        className="paused-pencil"
+        aria-label="Edit reason"
+        title="Edit reason"
+        onClick={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          setDraft(reason ?? ""); setEditing(true);
+          setTimeout(() => inputRef.current?.focus(), 20);
+        }}
+      >
+        <NotePencil size={12} weight="bold" />
+      </button>
     </div>
   );
 }

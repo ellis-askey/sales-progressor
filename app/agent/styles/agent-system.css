@@ -5716,3 +5716,21 @@ body[data-demo-file] [data-onboarding-checklist] {
   .intel-desig-row { flex-direction: column; align-items: flex-start; gap: 2px; }
   .intel-desig-row .intel-desig-val { text-align: left; }
 }
+
+/* Files list — inline add/edit of the on-hold "Paused" reason. Pencil fades in on
+   cell hover; the editor slides in/out; a single underline, no chunky border. */
+.paused-reason-row { display: flex; align-items: center; margin-top: 2px; min-height: 18px; }
+.paused-pencil { opacity: 0; margin-left: 5px; padding: 2px; border: none; background: none; cursor: pointer; display: inline-flex; line-height: 0; border-radius: 4px; color: var(--agent-text-muted); transition: opacity .14s ease, color .14s ease, background .14s ease; }
+.paused-cell:hover .paused-pencil, .paused-pencil:focus-visible { opacity: 1; }
+.paused-pencil:hover { color: var(--agent-text-primary); background: var(--agent-bg-hover, rgba(127,127,127,.12)); }
+.paused-edit { display: flex; align-items: center; gap: 7px; margin-top: 3px; animation: paused-edit-in .18s cubic-bezier(.22,1,.36,1); }
+.paused-edit.closing { animation: paused-edit-out .15s ease forwards; }
+@keyframes paused-edit-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@keyframes paused-edit-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-3px); } }
+.paused-input { flex: 1; min-width: 0; font-size: 11.5px; font-style: italic; color: var(--agent-text-primary); background: var(--agent-bg-hover, rgba(127,127,127,.10)); border: none; border-bottom: 1px solid var(--agent-border-default, rgba(127,127,127,.35)); border-radius: 4px 4px 0 0; padding: 3px 7px; outline: none; transition: border-color .14s ease; }
+.paused-input::placeholder { font-style: italic; color: var(--agent-text-muted); }
+.paused-input:focus { border-bottom-color: var(--agent-coral-deep, #FF6B4A); }
+.paused-save { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; color: var(--agent-coral-deep, #FF6B4A); background: none; border: none; padding: 3px 5px; cursor: pointer; white-space: nowrap; border-radius: 5px; transition: background .14s ease, color .14s ease; }
+.paused-save:hover:not(:disabled) { background: var(--agent-bg-hover, rgba(127,127,127,.12)); }
+.paused-save:disabled { opacity: .55; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .paused-edit, .paused-edit.closing { animation: none; } }
