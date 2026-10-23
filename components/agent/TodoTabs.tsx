@@ -8,7 +8,14 @@
 
 import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 
-export type TodoTab = { key: string; label: string; count?: number };
+export type TodoTab = {
+  key: string;
+  label: string;
+  count?: number;
+  // Shorter label shown on phones (<=480px) where the full one is too wide
+  // (critique #273). Falls back to `label` when omitted.
+  shortLabel?: string;
+};
 
 export function TodoTabs({
   tabs,
@@ -58,7 +65,15 @@ export function TodoTabs({
               className={`todotabs-tab${t.key === active ? " on" : ""}`}
               onClick={() => select(t.key)}
             >
-              {t.label}
+              {t.shortLabel && t.shortLabel !== t.label ? (
+                // Full label above 480px, short one on phones (critique #273).
+                <>
+                  <span className="todotabs-lbl-full">{t.label}</span>
+                  <span className="todotabs-lbl-short">{t.shortLabel}</span>
+                </>
+              ) : (
+                t.label
+              )}
               {t.count != null && t.count > 0 && <span className="todotabs-count">{t.count}</span>}
             </button>
           ))}

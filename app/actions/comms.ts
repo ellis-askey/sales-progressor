@@ -19,9 +19,63 @@ import {
   type ImportResult,
 } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
-import { getAccessScope } from "@/lib/security/access-scope";
+import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { prisma } from "@/lib/prisma";
+import { hasAdminPowers } from "@/lib/agent-session";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { getSignedUrl } from "@/lib/supabase-storage";
+import { splitComposeAddress } from "@/lib/services/compose-recipients";
+
+// Everything the "Log an update" surface needs for a sale, loaded for the
+// standalone "Add note" launcher (critique #275) where there's no file context
+// to hand it down. Mirrors what ActivityPanel resolves server-side on the file.
+// Scope-guarded (Law 7): only a sale in the caller's scope resolves.
+export type NoteContext = {
+  property: { line1: string; location: string; photoUrl: string | null };
+  contacts: { id: string; name: string; roleType: string; phone: string | null }[];
+  solicitors: { id: string; name: string; role: string; phone: string | null }[];
+  canPasteChat: boolean;
+  emailConnected: boolean;
+  canMarkPrivate: boolean;
+};
+
+export async function getNoteContextAction(transactionId: string): Promise<NoteContext | null> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: {
+      propertyAddress: true,
+      photoStoragePath: true,
+      contacts: { select: { id: true, name: true, roleType: true, phone: true } },
+      vendorSolicitorContact: { select: { id: true, name: true, phone: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true, phone: true } },
+    },
+  });
+  if (!tx) return null;
+
+  const emailConn = await prisma.imapConnection
+    .findFirst({ where: { userId: session.user.id }, select: { id: true } })
+    .catch(() => null);
+  const canPasteChat = session.user.role === "sales_progressor" || hasAdminPowers(session);
+  const canMarkPrivate = progressionBusinessesEnabled() && !!session.user.progressionBusinessId;
+  const photoUrl = tx.photoStoragePath ? await getSignedUrl(tx.photoStoragePath).catch(() => null) : null;
+  const { line1, location } = splitComposeAddress(tx.propertyAddress);
+
+  return {
+    property: { line1, location, photoUrl },
+    contacts: tx.contacts.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType ?? "", phone: c.phone ?? null })),
+    solicitors: [
+      ...(tx.vendorSolicitorContact ? [{ id: tx.vendorSolicitorContact.id, name: tx.vendorSolicitorContact.name, role: "Vendor solicitor", phone: tx.vendorSolicitorContact.phone ?? null }] : []),
+      ...(tx.purchaserSolicitorContact ? [{ id: tx.purchaserSolicitorContact.id, name: tx.purchaserSolicitorContact.name, role: "Purchaser solicitor", phone: tx.purchaserSolicitorContact.phone ?? null }] : []),
+    ],
+    canPasteChat,
+    emailConnected: !!emailConn,
+    canMarkPrivate,
+  };
+}
 
 export async function addNoteAction(transactionId: string, content: string) {
   const session = await requireSession();

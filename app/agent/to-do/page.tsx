@@ -13,6 +13,7 @@ import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
+import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { toUKDateStr } from "@/lib/utils";
 
 export default async function AgentTodoPage() {
@@ -90,6 +91,7 @@ export default async function AgentTodoPage() {
           (critique #261). */}
       <PageHeader title="To-Do" subtitle={subtitle}>
         {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
+        <AddNoteButton />
         <ComposeEmailButton variant="ghost" />
       </PageHeader>
 

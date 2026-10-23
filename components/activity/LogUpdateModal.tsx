@@ -15,6 +15,7 @@ import { VoiceNotePanel } from "./VoiceNotePanel";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { logCommAction } from "@/app/actions/comms";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { extractFirstName, nameWithoutTitle } from "@/lib/contacts/displayName";
 import type { CommType, CommMethod } from "@prisma/client";
 
@@ -32,6 +33,18 @@ type Props = {
   // height sits between the full trigger and the segment pills beside it.
   compactTrigger?: boolean;
   onOptimisticAdd?: (type: CommType, method: CommMethod | null, content: string, contactIds: string[]) => void;
+  // Embedded mode (critique #275): render only the head + body (no trigger, no
+  // own overlay/sheet) so a host — the standalone "Add note" launcher — can own
+  // the sheet and morph into this from a property search. The host provides the
+  // sheet chrome + the CSS (LOG_UPDATE_CSS).
+  embedded?: boolean;
+  // Pinned property row at the top (embedded mode), with a control that returns
+  // to the host's property search.
+  propertyHeader?: { line1: string; location: string; photoUrl?: string | null };
+  onBackToSearch?: () => void;
+  // Called when the surface should close (embedded mode delegates closing to the
+  // host, which animates its own sheet out).
+  onClose?: () => void;
 };
 
 type Screen = "home" | "draft" | "record" | "whatsapp" | "log" | "note";
@@ -59,9 +72,13 @@ function svg(path: string, size = 18, sw = 1.8) {
 }
 
 export function LogUpdateModal(props: Props) {
-  const { transactionId, contacts, solicitors = [], canPasteChat, emailConnected, canMarkPrivate, compactTrigger, onOptimisticAdd } = props;
+  const { transactionId, contacts, solicitors = [], canPasteChat, emailConnected, canMarkPrivate, compactTrigger, onOptimisticAdd, embedded, propertyHeader, onBackToSearch } = props;
 
   const { toast } = useAgentToast();
+  // Embedded mode is always "open" (the host renders it only when it wants it);
+  // its own open/closing machinery is only used for the standalone trigger. It
+  // opens on the full "home" menu, same as the file — just morphed in from the
+  // host's property search (critique #275).
   const [open, setOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [channel, setChannel] = useState<LogChannel>("phone");
@@ -85,15 +102,18 @@ export function LogUpdateModal(props: Props) {
   const wasBothRef = useRef(false);
 
   useEffect(() => {
+    // Embedded: the host owns the overlay + Escape handling.
+    if (embedded) return;
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, embedded]);
 
   function openModal() { resetForm(); setScreen("home"); setMoreOpen(false); setClosing(false); setOpen(true); }
-  // Animate out (reverse of the entry), then unmount on animationend.
-  function close() { if (closing) return; setMoreOpen(false); setClosing(true); }
+  // Animate out (reverse of the entry), then unmount on animationend. Embedded
+  // mode delegates to the host's onClose (it animates its own sheet out).
+  function close() { if (embedded) { props.onClose?.(); return; } if (closing) return; setMoreOpen(false); setClosing(true); }
   function reallyClose() { setOpen(false); setClosing(false); }
   function goHome() { setMoreOpen(false); setScreen("home"); }
   function resetForm() {
@@ -299,32 +319,31 @@ export function LogUpdateModal(props: Props) {
   }
   const audienceEmpty = audMode === "side" ? !audSides.seller && !audSides.buyer : audPeople.length === 0;
 
-  return (
+  // Head + body — shared by the standalone sheet and the embedded host (#275).
+  const headBody = (
     <>
-      {/* Styles live here (always mounted) so the trigger button is styled even
-          when the modal is closed. */}
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div className="lum-launch">
-        <button type="button" className={"lum-trigger" + (compactTrigger ? " lum-trigger-sm" : "")} onClick={openModal}>
-          <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, compactTrigger ? 13 : 16, 2) }} />
-          Log an update
-        </button>
+      <div className="lum-head">
+        {embedded && screen === "home" && onBackToSearch ? (
+          <button className="lum-ic" onClick={onBackToSearch} aria-label="Back to property search" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
+        ) : screen !== "home" ? (
+          <button className="lum-ic" onClick={goHome} aria-label="Back" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
+        ) : null}
+        <h2 className="lum-title">{embedded && screen === "home" && propertyHeader ? propertyHeader.line1 : titles[screen]}</h2>
+        <button className="lum-ic lum-ic-x" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
       </div>
 
-      {open && typeof document !== "undefined" && createPortal(
-        <div className="lum-ov" role="dialog" aria-modal="true" aria-label="Log an update" data-closing={closing ? "1" : undefined}>
-          <div className="lum-bg" onClick={close} />
-          <div className={"lum-sheet" + (closing ? " lum-closing" : "")} data-tall={moreOpen ? "1" : undefined} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
-            <div className="lum-grab" />
-            <div className="lum-head">
-              {screen !== "home" && (
-                <button className="lum-ic" onClick={goHome} aria-label="Back" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
-              )}
-              <h2 className="lum-title">{titles[screen]}</h2>
-              <button className="lum-ic lum-ic-x" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
-            </div>
-
-            <div className="lum-body">
+      <div className="lum-body">
+        {embedded && propertyHeader && (
+          // Pinned property + a control that animates back to the search (#275).
+          <button type="button" className="lum-prophead" onClick={onBackToSearch} title="Change property">
+            <PropertyThumb photoUrl={propertyHeader.photoUrl ?? null} size={30} />
+            <span className="lum-ph-addr">
+              <span className="lum-ph-l1">{propertyHeader.line1}</span>
+              {propertyHeader.location && <span className="lum-ph-l2">{propertyHeader.location}</span>}
+            </span>
+            <span className="lum-ph-x" dangerouslySetInnerHTML={{ __html: svg(IC.x, 13, 2.2) }} />
+          </button>
+        )}
               {screen === "home" && (
                 <div className="lum-fade">
                   <p className="lum-eyebrow">Tell your clients, or log what happened</p>
@@ -474,7 +493,32 @@ export function LogUpdateModal(props: Props) {
                   </div>
                 </div>
               )}
-            </div>
+      </div>
+    </>
+  );
+
+  // Embedded: the host (Add-note launcher) owns the overlay + sheet + grab; we
+  // render just the head + body so it can morph in from a property search (#275).
+  if (embedded) return headBody;
+
+  return (
+    <>
+      {/* Styles live here (always mounted) so the trigger button is styled even
+          when the modal is closed. */}
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <div className="lum-launch">
+        <button type="button" className={"lum-trigger" + (compactTrigger ? " lum-trigger-sm" : "")} onClick={openModal}>
+          <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, compactTrigger ? 13 : 16, 2) }} />
+          Log an update
+        </button>
+      </div>
+
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="lum-ov" role="dialog" aria-modal="true" aria-label="Log an update" data-closing={closing ? "1" : undefined}>
+          <div className="lum-bg" onClick={close} />
+          <div className={"lum-sheet" + (closing ? " lum-closing" : "")} data-tall={moreOpen ? "1" : undefined} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
+            <div className="lum-grab" />
+            {headBody}
           </div>
         </div>,
         document.body,
@@ -509,6 +553,25 @@ const CSS = `
 .lum-ic:hover { background:#fff; color:var(--agent-text-primary,#2D1810); }
 .lum-body { padding:4px 18px 20px; overflow-y:auto; }
 @media (max-width:1024px) { .lum-body { padding-bottom:calc(20px + env(safe-area-inset-bottom)); } }
+/* Pinned property + change-property control, embedded "Add note" flow (#275). */
+.lum-prophead { display:flex; align-items:center; gap:10px; width:100%; margin:0 0 14px; padding:8px 10px; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; background:rgba(255,255,255,.5); cursor:pointer; font:inherit; text-align:left; transition:border-color .14s, background .14s; }
+.lum-prophead:hover { border-color:var(--agent-coral,#FF8A65); background:#fff; }
+.lum-ph-addr { flex:1; min-width:0; display:flex; flex-direction:column; }
+.lum-ph-l1 { font-size:13px; font-weight:650; color:var(--agent-text-primary,#2D1810); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lum-ph-l2 { font-size:11px; color:var(--agent-text-muted,rgba(45,24,16,.55)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lum-ph-x { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; color:var(--agent-text-muted,rgba(45,24,16,.55)); background:rgba(45,24,16,.05); flex:0 0 auto; transition:color .14s, background .14s; }
+.lum-prophead:hover .lum-ph-x { color:var(--agent-coral-darker); background:var(--agent-coral-bg-tint,rgba(255,138,101,.12)); }
+/* Property search (step 1 of the standalone Add-note launcher). */
+.anb-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated,#fff); border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
+.anb-search:focus-within { border-color:var(--agent-coral-deep,#FF6B4A); }
+.anb-search input { flex:1; border:none; outline:none; background:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary,#2D1810); }
+.anb-results { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+.anb-mi { display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border:1px solid transparent; border-radius:10px; background:transparent; font:inherit; text-align:left; cursor:pointer; transition:background .12s, border-color .12s; }
+.anb-mi:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); border-color:var(--agent-coral,#FF8A65); }
+.anb-mi-addr { min-width:0; display:flex; flex-direction:column; }
+.anb-mi-l1 { font-size:13px; font-weight:600; color:var(--agent-text-primary,#2D1810); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.anb-mi-l2 { font-size:11px; color:var(--agent-text-muted,rgba(45,24,16,.55)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.anb-empty { padding:14px 10px; font-size:12.5px; color:var(--agent-text-muted,rgba(45,24,16,.55)); }
 .lum-fade { animation:lum-fade .24s ease both; }
 @keyframes lum-fade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
 .lum-eyebrow { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin:0 0 10px; }
@@ -681,3 +744,7 @@ const CSS = `
 @keyframes lum-bgout { to { opacity:0 } }
 @media (prefers-reduced-motion:reduce) { .lum-ov * { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
 `;
+
+// The standalone "Add note" launcher injects this so its property-search step +
+// sheet chrome are styled before the embedded LogUpdateModal mounts (#275).
+export const LOG_UPDATE_CSS = CSS;

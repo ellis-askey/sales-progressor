@@ -16,6 +16,7 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
+import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -180,9 +181,11 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
     awaiting: pool.filter(({ s }) => s.awaitingReply).length,
   };
   const tabs = [
-    { key: "touch", label: "To touch", count: counts.touch },
-    { key: "recent", label: "Least contacted" }, // neutral list, not a to-do count
-    { key: "awaiting", label: "Awaiting reply", count: counts.awaiting },
+    // shortLabel kicks in <=480px so the three tabs + the Seller/Buyer control
+    // stop clipping on a phone (critique #273).
+    { key: "touch", label: "To touch", shortLabel: "Touch", count: counts.touch },
+    { key: "recent", label: "Least contacted", shortLabel: "Quietest" }, // neutral list, not a to-do count
+    { key: "awaiting", label: "Awaiting reply", shortLabel: "Waiting", count: counts.awaiting },
   ];
   const empty = EMPTY_VIEW[view];
 
@@ -194,7 +197,10 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <h1 className="fc-h1">Keep every client in the loop</h1>
             {/* Same composer, same top-right header slot as the hub (founder ask, 2026-10-21). */}
-            <ComposeEmailButton variant="ghost" />
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <AddNoteButton />
+              <ComposeEmailButton variant="ghost" />
+            </span>
           </div>
           <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
 
