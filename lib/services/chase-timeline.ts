@@ -520,15 +520,25 @@ export async function getChaseTimeline(
 
     // Autopilot sends next only while its lane is still active and under cap;
     // otherwise "next" is a reminder for the team to act.
-    const nextIsAutomated = !!autoState && autoState.status === "active" && autoState.chaseCount < cap;
-    const autoHandedOff = !!autoState && autoState.status !== "active" && autoState.chaseCount >= cap;
+    // Both-lanes hand-off (critique #299). A step can be auto-chased on BOTH the
+    // solicitor and the client at once (the solicitor confirms, then forwards the
+    // result to the client so they can confirm too). It's only "handed to your
+    // team" once EVERY auto lane has used up its chases — while any lane is still
+    // sending, autopilot keeps going and the step stays "auto-chasing".
+    const solStillAuto = !!sol && sol.status === "active" && sol.chaseCount < SOLICITOR_CHASE_CAP;
+    const clientStillAuto = !!cs && cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP;
+    const anyLaneStillAuto = solStillAuto || clientStillAuto;
+    const solCapped = !!sol && (sol.chaseCount >= SOLICITOR_CHASE_CAP || sol.status === "escalated");
+    const clientCapped = !!task?.fallbackKind || (!!cs && cs.chaseCount >= CLIENT_CHASE_CAP);
+    const nextIsAutomated = anyLaneStillAuto;
+    const autoHandedOff = !anyLaneStillAuto && (solCapped || clientCapped);
 
     let state: ChaseThreadState;
     if (log.status === "completed") state = "completed";
     else if (log.status === "cancelled") state = "cancelled";
     else if (escalated) state = "escalated";
     else if (manualChases > 0) state = "manual_chasing";
-    else if (task?.fallbackKind || autoHandedOff) state = "handed_to_team";
+    else if (autoHandedOff) state = "handed_to_team";
     else if (autoChases > 0 || nextIsAutomated) state = "auto_chasing";
     else state = "scheduled";
 
@@ -660,7 +670,12 @@ export async function getChaseTimeline(
         }
       : null;
     const solNext = solicitorNextSend(side, code);
-    const nextSends: NextSend[] = [clientNext, solNext].filter((s): s is NextSend => s != null);
+    // While any lane is still auto-chasing, don't surface an exhausted lane's
+    // "with your team" card — the step isn't handed over yet (critique #299). Only
+    // the still-auto lane's "Next: chase" shows; both show once fully handed off.
+    const nextSends: NextSend[] = [clientNext, solNext]
+      .filter((s): s is NextSend => s != null)
+      .filter((s) => !(anyLaneStillAuto && s.handedToTeam));
 
     return {
       id: log.id,
