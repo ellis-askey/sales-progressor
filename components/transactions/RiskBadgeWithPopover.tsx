@@ -2,9 +2,20 @@
 
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
-import { calculateRiskScore, RISK_CONFIG } from "@/lib/services/risk";
+import { calculateRiskScore, RISK_CONFIG, type RiskLevel } from "@/lib/services/risk";
 import type { HealthRaw } from "@/components/transactions/TransactionTable";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { TrendUp, Eye, Warning, CircleDashed, Handshake } from "@phosphor-icons/react";
+
+// Icon + text colour per risk level, matching the "On hold" status marker style
+// (RowMarker in TransactionRowView) — no pill. The popover is unchanged.
+const RISK_MARK: Record<RiskLevel, { icon: typeof Eye; color: string }> = {
+  low:       { icon: TrendUp,      color: "var(--agent-success)" },
+  medium:    { icon: Eye,          color: "var(--agent-warning)" },
+  high:      { icon: Warning,      color: "var(--agent-danger)" },
+  no_data:   { icon: CircleDashed, color: "var(--agent-text-muted)" },
+  exchanged: { icon: Handshake,    color: "var(--agent-success)" },
+};
 
 function buildInput(raw: HealthRaw) {
   return {
@@ -99,6 +110,8 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
 
   const risk = calculateRiskScore(buildInput(raw));
   const cfg = RISK_CONFIG[risk.level];
+  const mk = RISK_MARK[risk.level];
+  const MkIcon = mk.icon;
   const triggered = risk.factors.filter((f) => f.triggered);
 
   return (
@@ -110,11 +123,12 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
     >
       <button
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); openPopover(); }}
-        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${cfg.bg} ${cfg.border} ${cfg.color}`}
-        style={{ cursor: "default" }}
+        className="inline-flex items-center"
+        style={{ cursor: "default", background: "none", border: "none", padding: 0, color: mk.color }}
       >
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-        {cfg.label}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: mk.color }}>
+          <MkIcon size={13} weight="fill" /> {cfg.label}
+        </span>
       </button>
 
       {open && pos && typeof document !== "undefined" && createPortal(
