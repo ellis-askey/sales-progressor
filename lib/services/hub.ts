@@ -7,6 +7,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
@@ -2886,14 +2887,17 @@ export async function getHubAttentionItems(
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIdsForChase.length > 0 && hasSolCodes) {
-    const [solStates, solRules] = await Promise.all([
+    const [solStates, solRules, roundRows] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIdsForChase }, resolvedAt: null },
-        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       }),
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+      // Relist boundary per file (#299) — see reminders.ts getAgentReminderLogs.
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIdsForChase } }, select: { id: true, activeBuyerRound: { select: { createdAt: true } } } }),
     ]);
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
     for (const l of logs) {
       const code = l.reminderRule.targetMilestoneCode;
@@ -2904,7 +2908,10 @@ export async function getHubAttentionItems(
       if (!st) continue;
       // A solicitor-given expected date parks it (a snooze, not "run out").
       if (st.snoozeUntil && st.snoozeUntil > now) continue;
-      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      // Round-scope the counter to the current buyer (#299).
+      const scoped = solChasesInRound(st, side, roundStartByTx.get(l.transaction.id) ?? null);
+      const effStatus = scoped.stale ? "active" : st.status;
+      const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
       solCappedIds.add(l.id); // never "on autopilot" — the cron is done with it
       // Hand over to Needs-attention only when it's actually due (a human chase

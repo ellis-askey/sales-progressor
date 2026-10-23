@@ -13,6 +13,7 @@ import { rollToWorkingDay, addWorkingDays } from "@/lib/emails/working-hours";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -604,14 +605,18 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIds.length > 0 && hasSolCodes) {
-    const [solStates, solRules] = await Promise.all([
+    const [solStates, solRules, roundRows] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIds }, resolvedAt: null },
-        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       }),
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+      // Relist boundary per file: solicitor chases before the current buyer began
+      // belong to the previous buyer and must not count toward the cap (#299).
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIds } }, select: { id: true, activeBuyerRound: { select: { createdAt: true } } } }),
     ]);
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
     for (const l of visibleLogs) {
       const code = l.reminderRule.targetMilestoneCode;
@@ -623,7 +628,12 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
       // A solicitor-given expected date legitimately parks it — that's a snooze,
       // not "run out" — so leave those on autopilot.
       if (st.snoozeUntil && st.snoozeUntil > nowForChase) continue;
-      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      // Round-scope the counter to the current buyer (#299): a stale row's
+      // previous-buyer chases don't count, and its old "escalated" status is
+      // ignored, so a relisted file isn't wrongly handed over on old chases.
+      const scoped = solChasesInRound(st, side, roundStartByTx.get(l.transaction.id) ?? null);
+      const effStatus = scoped.stale ? "active" : st.status;
+      const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
       // Capped: never "on autopilot" (the cron is done with it), regardless of date.
       solCappedIds.add(l.id);
