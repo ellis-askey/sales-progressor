@@ -6,6 +6,7 @@ import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility, resolveInternalVisibility } from "@/lib/services/agent";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listTransactions } from "@/lib/services/transactions";
+import { resolveFileNextSteps, type FileNextStep } from "@/lib/services/next-step";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getHubFilteredIds, getMonthExchangingIds, getGoneQuietFiles, type HubFilter } from "@/lib/services/hub";
 import { getWorkQueueItems } from "@/lib/services/work-queue";
@@ -165,7 +166,7 @@ export default async function AllTransactionsPage({
   // alerts) in one parallel pass. The segment sets are skipped in narrowed
   // mode, where the strip + segments don't render. getGoneQuietFiles /
   // getWorkQueueItems are the canonical detectors — imported, not re-derived.
-  const [photoMap, stageMap, quietFiles, workQueue] = await Promise.all([
+  const [photoMap, stageMap, quietFiles, workQueue, nextStepMap] = await Promise.all([
     getSignedUrlMap(clientTransactions.map((t) => t.photoStoragePath)),
     // Active files draw the live journey bar; withdrawn files draw the faded
     // "how far it got" (Reached) bar on the Withdrawn tab — both derive from
@@ -175,11 +176,25 @@ export default async function AllTransactionsPage({
     getPipelineStageMap(clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn").map((t) => t.id)),
     inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis, [], { isExternalProgressor }).catch(() => []),
     inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
+    // Honest next-step line, reusing the Reminders engine (lib/services/next-step.ts).
+    // Falls back to the row's own crude next-step if it throws, so the list never
+    // breaks on a reminder-read hiccup.
+    resolveFileNextSteps(
+      vis,
+      clientTransactions.map((t) => ({
+        id: t.id, status: t.status, exchanged: !!t.exchangedAt,
+        ourSideReady: t.ourSideReady, readyToExchange: t.readyToExchange, inChain: t.inChain, chainReady: t.chainReady,
+      })),
+    ).catch(() => new Map<string, FileNextStep>()),
   ]);
-  const rowsWithPhotos = clientTransactions.map((t) => ({
-    ...t,
-    photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
-  }));
+  const rowsWithPhotos = clientTransactions.map((t) => {
+    const ns = nextStepMap.get(t.id);
+    return {
+      ...t,
+      photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
+      ...(ns ? { health: { ...t.health, nextStep: ns } } : {}),
+    };
+  });
   const stageByTx = Object.fromEntries(stageMap);
 
   const goneQuietIds = quietFiles.map((q) => q.transactionId);

@@ -423,6 +423,13 @@ export async function listTransactions(
       agentFeePercent: agentFeePercentNum,
       referralFee: referralFeeNum,
       feePence,
+      // Readiness booleans consumed by resolveFileNextSteps (lib/services/next-step.ts)
+      // to interleave "Ready to exchange" / "Waiting on the chain" with the chase
+      // states when the Files page overrides the next-step line.
+      readyToExchange,
+      ourSideReady: vm18Done.has(tx.id) && pm25Done.has(tx.id),
+      inChain: tx.chainLinkId != null,
+      chainReady: tx.chainLinkId != null && chainLinkReady.has(tx.chainLinkId),
       health: {
         pendingOverdueTasks: overdueTasks.length,
         escalatedTasks: escalatedTasks.length,
