@@ -562,7 +562,7 @@ const CSS = `
 .lum-ph-x { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; color:var(--agent-text-muted,rgba(45,24,16,.55)); background:rgba(45,24,16,.05); flex:0 0 auto; transition:color .14s, background .14s; }
 .lum-prophead:hover .lum-ph-x { color:var(--agent-coral-darker); background:var(--agent-coral-bg-tint,rgba(255,138,101,.12)); }
 /* Property search (step 1 of the standalone Add-note launcher). */
-.anb-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated,#fff); border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
+.anb-search { display:flex; align-items:center; gap:9px; background:transparent; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
 .anb-search:focus-within { border-color:var(--agent-coral-deep,#FF6B4A); }
 .anb-search input { flex:1; border:none; outline:none; background:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary,#2D1810); }
 /* The pill shows focus via its own border — kill the inner element outline so it
