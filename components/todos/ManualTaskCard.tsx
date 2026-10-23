@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { Pill } from "@/components/ui/Pill";
 import { toUKDateStr } from "@/lib/utils";
+
+// Date-only value for an <input type="date"> — UTC components so a stored
+// midnight-UTC due date doesn't slip a day in a behind-UTC timezone.
+function toInputDate(d: Date | null): string {
+  if (!d) return "";
+  const x = new Date(d);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${x.getUTCFullYear()}-${pad(x.getUTCMonth() + 1)}-${pad(x.getUTCDate())}`;
+}
 
 function timeAgo(date: Date): string {
   const secs = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -50,6 +59,57 @@ export function ManualTaskCard({
   const [checkPopped, setCheckPopped] = useState(false);
   const isDone = task.status === "done";
 
+  // Reschedule popover (critique #274): add an update + pick a new date in one
+  // step. localDue drives the display so the new date shows without a refresh.
+  const [localDue, setLocalDue] = useState<Date | null>(task.dueDate ?? null);
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [newDate, setNewDate] = useState(toInputDate(task.dueDate ?? null));
+  const [updateText, setUpdateText] = useState(task.progressorNote ?? "");
+  const [savingResched, setSavingResched] = useState(false);
+  const reschedRef = useRef<HTMLDivElement>(null);
+
+  // Keep local copies in step if the parent hands us a fresher task.
+  useEffect(() => { setLocalDue(task.dueDate ?? null); }, [task.dueDate]);
+
+  // Close the popover on an outside click.
+  useEffect(() => {
+    if (!reschedOpen) return;
+    function onDown(e: MouseEvent) {
+      if (reschedRef.current && !reschedRef.current.contains(e.target as Node)) setReschedOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [reschedOpen]);
+
+  function openResched() {
+    setNewDate(toInputDate(localDue));
+    setUpdateText(progressorNote);
+    setReschedOpen(true);
+  }
+
+  async function saveResched() {
+    if (!newDate) return;
+    setSavingResched(true);
+    const nextNote = updateText.trim();
+    const noteChanged = nextNote !== (task.progressorNote ?? "");
+    try {
+      await updateManualTaskAction(task.id, {
+        dueDate: newDate,
+        ...(noteChanged ? { progressorNote: nextNote || null } : {}),
+      });
+      // Reflect immediately (UTC midnight to match the stored date-only value).
+      setLocalDue(new Date(`${newDate}T00:00:00.000Z`));
+      if (noteChanged) setProgressorNote(nextNote);
+      setReschedOpen(false);
+      setRowFlash(true);
+      setTimeout(() => setRowFlash(false), 700);
+    } catch {
+      // Leave the popover open so the agent can retry.
+    } finally {
+      setSavingResched(false);
+    }
+  }
+
   async function handleProgressorNoteBlur() {
     const trimmed = progressorNote.trim();
     const current = task.progressorNote ?? "";
@@ -82,7 +142,7 @@ export function ManualTaskCard({
     setTimeout(() => onDelete(task.id), 150);
   }
 
-  const due = task.dueDate ? formatDue(task.dueDate) : null;
+  const due = localDue ? formatDue(localDue) : null;
 
   return (
     <div
@@ -170,10 +230,64 @@ export function ManualTaskCard({
           {task.assignedTo && (
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{task.assignedTo.name}</span>
           )}
-          {due && (
-            <span style={{ fontSize: 11, fontWeight: 500, color: due.overdue ? "#ef4444" : "var(--agent-text-muted)" }}>
-              {due.label}
-            </span>
+          {/* Due date — click to add an update + reschedule in one step (#274).
+              Read-only lists keep the plain label. */}
+          {readOnly ? (
+            due && (
+              <span style={{ fontSize: 11, fontWeight: 500, color: due.overdue ? "#ef4444" : "var(--agent-text-muted)" }}>
+                {due.label}
+              </span>
+            )
+          ) : (
+            <div ref={reschedRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => (reschedOpen ? setReschedOpen(false) : openResched())}
+                className="agent-link"
+                style={{ fontSize: 11, fontWeight: 500, color: due ? (due.overdue ? "#ef4444" : "var(--agent-text-muted)") : "var(--agent-coral-deep)", cursor: "pointer", background: "none", border: 0, padding: 0 }}
+              >
+                {due ? due.label : "+ Add date"}
+              </button>
+
+              {reschedOpen && (
+                <div
+                  className="agent-dropdown-in"
+                  style={{
+                    position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50, width: 230,
+                    background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid var(--agent-border-default)",
+                    borderRadius: 12, boxShadow: "0 12px 32px rgba(45,24,16,0.16)", padding: 12,
+                  }}
+                >
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", marginBottom: 5 }}>
+                    New date
+                  </label>
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    className="w-full text-xs rounded-lg px-2.5 py-2"
+                    style={{ border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass, #fff)", color: "var(--agent-text-primary)" }}
+                  />
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
+                    Update <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                  </label>
+                  <textarea
+                    value={updateText}
+                    onChange={(e) => setUpdateText(e.target.value)}
+                    placeholder="What's happened?"
+                    rows={2}
+                    className="w-full text-xs rounded-lg px-2.5 py-2 leading-relaxed"
+                    style={{ border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass, #fff)", color: "var(--agent-text-secondary)", resize: "vertical" }}
+                  />
+                  <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
+                    <button type="button" onClick={() => setReschedOpen(false)} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
+                    <button type="button" onClick={saveResched} disabled={!newDate || savingResched} className="agent-btn agent-btn-primary agent-btn-sm">
+                      {savingResched ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
