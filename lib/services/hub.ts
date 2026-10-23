@@ -600,9 +600,12 @@ export async function getMonthExchangingIds(
   const endOfMonth   = new Date(year, month + 1, 0, 23, 59, 59, 999);
   const txWhere = buildTxWhere(vis);
 
-  // Phase-3 OR scope for the not-yet-exchanged check.
-  const activeRoundIds = await loadActiveRoundIds(txWhere);
-
+  // The number means "files with an exchange date in this month, INCLUDING ones
+  // that have already exchanged but not yet completed" (critique #292, founder
+  // decision 2026-10-23). The strip count counts exactly those active files, so
+  // the list must not filter already-exchanged ones out — doing so made the strip
+  // read 5 while the list showed 4. An exchanged-not-completed file is still
+  // status "active"; a completed file is status "completed" and excluded below.
   const where: Prisma.PropertyTransactionWhereInput = {
     ...txWhere,
     status: "active",
@@ -610,16 +613,6 @@ export async function getMonthExchangingIds(
       { expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth } },
       { overridePredictedDate: { gte: startOfMonth, lte: endOfMonth } },
     ],
-    NOT: {
-      // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
-      milestoneCompletions: {
-        some: {
-          state: "complete",
-          milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
-          OR: roundScopedOR(activeRoundIds),
-        },
-      },
-    },
   };
 
   const results = await prisma.propertyTransaction.findMany({ where, select: { id: true } });
