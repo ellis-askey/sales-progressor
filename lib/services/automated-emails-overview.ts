@@ -307,7 +307,12 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
 
   const [queueProblems, solProblems, missingContacts] = await Promise.all([
     prisma.outboundEmailQueue.findMany({
-      where: { ...queueScope, OR: queueProblemOr(from, now) },
+      // Only ACTIVE files: a historical bounce/block/error on a file that has
+      // since completed or been withdrawn must not surface as a live "needs
+      // attention" item (critique #295B — a completed sale read "we can't reach
+      // the buyer"). Mirrors the missingContacts query below, which already
+      // scopes to active files.
+      where: { ...queueScope, AND: [{ recipientContact: { transaction: { status: "active" } } }], OR: queueProblemOr(from, now) },
       select: {
         id: true, bouncedAt: true, bouncedReason: true, blockedAt: true, blockedReason: true,
         errorAt: true, errorMessage: true, deferredAt: true, deferredCount: true, deliveredAt: true,
@@ -318,7 +323,9 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       take: 200,
     }),
     prisma.outboundMessage.findMany({
-      where: solicitorProblemWhere(solicitorScope, from, now),
+      // Same active-file scope as above — don't flag a solicitor send failure on
+      // a completed/withdrawn file (critique #295B).
+      where: { ...solicitorProblemWhere(solicitorScope, from, now), transaction: { status: "active" } },
       select: { id: true, transactionId: true, recipientName: true, recipientEmail: true, failedAt: true, failureReason: true, status: true },
       orderBy: { failedAt: "desc" },
       take: 200,
