@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { solRowIsStale } from "@/lib/chase/solicitor-round";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
@@ -229,6 +230,9 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
     select: {
       id: true,
       activeBuyerRoundId: true,
+      // Round start = the relist moment. Used to self-heal a solicitor counter
+      // that still carries a PREVIOUS buyer's chases (critique #299).
+      activeBuyerRound: { select: { createdAt: true } },
       lastActivityAt: true,
       createdAt: true,
       isMigrated: true, // brought-in sales anchor chases on import time, not historical event dates
@@ -258,7 +262,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
         },
       },
       solicitorChaseStates: {
-        select: { side: true, milestoneCode: true, chaseCount: true, lastChasedAt: true, status: true, snoozeUntil: true },
+        select: { side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       },
     },
   });
@@ -346,7 +350,16 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
 
         const firstDue = addWorkingDays(anchor, rule.graceWorkingDays);
 
-        const state = tx.solicitorChaseStates.find((s) => s.side === side && s.milestoneCode === code);
+        let state = tx.solicitorChaseStates.find((s) => s.side === side && s.milestoneCode === code);
+        // Self-heal (critique #299): if this counter's FIRST chase predates the
+        // current buyer (relisted file), it belongs to the previous buyer. Clear
+        // it so the new buyer is chased fresh — the same thing the relist reset
+        // now does automatically; this catches rows that predate that reset. The
+        // sent emails (OutboundMessage) are untouched; only the counter resets.
+        if (side === "purchaser" && solRowIsStale(state, "purchaser", tx.activeBuyerRound?.createdAt ?? null)) {
+          await prisma.solicitorChaseState.deleteMany({ where: { transactionId: tx.id, side, milestoneCode: code } });
+          state = undefined;
+        }
         // Rescheduled from the chase timeline: the hold quiets this step until
         // the chosen day (the reschedule action upserts a state row, so a
         // never-chased step can carry a hold too).
@@ -606,6 +619,7 @@ async function runEscalationPass(now: Date, global: GlobalCadence): Promise<numb
       side: true,
       milestoneCode: true,
       chaseCount: true,
+      firstChasedAt: true,
       lastChasedAt: true,
       snoozeUntil: true,
     },
@@ -629,11 +643,20 @@ async function runEscalationPass(now: Date, global: GlobalCadence): Promise<numb
         agentUserId: true,
         assignedUserId: true,
         activeBuyerRoundId: true,
+        activeBuyerRound: { select: { createdAt: true } },
         vendorSolicitorFirm: { select: { name: true } },
         purchaserSolicitorFirm: { select: { name: true } },
       },
     });
     if (!tx) continue;
+
+    // Self-heal (critique #299): a counter whose first chase predates the current
+    // buyer belongs to the previous buyer — clear it rather than escalate the old
+    // buyer's chases onto the new sale.
+    if (solRowIsStale(state, state.side as "vendor" | "purchaser", tx.activeBuyerRound?.createdAt ?? null)) {
+      await prisma.solicitorChaseState.deleteMany({ where: { id: state.id } });
+      continue;
+    }
 
     // Still genuinely outstanding? (not confirmed, not snoozed)
     const def = await prisma.milestoneDefinition.findUnique({
