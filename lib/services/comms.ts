@@ -1161,7 +1161,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
       urlPath: "/updates",
     }, audience).catch(() => {});
 
-    emailVisibleUpdateToClients(input.transactionId, input.content, audience).catch(() => {});
+    emailVisibleUpdateToClients(input.transactionId, input.content, record.id, audience).catch(() => {});
   }
 
   return record;
@@ -1602,7 +1602,7 @@ function buildDedupeHash(content: string, timestamp: Date): string {
   return `${minuteBucket}:${normalised}`;
 }
 
-async function emailVisibleUpdateToClients(transactionId: string, content: string, audienceIds?: string[]): Promise<void> {
+async function emailVisibleUpdateToClients(transactionId: string, content: string, recordId: string, audienceIds?: string[]): Promise<void> {
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -1626,6 +1626,12 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
   const sender    = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
   const theme     = sender.theme ?? resolveEmailTheme(null);
 
+  // Keep a representative copy of the email we sent (first recipient's render),
+  // so the update comm row can be opened true-to-inbox later. Previously this
+  // path stored nothing, so client milestone-update emails could never be viewed
+  // (critique #298C). Per-recipient renders differ only in greeting + portal link.
+  let storedHtml: string | null = null;
+
   for (const c of recipients) {
     if (!c.email || !c.portalToken) continue;
     const saleWord  = c.roleType === "vendor" ? "sale" : "purchase";
@@ -1633,6 +1639,7 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
     const portalUrl = `${base}/portal/${c.portalToken}/updates`;
 
     const email = buildClientUpdateEmail({ agencyName: agency, address, saleWord, greeting, content, portalUrl, theme, studioTheme: sender.studioTheme, identityName: sender.brandName ?? agency, logoUrl: sender.logoUrl, tileColor: sender.tileColor });
+    if (!storedHtml) storedHtml = email.html;
     await sendEmail({
       from: sender.from,
       replyTo: sender.replyTo,
@@ -1640,10 +1647,18 @@ async function emailVisibleUpdateToClients(transactionId: string, content: strin
       subject: email.subject,
       text: email.text,
       html: email.html,
-      // P1-5: surface a failed send instead of swallowing it silently. This path
-      // doesn't write a "sent" comms row (the visible update itself is recorded by
-      // the caller), so there's nothing to falsely mark sent, but a send failure
-      // must still be observable in the logs rather than disappearing.
+      // P1-5: surface a failed send instead of swallowing it silently. A send
+      // failure must still be observable in the logs rather than disappearing.
     }).catch((err) => console.error(`[comms] visible-update client email failed tx=${transactionId} to=${c.email}`, err));
+  }
+
+  // Attach the sent copy + real From to the update comm row the caller already
+  // wrote — no new timeline rows, so "view email" shows the true client email
+  // without duplicating the activity feed (critique #298C). Guarded on null so a
+  // re-run can't clobber a stored copy.
+  if (storedHtml) {
+    await prisma.outboundMessage
+      .updateMany({ where: { id: recordId, sentEmailHtml: null }, data: { sentEmailHtml: storedHtml, sentFromEmail: sender.from } })
+      .catch(() => {});
   }
 }
