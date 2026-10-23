@@ -72,7 +72,8 @@ export function SentEmailModal({ email, onClose }: { email: OpenEmail | null; on
         {data && (
           <div className="sev-meta">
             <span className="sev-sent"><span className="sev-mk">Sent:</span> {fmtDateTime(data.sentAt)}</span>
-            {data.recipientEmail && <span className="sev-to" title={data.recipientEmail}>{data.recipientEmail}</span>}
+            {data.fromEmail && <span className="sev-to" title={data.fromEmail}><span className="sev-mk">From:</span> {data.fromEmail}</span>}
+            {data.recipientEmail && <span className="sev-to" title={data.recipientEmail}><span className="sev-mk">To:</span> {data.recipientEmail}</span>}
             <div className="sev-steps" aria-label={`Delivery: ${STEPS[reached]}`}>
               {STEPS.map((s, i) => (
                 <span key={s} className="sev-stepwrap">

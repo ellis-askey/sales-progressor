@@ -578,6 +578,9 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       // edited sends (finalHtml holds the wrapped edited text) — no reconstruction
       // (critique #298A).
       sentEmailHtml: finalHtml ?? null,
+      // The real From used at send time, so "view email" shows who it actually
+      // came from rather than re-deriving from today's brand (critique #298B).
+      sentFromEmail: from,
       contactIds: [],
       createdById: agentId ?? null,
       createdByRole: "director",

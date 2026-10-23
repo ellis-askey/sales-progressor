@@ -188,6 +188,7 @@ export async function sendComposedEmail(input: {
       subject,
       bodyFormat: "html",
       sentEmailHtml: html,
+      sentFromEmail: from, // real From at send time (critique #298B)
       recipientEmail: to[0],
       recipientName,
       ccEmails,

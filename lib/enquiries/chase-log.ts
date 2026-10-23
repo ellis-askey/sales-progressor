@@ -47,6 +47,9 @@ export async function logEnquiryChaseComm(
     // timeline can show a true-to-inbox preview of the chase. Optional — falls
     // back to a plain-text render of `body` when absent.
     html?: string | null;
+    // The real From used at send time ("Name <email>"), stored so "view email"
+    // shows who it actually came from rather than today's brand (critique #298B).
+    fromEmail?: string | null;
     recipientEmail: string;
     recipientName?: string | null;
     createdById?: string | null;
@@ -74,6 +77,7 @@ export async function logEnquiryChaseComm(
       subject: args.subject,
       content: args.body,
       sentEmailHtml: args.html ?? null,
+      sentFromEmail: args.fromEmail ?? null,
       contactIds: [],
       createdById: args.createdById ?? undefined,
       createdByRole: "system",
