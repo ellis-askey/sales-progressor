@@ -20,6 +20,10 @@ export type CheckInStep = {
 export const CHECK_IN_STEPS: readonly CheckInStep[] = [
   { key: "dcp_issued", label: "DCP issued", finale: false },
   { key: "searches_ordered", label: "Searches ordered", finale: false },
+  // Buyer's finance in place (mortgage offer / proof of funds) — slots between
+  // searches ordered and received (critique #283). New key, so existing marks are
+  // untouched; it simply reads unmarked until confirmed.
+  { key: "finances_arranged", label: "Finances arranged", finale: false },
   { key: "searches_received", label: "Searches received", finale: false },
   { key: "enquiries_raised", label: "Enquiries raised", finale: false },
   { key: "enquiries_satisfied", label: "Enquiries satisfied", finale: false },

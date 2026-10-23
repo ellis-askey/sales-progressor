@@ -40,6 +40,40 @@ function ageDays(iso: string | null): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 
+// Horizontal scroller with a soft edge-fade that appears only when there's more
+// to scroll in that direction — left once you've scrolled off the start, right
+// while more remains (critique #283, mirrors the property-file timeline's fade,
+// but on both ends and scroll-aware so a fully-visible row isn't faded).
+function EdgeFadeRow({ className, children }: { className?: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fade, setFade] = useState<{ l: boolean; r: boolean }>({ l: false, r: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const l = el.scrollLeft > 2;
+      const r = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+      setFade((p) => (p.l === l && p.r === r ? p : { l, r }));
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", update); ro.disconnect(); };
+  }, []);
+  const F = 28;
+  const mask = fade.l && fade.r
+    ? `linear-gradient(to right, transparent 0, #000 ${F}px, #000 calc(100% - ${F}px), transparent 100%)`
+    : fade.l ? `linear-gradient(to right, transparent 0, #000 ${F}px)`
+    : fade.r ? `linear-gradient(to right, #000 calc(100% - ${F}px), transparent 100%)`
+    : undefined;
+  return (
+    <div ref={ref} className={className} style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}>
+      {children}
+    </div>
+  );
+}
+
 // Least-recently-updated first; a never-logged node (null) floats to the top.
 function sortRows(rows: CheckInRow[]): CheckInRow[] {
   return [...rows].sort((a, b) => {
@@ -534,7 +568,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   </button>
                   <div className={`ciq-body${open ? " open" : ""}`}>
                     <div>
-                      <div className="ciq-track">
+                      <EdgeFadeRow className="ciq-track">
                         {CHECK_IN_STEPS.map((step) => {
                           const done = row.steps.includes(step.key);
                           return (
@@ -551,7 +585,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                             </button>
                           );
                         })}
-                      </div>
+                      </EdgeFadeRow>
                     </div>
                   </div>
                 </div>
