@@ -350,6 +350,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       .ciq-step.fin .ciq-node { border-style: double; border-width: 3px; }
       .ciq-step.fin.done .ciq-node { border-style: solid; border-width: 1.5px; }
       @keyframes ciq-pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+      @keyframes ciq-logger-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+      .ciq-logger { animation: ciq-logger-in 200ms cubic-bezier(0.22,1,0.36,1); }
+      @media (prefers-reduced-motion: reduce) { .ciq-logger { animation: none; } }
       @media (prefers-reduced-motion: reduce) {
         .ciq-bar, .ciq-md, .ciq-chev svg, .ciq-body, .ciq-track, .ciq-node { transition: none; }
         .ciq-step.done .ciq-node { animation: none; }
@@ -416,11 +419,6 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {row.address}
-                  {!row.claimed && (
-                    <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: "var(--agent-text-muted)", background: "rgba(45,24,16,0.06)", padding: "2px 7px", borderRadius: 99, verticalAlign: "middle" }}>
-                      Not yet claimed
-                    </span>
-                  )}
                 </p>
                 <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {who}
@@ -443,26 +441,25 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               {/* Action — primary Log update, plus the ⋯ overflow for secondary
                   chain actions (View chain, and later Contact / History). */}
               <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 4 }}>
-                <button
-                  onClick={() => {
-                    setOpenId(isOpen ? null : row.linkId);
-                    setDraft("");
-                  }}
-                  style={{
-                    border: "1px solid var(--agent-border-default)",
-                    borderRadius: 9,
-                    padding: "8px 14px",
-                    fontFamily: "inherit",
-                    fontSize: 12.5,
-                    fontWeight: 650,
-                    color: "var(--agent-coral-deep)",
-                    background: isOpen ? "rgba(255,107,74,0.08)" : "var(--agent-surface-elevated, #fff)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {isOpen ? "Cancel" : "Log update"}
-                </button>
+                {!isOpen && (
+                  <button
+                    onClick={() => { setOpenId(row.linkId); setDraft(""); }}
+                    style={{
+                      border: "1px solid var(--agent-border-default)",
+                      borderRadius: 9,
+                      padding: "8px 14px",
+                      fontFamily: "inherit",
+                      fontSize: 12.5,
+                      fontWeight: 650,
+                      color: "var(--agent-coral-deep)",
+                      background: "var(--agent-surface-elevated, #fff)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Log update
+                  </button>
+                )}
                 <RowActionsMenu label="More chain actions" items={menuItems(row)} />
               </div>
             </div>
@@ -481,10 +478,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               )}
             </p>
 
-            {/* Inline logger */}
+            {/* Inline logger — fades/slides in rather than popping (critique #280) */}
             {isOpen && (
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="ciq-logger" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 <textarea
+                  className="agent-input"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoFocus
@@ -493,36 +491,21 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) logUpdate(row);
                   }}
-                  style={{
-                    width: "100%",
-                    resize: "vertical",
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    padding: "9px 11px",
-                    borderRadius: 10,
-                    border: "1px solid var(--agent-border-default)",
-                    background: "var(--agent-surface-nested, #fff)",
-                    color: "var(--agent-text-primary)",
-                  }}
+                  style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.5 }}
                 />
+                {/* Proper Cancel (ghost) + primary Log update (critique #279) */}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button
+                    onClick={() => { setOpenId(null); setDraft(""); }}
+                    disabled={busy === row.linkId}
+                    className="agent-btn agent-btn-ghost-bordered agent-btn-sm"
+                  >
+                    Cancel
+                  </button>
                   <button
                     onClick={() => logUpdate(row)}
                     disabled={busy === row.linkId || !draft.trim()}
-                    style={{
-                      border: "none",
-                      borderRadius: 9,
-                      padding: "8px 16px",
-                      fontFamily: "inherit",
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      color: "#fff",
-                      background: "var(--agent-coral-deep)",
-                      cursor: busy === row.linkId || !draft.trim() ? "not-allowed" : "pointer",
-                      opacity: busy === row.linkId || !draft.trim() ? 0.55 : 1,
-                      whiteSpace: "nowrap",
-                    }}
+                    className="agent-btn agent-btn-color-primary agent-btn-sm"
                   >
                     {busy === row.linkId ? "Saving…" : "Log update"}
                   </button>

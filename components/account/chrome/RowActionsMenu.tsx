@@ -12,9 +12,25 @@ import { DotsThree } from "@phosphor-icons/react";
 
 export type RowAction = { label: string; onClick: () => void; danger?: boolean };
 
+const MENU_WIDTH = 172;
+
 export function RowActionsMenu({ items, label = "More actions" }: { items: RowAction[]; label?: string }) {
   const [open, setOpen] = useState(false);
+  // Flip the menu to left-aligned when a right-aligned one would spill off the
+  // left edge (a wrapped row on mobile puts the "…" near the left) — critique #279.
+  const [alignLeft, setAlignLeft] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  function toggle() {
+    setOpen((o) => {
+      const next = !o;
+      if (next && ref.current) {
+        const r = ref.current.getBoundingClientRect();
+        setAlignLeft(r.right - MENU_WIDTH < 8);
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +54,7 @@ export function RowActionsMenu({ items, label = "More actions" }: { items: RowAc
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
@@ -65,9 +81,9 @@ export function RowActionsMenu({ items, label = "More actions" }: { items: RowAc
           role="menu"
           style={{
             position: "absolute",
-            right: 0,
+            ...(alignLeft ? { left: 0 } : { right: 0 }),
             top: "calc(100% + 4px)",
-            minWidth: 172,
+            minWidth: MENU_WIDTH,
             background: "#fff",
             border: "0.5px solid rgba(0,0,0,0.10)",
             borderRadius: 11,
