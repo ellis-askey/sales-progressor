@@ -115,8 +115,8 @@ export type HealthRaw = {
   pace?: "ahead" | "on_track" | "slightly_behind" | "behind" | null;
   // Party-aware activity verb ("Chased the seller") — falls back to the generic.
   activityVerb?: string | null;
-  // The single next-step line (ladder: attention → next chase → chain → calm).
-  nextStep?: { text: string; tone: "danger" | "accent" | "chain" | "muted" } | null;
+  // The single next-step line (ladder: attention → ready to exchange → next chase → chain → calm).
+  nextStep?: { text: string; tone: "danger" | "accent" | "chain" | "ready" | "muted" } | null;
   // Active hold detail for the On-hold tab.
   holdInfo?: { days: number; review: Date | null; reviewOverdue: boolean; reason: string | null } | null;
 };
@@ -239,8 +239,8 @@ function dateTime(d: Date): string {
   return `${date} · ${time}`;
 }
 
-const NEXT_TONE: Record<"danger" | "accent" | "chain" | "muted", string> = {
-  danger: "var(--agent-danger)", accent: "var(--agent-coral-deep)", chain: "#5b6b8c", muted: "var(--agent-text-muted)",
+const NEXT_TONE: Record<"danger" | "accent" | "chain" | "ready" | "muted", string> = {
+  danger: "var(--agent-danger)", accent: "var(--agent-coral-deep)", chain: "#5b6b8c", ready: "var(--agent-success)", muted: "var(--agent-text-muted)",
 };
 
 /* Recent / Next step — the single most-recent activity: a party-aware verb (e.g.

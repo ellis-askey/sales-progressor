@@ -198,6 +198,34 @@ export async function listTransactions(
     channelLastByTx.set(g.transactionId, e);
   }
 
+  // "Ready to exchange" signal (critique 2026-10-23): both sides' solicitors
+  // confirmed ready (VM18 + PM25) and — if the file is in a chain — the link is
+  // confirmed ready (its check-in steps done, or an agent's manual confirm →
+  // ChainLink.exchangeReadyConfirmedAt). Two light second-pass queries, like
+  // channelLastByTx above, so the hot list query stays lean. Round-scoped so a
+  // relisted file's archived PM25 can't falsely mark it ready.
+  const readyTxIds = transactions.map((t) => t.id);
+  const readyChainLinkIds = transactions.map((t) => t.chainLinkId).filter((v): v is string => v != null);
+  const [readyMsRows, readyLinks] = await Promise.all([
+    readyTxIds.length
+      ? prisma.milestoneCompletion.findMany({
+          where: { transactionId: { in: readyTxIds }, state: "complete", milestoneDefinition: { code: { in: ["VM18", "PM25"] } }, OR: roundScopedOR(activeRoundIds) },
+          select: { transactionId: true, milestoneDefinition: { select: { code: true } } },
+        })
+      : [],
+    readyChainLinkIds.length
+      ? prisma.chainLink.findMany({ where: { id: { in: readyChainLinkIds } }, select: { id: true, exchangeReadyConfirmedAt: true } })
+      : [],
+  ]);
+  const vm18Done = new Set<string>();
+  const pm25Done = new Set<string>();
+  for (const r of readyMsRows) {
+    if (!r.transactionId) continue;
+    if (r.milestoneDefinition?.code === "VM18") vm18Done.add(r.transactionId);
+    else if (r.milestoneDefinition?.code === "PM25") pm25Done.add(r.transactionId);
+  }
+  const chainLinkReady = new Set(readyLinks.filter((l) => l.exchangeReadyConfirmedAt != null).map((l) => l.id));
+
   return transactions.map((tx) => {
     // Drop chases parked into the future (snoozed / rescheduled) from the working
     // set entirely, so they neither read as "Chase overdue" nor present as the
@@ -341,11 +369,19 @@ export async function listTransactions(
       activityVerb = `${v} ${partyLabel}`;
     }
 
-    // Next-step ladder: attention → the next scheduled chase → chain → calm.
-    const nextStep: { text: string; tone: "danger" | "accent" | "chain" | "muted" } | null =
+    // Ready to exchange: our own sale is good to go (both solicitors confirmed —
+    // VM18 + PM25) and the chain, if any, is confirmed ready. Not yet exchanged.
+    const readyToExchange =
+      tx.exchangedAt == null &&
+      vm18Done.has(tx.id) && pm25Done.has(tx.id) &&
+      (tx.chainLinkId == null || chainLinkReady.has(tx.chainLinkId));
+
+    // Next-step ladder: attention → ready to exchange → next chase → chain → calm.
+    const nextStep: { text: string; tone: "danger" | "accent" | "chain" | "ready" | "muted" } | null =
       tx.status !== "active" ? null
         : escalatedTasks.length ? { text: "Escalated to you", tone: "danger" }
         : overdueTasks.length ? { text: "Chase overdue", tone: "danger" }
+        : readyToExchange ? { text: "Ready to exchange", tone: "ready" }
         : nextActionLabel ? { text: nextActionLabel, tone: "muted" }
         : tx.chainLinkId != null ? { text: "Waiting on the chain", tone: "chain" }
         : { text: "All progressing", tone: "muted" };
