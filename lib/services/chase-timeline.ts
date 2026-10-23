@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -208,6 +209,9 @@ export async function getChaseTimeline(
     select: {
       id: true,
       activeBuyerRoundId: true,
+      // Round start = the relist moment. Solicitor chases dated before it belong
+      // to the previous buyer and are scoped out below (critique #299).
+      activeBuyerRound: { select: { createdAt: true } },
       clientEmailsPaused: true,
       agency: { select: { chaseEmailsEnabled: true, name: true } },
       completionDate: true,
@@ -382,8 +386,19 @@ export async function getChaseTimeline(
     const prev = clientByCode.get(cs.milestoneCode);
     if (!prev || cs.chaseCount > prev.chaseCount) clientByCode.set(cs.milestoneCode, cs);
   }
-  const solByCode = new Map<string, (typeof solStates)[number]>();
-  for (const s of solStates) {
+  // Round-scope the solicitor counter to the CURRENT buyer (critique #299). The
+  // row has no buyer tag, so on a relisted file a previous buyer's chases get
+  // dropped by the relist-date boundary (solChasesInRound). A stale row is also
+  // treated as "active" so an old escalation doesn't read as "with your team".
+  const solRoundStart = tx.activeBuyerRound?.createdAt ?? null;
+  const solStatesScoped = solStates.map((s) => {
+    const sc = solChasesInRound(s, s.side as "vendor" | "purchaser", solRoundStart);
+    return sc.stale
+      ? { ...s, chaseCount: sc.count, firstChasedAt: sc.firstAt, lastChasedAt: sc.lastAt, status: "active", resolvedAt: null }
+      : { ...s, chaseCount: sc.count, firstChasedAt: sc.firstAt, lastChasedAt: sc.lastAt };
+  });
+  const solByCode = new Map<string, (typeof solStatesScoped)[number]>();
+  for (const s of solStatesScoped) {
     const prev = solByCode.get(s.milestoneCode);
     if (!prev || s.chaseCount > prev.chaseCount) solByCode.set(s.milestoneCode, s);
   }
@@ -946,7 +961,7 @@ export async function getChaseTimeline(
   const codesWithThread = new Set(
     logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c),
   );
-  for (const row of solStates) {
+  for (const row of solStatesScoped) {
     if (codesWithThread.has(row.milestoneCode)) continue; // already threaded via a client log
     const mc = completionByKey.get(`${row.side}|${row.milestoneCode}`);
     if (!mc?.milestoneDefinition) continue; // no active-round completion → stale cross-round state
