@@ -7,7 +7,6 @@
 // onward), on hold, stale (age chip), and confirmed (in the "No chain" tab).
 // Used only by the chains workspace.
 
-import { CheckCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -68,8 +67,8 @@ export function NoChainSetupCard({
   const showAge = !confirmed && months >= 3;
 
   return (
-    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" className="chain-prop-card" data-bloom style={{ padding: 14, borderRadius: 14 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" className="chain-prop-card ncs-card" data-bloom style={{ padding: 14, borderRadius: 14, position: "relative" }}>
+      <div className="ncs-row" style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <PropertyThumb photoUrl={sale.photoUrl} size={52} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -81,7 +80,11 @@ export function NoChainSetupCard({
               {line1}
             </span>
             {sale.status === "on_hold" && (
-              <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>On hold</Pill>
+              // Mobile: lifted to the card's top-right (see .ncs-hold) so the
+              // address line has room (critique #289).
+              <span className="ncs-hold">
+                <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>On hold</Pill>
+              </span>
             )}
           </div>
           {line2 && (
@@ -89,19 +92,21 @@ export function NoChainSetupCard({
               {line2}
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+          <div className="ncs-meta" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
             {/* Age carries its own staleness signal: it turns amber once the sale
                 has sat unresolved for 3+ months, so no separate "N months, no
-                chain" pill is needed (it only restated the age + the section). */}
+                chain" pill is needed (it only restated the age + the section).
+                Mobile: age + agency stack on their own lines, the dot + cash-buyer
+                pill are hidden (critique #290). */}
             {agreed && (
               <span style={{ fontSize: 10.5, fontWeight: showAge ? 600 : 400, color: showAge ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
                 {agreed}
               </span>
             )}
-            {agreed && agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
+            {agreed && agencyName && <span className="ncs-dot" style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
             {agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{agencyName}</span>}
             {sale.buyerPosition && (
-              <Pill tone="muted" size="sm" outline>{sale.buyerPosition}</Pill>
+              <span className="ncs-cash"><Pill tone="muted" size="sm" outline>{sale.buyerPosition}</Pill></span>
             )}
             {sale.resurfaced && (
               <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
@@ -119,15 +124,11 @@ export function NoChainSetupCard({
         </div>
 
         {/* Action / state */}
-        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+        <div className="ncs-actions" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
           {confirmed ? (
-            <>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 650, color: "var(--agent-success)", whiteSpace: "nowrap" }}>
-                <CheckCircle size={16} weight="fill" aria-hidden />
-                No chain
-              </span>
-              <LinkAction tone="muted" disabled={pending} onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</LinkAction>
-            </>
+            // Whole tab is no-chain, so the "No chain ✓" tick on every row was
+            // noise — just the "Set up chain instead" escape hatch (critique #288).
+            <LinkAction tone="muted" disabled={pending} onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</LinkAction>
           ) : sale.noChainRequired ? (
             <>
               <LinkAction tone="success" disabled={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>Confirm no chain</LinkAction>
@@ -141,6 +142,20 @@ export function NoChainSetupCard({
           )}
         </div>
       </div>
+
+      {/* Mobile tidy (critiques #289/#290). On a narrow screen the horizontal row
+          cramps, so: the "On hold" pill lifts to the card's top-right, the age +
+          agency stack onto their own lines (dot + cash-buyer pill hidden), and the
+          "Set up chain" action drops to the bottom-right, opposite the agency. */}
+      <style>{`
+        @media (max-width: 640px) {
+          .ncs-card .ncs-row { align-items: stretch; }
+          .ncs-card .ncs-hold { position: absolute; top: 12px; right: 12px; }
+          .ncs-card .ncs-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
+          .ncs-card .ncs-dot, .ncs-card .ncs-cash { display: none; }
+          .ncs-card .ncs-actions { justify-content: flex-end; }
+        }
+      `}</style>
     </GlassCard>
   );
 }
