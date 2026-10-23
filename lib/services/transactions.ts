@@ -153,8 +153,13 @@ export async function listTransactions(
       // Latest outbound message — joined for the activity-verb chip.
       // Phase-3: scope to active round + file-level so a fall-through
       // buyer's last chase email doesn't drive the live row's verb chip.
+      // Exclude automated chase-engine bookkeeping notes ("… chase moved to …" —
+      // isAutomated internal_notes from writeEngineAudit). They're hidden from the
+      // agent activity feed (the chase timeline owns that lifecycle), so they must
+      // not surface here as a bogus "Note added": a batch recompute stamps many
+      // files within the same minute, making every row read "Note added · HH:MM".
       communications: {
-        where: { OR: roundScopedOR(activeRoundIds) },
+        where: { AND: [{ OR: roundScopedOR(activeRoundIds) }, { NOT: { type: "internal_note", isAutomated: true } }] },
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { createdAt: true, channel: true, method: true, purpose: true, type: true, isAutomated: true, recipientName: true, contactIds: true },
