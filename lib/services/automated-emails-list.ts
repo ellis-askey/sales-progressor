@@ -595,7 +595,7 @@ async function buildUpcomingRows(
   // Bounded fan-out (upgrade phase 5): same file cap + wave size as the
   // forecast, so a huge book can't stampede the database from the export path.
   const boundedTxIds = txIds.slice(0, 300);
-  const previews = await mapLimit(boundedTxIds, 8, (id) =>
+  const previews = await mapLimit(boundedTxIds, 2, (id) =>
     getAutomatedEmailsForTransaction(id).catch(() => ({
       pending: [], sentToday: [], upcoming: [],
       pauseState: { globalDisabled: false, agencyDisabled: false, fileDisabled: false, activePauseReason: null as string | null, agencyName: null as string | null },

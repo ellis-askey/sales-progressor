@@ -64,8 +64,13 @@ export type UpcomingForecast = {
 // The prediction engine runs per file. Bound the fan-out so a huge book can't
 // stampede the database or the request: at most this many files, in small
 // concurrent waves. Beyond it, `truncated` is set and shown.
+// WAVE SIZE MATTERS: each per-file projection runs its own ~9-query
+// Promise.all, so a wave of N holds ~9N connections. The local/server Prisma
+// pool is 10 — a wave of 8 exhausted it under load (verified against the dev
+// server, 2026-10-21: pool-timeout errors across the whole app). 2 keeps the
+// page honest AND leaves pool headroom for everything else on the request.
 const FORECAST_FILE_CAP = 300;
-const FANOUT_WAVE = 8;
+const FANOUT_WAVE = 2;
 
 // Run fn over items in waves of `limit` — bounded concurrency without pulling
 // in a dependency.
