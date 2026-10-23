@@ -11,7 +11,7 @@ import {
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
 } from "@/lib/chain/intel";
-import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel } from "@/lib/chain/check-in-steps";
+import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel, checkInConfirmationLine } from "@/lib/chain/check-in-steps";
 
 // Shared guard: load the link's ownership facts and assert the caller may edit
 // this node (canEditNodeIntel). Own-side only — never another agency, never the
@@ -228,6 +228,9 @@ export async function toggleChainStepAction(
     select: {
       id: true, chainId: true, transactionId: true, createdByUserId: true,
       exchangeReadyConfirmedAt: true,
+      // The node's agency — "received confirmation from {agency}" (#286).
+      stubAgencyName: true,
+      claimedBy: { select: { firmName: true } },
       createdBy: { select: { agencyId: true } },
       transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
     },
@@ -276,12 +279,14 @@ export async function toggleChainStepAction(
       update: {},
     });
     // The mark doubles as a dated check-in line, so the row's "Last update"
-    // and history reflect it without a separate note.
-    const label = checkInStepLabel(stepKey) ?? stepKey;
+    // and history reflect it without a separate note. Baked at confirm-time with
+    // the confirmer + the node's agency: "{who} received confirmation from
+    // {agency} that {clause}." (#286).
+    const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? null;
     const created = await prisma.chainLinkEntry.create({
       data: {
         chainLinkId: linkId,
-        body: `Confirmed: ${label.toLowerCase()}`,
+        body: checkInConfirmationLine(stepKey, session.user.name ?? "Your team", agencyName),
         authorId: session.user.id,
         authorName: session.user.name ?? null,
         authorSideKey: sideKey,

@@ -19,16 +19,14 @@ const WHEN = "24th Oct";
 // The proposed new line, exactly as it would render on a check-in row.
 function LastUpdateLine({ stepKey, withPhoto }: { stepKey: string; withPhoto: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <ContactAvatar
-        contact={{ name: WHO, roleType: "agent" }}
-        size={22}
-        image={withPhoto ? "https://i.pravatar.cc/80?img=12" : null}
-      />
-      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-        {checkInConfirmationLine(stepKey, WHO, AGENCY)}
-        <span style={{ color: "var(--agent-text-faint, #b8b0a4)" }}> · {WHEN}</span>
-      </p>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+      <span style={{ flexShrink: 0, marginTop: 1 }}>
+        <ContactAvatar contact={{ name: WHO, roleType: "agent" }} size={22} image={withPhoto ? "https://i.pravatar.cc/80?img=12" : null} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 10, alignItems: "flex-end", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{checkInConfirmationLine(stepKey, WHO, AGENCY)}</span>
+        <span style={{ fontSize: 11, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap", flexShrink: 0 }}>{WHEN}</span>
+      </div>
     </div>
   );
 }

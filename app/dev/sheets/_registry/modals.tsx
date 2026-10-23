@@ -374,6 +374,8 @@ const CHECK_IN_ROWS: CheckInRow[] = [
     photoUrl: null,
     lastUpdateAt: "2026-08-20T10:00:00.000Z",
     lastUpdateBody: "Spoke to their agent. Searches are back and replies to enquiries are being drafted.",
+    lastUpdateAuthorName: "Ellis Askey",
+    lastUpdateAuthorImage: null,
     history: [
       { at: "2026-08-20T10:00:00.000Z", body: "Spoke to their agent. Searches are back and replies to enquiries are being drafted." },
       { at: "2026-08-06T09:30:00.000Z", body: "Left a voicemail chasing the mortgage offer." },
@@ -398,6 +400,8 @@ const CHECK_IN_ROWS: CheckInRow[] = [
     photoUrl: null,
     lastUpdateAt: null,
     lastUpdateBody: null,
+    lastUpdateAuthorName: null,
+    lastUpdateAuthorImage: null,
     history: [],
     steps: [],
     chainId: "demo-chain-1",

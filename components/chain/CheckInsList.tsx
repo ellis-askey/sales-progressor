@@ -23,6 +23,7 @@ import { ChainDrawer } from "@/components/chain/ChainDrawer";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import type { CheckInRow } from "@/lib/services/chains";
 
 // "24th Oct" — day-with-ordinal + short month, matching the founder's example.
@@ -464,19 +465,26 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               </div>
             </div>
 
-            {/* Last update line */}
-            <p style={{ margin: "10px 0 0", fontSize: 12, color: row.lastUpdateBody ? "var(--agent-text-secondary)" : "var(--agent-text-muted)", lineHeight: 1.5 }}>
-              {row.lastUpdateBody ? (
-                <>
-                  <span style={{ fontWeight: 700, color: tone, background: toneBg, padding: "1px 7px", borderRadius: 99, marginRight: 6 }}>
-                    Last update {shortDate(row.lastUpdateAt as string)}
+            {/* Last update line (critique #286): confirmer photo + name in the
+                sentence, small/grey, with the date right-aligned — pinned bottom-
+                right when the sentence wraps, like the activity log. */}
+            {row.lastUpdateBody ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12 }}>
+                <span style={{ flexShrink: 0, marginTop: 1 }}>
+                  <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: "agent" }} size={22} image={row.lastUpdateAuthorImage} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 10, alignItems: "flex-end", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
+                  <span style={{ fontSize: 11, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    {shortDate(row.lastUpdateAt as string)}
                   </span>
-                  {row.lastUpdateBody}
-                </>
-              ) : (
-                <span style={{ fontStyle: "italic" }}>No updates logged yet — check in and note what you hear.</span>
-              )}
-            </p>
+                </div>
+              </div>
+            ) : (
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", lineHeight: 1.5 }}>
+                No updates logged yet — check in and note what you hear.
+              </p>
+            )}
 
             {/* Inline logger — fades/slides in rather than popping (critique #280) */}
             {isOpen && (

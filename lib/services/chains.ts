@@ -2226,6 +2226,10 @@ export type CheckInRow = {
   // Private to us (never the neighbour). Null = we've not logged anything yet.
   lastUpdateAt: string | null;   // ISO (= history[0]; kept for the inline "Last update" line)
   lastUpdateBody: string | null;
+  // Who logged/confirmed the latest line, for the avatar + name (critique #286).
+  // authorImage null → the tinted SVG fallback (ContactAvatar).
+  lastUpdateAuthorName: string | null;
+  lastUpdateAuthorImage: string | null;
   // Our full private update trail on this node (our team side only), newest first.
   // Powers the ⋯ menu "Update history". Capped at the 30 most recent entries loaded.
   history: Array<{ at: string; body: string }>;
@@ -2295,7 +2299,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
           entries: {
             orderBy: { createdAt: "desc" },
             take: 30,
-            select: { body: true, createdAt: true, authorSideKey: true },
+            select: { body: true, createdAt: true, authorSideKey: true, authorName: true, authorId: true },
           },
           // Confirm-progress marks; filtered to our side key below (#235).
           stepMarks: { select: { stepKey: true, sideKey: true } },
@@ -2303,6 +2307,17 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
       },
     },
   });
+
+  // Resolve the latest-entry authors' avatars (User.image) for the "Last update"
+  // line (critique #286). authorId has no FK, so look them up explicitly; a null
+  // image falls back to the tinted SVG in the UI.
+  const authorIds = [...new Set(chains.flatMap((c) => c.links.flatMap((l) => l.entries.map((e) => e.authorId).filter((x): x is string => !!x))))];
+  const authorImageById = new Map<string, string | null>();
+  if (authorIds.length) {
+    const { getAvatarPublicUrl } = await import("@/lib/supabase-storage");
+    const authors = await prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, image: true } }).catch(() => []);
+    for (const a of authors) authorImageById.set(a.id, a.image ? getAvatarPublicUrl(a.image) : null);
+  }
 
   const rows: CheckInRow[] = [];
   const photoPaths: string[] = [];
@@ -2335,6 +2350,8 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         photoUrl: photoPath, // swapped for a signed URL below
         lastUpdateAt: latest?.createdAt.toISOString() ?? null,
         lastUpdateBody: latest?.body ?? null,
+        lastUpdateAuthorName: latest?.authorName ?? null,
+        lastUpdateAuthorImage: latest?.authorId ? authorImageById.get(latest.authorId) ?? null : null,
         history: ourEntries.map((e) => ({ at: e.createdAt.toISOString(), body: e.body })),
         steps: sideKey ? l.stepMarks.filter((m) => m.sideKey === sideKey).map((m) => m.stepKey) : [],
         chainId: chain.id,
