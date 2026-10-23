@@ -22,7 +22,8 @@ import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import { logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
 import { sendEmail } from "@/lib/email";
 import { buildFrom } from "@/lib/email/from-name";
-import type { IngestMessage, IngestAttachment } from "@/lib/integrations/mail/types";
+import { parseInboundParts } from "@/lib/email/forward-attachments";
+import type { IngestMessage } from "@/lib/integrations/mail/types";
 
 export const dynamic = "force-dynamic";
 
@@ -113,31 +114,12 @@ async function handleFileReply(token: string, form: FormData) {
   const body = (text && text.trim()) || stripHtml(html);
   const messageId = headerValue(headersRaw, "Message-ID") ?? headerValue(headersRaw, "Message-Id");
 
-  // Attachments: SendGrid Inbound Parse sends them as multipart file parts
-  // attachment1..N. We hand them to the ingest core, which filters inline/oversized
-  // parts and files the rest to the property's Documents (with dedup). Best-effort
-  // per part — an unreadable attachment never blocks the reply being recorded.
-  const attachments: IngestAttachment[] = [];
-  const attachmentCount = parseInt(String(form.get("attachments") ?? "0"), 10) || 0;
-  for (let i = 1; i <= attachmentCount; i++) {
-    const part = form.get(`attachment${i}`);
-    if (part && typeof part === "object" && "arrayBuffer" in part) {
-      try {
-        const file = part as File;
-        const buf = Buffer.from(await file.arrayBuffer());
-        if (buf.length > 0) {
-          attachments.push({
-            filename: file.name || `attachment${i}`,
-            contentType: file.type || "application/octet-stream",
-            content: buf,
-            size: buf.length,
-          });
-        }
-      } catch {
-        /* skip an unreadable part */
-      }
-    }
-  }
+  // Attachments: file them all to the sale's Documents (unchanged), and build a
+  // forward copy so the progressor's forwarded email renders faithfully —
+  // inline images carry their Content-ID so signature / inline-screenshot cid:
+  // references resolve instead of showing broken boxes, and real files ride
+  // along too. See lib/email/forward-attachments.ts.
+  const { ingest: attachments, forward: forwardAttachments } = await parseInboundParts(form);
 
   const msg: IngestMessage = {
     id: messageId ?? `reply-capture:${token}:${Date.now()}`,
@@ -184,6 +166,7 @@ async function handleFileReply(token: string, form: FormData) {
       subject,
       text: `${body}\n\n—\n${provenance}`,
       html: forwardHtml,
+      attachments: forwardAttachments.length ? forwardAttachments : undefined,
     }).catch((err) => console.error(`[reply-capture] forward failed for tx ${tx.id}:`, err));
   }
 
@@ -233,6 +216,9 @@ async function handleMintedInbound(toRaw: string, form: FormData) {
   const text = String(form.get("text") ?? "");
   const html = String(form.get("html") ?? "");
   const body = (text && text.trim()) || stripHtml(html);
+  // File all parts to the matched sale; carry a forward copy (inline images
+  // keep their Content-ID so the forward renders faithfully).
+  const { ingest: attachments, forward: forwardAttachments } = await parseInboundParts(form);
 
   // Best-effort filing: the sender's address → a contact on one of this
   // company's live sales at this agency. Exactly one match → file it there.
@@ -268,7 +254,7 @@ async function handleMintedInbound(toRaw: string, form: FormData) {
         inReplyTo: null,
         references: null,
         headers: {},
-        attachments: [],
+        attachments,
         outbound: false,
       };
       await logSingleIngestMessage(filedTx, msg, "reply-capture").catch((err) =>
@@ -291,6 +277,7 @@ async function handleMintedInbound(toRaw: string, form: FormData) {
     html: html && html.trim()
       ? `${html}<p style="color:#8a8a8a;font-size:12px;margin-top:16px">— ${escapeHtml(provenance)}</p>`
       : undefined,
+    attachments: forwardAttachments.length ? forwardAttachments : undefined,
   }).catch((err) => console.error(`[minted-inbound] forward failed for ${toAddr.email}:`, err));
 
   return NextResponse.json({ ok: true, matched: true, filed: !!filedTx });

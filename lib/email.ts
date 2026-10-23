@@ -87,12 +87,19 @@ export function applyDevEmailRedirect<T extends { to: string | string[]; subject
 }
 
 // A file attached to an outbound email. `content` is base64-encoded. Used for
-// the "add to calendar" .ics on booking-diary emails; kept generic.
+// the "add to calendar" .ics on booking-diary emails and for faithfully
+// forwarding captured replies (reply-capture); kept generic.
 export type EmailAttachment = {
   content: string;
   filename: string;
   type: string;
   disposition?: string;
+  // For an inline image (disposition "inline"): the Content-ID the sender's
+  // HTML references via cid:. Set when forwarding a captured reply so signature
+  // / inline screenshot images resolve instead of rendering broken. Honoured on
+  // the SendGrid path (every forward sends from our own verified address, so it
+  // never routes through a mailbox SMTP connection).
+  content_id?: string;
 };
 
 // Deterministic RFC5322 Message-ID for an outbound email, derived from a stable
