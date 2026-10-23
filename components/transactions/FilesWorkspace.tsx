@@ -9,8 +9,8 @@
 // Nothing ticked = every active file, and the List keeps its own status tabs.
 // In narrowed contexts (hub / month filter) the bar is hidden and it's list-only.
 
-import { useMemo, useState } from "react";
-import { SquaresFour, Rows, ChartLineUp, MapTrifold } from "@phosphor-icons/react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@phosphor-icons/react";
 import type { TransactionStatus } from "@prisma/client";
 import { TransactionListWithSearch } from "./TransactionListWithSearch";
 import { PipelineBoard, type PipelineRow } from "./PipelineBoard";
@@ -245,6 +245,8 @@ export function FilesWorkspace({
       />
 
       <div className="files-bar" data-bloom>
+        {/* Desktop: the four view pills. Mobile/tablet (<=900px): one compact
+            "View" dropdown instead, so the bar doesn't crowd (critique #278). */}
         <div className="files-views">
           {VIEWS.map(({ key, label, Icon }) => (
             <button
@@ -260,6 +262,7 @@ export function FilesWorkspace({
             </button>
           ))}
         </div>
+        <ViewSelect value={view} onChange={setView} />
 
         <FilterMenu
           sections={sections}
@@ -278,6 +281,58 @@ export function FilesWorkspace({
         <MapView rows={rows} basePath={basePath} streetViewKey={streetViewKey} />
       ) : (
         list
+      )}
+    </div>
+  );
+}
+
+// Mobile/tablet view switcher (critique #278): one compact button showing the
+// current view, opening the four choices — replaces the four pills under 900px
+// so the bar stays clean. Hidden above 900px (the pills take over) via CSS.
+function ViewSelect({ value, onChange }: { value: View; onChange: (v: View) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const current = VIEWS.find((v) => v.key === value) ?? VIEWS[0];
+  const CurrentIcon = current.Icon;
+
+  return (
+    <div className="files-view-select" ref={ref}>
+      <button
+        type="button"
+        className="agent-segment-pill agent-segment-pill-sm on files-view-select-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="files-view-ic"><CurrentIcon size={15} weight="fill" /></span>
+        {current.label}
+        <CaretDown size={12} weight="bold" style={{ marginLeft: 2, opacity: 0.7 }} />
+      </button>
+      {open && (
+        <div className="files-view-menu agent-dropdown-in" role="menu">
+          {VIEWS.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === key}
+              className={`files-view-mi${value === key ? " on" : ""}`}
+              onClick={() => { onChange(key); setOpen(false); }}
+            >
+              <Icon size={15} weight={value === key ? "fill" : "regular"} />
+              {label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

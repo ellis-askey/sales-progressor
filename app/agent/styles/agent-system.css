@@ -5218,6 +5218,29 @@ body[data-demo-file] [data-onboarding-checklist] {
    signalled in place (amber outline + ringed icon + chip in the shared meta
    line), never with an extra row. Tokens only. See PipelineBoard.tsx. */
 .files-views { display: flex; gap: 6px; }
+/* Mobile/tablet view switcher (critique #278): the four pills give way to one
+   compact "View" dropdown below 900px, so the bar doesn't crowd. Desktop keeps
+   the pills. */
+.files-view-select { display: none; position: relative; }
+@media (max-width: 900px) {
+  .files-views { display: none; }
+  .files-view-select { display: flex; }
+}
+.files-view-select-btn { white-space: nowrap; }
+.files-view-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 168px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--agent-surface-elevated, #fff); border: 0.5px solid var(--agent-border-default);
+  border-radius: 12px; box-shadow: 0 12px 32px rgba(45, 24, 16, 0.16);
+}
+.files-view-mi {
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 11px;
+  border: none; background: none; border-radius: 9px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; text-align: left;
+  color: var(--agent-text-secondary); transition: background .12s, color .12s;
+}
+.files-view-mi:hover { background: var(--agent-coral-bg-tint, rgba(255,138,101,.08)); color: var(--agent-text-primary); }
+.files-view-mi.on { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.08); }
 /* View pills match the Filter button exactly — same height, icon and text size,
    gap and radius — so the whole bar sits on one line. */
 .files-views .agent-segment-pill-sm {
