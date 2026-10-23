@@ -37,3 +37,28 @@ export const CHECK_IN_STEP_KEYS = new Set(CHECK_IN_STEPS.map((s) => s.key));
 export function checkInStepLabel(key: string): string | null {
   return CHECK_IN_STEPS.find((s) => s.key === key)?.label ?? null;
 }
+
+// The "last update" sentence for a confirmed check-in step (critique #286):
+// "{who} received confirmation from {agency} that {clause}." Reviewed on
+// /dev/chain-checkin-update before wiring. PROPOSED wording — awaiting sign-off.
+const CONFIRMATION_CLAUSE: Record<string, string> = {
+  dcp_issued: "the draft contract pack has been issued",
+  searches_ordered: "searches have been ordered",
+  finances_arranged: "finances have been arranged",
+  searches_received: "the search results have been received",
+  enquiries_raised: "enquiries have been raised",
+  enquiries_satisfied: "all enquiries have been satisfied",
+  contracts_issued: "contracts have been issued",
+  seller_signed_returned: "the seller has signed and returned their contract",
+  buyer_signed_returned: "the buyer has signed and returned their contract",
+};
+
+export function checkInConfirmationLine(
+  stepKey: string,
+  confirmerName: string,
+  agencyName: string | null,
+): string {
+  const clause = CONFIRMATION_CLAUSE[stepKey] ?? checkInStepLabel(stepKey)?.toLowerCase() ?? stepKey;
+  const from = agencyName ? ` from ${agencyName}` : "";
+  return `${confirmerName} received confirmation${from} that ${clause}.`;
+}
