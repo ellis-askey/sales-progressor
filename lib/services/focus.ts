@@ -361,7 +361,15 @@ async function getSearchesOutstanding(vis: AgentVisibility): Promise<FocusSearch
         ...txWhere,
         status: "active",
         isDemo: false,
-        milestoneCompletions: { none: { state: "complete", milestoneDefinition: { code: "PM13" } } },
+        // "Results not received" must be scoped to the ACTIVE round. Without the
+        // roundScopedOR, a relisted file whose PREVIOUS (withdrawn) round had its
+        // search results back counts as received forever, so the file silently
+        // drops off this card even though the current buyer's searches are still
+        // outstanding (4 Old Oak Gardens). PM8 above is already round-scoped; this
+        // mirrors it. (roundScopedOR allows the active round + file-level nulls.)
+        milestoneCompletions: {
+          none: { state: "complete", milestoneDefinition: { code: "PM13" }, OR: roundScopedOR(activeRoundIds) },
+        },
       },
     },
     orderBy: [{ eventDate: "asc" }, { completedAt: "asc" }],
