@@ -67,7 +67,7 @@ const COL_MIN: Record<FilesColumn, number> = {
 // Card mini-labels (and the desktop header labels, via TransactionTable).
 export const COL_LABEL: Record<FilesColumn, string> = {
   stage: "Stage / Progress", activity: "Latest activity / Next step", exchange: "Exchange forecast",
-  keydate: "Key date", review: "Review due", paused: "Paused",
+  keydate: "Key date", review: "Due back", paused: "Paused",
   soldfor: "Sold for", exchanged: "Exchanged", completed: "Completed",
   reached: "Reached", withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
 };
@@ -494,17 +494,24 @@ function ExchangeCell({ tx }: { tx: TransactionRow }) {
   );
 }
 
-// On-hold — when it comes back (or overdue / not set).
-function ReviewCell({ tx }: { tx: TransactionRow }) {
+// On-hold — when it comes back (or overdue / not set). `label` adds a caption
+// above the date on the All tab (generic "Key date" header, so the row needs the
+// context); the On-hold tab omits it because its "Due back" column header already
+// says what the date is.
+function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
   const h = tx.health?.holdInfo;
-  if (!h || !h.review) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>{h ? "Not set" : "—"}</span>;
+  const caption = label && h ? (
+    <p style={{ margin: "0 0 2px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>{label}</p>
+  ) : null;
+  if (!h || !h.review) return <div>{caption}<span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>{h ? "Not set" : "—"}</span></div>;
   if (h.reviewOverdue) return (
     <div>
+      {caption}
       <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</p>
       <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-danger)" }}>was {formatDate(new Date(h.review))}</p>
     </div>
   );
-  return <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span>;
+  return <div>{caption}<span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span></div>;
 }
 
 // On-hold — how long + the typed reason (or "No reason given").
@@ -554,7 +561,7 @@ function ReasonCell({ tx }: { tx: TransactionRow }) {
 // All-tab adaptive key date (status marker on the property cell disambiguates).
 function KeyDateCell({ tx }: { tx: TransactionRow }) {
   if (tx.status === "active") return <ExchangeCell tx={tx} />;
-  if (tx.status === "on_hold") return <ReviewCell tx={tx} />;
+  if (tx.status === "on_hold") return <ReviewCell tx={tx} label="Review due" />;
   if (tx.status === "completed") return <DateCell d={tx.completionDate} />;
   if (tx.status === "withdrawn") return <DateCell d={tx.updatedAt} />;
   return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
