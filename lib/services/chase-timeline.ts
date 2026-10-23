@@ -11,7 +11,7 @@
 // access (getTransactionByScope / agencyId), so this scopes by transactionId.
 
 import { prisma } from "@/lib/prisma";
-import { addWorkingDays } from "@/lib/emails/working-hours";
+import { addWorkingDays, rollToWorkingDay } from "@/lib/emails/working-hours";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { solChasesInRound } from "@/lib/chase/solicitor-round";
@@ -420,6 +420,15 @@ export async function getChaseTimeline(
     d && d.getTime() > Date.now() ? d : null;
   const laterDate = (a: Date | null, b: Date | null): Date | null =>
     a && b ? (a > b ? a : b) : (a ?? b);
+  // A scheduled automated chase must always carry a real FORWARD date (critique
+  // #299). If the computed date has already passed (e.g. a chase that was blocked
+  // and missed its slot), it goes out on the next autopilot run — so show the next
+  // working day, never the date it already missed. "Scheduled = has a date."
+  const forwardDue = (d: Date | null): Date | null => {
+    if (!d) return null;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    return d.getTime() >= startOfToday.getTime() ? d : rollToWorkingDay(new Date());
+  };
 
   // Predict the next solicitor chase for a step: from an existing chase-state
   // (last chased + repeat), or — when never chased yet — the FIRST chase from the
@@ -446,7 +455,7 @@ export async function getChaseTimeline(
     if (st && (st.chaseCount > 0 || st.status !== "active")) {
       const capped = st.chaseCount >= cap || st.status === "escalated";
       const base = !capped && st.lastChasedAt ? addWorkingDays(st.lastChasedAt, repeat) : null;
-      const dueAt = capped ? null : laterDate(base, hold);
+      const dueAt = capped ? null : forwardDue(laterDate(base, hold));
       return { lane: "solicitor", recipientLabel: label, dueAt: dueAt ? dueAt.toISOString() : null,
         chaseNumber: Math.min(st.chaseCount + 1, cap), capOf: cap, isAutomated: !capped, handedToTeam: capped, overrideTarget: target, edited, skipped };
     }
@@ -464,7 +473,7 @@ export async function getChaseTimeline(
       if (!anchor || t > anchor) anchor = t;
     }
     if (!anchor) return null;
-    const firstDue = laterDate(addWorkingDays(anchor, grace), hold) as Date;
+    const firstDue = forwardDue(laterDate(addWorkingDays(anchor, grace), hold)) as Date;
     return { lane: "solicitor", recipientLabel: label, dueAt: firstDue.toISOString(),
       chaseNumber: 1, capOf: cap, isAutomated: true, handedToTeam: false, overrideTarget: target, edited, skipped };
   }
@@ -659,7 +668,7 @@ export async function getChaseTimeline(
           recipientLabel: `${side === "vendor" ? "Seller" : "Buyer"} · ${clientName}`,
           // A hold (reschedule / snooze) pushes the shown date — it's when the
           // chase actually resumes.
-          dueAt: (laterDate(log.nextDueDate, clientHold) as Date).toISOString(),
+          dueAt: (forwardDue(laterDate(log.nextDueDate, clientHold)) as Date).toISOString(),
           chaseNumber: Math.min((cs?.chaseCount ?? 0) + 1, CLIENT_CHASE_CAP),
           capOf: CLIENT_CHASE_CAP,
           isAutomated: !cs || (cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP),

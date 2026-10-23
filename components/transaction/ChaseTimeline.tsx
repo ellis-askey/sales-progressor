@@ -63,14 +63,6 @@ function fmtDate(iso: string): string {
   const yearSuffix = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : "";
   return `${d.getDate()} ${MONTHS[d.getMonth()]}${yearSuffix}`;
 }
-// An automated chase whose due date has already passed hasn't gone out yet — it
-// fires on the next autopilot run. Showing the stale past date as "Upcoming 13
-// Oct" when it's the 23rd is wrong; these read "Due now" instead (critique #299).
-function isPastDue(iso: string | null | undefined): boolean {
-  if (!iso) return false;
-  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-  return new Date(iso).getTime() < t0.getTime();
-}
 // A chase parked far into the future — the enquiries "satisfied" gate holds it
 // until the ball returns to the buyer's side. Surface it as "On hold" rather than
 // a date that looks imminent. Only the gate's ~1-year park ever lands out here.
@@ -347,8 +339,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // A parked chase (satisfied-gate holding it until the ball returns to the buyer)
   // reads as "On hold", never a date that looks like it's about to send.
   const held = isHeldFarOut(send.dueAt);
-  const overdue = !held && !send.handedToTeam && isPastDue(send.dueAt);
-  const whenLabel = held ? "On hold" : overdue ? "Due now" : send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
+  const whenLabel = held ? "On hold" : send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
   // The email preview below carries the recipient (its To line); cards without
   // one (handed to the team) name the recipient in the kicker instead — the
   // recipient pill was removed as duplication.
@@ -366,7 +357,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // The date itself is the reschedule control — on every lane, whenever an
   // automated send is genuinely scheduled (each lane has its own hold field the
   // sender respects; the raise chaser's is PM14's expected date).
-  const canMove = !held && !overdue && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget;
+  const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget;
   return (
     <div className="chase-upnext-card" style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
@@ -398,12 +389,11 @@ function FutureRow({ send }: { send: NextSend }) {
   const isSol = send.lane === "solicitor";
   const accent = isSol ? "#0E8C86" : "var(--agent-info)";
   const held = isHeldFarOut(send.dueAt);
-  const overdue = !held && !send.handedToTeam && isPastDue(send.dueAt);
   return (
     <div style={{ display: "flex", gap: 12 }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: `1.5px dashed ${overdue ? "var(--agent-warning)" : accent}` }}>
-          <PaperPlaneTilt size={14} weight="bold" color={overdue ? "var(--agent-warning)" : accent} />
+        <div style={{ width: 28, height: 28, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: `1.5px dashed ${accent}` }}>
+          <PaperPlaneTilt size={14} weight="bold" color={accent} />
         </div>
         <div style={{ width: 2, flex: 1, minHeight: 18, background: "var(--agent-border-subtle)", marginTop: 2 }} />
       </div>
@@ -414,11 +404,11 @@ function FutureRow({ send }: { send: NextSend }) {
           </span>
           {held
             ? <Pill glass dot size="sm" tone="muted">On hold</Pill>
-            : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: overdue ? "var(--agent-warning)" : accent, padding: "1px 6px", borderRadius: 6, background: overdue ? "var(--agent-warning-bg)" : (isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)") }}>{overdue ? "Due now" : "Upcoming"}</span>}
-          {send.dueAt && !held && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{overdue ? "next run" : fmtDate(send.dueAt)}</span>}
+            : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>Upcoming</span>}
+          {send.dueAt && !held && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
         </div>
         <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
-          {held ? "Waiting on replies to enquiries before this can send." : overdue && send.isAutomated ? "Autopilot will send this on its next run." : send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
+          {held ? "Waiting on replies to enquiries before this can send." : send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
         </p>
       </div>
     </div>
