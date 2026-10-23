@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canManageStub, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
+import { canManageStub, loadChainEditContext, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
 import crypto from "crypto";
 
 type RouteParams = { params: Promise<{ id: string; linkId: string }> };
@@ -39,7 +39,8 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   if (!link || link.chainId !== chainId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!canManageStub(session, ownershipFromLinkRow(link))) {
+  const editCtx = await loadChainEditContext(session, chainId);
+  if (!canManageStub(session, ownershipFromLinkRow(link), editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -68,7 +69,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   if (!link || link.chainId !== chainId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (!canManageStub(session, ownershipFromLinkRow(link))) {
+  const editCtx = await loadChainEditContext(session, chainId);
+  if (!canManageStub(session, ownershipFromLinkRow(link), editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

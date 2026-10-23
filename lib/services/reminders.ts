@@ -13,6 +13,7 @@ import { rollToWorkingDay, addWorkingDays } from "@/lib/emails/working-hours";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { solicitorCodesForSide, type SolicitorSide } from "@/lib/solicitor-confirm/codes";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { pushChaseEscalation } from "@/lib/agent/push-events";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -604,15 +605,34 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIds.length > 0 && hasSolCodes) {
-    const [solStates, solRules] = await Promise.all([
+    const [solStates, solRules, roundRows, clientStates] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIds }, resolvedAt: null },
-        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       }),
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+      // Relist boundary per file: solicitor chases before the current buyer began
+      // belong to the previous buyer and must not count toward the cap (#299).
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIds } }, select: { id: true, activeBuyerRoundId: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      // Client lane for the both-lanes hand-off (#299): a step is only handed over
+      // when the client lane is ALSO out of auto-chases, so load it to tell whether
+      // the client is still auto-chasing the same step.
+      prisma.clientChaseState.findMany({
+        where: { transactionId: { in: txIds } },
+        select: { transactionId: true, milestoneCode: true, chaseCount: true, status: true, buyerRoundId: true },
+      }),
     ]);
+    const CLIENT_CHASE_CAP = 2;
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
+    const activeRoundByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRoundId]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    // Steps whose client lane is still auto-chasing (active, under cap, current round).
+    const clientStillAuto = new Set(
+      clientStates
+        .filter((c) => c.status === "active" && c.chaseCount < CLIENT_CHASE_CAP && (c.buyerRoundId == null || c.buyerRoundId === activeRoundByTx.get(c.transactionId)))
+        .map((c) => `${c.transactionId}:${c.milestoneCode}`),
+    );
     for (const l of visibleLogs) {
       const code = l.reminderRule.targetMilestoneCode;
       if (!code) continue;
@@ -623,8 +643,16 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
       // A solicitor-given expected date legitimately parks it — that's a snooze,
       // not "run out" — so leave those on autopilot.
       if (st.snoozeUntil && st.snoozeUntil > nowForChase) continue;
-      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      // Round-scope the counter to the current buyer (#299): a stale row's
+      // previous-buyer chases don't count, and its old "escalated" status is
+      // ignored, so a relisted file isn't wrongly handed over on old chases.
+      const scoped = solChasesInRound(st, side, roundStartByTx.get(l.transaction.id) ?? null);
+      const effStatus = scoped.stale ? "active" : st.status;
+      const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
+      // Both lanes (#299): if the client is still auto-chasing this step, autopilot
+      // isn't finished — keep it on autopilot rather than hand the solicitor over.
+      if (clientStillAuto.has(`${l.transaction.id}:${code}`)) continue;
       // Capped: never "on autopilot" (the cron is done with it), regardless of date.
       solCappedIds.add(l.id);
       // Hand over to Needs you only when it's actually DUE. A human "Mark chased"
@@ -1128,6 +1156,14 @@ export async function evaluateTransactionReminders(
       existingLog.snoozedUntil = null;
     }
 
+    // A reminder snoozed into the FUTURE is deliberately parked. Elapsed snoozes
+    // were just cleared above, so a snoozedUntil still set here is future-dated.
+    // Don't let the engine move its date or spawn a fresh pending ChaseTask while
+    // it's parked — on a never-yet-chased log that would resurrect the chase with
+    // a past due date and make it reappear as "overdue" (critique #293). Normal
+    // processing resumes automatically the moment the snooze elapses (cleared above).
+    const snoozedInFuture = !!existingLog?.snoozedUntil;
+
     if (existingLog) {
       // Pre-2026-06-01: this branch always recomputed nextDueDate from
       // anchor+graceDays and overwrote when diff > 1 hour. That clobbered
@@ -1146,7 +1182,7 @@ export async function evaluateTransactionReminders(
       // Phase 4: served from the pre-loop snapshot (nothing in this loop
       // ever creates a chaseCount>0 task, so the set cannot go stale).
       const hasChases = hasChasesLogIds.has(existingLog.id);
-      if (!hasChases) {
+      if (!hasChases && !snoozedInFuture) {
         // Update if due date shifted significantly (e.g. event_date changed,
         // or — as of the useCompletionDate rule — the anchor moved from
         // exchange-day to the agreed completion date).
@@ -1259,7 +1295,7 @@ export async function evaluateTransactionReminders(
         pushChaseEscalation(transactionId, milestoneLabel).catch(() => {});
       }
     } else {
-      if (toUKDateStr(log.nextDueDate) <= todayUKStr) {
+      if (!snoozedInFuture && toUKDateStr(log.nextDueDate) <= todayUKStr) {
         // Commit 4c-followup — inherit the buyerRoundId from the parent
         // ReminderLog (now correctly stamped above). Same rule as the
         // ChaseTask.createMany in createInitialRemindersInline.

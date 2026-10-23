@@ -311,7 +311,7 @@ export async function drainOutboundQueue(): Promise<{
             transactionId: p.transactionId, type: "outbound", method: "email", channel: "email", purpose: "other",
             status: "sent", contactIds: p.contactIds ?? [],
             content: `Email sent to ${p.to.join(", ")}${p.cc.length ? `\nCc: ${p.cc.join(", ")}` : ""}\n\nSubject: ${p.subject}\n\n${p.text}`,
-            subject: p.subject, bodyFormat: "html", sentEmailHtml: p.html,
+            subject: p.subject, bodyFormat: "html", sentEmailHtml: p.html, sentFromEmail: p.from,
             recipientEmail: p.to[0], recipientName: p.recipientName, ccEmails: p.ccEmails,
             createdById: p.createdById, createdByRole: p.createdByRole, visibleToClient: false, sentAt: sentAtNow,
           },

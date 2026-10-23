@@ -21,17 +21,23 @@ const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)
 
 const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
 
-export function SendingTodayPanel({ rows, sentToday = 0 }: { rows: SendingTodayRow[]; sentToday?: number }) {
+export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: SendingTodayRow[]; sentToday?: number; stillToGo?: number }) {
+  // The true remaining-today figure (`stillToGo`) is the live forecast of
+  // automated emails due to go out today — queued sends PLUS predicted chases
+  // not yet materialised in the queue — so it matches the Outbox below and
+  // drops as steps get confirmed (critique #295A). `rows` is a capped preview of
+  // the queued, send-now/skip-able part; predicted ones are actioned in the Outbox.
+  const total = stillToGo ?? rows.length;
   return (
     <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
         {/* "Still to send" is the honest name — this list is the remaining
             queue, not today's activity (truth pass 2026-10-21). */}
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Still to send today</h2>
-        {rows.length > 0 && <Pill glass tone="info" size="sm">{rows.length}</Pill>}
+        {total > 0 && <Pill glass tone="info" size="sm">{total}</Pill>}
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
           {sentToday > 0 ? (
             <>
@@ -42,11 +48,23 @@ export function SendingTodayPanel({ rows, sentToday = 0 }: { rows: SendingTodayR
             "Nothing due to go out today."
           )}
         </p>
+      ) : rows.length === 0 ? (
+        /* The whole of today's remaining sends are predicted chases not yet in
+           the queue (they materialise on the next chase run). Nothing to send-now
+           here yet — point to the Outbox where each can be previewed. */
+        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+          {total === 1 ? "1 automated email is" : `${total} automated emails are`} lined up to go out today.{" "}
+          <Link href="/agent/automated-emails?tab=outbox" className="agent-link" style={{ fontWeight: 600 }}>See the Outbox</Link>.
+        </p>
       ) : (
+        /* Four rows at most — this is a quick-intercept panel next to two other
+           cards, and a full day's queue stretched the whole top row into one
+           towering column (screenshot verification 2026-10-21). The complete
+           schedule lives in the Outbox directly below. */
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {rows.map((r) => <SendingRow key={r.id} row={r} />)}
-          <Link href="/agent/automated-emails?tab=pending" className="agent-link" style={{ fontSize: 12.5, fontWeight: 600, marginTop: 6 }}>
-            View all queued
+          {rows.slice(0, 4).map((r) => <SendingRow key={r.id} row={r} />)}
+          <Link href="/agent/automated-emails?tab=outbox" className="agent-link" style={{ fontSize: 12.5, fontWeight: 600, marginTop: 6 }}>
+            {total > 4 ? `All ${total} in the Outbox below` : "View the full Outbox"}
           </Link>
         </div>
       )}

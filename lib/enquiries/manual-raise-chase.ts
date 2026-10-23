@@ -180,6 +180,7 @@ export async function sendManualRaiseChase(
     subject,
     body: text,
     html,
+    fromEmail: from,
     recipientEmail: email,
     recipientName: a.tx.purchaserSolicitorFirm?.name ?? null,
     createdById: sentByUserId,

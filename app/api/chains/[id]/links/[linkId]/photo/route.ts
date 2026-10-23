@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canManageStub, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
+import { canManageStub, loadChainEditContext, ownershipFromLinkRow } from "@/lib/chain/stub-permissions";
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from "@/lib/supabase-storage";
 
 // Internal stub-photo upload for an UNCLAIMED chain link. Same permission as
@@ -49,10 +49,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const { linkId } = await params;
+  const { id: chainId, linkId } = await params;
   const link = await loadLink(linkId);
   if (!link) return NextResponse.json({ error: "Link not found" }, { status: 404 });
-  if (!canManageStub(session, ownershipFromLinkRow(link))) {
+  const editCtx = await loadChainEditContext(session, chainId);
+  if (!canManageStub(session, ownershipFromLinkRow(link), editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -89,10 +90,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const { linkId } = await params;
+  const { id: chainId, linkId } = await params;
   const link = await loadLink(linkId);
   if (!link) return NextResponse.json({ error: "Link not found" }, { status: 404 });
-  if (!canManageStub(session, ownershipFromLinkRow(link))) {
+  const editCtx = await loadChainEditContext(session, chainId);
+  if (!canManageStub(session, ownershipFromLinkRow(link), editCtx)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

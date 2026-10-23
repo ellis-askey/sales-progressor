@@ -140,7 +140,12 @@ export async function listTransactions(
           id: true,
           dueDate: true,
           priority: true,
-          reminderLog: { select: { reminderRule: { select: { name: true, targetMilestoneCode: true } } } },
+          // snoozedUntil lives on the parent ReminderLog, not the task. Pull it so
+          // a chase parked into the future (snooze menu or "move next date") stops
+          // reading as "Chase overdue" here — the task keeps its past dueDate, so
+          // without this the row shouts overdue while the Reminders page correctly
+          // shows it snoozed (critique #293).
+          reminderLog: { select: { snoozedUntil: true, reminderRule: { select: { name: true, targetMilestoneCode: true } } } },
         },
         orderBy: { dueDate: "asc" },
         take: 5,
@@ -189,9 +194,16 @@ export async function listTransactions(
   }
 
   return transactions.map((tx) => {
-    const overdueTasks = tx.chaseTasks.filter((t) => new Date(t.dueDate) < now);
+    // Drop chases parked into the future (snoozed / rescheduled) from the working
+    // set entirely, so they neither read as "Chase overdue" nor present as the
+    // imminent next action — the row falls through to its next genuine state
+    // (critique #293, Option A). Snooze lives on the parent ReminderLog.
+    const activeChaseTasks = tx.chaseTasks.filter(
+      (t) => !(t.reminderLog?.snoozedUntil && new Date(t.reminderLog.snoozedUntil) > now),
+    );
+    const overdueTasks = activeChaseTasks.filter((t) => new Date(t.dueDate) < now);
     const escalatedTasks = overdueTasks.filter((t) => t.priority === "escalated");
-    const nextTask = tx.chaseTasks[0];
+    const nextTask = activeChaseTasks[0];
     const lastMilestone = tx.milestoneCompletions[0] ?? null;
     const lastMilestoneAt = lastMilestone?.completedAt ?? null;
     const lastComm = tx.communications[0] ?? null;

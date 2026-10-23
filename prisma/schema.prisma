@@ -2417,6 +2417,12 @@ model OutboundMessage {
   // send directly and have no queue payload). Null on rows sent before this was
   // added, and on non-email rows — the drawer falls back to a summary preview.
   sentEmailHtml String?
+  // The actual From header used at send time ("Name <email>"). Captured so a
+  // later "view email" shows who it really came from, instead of re-deriving the
+  // sender from the file's CURRENT brand (which can differ after a relist or a
+  // brand change). Null on rows sent before this was added — the viewer falls
+  // back to resolving today's sender. (critique #298B)
+  sentFromEmail String?
 
   // Client self-notes ("You updated…" for the actor vs "Lauren updated…" for
   // co-clients) render from ONE shared row. `content` holds the name-led form;

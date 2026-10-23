@@ -26,6 +26,7 @@ export type SentChaseEmail = {
   text: string;          // plain-text fallback
   recipientName: string | null;
   recipientEmail: string | null;
+  fromEmail: string | null;  // the real From at send time; null (then resolved) on pre-capture rows
   sentAt: string | null; // ISO
   delivery: "sent" | "delivered" | "opened";
 };
@@ -37,7 +38,7 @@ export async function getSentChaseEmailAction(id: string): Promise<SentChaseEmai
   const msg = await prisma.outboundMessage.findUnique({
     where: { id },
     select: {
-      transactionId: true, type: true, subject: true, content: true, sentEmailHtml: true,
+      transactionId: true, type: true, subject: true, content: true, sentEmailHtml: true, sentFromEmail: true,
       recipientName: true, recipientEmail: true, sentAt: true, deliveredAt: true, openedAt: true,
     },
   });
@@ -53,11 +54,16 @@ export async function getSentChaseEmailAction(id: string): Promise<SentChaseEmai
 
   let html = msg.sentEmailHtml ?? null;
   let reconstructed = false;
+  // The real From at send time. Stored on newer rows; for pre-capture rows it
+  // stays null here and is backfilled from the resolved sender below so the
+  // viewer still shows a sender (today's, flagged alongside `reconstructed`).
+  let fromEmail = msg.sentFromEmail ?? null;
 
   // Legacy send — no stored HTML. Re-render the branded shell from the text.
   if (!html && (msg.content ?? "").trim()) {
     try {
       const sender = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+      if (!fromEmail) fromEmail = sender.from ?? null;
       const text = msg.content;
       // Pull the respond + unsubscribe URLs out of the sent text so the shell can
       // strip those raw lines from the body and wire the CTA / footer links.
@@ -97,6 +103,7 @@ export async function getSentChaseEmailAction(id: string): Promise<SentChaseEmai
     text: msg.content ?? "",
     recipientName: msg.recipientName ?? null,
     recipientEmail: msg.recipientEmail ?? null,
+    fromEmail,
     sentAt: msg.sentAt ? msg.sentAt.toISOString() : null,
     delivery: msg.openedAt ? "opened" : msg.deliveredAt ? "delivered" : "sent",
   };

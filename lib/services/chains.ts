@@ -18,6 +18,7 @@ import { titleCaseKeepAcronyms } from "@/lib/utils";
 import {
   canViewNodeIntel,
   canEditNodeIntel,
+  viewerProgressesChainFromTxs,
   noteSideKey,
   agencySideKey,
   type IntelViewer,
@@ -729,6 +730,23 @@ export async function getChainV2(
     );
   }
 
+  // Chain-level edit context: does the viewer progress a claimed sale anywhere in
+  // THIS chain? If so, an outsourced progression business may manage the chain's
+  // placeholder rows even where another party added them (critique #300). Computed
+  // once here so the per-link canEditStub flag matches the server guard
+  // (loadChainEditContext in stub-permissions.ts). Only "business" viewers use it;
+  // everyone else is decided by node-level facts, so the helper short-circuits.
+  const chainEditCtx = viewer
+    ? {
+        viewerProgressesChain: viewerProgressesChainFromTxs(
+          viewer,
+          chain.links
+            .map((l) => l.transaction)
+            .filter((t): t is NonNullable<typeof t> => t != null),
+        ),
+      }
+    : undefined;
+
   // Attach progressPercent + predictedExchangeDate + isEarlyEstimate per link.
   // Strip the raw completions array AND the prediction inputs (createdAt /
   // purchaseType / tenure / isShareOfFreehold / overridePredictedDate) from the
@@ -783,7 +801,7 @@ export async function getChainV2(
         txAgentUserId: rawTx?.agentUserId ?? null,
         txProgressionBusinessId: rawTx?.progressionBusinessId ?? null,
       };
-      const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership) : false;
+      const canEditIntel = viewer ? canEditNodeIntel(viewer, ownership, chainEditCtx) : false;
       // Stub details are editable only on an UNCLAIMED link, by the same owner
       // set as intel. A claimed link is a real file — its details live there, not
       // on the stub. This is what lets the internal team edit an agent-added stub.

@@ -56,7 +56,7 @@ export function CategoryChip({ category }: { category: "chase" | "notification" 
 // One compact, scannable email row. Real rows wear their delivery state;
 // predicted rows (status "upcoming") wear a dashed accent + "Predicted" so
 // they never read as queued records.
-export function CompactRow({ row, onOpen }: { row: EmailRow; onOpen: (row: EmailRow) => void }) {
+export function CompactRow({ row, onOpen, timeText }: { row: EmailRow; onOpen: (row: EmailRow) => void; timeText?: string }) {
   const meta = deliveryStatusMeta(row.deliveryStatus);
   const role = asRole(row.recipientRole);
   const t = rowTime(row);
@@ -75,7 +75,7 @@ export function CompactRow({ row, onOpen }: { row: EmailRow; onOpen: (row: Email
       }}
     >
       <span className="hidden sm:block" style={{ fontSize: 11, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums", width: 42, flexShrink: 0 }}>
-        {timeLabel(t)}
+        {timeText ?? timeLabel(t)}
       </span>
       <CategoryChip category={row.category} />
       <div className="min-w-0 flex-1">

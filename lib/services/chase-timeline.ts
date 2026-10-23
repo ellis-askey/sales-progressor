@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { toUKDateStr } from "@/lib/utils";
 import { isExchangeDayActive } from "@/lib/services/exchange-day";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
@@ -208,6 +209,9 @@ export async function getChaseTimeline(
     select: {
       id: true,
       activeBuyerRoundId: true,
+      // Round start = the relist moment. Solicitor chases dated before it belong
+      // to the previous buyer and are scoped out below (critique #299).
+      activeBuyerRound: { select: { createdAt: true } },
       clientEmailsPaused: true,
       agency: { select: { chaseEmailsEnabled: true, name: true } },
       completionDate: true,
@@ -382,8 +386,19 @@ export async function getChaseTimeline(
     const prev = clientByCode.get(cs.milestoneCode);
     if (!prev || cs.chaseCount > prev.chaseCount) clientByCode.set(cs.milestoneCode, cs);
   }
-  const solByCode = new Map<string, (typeof solStates)[number]>();
-  for (const s of solStates) {
+  // Round-scope the solicitor counter to the CURRENT buyer (critique #299). The
+  // row has no buyer tag, so on a relisted file a previous buyer's chases get
+  // dropped by the relist-date boundary (solChasesInRound). A stale row is also
+  // treated as "active" so an old escalation doesn't read as "with your team".
+  const solRoundStart = tx.activeBuyerRound?.createdAt ?? null;
+  const solStatesScoped = solStates.map((s) => {
+    const sc = solChasesInRound(s, s.side as "vendor" | "purchaser", solRoundStart);
+    return sc.stale
+      ? { ...s, chaseCount: sc.count, firstChasedAt: sc.firstAt, lastChasedAt: sc.lastAt, status: "active", resolvedAt: null }
+      : { ...s, chaseCount: sc.count, firstChasedAt: sc.firstAt, lastChasedAt: sc.lastAt };
+  });
+  const solByCode = new Map<string, (typeof solStatesScoped)[number]>();
+  for (const s of solStatesScoped) {
     const prev = solByCode.get(s.milestoneCode);
     if (!prev || s.chaseCount > prev.chaseCount) solByCode.set(s.milestoneCode, s);
   }
@@ -505,15 +520,25 @@ export async function getChaseTimeline(
 
     // Autopilot sends next only while its lane is still active and under cap;
     // otherwise "next" is a reminder for the team to act.
-    const nextIsAutomated = !!autoState && autoState.status === "active" && autoState.chaseCount < cap;
-    const autoHandedOff = !!autoState && autoState.status !== "active" && autoState.chaseCount >= cap;
+    // Both-lanes hand-off (critique #299). A step can be auto-chased on BOTH the
+    // solicitor and the client at once (the solicitor confirms, then forwards the
+    // result to the client so they can confirm too). It's only "handed to your
+    // team" once EVERY auto lane has used up its chases — while any lane is still
+    // sending, autopilot keeps going and the step stays "auto-chasing".
+    const solStillAuto = !!sol && sol.status === "active" && sol.chaseCount < SOLICITOR_CHASE_CAP;
+    const clientStillAuto = !!cs && cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP;
+    const anyLaneStillAuto = solStillAuto || clientStillAuto;
+    const solCapped = !!sol && (sol.chaseCount >= SOLICITOR_CHASE_CAP || sol.status === "escalated");
+    const clientCapped = !!task?.fallbackKind || (!!cs && cs.chaseCount >= CLIENT_CHASE_CAP);
+    const nextIsAutomated = anyLaneStillAuto;
+    const autoHandedOff = !anyLaneStillAuto && (solCapped || clientCapped);
 
     let state: ChaseThreadState;
     if (log.status === "completed") state = "completed";
     else if (log.status === "cancelled") state = "cancelled";
     else if (escalated) state = "escalated";
     else if (manualChases > 0) state = "manual_chasing";
-    else if (task?.fallbackKind || autoHandedOff) state = "handed_to_team";
+    else if (autoHandedOff) state = "handed_to_team";
     else if (autoChases > 0 || nextIsAutomated) state = "auto_chasing";
     else state = "scheduled";
 
@@ -645,7 +670,12 @@ export async function getChaseTimeline(
         }
       : null;
     const solNext = solicitorNextSend(side, code);
-    const nextSends: NextSend[] = [clientNext, solNext].filter((s): s is NextSend => s != null);
+    // While any lane is still auto-chasing, don't surface an exhausted lane's
+    // "with your team" card — the step isn't handed over yet (critique #299). Only
+    // the still-auto lane's "Next: chase" shows; both show once fully handed off.
+    const nextSends: NextSend[] = [clientNext, solNext]
+      .filter((s): s is NextSend => s != null)
+      .filter((s) => !(anyLaneStillAuto && s.handedToTeam));
 
     return {
       id: log.id,
@@ -946,7 +976,7 @@ export async function getChaseTimeline(
   const codesWithThread = new Set(
     logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c),
   );
-  for (const row of solStates) {
+  for (const row of solStatesScoped) {
     if (codesWithThread.has(row.milestoneCode)) continue; // already threaded via a client log
     const mc = completionByKey.get(`${row.side}|${row.milestoneCode}`);
     if (!mc?.milestoneDefinition) continue; // no active-round completion → stale cross-round state

@@ -7,6 +7,7 @@ import { toUKDateStr } from "@/lib/utils";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { classifyReminder } from "@/lib/reminders/classify";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
+import { solChasesInRound } from "@/lib/chase/solicitor-round";
 import { chaseHandoverDate, chaseHandoverPhase, type ChaseSnapshot } from "@/lib/reminders/chase-escalation";
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
@@ -600,9 +601,12 @@ export async function getMonthExchangingIds(
   const endOfMonth   = new Date(year, month + 1, 0, 23, 59, 59, 999);
   const txWhere = buildTxWhere(vis);
 
-  // Phase-3 OR scope for the not-yet-exchanged check.
-  const activeRoundIds = await loadActiveRoundIds(txWhere);
-
+  // The number means "files with an exchange date in this month, INCLUDING ones
+  // that have already exchanged but not yet completed" (critique #292, founder
+  // decision 2026-10-23). The strip count counts exactly those active files, so
+  // the list must not filter already-exchanged ones out — doing so made the strip
+  // read 5 while the list showed 4. An exchanged-not-completed file is still
+  // status "active"; a completed file is status "completed" and excluded below.
   const where: Prisma.PropertyTransactionWhereInput = {
     ...txWhere,
     status: "active",
@@ -610,16 +614,6 @@ export async function getMonthExchangingIds(
       { expectedExchangeDate: { gte: startOfMonth, lte: endOfMonth } },
       { overridePredictedDate: { gte: startOfMonth, lte: endOfMonth } },
     ],
-    NOT: {
-      // PHASE 1 4d (a)-CLASS resolved — Phase-3 OR scope below.
-      milestoneCompletions: {
-        some: {
-          state: "complete",
-          milestoneDefinition: { code: { in: ["VM19", "PM26"] } },
-          OR: roundScopedOR(activeRoundIds),
-        },
-      },
-    },
   };
 
   const results = await prisma.propertyTransaction.findMany({ where, select: { id: true } });
@@ -2893,15 +2887,29 @@ export async function getHubAttentionItems(
     return !!c && solicitorCodesForSide(c.startsWith("PM") ? "purchaser" : "vendor").has(c);
   });
   if (txIdsForChase.length > 0 && hasSolCodes) {
-    const [solStates, solRules] = await Promise.all([
+    const [solStates, solRules, roundRows, clientStates] = await Promise.all([
       prisma.solicitorChaseState.findMany({
         where: { transactionId: { in: txIdsForChase }, resolvedAt: null },
-        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, status: true, snoozeUntil: true },
+        select: { transactionId: true, side: true, milestoneCode: true, chaseCount: true, firstChasedAt: true, lastChasedAt: true, status: true, snoozeUntil: true },
       }),
       prisma.solicitorReminderRule.findMany({ select: { milestoneCode: true, maxChases: true } }),
+      // Relist boundary + both-lanes hand-off (#299) — see reminders.ts getAgentReminderLogs.
+      prisma.propertyTransaction.findMany({ where: { id: { in: txIdsForChase } }, select: { id: true, activeBuyerRoundId: true, activeBuyerRound: { select: { createdAt: true } } } }),
+      prisma.clientChaseState.findMany({
+        where: { transactionId: { in: txIdsForChase } },
+        select: { transactionId: true, milestoneCode: true, chaseCount: true, status: true, buyerRoundId: true },
+      }),
     ]);
+    const CLIENT_CHASE_CAP = 2;
     const maxByCode = new Map(solRules.map((r) => [r.milestoneCode, r.maxChases]));
+    const roundStartByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRound?.createdAt ?? null]));
+    const activeRoundByTx = new Map(roundRows.map((t) => [t.id, t.activeBuyerRoundId]));
     const solStateByKey = new Map(solStates.map((s) => [`${s.transactionId}:${s.side}:${s.milestoneCode}`, s]));
+    const clientStillAuto = new Set(
+      clientStates
+        .filter((c) => c.status === "active" && c.chaseCount < CLIENT_CHASE_CAP && (c.buyerRoundId == null || c.buyerRoundId === activeRoundByTx.get(c.transactionId)))
+        .map((c) => `${c.transactionId}:${c.milestoneCode}`),
+    );
     for (const l of logs) {
       const code = l.reminderRule.targetMilestoneCode;
       if (!code) continue;
@@ -2911,8 +2919,13 @@ export async function getHubAttentionItems(
       if (!st) continue;
       // A solicitor-given expected date parks it (a snooze, not "run out").
       if (st.snoozeUntil && st.snoozeUntil > now) continue;
-      const ranOut = st.status === "escalated" || st.chaseCount >= (maxByCode.get(code) ?? 2);
+      // Round-scope the counter to the current buyer (#299).
+      const scoped = solChasesInRound(st, side, roundStartByTx.get(l.transaction.id) ?? null);
+      const effStatus = scoped.stale ? "active" : st.status;
+      const ranOut = effStatus === "escalated" || scoped.count >= (maxByCode.get(code) ?? 2);
       if (!ranOut) continue;
+      // Both lanes (#299): client still auto-chasing → keep on autopilot.
+      if (clientStillAuto.has(`${l.transaction.id}:${code}`)) continue;
       solCappedIds.add(l.id); // never "on autopilot" — the cron is done with it
       // Hand over to Needs-attention only when it's actually due (a human chase
       // advances nextDueDate, so a just-chased capped row isn't boomeranged back).

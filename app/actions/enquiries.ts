@@ -636,6 +636,7 @@ export async function sendEnquiryChaseAction(input: {
     await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
     await logEnquiryChaseComm({
       transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: loggedText, html: enquiryChaseTextToHtml(loggedText),
+      fromEmail: ctx.from,
       recipientEmail: solEmail, recipientName: ctx.solFirm?.name ?? ctx.solContact?.name ?? null,
       createdById: userId, sentAt: now,
     }).catch(() => {});
@@ -685,6 +686,7 @@ export async function sendEnquiryChaseAction(input: {
   await logChaseSend({ transactionId: ctx.tx.id, kind: "reply_loop", recipient: ctx.court, recipientName: ctx.solFirm?.name ?? null }).catch(() => {});
   await logEnquiryChaseComm({
     transactionId: ctx.tx.id, agencyId: ctx.agencyId, subject, body: text, html,
+    fromEmail: ctx.from,
     recipientEmail: solEmail, recipientName: ctx.solFirm?.name ?? ctx.solContact?.name ?? null,
     createdById: userId, sentAt: now, internetMessageId: outboundMessageId,
   }).catch(() => {});
