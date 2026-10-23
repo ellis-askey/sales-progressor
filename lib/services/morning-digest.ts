@@ -4,7 +4,7 @@ import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { toUKDateStr } from "@/lib/utils";
 import { getNotificationPrefsForUsers } from "@/lib/agent/notification-prefs";
-import { pushExchangeApproaching, pushMortgageOfferExpiring } from "@/lib/agent/push-events";
+import { pushExchangeApproaching, pushExchangeApproachingDigest, pushMortgageOfferExpiring } from "@/lib/agent/push-events";
 import { possessiveClientLabel } from "@/lib/updates-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { buildMorningBrief } from "@/lib/emails/morning-brief";
@@ -208,7 +208,9 @@ export async function sendMorningDigests(agencyId: string): Promise<number> {
 // fires a push to the file owner ONCE per warning (dedup via a Notification
 // row of type=exchange_approaching keyed on the date). The push helper itself
 // checks each user's per-event toggle before firing.
-export async function fireExchangeApproachingPushes(agencyId: string): Promise<number> {
+export type ExchangePushSink = Map<string, { txId: string; days: number }[]>;
+
+export async function fireExchangeApproachingPushes(agencyId: string, pushSink?: ExchangePushSink): Promise<number> {
   const todayMs = new Date().setUTCHours(0, 0, 0, 0);
   const sevenDaysFromNow = new Date(todayMs + 7 * 86400000);
 
@@ -228,6 +230,13 @@ export async function fireExchangeApproachingPushes(agencyId: string): Promise<n
   });
 
   let pushed = 0;
+  // Collect the phone pushes per owner so several exchange-soon alerts collapse
+  // into a single digest push instead of clobbering the lock screen (critique
+  // #296). A shared sink (passed by the cron across EVERY agency) lets a
+  // cross-agency owner — e.g. an internal progressor — get ONE digest for the
+  // whole run; without a sink we flush our own at the end. The per-file bell
+  // notifications below are untouched either way.
+  const pushByOwner = pushSink ?? new Map<string, { txId: string; days: number }[]>();
   for (const tx of candidates) {
     const ownerId = tx.assignedUserId ?? tx.agentUserId;
     if (!ownerId || !tx.expectedExchangeDate) continue;
@@ -258,11 +267,30 @@ export async function fireExchangeApproachingPushes(agencyId: string): Promise<n
     const days = Math.round(
       (tx.expectedExchangeDate.getTime() - todayMs) / 86400000,
     );
-    pushExchangeApproaching(tx.id, days).catch(() => {});
+    const arr = pushByOwner.get(ownerId) ?? [];
+    arr.push({ txId: tx.id, days });
+    pushByOwner.set(ownerId, arr);
     pushed++;
   }
 
+  // When we own the map, flush now. With a shared sink, the caller flushes once
+  // after every agency so a cross-agency owner gets a single digest (#296).
+  if (!pushSink) flushExchangeApproachingPushes(pushByOwner);
+
   return pushed;
+}
+
+// Turn the collected per-owner exchange-soon pushes into phone notifications:
+// one detailed push for a single file, one combined "N sales exchanging soon"
+// when several landed for the same owner (critique #296).
+export function flushExchangeApproachingPushes(pushByOwner: ExchangePushSink): void {
+  for (const [ownerId, items] of pushByOwner) {
+    if (items.length === 1) {
+      pushExchangeApproaching(items[0].txId, items[0].days).catch(() => {});
+    } else {
+      pushExchangeApproachingDigest(ownerId, items.length).catch(() => {});
+    }
+  }
 }
 
 // Daily mortgage-offer expiry sweep. Runs in the same morning cron pass. For

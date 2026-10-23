@@ -134,6 +134,28 @@ export async function pushExchangeApproaching(
   });
 }
 
+// Several exchange-soon alerts for the SAME user in one sweep — collapse the
+// phone pushes into one so the lock screen isn't clobbered (critique #296). The
+// per-file in-app bell notifications are still created individually by the
+// caller; only the phone push is digested. Respects the user's own toggle.
+export async function pushExchangeApproachingDigest(
+  userId: string,
+  count: number,
+): Promise<void> {
+  try {
+    const prefs = await getNotificationPrefs(userId);
+    if (!prefs.push.exchangeApproaching) return;
+    const base = process.env.NEXTAUTH_URL ?? "";
+    await pushToUser(userId, {
+      title: `${count} sales exchanging soon`,
+      body: "Tap to see which files are approaching their exchange target.",
+      url: `${base}/agent/transactions`,
+    });
+  } catch (err) {
+    console.error(`[push-events] exchangeApproaching digest failed for user ${userId}:`, err);
+  }
+}
+
 // A client's mortgage offer is nearing (or past) expiry. Caller is responsible
 // for dedup — a daily cron fires this once per offer date per warning stage
 // (21 days out, 7 days out, expired). `side` distinguishes the buyer's own
