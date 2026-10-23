@@ -484,8 +484,33 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
 
 // ── Per-tab cells (files-table redesign) ─────────────────────────────────────
 
-// Exchange forecast — the date cell + the 4-level pace (active rows).
+// "5th November 2026" — ordinal long form for the post-exchange completion date,
+// London-zoned so SSR and the client agree.
+function longDateOrdinal(input: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "long", year: "numeric" }).formatToParts(new Date(input));
+  const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  const k = day % 100, j = day % 10;
+  const suffix = k >= 11 && k <= 13 ? "th" : j === 1 ? "st" : j === 2 ? "nd" : j === 3 ? "rd" : "th";
+  return `${day}${suffix} ${month} ${year}`;
+}
+
+// Exchange forecast — the date cell + the 4-level pace (active rows). Once the file
+// has exchanged, the predicted-exchange date and pace are history: the only forward
+// date is completion, so show that instead. No pace line (the risk pill already
+// reads a calm "Exchanged", so a "Behind" here would contradict it).
 function ExchangeCell({ tx }: { tx: TransactionRow }) {
+  if (tx.exchangedAt) {
+    return (
+      <div>
+        <p style={{ margin: "0 0 2px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>Completion scheduled</p>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+          {tx.completionDate ? longDateOrdinal(new Date(tx.completionDate)) : "To be confirmed"}
+        </span>
+      </div>
+    );
+  }
   return (
     <div>
       <ExchangeTargetCell transactionId={tx.id} expectedExchangeDate={tx.expectedExchangeDate} overridePredictedDate={tx.overridePredictedDate ?? null} createdAt={tx.createdAt} />
