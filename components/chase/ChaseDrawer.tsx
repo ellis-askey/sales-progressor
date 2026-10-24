@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -261,53 +262,19 @@ export function ChaseDrawer({
 
   const [channel, setChannel] = useState<Channel>("email");
   const [tone, setTone] = useState<Tone>(autoTone(nextChaseNumber));
+  // Tone + "To" recipient dropdowns — both ride AnchoredPanel (controlled,
+  // matchWidth). The consumer drives open; the panel shares the locked glass
+  // and handles portal / flip / shift / outside-click / escape.
   const [toneMenuOpen, setToneMenuOpen] = useState(false);
-  const [toneMenuClosing, setToneMenuClosing] = useState(false);
-  const [toneMenuPos, setToneMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toneMenuRef = useRef<HTMLDivElement>(null);
-
-  function closeToneMenu() { setToneMenuClosing(true); setToneMenuOpen(false); }
-
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (toneMenuRef.current && !toneMenuRef.current.contains(e.target as Node)) closeToneMenu();
-    }
-    function handleScroll() { closeToneMenu(); }
-    if (toneMenuOpen) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [toneMenuOpen]);
-  // "To" recipient menu (portal dropdown, mirrors the Tone menu pattern below).
   const [toMenuOpen, setToMenuOpen] = useState(false);
-  const [toMenuClosing, setToMenuClosing] = useState(false);
-  const [toMenuPos, setToMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toMenuRef = useRef<HTMLDivElement>(null);
-  function closeToMenu() { setToMenuClosing(true); setToMenuOpen(false); }
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (toMenuRef.current && !toMenuRef.current.contains(e.target as Node)) closeToMenu();
-    }
-    function handleScroll() { closeToMenu(); }
-    if (toMenuOpen) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [toMenuOpen]);
 
   // Selecting a solicitor forces Email (solicitors are never WhatsApp'd).
   function selectRecipient(id: string) {
     setSelectedRecipientId(id);
     setCcOnIds([]); // CC toggles are per-recipient; reset to default-off on switch
-    closeToMenu();
+    setToMenuOpen(false);
     const next = recipientCandidates.find((c) => c.id === id) ?? null;
     if (next && isSolicitorRecipient(next) && channel === "whatsapp") {
       switchChannel("email");
@@ -870,11 +837,7 @@ export function ChaseDrawer({
                 type="button"
                 onClick={() => {
                   if (recipientCandidates.length <= 1) return;
-                  if (!toMenuOpen && !toMenuClosing && toMenuRef.current) {
-                    const r = toMenuRef.current.getBoundingClientRect();
-                    setToMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                  }
-                  if (toMenuOpen) { closeToMenu(); } else { setToMenuClosing(false); setToMenuOpen(true); }
+                  setToMenuOpen((o) => !o);
                 }}
                 style={{
                   width: "100%", textAlign: "left",
@@ -918,34 +881,25 @@ export function ChaseDrawer({
                   </span>
                 )}
               </button>
-              {(toMenuOpen || toMenuClosing) && toMenuPos && typeof document !== "undefined" && createPortal(
-                <div
-                  data-theme={theme}
-                  data-night={isNight ? "" : undefined}
-                  className={toMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
-                  onAnimationEnd={() => { if (toMenuClosing) setToMenuClosing(false); }}
-                  style={{ position: "fixed", top: toMenuPos.top, left: toMenuPos.left, width: toMenuPos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)", borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" }}
-                >
-                  {recipientCandidates.map((c) => {
-                    const sol = isSolicitorRecipient(c);
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => selectRecipient(c.id)}
-                        style={{ width: "100%", textAlign: "left", padding: "9px 12px", display: "flex", alignItems: "center", gap: 10, background: selectedRecipientId === c.id ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
-                      >
-                        <RecipientAvatar contact={c} size={26} />
-                        <span style={{ minWidth: 0, flex: 1 }}>
-                          <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>{recipientRoleLabel(c)}{sol ? " · email only" : ""}</span>
-                        </span>
-                        {selectedRecipientId === c.id && <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--agent-coral-deep)" }}>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>,
-                document.body
-              )}
+              <AnchoredPanel anchorRef={toMenuRef} open={toMenuOpen} onClose={() => setToMenuOpen(false)} matchWidth bare placement="bottom-start">
+                {recipientCandidates.map((c) => {
+                  const sol = isSolicitorRecipient(c);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => selectRecipient(c.id)}
+                      style={{ width: "100%", textAlign: "left", padding: "9px 12px", display: "flex", alignItems: "center", gap: 10, background: selectedRecipientId === c.id ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
+                    >
+                      <RecipientAvatar contact={c} size={26} />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>{recipientRoleLabel(c)}{sol ? " · email only" : ""}</span>
+                      </span>
+                      {selectedRecipientId === c.id && <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--agent-coral-deep)" }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </AnchoredPanel>
             </div>
           </div>
 
@@ -1128,13 +1082,7 @@ export function ChaseDrawer({
               <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Tone</p>
               <div style={{ position: "relative" }} ref={toneMenuRef}>
               <button
-                onClick={() => {
-                  if (!toneMenuOpen && !toneMenuClosing && toneMenuRef.current) {
-                    const r = toneMenuRef.current.getBoundingClientRect();
-                    setToneMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                  }
-                  if (toneMenuOpen) { closeToneMenu(); } else { setToneMenuClosing(false); setToneMenuOpen(true); }
-                }}
+                onClick={() => setToneMenuOpen((o) => !o)}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
@@ -1146,40 +1094,25 @@ export function ChaseDrawer({
                   {toneMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
                 </span>
               </button>
-              {(toneMenuOpen || toneMenuClosing) && toneMenuPos && typeof document !== "undefined" && createPortal(
-                <div
-                  data-theme={theme}
-                  data-night={isNight ? "" : undefined}
-                  className={toneMenuClosing ? "agent-dropdown-out" : "agent-dropdown-in"}
-                  onAnimationEnd={() => { if (toneMenuClosing) setToneMenuClosing(false); }}
-                  style={{
-                    position: "fixed", top: toneMenuPos.top, left: toneMenuPos.left, width: toneMenuPos.width,
-                    zIndex: 9999,
-                    background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
-                    borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
-                  }}
-                >
-                  {TONES.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => { setTone(t); closeToneMenu(); }}
-                      style={{
-                        width: "100%", textAlign: "left", padding: "8px 12px",
-                        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2,
-                        background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
-                        border: "none", cursor: "pointer", transition: "background 100ms",
-                      }}
-                    >
-                      <TonePill tone={t} />
-                      {t === autoTone(nextChaseNumber) && (
-                        <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)", paddingLeft: 14 }}>Recommended</span>
-                      )}
-                    </button>
-                  ))}
-                </div>,
-                document.body
-              )}
+              <AnchoredPanel anchorRef={toneMenuRef} open={toneMenuOpen} onClose={() => setToneMenuOpen(false)} matchWidth bare placement="bottom-start">
+                {TONES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { setTone(t); setToneMenuOpen(false); }}
+                    style={{
+                      width: "100%", textAlign: "left", padding: "8px 12px",
+                      display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2,
+                      background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
+                      border: "none", cursor: "pointer", transition: "background 100ms",
+                    }}
+                  >
+                    <TonePill tone={t} />
+                    {t === autoTone(nextChaseNumber) && (
+                      <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)", paddingLeft: 14 }}>Recommended</span>
+                    )}
+                  </button>
+                ))}
+              </AnchoredPanel>
               </div>
             </div>
           </div>
