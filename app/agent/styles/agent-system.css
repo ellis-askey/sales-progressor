@@ -5226,6 +5226,11 @@ body[data-demo-file] [data-onboarding-checklist] {
   .files-views { display: none; }
   .files-view-select { display: flex; }
 }
+/* Match the pills + the Filter button exactly (the pill min-height rule only
+   targets .files-views children, which this button is not). */
+.files-view-select .agent-segment-pill-sm {
+  min-height: 36px; padding: 6px 14px; font-size: 13px; gap: 8px; border-radius: 11px;
+}
 .files-view-select-btn { white-space: nowrap; }
 .files-view-menu {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 168px;
