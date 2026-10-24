@@ -5264,6 +5264,13 @@ body[data-demo-file] [data-onboarding-checklist] {
 .ui-pop-anchor { display: inline-flex; }
 .ui-pop { --ui-ink: 45,24,16; box-sizing: border-box; color: var(--agent-text-primary); font-family: inherit; }
 .ui-pop[data-night] { --ui-ink: 235,235,240; }
+/* Bespoke menu rows kept during the consolidation (.enq-mi, .rv-mi, .act-mi,
+   .cf-row, .agent-hover-row, .fm-row, …) hover on --agent-hover-tint, which is
+   94% WHITE in every theme — fine on the old light menus, but a solid white box
+   on the dark glass. Re-point it (and -strong) to the neutral ink Lift inside
+   the panel so every kept row matches the canonical .ui-pop-item hover in BOTH
+   light and dark. One rule, because they all render inside .ui-pop now. */
+.ui-pop[data-theme] { --agent-hover-tint: rgba(var(--ui-ink), 0.06); --agent-hover-tint-strong: rgba(var(--ui-ink), 0.10); }
 .ui-pop-menu { padding: 6px; min-width: 184px; }
 .ui-pop-popover { padding: 13px; }
 .ui-pop-tooltip { padding: 11px 13px; max-width: 244px; }
