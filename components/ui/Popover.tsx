@@ -11,7 +11,7 @@
 // (agent-dropdown-in, RowActionsMenu, fcl-tip, lum-menu, …).
 // See project_menus_consolidation.
 
-import { useState, useRef, useEffect, type ReactNode, type CSSProperties, type Ref } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode, type CSSProperties, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAnchoredPosition, type Placement } from "@/lib/agent/use-anchored-position";
@@ -111,6 +111,82 @@ export function PopoverMenuItem({ icon, children, onClick, tone = "default" }: {
 }
 
 export function PopoverDivider() { return <div className="ui-pop-div" aria-hidden />; }
+
+// Controlled sibling of Popover for typeaheads / comboboxes: the consumer owns
+// an input (with its own ref) and drives `open` from what's typed + focus, while
+// this shares the exact same portal, positioning (flip/shift/gutter) and locked
+// glass surface. `matchWidth` sizes the panel to the anchor (the search field).
+// Results should use onMouseDown (not onClick) so they fire before the input's
+// blur. Outside-click / Escape call onClose.
+export function AnchoredPanel({
+  anchorRef,
+  open,
+  onClose,
+  placement = "bottom-start",
+  matchWidth,
+  width,
+  bare,
+  preset = "popover",
+  role,
+  children,
+}: {
+  anchorRef: RefObject<HTMLElement | null>;
+  open: boolean;
+  onClose: () => void;
+  placement?: Placement;
+  matchWidth?: boolean;
+  width?: number;
+  bare?: boolean;
+  preset?: "menu" | "popover";
+  role?: string;
+  children: ReactNode;
+}) {
+  const { theme, isNight } = usePortalTheme();
+  const floatRef = useRef<HTMLDivElement>(null);
+  const [anchorWidth, setAnchorWidth] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (!open || !matchWidth) return;
+    const measure = () => {
+      const w = anchorRef.current?.getBoundingClientRect().width;
+      if (w) setAnchorWidth(w);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open, matchWidth, anchorRef]);
+
+  const pos = useAnchoredPosition(anchorRef, floatRef, open, { placement });
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (anchorRef.current?.contains(t) || floatRef.current?.contains(t)) return;
+      onClose();
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open, anchorRef, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+  return (
+    <FloatLayer
+      isNight={isNight}
+      theme={theme}
+      preset={preset}
+      bare={bare}
+      floatRef={floatRef}
+      pos={pos}
+      width={matchWidth ? anchorWidth : width}
+      role={role}
+    >
+      {children}
+    </FloatLayer>
+  );
+}
 
 // Hover/focus tooltip — same surface, shown on hover, no interactive content.
 export function Tooltip({ children, content, placement = "top-start" }: { children: ReactNode; content: ReactNode; placement?: Placement }) {

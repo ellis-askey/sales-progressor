@@ -10,10 +10,10 @@
 // Look only — the portal/flip positioning primitive comes after the surface is
 // signed off. Dev-only (local + staging; 404 on real production).
 
-import { useState, type CSSProperties } from "react";
+import { useState, useRef, type CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
-import { Popover, PopoverMenuItem, PopoverDivider, Tooltip } from "@/components/ui/Popover";
+import { Popover, PopoverMenuItem, PopoverDivider, Tooltip, AnchoredPanel } from "@/components/ui/Popover";
 
 type Base = "solid" | "glass";
 type Border = "none" | "hairline" | "visible";
@@ -95,6 +95,40 @@ function DemoMenu({ placement }: { placement?: "bottom-start" | "bottom-end" }) 
         </>
       )}
     </Popover>
+  );
+}
+
+// Typeahead picker (option A for P4) — a search field whose results panel rides
+// the SAME locked glass via the controlled AnchoredPanel. This is what the real
+// Broker / Solicitor / Contacts pickers would become instead of their current
+// 72%-white dropdowns.
+const FIRMS = ["Hamptons International", "Hampton & Co Mortgages", "Hampshire Financial", "Hampstead Mortgage Brokers", "Hardy & Hart Financial"];
+function DemoPicker() {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  const matches = q.trim() ? FIRMS.filter((f) => f.toLowerCase().includes(q.toLowerCase())) : [];
+  return (
+    <div style={{ width: 300, maxWidth: "100%" }}>
+      <input
+        ref={ref}
+        className="dm-in"
+        placeholder="Search broker name…"
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => { if (q.trim()) setOpen(true); }}
+      />
+      <AnchoredPanel anchorRef={ref} open={open && !!q.trim()} onClose={() => setOpen(false)} matchWidth bare placement="bottom-start">
+        {matches.length > 0 ? (
+          matches.map((m) => (
+            <button key={m} className="dm-pick-row" onMouseDown={() => { setQ(m); setOpen(false); }}>{m}</button>
+          ))
+        ) : (
+          <p className="dm-pick-empty">No matching brokerages</p>
+        )}
+        <button className="dm-pick-row add" onMouseDown={() => setOpen(false)}>+ Add &ldquo;{q}&rdquo; as new brokerage</button>
+      </AnchoredPanel>
+    </div>
   );
 }
 
@@ -219,6 +253,11 @@ border-radius: ${c.radius}px;   hover: ${c.hover}`;
           </div>
 
           <div style={{ marginTop: 22 }}>
+            <div className="dm-spec-lbl">Typeahead picker (option A) — the search dropdown on the SAME locked glass, panel matches the input width. Type &ldquo;ham&rdquo;.</div>
+            <div style={{ marginTop: 8 }}><DemoPicker /></div>
+          </div>
+
+          <div style={{ marginTop: 22 }}>
             <div className="dm-spec-lbl">Inside a clipping / scrolling card — should NOT be cut off (it portals out)</div>
             <div className="dm-clip">
               <p className="dm-fill">This card has <code>overflow:auto</code> and a transform — the kind of container that traps an inline menu. Scroll me.</p>
@@ -306,6 +345,11 @@ const CSS = `
 .dm-trigbtn { font-family:inherit; font-size:13px; font-weight:600; padding:8px 15px; border-radius:10px; cursor:pointer; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-primary); }
 .dm-trigbtn:hover { border-color:var(--agent-coral); }
 .dm-edge { margin-top:26px; }
+.dm-pick-row { display:block; width:100%; text-align:left; font-family:inherit; font-size:13px; font-weight:550; padding:10px 13px; border:none; background:none; cursor:pointer; color:var(--agent-text-secondary); transition:background .12s, color .12s; }
+.dm-pick-row + .dm-pick-row, .dm-pick-empty + .dm-pick-row { border-top:1px solid var(--agent-border-subtle); }
+.dm-pick-row:hover { background:rgba(var(--ui-ink,45,24,16),0.06); color:var(--agent-text-primary); }
+.dm-pick-row.add { color:var(--agent-coral-deep); font-weight:650; border-top:1px solid var(--agent-border-subtle); }
+.dm-pick-empty { margin:0; padding:10px 13px; font-size:13px; color:var(--agent-text-muted); }
 .dm-clip { height:200px; overflow:auto; transform:translateZ(0); border:1px solid var(--agent-border-default); border-radius:12px; padding:16px; background:var(--agent-surface-elevated); }
 .dm-fill { font-size:13px; color:var(--agent-text-muted); line-height:1.6; margin:0 0 12px; }
 .dm-fill code { font-family:ui-monospace, monospace; font-size:12px; background:var(--agent-surface-subtle, rgba(0,0,0,0.05)); padding:1px 5px; border-radius:5px; }
