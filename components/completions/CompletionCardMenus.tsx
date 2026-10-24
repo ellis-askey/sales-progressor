@@ -1,85 +1,58 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // The Completions card's little popup menus — "Change date" (a date field with
 // the CTA stacked below, à la the enquiries backdate popover) and "Add fee" (the
 // Fixed £ / % and + VAT / Inc VAT toggles stacked over an add-a-sale-formatted
-// input, with the Save CTA in the menu). Both portal to <body> so the group
-// card's overflow:hidden doesn't clip them, and both reuse the real actions
+// input, with the Save CTA in the menu). Both ride the canonical Popover
+// primitive (portal to <body> so the group card's overflow:hidden doesn't clip
+// them, flip/shift, edge gutter, locked glass), and both reuse the real actions
 // (saveCompletionDateAction / saveAgentFeeAction). Styling in agent-system.css
-// (.comp-pop*, .comp-seg*, .comp-fee-input, .comp-date-*).
+// (.comp-pop-label, .comp-seg*, .comp-fee-input, .comp-date-*).
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarBlank } from "@phosphor-icons/react";
 import { PriceInput } from "@/components/ui/PriceInput";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Popover } from "@/components/ui/Popover";
 import { saveCompletionDateAction, saveAgentFeeAction } from "@/app/actions/transactions";
-
-function useAnchoredPopover() {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-
-  const openPop = useCallback(() => {
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, right: clampPopoverRight(r.right, 240) });
-    setOpen(true);
-  }, []);
-  const close = useCallback(() => setOpen(false), []);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || popRef.current?.contains(t)) return;
-      close();
-    };
-    const onScroll = () => close();
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", onScroll, true);
-    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", onScroll, true); };
-  }, [open, close]);
-
-  return { open, pos, triggerRef, popRef, openPop, close };
-}
 
 export function DateMenu({ txId, currentIso, hasDate }: { txId: string; currentIso: string | null; hasDate: boolean }) {
   const router = useRouter();
-  const { theme } = usePortalTheme();
-  const { open, pos, triggerRef, popRef, openPop, close } = useAnchoredPopover();
   const [iso, setIso] = useState(currentIso ? currentIso.split("T")[0] : "");
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function openPicker() { const el = inputRef.current; if (!el) return; try { el.showPicker(); } catch { el.focus(); } }
-  async function save() {
-    if (!iso) return;
-    setSaving(true);
-    try { await saveCompletionDateAction(txId, iso); close(); router.refresh(); } finally { setSaving(false); }
-  }
 
   return (
-    <>
-      <button ref={triggerRef} type="button" className="comp-menu-trigger" aria-expanded={open} onClick={() => (open ? close() : openPop())}>
-        {hasDate ? "Change date" : "Set date"}
-      </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 9999 }}>
-          <div ref={popRef} className="comp-pop agent-dropdown-in">
+    <Popover
+      preset="popover"
+      width={220}
+      placement="bottom-end"
+      trigger={
+        <button type="button" className="comp-menu-trigger">
+          {hasDate ? "Change date" : "Set date"}
+        </button>
+      }
+    >
+      {(close) => {
+        async function save() {
+          if (!iso) return;
+          setSaving(true);
+          try { await saveCompletionDateAction(txId, iso); close(); router.refresh(); } finally { setSaving(false); }
+        }
+        return (
+          <>
             <p className="comp-pop-label">When&rsquo;s it completing?</p>
             <div className="comp-date-field" role="button" tabIndex={0} onClick={openPicker} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); } }}>
               <CalendarBlank size={15} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
               <input ref={inputRef} type="date" value={iso} onChange={(e) => setIso(e.target.value)} className="comp-date-input" />
             </div>
             <button type="button" className="comp-pop-cta" style={{ marginTop: 10 }} disabled={!iso || saving} onClick={save}>{saving ? "Saving…" : "Save date"}</button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
+          </>
+        );
+      }}
+    </Popover>
   );
 }
 
@@ -93,8 +66,6 @@ export function FeeMenu({
   purchasePrice: number | null;
 }) {
   const router = useRouter();
-  const { theme } = usePortalTheme();
-  const { open, pos, triggerRef, popRef, openPop, close } = useAnchoredPopover();
   const [feeType, setFeeType] = useState<"amount" | "percent">(agentFeePercent ? "percent" : "amount");
   const [amount, setAmount] = useState<number | null>(agentFeeAmount);
   const [percent, setPercent] = useState(agentFeePercent ? String(Number(agentFeePercent).toFixed(2)) : "");
@@ -111,31 +82,36 @@ export function FeeMenu({
   const grossPence = vat === "inclusive" ? feePence : Math.round(feePence * 1.2);
   const gbp = (p: number) => Math.round(p / 100).toLocaleString("en-GB");
 
-  async function save() {
-    setSaving(true); setError(null);
-    try {
-      await saveAgentFeeAction({
-        transactionId: txId,
-        agentFeeAmount: feeType === "amount" ? amount : null,
-        agentFeePercent: feeType === "percent" ? (parseFloat(percent || "0") || null) : null,
-        agentFeeIsVatInclusive: vat === "inclusive",
-      });
-      close(); router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save the fee");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <>
-      <button ref={triggerRef} type="button" className="comp-menu-trigger" aria-expanded={open} onClick={() => (open ? close() : openPop())}>
-        {unset ? "+ Add fee" : "Edit fee"}
-      </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div data-theme={theme} style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 9999 }}>
-          <div ref={popRef} className="comp-pop agent-dropdown-in" style={{ width: 244 }}>
+    <Popover
+      preset="popover"
+      width={244}
+      placement="bottom-end"
+      trigger={
+        <button type="button" className="comp-menu-trigger">
+          {unset ? "+ Add fee" : "Edit fee"}
+        </button>
+      }
+    >
+      {(close) => {
+        async function save() {
+          setSaving(true); setError(null);
+          try {
+            await saveAgentFeeAction({
+              transactionId: txId,
+              agentFeeAmount: feeType === "amount" ? amount : null,
+              agentFeePercent: feeType === "percent" ? (parseFloat(percent || "0") || null) : null,
+              agentFeeIsVatInclusive: vat === "inclusive",
+            });
+            close(); router.refresh();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Couldn't save the fee");
+          } finally {
+            setSaving(false);
+          }
+        }
+        return (
+          <>
             <p className="comp-pop-label">Your commission</p>
             <div className="comp-seg">
               <button type="button" className={`comp-seg-btn${feeType === "amount" ? " on" : ""}`} onClick={() => setFeeType("amount")} disabled={saving}>Fixed £</button>
@@ -160,10 +136,9 @@ export function FeeMenu({
               <p className="comp-fee-net"><b>Net £{gbp(netPence)}</b> · £{gbp(grossPence)} inc VAT</p>
             )}
             {error && <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--agent-danger, #DC2626)" }}>{error}</p>}
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
+          </>
+        );
+      }}
+    </Popover>
   );
 }
