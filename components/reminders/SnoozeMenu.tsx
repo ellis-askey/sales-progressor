@@ -1,5 +1,4 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // Shared snooze popover for every reminder surface (Reminders page rows +
 // "Snooze all", and the property-file Reminders tab). Replaces the three
@@ -7,15 +6,15 @@ import { clampPopoverRight } from "@/lib/agent/popover-position";
 //
 // Adds: an optional reason (logged against the reminder + posted to the file's
 // Activity tab by the snooze action), and a "pick a date" alternative to the
-// quick gaps. The reason input means the popover holds focus, so it tracks
-// clicks on BOTH the trigger and its own portal content before closing — a
-// plain outside-click check would dismiss it the moment you clicked the field.
+// quick gaps. Rides the canonical Popover primitive (portal + flip/shift + edge
+// gutter + locked glass surface); the Popover never dismisses on scroll, which
+// is what the reason field needs on mobile when the keyboard scrolls the window
+// (was critique #276, previously hand-handled).
 
-import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { DateField } from "@/components/ui/DateField";
+import { Popover } from "@/components/ui/Popover";
 
 export interface SnoozeChoice {
   hours?: number;
@@ -34,10 +33,6 @@ const QUICK = [
   { label: "Next week", hours: 168 },
 ];
 
-// Estimated popover height, used only to decide whether it opens above or below
-// the trigger. Being a little off just biases the flip; it doesn't clip.
-const MENU_H = 300;
-
 export function SnoozeMenu({
   onConfirm,
   disabled,
@@ -51,115 +46,49 @@ export function SnoozeMenu({
   label?: string;
   count?: number;
 }) {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number; above: boolean } | null>(null);
   const [hours, setHours] = useState<number | null>(null);
   const [dateVal, setDateVal] = useState("");
   const [reason, setReason] = useState("");
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const { theme } = usePortalTheme();
 
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-  function close() { setClosing(true); setOpen(false); }
-  function reset() { setHours(null); setDateVal(""); setReason(""); }
-
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t)) return;
-      if (contentRef.current?.contains(t)) return;
-      close();
-    }
-    function handleScroll(e: Event) {
-      // Only a page/outside scroll should dismiss the fixed-position popover.
-      // Ignore scrolls that originate INSIDE it — e.g. the reason textarea
-      // scrolling as you type past its two visible rows, which otherwise closed
-      // the popover mid-note (it listens in the capture phase, so it sees the
-      // textarea's own scroll).
-      const t = e.target as Node | null;
-      if (t && contentRef.current?.contains(t)) return;
-      // On mobile, focusing the reason field opens the keyboard, which scrolls
-      // the WINDOW (not inside the popover) — don't dismiss mid-note while a
-      // field inside the popover holds focus. (critique #276)
-      if (contentRef.current?.contains(document.activeElement)) return;
-      close();
-    }
-    if (open) {
-      document.addEventListener("mousedown", handle);
-      window.addEventListener("scroll", handleScroll, true);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handle);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
-
-  function openMenu() {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const above = window.innerHeight - r.bottom < MENU_H;
-    // Width the popover actually renders at — capped to the viewport with a 16px
-    // margin each side on a phone — passed to the clamp so the right offset keeps
-    // it off both edges. (critique #275)
-    const popW = Math.min(232, window.innerWidth - 32);
-    setPos({
-      top: above ? r.top - 4 : r.bottom + 4,
-      right: clampPopoverRight(r.right, popW),
-      above,
-    });
-    reset();
-    setClosing(false);
-    setOpen(true);
-  }
-
-  function confirm() {
-    if (!hours && !dateVal) return;
-    onConfirm(dateVal ? { untilISO: dateVal, reason: reason.trim() || null } : { hours: hours ?? 24, reason: reason.trim() || null });
-    close();
-  }
-
   const canConfirm = !!hours || !!dateVal;
 
+  // Clear the fields each time the popover opens (fires on the trigger click).
+  function reset() { setHours(null); setDateVal(""); setReason(""); }
+
+  const triggerBtn = (
+    <Button
+      onClick={reset}
+      disabled={disabled}
+      title="Snooze"
+      variant={variant === "all" ? "ghost" : "secondary"}
+      size="sm"
+      className="rem-clock-btn"
+      style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="12" cy="12" r="8.5" />
+        <line x1="12" y1="12" x2="15" y2="12" />
+        <g className="rem-clock-hand"><line x1="12" y1="12" x2="12" y2="6.5" /></g>
+      </svg>
+      {variant === "all" ? ` ${label}${count ? ` (${count})` : ""}` : null}
+    </Button>
+  );
+
+  // A disabled trigger must not open — render it bare (the Popover anchor would
+  // otherwise still toggle on click).
+  if (disabled) return triggerBtn;
+
   return (
-    <div className="relative" ref={triggerRef}>
-      <Button
-        onClick={() => (open ? close() : openMenu())}
-        disabled={disabled}
-        title="Snooze"
-        variant={variant === "all" ? "ghost" : "secondary"}
-        size="sm"
-        className="rem-clock-btn"
-        style={{ flexShrink: 0, whiteSpace: "nowrap" }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="12" cy="12" r="8.5" />
-          <line x1="12" y1="12" x2="15" y2="12" />
-          <g className="rem-clock-hand"><line x1="12" y1="12" x2="12" y2="6.5" /></g>
-        </svg>
-        {variant === "all" ? ` ${label}${count ? ` (${count})` : ""}` : null}
-      </Button>
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        <div
-          style={{
-            position: "fixed", top: pos.top, right: pos.right,
-            transform: pos.above ? "translateY(-100%)" : "none",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            ref={contentRef}
-            data-theme={theme}
-            className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-            onAnimationEnd={() => { if (closing) setClosing(false); }}
-            style={{
-              background: "var(--agent-menu-surface, #ffffff)", borderRadius: 14, overflow: "hidden",
-              boxShadow: "0 12px 32px rgba(15,23,42,0.16)", border: "0.5px solid var(--agent-border-default)",
-              width: "min(232px, calc(100vw - 32px))", padding: 12,
-            }}
-          >
+    <Popover preset="popover" placement="bottom-end" width={232} trigger={triggerBtn}>
+      {(close) => {
+        function confirm() {
+          if (!hours && !dateVal) return;
+          onConfirm(dateVal ? { untilISO: dateVal, reason: reason.trim() || null } : { hours: hours ?? 24, reason: reason.trim() || null });
+          close();
+        }
+        return (
+          <>
             <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--agent-text-muted)", textTransform: "uppercase" }}>
               Snooze until
             </p>
@@ -206,10 +135,9 @@ export function SnoozeMenu({
             <Button onClick={confirm} disabled={!canConfirm} size="sm" style={{ width: "100%" }}>
               Snooze{count && count > 1 ? ` all ${count}` : ""}
             </Button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
+          </>
+        );
+      }}
+    </Popover>
   );
 }
