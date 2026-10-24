@@ -81,6 +81,13 @@ function relWhen(at: Date): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
+// Whole calendar days since a contact — drives the most-recent urgency colour.
+function daysAgo(at: Date): number {
+  const a = new Date(at); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
 const CHANNEL_NAME: Record<FocusChannel, string> = { email: "Email", whatsapp: "WhatsApp", call: "Call" };
 
 function dirLabel(c: FocusChannelContact): string {
@@ -98,6 +105,9 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const [view, setView] = useState<FocusView>("touch");
   const [sideFilter, setSideFilter] = useState<SideFilter>("all");
+  // Whether automated engine emails count toward "last contact" when judging the
+  // most-recent touch per side. Off by default = your own contact only (#297).
+  const [includeAuto, setIncludeAuto] = useState(false);
 
   // Bar fills left-to-right on first paint: start at 0, flip to the real
   // percentage on the next frame so the width transition animates in.
@@ -211,7 +221,12 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         </header>
 
         <div className="fc-main">
-          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} action={<SideSeg value={sideFilter} onChange={setSideFilter} />}>
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} action={
+            <span className="fc-actionrow">
+              <AutoToggle on={includeAuto} onChange={setIncludeAuto} />
+              <SideSeg value={sideFilter} onChange={setSideFilter} />
+            </span>
+          }>
             {viewFiles.length === 0 ? (
               <div className="fc-done" data-bloom>
                 <div className="fc-done-h">{empty.h}</div>
@@ -234,6 +249,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
                         key={s.side}
                         file={f}
                         side={s}
+                        includeAuto={includeAuto}
                         showWhatsApp={showWhatsApp}
                         done={view === "recent" && touched(f, s)}
                         needsYouReason={needsYou[f.transactionId]}
@@ -277,6 +293,25 @@ const SUB_COPY: Record<FocusView, string> = {
   awaiting: "You've been in touch, but haven't heard back. These sides are still waiting to reply.",
 };
 
+// "Include automated" switch (#297) — sits on the left of the Seller/Buyer row.
+// Off = the most-recent touch counts your own contact only; on = automated engine
+// emails count too. Short label on a phone.
+function AutoToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      className={`fc-auto${on ? " on" : ""}`}
+      aria-pressed={on}
+      onClick={() => onChange(!on)}
+      title="Count automated emails as contact when judging who's overdue"
+    >
+      <span className="fc-auto-sw" aria-hidden><span className="fc-auto-knob" /></span>
+      <span className="fc-auto-lbl-full">Include automated</span>
+      <span className="fc-auto-lbl-short">Incl. auto</span>
+    </button>
+  );
+}
+
 // Compact animated Seller/Buyer filter — a sliding thumb with a spring settle,
 // sitting in the tab row's action slot.
 function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFilter) => void }) {
@@ -299,10 +334,11 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
 }
 
 function SideBlock({
-  file, side, showWhatsApp, done, needsYouReason, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, includeAuto, showWhatsApp, done, needsYouReason, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
+  includeAuto: boolean;
   showWhatsApp: boolean;
   done: boolean;
   needsYouReason?: string;
@@ -317,6 +353,21 @@ function SideBlock({
   const names = side.contacts.length ? side.contacts.map((c) => c.name).join(" & ") : side.name;
   const avatars = side.contacts.length ? side.contacts : [{ id: side.primaryContactId, name: side.name }];
   const lc = side.lastContact;
+
+  // The freshest touch per side (#293): drawn solid, its time coloured by how
+  // overdue it is. Human contact only unless the "include automated" toggle is on
+  // (#297) — automated engine emails are the only thing that flag excludes
+  // (WhatsApp, calls and inbound replies are never automated).
+  const candidates = [lc.email, lc.whatsapp, lc.call].filter(
+    (c): c is NonNullable<typeof c> => !!c && (includeAuto || !c.automated),
+  );
+  const mostRecent = candidates.reduce<(typeof candidates)[number] | null>(
+    (best, c) => (!best || new Date(c.at).getTime() > new Date(best.at).getTime() ? c : best),
+    null,
+  );
+  const recentDays = mostRecent ? daysAgo(mostRecent.at) : null;
+  const recentTone: "ok" | "danger" | null =
+    recentDays == null ? null : recentDays <= 7 ? "ok" : recentDays >= 14 ? "danger" : null;
   // Mobile has no hover, so a truncated name is unreachable — tap to show it in
   // full (wrapped), tap again to collapse (critique #299).
   const [namesExpanded, setNamesExpanded] = useState(false);
@@ -373,11 +424,11 @@ function SideBlock({
           full record (direction, state, exact time, subject/snippet) is one hover
           away. WhatsApp is dropped entirely when it isn't a live channel here. */}
       <div className="fc-led">
-        <ChannelUnit channel="email" c={lc.email} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
+        <ChannelUnit channel="email" c={lc.email} recent={!!mostRecent && mostRecent === lc.email} tone={recentTone} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
         {showWhatsApp ? (
-          <ChannelUnit channel="whatsapp" c={lc.whatsapp} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
+          <ChannelUnit channel="whatsapp" c={lc.whatsapp} recent={!!mostRecent && mostRecent === lc.whatsapp} tone={recentTone} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
         ) : null}
-        <ChannelUnit channel="call" c={lc.call} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
+        <ChannelUnit channel="call" c={lc.call} recent={!!mostRecent && mostRecent === lc.call} tone={recentTone} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
       </div>
     </div>
   );
@@ -392,8 +443,11 @@ const CHANNEL_ICON: Record<FocusChannel, typeof EnvelopeSimple> = {
 // A bare channel glyph (no backer tile), a status pip, and the relative time.
 // Hovering reveals the full record in a small popover. Empty channels show a
 // dimmed glyph and read "none" on hover — never implied contact.
-function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void }) {
+function ChannelUnit({ channel, c, onOpen, recent = false, tone = null }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void; recent?: boolean; tone?: "ok" | "danger" | null }) {
   const Icon = CHANNEL_ICON[channel];
+  // The most-recent touch is drawn SOLID, with its time coloured by how overdue
+  // it is (#293). A null/empty channel is never "recent".
+  const recentColor = recent && tone ? (tone === "ok" ? "var(--agent-success)" : "var(--agent-danger)") : undefined;
   // On a touch device (no hover) the detail tooltip is hidden, so a first tap
   // shows it (same content as the desktop hover); a second tap opens the thread
   // (critique #298). On a hover device, a click opens straight away.
@@ -427,14 +481,14 @@ function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusCh
     <button
       type="button"
       ref={ref}
-      className={`fc-u ${channel}${tipOpen ? " tip-open" : ""}`}
+      className={`fc-u ${channel}${tipOpen ? " tip-open" : ""}${recent ? " recent" : ""}`}
       onClick={() => { if (isTouch() && !tipOpen) setTipOpen(true); else onOpen(c); }}
     >
       <span className="fc-ic">
-        <Icon size={16} />
+        <Icon size={16} weight={recent ? "fill" : "regular"} />
         <span className={`fc-pip ${meta.tone}`} aria-hidden />
       </span>
-      <span className="fc-ut">{relWhen(c.at)}</span>
+      <span className="fc-ut" style={recentColor ? { color: recentColor, fontWeight: 750 } : undefined}>{relWhen(c.at)}</span>
       <span className="fcl-tip" role="tooltip">
         <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
         <span className={`fcl-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
@@ -644,6 +698,23 @@ const CSS = `
 .fc-names { display:block; max-width:100%; text-align:left; background:none; border:0; padding:0; cursor:pointer; font-family:inherit; font-size:13px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25; }
 /* Tapped open (critique #299): show the full name(s) wrapped. */
 .fc-names.expanded { white-space:normal; overflow:visible; text-overflow:clip; }
+/* Action row = the "include automated" toggle (left) + Seller/Buyer seg (right),
+   sharing the tab row's action slot (#297). On a phone it drops to its own line
+   and spreads edge to edge. */
+.fc-actionrow { display:inline-flex; align-items:center; gap:12px; }
+.fc-auto { display:inline-flex; align-items:center; gap:7px; background:none; border:0; padding:3px 2px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:600; color:var(--agent-text-muted); white-space:nowrap; }
+.fc-auto:hover { color:var(--agent-text-secondary); }
+.fc-auto.on { color:var(--agent-text-primary); }
+.fc-auto-sw { position:relative; width:30px; height:17px; border-radius:999px; background:var(--agent-border-strong); flex-shrink:0; transition:background .16s ease; }
+.fc-auto.on .fc-auto-sw { background:var(--agent-coral); }
+.fc-auto-knob { position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left .16s ease; }
+.fc-auto.on .fc-auto-knob { left:15px; }
+.fc-auto-lbl-short { display:none; }
+@media (max-width:560px){
+  .fc-actionrow { display:flex; flex:1; justify-content:space-between; width:100%; }
+  .fc-auto-lbl-full { display:none; }
+  .fc-auto-lbl-short { display:inline; }
+}
 .fc-role { font-size:10px; font-weight:700; line-height:1.2; margin-bottom:1px; }
 .fc-side.vendor .fc-role { color:#0C447C; }
 .fc-side.purchaser .fc-role { color:#085041; }
