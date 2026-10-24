@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import {
   PaperPlaneTilt,
   FileMagnifyingGlass,
@@ -528,71 +529,44 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
 // Small overflow menu that opens UPWARD (it lives in the drawer footer). Theme
 // aware via agent tokens; click-outside + Escape dismiss.
 function UpwardMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean }[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [open]);
   if (items.length === 0) return null;
   return (
-    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="More actions"
-        className="email-detail-menu-btn"
-        style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 38, height: 38, borderRadius: 10,
-          background: open ? "var(--agent-surface-glass)" : "var(--agent-surface-elevated)",
-          border: "0.5px solid var(--agent-border-strong)", color: "var(--agent-text-secondary)", cursor: "pointer",
-          transition: "background 120ms, border-color 120ms",
-        }}
+    <div style={{ flexShrink: 0 }}>
+      <Popover
+        preset="menu"
+        placement="top-end"
+        width={168}
+        trigger={
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-label="More actions"
+            className="email-detail-menu-btn"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 38, height: 38, borderRadius: 10,
+              background: "var(--agent-surface-elevated)",
+              border: "0.5px solid var(--agent-border-strong)", color: "var(--agent-text-secondary)", cursor: "pointer",
+              transition: "background 120ms, border-color 120ms",
+            }}
+          >
+            <DotsThree size={20} weight="bold" />
+          </button>
+        }
       >
-        <DotsThree size={20} weight="bold" />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          style={{
-            position: "absolute", right: 0, bottom: "calc(100% + 6px)", minWidth: 168,
-            background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-strong)",
-            borderRadius: 12, boxShadow: "0 12px 32px rgba(15,23,42,0.16)",
-            padding: 6, zIndex: 30, animation: "email-detail-menu-in 130ms cubic-bezier(0.22,1,0.36,1) both",
-          }}
-        >
-          {items.map((it) => (
-            <button
-              key={it.label}
-              type="button"
-              role="menuitem"
-              disabled={it.disabled}
-              onClick={() => { setOpen(false); it.onClick(); }}
-              className={`email-detail-menu-item${it.danger ? " is-danger" : ""}`}
-              style={{
-                display: "block", width: "100%", textAlign: "left", padding: "8px 10px",
-                border: "none", background: "none", borderRadius: 8, cursor: it.disabled ? "default" : "pointer",
-                fontSize: 13, fontWeight: 500, opacity: it.disabled ? 0.5 : 1,
-                color: it.danger ? "var(--agent-danger)" : "var(--agent-text-primary)",
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      )}
+        {(close) => items.map((it) => (
+          <PopoverMenuItem
+            key={it.label}
+            tone={it.danger ? "danger" : "default"}
+            disabled={it.disabled}
+            onClick={() => { close(); it.onClick(); }}
+          >
+            {it.label}
+          </PopoverMenuItem>
+        ))}
+      </Popover>
       <style>{`
         .email-detail-menu-btn:hover { background: var(--agent-surface-glass); border-color: var(--agent-text-muted); }
-        .email-detail-menu-item { transition: background 140ms ease, box-shadow 140ms ease; }
-        .email-detail-menu-item:hover:not(:disabled) { background: var(--agent-surface-glass); box-shadow: var(--agent-hover-lift); }
-        @keyframes email-detail-menu-in { from { opacity: 0; transform: translateY(3px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}</style>
     </div>
   );
