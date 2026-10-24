@@ -11,7 +11,7 @@
 // would just double it up. WhatsApp paste stays, for messages from outside the
 // tracked chat.
 
-import { useState, useTransition, useRef, useEffect, type CSSProperties } from "react";
+import { useState, useTransition, useRef, type CSSProperties } from "react";
 import type { CommType, CommMethod } from "@prisma/client";
 import { EnvelopeSimple, Phone, ChatText, Voicemail, Package, WhatsappLogo } from "@phosphor-icons/react";
 import { logCommAction } from "@/app/actions/comms";
@@ -21,6 +21,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PasteWhatsAppPanel, type ImportableContact } from "@/components/activity/PasteWhatsAppPanel";
 import { DraftForEveryonePanel } from "@/components/activity/DraftForEveryonePanel";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Popover, PopoverMenuItem, PopoverDivider } from "@/components/ui/Popover";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
 type Solicitor = { id: string; name: string; role: string; phone?: string | null };
@@ -63,6 +64,9 @@ const LOG_ITEMS: { value: CommChannel; label: string; desc: string; Icon: typeof
   { value: "post",      label: "Log post",         desc: "A letter sent or received", Icon: Package },
 ];
 
+// Second line of the two-line "More" menu items (was .ce-mi small).
+const CE_ITEM_DESC: CSSProperties = { display: "block", fontWeight: 400, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 };
+
 export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat = false, emailConnected = false, canMarkPrivate = false, onOptimisticAdd }: Props) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
@@ -72,11 +76,9 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const [content, setContent]         = useState("");
   const [visibleToClient, setVisibleToClient] = useState(false);
   const [businessOnly, setBusinessOnly] = useState(false);
-  const [showOverflow, setShowOverflow] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
   const [isDraftMode, setIsDraftMode] = useState(false);
-  const overflowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const logItems = LOG_ITEMS.filter((i) => !(i.value === "email" && emailConnected));
@@ -112,25 +114,12 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     })),
   ];
 
-  // Close overflow on outside click
-  useEffect(() => {
-    if (!showOverflow) return;
-    function onClickOutside(e: MouseEvent) {
-      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
-        setShowOverflow(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [showOverflow]);
-
   function selectChannel(c: CommChannel) {
     setChannel(c);
     setDirection("outbound");
     setSelected([]);
     setContent("");
     setVisibleToClient(false);
-    setShowOverflow(false);
     setIsPasteMode(false);
     setIsDraftMode(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
@@ -142,7 +131,6 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setSelected([]);
     setContent("");
     setVisibleToClient(false);
-    setShowOverflow(false);
     setIsPasteMode(true);
     setIsDraftMode(false);
   }
@@ -153,7 +141,6 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setSelected([]);
     setContent("");
     setVisibleToClient(false);
-    setShowOverflow(false);
     setIsPasteMode(false);
     setIsDraftMode(true);
   }
@@ -168,7 +155,6 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
     setSelected([]);
     setContent("");
     setVisibleToClient(false);
-    setShowOverflow(false);
     setIsPasteMode(false);
     setIsDraftMode(false);
   }
@@ -216,15 +202,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         .ce-ghost:hover { border-color:var(--agent-coral); color:var(--agent-text-primary); }
         .ce-ghost[data-on="true"] { border-color:var(--agent-coral-deep); color:var(--agent-coral-deep); }
         .ce-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
-        .ce-ghost[data-open="true"] .ce-caret, .ce-ghost[data-on="true"] .ce-caret { transform:rotate(180deg); }
-        .ce-menu { position:absolute; top:calc(100% + 6px); right:0; left:auto; z-index:100; min-width:236px; max-width:calc(100vw - 32px); background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:13px; box-shadow:0 12px 32px rgba(30,45,74,0.16); padding:7px; }
-        .ce-mi { display:flex; align-items:center; gap:11px; width:100%; text-align:left; padding:8px 9px; border-radius:9px; border:none; background:none; font-family:inherit; font-size:13px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
-        .ce-mi:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
-        .ce-ico { width:20px; display:grid; place-items:center; color:var(--agent-text-muted); flex-shrink:0; transition:color .14s ease; }
-        .ce-mi:hover .ce-ico { color:var(--agent-coral-deep); }
-        .ce-mi small { display:block; font-weight:400; font-size:11px; color:var(--agent-text-muted); margin-top:1px; }
-        .ce-mi-div { height:1px; background:var(--agent-border-subtle); margin:5px 6px; }
-        .ce-mi-hint { font-size:10.5px; color:var(--agent-text-muted); padding:7px 9px 3px; line-height:1.45; }
+        .ce-ghost[data-on="true"] .ce-caret { transform:rotate(180deg); }
         /* Direction segmented toggle (critique #7b): a white chip slides between
            the two options; the active label recolours coral (out) / green (in). */
         .ce-seg { position:relative; display:inline-flex; padding:3px; border-radius:10px; background:var(--agent-surface-glass); border:1px solid var(--agent-border-default); }
@@ -233,14 +211,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         .ce-seg button { position:relative; z-index:1; flex:1 1 0; min-width:116px; font-size:11.5px; font-weight:600; padding:5px 12px; border:none; background:none; cursor:pointer; color:var(--agent-text-muted); transition:color .2s ease; white-space:nowrap; }
         .ce-seg[data-dir="outbound"] button:first-of-type { color:var(--agent-coral-deep); }
         .ce-seg[data-dir="inbound"] button:last-of-type { color:#059669; }
-        /* Small breakpoints: the More menu spans the composer so it can never
-           clip on either edge when the channel buttons wrap (critique #7a). */
         @media (max-width: 520px) {
-          /* Anchor to the right of the caret and extend leftward with a real
-             width. The positioned ancestor is the tiny caret-button wrapper, so
-             left:0;right:0 (the old rule) collapsed the panel to the chevron's
-             width and stacked every item one word per line. (critique 2026-10-05) */
-          .ce-menu { left:auto; right:0; width:min(280px, calc(100vw - 24px)); min-width:0; max-width:none; }
           /* Hide the "More" word on mobile, leaving just the chevron, so the three
              composer buttons fit on one row (critique #198). */
           .ce-more-label { display:none; }
@@ -264,33 +235,39 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
         <button onClick={() => selectChannel("note")} className="ce-ghost" data-on={isNote}>📝 Note</button>
 
         {/* More — everything you log after the fact */}
-        <div ref={overflowRef} style={{ position: "relative" }}>
-          <button onClick={() => setShowOverflow((v) => !v)} className="ce-ghost" data-open={showOverflow} data-on={moreActive} aria-haspopup="menu" aria-expanded={showOverflow} aria-label="More">
-            <span className="ce-more-label">More</span><span className="ce-caret">▼</span>
-          </button>
-          {showOverflow && (
-            <div className="ce-menu agent-dropdown-in" role="menu">
+        <Popover
+          preset="menu"
+          placement="bottom-end"
+          width={248}
+          trigger={
+            <button className="ce-ghost" data-on={moreActive} aria-haspopup="menu" aria-label="More">
+              <span className="ce-more-label">More</span><span className="ce-caret">▼</span>
+            </button>
+          }
+        >
+          {(close) => (
+            <>
               {logItems.map(({ value, label, desc, Icon }) => (
-                <button key={value} className="ce-mi" role="menuitem" onClick={() => selectChannel(value)}>
-                  <span className="ce-ico"><Icon size={17} /></span>
-                  <span>{label}<small>{desc}</small></span>
-                </button>
+                <PopoverMenuItem key={value} icon={<Icon size={17} />} onClick={() => { selectChannel(value); close(); }}>
+                  {label}<small style={CE_ITEM_DESC}>{desc}</small>
+                </PopoverMenuItem>
               ))}
               {canPasteChat && (
                 <>
-                  <div className="ce-mi-div" />
-                  <button className="ce-mi" role="menuitem" onClick={openPasteMode}>
-                    <span className="ce-ico"><WhatsappLogo size={17} /></span>
-                    <span>Paste a WhatsApp chat<small>From outside the tracked chat</small></span>
-                  </button>
+                  <PopoverDivider />
+                  <PopoverMenuItem icon={<WhatsappLogo size={17} />} onClick={() => { openPasteMode(); close(); }}>
+                    Paste a WhatsApp chat<small style={CE_ITEM_DESC}>From outside the tracked chat</small>
+                  </PopoverMenuItem>
                 </>
               )}
               {emailConnected && (
-                <div className="ce-mi-hint">Emails you send are logged automatically from your connected mailbox.</div>
+                <div style={{ fontSize: 10.5, color: "var(--agent-text-muted)", padding: "7px 9px 3px", lineHeight: 1.45 }}>
+                  Emails you send are logged automatically from your connected mailbox.
+                </div>
               )}
-            </div>
+            </>
           )}
-        </div>
+        </Popover>
 
         {/* Cancel */}
         {(hasChannel || isPasteMode || isDraftMode) && (
