@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Bell } from "@phosphor-icons/react";
+import { Popover } from "@/components/ui/Popover";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { Pill } from "@/components/ui/Pill";
@@ -71,8 +72,6 @@ function relativeTime(iso: string): string {
 export function AgentBell({ initialClearedAt }: { initialClearedAt: string | null }) {
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<BellItem[]>([]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   // The unread baseline, server-sourced. A ref (not state) so the 30s poll
   // always reads the latest value without re-subscribing the interval.
   const clearedRef = useRef<string>(initialClearedAt ?? new Date().toISOString());
@@ -114,44 +113,11 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
     }
   }, [count]);
 
-  // Exit animation (critique, 2026-09-23): closing keeps the popup mounted
-  // while it plays its out animation, then unmounts on a timer (timer rather
-  // than animationend so reduced-motion can't strand it).
-  const [closing, setClosing] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function close() {
-    if (!open) return;
-    setOpen(false);
-    setClosing(true);
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setClosing(false), 200);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-    // close is stable enough here — it only reads `open`, which is a dep.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  function toggle() {
-    if (open) { close(); return; }
-    setClosing(false);
-    setOpen(true);
-    // Opening marks everything read — advance the baseline (server-backed) and
-    // clear the badge. Fire-and-forget; the local ref moves immediately so the
-    // next poll stays at zero.
+  // Opening marks everything read — advance the baseline (server-backed) and
+  // clear the badge. Fired from the trigger click; guarded on count so the
+  // close-click (count already 0) is a no-op. Fire-and-forget; the local ref
+  // moves immediately so the next poll stays at zero.
+  function markRead() {
     if (count > 0) {
       clearedRef.current = new Date().toISOString();
       setCount(0);
@@ -160,109 +126,96 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
   }
 
   return (
-    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
-      <button
-        onClick={toggle}
-        className="relative w-8 h-8 flex items-center justify-center rounded-lg agent-hover-row transition-colors"
-        title={count > 0 ? `${count} update${count === 1 ? "" : "s"}` : "Updates"}
-        aria-label="Updates"
-        aria-expanded={open}
-      >
-        <Bell
-          className="w-4 h-4"
-          style={{ color: count > 0 ? "var(--agent-coral)" : "var(--agent-text-secondary)" }}
-          weight={count > 0 ? "fill" : "regular"}
-        />
-        {count > 0 && (
-          <CountBadge count={count} tone="danger" size="sm" solid className="absolute -top-0.5 -right-0.5" aria-hidden />
-        )}
-      </button>
-
-      {(open || closing) && (
-        <div
-          role="menu"
-          className={`agent-bell-pop${closing ? " is-closing" : ""}`}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            width: 340,
-            maxWidth: "calc(100vw - 24px)",
-            background: "var(--agent-surface-elevated)",
-            border: "0.5px solid var(--agent-border-default)",
-            borderRadius: 12,
-            boxShadow: "var(--agent-glass-shadow-lifted, 0 12px 40px rgba(0,0,0,0.18))",
-            zIndex: 200,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: "min(70vh, 520px)",
-            pointerEvents: closing ? "none" : undefined,
-          }}
-        >
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "12px 14px", borderBottom: "0.5px solid var(--agent-border-subtle)",
-          }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Updates</p>
-            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Latest steps across your files</span>
-          </div>
-
-          <div style={{ overflowY: "auto", flex: 1 }}>
-            {items.length === 0 ? (
-              <p style={{ margin: 0, padding: "28px 16px", textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)" }}>
-                No recent updates.
-              </p>
-            ) : (
-              items.map((it) => (
-                <Link
-                  key={it.id}
-                  href={`/agent/transactions/${it.txId}`}
-                  onClick={() => setOpen(false)}
-                  className="agent-hover-row"
-                  style={{
-                    display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px", textDecoration: "none",
-                    borderBottom: "0.5px solid var(--agent-border-subtle)",
-                  }}
-                >
-                  <span style={{ marginTop: 1 }}><BellAvatar it={it} /></span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{
-                      margin: 0, fontSize: 10.5, color: "var(--agent-text-muted)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {it.address}
-                    </p>
-                    <p style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
-                      {it.sentence}
-                    </p>
-                    <div style={{ margin: "3px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-                        {relativeTime(it.at)}
-                      </span>
-                      {it.updateLabel && <Pill glass tone="default" size="sm">{it.updateLabel}</Pill>}
-                    </div>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
-
-          <Link
-            href="/agent/comms"
-            onClick={() => setOpen(false)}
-            className="agent-link"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              padding: "11px 14px", fontSize: 12, fontWeight: 600,
-              borderTop: "0.5px solid var(--agent-border-subtle)",
-            }}
+    <div style={{ flexShrink: 0 }}>
+      <Popover
+        preset="popover"
+        bare
+        placement="bottom-end"
+        width={340}
+        trigger={
+          <button
+            onClick={markRead}
+            className="relative w-8 h-8 flex items-center justify-center rounded-lg agent-hover-row transition-colors"
+            title={count > 0 ? `${count} update${count === 1 ? "" : "s"}` : "Updates"}
+            aria-label="Updates"
           >
-            View all updates
-            <LinkArrow />
-          </Link>
-        </div>
-      )}
+            <Bell
+              className="w-4 h-4"
+              style={{ color: count > 0 ? "var(--agent-coral)" : "var(--agent-text-secondary)" }}
+              weight={count > 0 ? "fill" : "regular"}
+            />
+            {count > 0 && (
+              <CountBadge count={count} tone="danger" size="sm" solid className="absolute -top-0.5 -right-0.5" aria-hidden />
+            )}
+          </button>
+        }
+      >
+        {(close) => (
+          <div style={{ display: "flex", flexDirection: "column", maxHeight: "min(70vh, 520px)" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "12px 14px", borderBottom: "0.5px solid var(--agent-border-subtle)",
+            }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Updates</p>
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Latest steps across your files</span>
+            </div>
+
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {items.length === 0 ? (
+                <p style={{ margin: 0, padding: "28px 16px", textAlign: "center", fontSize: 12, color: "var(--agent-text-muted)" }}>
+                  No recent updates.
+                </p>
+              ) : (
+                items.map((it) => (
+                  <Link
+                    key={it.id}
+                    href={`/agent/transactions/${it.txId}`}
+                    onClick={close}
+                    className="agent-hover-row"
+                    style={{
+                      display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 14px", textDecoration: "none",
+                      borderBottom: "0.5px solid var(--agent-border-subtle)",
+                    }}
+                  >
+                    <span style={{ marginTop: 1 }}><BellAvatar it={it} /></span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        margin: 0, fontSize: 10.5, color: "var(--agent-text-muted)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {it.address}
+                      </p>
+                      <p style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>
+                        {it.sentence}
+                      </p>
+                      <div style={{ margin: "3px 0 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+                          {relativeTime(it.at)}
+                        </span>
+                        {it.updateLabel && <Pill glass tone="default" size="sm">{it.updateLabel}</Pill>}
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+
+            <Link
+              href="/agent/comms"
+              onClick={close}
+              className="agent-link"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                padding: "11px 14px", fontSize: 12, fontWeight: 600,
+                borderTop: "0.5px solid var(--agent-border-subtle)",
+              }}
+            >
+              View all updates
+              <LinkArrow />
+            </Link>
+          </div>
+        )}
+      </Popover>
     </div>
   );
 }
