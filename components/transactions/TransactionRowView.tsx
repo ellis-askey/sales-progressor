@@ -3,8 +3,8 @@
 import { useState, useRef, type ReactNode, type FormEvent } from "react";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tooltip } from "@/components/ui/Popover";
 import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
@@ -329,56 +329,12 @@ function JourneyStages({ stage }: { stage: DisplayStageKey }) {
  * glass popover of all six stages, current one marked. Glass + text colours
  * adapt to night mode; pointer-events:none so it never blocks the row link. */
 function JourneyHover({ stage, children, block = false }: { stage: DisplayStageKey; children: ReactNode; block?: boolean }) {
-  const { theme, isNight } = usePortalTheme();
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-
-  function show() {
-    if (ref.current) {
-      const r = ref.current.getBoundingClientRect();
-      const POPOVER_W = 240, EST_H = 260, SAFE = 12;
-      const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-      const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-      let left = r.left;
-      if (left + POPOVER_W + SAFE > vw) left = Math.max(SAFE, vw - POPOVER_W - SAFE);
-      const above = r.bottom + EST_H > vh && r.top > EST_H;
-      setPos({ top: above ? r.top - 6 : r.bottom + 6, left, above });
-    }
-    setClosing(false);
-    setOpen(true);
-  }
-  function hide() { setOpen((w) => { if (w) setClosing(true); return false; }); }
-
-  const glassBg     = isNight ? "rgba(24,28,38,0.90)" : "rgba(255,255,255,0.82)";
-  const glassBorder = isNight ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(255,255,255,0.65)";
-  const glassShadow = isNight ? "0 12px 48px rgba(0,0,0,0.55)"       : "0 12px 48px rgba(0,0,0,0.16)";
-
   return (
-    <div ref={ref} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} tabIndex={0} style={{ outline: "none", display: block ? "block" : "inline-block", width: block ? "100%" : undefined, maxWidth: "100%", verticalAlign: "top" }}>
-      {children}
-      {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-        <div
-          data-theme={theme}
-          data-night={isNight ? "" : undefined}
-          className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-          onAnimationEnd={() => { if (closing) setClosing(false); }}
-          style={{
-            position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-            transform: pos.above ? "translateY(-100%)" : "none",
-            width: 240, maxWidth: "calc(100vw - 24px)",
-            background: glassBg,
-            backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-            borderRadius: 14, border: glassBorder, boxShadow: glassShadow,
-            padding: 14, pointerEvents: "none",
-          }}
-        >
-          <JourneyStages stage={stage} />
-        </div>,
-        document.body
-      )}
-    </div>
+    <Tooltip content={<JourneyStages stage={stage} />} placement="bottom-start" block={block}>
+      <span style={{ display: block ? "block" : "inline-block", width: block ? "100%" : undefined, maxWidth: "100%", verticalAlign: "top" }}>
+        {children}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -396,49 +352,25 @@ function WithdrawnCell({ tx }: { tx: TransactionRow }) {
   const when = tx.updatedAt ?? null;
   const reason = tx.fallThroughReason?.trim()
     || (tx.withdrawalReason ? WITHDRAWAL_REASON_LABEL[tx.withdrawalReason] ?? null : null);
-  const { theme } = usePortalTheme();
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  function show() {
-    if (ref.current) { const r = ref.current.getBoundingClientRect(); setPos({ top: r.bottom + 4, left: r.left }); }
-    setClosing(false); setOpen(true);
-  }
-  function hide() { setOpen((w) => { if (w) setClosing(true); return false; }); }
-
   return (
     <div>
       <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>{when ? formatDate(when) : "—"}</p>
       {reason ? (
-        <>
+        <Tooltip
+          placement="bottom-start"
+          content={
+            <>
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>Why it was withdrawn</p>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{reason}</p>
+            </>
+          }
+        >
           <span
-            ref={ref}
-            onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}
-            tabIndex={0}
             style={{ fontSize: 11, color: "var(--agent-text-muted)", cursor: "default", borderBottom: "1px dotted rgba(15,23,42,0.30)", display: "inline-block", marginTop: 2 }}
           >
             Reason
           </span>
-          {(open || closing) && pos && typeof document !== "undefined" && createPortal(
-            <div
-              data-theme={theme}
-              className={closing ? "agent-dropdown-out" : "agent-dropdown-in"}
-              onAnimationEnd={() => { if (closing) setClosing(false); }}
-              style={{
-                position: "fixed", top: pos.top, left: pos.left, zIndex: 9999,
-                background: "rgba(255,255,255,0.97)", borderRadius: 10,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.07)",
-                padding: "10px 14px", minWidth: 200, maxWidth: 320, pointerEvents: "none",
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>Why it was withdrawn</p>
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{reason}</p>
-            </div>,
-            document.body
-          )}
-        </>
+        </Tooltip>
       ) : (
         <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>No reason recorded</p>
       )}

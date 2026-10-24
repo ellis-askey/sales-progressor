@@ -192,7 +192,7 @@ export function AnchoredPanel({
 // there's no hover on touch, so a hover-only tip is unreachable on mobile. A tap
 // "pins" it open until an outside-tap / Escape (so it behaves like the bespoke
 // fcl-tip #298 / InfoTip it replaces). While pinned, hover-out doesn't close it.
-export function Tooltip({ children, content, placement = "top-start" }: { children: ReactNode; content: ReactNode; placement?: Placement }) {
+export function Tooltip({ children, content, placement = "top-start", block }: { children: ReactNode; content: ReactNode; placement?: Placement; block?: boolean }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -220,6 +220,7 @@ export function Tooltip({ children, content, placement = "top-start" }: { childr
         ref={anchorRef}
         className="ui-pop-anchor"
         tabIndex={0}
+        style={block ? { display: "block", width: "100%" } : undefined}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => { if (!pinned) setOpen(false); }}
         onFocus={() => setOpen(true)}
