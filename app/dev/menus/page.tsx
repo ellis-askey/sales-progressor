@@ -121,12 +121,12 @@ function DemoPicker() {
       <AnchoredPanel anchorRef={ref} open={open && !!q.trim()} onClose={() => setOpen(false)} matchWidth bare placement="bottom-start">
         {matches.length > 0 ? (
           matches.map((m) => (
-            <button key={m} className="dm-pick-row" onMouseDown={() => { setQ(m); setOpen(false); }}>{m}</button>
+            <button key={m} className="ui-pop-pick" onMouseDown={() => { setQ(m); setOpen(false); }}>{m}</button>
           ))
         ) : (
-          <p className="dm-pick-empty">No matching brokerages</p>
+          <p className="ui-pop-pick-empty">No matching brokerages</p>
         )}
-        <button className="dm-pick-row add" onMouseDown={() => setOpen(false)}>+ Add &ldquo;{q}&rdquo; as new brokerage</button>
+        <button className="ui-pop-pick ui-pop-pick-add" onMouseDown={() => setOpen(false)}>+ Add &ldquo;{q}&rdquo; as new brokerage</button>
       </AnchoredPanel>
     </div>
   );
@@ -345,11 +345,6 @@ const CSS = `
 .dm-trigbtn { font-family:inherit; font-size:13px; font-weight:600; padding:8px 15px; border-radius:10px; cursor:pointer; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-primary); }
 .dm-trigbtn:hover { border-color:var(--agent-coral); }
 .dm-edge { margin-top:26px; }
-.dm-pick-row { display:block; width:100%; text-align:left; font-family:inherit; font-size:13px; font-weight:550; padding:10px 13px; border:none; background:none; cursor:pointer; color:var(--agent-text-secondary); transition:background .12s, color .12s; }
-.dm-pick-row + .dm-pick-row, .dm-pick-empty + .dm-pick-row { border-top:1px solid var(--agent-border-subtle); }
-.dm-pick-row:hover { background:rgba(var(--ui-ink,45,24,16),0.06); color:var(--agent-text-primary); }
-.dm-pick-row.add { color:var(--agent-coral-deep); font-weight:650; border-top:1px solid var(--agent-border-subtle); }
-.dm-pick-empty { margin:0; padding:10px 13px; font-size:13px; color:var(--agent-text-muted); }
 .dm-clip { height:200px; overflow:auto; transform:translateZ(0); border:1px solid var(--agent-border-default); border-radius:12px; padding:16px; background:var(--agent-surface-elevated); }
 .dm-fill { font-size:13px; color:var(--agent-text-muted); line-height:1.6; margin:0 0 12px; }
 .dm-fill code { font-family:ui-monospace, monospace; font-size:12px; background:var(--agent-surface-subtle, rgba(0,0,0,0.05)); padding:1px 5px; border-radius:5px; }
