@@ -17,6 +17,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
@@ -169,28 +170,11 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [confirmResend, setConfirmResend] = useState(false);
   const [ccOn, setCcOn] = useState(false);
 
-  // Tone dropdown (ported from the real chase drawer).
+  // Tone dropdown — rides the controlled AnchoredPanel (matchWidth, locked
+  // glass, handles portal / flip / shift / outside-click / escape).
   const [toneMenuOpen, setToneMenuOpen] = useState(false);
-  const [toneMenuPos, setToneMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toneMenuRef = useRef<HTMLDivElement>(null);
-  // The dropdown list is portalled to document.body, so it's NOT inside
-  // toneMenuRef. Track it separately so a click on a tone option isn't treated
-  // as an outside-click (which would close+unmount the menu before the option's
-  // onClick fires, leaving the tone stuck).
-  const toneListRef = useRef<HTMLDivElement>(null);
   const closeToneMenu = useCallback(() => setToneMenuOpen(false), []);
-  useEffect(() => {
-    if (!toneMenuOpen) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (toneMenuRef.current?.contains(t) || toneListRef.current?.contains(t)) return;
-      closeToneMenu();
-    }
-    function onScroll() { closeToneMenu(); }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", onScroll, true);
-    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", onScroll, true); };
-  }, [toneMenuOpen, closeToneMenu]);
 
   // Inline "add the agent's details" (when we have no email yet).
   const [agentName, setAgentName] = useState("");
@@ -504,13 +488,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                     <button
                       type="button"
                       disabled={generating || sending}
-                      onClick={() => {
-                        if (!toneMenuOpen && toneMenuRef.current) {
-                          const r = toneMenuRef.current.getBoundingClientRect();
-                          setToneMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                        }
-                        setToneMenuOpen((o) => !o);
-                      }}
+                      onClick={() => setToneMenuOpen((o) => !o)}
                       style={{
                         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                         padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
@@ -523,36 +501,22 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
                         {toneMenuOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}
                       </span>
                     </button>
-                    {toneMenuOpen && toneMenuPos && typeof document !== "undefined" && createPortal(
-                      <div
-                        ref={toneListRef}
-                        data-theme={theme}
-                        data-night={isNight ? "" : undefined}
-                        className="agent-dropdown-in"
-                        style={{
-                          position: "fixed", top: toneMenuPos.top, left: toneMenuPos.left, width: toneMenuPos.width,
-                          zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)",
-                          borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)",
-                          boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
-                        }}
-                      >
-                        {TONES.map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => chooseTone(t)}
-                            style={{
-                              width: "100%", textAlign: "left", padding: "9px 12px", fontSize: 13, fontWeight: 500,
-                              background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
-                              color: tone === t ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
-                              border: "none", cursor: "pointer",
-                            }}
-                          >
-                            <TonePill tone={t} />
-                          </button>
-                        ))}
-                      </div>,
-                      document.body
-                    )}
+                    <AnchoredPanel anchorRef={toneMenuRef} open={toneMenuOpen} onClose={closeToneMenu} matchWidth bare placement="bottom-start">
+                      {TONES.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => chooseTone(t)}
+                          style={{
+                            width: "100%", textAlign: "left", padding: "9px 12px", fontSize: 13, fontWeight: 500,
+                            background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
+                            color: tone === t ? "var(--agent-coral-deep)" : "var(--agent-text-primary)",
+                            border: "none", cursor: "pointer",
+                          }}
+                        >
+                          <TonePill tone={t} />
+                        </button>
+                      ))}
+                    </AnchoredPanel>
                   </div>
                 </div>
               </div>
