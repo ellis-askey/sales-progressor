@@ -1,9 +1,10 @@
 "use client";
 // components/transaction/StatusControl.tsx
 
-import { useState, useEffect, useTransition, useRef } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { changeStatusAction } from "@/app/actions/transactions";
 import { pauseClientEmails } from "@/app/actions/automation";
 import { WithdrawFileModal } from "@/components/transaction/WithdrawFileModal";
@@ -55,7 +56,6 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   // portal root, the variables resolve to "" and the modal renders
   // with NO background → text floating over the page (Ellis screenshot).
   const { theme, isNight } = usePortalTheme();
-  const [open, setOpen]             = useState(false);
   const [saving, setSaving]         = useState(false);
   const [showModal, setShowModal]   = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
@@ -78,35 +78,8 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
     setOptimisticStatus(currentStatus);
   }, [currentStatus]);
 
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
-
-  // The status menu renders through a portal on document.body, which sits
-  // OUTSIDE .agent-shell-root — so the --agent-* dark tokens don't inherit
-  // there. Read the light/dark axis (data-theme on <html>) directly and pick
-  // explicit values below. Mirrors components/decor/AppBackground.
-  const [isDark, setIsDark] = useState(false);
-  useEffect(() => {
-    const read = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
-    read();
-    const obs = new MutationObserver(read);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => obs.disconnect();
-  }, []);
-
-  function handleOpen() {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      // Clamp so the ~140px menu never overflows the right viewport edge
-      // (audit E4 — same clamp LinkCard's CardMenu uses).
-      setDropdownPos({ top: rect.bottom + 4, left: Math.max(8, Math.min(rect.left, window.innerWidth - 156)) });
-    }
-    setOpen((o) => !o);
-  }
-
   function selectStatus(next: TransactionStatus) {
-    if (next === currentStatus) { setOpen(false); return; }
-    setOpen(false);
+    if (next === currentStatus) return;
     if (next === "withdrawn") {
       setShowModal(true);
       return;
@@ -198,76 +171,41 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
   return (
     <>
       <div className="relative">
-        <button
-          ref={buttonRef}
-          onClick={handleOpen}
-          disabled={saving}
-          className="flex items-center gap-1.5 group"
-          title="Change status"
-        >
-          <StatusBadge status={optimisticStatus} />
-          <svg
-            className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 flex-shrink-0"
-            style={{ transition: "transform 180ms ease, color 150ms", transform: open ? "rotate(180deg)" : undefined }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {open && dropdownPos && createPortal(
-          <>
-            <div className="fixed inset-0" style={{ zIndex: 1499 }} onClick={() => setOpen(false)} />
-            <div
-              className="fixed agent-dropdown-in rounded-xl overflow-hidden min-w-[140px]"
-              style={{
-                zIndex: 1500, top: dropdownPos.top, left: dropdownPos.left,
-                // Portal-nav-style frosted glass (matches PortalShell bottom
-                // nav): translucent so the backdrop shines through, hairline
-                // border, strong blur. Explicit light/dark values because this
-                // is portaled outside the token scope (see isDark above).
-                background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.82)",
-                backdropFilter: "blur(24px) saturate(1.8)",
-                WebkitBackdropFilter: "blur(24px) saturate(1.8)",
-                border: isDark ? "0.5px solid rgba(255, 255, 255, 0.12)" : "0.5px solid rgba(15, 23, 42, 0.08)",
-                boxShadow: isDark ? "0 8px 40px rgba(0,0,0,0.45)" : "0 8px 40px rgba(15,23,42,0.14)",
-              }}
+        <Popover
+          preset="menu"
+          placement="bottom-start"
+          trigger={
+            <button
+              disabled={saving}
+              className="flex items-center gap-1.5 group"
+              title="Change status"
             >
-              {STATUSES.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => selectStatus(value)}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${
-                    value === optimisticStatus ? "font-medium" : ""
-                  }`}
-                  style={{
-                    background: "transparent",
-                    color: value === optimisticStatus
-                      ? (isDark ? "#EFF6FF" : "rgba(15,23,42,0.9)")
-                      : (isDark ? "rgba(226,232,240,0.72)" : "rgba(15,23,42,0.7)"),
-                    transition: "background 150ms ease, box-shadow 150ms ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.05)";
-                    e.currentTarget.style.boxShadow = "var(--agent-hover-lift)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  {value === optimisticStatus && (
-                    <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                  <span className={value === optimisticStatus ? "" : "pl-5"}>{label}</span>
-                </button>
-              ))}
-            </div>
-          </>,
-          document.body
-        )}
+              <StatusBadge status={optimisticStatus} />
+              <svg
+                className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 flex-shrink-0"
+                style={{ transition: "color 150ms" }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          }
+        >
+          {(close) => STATUSES.map(({ value, label }) => {
+            const sel = value === optimisticStatus;
+            return (
+              <PopoverMenuItem
+                key={value}
+                icon={sel
+                  ? <svg style={{ width: 14, height: 14, color: "#3b82f6" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  : <span style={{ display: "inline-block", width: 14 }} />}
+                onClick={() => { close(); selectStatus(value); }}
+              >
+                <span style={{ fontWeight: sel ? 600 : 500 }}>{label}</span>
+              </PopoverMenuItem>
+            );
+          })}
+        </Popover>
       </div>
 
       {/* ── Withdrawal reason modal (shared — see WithdrawFileModal) ── */}
