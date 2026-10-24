@@ -155,6 +155,12 @@ export function HubListCard({
                     <PropertyThumb photoUrl={row.photoUrl} />
                   </Link>
                   <div className="hub-r-body" style={{ minWidth: 0, flex: "1 1 220px" }}>
+                    {/* Mobile: the pill becomes a small toned word above the
+                        address (matching the Needs-attention rows' attn-label-m),
+                        so it never crowds the address (critique #267). */}
+                    {row.pillLabel && (
+                      <span className="hub-label-m" style={{ color: t.color }}>{row.pillLabel}</span>
+                    )}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                       <Link href={row.href} unstable_dynamicOnHover className="hub-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}>
                         <span className="hub-addr-full">{row.address}</span>
@@ -164,9 +170,11 @@ export function HubListCard({
                         </>); })()}
                       </Link>
                       {row.pillLabel && (
-                        <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
-                          {row.pillLabel}
-                        </Pill>
+                        <span className="hub-pill-d">
+                          <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
+                            {row.pillLabel}
+                          </Pill>
+                        </span>
                       )}
                     </div>
                     <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
