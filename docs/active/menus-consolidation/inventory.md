@@ -52,12 +52,14 @@ All via the controlled `AnchoredPanel` (matchWidth select-style).
 - [x] 📋 **components/enquiries/EnquiryChaseDrawer.tsx** — `45eb1c0b`
 
 ## Priority 6 — Tooltips & hover popovers
-- [ ] 🧭 **components/focus/FocusClientComms.tsx** — `fcl-tip` (reworked in #298; re-base on Tooltip)
-- [ ] 🧭 **components/ui/InfoTip.tsx** + **components/command/shared/InfoTip.tsx** — TWO InfoTips → unify on Tooltip
-- [ ] 🧭 **components/transactions/RiskBadgeWithPopover.tsx**
-- [ ] 🧭 **components/hub/PipelineStageHover.tsx** / **PipelineAtAGlance.tsx** / **HubCharts.tsx** — chart/stage hovers
-- [ ] 🧭 **components/transactions/TransactionRowView.tsx**
-- [ ] 🧭 **components/chain/LinkCard.tsx** / **ChainMapPanel.tsx**
+Added tap-to-pin + a `block` option to the canonical `Tooltip` (hover on desktop, tap on touch) — approved on /dev (`4c8d6737`).
+- [x] 🧭 **components/ui/InfoTip.tsx** — rebased on Tooltip — `c2fd9e94`
+- [x] 🧭 **components/transactions/TransactionRowView.tsx** — JourneyHover + WithdrawnCell on Tooltip — `bb9759de`
+- [x] 📋 **components/chain/LinkCard.tsx** / **ChainMapPanel.tsx** — these were click ⋯ menus (not tooltips) → Popover — `837d255d`
+- [x] ⏭ **components/focus/FocusClientComms.tsx** `fcl-tip` — GRANDFATHERED. Bespoke two-tap touch flow (#298: tap = peek, tap-again = open the thread) on a button that already has a primary click → conflicts with Tooltip's tap-to-pin. Already uses agent tokens (adapts to night).
+- [x] ⏭ **components/transactions/RiskBadgeWithPopover.tsx** — GRANDFATHERED. Hover-*persistable* rich popover (grace-close + hover-into-content for a tall risk breakdown) — not the simple non-interactive Tooltip.
+- [x] ⏭ **components/hub/PipelineStageHover.tsx** / **HubCharts.tsx** — GRANDFATHERED. Chart-integrated hovers: parent manages the anchor rect from chart interaction + a custom arrow pointer; not element-anchored. **PipelineAtAGlance.tsx** has no floating UI (not applicable).
+- [x] ⏭ **components/command/shared/InfoTip.tsx** — GRANDFATHERED. Command Centre neutral surface (Law 9), same as the account register — folds in with a neutral-surface pass.
 
 ## Priority 7 — Remaining menus
 - [ ] 📋 **components/transaction/CheckpointsPanel.tsx**
