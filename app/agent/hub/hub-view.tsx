@@ -1587,11 +1587,10 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
         <div style={{ display: "flex", flexDirection: "column" }}>
           {feed.map((a, i) => {
             const { Icon, color } = pickActivityGlyph(a.kind, a.description);
-            // Deep-link to the surface the event actually lives on, not just the
-            // file (critique #242): comms → Activity tab, milestones → Milestones.
-            const target = a.kind === "comm"
-              ? `/agent/transactions/${a.transactionId}/activity`
-              : `/agent/transactions/${a.transactionId}/milestones`;
+            // Every Recent Activity row opens the file's Activity tab — where all
+            // of these updates (comms AND milestone events) live. Not Overview,
+            // not Steps (critique #272; supersedes #242's comm/milestone split).
+            const target = `/agent/transactions/${a.transactionId}/activity`;
             return (
               <Link
                 key={`${a.transactionId}-${i}`}
