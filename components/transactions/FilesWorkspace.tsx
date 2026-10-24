@@ -16,6 +16,7 @@ import { TransactionListWithSearch } from "./TransactionListWithSearch";
 import { PipelineBoard, type PipelineRow } from "./PipelineBoard";
 import { FilesStatStrip } from "./FilesStatStrip";
 import { FilterMenu } from "./FilterMenu";
+import { Popover } from "@/components/ui/Popover";
 import { ForecastView } from "./ForecastView";
 import { MapView } from "./map/MapView";
 import { riskLevelForRow } from "./TransactionRowView";
@@ -290,50 +291,40 @@ export function FilesWorkspace({
 // current view, opening the four choices — replaces the four pills under 900px
 // so the bar stays clean. Hidden above 900px (the pills take over) via CSS.
 function ViewSelect({ value, onChange }: { value: View; onChange: (v: View) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
   const current = VIEWS.find((v) => v.key === value) ?? VIEWS[0];
   const CurrentIcon = current.Icon;
 
   return (
-    <div className="files-view-select" ref={ref}>
-      <button
-        type="button"
-        className="agent-segment-pill agent-segment-pill-sm on files-view-select-btn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+    <div className="files-view-select">
+      <Popover
+        preset="menu"
+        placement="bottom-start"
+        trigger={
+          <button
+            type="button"
+            className="agent-segment-pill agent-segment-pill-sm on files-view-select-btn"
+            aria-haspopup="menu"
+          >
+            <span className="files-view-ic"><CurrentIcon size={15} weight="fill" /></span>
+            {current.label}
+            <CaretDown size={12} weight="bold" style={{ marginLeft: 2, opacity: 0.7 }} />
+          </button>
+        }
       >
-        <span className="files-view-ic"><CurrentIcon size={15} weight="fill" /></span>
-        {current.label}
-        <CaretDown size={12} weight="bold" style={{ marginLeft: 2, opacity: 0.7 }} />
-      </button>
-      {open && (
-        <div className="files-view-menu agent-dropdown-in" role="menu">
-          {VIEWS.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              role="menuitemradio"
-              aria-checked={value === key}
-              className={`files-view-mi${value === key ? " on" : ""}`}
-              onClick={() => { onChange(key); setOpen(false); }}
-            >
-              <Icon size={15} weight={value === key ? "fill" : "regular"} />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+        {(close) => VIEWS.map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            type="button"
+            role="menuitemradio"
+            aria-checked={value === key}
+            className={`files-view-mi${value === key ? " on" : ""}`}
+            onClick={() => { onChange(key); close(); }}
+          >
+            <Icon size={15} weight={value === key ? "fill" : "regular"} />
+            {label}
+          </button>
+        ))}
+      </Popover>
     </div>
   );
 }
