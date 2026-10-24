@@ -8,8 +8,9 @@
 // sale from the queue so it can reach zero. Scoped upstream by the page.
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { Popover } from "@/components/ui/Popover";
 import {
   MagnifyingGlass,
   FunnelSimple,
@@ -128,76 +129,41 @@ function FilterPopover({
   setNeedsSort: (s: NeedsSort) => void;
   active: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div ref={wrapRef} style={{ position: "relative", flexShrink: 0 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="agent-segment-pill"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        style={{ height: 32 }}
-      >
-        <FunnelSimple size={14} weight="bold" aria-hidden />
-        Filters
-        {active && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: "var(--agent-coral-deep)" }} />}
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="agent-dropdown-in"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            zIndex: 40,
-            width: 240,
-            background: "var(--agent-surface-elevated)",
-            border: "1px solid var(--agent-border-default)",
-            borderRadius: 12,
-            boxShadow: "var(--agent-shadow-lg, 0 12px 32px rgba(15,23,42,0.16))",
-            padding: 8,
-          }}
+    <Popover
+      preset="menu"
+      placement="bottom-end"
+      width={240}
+      trigger={
+        <button
+          type="button"
+          className="agent-segment-pill"
+          aria-haspopup="menu"
+          style={{ height: 32 }}
         >
-          {tab === "chains" ? (
-            <>
-              <FilterGroupLabel>Sort by</FilterGroupLabel>
-              <FilterRadio label="Needs attention" checked={chainSort === "attention"} onClick={() => setChainSort("attention")} />
-              <FilterRadio label="Longest chain" checked={chainSort === "length"} onClick={() => setChainSort("length")} />
-              <FilterRadio label="Recently agreed" checked={chainSort === "recent"} onClick={() => setChainSort("recent")} />
-              <FilterDivider />
-              <FilterCheck label="Only with agents to invite" checked={onlyNeedsInvite} onClick={() => setOnlyNeedsInvite(!onlyNeedsInvite)} />
-            </>
-          ) : (
-            <>
-              <FilterGroupLabel>Sort by</FilterGroupLabel>
-              <FilterRadio label="Oldest first" checked={needsSort === "oldest"} onClick={() => setNeedsSort("oldest")} />
-              <FilterRadio label="Newest first" checked={needsSort === "newest"} onClick={() => setNeedsSort("newest")} />
-            </>
-          )}
-        </div>
+          <FunnelSimple size={14} weight="bold" aria-hidden />
+          Filters
+          {active && <span aria-hidden style={{ width: 6, height: 6, borderRadius: 999, background: "var(--agent-coral-deep)" }} />}
+        </button>
+      }
+    >
+      {tab === "chains" ? (
+        <>
+          <FilterGroupLabel>Sort by</FilterGroupLabel>
+          <FilterRadio label="Needs attention" checked={chainSort === "attention"} onClick={() => setChainSort("attention")} />
+          <FilterRadio label="Longest chain" checked={chainSort === "length"} onClick={() => setChainSort("length")} />
+          <FilterRadio label="Recently agreed" checked={chainSort === "recent"} onClick={() => setChainSort("recent")} />
+          <FilterDivider />
+          <FilterCheck label="Only with agents to invite" checked={onlyNeedsInvite} onClick={() => setOnlyNeedsInvite(!onlyNeedsInvite)} />
+        </>
+      ) : (
+        <>
+          <FilterGroupLabel>Sort by</FilterGroupLabel>
+          <FilterRadio label="Oldest first" checked={needsSort === "oldest"} onClick={() => setNeedsSort("oldest")} />
+          <FilterRadio label="Newest first" checked={needsSort === "newest"} onClick={() => setNeedsSort("newest")} />
+        </>
       )}
-    </div>
+    </Popover>
   );
 }
 
