@@ -203,8 +203,8 @@ const CSS = `
 .dm-recipe pre { margin:0; font-family:ui-monospace, "SF Mono", Menlo, monospace; font-size:11px; line-height:1.6; color:var(--agent-text-secondary); white-space:pre-wrap; }
 
 /* Stage: busy content behind so blur/translucency is judgeable. */
-.dm-stage { --dm-glass-rgb:255,255,255; position:relative; min-height:420px; border-radius:16px; overflow:hidden; border:0.5px solid var(--agent-border-subtle); }
-:root[data-theme="dark"] .dm-stage { --dm-glass-rgb:20,26,36; }
+.dm-stage { --dm-glass-rgb:255,255,255; --dm-ink-rgb:45,24,16; position:relative; min-height:420px; border-radius:16px; overflow:hidden; border:0.5px solid var(--agent-border-subtle); }
+:root[data-theme="dark"] .dm-stage { --dm-glass-rgb:20,26,36; --dm-ink-rgb:235,235,240; }
 .dm-behind { position:absolute; inset:0; padding:22px; display:grid; grid-template-columns:120px 1fr; gap:18px 22px; align-content:start; }
 .dm-photo { width:120px; height:92px; border-radius:12px; background:linear-gradient(135deg,#7aa6d8,#c98a6a 60%,#e0b44a); }
 .dm-photo.alt { background:linear-gradient(135deg,#6fbf9a,#4a79c9 70%,#8a5ad8); }
@@ -220,7 +220,7 @@ const CSS = `
 .hv-tint .dm-mi:hover > svg { color:var(--agent-coral-deep,#f0471e); }
 .hv-strong .dm-mi:hover { background:rgba(var(--agent-coral-rgb,255,107,74),0.18); color:var(--agent-text-primary); }
 .hv-strong .dm-mi:hover > svg { color:var(--agent-coral-deep,#f0471e); }
-.hv-lift .dm-mi:hover { background:var(--agent-coral-bg-tint, rgba(255,107,74,0.09)); color:var(--agent-text-primary); transform:translateY(-1px); box-shadow:0 5px 14px -4px rgba(0,0,0,0.3); }
+.hv-lift .dm-mi:hover { background:rgba(var(--dm-ink-rgb,45,24,16),0.06); color:var(--agent-text-primary); transform:translateY(-1px); box-shadow:0 5px 14px -4px rgba(0,0,0,0.3); }
 .hv-accent .dm-mi { box-shadow:inset 2px 0 0 transparent; border-radius:6px; }
 .hv-accent .dm-mi:hover { background:var(--agent-coral-bg-tint, rgba(255,107,74,0.07)); box-shadow:inset 2px 0 0 var(--agent-coral); color:var(--agent-text-primary); }
 .dm-mdiv { height:1px; background:var(--agent-border-subtle); margin:5px 8px; }
