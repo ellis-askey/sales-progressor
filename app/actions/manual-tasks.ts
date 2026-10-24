@@ -69,7 +69,15 @@ export async function createManualTaskAction(
   // Internal self-assigned to-dos: SP/admin/superadmin only. agencyId is null
   // for the unlinked case; if a transaction is linked, the task's agencyId
   // mirrors the transaction's.
-  if (isInternalSelfAssigned === true) {
+  //
+  // Internal staff have no agency, so a plain to-do (no isInternalSelfAssigned
+  // flag — e.g. from the empty state or the "My to-dos" tab) must ALSO route
+  // here, otherwise it falls to the agent path below and errors on the missing
+  // agency, so a new progressor / business owner's to-do silently fails to save
+  // (critique #300).
+  const routeInternal = isInternalSelfAssigned === true
+    || (!session.user.agencyId && isInternalRole(session.user.role));
+  if (routeInternal) {
     if (!isInternalRole(session.user.role)) {
       throw new Error("Forbidden: internal staff only");
     }
@@ -157,7 +165,7 @@ export async function updateManualTaskAction(
     if (!isInternalRole(session.user.role)) {
       throw new Error("Forbidden");
     }
-    const task = await updateInternalManualTask(id, getAccessScope(session), data);
+    const task = await updateInternalManualTask(id, getAccessScope(session), session.user.id, data);
     revalidateTodos();
     return task as ManualTaskWithRelations;
   }
@@ -182,7 +190,7 @@ export async function promotePossiblePromiseAction(
   if (!session) throw new Error("Unauthorised");
   if (!isInternalRole(session.user.role)) throw new Error("Forbidden");
   if (!dueDate) throw new Error("Pick a day for the to-do");
-  const task = await updateInternalManualTask(id, getAccessScope(session), {
+  const task = await updateInternalManualTask(id, getAccessScope(session), session.user.id, {
     isPossible: false,
     dueDate,
   });
@@ -194,7 +202,7 @@ export async function dismissPossiblePromiseAction(id: string): Promise<void> {
   const session = await getServerSession(authOptions);
   if (!session) throw new Error("Unauthorised");
   if (!isInternalRole(session.user.role)) throw new Error("Forbidden");
-  await deleteInternalManualTask(id, getAccessScope(session));
+  await deleteInternalManualTask(id, getAccessScope(session), session.user.id);
   revalidateTodos();
 }
 
@@ -210,7 +218,7 @@ export async function deleteManualTaskAction(id: string): Promise<void> {
     if (!isInternalRole(session.user.role)) {
       throw new Error("Forbidden");
     }
-    await deleteInternalManualTask(id, getAccessScope(session));
+    await deleteInternalManualTask(id, getAccessScope(session), session.user.id);
     revalidateTodos();
     return;
   }

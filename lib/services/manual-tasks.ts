@@ -111,19 +111,27 @@ export async function createManualTask(data: {
 // only tasks on transactions in their scope. Shared by the list AND the
 // update/delete ownership guards, so a business can never read, edit or delete
 // another tenant's (or TSP's) internal task by guessing an id.
-function internalTaskScopeWhere(scope: AccessScope): Prisma.ManualTaskWhereInput {
-  if (scope.kind === "all") {
-    return { OR: [{ transaction: scopeTransactionWhere(scope) }, { transactionId: null }] };
-  }
-  return { transaction: scopeTransactionWhere(scope) };
+// A linked internal to-do is scoped to the viewer's book (via its transaction).
+// An UNLINKED one (no property) has no agency/business to scope by, so it belongs
+// to whoever created it — every role sees their own, and nothing leaks between
+// businesses or between TSP and a customer (critique #300). Previously only the
+// "all" (admin) scope surfaced unlinked to-dos, so a progressor / business
+// owner's loose to-do vanished on refresh.
+function internalTaskScopeWhere(scope: AccessScope, viewerId: string): Prisma.ManualTaskWhereInput {
+  return {
+    OR: [
+      { transaction: scopeTransactionWhere(scope) },
+      { transactionId: null, createdById: viewerId },
+    ],
+  };
 }
 
-// Internal-staff self-assigned to-dos, SCOPED to the viewer's book. Used by the
-// third bucket on /agent/to-do and the nav badge.
-export async function listInternalSelfAssignedTasks(scope: AccessScope): Promise<ManualTaskWithRelations[]> {
+// Internal-staff self-assigned to-dos, SCOPED to the viewer's book (+ their own
+// unlinked ones). Used by the third bucket on /agent/to-do and the nav badge.
+export async function listInternalSelfAssignedTasks(scope: AccessScope, viewerId: string): Promise<ManualTaskWithRelations[]> {
   return prisma.manualTask.findMany({
     // isPossible excluded: possible promises wait in the file-tab pile only.
-    where: { isInternalSelfAssigned: true, isPossible: false, ...internalTaskScopeWhere(scope) },
+    where: { isInternalSelfAssigned: true, isPossible: false, ...internalTaskScopeWhere(scope, viewerId) },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: {
       transaction: { select: { propertyAddress: true, photoStoragePath: true } },
@@ -168,10 +176,11 @@ export async function listPossiblePromisesForTransaction(transactionId: string):
 export async function updateInternalManualTask(
   id: string,
   scope: AccessScope,
+  viewerId: string,
   data: Partial<{ title: string; notes: string | null; status: "open" | "done"; dueDate: string | null; isPossible: boolean }>
 ) {
   const task = await prisma.manualTask.findFirst({
-    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
+    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope, viewerId) },
   });
   if (!task) throw new Error("Task not found");
 
@@ -194,9 +203,9 @@ export async function updateInternalManualTask(
   return updated;
 }
 
-export async function deleteInternalManualTask(id: string, scope: AccessScope) {
+export async function deleteInternalManualTask(id: string, scope: AccessScope, viewerId: string) {
   const task = await prisma.manualTask.findFirst({
-    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope) },
+    where: { id, isInternalSelfAssigned: true, ...internalTaskScopeWhere(scope, viewerId) },
   });
   if (!task) throw new Error("Task not found");
   await prisma.manualTask.delete({ where: { id } });
@@ -338,7 +347,7 @@ export async function countAgentDueOrOverdue(userId: string, agencyId: string | 
   const [own, inbox, internal] = await Promise.all([
     agencyId ? listAllTasksForAgent(userId, agencyId) : Promise.resolve([]),
     isProgressor ? listProgressorInboxTasks(userId) : Promise.resolve([]),
-    isInternal ? listInternalSelfAssignedTasks(scope) : Promise.resolve([]),
+    isInternal ? listInternalSelfAssignedTasks(scope, userId) : Promise.resolve([]),
   ]);
   const todayStr = toUKDateStr(new Date());
   const seen = new Set<string>();

@@ -1,11 +1,12 @@
 /**
  * @jest-environment node
  *
- * Phase 3 PR A — the To-Do internal-task leak fix. listInternalSelfAssignedTasks
- * previously queried ALL isInternalSelfAssigned tasks with no scoping, so an
- * external progression business saw TSP's and every other business's internal
- * tasks (and their addresses), and vice versa. It now bounds the query to the
- * viewer's access scope — the same isolation boundary as TSP_ONLY_TX_WHERE.
+ * To-Do internal-task scoping. A LINKED internal to-do is bounded to the viewer's
+ * access scope (via its transaction) — no business ever sees TSP's or another
+ * business's files. An UNLINKED one (no property) has no agency/business to scope
+ * by, so it is bounded to its CREATOR: every role sees their own loose to-dos and
+ * never anyone else's (critique #300 — previously these only surfaced for the
+ * "all" scope, so a progressor / business owner's loose to-do vanished).
  */
 jest.mock("@/lib/agent-session", () => ({ hasAdminPowers: jest.fn(() => false), hasSuperAdminPowers: jest.fn(() => false) }));
 jest.mock("@/lib/services/activity", () => ({ touchLastActivity: jest.fn() }));
@@ -20,66 +21,75 @@ const whereOf = () => p.manualTask.findMany.mock.calls.at(-1)![0].where;
 
 beforeEach(() => jest.clearAllMocks());
 
-it("business scope → only this business's files (no OR, no other business)", async () => {
-  await listInternalSelfAssignedTasks({ kind: "business", businessId: "biz1" });
+it("business scope → this business's files, plus the viewer's OWN loose to-dos only", async () => {
+  await listInternalSelfAssignedTasks({ kind: "business", businessId: "biz1" }, "u1");
   const w = whereOf();
   expect(w.isInternalSelfAssigned).toBe(true);
-  expect(w.transaction).toEqual({ progressionBusinessId: "biz1", isDemo: false });
-  expect(w.OR).toBeUndefined();
-});
-
-it("see-own (assigned) scope → only the viewer's own files", async () => {
-  await listInternalSelfAssignedTasks({ kind: "assigned", userId: "u1" });
-  expect(whereOf().transaction).toEqual({ assignedUserId: "u1", isDemo: false });
-});
-
-it("TSP 'all' scope → TSP-only files (never external), plus general no-tx tasks", async () => {
-  await listInternalSelfAssignedTasks({ kind: "all" });
-  const w = whereOf();
-  expect(Array.isArray(w.OR)).toBe(true);
-  // One branch is the TSP-only transaction filter; the other is no-transaction.
   expect(w.OR).toEqual([
-    { transaction: { isDemo: false, ...TSP_ONLY_TX_WHERE } },
-    { transactionId: null },
+    { transaction: { progressionBusinessId: "biz1", isDemo: false } },
+    { transactionId: null, createdById: "u1" }, // creator-scoped — no other tenant's loose to-dos
   ]);
 });
 
-// The MUTATION guards must bind to the same scope so a business can't edit/delete
-// another tenant's internal task by guessing an id (the capstone security fix).
+it("see-own (assigned) scope → the viewer's own files + own loose to-dos", async () => {
+  await listInternalSelfAssignedTasks({ kind: "assigned", userId: "u1" }, "u1");
+  expect(whereOf().OR).toEqual([
+    { transaction: { assignedUserId: "u1", isDemo: false } },
+    { transactionId: null, createdById: "u1" },
+  ]);
+});
+
+it("TSP 'all' scope → TSP-only files + the admin's OWN loose to-dos (never another's)", async () => {
+  await listInternalSelfAssignedTasks({ kind: "all" }, "admin1");
+  const w = whereOf();
+  expect(w.OR).toEqual([
+    { transaction: { isDemo: false, ...TSP_ONLY_TX_WHERE } },
+    { transactionId: null, createdById: "admin1" },
+  ]);
+});
+
+// The MUTATION guards bind to the same scope — a business can't edit/delete
+// another tenant's internal task (or anyone else's loose to-do) by guessing an id.
 describe("internal-task mutation scope guards", () => {
   const findFirstWhere = () => p.manualTask.findFirst.mock.calls.at(-1)![0].where;
 
-  it("updateInternalManualTask binds to the business's own files", async () => {
+  it("updateInternalManualTask binds to the business's own files + own loose to-dos", async () => {
     p.manualTask.findFirst.mockResolvedValueOnce(null);
     await expect(
-      updateInternalManualTask("t1", { kind: "business", businessId: "biz1" }, { title: "x" }),
+      updateInternalManualTask("t1", { kind: "business", businessId: "biz1" }, "u1", { title: "x" }),
     ).rejects.toThrow(/not found/i);
     expect(findFirstWhere()).toEqual({
       id: "t1", isInternalSelfAssigned: true,
-      transaction: { progressionBusinessId: "biz1", isDemo: false },
+      OR: [
+        { transaction: { progressionBusinessId: "biz1", isDemo: false } },
+        { transactionId: null, createdById: "u1" },
+      ],
     });
     expect(p.manualTask.update).not.toHaveBeenCalled();
   });
 
-  it("deleteInternalManualTask (see-own) binds to the viewer's own files", async () => {
+  it("deleteInternalManualTask (see-own) binds to the viewer's own files + own loose to-dos", async () => {
     p.manualTask.findFirst.mockResolvedValueOnce(null);
     await expect(
-      deleteInternalManualTask("t1", { kind: "assigned", userId: "u1" }),
+      deleteInternalManualTask("t1", { kind: "assigned", userId: "u1" }, "u1"),
     ).rejects.toThrow(/not found/i);
     expect(findFirstWhere()).toEqual({
       id: "t1", isInternalSelfAssigned: true,
-      transaction: { assignedUserId: "u1", isDemo: false },
+      OR: [
+        { transaction: { assignedUserId: "u1", isDemo: false } },
+        { transactionId: null, createdById: "u1" },
+      ],
     });
     expect(p.manualTask.delete).not.toHaveBeenCalled();
   });
 
-  it("TSP 'all' delete allows TSP files OR general no-tx tasks", async () => {
+  it("TSP 'all' delete allows TSP files OR the admin's own loose to-dos", async () => {
     p.manualTask.findFirst.mockResolvedValueOnce(null);
-    await expect(deleteInternalManualTask("t1", { kind: "all" })).rejects.toThrow(/not found/i);
+    await expect(deleteInternalManualTask("t1", { kind: "all" }, "admin1")).rejects.toThrow(/not found/i);
     const w = findFirstWhere();
     expect(w.OR).toEqual([
       { transaction: { isDemo: false, ...TSP_ONLY_TX_WHERE } },
-      { transactionId: null },
+      { transactionId: null, createdById: "admin1" },
     ]);
   });
 });

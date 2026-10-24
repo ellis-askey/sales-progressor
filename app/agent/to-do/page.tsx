@@ -34,7 +34,7 @@ export default async function AgentTodoPage() {
     ? await listAllTasksForAgent(session.user.id, session.user.agencyId)
     : [];
   const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
-  const internalTasks = isInternal ? await listInternalSelfAssignedTasks(scope) : [];
+  const internalTasks = isInternal ? await listInternalSelfAssignedTasks(scope, session.user.id) : [];
   const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
 
   // "Reviews due" — files on hold with a return date (incl. chain-collapse
