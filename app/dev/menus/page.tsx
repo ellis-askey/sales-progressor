@@ -100,7 +100,10 @@ function DemoMenu({ placement }: { placement?: "bottom-start" | "bottom-end" }) 
 
 export default function DevMenusPage() {
   if (process.env.VERCEL_ENV === "production") notFound();
-  const [c, setC] = useState<Cfg>(PRESETS[1].cfg);
+  // Default to Ellis's LOCKED recipe (glass 30 / blur30 / sat200 / visible border /
+  // soft shadow / radius 10 / Lift hover) so the page opens on the real look, not a
+  // coral-tint preset.
+  const [c, setC] = useState<Cfg>({ base: "glass", opacity: 30, blur: 30, saturate: 200, border: "visible", shadow: "soft", radius: 10, hover: "lift" });
   const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setC((p) => ({ ...p, [k]: v }));
   const surf = surfaceStyle(c);
   const isGlass = c.base === "glass";
