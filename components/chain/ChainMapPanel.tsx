@@ -1,5 +1,4 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 // The compact ordered chain list shown in the left panel of the Map command
 // centre. One row per property in real chain order — numbered + status-coloured
@@ -12,10 +11,9 @@ import { clampPopoverRight } from "@/lib/agent/popover-position";
 // into view.
 
 import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
 import type { ChainCardBadge } from "@/components/chain/LinkCard";
 
@@ -79,27 +77,7 @@ export type ChainMapActions = {
 };
 
 function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMapActions }) {
-  const { theme } = usePortalTheme();
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Close on Escape / scroll / resize, so the fixed-positioned menu never drifts
-  // from its button (mirrors the Timeline's CardMenu).
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    const close = () => setOpen(false);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open]);
 
   const rows: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (item.canEdit && actions.onEdit) rows.push({ label: "Edit details", onClick: () => actions.onEdit!(item.id) });
@@ -116,24 +94,20 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        className="cmp-menu-btn"
-        aria-label="More actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!open) {
-            const r = btnRef.current?.getBoundingClientRect();
-            if (r) setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
-          }
-          setOpen((o) => !o);
-        }}
+      <Popover
+        preset="menu"
+        placement="bottom-end"
+        width={200}
+        trigger={
+          <button type="button" className="cmp-menu-btn" aria-label="More actions" aria-haspopup="menu">⋮</button>
+        }
       >
-        ⋮
-      </button>
+        {(close) => rows.map((r) => (
+          <PopoverMenuItem key={r.label} tone={r.danger ? "danger" : "default"} onClick={() => { close(); r.onClick(); }}>
+            {r.label}
+          </PopoverMenuItem>
+        ))}
+      </Popover>
       {actions.onUploadPhoto && (
         <input
           ref={fileRef}
@@ -142,28 +116,6 @@ function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMap
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) actions.onUploadPhoto!(item.id, f); e.target.value = ""; }}
         />
-      )}
-      {open && pos && typeof document !== "undefined" && createPortal(
-        // data-theme re-establishes the agent token scope: the portal renders under
-        // <body>, outside the AgentShell where --agent-* live, so without this the
-        // menu would resolve every token to nothing and render unstyled.
-        <div data-theme={theme}>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1600 }} />
-          <div role="menu" className="cmp-menu" style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 1601 }}>
-            {rows.map((r) => (
-              <button
-                key={r.label}
-                type="button"
-                role="menuitem"
-                className={`cmp-menu-item${r.danger ? " danger" : ""}`}
-                onClick={(e) => { e.stopPropagation(); setOpen(false); r.onClick(); }}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        </div>,
-        document.body,
       )}
     </>
   );

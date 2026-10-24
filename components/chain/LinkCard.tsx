@@ -1,10 +1,8 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 
 import Link from "next/link";
 import { useState, useEffect, useRef, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent, type ChangeEvent as ReactChangeEvent } from "react";
-import { createPortal } from "react-dom";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { getChainLinkStatus, chainLinkStatusLabel } from "@/lib/chain/status";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { formatPredictedBandShort } from "@/lib/utils/format-predicted-band";
@@ -725,91 +723,34 @@ export function ChainCardExpand({
 // anchored to the button; closes on outside click or Escape. 2026-09-01.
 type MenuItem = { label: string; onClick: () => void; danger?: boolean };
 function CardMenu({ items }: { items: MenuItem[] }) {
-  const { theme } = usePortalTheme();
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-
-  function toggle(e: ReactMouseEvent) {
-    e.stopPropagation();
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
-    }
-    setOpen((v) => !v);
-  }
-
-  // Menu is portalled to <body> so it clears the sibling link-cards' stacking
-  // contexts (as an in-card absolute element it rendered behind the cards
-  // below). Close on scroll/resize so it never drifts from its button.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
-    const close = () => setOpen(false);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open]);
-
   if (items.length === 0) return null;
   return (
-    <div style={{ position: "relative", display: "inline-flex" }}>
-      <button
-        ref={btnRef}
-        type="button"
-        aria-label="More actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={toggle}
-        style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 24, height: 24, borderRadius: 6, border: "none", cursor: "pointer",
-          background: open ? "var(--agent-glass-bg-hover)" : "transparent",
-          color: "var(--agent-text-muted)", fontSize: 16, lineHeight: 1,
-        }}
-      >
-        ⋯
-      </button>
-      {open && pos && createPortal(
-        <div data-theme={theme}>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1600 }} />
-          <div
-            role="menu"
-            style={{
-              position: "fixed", top: pos.top, right: pos.right, zIndex: 1601,
-              minWidth: 190, padding: 4, borderRadius: 10,
-              background: "var(--agent-surface-elevated)",
-              border: "0.5px solid var(--agent-border-default)",
-              boxShadow: "0 12px 32px rgba(0,0,0,0.16)",
-            }}
-          >
-            {items.map((it, i) => (
-              <button
-                key={i}
-                type="button"
-                role="menuitem"
-                onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick(); }}
-                className="chain-menu-item"
-                style={{
-                  display: "block", width: "100%", textAlign: "left",
-                  padding: "8px 10px", borderRadius: 7, border: "none", cursor: "pointer",
-                  fontSize: 12.5, fontWeight: 600,
-                  color: it.danger ? "var(--agent-danger)" : "var(--agent-text-primary)",
-                }}
-              >
-                {it.label}
-              </button>
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
+    <Popover
+      preset="menu"
+      placement="bottom-end"
+      width={190}
+      trigger={
+        <button
+          type="button"
+          aria-label="More actions"
+          aria-haspopup="menu"
+          style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 24, height: 24, borderRadius: 6, border: "none", cursor: "pointer",
+            background: "transparent",
+            color: "var(--agent-text-muted)", fontSize: 16, lineHeight: 1,
+          }}
+        >
+          ⋯
+        </button>
+      }
+    >
+      {(close) => items.map((it, i) => (
+        <PopoverMenuItem key={i} tone={it.danger ? "danger" : "default"} onClick={() => { close(); it.onClick(); }}>
+          {it.label}
+        </PopoverMenuItem>
+      ))}
+    </Popover>
   );
 }
 
