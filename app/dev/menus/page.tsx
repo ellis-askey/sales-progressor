@@ -58,6 +58,7 @@ const ic = {
   check: '<path d="M20 6 9 17l-5-5"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
   mail: '<path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
 };
 function Svg({ d, size = 15 }: { d: string; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />;
@@ -227,10 +228,19 @@ border-radius: ${c.radius}px;   hover: ${c.hover}`;
           <p className="dm-sub" style={{ marginBottom: 20 }}>This is the real shared component built to your locked recipe. Open these near the edges and inside the scroll box — it should flip above/below, shift to stay on screen, and never get clipped. Toggle dark too. (This is what every menu/tooltip/popover gets migrated onto.)</p>
           <div className="dm-tests">
             <div><div className="dm-spec-lbl">Menu (click)</div><DemoMenu /></div>
-            <div><div className="dm-spec-lbl">Tooltip (hover)</div>
-              <Tooltip content={<><div className="dm-tip-h"><Svg d={ic.mail} size={12} /> Email</div><div className="dm-tip-s">Auto · Logged</div><div className="dm-tip-w">16 Oct 2026, 20:05</div></>}>
-                <button className="dm-trigbtn">Hover me</button>
-              </Tooltip>
+            <div><div className="dm-spec-lbl">Tooltip (hover on desktop · tap to pin on touch · tap outside / Esc to close)</div>
+              <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                <Tooltip content={<><div className="dm-tip-h"><Svg d={ic.mail} size={12} /> Email</div><div className="dm-tip-s">Auto · Logged</div><div className="dm-tip-w">16 Oct 2026, 20:05</div></>}>
+                  <button className="dm-trigbtn">Hover / tap me</button>
+                </Tooltip>
+                {/* (i) info style — same primitive, used where an explainer sits after a label */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                  Fees charged on exchange
+                  <Tooltip content={<p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55 }}>We only bill once contracts exchange — nothing is charged while a sale is still progressing.</p>}>
+                    <button className="dm-infotip" aria-label="More information"><Svg d={ic.info} size={12} /></button>
+                  </Tooltip>
+                </span>
+              </div>
             </div>
             <div><div className="dm-spec-lbl">Rich popover (click)</div>
               <Popover preset="popover" width={244} trigger={<button className="dm-trigbtn">Reschedule ▾</button>}>
@@ -344,6 +354,8 @@ const CSS = `
 .dm-tests { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; }
 .dm-trigbtn { font-family:inherit; font-size:13px; font-weight:600; padding:8px 15px; border-radius:10px; cursor:pointer; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-primary); }
 .dm-trigbtn:hover { border-color:var(--agent-coral); }
+.dm-infotip { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; padding:0; border:none; border-radius:50%; background:none; color:var(--agent-text-muted); cursor:pointer; flex-shrink:0; transition:color .14s, background .14s; }
+.dm-infotip:hover { color:var(--agent-coral-deep); background:rgba(var(--agent-coral-rgb,255,107,74),0.12); }
 .dm-edge { margin-top:26px; }
 .dm-clip { height:200px; overflow:auto; transform:translateZ(0); border:1px solid var(--agent-border-default); border-radius:12px; padding:16px; background:var(--agent-surface-elevated); }
 .dm-fill { font-size:13px; color:var(--agent-text-muted); line-height:1.6; margin:0 0 12px; }

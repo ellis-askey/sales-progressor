@@ -188,13 +188,31 @@ export function AnchoredPanel({
   );
 }
 
-// Hover/focus tooltip — same surface, shown on hover, no interactive content.
+// Tooltip — same surface. Opens on hover/focus (desktop) AND on tap (touch):
+// there's no hover on touch, so a hover-only tip is unreachable on mobile. A tap
+// "pins" it open until an outside-tap / Escape (so it behaves like the bespoke
+// fcl-tip #298 / InfoTip it replaces). While pinned, hover-out doesn't close it.
 export function Tooltip({ children, content, placement = "top-start" }: { children: ReactNode; content: ReactNode; placement?: Placement }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
   const pos = useAnchoredPosition(anchorRef, floatRef, open, { placement });
+
+  useEffect(() => {
+    if (!pinned) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (anchorRef.current?.contains(t) || floatRef.current?.contains(t)) return;
+      setPinned(false);
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") { setPinned(false); setOpen(false); } }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [pinned]);
 
   return (
     <>
@@ -203,9 +221,10 @@ export function Tooltip({ children, content, placement = "top-start" }: { childr
         className="ui-pop-anchor"
         tabIndex={0}
         onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
+        onMouseLeave={() => { if (!pinned) setOpen(false); }}
         onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onBlur={() => { if (!pinned) setOpen(false); }}
+        onClick={() => { const next = !pinned; setPinned(next); setOpen(next); }}
       >
         {children}
       </span>
