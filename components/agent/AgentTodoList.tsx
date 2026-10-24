@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, createContext, useContext, type ReactNode } from "react";
+import { useState, useRef, useEffect, createContext, useContext, type ReactNode } from "react";
 import Link from "next/link";
 import { CaretDown, ListChecks, UsersThree } from "@phosphor-icons/react";
 import { SectionHeader } from "@/components/agent/SectionHeader";
@@ -10,7 +10,6 @@ import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { TodoTabs, type TodoTab } from "@/components/agent/TodoTabs";
 import { Card } from "@/components/ui/Card";
 import { toUKDateStr } from "@/lib/utils";
-import { DateField } from "@/components/ui/DateField";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 
 // First line + town/postcode split (last two comma parts) — matches the address
@@ -81,6 +80,9 @@ function groupByTransaction(tasks: Task[]): Group[] {
 // Lets any TaskRow change its own due date without prop-drilling through
 // Section → TaskGroup → TaskRow. Null = editing disabled.
 const DueDateContext = createContext<((id: string, dueDate: string | null) => void) | null>(null);
+// Combined reschedule: a new date plus an optional update note, saved in one go
+// (critique #274). `note` undefined = leave the note untouched.
+const RescheduleContext = createContext<((id: string, data: { dueDate: string | null; note?: string | null }) => void) | null>(null);
 // Property photos keyed by transaction id (signed on the page) — consumed by
 // TaskGroup for its file-group header thumbnail.
 const PhotoContext = createContext<Map<string, string | null> | null>(null);
@@ -123,6 +125,20 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch {
       // Leave the row unchanged on failure — matches the previous no-op.
+    }
+  }
+
+  // Reschedule + add an update in one save (critique #274). Only touches the
+  // note when the caller passes one (undefined = date-only).
+  async function handleReschedule(id: string, data: { dueDate: string | null; note?: string | null }) {
+    try {
+      const updated = await updateManualTaskAction(id, {
+        dueDate: data.dueDate,
+        ...(data.note !== undefined ? { progressorNote: data.note } : {}),
+      });
+      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    } catch {
+      // Leave the row unchanged on failure.
     }
   }
 
@@ -207,6 +223,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   return (
     <PhotoContext.Provider value={photoByTx ?? null}>
     <ProgressorNameContext.Provider value={progressorName}>
+    <RescheduleContext.Provider value={handleReschedule}>
     <DueDateContext.Provider value={handleDueDate}>
     <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction}>
       {/* ── To-Do (agency): add form + my notes ── */}
@@ -274,6 +291,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       {safeActive === "reviews" && reviewsSlot}
     </TodoTabs>
     </DueDateContext.Provider>
+    </RescheduleContext.Provider>
     </ProgressorNameContext.Provider>
     </PhotoContext.Provider>
   );
@@ -447,10 +465,45 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
   const isDone = task.status === "done";
   const [loading, setLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [editingDate, setEditingDate] = useState(false);
-  const onDueDate = useContext(DueDateContext);
+  const onReschedule = useContext(RescheduleContext);
   const progressorName = useContext(ProgressorNameContext);
   const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
+
+  // Reschedule popover: pick a new date AND add an update in one step (#274).
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [updateText, setUpdateText] = useState("");
+  const [savingResched, setSavingResched] = useState(false);
+  const reschedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!reschedOpen) return;
+    function onDown(e: MouseEvent) {
+      if (reschedRef.current && !reschedRef.current.contains(e.target as Node)) setReschedOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [reschedOpen]);
+
+  function openResched() {
+    setNewDate(task.dueDate ? toUKDateStr(task.dueDate) : "");
+    setUpdateText(task.progressorNote ?? "");
+    setReschedOpen(true);
+  }
+
+  async function saveResched() {
+    if (!newDate) return;
+    setSavingResched(true);
+    const nextNote = updateText.trim();
+    const noteChanged = nextNote !== (task.progressorNote ?? "");
+    onReschedule?.(task.id, { dueDate: newDate, ...(noteChanged ? { note: nextNote || null } : {}) });
+    setSavingResched(false);
+    setReschedOpen(false);
+  }
+
+  // Who the saved note reads as: the progressor's reply to an agent in the
+  // requests section, otherwise a plain "Latest update" (#274).
+  const noteIsProgressorReply = progressor && !isProgressorView;
 
   async function toggle() {
     setLoading(true);
@@ -520,56 +573,94 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
             {task.notes}
           </p>
         )}
-        {/* Progressor response — shown for agents only (SP viewing their own to-do list doesn't need to see this) */}
-        {task.progressorNote && !isProgressorView && (
-          <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-warning-bg)", borderLeft: "2px solid var(--agent-warning-border)" }}>
-            <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-warning)" }}>
-              Your progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", lineHeight: "1.4" }}>
-              {task.progressorNote}
-            </p>
-          </div>
+        {/* The saved note. In the agent↔progressor requests section it's the
+            progressor's reply (amber "Your progressor"); everywhere else it's a
+            plain "Latest update" — the note you add when you reschedule (#274). */}
+        {task.progressorNote && (
+          noteIsProgressorReply ? (
+            <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-warning-bg)", borderLeft: "2px solid var(--agent-warning-border)" }}>
+              <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-warning)" }}>
+                Your progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", lineHeight: "1.4" }}>
+                {task.progressorNote}
+              </p>
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-surface-subtle, rgba(0,0,0,0.03))", borderLeft: "2px solid var(--agent-border-default)" }}>
+              <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+                Latest update{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: "1.4" }}>
+                {task.progressorNote}
+              </p>
+            </div>
+          )
         )}
       </div>
 
-      {/* Due date — click to change (open tasks); created date otherwise */}
-      <div style={{ flexShrink: 0, textAlign: "right", marginTop: 2 }}>
-        {editingDate ? (
-          <DateField
-            autoFocus
-            defaultValue={task.dueDate ? toUKDateStr(task.dueDate) : ""}
-            onChange={(e) => { onDueDate?.(task.id, e.target.value || null); setEditingDate(false); }}
-            onBlur={() => setEditingDate(false)}
-            style={{ fontSize: 11, padding: "2px 4px", border: "1px solid var(--agent-border-default)", borderRadius: 6, background: "var(--agent-surface)", color: "var(--agent-text-primary)" }}
-            wrapperStyle={{ display: "inline-block" }}
-          />
-        ) : (
-          <>
-            {onDueDate && !isDone ? (
-              <button
-                type="button"
-                onClick={() => setEditingDate(true)}
-                title="Change due date"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
-              >
-                {dueStatus ? (
-                  <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
-                ) : (
-                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}>Set date</span>
-                )}
-              </button>
-            ) : dueStatus ? (
+      {/* Due date — click to reschedule + add an update (open tasks); created
+          date otherwise (#274). */}
+      <div ref={reschedRef} style={{ flexShrink: 0, textAlign: "right", marginTop: 2, position: "relative" }}>
+        {onReschedule && !isDone ? (
+          <button
+            type="button"
+            onClick={() => (reschedOpen ? setReschedOpen(false) : openResched())}
+            title="Reschedule and add an update"
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
+          >
+            {dueStatus ? (
               <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
             ) : (
-              <span style={{ fontSize: 11, color: "var(--agent-text-disabled)" }}>{fmtDate(task.createdAt)}</span>
+              <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}>Set date</span>
             )}
-            {progressor && dueStatus?.reassure && !isProgressorView && (
-              <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
-                {progressorName ?? "Our team"} is on it
-              </p>
-            )}
-          </>
+          </button>
+        ) : dueStatus ? (
+          <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
+        ) : (
+          <span style={{ fontSize: 11, color: "var(--agent-text-disabled)" }}>{fmtDate(task.createdAt)}</span>
+        )}
+        {progressor && dueStatus?.reassure && !isProgressorView && (
+          <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
+            {progressorName ?? "Our team"} is on it
+          </p>
+        )}
+
+        {reschedOpen && (
+          <div
+            className="agent-dropdown-in"
+            style={{
+              position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, width: 240, textAlign: "left",
+              background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid var(--agent-border-default)",
+              borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.28)", padding: 12,
+            }}
+          >
+            <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", marginBottom: 5 }}>
+              New date
+            </label>
+            <input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              style={{ width: "100%", fontSize: 12, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-primary)" }}
+            />
+            <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
+              Update <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+            </label>
+            <textarea
+              value={updateText}
+              onChange={(e) => setUpdateText(e.target.value)}
+              placeholder="What's happened?"
+              rows={2}
+              style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-secondary)", resize: "vertical", boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setReschedOpen(false)} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
+              <button type="button" onClick={saveResched} disabled={!newDate || savingResched} className="agent-btn agent-btn-primary agent-btn-sm">
+                {savingResched ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
