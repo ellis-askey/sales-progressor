@@ -13,6 +13,7 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { Drawer } from "@/components/ui/Drawer";
 import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
 import { EmailContactSuggestion } from "@/components/activity/EmailContactSuggestion";
@@ -214,7 +215,6 @@ function EmailBodyControls({
   isLong: boolean; isExpanded: boolean; onToggleExpand: () => void;
   hasOriginal: boolean; showingOriginal: boolean; onToggleOriginal: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   if (!isLong && !hasOriginal) return null;
   return (
     <div style={{ marginTop: 4, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -224,42 +224,27 @@ function EmailBodyControls({
         </button>
       )}
       {hasOriginal && (
-        <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            aria-label="More options"
-            title="More"
-            onClick={() => setMenuOpen((o) => !o)}
-            className="agent-icon-btn agent-icon-btn-sm"
-            style={{ opacity: 0.65 }}
-          >
-            <DotsThree size={16} weight="bold" />
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              style={{
-                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20,
-                minWidth: 170, padding: 4, borderRadius: 8,
-                background: "var(--agent-menu-surface, #ffffff)",
-                border: "0.5px solid var(--agent-border-default)",
-                boxShadow: "0 8px 24px rgba(15,23,42,0.14)",
-              }}
+        <Popover
+          preset="menu"
+          placement="bottom-start"
+          trigger={
+            <button
+              type="button"
+              aria-label="More options"
+              title="More"
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ opacity: 0.65 }}
             >
-              <button
-                type="button"
-                onClick={() => { onToggleOriginal(); setMenuOpen(false); }}
-                style={{
-                  display: "block", width: "100%", textAlign: "left",
-                  background: "none", border: "none", cursor: "pointer",
-                  fontSize: 12, color: "var(--agent-text-primary)", padding: "6px 8px", borderRadius: 6,
-                }}
-              >
-                {showingOriginal ? "View cleaned email" : "View original email"}
-              </button>
-            </div>
+              <DotsThree size={16} weight="bold" />
+            </button>
+          }
+        >
+          {(close) => (
+            <PopoverMenuItem onClick={() => { onToggleOriginal(); close(); }}>
+              {showingOriginal ? "View cleaned email" : "View original email"}
+            </PopoverMenuItem>
           )}
-        </div>
+        </Popover>
       )}
     </div>
   );
