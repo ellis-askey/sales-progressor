@@ -17,19 +17,19 @@ These render inside a card's overflow/transform, so they clip and hug the mobile
 - [x] 🔴📋 **components/layout/ChangelogDropdown.tsx** — changelog dropdown (added Popover `bare` for full-bleed panels, `9fc101d7`) — `486c93b2`
 
 ## Priority 2 — High-traffic dropdown menus
-- [ ] 📋 **components/reminders/SnoozeMenu.tsx**
-- [ ] 📋 **components/reminders/ChaseSplitButton.tsx** — split-button menu
-- [ ] 📋 **components/transactions/FilterMenu.tsx** (files filter)
-- [ ] 📋 **components/transactions/MonthlyTargetMenu.tsx**
-- [ ] 📋 **components/transactions/FilesWorkspace.tsx** — `files-view-menu` (the View dropdown, #278)
-- [ ] 📋 **components/transaction/StatusControl.tsx** — status dropdown (already catalogued separately)
-- [ ] 📋 **components/transaction/RescheduleChaseControl.tsx**
-- [ ] 📋 **components/completions/CompletionCardMenus.tsx**
-- [ ] 📋 **components/analytics/MissingFeeRow.tsx**
-- [ ] 📋 **components/agent/AuroraOpacityControl.tsx**
-- [ ] 📋 **components/activity/LogUpdateModal.tsx** — `lum-menu` (the "Log" menu)
-- [ ] 📋 **components/layout/AgentBell.tsx** — notifications dropdown
-- [ ] 📋 **components/account/chrome/AccountSidebarUser.tsx** / **SectionMasterControl.tsx**
+- [x] 📋 **components/reminders/SnoozeMenu.tsx** — `4691aa1d` (retires the #276 scroll-dismiss workaround)
+- [x] 📋 **components/reminders/ChaseSplitButton.tsx** — split-button menu — `f35f352c`
+- [x] 📋 **components/transactions/FilterMenu.tsx** (files filter) — `8a6d1827` (bare mode)
+- [x] 📋 **components/transactions/MonthlyTargetMenu.tsx** — `c943ba18`
+- [x] 📋 **components/transactions/FilesWorkspace.tsx** — `files-view-menu` (the View dropdown, #278) — `b7566ded`
+- [x] 📋 **components/transaction/StatusControl.tsx** — status dropdown — `52678ce5` (dropped the isDark MutationObserver)
+- [x] 📋 **components/transaction/RescheduleChaseControl.tsx** — `d178eb7f`
+- [x] 📋 **components/completions/CompletionCardMenus.tsx** — DateMenu + FeeMenu — `89d865c1`
+- [x] 📋 **components/analytics/MissingFeeRow.tsx** — desktop popover — `0c43e189` (mobile bottom sheet kept as-is)
+- [x] 📋 **components/agent/AuroraOpacityControl.tsx** — `1d76e1d7`
+- [x] ⏭ **components/activity/LogUpdateModal.tsx** — `lum-menu`: GRANDFATHERED. In-flow accordion reveal (`margin-top`, not `position:absolute`) inside the modal — pushes content down, not a floating overlay, so it can't clip. Migrating to a floating Popover would change the UX. Out of scope.
+- [x] 📋 **components/layout/AgentBell.tsx** — notifications dropdown — `5867ce66` (bare; trades its bespoke close-fade for the uniform open anim)
+- [x] ⏭ **components/account/chrome/AccountSidebarUser.tsx** / **SectionMasterControl.tsx** — GRANDFATHERED (surface mismatch). The Account register is a deliberately neutral-light surface (hardcoded `#111827`/`#6b7280`/`#fff`), not the warm agent glass tokens. The locked Popover recipe pulls the agent `[data-theme]` tokens (warm sunset etc.), so dropping it here would visibly re-tint these menus and mix surface systems (Law 9). **Open question for Ellis:** unify the Account register too via a neutral Popover variant, or leave it on its own surface? Deferred pending that call.
 
 ## Priority 3 — Row / context menus (two near-duplicate components to unify)
 - [ ] 📋 **components/account/chrome/RowActionsMenu.tsx** (+ consumers: TeamListViewPlain, CheckInsList, ClientPeople, FeeEngine)
