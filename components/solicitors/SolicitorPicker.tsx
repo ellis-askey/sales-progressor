@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { AddFirmModal } from "./AddFirmModal";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
@@ -45,11 +44,9 @@ type Props = {
 };
 
 export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId }: Props) {
-  const { isNight } = usePortalTheme();
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [handlers, setHandlers] = useState<Handler[]>([]);
   const [loadingHandlers, setLoadingHandlers] = useState(false);
@@ -60,41 +57,12 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
   // every modal open so the "+ Add as new firm" path stays unaffected.
   const [modalLockFirm, setModalLockFirm] = useState(false);
   const [inputBlurred, setInputBlurred] = useState(false);
-  // Handler dropdown — custom open state + positioning so we can render
-  // a styled menu like the firm picker uses (rather than a native select).
+  // Handler dropdown — custom open state so we render a styled menu like the
+  // firm picker (rather than a native select). Both panels ride AnchoredPanel.
   const [handlerOpen, setHandlerOpen] = useState(false);
-  const [handlerDropPos, setHandlerDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const handlerTriggerRef = useRef<HTMLButtonElement>(null);
-  const handlerWrapperRef = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click or scroll
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-      if (handlerWrapperRef.current && !handlerWrapperRef.current.contains(e.target as Node)) {
-        setHandlerOpen(false);
-      }
-    }
-    function handleScroll() { setShowDropdown(false); setHandlerOpen(false); }
-    document.addEventListener("mousedown", handleClick);
-    window.addEventListener("scroll", handleScroll, true);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, []);
-
-  function openHandlerDropdown() {
-    if (handlerTriggerRef.current) {
-      const rect = handlerTriggerRef.current.getBoundingClientRect();
-      setHandlerDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-    setHandlerOpen(true);
-  }
 
   // Sync query text when firm is set externally (e.g. memo auto-fill)
   useEffect(() => {
@@ -134,17 +102,9 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
     }, 200);
   }, []);
 
-  function openDropdown() {
-    if (wrapperRef.current) {
-      const r = wrapperRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
-    }
-    setShowDropdown(true);
-  }
-
   function handleQueryChange(q: string) {
     setQuery(q);
-    openDropdown();
+    setShowDropdown(true);
     if (value) onChange(null);
     if (q.trim()) doSearch(q);
     else { setFirms([]); setSearchError(null); }
@@ -322,7 +282,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             onChange={(e) => { handleQueryChange(e.target.value); setInputBlurred(false); }}
             onFocus={() => {
               if (query.trim() && !firmSelected) {
-                openDropdown();
+                setShowDropdown(true);
                 doSearch(query);
               }
             }}
@@ -334,54 +294,40 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             <p className="agent-helper-warning">Firm not saved — choose from results or add as new</p>
           )}
 
-          {showDropdown && query.trim() && dropPos && typeof document !== "undefined" && createPortal(
-            <div data-night={isNight ? "" : undefined} className="agent-dropdown-in nv2-night" style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: isNight ? "rgba(22,30,46,0.96)" : "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: isNight ? "0.5px solid rgba(255,255,255,0.10)" : "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
-              {searchError ? (
-                <div>
-                  <p className="px-4 py-2.5 text-sm text-red-500">{searchError}</p>
-                  <div className="border-t border-[var(--agent-border-default)]">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
-                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
-                    </button>
-                  </div>
-                </div>
-              ) : firms.length > 0 ? (
-                <>
-                  {firms.map((f) => (
-                    <button key={f.id} type="button" onMouseDown={() => selectFirm(f)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-[var(--agent-surface-glass)] transition-colors">
-                      {f.name}
-                    </button>
-                  ))}
-                  <div className="border-t border-[var(--agent-border-default)]">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
-                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <p className="px-4 py-2.5 text-sm text-slate-900/40">No matching firms</p>
-                  <div className="border-t border-[var(--agent-border-default)]">
-                    <button type="button" onMouseDown={handleAddFirm}
-                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2">
-                      <span>+</span> Add &ldquo;{query}&rdquo; as new firm
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>,
-            document.body
-          )}
+          <AnchoredPanel
+            anchorRef={wrapperRef}
+            open={showDropdown && !!query.trim()}
+            onClose={() => setShowDropdown(false)}
+            matchWidth
+            bare
+            placement="bottom-start"
+          >
+            {searchError ? (
+              <>
+                <p className="ui-pop-pick-empty" style={{ color: "var(--agent-danger)" }}>{searchError}</p>
+                <button type="button" className="ui-pop-pick ui-pop-pick-add" onMouseDown={handleAddFirm}>+ Add &ldquo;{query}&rdquo; as new firm</button>
+              </>
+            ) : firms.length > 0 ? (
+              <>
+                {firms.map((f) => (
+                  <button key={f.id} type="button" className="ui-pop-pick" onMouseDown={() => selectFirm(f)}>{f.name}</button>
+                ))}
+                <button type="button" className="ui-pop-pick ui-pop-pick-add" onMouseDown={handleAddFirm}>+ Add &ldquo;{query}&rdquo; as new firm</button>
+              </>
+            ) : (
+              <>
+                <p className="ui-pop-pick-empty">No matching firms</p>
+                <button type="button" className="ui-pop-pick ui-pop-pick-add" onMouseDown={handleAddFirm}>+ Add &ldquo;{query}&rdquo; as new firm</button>
+              </>
+            )}
+          </AnchoredPanel>
         </div>
 
         {/* Case handler dropdown — custom popover that matches the firm
           * typeahead's style so "+ Add new case handler" sits inside the
           * visible menu (not below a native browser select). */}
         {firmSelected && (
-          <div ref={handlerWrapperRef} className="pl-3 space-y-2 border-l-2 border-blue-200/60 relative">
+          <div className="pl-3 space-y-2 border-l-2 border-blue-200/60 relative">
             {loadingHandlers ? (
               <p className="text-xs text-slate-900/40">Loading handlers…</p>
             ) : (
@@ -389,7 +335,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                 <button
                   ref={handlerTriggerRef}
                   type="button"
-                  onClick={() => (handlerOpen ? setHandlerOpen(false) : openHandlerDropdown())}
+                  onClick={() => setHandlerOpen((o) => !o)}
                   className="glass-input w-full px-3 py-2.5 text-sm text-left"
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
                 >
@@ -399,34 +345,27 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                   <span aria-hidden style={{ color: "rgba(15,23,42,0.35)" }}>▾</span>
                 </button>
 
-                {handlerOpen && handlerDropPos && typeof document !== "undefined" && createPortal(
-                  <div data-night={isNight ? "" : undefined} className="agent-dropdown-in nv2-night" style={{ position: "fixed", top: handlerDropPos.top, left: handlerDropPos.left, width: handlerDropPos.width, zIndex: 9999, background: isNight ? "rgba(22,30,46,0.96)" : "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: isNight ? "0.5px solid rgba(255,255,255,0.10)" : "0.5px solid rgba(255,255,255,0.60)", borderRadius: 12, boxShadow: "0 8px 40px rgba(0,0,0,0.14)", overflow: "hidden" }}>
-                    {handlers.length === 0 ? (
-                      <p className="px-4 py-2.5 text-sm text-slate-900/40">No case handlers yet</p>
-                    ) : (
-                      handlers.map((h) => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 hover:bg-[var(--agent-surface-glass)] transition-colors"
-                        >
-                          {h.name}
-                        </button>
-                      ))
-                    )}
-                    <div className="border-t border-[var(--agent-border-default)]">
-                      <button
-                        type="button"
-                        onMouseDown={() => { handleAddHandler(); setHandlerOpen(false); }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-[var(--agent-coral-deep)] hover:bg-[var(--agent-surface-glass)] font-medium flex items-center gap-2"
-                      >
-                        <span>+</span> Add new case handler
+                <AnchoredPanel
+                  anchorRef={handlerTriggerRef}
+                  open={handlerOpen}
+                  onClose={() => setHandlerOpen(false)}
+                  matchWidth
+                  bare
+                  placement="bottom-start"
+                >
+                  {handlers.length === 0 ? (
+                    <p className="ui-pop-pick-empty">No case handlers yet</p>
+                  ) : (
+                    handlers.map((h) => (
+                      <button key={h.id} type="button" className="ui-pop-pick" onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}>
+                        {h.name}
                       </button>
-                    </div>
-                  </div>,
-                  document.body
-                )}
+                    ))
+                  )}
+                  <button type="button" className="ui-pop-pick ui-pop-pick-add" onMouseDown={() => { handleAddHandler(); setHandlerOpen(false); }}>
+                    + Add new case handler
+                  </button>
+                </AnchoredPanel>
               </>
             )}
 
