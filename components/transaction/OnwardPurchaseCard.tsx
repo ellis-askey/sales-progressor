@@ -19,10 +19,10 @@
 // Everything is labelled "reported" and never leaves our side.
 // Spec: docs/active/onward-visibility/00-discovery.md + docs/active/related-sale/00-spec.md.
 
-import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Popover } from "@/components/ui/Popover";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import {
@@ -1119,11 +1119,11 @@ const secondaryBtnStyle: React.CSSProperties = {
   color: "var(--agent-text-primary, #111)",
 };
 
-// Anchored dropdown. Portalled to document.body with fixed positioning so it is
-// never clipped by the Card's overflow:hidden. Being outside the AgentShell
-// subtree, the menu can't rely on --agent-* vars — the panel + MenuItem below
-// use concrete colours (white surface, dark text) in both themes, matching the
-// app's other body-portalled popups (see AGENT_APP_INTERNALS §2).
+// Anchored dropdown, now on the canonical Popover (portalled + flip/shift + edge
+// gutter + locked glass, so it's never clipped by the Card's overflow:hidden).
+// `bare` keeps the rows edge-to-edge (they carry their own top-border
+// separators). MenuItem reads --agent-* tokens, which resolve because the
+// Popover stamps the theme on its portal.
 function Dropdown({
   trigger,
   align = "right",
@@ -1135,80 +1135,16 @@ function Dropdown({
   panelWidth?: number;
   children: (close: () => void) => React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  function openMenu() {
-    const r = anchorRef.current?.getBoundingClientRect();
-    if (!r) return;
-    const rawLeft = align === "right" ? r.right - panelWidth : r.left;
-    const left = Math.max(8, Math.min(rawLeft, window.innerWidth - panelWidth - 8));
-    setPos({ top: r.bottom + 6, left });
-    setOpen(true);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (anchorRef.current?.contains(e.target as Node)) return;
-      if (menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    }
-    function onClose() { setOpen(false); }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
-    document.addEventListener("mousedown", onDoc);
-    window.addEventListener("scroll", onClose, true);
-    window.addEventListener("resize", onClose);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      window.removeEventListener("scroll", onClose, true);
-      window.removeEventListener("resize", onClose);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div ref={anchorRef} style={{ display: "inline-flex" }}>
-      <div
-        role="button"
-        tabIndex={0}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openMenu())}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open ? setOpen(false) : openMenu(); }
-        }}
-        style={{ display: "inline-flex", cursor: "pointer" }}
-      >
-        {trigger(open)}
-      </div>
-      {open && pos && typeof document !== "undefined" && createPortal(
-        <div
-          ref={menuRef}
-          role="menu"
-          style={{
-            position: "fixed",
-            top: pos.top,
-            left: pos.left,
-            width: panelWidth,
-            maxWidth: "calc(100vw - 16px)",
-            zIndex: 1000,
-            background: "#fff",
-            border: "1px solid rgba(0,0,0,0.12)",
-            borderRadius: 10,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-            overflow: "hidden",
-            color: "#111",
-          }}
-        >
-          {children(() => setOpen(false))}
-        </div>,
-        document.body,
-      )}
-    </div>
+    <Popover
+      preset="menu"
+      bare
+      placement={align === "right" ? "bottom-end" : "bottom-start"}
+      width={panelWidth}
+      trigger={<span style={{ display: "inline-flex", cursor: "pointer" }}>{trigger(false)}</span>}
+    >
+      {(close) => children(close)}
+    </Popover>
   );
 }
 
@@ -1248,19 +1184,19 @@ function MenuItem({
         width: "100%",
         textAlign: "left",
         padding: "9px 12px",
-        background: active && !disabled ? "rgba(15,23,42,0.05)" : "transparent",
+        background: active && !disabled ? "rgba(var(--ui-ink), 0.06)" : "transparent",
         boxShadow: active && !disabled ? "var(--agent-hover-lift)" : "none",
         border: "none",
-        borderTop: first ? "none" : "1px solid rgba(0,0,0,0.07)",
+        borderTop: first ? "none" : "1px solid var(--agent-border-subtle)",
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.65 : 1,
         transition: "background .12s ease, box-shadow .12s ease",
       }}
     >
-      <span style={{ width: 16, flexShrink: 0, marginTop: 1, color: "#6b7280", display: "inline-flex", justifyContent: "center" }}>{icon}</span>
+      <span style={{ width: 16, flexShrink: 0, marginTop: 1, color: "var(--agent-text-muted)", display: "inline-flex", justifyContent: "center" }}>{icon}</span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: tone === "hot" ? "#E8542F" : "#111" }}>{title}</span>
-        {sub && <span style={{ display: "block", fontSize: 11.5, color: "#6b7280", marginTop: 1, lineHeight: 1.35 }}>{sub}</span>}
+        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: tone === "hot" ? "var(--agent-coral-deep)" : "var(--agent-text-primary)" }}>{title}</span>
+        {sub && <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 1, lineHeight: 1.35 }}>{sub}</span>}
       </span>
     </button>
   );
