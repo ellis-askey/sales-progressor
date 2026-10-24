@@ -1,13 +1,13 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { saveAgentFeeAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { Popover } from "@/components/ui/Popover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
@@ -22,6 +22,8 @@ type Props = {
 export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignment = false, txBasePath }: Props) {
   const router = useRouter();
   const { theme, isNight } = usePortalTheme();
+  // `open` + the bottom sheet are mobile-only; the desktop popover is owned by
+  // the Popover primitive.
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [feeType, setFeeType] = useState<"amount" | "percent">("amount");
@@ -32,9 +34,6 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -44,18 +43,6 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  useEffect(() => {
-    if (!open || isMobile) return;
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      const inButton = buttonRef.current?.contains(target);
-      const inPanel = panelRef.current?.contains(target);
-      if (!inButton && !inPanel) handleClose();
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open, isMobile]);
-
   function reset() {
     setFeeType("amount");
     setAmountPence(null);
@@ -64,45 +51,12 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
     setError(null);
   }
 
-  function handleOpen() {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setPopoverPos({ top: rect.top, right: clampPopoverRight(rect.right, 260) });
-    }
-    reset();
-    setOpen(true);
-  }
-
-  function handleClose() {
+  function closeSheet() {
     setOpen(false);
     reset();
   }
 
   const canSave = feeType === "amount" ? amountPence != null : !!percentStr && !isNaN(parseFloat(percentStr));
-
-  function handleSave() {
-    if (!canSave) return;
-    const amount = feeType === "amount" ? amountPence : null;
-    const percent = feeType === "percent" ? parseFloat(percentStr) : null;
-    setError(null);
-    startTransition(async () => {
-      try {
-        await saveAgentFeeAction({
-          transactionId: id,
-          agentFeeAmount: amount,
-          agentFeePercent: percent,
-          agentFeeIsVatInclusive: vat === "inclusive",
-        });
-        setOpen(false);
-        setDismissed(true);
-        router.refresh();
-      } catch {
-        setError("Failed to save. Try again.");
-      }
-    });
-  }
-
-  if (dismissed) return null;
 
   const toggleBtn = (type: "amount" | "percent", label: string) => (
     <button
@@ -117,57 +71,84 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
     </button>
   );
 
-  const feeForm = (
-    <div className="space-y-2">
-      <div className="flex gap-1.5">
-        {toggleBtn("amount", "Fixed £")}
-        {toggleBtn("percent", "%")}
-      </div>
-
-      {feeType === "amount" ? (
-        <PriceInput value={amountPence} onChange={setAmountPence} size="sm" placeholder="1,500" />
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <input
-            type="number"
-            value={percentStr}
-            onChange={(e) => setPercentStr(e.target.value)}
-            placeholder="e.g. 1.5"
-            inputMode="decimal"
-            className="glass-input w-full px-2 py-1 text-sm"
-          />
-          <span className="text-xs text-slate-900/50 flex-shrink-0">%</span>
+  // Shared form — each surface passes how to close itself (desktop Popover's
+  // close(), mobile sheet's closeSheet()). Save closes on success.
+  function feeForm(onClose: () => void) {
+    function handleSave() {
+      if (!canSave) return;
+      const amount = feeType === "amount" ? amountPence : null;
+      const percent = feeType === "percent" ? parseFloat(percentStr) : null;
+      setError(null);
+      startTransition(async () => {
+        try {
+          await saveAgentFeeAction({
+            transactionId: id,
+            agentFeeAmount: amount,
+            agentFeePercent: percent,
+            agentFeeIsVatInclusive: vat === "inclusive",
+          });
+          onClose();
+          setDismissed(true);
+          router.refresh();
+        } catch {
+          setError("Failed to save. Try again.");
+        }
+      });
+    }
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-1.5">
+          {toggleBtn("amount", "Fixed £")}
+          {toggleBtn("percent", "%")}
         </div>
-      )}
 
-      <select
-        value={vat}
-        onChange={(e) => setVat(e.target.value as "exclusive" | "inclusive")}
-        className="glass-input w-full px-2 py-1 text-xs"
-      >
-        <option value="exclusive">+ VAT</option>
-        <option value="inclusive">Inc VAT</option>
-      </select>
+        {feeType === "amount" ? (
+          <PriceInput value={amountPence} onChange={setAmountPence} size="sm" placeholder="1,500" />
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              value={percentStr}
+              onChange={(e) => setPercentStr(e.target.value)}
+              placeholder="e.g. 1.5"
+              inputMode="decimal"
+              className="glass-input w-full px-2 py-1 text-sm"
+            />
+            <span className="text-xs text-slate-900/50 flex-shrink-0">%</span>
+          </div>
+        )}
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
-
-      <div className="flex gap-2 pt-0.5">
-        <button
-          onClick={handleSave}
-          disabled={isPending || !canSave}
-          className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40"
+        <select
+          value={vat}
+          onChange={(e) => setVat(e.target.value as "exclusive" | "inclusive")}
+          className="glass-input w-full px-2 py-1 text-xs"
         >
-          {isPending ? "…" : "Save"}
-        </button>
-        <button
-          onClick={handleClose}
-          className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle rounded-xl"
-        >
-          Cancel
-        </button>
+          <option value="exclusive">+ VAT</option>
+          <option value="inclusive">Inc VAT</option>
+        </select>
+
+        {error && <p className="text-xs text-red-500">{error}</p>}
+
+        <div className="flex gap-2 pt-0.5">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !canSave}
+            className="flex-1 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-xl transition-colors disabled:opacity-40"
+          >
+            {isPending ? "…" : "Save"}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 glass-subtle rounded-xl"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (dismissed) return null;
 
   return (
     <div className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-[11px] sm:gap-4">
@@ -185,47 +166,41 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
 
       {/* Actions */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        {/* Set fee — popover anchor */}
-        <div>
+        {/* Set fee — desktop is a Popover, mobile opens a bottom sheet */}
+        {isMobile ? (
           <button
-            ref={buttonRef}
-            onClick={handleOpen}
+            onClick={() => { reset(); setOpen(true); }}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: "6px 0", minHeight: 36, display: "flex", alignItems: "center" }}
           >
             Set fee <LinkArrow />
           </button>
-
-          {/* Desktop popover — portaled to body to escape stacking contexts */}
-          {mounted && open && !isMobile && popoverPos && createPortal(
-            <div
-              ref={panelRef}
-              data-theme={theme} data-night={isNight ? "" : undefined}
-              className="agent-dropdown-in"
-              style={{
-                position: "fixed",
-                top: popoverPos.top - 8,
-                right: popoverPos.right,
-                transform: "translateY(-100%)",
-                zIndex: 1500,
-                background: "rgba(255,255,255,0.72)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                borderRadius: 12,
-                boxShadow: "0 8px 40px rgba(0,0,0,0.14)",
-                border: "0.5px solid rgba(255,255,255,0.60)",
-                overflow: "hidden", width: 230,
-              }}
-            >
-              <div style={{ ...SHEET_BAND_STYLE, padding: "12px 14px" }}>
-                <SheetBandHeader kicker="Fee" title="Set agent fee" />
-              </div>
-              <div style={{ padding: 14 }}>
-                {feeForm}
-              </div>
-            </div>,
-            document.body
-          )}
-        </div>
+        ) : (
+          <Popover
+            preset="popover"
+            bare
+            placement="top-end"
+            width={230}
+            trigger={
+              <button
+                onClick={reset}
+                style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: "6px 0", minHeight: 36, display: "flex", alignItems: "center" }}
+              >
+                Set fee <LinkArrow />
+              </button>
+            }
+          >
+            {(close) => (
+              <>
+                <div style={{ ...SHEET_BAND_STYLE, padding: "12px 14px" }}>
+                  <SheetBandHeader kicker="Fee" title="Set agent fee" />
+                </div>
+                <div style={{ padding: 14 }}>
+                  {feeForm(close)}
+                </div>
+              </>
+            )}
+          </Popover>
+        )}
 
         {/* View file — secondary */}
         <Link
@@ -241,7 +216,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
         <div
           data-theme={theme} data-night={isNight ? "" : undefined}
           style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)" }}
-          onClick={handleClose}
+          onClick={closeSheet}
         >
           <div
             style={{
@@ -256,7 +231,7 @@ export function MissingFeeRow({ id, propertyAddress, ownerLine, awaitingAssignme
               <SheetBandHeader kicker="Fee" title="Set agent fee" subtitle={propertyAddress} />
             </div>
             <div style={{ padding: "16px 24px 36px" }}>
-              {feeForm}
+              {feeForm(closeSheet)}
             </div>
           </div>
         </div>,
