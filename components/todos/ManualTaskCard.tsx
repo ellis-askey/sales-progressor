@@ -253,7 +253,7 @@ export function ManualTaskCard({
                     type="date"
                     value={newDate}
                     onChange={(e) => setNewDate(e.target.value)}
-                    className="w-full text-xs rounded-lg px-2.5 py-2"
+                    className="agent-focus w-full text-xs rounded-lg px-2.5 py-2"
                     style={{ border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass, #fff)", color: "var(--agent-text-primary)" }}
                   />
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
@@ -264,7 +264,7 @@ export function ManualTaskCard({
                     onChange={(e) => setUpdateText(e.target.value)}
                     placeholder="What's happened?"
                     rows={2}
-                    className="w-full text-xs rounded-lg px-2.5 py-2 leading-relaxed"
+                    className="agent-focus w-full text-xs rounded-lg px-2.5 py-2 leading-relaxed"
                     style={{ border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass, #fff)", color: "var(--agent-text-secondary)", resize: "vertical" }}
                   />
                   <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>

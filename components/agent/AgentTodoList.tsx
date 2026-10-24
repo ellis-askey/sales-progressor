@@ -621,6 +621,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
+                  className="agent-focus"
                   style={{ width: "100%", fontSize: 12, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-primary)", boxSizing: "border-box" }}
                 />
                 <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
@@ -631,6 +632,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
                   onChange={(e) => setUpdateText(e.target.value)}
                   placeholder="What's happened?"
                   rows={2}
+                  className="agent-focus"
                   style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-secondary)", resize: "vertical", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>

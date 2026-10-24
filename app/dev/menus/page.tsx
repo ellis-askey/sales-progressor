@@ -343,7 +343,9 @@ const CSS = `
 
 .dm-pop { width:240px; padding:13px; height:max-content; }
 .dm-lab { font-size:10px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; color:var(--agent-text-muted); margin-bottom:5px; }
-.dm-in { width:100%; box-sizing:border-box; font-family:inherit; font-size:12px; padding:7px 9px; border-radius:8px; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-glass,#fff); color:var(--agent-text-primary); }
+.dm-in { width:100%; box-sizing:border-box; font-family:inherit; font-size:12px; padding:7px 9px; border-radius:8px; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-glass,#fff); color:var(--agent-text-primary); transition:border-color .14s ease; }
+.dm-in:hover:not(:focus) { border-color:var(--agent-coral); }
+.dm-in:focus { outline:none; border-color:var(--agent-coral-deep); }
 .dm-prow { display:flex; gap:6px; justify-content:flex-end; margin-top:12px; }
 .dm-btn { font-family:inherit; font-size:12px; font-weight:650; padding:6px 13px; border-radius:9px; cursor:pointer; border:0.5px solid var(--agent-border-default); background:transparent; color:var(--agent-text-secondary); }
 .dm-btn.primary { background:var(--agent-coral); border-color:transparent; color:#fff; }
