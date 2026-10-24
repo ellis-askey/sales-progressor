@@ -57,7 +57,7 @@ export function FilesStatStrip({
           <span className="stat-circle stat-circle--coral" aria-hidden><HouseLine size={22} weight="regular" /></span>
           <span className="fstat-txt">
             <span className="fstat-val">{active.length.toLocaleString()}</span>
-            <span className="fstat-label">In the book</span>
+            <span className="fstat-label">Active sales</span>
             <span className="fstat-sub">{gbpCompact(sumFees(active))} fees</span>
           </span>
         </div>
