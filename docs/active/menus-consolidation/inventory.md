@@ -46,9 +46,10 @@ Ellis chose **A** (2026-10-24). Canonical `.ui-pop-pick*` row styles added (`8d0
 - [x] 📋 **components/contacts/ContactsSection.tsx** — was actually a row kebab (not a typeahead), migrated to Popover — `58ecd8cd`
 
 ## Priority 5 — Tone dropdowns in the chase drawers (same pattern ×3)
-- [ ] 📋 **components/chase/ChaseDrawer.tsx**
-- [ ] 📋 **components/chase/ChaseNeighbourDrawer.tsx**
-- [ ] 📋 **components/enquiries/EnquiryChaseDrawer.tsx**
+All via the controlled `AnchoredPanel` (matchWidth select-style).
+- [x] 📋 **components/chase/ChaseDrawer.tsx** — tone + recipient dropdowns — `cc2c4ae2`
+- [x] 📋 **components/chase/ChaseNeighbourDrawer.tsx** — `17fc6dbf`
+- [x] 📋 **components/enquiries/EnquiryChaseDrawer.tsx** — `45eb1c0b`
 
 ## Priority 6 — Tooltips & hover popovers
 - [ ] 🧭 **components/focus/FocusClientComms.tsx** — `fcl-tip` (reworked in #298; re-base on Tooltip)
