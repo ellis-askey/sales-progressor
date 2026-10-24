@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, createContext, useContext, type ReactNode } from "react";
+import { useState, createContext, useContext, type ReactNode } from "react";
+import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
 import { CaretDown, ListChecks, UsersThree } from "@phosphor-icons/react";
 import { SectionHeader } from "@/components/agent/SectionHeader";
@@ -470,25 +471,15 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
   const dueStatus = task.dueDate && !isDone ? getDueStatus(task.dueDate) : null;
 
   // Reschedule popover: pick a new date AND add an update in one step (#274).
-  const [reschedOpen, setReschedOpen] = useState(false);
+  // Open/close + positioning now handled by the shared Popover primitive.
   const [newDate, setNewDate] = useState("");
   const [updateText, setUpdateText] = useState("");
   const [savingResched, setSavingResched] = useState(false);
-  const reschedRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!reschedOpen) return;
-    function onDown(e: MouseEvent) {
-      if (reschedRef.current && !reschedRef.current.contains(e.target as Node)) setReschedOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [reschedOpen]);
-
+  // Seed the fields when the trigger opens the popover.
   function openResched() {
     setNewDate(task.dueDate ? toUKDateStr(task.dueDate) : "");
     setUpdateText(task.progressorNote ?? "");
-    setReschedOpen(true);
   }
 
   async function saveResched() {
@@ -498,7 +489,6 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
     const noteChanged = nextNote !== (task.progressorNote ?? "");
     onReschedule?.(task.id, { dueDate: newDate, ...(noteChanged ? { note: nextNote || null } : {}) });
     setSavingResched(false);
-    setReschedOpen(false);
   }
 
   // Who the saved note reads as: the progressor's reply to an agent in the
@@ -601,20 +591,57 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
 
       {/* Due date — click to reschedule + add an update (open tasks); created
           date otherwise (#274). */}
-      <div ref={reschedRef} style={{ flexShrink: 0, textAlign: "right", marginTop: 2, position: "relative" }}>
+      <div style={{ flexShrink: 0, textAlign: "right", marginTop: 2 }}>
         {onReschedule && !isDone ? (
-          <button
-            type="button"
-            onClick={() => (reschedOpen ? setReschedOpen(false) : openResched())}
-            title="Reschedule and add an update"
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
+          <Popover
+            preset="popover"
+            width={244}
+            placement="bottom-end"
+            trigger={
+              <button
+                type="button"
+                onClick={openResched}
+                title="Reschedule and add an update"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
+              >
+                {dueStatus ? (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
+                ) : (
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}>Set date</span>
+                )}
+              </button>
+            }
           >
-            {dueStatus ? (
-              <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
-            ) : (
-              <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}>Set date</span>
+            {(close) => (
+              <div style={{ textAlign: "left" }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", marginBottom: 5 }}>
+                  New date
+                </label>
+                <input
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-primary)", boxSizing: "border-box" }}
+                />
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
+                  Update <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                </label>
+                <textarea
+                  value={updateText}
+                  onChange={(e) => setUpdateText(e.target.value)}
+                  placeholder="What's happened?"
+                  rows={2}
+                  style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-secondary)", resize: "vertical", boxSizing: "border-box" }}
+                />
+                <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
+                  <button type="button" onClick={close} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
+                  <button type="button" onClick={async () => { await saveResched(); close(); }} disabled={!newDate || savingResched} className="agent-btn agent-btn-primary agent-btn-sm">
+                    {savingResched ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </Popover>
         ) : dueStatus ? (
           <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
         ) : (
@@ -624,43 +651,6 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
           <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>
             {progressorName ?? "Our team"} is on it
           </p>
-        )}
-
-        {reschedOpen && (
-          <div
-            className="agent-dropdown-in"
-            style={{
-              position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, width: 240, textAlign: "left",
-              background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid var(--agent-border-default)",
-              borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.28)", padding: 12,
-            }}
-          >
-            <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", marginBottom: 5 }}>
-              New date
-            </label>
-            <input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              style={{ width: "100%", fontSize: 12, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-primary)" }}
-            />
-            <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
-              Update <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
-            </label>
-            <textarea
-              value={updateText}
-              onChange={(e) => setUpdateText(e.target.value)}
-              placeholder="What's happened?"
-              rows={2}
-              style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-secondary)", resize: "vertical", boxSizing: "border-box" }}
-            />
-            <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setReschedOpen(false)} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
-              <button type="button" onClick={saveResched} disabled={!newDate || savingResched} className="agent-btn agent-btn-primary agent-btn-sm">
-                {savingResched ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>
