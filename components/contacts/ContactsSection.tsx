@@ -1,5 +1,4 @@
 "use client";
-import { clampPopoverRight } from "@/lib/agent/popover-position";
 // components/contacts/ContactsSection.tsx
 //
 // Premium SaaS-style contacts card. Rewritten 2026-07-08 from the previous
@@ -30,10 +29,9 @@ import { clampPopoverRight } from "@/lib/agent/popover-position";
 // the medium breakpoint (~720px). The Portal card stays inside the row
 // on both breakpoints so the visual grouping is preserved.
 
-import { useState, useTransition, useCallback, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useState, useTransition, useCallback, useEffect } from "react";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
 import { looksLikeBusiness } from "@/lib/contacts/business";
@@ -295,141 +293,54 @@ function RowKebab({
   onIntroCall?: () => void;
   contactName: string;
 }) {
-  const { theme } = usePortalTheme();
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-
-  function toggle() {
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, right: clampPopoverRight(r.right, 260) });
-    }
-    setOpen((o) => !o);
-  }
-
-  // The menu is portalled to <body> so it clears the card's overflow + stacking
-  // context — inline it used to get clipped behind the next contact card. Close
-  // on scroll/resize so the fixed menu never drifts away from its button.
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(false);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open]);
-
   return (
     <div style={{ flexShrink: 0 }}>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={toggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Actions for ${contactName}`}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-muted)"; }}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          border: "0.5px solid var(--agent-border-default)",
-          background: "var(--agent-surface-elevated)",
-          color: "var(--agent-text-muted)",
-          cursor: "pointer",
-          transition: "border-color 140ms ease, color 140ms ease",
-        }}
-      >
-        <DotsThreeVertical size={16} weight="bold" />
-      </button>
-      {open && pos && createPortal(
-        <div data-theme={theme}>
-          <div
-            onClick={() => setOpen(false)}
-            style={{ position: "fixed", inset: 0, zIndex: 1600 }}
-          />
-          <div
-            role="menu"
+      <Popover
+        preset="menu"
+        placement="bottom-end"
+        trigger={
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-label={`Actions for ${contactName}`}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral)"; e.currentTarget.style.color = "var(--agent-coral-deep)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.color = "var(--agent-text-muted)"; }}
             style={{
-              position: "fixed",
-              top: pos.top,
-              right: pos.right,
-              minWidth: 150,
-              padding: 4,
-              borderRadius: 10,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: 8,
               border: "0.5px solid var(--agent-border-default)",
               background: "var(--agent-surface-elevated)",
-              boxShadow: "0 12px 32px rgba(15,23,42,0.16)",
-              zIndex: 1601,
+              color: "var(--agent-text-muted)",
+              cursor: "pointer",
+              transition: "border-color 140ms ease, color 140ms ease",
             }}
           >
+            <DotsThreeVertical size={16} weight="bold" />
+          </button>
+        }
+      >
+        {(close) => (
+          <>
             {onIntroCall && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setOpen(false); onIntroCall(); }}
-                style={menuItemStyle("var(--agent-coral-darker)")}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-tint)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; }}
-              >
-                <ClipboardText size={14} weight="regular" />
+              <PopoverMenuItem icon={<ClipboardText size={14} weight="regular" />} onClick={() => { close(); onIntroCall(); }}>
                 Intro call
-              </button>
+              </PopoverMenuItem>
             )}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpen(false); onEdit(); }}
-              style={menuItemStyle("var(--agent-text-primary)")}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.05)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <PencilSimple size={14} weight="regular" />
+            <PopoverMenuItem icon={<PencilSimple size={14} weight="regular" />} onClick={() => { close(); onEdit(); }}>
               Edit
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpen(false); onDelete(); }}
-              style={menuItemStyle("var(--agent-danger)")}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(220,38,38,0.06)"; e.currentTarget.style.boxShadow = "var(--agent-hover-lift)"; }}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <Trash size={14} weight="regular" />
+            </PopoverMenuItem>
+            <PopoverMenuItem icon={<Trash size={14} weight="regular" />} tone="danger" onClick={() => { close(); onDelete(); }}>
               Remove
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
+            </PopoverMenuItem>
+          </>
+        )}
+      </Popover>
     </div>
   );
-}
-
-function menuItemStyle(color: string): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    width: "100%",
-    padding: "8px 10px",
-    fontSize: 12,
-    fontWeight: 500,
-    color,
-    background: "transparent",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    textAlign: "left",
-    transition: "background 140ms ease, box-shadow 140ms ease",
-  };
 }
 
 // Small animated checkbox for the contact form. The native input stays for
