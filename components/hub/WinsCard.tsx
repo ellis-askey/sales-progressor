@@ -228,7 +228,7 @@ export function WinsCard({ wins }: { wins: HubWins }) {
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 200, touchAction: "pan-y" }}
+      style={{ display: "flex", flexDirection: "column", gap: 9, minHeight: 200, touchAction: "pan-y" }}
       onMouseEnter={() => { pausedRef.current = true; }}
       onMouseLeave={() => { pausedRef.current = false; }}
       onTouchStart={onTouchStart}
