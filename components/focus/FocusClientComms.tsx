@@ -317,6 +317,9 @@ function SideBlock({
   const names = side.contacts.length ? side.contacts.map((c) => c.name).join(" & ") : side.name;
   const avatars = side.contacts.length ? side.contacts : [{ id: side.primaryContactId, name: side.name }];
   const lc = side.lastContact;
+  // Mobile has no hover, so a truncated name is unreachable — tap to show it in
+  // full (wrapped), tap again to collapse (critique #299).
+  const [namesExpanded, setNamesExpanded] = useState(false);
 
   return (
     <div className={`fc-side ${side.side}${done ? " done" : ""}`}>
@@ -328,7 +331,14 @@ function SideBlock({
         </span>
         <span className="fc-who">
           <span className="fc-role">{label}</span>
-          <span className="fc-names" title={names}>{names}</span>
+          <button
+            type="button"
+            className={`fc-names${namesExpanded ? " expanded" : ""}`}
+            title={names}
+            onClick={() => setNamesExpanded((v) => !v)}
+          >
+            {names}
+          </button>
         </span>
 
         <span className="fc-sp" />
@@ -384,22 +394,42 @@ const CHANNEL_ICON: Record<FocusChannel, typeof EnvelopeSimple> = {
 // dimmed glyph and read "none" on hover — never implied contact.
 function ChannelUnit({ channel, c, onOpen }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void }) {
   const Icon = CHANNEL_ICON[channel];
+  // On a touch device (no hover) the detail tooltip is hidden, so a first tap
+  // shows it (same content as the desktop hover); a second tap opens the thread
+  // (critique #298). On a hover device, a click opens straight away.
+  const [tipOpen, setTipOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!tipOpen) return;
+    const close = () => setTipOpen(false);
+    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) close(); }
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", close, true);
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", close, true); };
+  }, [tipOpen]);
+  const isTouch = () => typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+
   if (!c) {
     return (
-      <span className={`fc-u ${channel} ghost`}>
+      <button type="button" ref={ref} className={`fc-u ${channel} ghost${tipOpen ? " tip-open" : ""}`} onClick={() => setTipOpen((v) => !v)}>
         <span className="fc-ic"><Icon size={16} /></span>
         <span className="fc-ut">—</span>
         <span className="fcl-tip" role="tooltip">
           <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
           <span className="fcl-tip-empty">{EMPTY_LABEL[channel]}</span>
         </span>
-      </span>
+      </button>
     );
   }
   const meta = CONTACT_STATE[c.state];
   const detail = c.channel === "email" ? c.subject : c.preview;
   return (
-    <button type="button" className={`fc-u ${channel}`} onClick={() => onOpen(c)}>
+    <button
+      type="button"
+      ref={ref}
+      className={`fc-u ${channel}${tipOpen ? " tip-open" : ""}`}
+      onClick={() => { if (isTouch() && !tipOpen) setTipOpen(true); else onOpen(c); }}
+    >
       <span className="fc-ic">
         <Icon size={16} />
         <span className={`fc-pip ${meta.tone}`} aria-hidden />
@@ -611,7 +641,9 @@ const CSS = `
 .fc-av { display:inline-flex; border-radius:50%; box-shadow:0 0 0 2px var(--agent-surface-elevated); }
 .fc-av + .fc-av { margin-left:-12px; }
 .fc-who { min-width:0; flex:1 1 130px; display:flex; flex-direction:column; }
-.fc-names { font-size:13px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25; }
+.fc-names { display:block; max-width:100%; text-align:left; background:none; border:0; padding:0; cursor:pointer; font-family:inherit; font-size:13px; font-weight:650; color:var(--agent-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25; }
+/* Tapped open (critique #299): show the full name(s) wrapped. */
+.fc-names.expanded { white-space:normal; overflow:visible; text-overflow:clip; }
 .fc-role { font-size:10px; font-weight:700; line-height:1.2; margin-bottom:1px; }
 .fc-side.vendor .fc-role { color:#0C447C; }
 .fc-side.purchaser .fc-role { color:#085041; }
@@ -680,6 +712,8 @@ const CSS = `
    .fc-pop so the two never collide. */
 .fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
 .fc-u:hover .fcl-tip, .fc-u:focus-visible .fcl-tip { opacity:1; transform:translateY(0); }
+/* Tapped open on touch (critique #298) — wins over the mobile .fcl-tip display:none. */
+.fc-u.tip-open .fcl-tip { display:block; opacity:1; transform:translateY(0); pointer-events:auto; }
 .fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
 .fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.01em; color:var(--agent-text-muted); margin-bottom:6px; }
 .fcl-tip-h svg { color:var(--agent-text-muted); }
