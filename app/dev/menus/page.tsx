@@ -13,6 +13,7 @@
 import { useState, type CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
+import { Popover, PopoverMenuItem, PopoverDivider, Tooltip } from "@/components/ui/Popover";
 
 type Base = "solid" | "glass";
 type Border = "none" | "hairline" | "visible";
@@ -77,6 +78,23 @@ function Slider({ label, value, min, max, step = 1, suffix = "", onChange, disab
       <span className="dm-ctl-lbl">{label}<b>{value}{suffix}</b></span>
       <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} />
     </label>
+  );
+}
+
+// The real primitive, wired with demo content — reused across the edge / scroll tests.
+function DemoMenu({ placement }: { placement?: "bottom-start" | "bottom-end" }) {
+  return (
+    <Popover placement={placement} trigger={<button className="dm-trigbtn">Open menu ▾</button>}>
+      {(close) => (
+        <>
+          <PopoverMenuItem icon={<Svg d={ic.note} />} onClick={close}>Add an update</PopoverMenuItem>
+          <PopoverMenuItem icon={<Svg d={ic.clock} />} onClick={close}>Reschedule</PopoverMenuItem>
+          <PopoverMenuItem icon={<Svg d={ic.check} />} onClick={close}>Mark done</PopoverMenuItem>
+          <PopoverDivider />
+          <PopoverMenuItem icon={<Svg d={ic.trash} />} tone="danger" onClick={close}>Remove</PopoverMenuItem>
+        </>
+      )}
+    </Popover>
   );
 }
 
@@ -167,6 +185,47 @@ border-radius: ${c.radius}px;   hover: ${c.hover}`;
           </div>
         </div>
 
+        <section style={{ marginTop: 54 }}>
+          <h2 className="dm-h2">The actual primitive — test the behaviour</h2>
+          <p className="dm-sub" style={{ marginBottom: 20 }}>This is the real shared component built to your locked recipe. Open these near the edges and inside the scroll box — it should flip above/below, shift to stay on screen, and never get clipped. Toggle dark too. (This is what every menu/tooltip/popover gets migrated onto.)</p>
+          <div className="dm-tests">
+            <div><div className="dm-spec-lbl">Menu (click)</div><DemoMenu /></div>
+            <div><div className="dm-spec-lbl">Tooltip (hover)</div>
+              <Tooltip content={<><div className="dm-tip-h"><Svg d={ic.mail} size={12} /> Email</div><div className="dm-tip-s">Auto · Logged</div><div className="dm-tip-w">16 Oct 2026, 20:05</div></>}>
+                <button className="dm-trigbtn">Hover me</button>
+              </Tooltip>
+            </div>
+            <div><div className="dm-spec-lbl">Rich popover (click)</div>
+              <Popover preset="popover" width={244} trigger={<button className="dm-trigbtn">Reschedule ▾</button>}>
+                {(close) => (
+                  <>
+                    <div className="dm-lab">New date</div>
+                    <input className="dm-in" type="date" defaultValue="2026-10-30" />
+                    <div className="dm-lab" style={{ marginTop: 10 }}>Update</div>
+                    <input className="dm-in" placeholder="What's happened?" />
+                    <div className="dm-prow"><button className="dm-btn" onClick={close}>Cancel</button><button className="dm-btn primary" onClick={close}>Save</button></div>
+                  </>
+                )}
+              </Popover>
+            </div>
+          </div>
+
+          <div className="dm-edge">
+            <div className="dm-spec-lbl">Hard against the right edge — should shift left to stay on screen</div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}><DemoMenu placement="bottom-end" /></div>
+          </div>
+
+          <div style={{ marginTop: 22 }}>
+            <div className="dm-spec-lbl">Inside a clipping / scrolling card — should NOT be cut off (it portals out)</div>
+            <div className="dm-clip">
+              <p className="dm-fill">This card has <code>overflow:auto</code> and a transform — the kind of container that traps an inline menu. Scroll me.</p>
+              <div style={{ margin: "14px 0" }}><DemoMenu /></div>
+              <p className="dm-fill">More content below so the box scrolls. The menu should still appear on top, positioned to the trigger, and reposition as you scroll.</p>
+              <p className="dm-fill">Filler. Filler. Filler. Filler. Filler. Filler. Filler. Filler. Filler.</p>
+            </div>
+          </div>
+        </section>
+
         <p className="dm-foot">Curate here as long as you like — nothing's committed to the look until you say. When one feels right, tell me (the recipe box has the exact values) and I'll build it into the single shared primitive, then wire the positioning and migrate every menu onto it.</p>
       </div>
     </>
@@ -238,4 +297,13 @@ const CSS = `
 .dm-btn.primary { background:var(--agent-coral); border-color:transparent; color:#fff; }
 
 .dm-foot { margin-top:30px; padding-top:18px; border-top:2px solid var(--agent-coral); font-size:13px; color:var(--agent-text-muted); line-height:1.55; max-width:76ch; }
+
+.dm-h2 { font-size:19px; font-weight:730; letter-spacing:-0.01em; margin:0 0 8px; color:var(--agent-text-primary); }
+.dm-tests { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; }
+.dm-trigbtn { font-family:inherit; font-size:13px; font-weight:600; padding:8px 15px; border-radius:10px; cursor:pointer; border:0.5px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-primary); }
+.dm-trigbtn:hover { border-color:var(--agent-coral); }
+.dm-edge { margin-top:26px; }
+.dm-clip { height:200px; overflow:auto; transform:translateZ(0); border:1px solid var(--agent-border-default); border-radius:12px; padding:16px; background:var(--agent-surface-elevated); }
+.dm-fill { font-size:13px; color:var(--agent-text-muted); line-height:1.6; margin:0 0 12px; }
+.dm-fill code { font-family:ui-monospace, monospace; font-size:12px; background:var(--agent-surface-subtle, rgba(0,0,0,0.05)); padding:1px 5px; border-radius:5px; }
 `;

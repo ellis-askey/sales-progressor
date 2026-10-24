@@ -106,6 +106,12 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Used by:** activity feed, recent updates.
 - **Status:** canonical.
 
+### 1.10 `Popover` ✓ canonical (new 2026-10-24)
+
+- **Purpose:** THE floating primitive — dropdown menus, tooltips, rich popovers. One locked surface (glass 30% + blur30 + saturate200 + 1px border + soft shadow + radius 10, Lift hover, light+dark) and one behaviour (portalled to `<body>`, z-index above the shell, flips above/below + shifts to stay on screen with an edge gutter, closes on outside-click/escape/scroll). Positioning via [lib/agent/use-anchored-position.ts](../../lib/agent/use-anchored-position.ts).
+- **Exports:** `Popover` (click-trigger; `preset="menu"|"popover"`), `PopoverMenuItem`, `PopoverDivider`, `Tooltip` (hover). Lives at [components/ui/Popover.tsx](../../components/ui/Popover.tsx); `.ui-pop*` CSS in agent-system.css.
+- **Status:** canonical. Replaces the scattered `agent-dropdown-in` menus, `RowActionsMenu`, focus `fcl-tip`, `lum-menu`, `files-view-menu` (migration in progress — see project_menus_consolidation). Preview/test at `/dev/menus`.
+
 ---
 
 ## 2. To extract — canonical primitives needed

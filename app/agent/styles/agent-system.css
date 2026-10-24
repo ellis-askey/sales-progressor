@@ -5254,6 +5254,26 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .files-view-mi:hover { background: var(--agent-coral-bg-tint, rgba(255,138,101,.08)); color: var(--agent-text-primary); }
 .files-view-mi.on { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb), 0.08); }
+
+/* ── Popover primitive (components/ui/Popover.tsx) ───────────────────────────
+   The canonical floating surface for menus / tooltips / popovers. The glass
+   background + blur + border + shadow + radius are applied inline from the
+   locked recipe; these rules carry the padding presets, the menu rows and the
+   Lift hover. `--ui-ink` is the neutral (non-coral) highlight, flipped for dark.
+   See project_menus_consolidation. */
+.ui-pop-anchor { display: inline-flex; }
+.ui-pop { --ui-ink: 45,24,16; box-sizing: border-box; color: var(--agent-text-primary); font-family: inherit; }
+.ui-pop[data-night] { --ui-ink: 235,235,240; }
+.ui-pop-menu { padding: 6px; min-width: 184px; }
+.ui-pop-popover { padding: 13px; }
+.ui-pop-tooltip { padding: 11px 13px; max-width: 244px; }
+.ui-pop-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; border: none; background: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 550; text-align: left; color: var(--agent-text-secondary); transition: background .12s, color .12s, transform .12s, box-shadow .12s; }
+.ui-pop-item .ui-pop-item-ic { display: inline-flex; color: var(--agent-text-muted); flex-shrink: 0; }
+.ui-pop-item:hover { background: rgba(var(--ui-ink), 0.06); color: var(--agent-text-primary); transform: translateY(-1px); box-shadow: 0 5px 14px -4px rgba(0,0,0,0.3); }
+.ui-pop-item:hover .ui-pop-item-ic { color: var(--agent-text-secondary); }
+.ui-pop-item.danger { color: var(--agent-danger); }
+.ui-pop-div { height: 1px; background: var(--agent-border-subtle); margin: 5px 8px; }
+@media (prefers-reduced-motion: reduce) { .ui-pop-item:hover { transform: none; } }
 /* View pills match the Filter button exactly — same height, icon and text size,
    gap and radius — so the whole bar sits on one line. */
 .files-views .agent-segment-pill-sm {
