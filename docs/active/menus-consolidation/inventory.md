@@ -40,9 +40,10 @@ NB: the "two near-duplicates" turned out to be on DIFFERENT surfaces, so they do
 
 ## Priority 4 — Pickers (search + list)
 These are TYPEAHEADS (visibility driven by typing/focus), not click-menus — the click Popover doesn't model them. Built a controlled **`AnchoredPanel`** (shares the portal/positioning/locked glass, consumer drives `open`, `matchWidth` sizes to the input) + a live demo on `/dev/menus` (commit `23cd3162`). AWAITING Ellis's /dev review: option A (migrate the 3 pickers onto AnchoredPanel) vs B (grandfather). No real picker touched yet.
-- [ ] 🗂 **components/brokers/BrokerPicker.tsx** — awaiting A/B decision
-- [ ] 🗂 **components/solicitors/SolicitorPicker.tsx** — awaiting A/B decision
-- [ ] 🗂 **components/contacts/ContactsSection.tsx** — awaiting A/B decision
+Ellis chose **A** (2026-10-24). Canonical `.ui-pop-pick*` row styles added (`8d0b99c1`).
+- [x] 🗂 **components/brokers/BrokerPicker.tsx** — `ac888de6`
+- [x] 🗂 **components/solicitors/SolicitorPicker.tsx** — firm typeahead + handler select — `f165d7dd`
+- [x] 📋 **components/contacts/ContactsSection.tsx** — was actually a row kebab (not a typeahead), migrated to Popover — `58ecd8cd`
 
 ## Priority 5 — Tone dropdowns in the chase drawers (same pattern ×3)
 - [ ] 📋 **components/chase/ChaseDrawer.tsx**
