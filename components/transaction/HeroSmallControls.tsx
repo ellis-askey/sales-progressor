@@ -6,13 +6,14 @@
 // them:
 //   • Tablet  → an icon-only cluster top-right (Settings + photo action).
 //   • Mobile  → a single overflow (kebab) button that opens a small menu with
-//               the real controls (full labels).
+//               the real controls (full labels), on the canonical Popover.
 // The Settings control is the same instance passed down from the hero (its
 // drawer lives inside it), so nothing is duplicated.
 
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { DotsThreeVertical, Trash, Camera, Note } from "@phosphor-icons/react/dist/ssr";
 import { StickyAddButton, spawnStickyNote } from "@/components/sticky/StickyAddButton";
+import { Popover } from "@/components/ui/Popover";
 
 export function HeroSmallControls({
   settingsSlot,
@@ -33,23 +34,6 @@ export function HeroSmallControls({
   onAdd: () => void;
   mobile: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   // Adding a photo on mobile is handled by the mobile photo strip's own pill, so
   // the kebab only offers Remove there; the tablet cluster offers Add too.
   const photoIsAdd = showMap && !hasPhoto;
@@ -57,12 +41,12 @@ export function HeroSmallControls({
 
   if (!settingsSlot && !showPhoto) return null;
 
-  const photoButton = showPhoto ? (
+  const photoButton = (onDone?: () => void) => showPhoto ? (
     <button
       type="button"
       className="hero-ctl-photo"
       disabled={busy}
-      onClick={() => { (photoIsAdd ? onAdd : onRemove)(); setOpen(false); }}
+      onClick={() => { (photoIsAdd ? onAdd : onRemove)(); onDone?.(); }}
     >
       {photoIsAdd ? <Camera size={14} weight="regular" /> : <Trash size={14} weight="regular" />}
       <span className="hero-ctl-photo-label">{photoIsAdd ? (busy ? "Uploading…" : "Add photo") : "Remove photo"}</span>
@@ -71,33 +55,41 @@ export function HeroSmallControls({
 
   if (mobile) {
     return (
-      <div className="hero-ctl-sm" ref={ref}>
-        <button
-          type="button"
-          className="hero-ctl-kebab"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-label="File actions"
-          onClick={() => setOpen((v) => !v)}
+      <div className="hero-ctl-sm">
+        <Popover
+          preset="menu"
+          placement="bottom-end"
+          trigger={
+            <button
+              type="button"
+              className="hero-ctl-kebab"
+              aria-haspopup="menu"
+              aria-label="File actions"
+            >
+              <DotsThreeVertical size={18} weight="bold" />
+            </button>
+          }
         >
-          <DotsThreeVertical size={18} weight="bold" />
-        </button>
-        {open && (
-          <div className="hero-ctl-menu" role="menu">
-            {settingsSlot}
-            {transactionId && (
-              <button
-                type="button"
-                className="hero-ctl-photo"
-                onClick={() => { spawnStickyNote(transactionId); setOpen(false); }}
-              >
-                <Note size={14} weight="regular" />
-                <span className="hero-ctl-photo-label">Add a sticky note</span>
-              </button>
-            )}
-            {photoButton}
-          </div>
-        )}
+          {(close) => (
+            // Keep the .hero-ctl-menu class so its descendant item rules
+            // (full-width transparent rows + lift hover) still apply, but
+            // neutralise its surface/position — the Popover owns those now.
+            <div className="hero-ctl-menu" style={{ position: "static", background: "none", border: "none", boxShadow: "none", padding: 0, minWidth: 0 }}>
+              {settingsSlot}
+              {transactionId && (
+                <button
+                  type="button"
+                  className="hero-ctl-photo"
+                  onClick={() => { spawnStickyNote(transactionId); close(); }}
+                >
+                  <Note size={14} weight="regular" />
+                  <span className="hero-ctl-photo-label">Add a sticky note</span>
+                </button>
+              )}
+              {photoButton(close)}
+            </div>
+          )}
+        </Popover>
       </div>
     );
   }
@@ -107,7 +99,7 @@ export function HeroSmallControls({
     <div className="hero-ctl-sm hero-ctl-icononly">
       {transactionId && <StickyAddButton transactionId={transactionId} />}
       {settingsSlot}
-      {photoButton}
+      {photoButton()}
     </div>
   );
 }
