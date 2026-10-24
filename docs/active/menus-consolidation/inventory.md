@@ -39,9 +39,10 @@ NB: the "two near-duplicates" turned out to be on DIFFERENT surfaces, so they do
 - [x] 📋 **components/transaction/OnwardPurchaseCard.tsx** — local Dropdown (setup chevron + kebab) — `1cda8a91` (MenuItem now token-based, adapts to night)
 
 ## Priority 4 — Pickers (search + list)
-- [ ] 🗂 **components/brokers/BrokerPicker.tsx**
-- [ ] 🗂 **components/solicitors/SolicitorPicker.tsx**
-- [ ] 🗂 **components/contacts/ContactsSection.tsx**
+These are TYPEAHEADS (visibility driven by typing/focus), not click-menus — the click Popover doesn't model them. Built a controlled **`AnchoredPanel`** (shares the portal/positioning/locked glass, consumer drives `open`, `matchWidth` sizes to the input) + a live demo on `/dev/menus` (commit `23cd3162`). AWAITING Ellis's /dev review: option A (migrate the 3 pickers onto AnchoredPanel) vs B (grandfather). No real picker touched yet.
+- [ ] 🗂 **components/brokers/BrokerPicker.tsx** — awaiting A/B decision
+- [ ] 🗂 **components/solicitors/SolicitorPicker.tsx** — awaiting A/B decision
+- [ ] 🗂 **components/contacts/ContactsSection.tsx** — awaiting A/B decision
 
 ## Priority 5 — Tone dropdowns in the chase drawers (same pattern ×3)
 - [ ] 📋 **components/chase/ChaseDrawer.tsx**
