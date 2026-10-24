@@ -31,11 +31,12 @@ These render inside a card's overflow/transform, so they clip and hug the mobile
 - [x] 📋 **components/layout/AgentBell.tsx** — notifications dropdown — `5867ce66` (bare; trades its bespoke close-fade for the uniform open anim)
 - [x] ⏭ **components/account/chrome/AccountSidebarUser.tsx** / **SectionMasterControl.tsx** — GRANDFATHERED (surface mismatch). The Account register is a deliberately neutral-light surface (hardcoded `#111827`/`#6b7280`/`#fff`), not the warm agent glass tokens. The locked Popover recipe pulls the agent `[data-theme]` tokens (warm sunset etc.), so dropping it here would visibly re-tint these menus and mix surface systems (Law 9). **Open question for Ellis:** unify the Account register too via a neutral Popover variant, or leave it on its own surface? Deferred pending that call.
 
-## Priority 3 — Row / context menus (two near-duplicate components to unify)
-- [ ] 📋 **components/account/chrome/RowActionsMenu.tsx** (+ consumers: TeamListViewPlain, CheckInsList, ClientPeople, FeeEngine)
-- [ ] 📋 **components/hub/RowActionMenu.tsx** — second, near-duplicate row menu → fold into the one primitive
-- [ ] 📋 **components/transaction/HeroSmallControls.tsx**
-- [ ] 📋 **components/transaction/OnwardPurchaseCard.tsx**
+## Priority 3 — Row / context menus
+NB: the "two near-duplicates" turned out to be on DIFFERENT surfaces, so they don't fold into one.
+- [x] ⏭ **components/account/chrome/RowActionsMenu.tsx** (consumers: TeamListViewPlain, CheckInsList, ClientPeople, FeeEngine) — GRANDFATHERED, same neutral-light Account-register surface as the account sidebar (see P2 note). Folds in when/if we do the neutral Popover variant.
+- [x] 📋 **components/hub/RowActionMenu.tsx** — `40d8eb3b` (warm agent surface; real flip replaces its estimated-height guess)
+- [x] 📋 **components/transaction/HeroSmallControls.tsx** — mobile kebab — `4681d290`
+- [x] 📋 **components/transaction/OnwardPurchaseCard.tsx** — local Dropdown (setup chevron + kebab) — `1cda8a91` (MenuItem now token-based, adapts to night)
 
 ## Priority 4 — Pickers (search + list)
 - [ ] 🗂 **components/brokers/BrokerPicker.tsx**
