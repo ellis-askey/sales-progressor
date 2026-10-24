@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { AutoAnimationPlugin } from "@formkit/auto-animate";
 import {
@@ -555,15 +556,6 @@ function RowActions({
     onMenuOpenChange(false);
   }
 
-  useEffect(() => {
-    if (!menuOpen && !bdOpen) return;
-    const h = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) { changeMenu(false); setBdOpen(false); }
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuOpen, bdOpen]);
 
   // Concrete movements. Backdatable ones take an optional ISO date.
   const doRepliesSent = (occurredAt?: string) => move({ mode: "handover", flipsCourtTo: other, kind: "replies_sent", note: "Replies sent", occurredAt }, `Replies sent, moved to the ${courtShort(other)}`);
@@ -642,8 +634,8 @@ function RowActions({
       {/* Tablet/mobile: single Update menu trigger */}
       <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => changeMenu(!menuOpen)}>Update <CaretDown size={13} weight="bold" /></button>
 
-      {menuOpen && (
-        <div className="enq-menu" role="menu">
+      <AnchoredPanel anchorRef={wrapRef} open={menuOpen} onClose={() => changeMenu(false)} placement="bottom-end" width={240} bare>
+        <div className="enq-menu" role="menu" style={{ position: "static", background: "none", border: "none", boxShadow: "none" }}>
           <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onMarkChased)}>
             <span className="enq-mi-ico"><ArrowClockwise size={16} /></span>
             <span className="enq-mi-txt">I&apos;ve chased<small>Quiet for 2 working days, then resurfaces</small></span>
@@ -684,10 +676,10 @@ function RowActions({
             <span className="enq-mi-txt">Happened earlier…<small>Backdate so the timer&apos;s right</small></span>
           </button>
         </div>
-      )}
+      </AnchoredPanel>
 
-      {bdOpen && (
-        <div className="enq-menu enq-bd-menu" role="menu">
+      <AnchoredPanel anchorRef={wrapRef} open={bdOpen} onClose={closeBackdate} placement="bottom-end" width={240} bare>
+        <div className="enq-menu enq-bd-menu" role="menu" style={{ position: "static", background: "none", border: "none", boxShadow: "none" }}>
           <div className="enq-bd-when">When did this happen?</div>
           {/* Tap-to-open: the native input covers the field and is directly
               tappable, so a tap opens the OS picker on iOS (the old hidden-input +
@@ -721,7 +713,7 @@ function RowActions({
             </button>
           ))}
         </div>
-      )}
+      </AnchoredPanel>
 
       <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={onToggleExpand}>
         <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
