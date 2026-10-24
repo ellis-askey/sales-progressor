@@ -11,8 +11,7 @@
 // edit or remove. Both menus portal to the body so they never clip or fall
 // behind the accordion/card.
 
-import { useState, useTransition, useMemo, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition, useMemo, useRef } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
@@ -22,7 +21,7 @@ import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction 
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AnchoredPanel } from "@/components/ui/Popover";
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -481,9 +480,9 @@ function AddressLink({ href, address }: { href: string; address: string }) {
   );
 }
 
-// Portal menu: fixed-positioned under its anchor, above everything, closing on
-// outside-click / scroll / resize. Guarantees it never clips or falls behind
-// the accordion or card it lives in.
+// Portal menu: now a thin wrapper over the canonical AnchoredPanel (portal +
+// flip/shift + edge gutter + locked glass). Keeps the .rv-menu class for its
+// padding only (surface neutralised — the panel owns the glass).
 function PortalMenu({
   anchorRef, open, onClose, children, width = 236,
 }: {
@@ -493,45 +492,12 @@ function PortalMenu({
   children: React.ReactNode;
   width?: number;
 }) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  // Portalled to document.body — outside .agent-shell-root — so the --agent-*
-  // tokens don't resolve and the panel renders see-through (critique
-  // 2026-10-01). Stamp the shell's theme on the panel so they resolve (the
-  // canonical portal-theme fix — see docs/reference/AGENT_APP_INTERNALS.md §2).
-  const { theme, isNight } = usePortalTheme();
-
-  useEffect(() => {
-    if (!open) { setPos(null); return; }
-    const a = anchorRef.current;
-    if (!a) return;
-    const r = a.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8));
-    setPos({ top: r.bottom + 6, left });
-
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (menuRef.current?.contains(t)) return;
-      if (anchorRef.current?.contains(t)) return; // let the trigger handle its own toggle
-      onClose();
-    };
-    const close = () => onClose();
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open, anchorRef, onClose, width]);
-
-  if (!open || !pos) return null;
-  return createPortal(
-    <div ref={menuRef} data-theme={theme} data-night={isNight ? "" : undefined} className="rv-menu" role="menu" style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: width, zIndex: 1300 }}>
-      {children}
-    </div>,
-    document.body,
+  return (
+    <AnchoredPanel anchorRef={anchorRef} open={open} onClose={onClose} placement="bottom-end" width={width} bare>
+      <div className="rv-menu" role="menu" style={{ background: "none", border: "none", boxShadow: "none" }}>
+        {children}
+      </div>
+    </AnchoredPanel>
   );
 }
 
