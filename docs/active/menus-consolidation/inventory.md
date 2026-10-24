@@ -62,13 +62,20 @@ Added tap-to-pin + a `block` option to the canonical `Tooltip` (hover on desktop
 - [x] ⏭ **components/command/shared/InfoTip.tsx** — GRANDFATHERED. Command Centre neutral surface (Law 9), same as the account register — folds in with a neutral-surface pass.
 
 ## Priority 7 — Remaining menus
-- [ ] 📋 **components/transaction/CheckpointsPanel.tsx**
-- [ ] 📋 **components/agent/ReviewsSection.tsx**
-- [ ] 📋 **components/comms/CommsActivityFeed.tsx**
-- [ ] 📋 **components/enquiries/EnquiriesTriageList.tsx**
-- [ ] 📋 **components/automated-emails/EmailDetailDrawer.tsx**
-- [ ] 📋 **components/progression/ClientPeople.tsx** / **FeeEngine.tsx**
-- [ ] 📋 **components/account/v2/TeamListViewPlain.tsx**
+- [x] 📋 **components/transaction/CheckpointsPanel.tsx** — per-row Nudge/Remove menu → Popover — `dae793d6`
+- [x] 📋 **components/agent/ReviewsSection.tsx** — local PortalMenu folded onto AnchoredPanel — `d3070217`
+- [x] 📋 **components/comms/CommsActivityFeed.tsx** — filter dropdowns → AnchoredPanel — `ebde7d8d`
+- [x] 📋 **components/enquiries/EnquiriesTriageList.tsx** — row + backdate menus → AnchoredPanel — `cadb535a`
+- [x] 📋 **components/automated-emails/EmailDetailDrawer.tsx** — overflow menu → Popover (+ disabled item support) — `1296e233`
+- [x] ⏭ **components/progression/ClientPeople.tsx** / **FeeEngine.tsx** / **components/account/v2/TeamListViewPlain.tsx** — all consume the grandfathered `RowActionsMenu` (neutral surface, used across account + progression). Covered by that decision; fold in with a neutral-surface pass.
+
+---
+
+## Capstone — shared exit animation (`09b17283`)
+`useExitAnimation` in the primitive keeps the float mounted ~120ms after close so `.agent-dropdown-out` plays, then a timer unmounts it (reduced-motion safe). One place; every Popover/AnchoredPanel/Tooltip consumer gets a uniform close animation, restoring the per-consumer ones dropped during migration.
+
+## Primitive affordances added during Phase 3
+`bare` (full-bleed panels) · `AnchoredPanel` (controlled typeahead/select, `matchWidth`) · `.ui-pop-pick*` row styles · `Tooltip` tap-to-pin (touch) + `block` · `PopoverMenuItem` `disabled` · shared exit animation.
 
 ---
 
