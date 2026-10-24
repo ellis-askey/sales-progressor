@@ -18,6 +18,26 @@ import { useAnchoredPosition, type Placement } from "@/lib/agent/use-anchored-po
 
 type Preset = "menu" | "popover" | "tooltip";
 
+// Keeps a floating layer mounted briefly after it closes so its exit animation
+// (.agent-dropdown-out) can play, then unmounts. A timer (not animationend) does
+// the unmount so reduced-motion — which kills the animation — can't strand it.
+// This is the one place every Popover / AnchoredPanel / Tooltip gets a uniform
+// close animation (the per-consumer ones were dropped during migration).
+function useExitAnimation(open: boolean, duration = 120): { render: boolean; closing: boolean } {
+  const [render, setRender] = useState(open);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    if (open) { setRender(true); setClosing(false); }
+  }, [open]);
+  useEffect(() => {
+    if (open || !render) return;
+    setClosing(true);
+    const t = setTimeout(() => { setRender(false); setClosing(false); }, duration);
+    return () => clearTimeout(t);
+  }, [open, render, duration]);
+  return { render, closing };
+}
+
 // The locked surface recipe. Glass alpha is computed from the active dark mode
 // (portals can't inherit the shell's tokens), everything else rides --agent-*.
 function surfaceStyle(isNight: boolean): CSSProperties {
@@ -31,8 +51,8 @@ function surfaceStyle(isNight: boolean): CSSProperties {
   };
 }
 
-function FloatLayer({ isNight, theme, preset, bare, floatRef, pos, width, role, children }: {
-  isNight: boolean; theme: string; preset: Preset; bare?: boolean; floatRef: Ref<HTMLDivElement>;
+function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, width, role, children }: {
+  isNight: boolean; theme: string; preset: Preset; bare?: boolean; closing?: boolean; floatRef: Ref<HTMLDivElement>;
   pos: { top: number; left: number } | null; width?: number; role?: string; children: ReactNode;
 }) {
   return createPortal(
@@ -41,7 +61,7 @@ function FloatLayer({ isNight, theme, preset, bare, floatRef, pos, width, role, 
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       role={role}
-      className={`ui-pop ui-pop-${preset} agent-dropdown-in${isNight ? " nv2-night" : ""}`}
+      className={`ui-pop ui-pop-${preset} ${closing ? "agent-dropdown-out" : "agent-dropdown-in"}${isNight ? " nv2-night" : ""}`}
       style={{
         position: "fixed",
         top: pos?.top ?? 0,
@@ -49,6 +69,8 @@ function FloatLayer({ isNight, theme, preset, bare, floatRef, pos, width, role, 
         width,
         visibility: pos ? "visible" : "hidden",
         zIndex: 1400,
+        // While exiting, don't let the fading layer swallow clicks.
+        pointerEvents: closing ? "none" : undefined,
         ...surfaceStyle(isNight),
         // Full-bleed panels (changelog, notifications, pickers) manage their own
         // internal padding and need the surface to clip their edge-to-edge rows.
@@ -71,9 +93,10 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
 }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
+  const { render, closing } = useExitAnimation(open);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
-  const pos = useAnchoredPosition(anchorRef, floatRef, open, { placement });
+  const pos = useAnchoredPosition(anchorRef, floatRef, render, { placement });
   const close = () => setOpen(false);
 
   useEffect(() => {
@@ -92,8 +115,8 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
   return (
     <>
       <span ref={anchorRef} className="ui-pop-anchor" onClick={() => setOpen((o) => !o)}>{trigger}</span>
-      {open && typeof document !== "undefined" && (
-        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
+      {render && typeof document !== "undefined" && (
+        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
           {typeof children === "function" ? children(close) : children}
         </FloatLayer>
       )}
@@ -142,6 +165,7 @@ export function AnchoredPanel({
   children: ReactNode;
 }) {
   const { theme, isNight } = usePortalTheme();
+  const { render, closing } = useExitAnimation(open);
   const floatRef = useRef<HTMLDivElement>(null);
   const [anchorWidth, setAnchorWidth] = useState<number | undefined>(undefined);
 
@@ -156,7 +180,7 @@ export function AnchoredPanel({
     return () => window.removeEventListener("resize", measure);
   }, [open, matchWidth, anchorRef]);
 
-  const pos = useAnchoredPosition(anchorRef, floatRef, open, { placement });
+  const pos = useAnchoredPosition(anchorRef, floatRef, render, { placement });
 
   useEffect(() => {
     if (!open) return;
@@ -171,13 +195,14 @@ export function AnchoredPanel({
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open, anchorRef, onClose]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!render || typeof document === "undefined") return null;
   return (
     <FloatLayer
       isNight={isNight}
       theme={theme}
       preset={preset}
       bare={bare}
+      closing={closing}
       floatRef={floatRef}
       pos={pos}
       width={matchWidth ? anchorWidth : width}
@@ -196,9 +221,10 @@ export function Tooltip({ children, content, placement = "top-start", block }: {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const { render, closing } = useExitAnimation(open);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
-  const pos = useAnchoredPosition(anchorRef, floatRef, open, { placement });
+  const pos = useAnchoredPosition(anchorRef, floatRef, render, { placement });
 
   useEffect(() => {
     if (!pinned) return;
@@ -229,8 +255,8 @@ export function Tooltip({ children, content, placement = "top-start", block }: {
       >
         {children}
       </span>
-      {open && typeof document !== "undefined" && (
-        <FloatLayer isNight={isNight} theme={theme} preset="tooltip" floatRef={floatRef} pos={pos} role="tooltip">
+      {render && typeof document !== "undefined" && (
+        <FloatLayer isNight={isNight} theme={theme} preset="tooltip" closing={closing} floatRef={floatRef} pos={pos} role="tooltip">
           {content}
         </FloatLayer>
       )}
