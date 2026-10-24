@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { CaretDown, Tag, ChatCircle, Paperclip, Bell, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
@@ -342,14 +343,17 @@ function RailSection({ heading, options, selected, onToggle, open, onToggleOpen 
 }
 
 function FilterDropdown({ heading, options, selected, onToggle, open, onOpenChange }: { heading: string; options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void; open: boolean; onOpenChange: (next: boolean) => void }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="cf-dd">
-      <button type="button" className="cf-dd-btn" data-open={open} aria-haspopup="menu" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+      <button ref={btnRef} type="button" className="cf-dd-btn" data-open={open} aria-haspopup="menu" aria-expanded={open} onClick={() => onOpenChange(!open)}>
         {heading}{selected.size > 0 && <span className="cf-badge">{selected.size}</span>}<span className="cf-caret">▼</span>
       </button>
-      <div className="cf-menu" data-open={open} role="menu">
-        <CheckRows options={options} selected={selected} onToggle={onToggle} />
-      </div>
+      <AnchoredPanel anchorRef={btnRef} open={open} onClose={() => onOpenChange(false)} placement="bottom-start" width={200} bare>
+        <div style={{ padding: 7 }} role="menu">
+          <CheckRows options={options} selected={selected} onToggle={onToggle} />
+        </div>
+      </AnchoredPanel>
     </div>
   );
 }
@@ -416,12 +420,6 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [types, whos, sides, stages]);
-  useEffect(() => {
-    if (!openDd) return;
-    const h = (e: MouseEvent) => { if (dropsRef.current && !dropsRef.current.contains(e.target as Node)) setOpenDd(null); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [openDd]);
 
   // One shape drives both the rail and the dropdowns. Sets/keys are cast to
   // strings — the components only ever pass back keys from `options`.
