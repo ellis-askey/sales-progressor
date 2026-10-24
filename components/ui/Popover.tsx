@@ -31,8 +31,8 @@ function surfaceStyle(isNight: boolean): CSSProperties {
   };
 }
 
-function FloatLayer({ isNight, theme, preset, floatRef, pos, width, role, children }: {
-  isNight: boolean; theme: string; preset: Preset; floatRef: Ref<HTMLDivElement>;
+function FloatLayer({ isNight, theme, preset, bare, floatRef, pos, width, role, children }: {
+  isNight: boolean; theme: string; preset: Preset; bare?: boolean; floatRef: Ref<HTMLDivElement>;
   pos: { top: number; left: number } | null; width?: number; role?: string; children: ReactNode;
 }) {
   return createPortal(
@@ -50,6 +50,9 @@ function FloatLayer({ isNight, theme, preset, floatRef, pos, width, role, childr
         visibility: pos ? "visible" : "hidden",
         zIndex: 1400,
         ...surfaceStyle(isNight),
+        // Full-bleed panels (changelog, notifications, pickers) manage their own
+        // internal padding and need the surface to clip their edge-to-edge rows.
+        ...(bare ? { padding: 0, overflow: "hidden" } : null),
       }}
     >
       {children}
@@ -58,11 +61,12 @@ function FloatLayer({ isNight, theme, preset, floatRef, pos, width, role, childr
   );
 }
 
-export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", width }: {
+export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width }: {
   trigger: ReactNode;
   children: ReactNode | ((close: () => void) => ReactNode);
   placement?: Placement;
   preset?: "menu" | "popover";
+  bare?: boolean;
   width?: number;
 }) {
   const { theme, isNight } = usePortalTheme();
@@ -89,7 +93,7 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
     <>
       <span ref={anchorRef} className="ui-pop-anchor" onClick={() => setOpen((o) => !o)}>{trigger}</span>
       {open && typeof document !== "undefined" && (
-        <FloatLayer isNight={isNight} theme={theme} preset={preset} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
+        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
           {typeof children === "function" ? children(close) : children}
         </FloatLayer>
       )}
