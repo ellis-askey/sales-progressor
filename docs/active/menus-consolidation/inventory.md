@@ -9,12 +9,12 @@ Phase 2 of the menus/tooltips/popovers consolidation. Target: migrate every floa
 ## Priority 1 — Clip offenders (inline menus that get cut off)
 These render inside a card's overflow/transform, so they clip and hug the mobile edge — the exact bug behind the report.
 
-- [ ] 🔴🧰 **components/agent/AgentTodoList.tsx** — the `/agent/to-do` reschedule+update popover (the one in the screenshots) and its row menu
-- [ ] 🔴🧰 **components/todos/ManualTaskCard.tsx** — file To-Do tab reschedule popover
-- [ ] 🔴📋 **components/activity/ActivityTimeline.tsx** — row menu
-- [ ] 🔴📋 **components/activity/CommsEntry.tsx** — log/channel menu
-- [ ] 🔴📋 **components/chain/ChainsWorkspace.tsx** — workspace menu
-- [ ] 🔴📋 **components/layout/ChangelogDropdown.tsx** — changelog dropdown
+- [x] 🔴🧰 **components/agent/AgentTodoList.tsx** — the `/agent/to-do` reschedule+update popover (the one in the screenshots) and its row menu — `81a178be`
+- [x] 🔴🧰 **components/todos/ManualTaskCard.tsx** — file To-Do tab reschedule popover — `7992ac44`
+- [x] 🔴📋 **components/activity/ActivityTimeline.tsx** — row menu (More → view original/cleaned) — `3c70a112`. Scope filter menu deferred to P2 (radio-select family).
+- [x] 🔴📋 **components/activity/CommsEntry.tsx** — log/channel More menu — `ccd62c43`
+- [x] 🔴📋 **components/chain/ChainsWorkspace.tsx** — Filters menu — `0ce43c27`
+- [x] 🔴📋 **components/layout/ChangelogDropdown.tsx** — changelog dropdown (added Popover `bare` for full-bleed panels, `9fc101d7`) — `486c93b2`
 
 ## Priority 2 — High-traffic dropdown menus
 - [ ] 📋 **components/reminders/SnoozeMenu.tsx**
