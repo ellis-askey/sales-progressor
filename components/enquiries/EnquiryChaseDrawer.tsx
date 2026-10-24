@@ -16,12 +16,11 @@
 // Built on the canonical Drawer primitive.
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { PaperPlaneTilt, IdentificationCard, ArrowSquareOut, CircleNotch, Sparkle, ArrowsClockwise, CaretDown, CaretUp } from "@phosphor-icons/react";
 import Link from "next/link";
 import { Drawer } from "@/components/ui/Drawer";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChaseComposer, type ChaseAttachment } from "@/components/chase/ChaseComposer";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
@@ -122,7 +121,6 @@ export function EnquiryChaseDrawer({
   onSent?: () => void;
 }) {
   const { toast } = useAgentToast();
-  const { theme, isNight } = usePortalTheme();
 
   const clientNames = ccCandidates.map((c) => c.name);
   const firstLine = address.split(",")[0].trim() || address;
@@ -142,9 +140,7 @@ export function EnquiryChaseDrawer({
   // outside-click check must exclude BOTH the trigger and the menu, or a click on an
   // option closes the menu before it registers (the "locked tone" bug).
   const [toneOpen, setToneOpen] = useState(false);
-  const [tonePos, setTonePos] = useState<{ top: number; left: number; width: number } | null>(null);
   const toneRef = useRef<HTMLDivElement>(null);
-  const toneMenuRef = useRef<HTMLDivElement>(null);
 
   // Reset fields each time the drawer opens for a (new) loop. No fetch — instant.
   useEffect(() => {
@@ -159,18 +155,6 @@ export function EnquiryChaseDrawer({
     setToneOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transactionId]);
-
-  useEffect(() => {
-    if (!toneOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (toneRef.current?.contains(t)) return;
-      if (toneMenuRef.current?.contains(t)) return;
-      setToneOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [toneOpen]);
 
   const msgEmpty = isHtmlEmpty(message);
   const hasAttachments = attachments.length > 0;
@@ -315,40 +299,25 @@ export function EnquiryChaseDrawer({
             <div style={{ position: "relative" }} ref={toneRef}>
               <button
                 type="button"
-                onClick={() => {
-                  if (!toneOpen && toneRef.current) {
-                    const r = toneRef.current.getBoundingClientRect();
-                    setTonePos({ top: r.bottom + 4, left: r.left, width: r.width });
-                  }
-                  setToneOpen((v) => !v);
-                }}
+                onClick={() => setToneOpen((v) => !v)}
                 style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)", background: "var(--agent-surface-glass)", cursor: "pointer" }}
               >
                 <TonePill tone={tone} />
                 <span style={{ color: "var(--agent-text-muted)", display: "flex" }}>{toneOpen ? <CaretUp size={13} /> : <CaretDown size={13} />}</span>
               </button>
-              {toneOpen && tonePos && typeof document !== "undefined" && createPortal(
-                <div
-                  ref={toneMenuRef}
-                  data-theme={theme}
-                  data-night={isNight ? "" : undefined}
-                  className="agent-dropdown-in"
-                  style={{ position: "fixed", top: tonePos.top, left: tonePos.left, width: tonePos.width, zIndex: 9999, background: "var(--agent-surface-elevated)", backdropFilter: "blur(20px)", borderRadius: 12, border: "0.5px solid var(--agent-border-subtle)", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden" }}
-                >
-                  {TONES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => { setTone(t); setToneOpen(false); }}
-                      style={{ width: "100%", textAlign: "left", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
-                    >
-                      <TonePill tone={t} />
-                      {t === autoTone(chaseCount) && <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)", paddingLeft: 14 }}>Recommended</span>}
-                    </button>
-                  ))}
-                </div>,
-                document.body,
-              )}
+              <AnchoredPanel anchorRef={toneRef} open={toneOpen} onClose={() => setToneOpen(false)} matchWidth bare placement="bottom-start">
+                {TONES.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setTone(t); setToneOpen(false); }}
+                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, background: tone === t ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent", border: "none", cursor: "pointer", transition: "background 100ms" }}
+                  >
+                    <TonePill tone={t} />
+                    {t === autoTone(chaseCount) && <span style={{ fontSize: 10, color: "var(--agent-text-tertiary)", paddingLeft: 14 }}>Recommended</span>}
+                  </button>
+                ))}
+              </AnchoredPanel>
             </div>
 
             {/* Generate */}
