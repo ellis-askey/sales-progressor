@@ -65,16 +65,27 @@ function shadowValue(depth: number): string {
   return `0 ${y}px ${blur}px rgba(15, 23, 42, ${a})`;
 }
 
-/** The CSS declaration body for a recipe (no selector). */
+/** The CSS declaration body for a recipe (no selector).
+ *
+ *  blur (backdrop-filter) and shadow carry `!important` on purpose. A custom
+ *  style is an explicit, deliberate pick, so it must win over the cards-on-cards
+ *  nesting strip in glass.css — `[data-glass-id] [data-glass-id] { backdrop-
+ *  filter: none !important; box-shadow: none !important }` — which otherwise
+ *  force-kills blur + shadow on any tagged card nested inside another (e.g. the
+ *  Hub "Needs your attention" card). That strip leaves background + border
+ *  alone, which is why tint/border always applied but blur/shadow didn't. Our
+ *  `<style data-glass-custom>` is injected after glass.css (document order), so
+ *  at equal specificity + importance the custom rule wins. Background + border
+ *  stay un-important so normal hover states still layer over them. */
 export function recipeToCssBody(r: GlassRecipe): string {
   const bf = `blur(${r.blur}px) saturate(${r.sat})`;
   const border = r.borderW > 0 ? `${r.borderW}px solid rgba(${r.borderC}, ${r.borderA})` : "none";
   return [
     `  background: rgba(${r.bg}, ${r.bgA});`,
-    `  -webkit-backdrop-filter: ${bf};`,
-    `  backdrop-filter: ${bf};`,
+    `  -webkit-backdrop-filter: ${bf} !important;`,
+    `  backdrop-filter: ${bf} !important;`,
     `  border: ${border};`,
-    `  box-shadow: ${shadowValue(r.shadow)};`,
+    `  box-shadow: ${shadowValue(r.shadow)} !important;`,
   ].join("\n");
 }
 
