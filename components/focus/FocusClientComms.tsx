@@ -226,7 +226,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         </header>
 
         <div className="fc-main">
-          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" glassBaseline={{ light: "v02", dark: "v05" }} action={
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" glassBaseline={{ light: "v04", dark: "v04" }} action={
             <span className="fc-actionrow">
               <AutoToggle on={includeAuto} onChange={setIncludeAuto} />
               <SideSeg value={sideFilter} onChange={setSideFilter} />
@@ -326,7 +326,7 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
     { k: "purchaser", label: "Buyer" },
   ];
   const idx = Math.max(0, opts.findIndex((o) => o.k === value));
-  const tag = useGlassTag("focus-side-filter", "Focus · side filter", { light: "v02", dark: "v05" });
+  const tag = useGlassTag("focus-side-filter", "Focus · side filter", { light: "v04", dark: "v04" });
   return (
     <div className={`fc-seg2 ${tag.className}`} {...tag.props} style={{ "--seg-count": opts.length, "--seg-idx": idx } as CSSProperties} role="tablist" aria-label="Side">
       <span className="fc-seg2-thumb" aria-hidden />
