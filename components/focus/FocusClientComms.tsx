@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { AnchoredPanel } from "@/components/ui/Popover";
@@ -99,6 +100,7 @@ function dirLabel(c: FocusChannelContact): string {
 export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, needsYou }: { files: FocusCommsFile[]; totalSides: number; doneSides: number; showWhatsApp: boolean; needsYou: Record<string, string> }) {
   const router = useRouter();
   const { toast } = useAgentToast();
+  const fileCardTag = useGlassTag("focus-file-card", "Focus · file card");
   const [, startTransition] = useTransition();
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [composeTx, setComposeTx] = useState<string | null>(null);
@@ -222,7 +224,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         </header>
 
         <div className="fc-main">
-          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} action={
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" action={
             <span className="fc-actionrow">
               <AutoToggle on={includeAuto} onChange={setIncludeAuto} />
               <SideSeg value={sideFilter} onChange={setSideFilter} />
@@ -236,7 +238,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
             ) : (
               <div className="fc-list">
                 {viewFiles.map(({ file: f, sides }) => (
-                  <article className="fc-card" key={f.transactionId} data-bloom>
+                  <article className={`fc-card ${fileCardTag.className}`} {...fileCardTag.props} key={f.transactionId} data-bloom>
                     <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
                       <PropertyThumb photoUrl={f.photoUrl} size={42} />
                       <span className="fc-addr-wrap">
@@ -322,8 +324,9 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
     { k: "purchaser", label: "Buyer" },
   ];
   const idx = Math.max(0, opts.findIndex((o) => o.k === value));
+  const tag = useGlassTag("focus-side-filter", "Focus · side filter");
   return (
-    <div className="fc-seg2" style={{ "--seg-count": opts.length, "--seg-idx": idx } as CSSProperties} role="tablist" aria-label="Side">
+    <div className={`fc-seg2 ${tag.className}`} {...tag.props} style={{ "--seg-count": opts.length, "--seg-idx": idx } as CSSProperties} role="tablist" aria-label="Side">
       <span className="fc-seg2-thumb" aria-hidden />
       {opts.map((o) => (
         <button key={o.k} type="button" role="tab" aria-selected={o.k === value} className={`fc-seg2-b${o.k === value ? " on" : ""}`} onClick={() => onChange(o.k)}>

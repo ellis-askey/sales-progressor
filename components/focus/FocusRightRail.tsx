@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { ArrowRight, MagnifyingGlass, ChatCircleDots } from "@phosphor-icons/react";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { FocusEnquiry, FocusSearch } from "@/lib/services/focus";
 
 type EnquiryTone = "danger" | "warning" | "info" | "muted";
@@ -48,12 +49,14 @@ export function FocusRightRail({
 }: {
   enquiries: FocusEnquiry[]; openEnquiryCount: number; searches: FocusSearch[]; searchCount: number;
 }) {
+  const enquiriesTag = useGlassTag("focus-enquiries-card", "Focus · enquiries card");
+  const searchesTag = useGlassTag("focus-searches-card", "Focus · searches card");
   return (
     <aside className="fr">
       <style>{CSS}</style>
 
       {/* ── Enquiries needing you ─────────────────────────────── */}
-      <section className="fr-card" data-bloom>
+      <section className={`fr-card ${enquiriesTag.className}`} {...enquiriesTag.props} data-bloom>
         <header className="fr-hd">
           <span className="fr-hd-ic"><ChatCircleDots size={16} weight="bold" /></span>
           <h2>Enquiries needing you</h2>
@@ -87,7 +90,7 @@ export function FocusRightRail({
       </section>
 
       {/* ── Searches outstanding longest ──────────────────────── */}
-      <section className="fr-card" data-bloom>
+      <section className={`fr-card ${searchesTag.className}`} {...searchesTag.props} data-bloom>
         <header className="fr-hd">
           <span className="fr-hd-ic"><MagnifyingGlass size={16} weight="bold" /></span>
           <h2>Searches outstanding longest</h2>

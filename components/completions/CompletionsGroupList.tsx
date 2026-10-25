@@ -11,6 +11,7 @@ import {
   type CompletionFileRow,
 } from "@/components/completions/CompletionFileRowView";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
 
@@ -37,6 +38,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useAgentToast();
+  const fileCardTag = useGlassTag("completions-file-card", "Completions · file card");
   const today = new Date().toISOString().split("T")[0];
 
   function toggle(key: string) {
@@ -76,6 +78,8 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
             right={feesRight}
             open={isOpen}
             onToggle={() => toggle(key)}
+            glassId="completions-section-bar"
+            glassLabel="Completions · section bar"
           >
             {/* Missing-fee note */}
             {groupFeeTotal > 0 && missingFeeCount > 0 && (
@@ -85,7 +89,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
             )}
             {files.map((f) => (
               <div key={f.id}>
-                <div className={`glass-card block px-5 py-4 border ${s.border}`}>
+                <div className={`glass-card block px-5 py-4 border ${s.border} ${fileCardTag.className}`} {...fileCardTag.props}>
                   <CompletionFileRowView
                     file={f}
                     groupKey={key}

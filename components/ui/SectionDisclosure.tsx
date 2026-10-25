@@ -23,6 +23,7 @@
 import { type ReactNode, type KeyboardEvent } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { useRevealStagger } from "@/lib/agent/use-reveal-stagger";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 export function SectionDisclosure({
   label,
@@ -34,6 +35,8 @@ export function SectionDisclosure({
   open,
   onToggle,
   id,
+  glassId,
+  glassLabel,
   children,
 }: {
   label: ReactNode;
@@ -51,6 +54,10 @@ export function SectionDisclosure({
   onToggle: () => void;
   /** Anchor id for in-page deep links (e.g. `section-overdue`). */
   id?: string;
+  /** Opt-in Design Lab tag for the bar (per consumer). No visual change until
+   *  a variant is picked. */
+  glassId?: string;
+  glassLabel?: string;
   children: ReactNode;
 }) {
   const onKeyDown = (e: KeyboardEvent) => {
@@ -63,14 +70,16 @@ export function SectionDisclosure({
   // On expand (not first mount), the cards/rows bloom in one at a time —
   // the page load-in, fired on reveal. See useRevealStagger.
   const revealRef = useRevealStagger<HTMLDivElement>(open);
+  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Section bar");
 
   return (
     <div className="space-y-2" id={id} style={id ? { scrollMarginTop: 80 } : undefined}>
       <div
-        className="agent-wq-secbar flex items-center justify-between px-3 py-2 rounded-xl"
+        className={`agent-wq-secbar flex items-center justify-between px-3 py-2 rounded-xl${glassId ? ` ${tag.className}` : ""}`}
         role="button"
         tabIndex={0}
         aria-expanded={open}
+        {...(glassId ? tag.props : {})}
         onClick={onToggle}
         onKeyDown={onKeyDown}
         style={{ cursor: "pointer" }}

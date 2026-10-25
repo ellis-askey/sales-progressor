@@ -24,6 +24,7 @@ import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { CheckInRow } from "@/lib/services/chains";
 
 // "24th Oct" — day-with-ordinal + short month, matching the founder's example.
@@ -120,6 +121,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const rowTag = useGlassTag("chains-checkin-row", "Chains · check-in row");
   // "View chain" opens the shared ChainDrawer anchored on our own file in that
   // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
   const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
@@ -388,6 +390,8 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
           <div
             key={row.linkId}
             ref={(el) => setNode(row.linkId, el)}
+            className={rowTag.className}
+            {...rowTag.props}
             style={{
               padding: "13px 16px",
               borderRadius: 13,

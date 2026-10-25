@@ -42,6 +42,16 @@ everyone — add a `DEFAULT_PICKS` entry. To tag a *reused* card component (e.g.
 `SetupCard`, `PartnerCard`), add optional `glassId`/`label` props and render
 `GlassCard` when present, else the plain `.agent-glass` div.
 
+**To make an existing, already-styled surface pickable WITHOUT changing its
+look** (search bars, filter selects, bespoke row cards): use
+[`useGlassTag(glassId, label)`](../../lib/glass/use-glass-tag.ts). It returns
+`{ className, props }` — spread `props` (the `data-glass-*` attrs, so the Lab
+discovers it) and append `className` onto the element. The className is empty
+until a pick exists, so the default look is byte-identical to today; a pick then
+layers the variant on top. Share one `glassId` across repeated elements (every
+enquiry card) for a single Lab row that drives them all — the hub-attention
+pattern. This is the tool for the page-by-page "make more things pickable" arc.
+
 ---
 
 ## 2. Portal theme gotcha (why body-portalled popups render transparent)

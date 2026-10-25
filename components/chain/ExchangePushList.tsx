@@ -8,11 +8,13 @@
 import { useState } from "react";
 import { ExchangeChecklist } from "@/components/chain/ExchangeChecklist";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { ExchangePushSummary } from "@/lib/services/exchange-push";
 
 export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
   // First card open by default so the tab lands on something to work.
   const [open, setOpen] = useState<Set<string>>(() => new Set(files.slice(0, 1).map((f) => f.transactionId)));
+  const cardTag = useGlassTag("chains-push-card", "Chains · push-to-exchange card");
 
   function toggle(id: string) {
     setOpen((prev) => {
@@ -36,6 +38,8 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
           return (
             <div
               key={f.transactionId}
+              className={cardTag.className}
+              {...cardTag.props}
               style={{ border: "1px solid var(--agent-border-subtle)", borderRadius: 14, background: "var(--agent-surface-elevated, #fff)", overflow: "hidden", boxShadow: "0 1px 2px rgba(42,23,16,0.04)" }}
             >
               <button

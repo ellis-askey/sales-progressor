@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
@@ -169,6 +170,7 @@ export function AnalyticsClientShell({
   initialPeriod,
 }: AnalyticsClientShellProps) {
   const [period, setPeriod] = useState(initialPeriod);
+  const periodTabsTag = useGlassTag("analytics-period-tabs", "Analytics · period tabs");
 
   function handlePeriodChange(newPeriod: string) {
     setPeriod(newPeriod);
@@ -333,7 +335,7 @@ export function AnalyticsClientShell({
     <BloomStage className="px-4 py-5 sm:px-8 flex flex-col gap-[18px]">
 
       {/* ── Period tabs ────────────────────────────────────────────────────── */}
-      <div data-bloom style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>
+      <div data-bloom className={periodTabsTag.className} {...periodTabsTag.props} style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>
         {PERIODS.map(({ key, label }) => {
           const active = key === period;
           return (

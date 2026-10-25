@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { fileFeePence, type PipelineRow } from "../PipelineBoard";
 import { gbpCompact } from "../money";
@@ -61,6 +62,7 @@ export function MapView({
   const [months, setMonths] = useState<number | null>(12); // null = all time
   const [mode, setMode] = useState<"heat" | "pins">("heat");
   const [selected, setSelected] = useState<string | null>(null);
+  const toolbarTag = useGlassTag("files-map-toolbar", "Files · map toolbar");
   const [geo, setGeo] = useState<Record<string, LatLng>>({});
   const [market, setMarket] = useState<Record<string, number | null>>({});
   const [marketLoading, setMarketLoading] = useState(false);
@@ -236,7 +238,7 @@ export function MapView({
 
   return (
     <div className="mapview">
-      <div className="map-toolbar">
+      <div className={`map-toolbar ${toolbarTag.className}`} {...toolbarTag.props}>
         <Seg label="View" value={mode} onChange={setMode} opts={[["heat", "Heat"], ["pins", "Pins"]]} />
         {mode === "heat" ? (
           <Seg label="Shade by" value={shade} onChange={setShade} opts={[["sales", "Sales"], ["value", "Value"], ["share", "Share"], ["gaps", "Gaps"]]} />

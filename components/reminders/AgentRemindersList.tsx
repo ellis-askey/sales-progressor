@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
@@ -1159,6 +1160,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, chased: true, autopilot: true });
+  const sectionBarTag = useGlassTag("work-queue-section-bar", "Work queue · section bar");
+  const searchTag = useGlassTag("work-queue-search", "Work queue · search bar");
+  const sideFilterTag = useGlassTag("work-queue-side-filter", "Work queue · side filter");
   // Deferred-draw for collapsed groups (perf follow-up 2026-10-12): a
   // collapsed group's cards aren't visible, so building them on arrival
   // just slows the page's first draw (most of a busy agency's rows sit in
@@ -1453,10 +1457,11 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           placeholder="Search address or reminder…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="agent-input agent-input-sm"
+          className={`agent-input agent-input-sm ${searchTag.className}`}
+          {...searchTag.props}
           style={{ width: "100%", marginBottom: 10, fontSize: 13 }}
         />
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className={sideFilterTag.className} {...sideFilterTag.props} style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "all"    ? " on" : ""}`} onClick={() => setSideFilter("all")}>All</button>
           <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "seller" ? " on" : ""}`} onClick={() => setSideFilter("seller")}>Seller</button>
           <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "buyer"  ? " on" : ""}`} onClick={() => setSideFilter("buyer")}>Buyer</button>
@@ -1552,7 +1557,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
             <div key={grp.key} className="space-y-2" id={`section-${grp.key}`} style={{ scrollMarginTop: 80 }}>
               <div
                 data-bloom
-                className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl`}
+                className={`agent-wq-secbar ${grp.you ? "agent-wq-secbar--you" : "agent-wq-secbar--auto"} flex items-center justify-between px-3 py-2 rounded-xl ${sectionBarTag.className}`}
+                {...sectionBarTag.props}
                 role="button"
                 tabIndex={0}
                 aria-expanded={!isCollapsed}

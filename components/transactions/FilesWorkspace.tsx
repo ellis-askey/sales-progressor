@@ -11,6 +11,7 @@
 
 import { useMemo, useState, useRef, useEffect } from "react";
 import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@phosphor-icons/react";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { TransactionStatus } from "@prisma/client";
 import { TransactionListWithSearch } from "./TransactionListWithSearch";
 import { PipelineBoard, type PipelineRow } from "./PipelineBoard";
@@ -73,6 +74,7 @@ export function FilesWorkspace({
 }) {
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Set<FilterKey>>(new Set());
+  const viewBarTag = useGlassTag("files-view-bar", "Files · view & filter bar");
   // The List reports its active status tab up (see onStatusChange) so the
   // Filter menu can count each lens against the slice on screen.
   const [listStatus, setListStatus] = useState<string>(initialStatus ?? "active");
@@ -245,7 +247,7 @@ export function FilesWorkspace({
         onToggle={toggleFilter}
       />
 
-      <div className="files-bar" data-bloom>
+      <div className={`files-bar ${viewBarTag.className}`} {...viewBarTag.props} data-bloom>
         {/* Desktop: the four view pills. Mobile/tablet (<=900px): one compact
             "View" dropdown instead, so the bar doesn't crowd (critique #278). */}
         <div className="files-views">

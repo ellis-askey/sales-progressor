@@ -9,6 +9,7 @@ import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit } from "@phosphor-icons/react";
@@ -710,6 +711,7 @@ export function TransactionRowView({
   const cols = colsProp ?? filesColumns("all", showAssignedToColumn, showAgencyColumn);
   const gridCols = filesGridTemplate(cols);
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
+  const rowTag = useGlassTag("files-row", "Files · row");
 
   return (
     <div data-bloom>
@@ -718,7 +720,8 @@ export function TransactionRowView({
       <Link
         href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
-        className="files-row-card agent-hover-row"
+        className={`files-row-card agent-hover-row ${rowTag.className}`}
+        {...rowTag.props}
         style={{ textDecoration: "none", borderBottom: divider }}
       >
         <div className="flex-1 px-4 py-4 min-w-0 space-y-3">
@@ -737,7 +740,8 @@ export function TransactionRowView({
       <Link
         href={withFrom(`${basePath}/${tx.id}`, basePath)}
         unstable_dynamicOnHover
-        className="files-row-grid items-center agent-hover-row group"
+        className={`files-row-grid items-center agent-hover-row group ${rowTag.className}`}
+        {...rowTag.props}
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
         <div className="px-4 py-3.5 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} /></div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import {
   Buildings,
   Scales,
@@ -90,6 +91,8 @@ export function PartnersDirectory({
 }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
+  const searchTag = useGlassTag("partners-search", "Partners · search bar");
+  const sortTag = useGlassTag("partners-sort", "Partners · sort");
 
   const visibleSolicitors = useMemo(
     () => sortFirms(solicitorFirms.filter((f) => matchesQuery(f, query)), sort),
@@ -106,7 +109,7 @@ export function PartnersDirectory({
     <div className="space-y-4">
       {/* Control bar */}
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
+        <div className={searchTag.className} {...searchTag.props} style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
           <MagnifyingGlass
             weight="regular"
             style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--agent-text-muted)", pointerEvents: "none" }}
@@ -127,7 +130,7 @@ export function PartnersDirectory({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 12, color: "var(--agent-text-muted)", flexShrink: 0 }}>Sort</span>
-          <div style={{ display: "inline-flex", padding: 2, borderRadius: 10, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-default)" }}>
+          <div className={sortTag.className} {...sortTag.props} style={{ display: "inline-flex", padding: 2, borderRadius: 10, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-default)" }}>
             {SORTS.map((s) => {
               const active = sort === s.key;
               return (
@@ -317,8 +320,9 @@ function ContactRow({ contact, isLast }: { contact: ContactWithFiles; isLast: bo
 function FirmCard({ firm, kind, showIncome }: { firm: DirectoryFirm; kind: "solicitor" | "broker"; showIncome: boolean }) {
   const cleanWebsite = firm.website ? firm.website.replace(/^https?:\/\//, "") : null;
   const websiteHref = firm.website ? (firm.website.startsWith("http") ? firm.website : `https://${firm.website}`) : null;
+  const tag = useGlassTag("partners-firm-card", "Partners · firm card");
   return (
-    <Card padding="none">
+    <Card padding="none" className={tag.className} {...tag.props}>
       {/* Firm header */}
       <div style={{
         padding: "14px 20px",

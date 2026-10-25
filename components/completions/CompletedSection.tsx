@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 
 function fmt(n: number) { return "£" + n.toLocaleString("en-GB"); }
@@ -38,6 +39,7 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
   // Promoted (open by default): completions are the payoff, not a buried archive.
   const [open, setOpen] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const rowTag = useGlassTag("completions-completed-row", "Completions · completed row");
   if (files.length === 0) return null;
 
   const totalFee = files.reduce((s, f) => s + (f.agentFeeAmount ?? 0), 0);
@@ -59,12 +61,15 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
       }
       open={open}
       onToggle={() => setOpen((o) => !o)}
+      glassId="completions-completed-bar"
+      glassLabel="Completions · completed bar"
     >
       {shown.map((f) => (
         <Link
           key={f.id}
           href={`/agent/transactions/${f.id}`}
-          className="glass-card agent-hover-row block px-5 py-3.5 border border-white/20"
+          className={`glass-card agent-hover-row block px-5 py-3.5 border border-white/20 ${rowTag.className}`}
+          {...rowTag.props}
           style={{ textDecoration: "none" }}
         >
           <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>

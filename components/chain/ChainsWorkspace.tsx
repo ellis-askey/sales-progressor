@@ -26,6 +26,7 @@ import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ChainCard } from "@/components/chain/ChainCard";
@@ -248,6 +249,8 @@ export function ChainsWorkspace({
 
   const [tab, setTab] = useState<Tab>(chains.length === 0 && needsSetupAll.length > 0 ? "needs" : "chains");
   const [query, setQuery] = useState("");
+  const tabsTag = useGlassTag("chains-tabs", "Chains · tabs");
+  const searchTag = useGlassTag("chains-search", "Chains · search bar");
   const [chainSort, setChainSort] = useState<ChainSort>("attention");
   const [onlyNeedsInvite, setOnlyNeedsInvite] = useState(false);
   const [needsSort, setNeedsSort] = useState<NeedsSort>("oldest");
@@ -451,7 +454,7 @@ export function ChainsWorkspace({
 
       {/* Tabs + search + filters */}
       <div data-bloom style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
-        <div role="tablist" aria-label="Chains views" className="agent-tab-bar" style={{ position: "relative", flex: "1 1 300px", minWidth: 0, borderBottom: "1px solid var(--agent-border-subtle)" }}>
+        <div role="tablist" aria-label="Chains views" className={`agent-tab-bar ${tabsTag.className}`} {...tabsTag.props} style={{ position: "relative", flex: "1 1 300px", minWidth: 0, borderBottom: "1px solid var(--agent-border-subtle)" }}>
           {ind && (
             <div
               aria-hidden
@@ -487,7 +490,7 @@ export function ChainsWorkspace({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 260px", minWidth: 0, justifyContent: "flex-end" }}>
-          <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0, maxWidth: 360 }}>
+          <div className={searchTag.className} {...searchTag.props} style={{ position: "relative", flex: "1 1 auto", minWidth: 0, maxWidth: 360 }}>
             <MagnifyingGlass
               size={14}
               weight="bold"

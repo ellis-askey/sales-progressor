@@ -7,6 +7,7 @@
 // purely presentational — the parent owns the content per tab.
 
 import { useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 export type TodoTab = {
   key: string;
@@ -23,6 +24,8 @@ export function TodoTabs({
   onChange,
   action,
   children,
+  glassId,
+  glassLabel,
 }: {
   tabs: TodoTab[];
   active: string;
@@ -33,8 +36,13 @@ export function TodoTabs({
   // The panel for the active tab. Keyed by `active` so it re-mounts (and
   // fade-animates in) on every change.
   children: ReactNode;
+  // Opt-in Design Lab tag for the tab bar (per consumer, so Focus and To-Do
+  // pick independently). No visual change until a variant is picked.
+  glassId?: string;
+  glassLabel?: string;
 }) {
   const activeIdx = Math.max(0, tabs.findIndex((t) => t.key === active));
+  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Tabs");
   // Briefly stretch the sliding pill while it travels between tabs.
   const [travelling, setTravelling] = useState(false);
   const travelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,8 +59,9 @@ export function TodoTabs({
     <div className="todotabs">
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", rowGap: 10 }}>
         <div
-          className="todotabs-bar"
+          className={`todotabs-bar${glassId ? ` ${tag.className}` : ""}`}
           role="tablist"
+          {...(glassId ? tag.props : {})}
           style={{ "--tt-count": tabs.length, "--tt-idx": activeIdx, flex: "1 1 300px" } as CSSProperties}
         >
           <span className={`todotabs-pill${travelling ? " travelling" : ""}`} aria-hidden />

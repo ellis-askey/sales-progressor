@@ -9,6 +9,7 @@ import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 function relativeDate(iso: string) {
@@ -186,8 +187,9 @@ function TxCard({ tx }: { tx: TxGroup }) {
   const exchanged = tx.status === "completed" || tx.status === "withdrawn" || snap?.stage === "Post-exchange";
   const exchange = exchanged ? null : exchangeLabel(tx.expectedExchangeIso);
 
+  const tag = useGlassTag("updates-tx-card", "Updates · file card");
   return (
-    <div className="agent-glass overflow-hidden rounded-[12px]" style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
+    <div className={`agent-glass overflow-hidden rounded-[12px] ${tag.className}`} {...tag.props} style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
       {/* Header: photo + address, with a light file snapshot on the right */}
       <div
         style={{
@@ -383,6 +385,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   const [openDd, setOpenDd] = useState<string | null>(null);
   const dropsRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
+  const searchTag = useGlassTag("updates-search", "Updates · search bar");
+  const railTag = useGlassTag("updates-filter-rail", "Updates · filter rail");
 
   function toggleIn<T>(setter: Dispatch<SetStateAction<Set<T>>>) {
     return (k: T) => setter((prev) => {
@@ -470,7 +474,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         <aside className="cf-side agent-bloom">
           {/* Wide screens: a left rail with collapsible sections. */}
           <div className="cf-rail-wrap">
-            <div className="cf-rail">
+            <div className={`cf-rail ${railTag.className}`} {...railTag.props}>
               {groups.map((g) => (
                 <RailSection
                   key={g.key}
@@ -513,7 +517,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         <div className="cf-feed space-y-4 agent-bloom-stagger">
 
       {/* Address search — sits above the day buckets. Partial match, any part. */}
-      <div className="cf-search">
+      <div className={`cf-search ${searchTag.className}`} {...searchTag.props}>
         <MagnifyingGlass size={16} weight="regular" className="cf-search-ico" />
         <input
           type="text"
@@ -553,6 +557,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
             right={<span className="agent-acc-summary">{countLabel}</span>}
             open={open}
             onToggle={() => toggle(label, open)}
+            glassId="updates-day-bar"
+            glassLabel="Updates · day bar"
           >
             {txGroups.map((tx) => <TxCard key={tx.transactionId} tx={tx} />)}
           </SectionDisclosure>

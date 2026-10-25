@@ -14,6 +14,7 @@
 import { useState, useTransition, useMemo, useRef } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRevealStagger, useMergedRefs } from "@/lib/agent/use-reveal-stagger";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import Link from "next/link";
 import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
@@ -450,8 +451,9 @@ function ReviewDrawer({
   accent?: string;
   muted?: boolean;
 }) {
+  const tag = useGlassTag("todo-review-drawer", "To-Do · review drawer");
   return (
-    <div className="agent-glass" style={{ borderRadius: 12, overflow: "hidden" }}>
+    <div className={`agent-glass ${tag.className}`} {...tag.props} style={{ borderRadius: 12, overflow: "hidden" }}>
       <div
         className="agent-acc-hdr"
         style={{ borderBottom: "none" }}

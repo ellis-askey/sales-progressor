@@ -29,6 +29,7 @@ import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
 import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
 const courtShort = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's side" : "buyer's side");
@@ -157,6 +158,13 @@ export function EnquiriesTriageList({
   const [q, setQ] = useState("");
   const [side, setSide] = useState<"all" | EnquiryCourt>("all");
   const [sort, setSort] = useState<SortKey>("attention");
+
+  // Design Lab tags — make these surfaces pickable without changing their
+  // current look (no variant class until a pick exists). The two filter selects
+  // share one id so the Lab shows a single "filters" row that drives both.
+  const searchTag = useGlassTag("enquiries-search", "Enquiries · search bar");
+  const filtersTag = useGlassTag("enquiries-filters", "Enquiries · filters");
+  const cardTag = useGlassTag("enquiries-card", "Enquiries · enquiry card");
 
   // FLIP the list: actioned rows glide to their new sorted slot (with a lift)
   // and the rows between reflow to fill the gap. Animation is paused while the
@@ -291,17 +299,17 @@ export function EnquiriesTriageList({
 
       {/* Toolbar */}
       <div className="enq-toolbar" data-bloom>
-        <div className="enq-search">
+        <div className={`enq-search ${searchTag.className}`} {...searchTag.props}>
           <MagnifyingGlass size={15} />
           <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => enableAnim(false)} onBlur={() => enableAnim(true)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" />
         </div>
-        <select className="enq-select" value={side} onChange={(e) => setSide(e.target.value as typeof side)} aria-label="Filter by side">
+        <select className={`enq-select ${filtersTag.className}`} {...filtersTag.props} value={side} onChange={(e) => setSide(e.target.value as typeof side)} aria-label="Filter by side">
           <option value="all">All sides</option>
           <option value="seller_solicitor">With seller&apos;s solicitor</option>
           <option value="buyer_solicitor">With buyer&apos;s solicitor</option>
         </select>
         <label className="enq-sort-label" htmlFor="enq-sort">Sort:</label>
-        <select id="enq-sort" className="enq-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
+        <select id="enq-sort" className={`enq-select ${filtersTag.className}`} {...filtersTag.props} value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
           <option value="attention">Needs attention</option>
           <option value="quietest">Quietest first</option>
           <option value="recent">Recently updated</option>
@@ -322,7 +330,8 @@ export function EnquiriesTriageList({
             <div
               key={r.transactionId}
               data-tx={r.transactionId}
-              className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""}`}
+              className={`enq-card${menuRowId === r.transactionId ? " enq-card--menu" : ""} ${cardTag.className}`}
+              {...cardTag.props}
               data-busy={busy ? "" : undefined}
             >
               {/* The whole row toggles expand/collapse, EXCEPT the file link, the

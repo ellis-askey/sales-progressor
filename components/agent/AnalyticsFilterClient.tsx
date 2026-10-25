@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 type TeamMember = { id: string; name: string; role: string };
 
@@ -17,6 +18,7 @@ export function AnalyticsFilterClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tag = useGlassTag("analytics-team-filter", "Analytics · team filter");
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value;
@@ -30,7 +32,7 @@ export function AnalyticsFilterClient({
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div className={tag.className} {...tag.props} style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <label style={{ fontSize: 12, color: "var(--agent-text-muted)", fontWeight: 500 }}>Viewing:</label>
       <select
         value={currentUserId ?? ""}
