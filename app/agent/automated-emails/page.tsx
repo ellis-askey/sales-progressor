@@ -22,6 +22,7 @@ import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automat
 import { getAutomationCoverage, getAutomationFiles } from "@/lib/services/automated-emails-coverage";
 import { getChasePerformance, getEmailHealth } from "@/lib/services/automated-emails-analytics";
 import { getUpcomingForecastCached } from "@/lib/services/automated-emails-upcoming";
+import { getBySaleCockpit, cockpitEnabledForRole } from "@/lib/services/automated-emails-cockpit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
@@ -35,7 +36,7 @@ import { BloomStage } from "@/components/agent/BloomStage";
 
 // Four sections (upgrade phase 2). Old tab values deep-linked from emails /
 // bookmarks map onto their new home rather than 404ing or defaulting blindly.
-const VALID_TABS = ["outbox", "history", "problems", "insights"] as const;
+const VALID_TABS = ["sale", "outbox", "history", "problems", "insights"] as const;
 type PageTab = (typeof VALID_TABS)[number];
 const LEGACY_TAB_MAP: Record<string, PageTab> = {
   pending: "outbox",
@@ -79,10 +80,18 @@ export default async function AutomatedEmailsPage({
   }
   const sp = await searchParams;
 
+  const role = session.user.role as
+    | "director" | "negotiator" | "sales_progressor" | "admin" | "superadmin" | "viewer";
+  // The "By sale" cockpit is internal-staff-only for now (TSP). It's the default
+  // landing tab for them; agencies / external SP never see it and keep the Outbox
+  // until it's rolled out. Broadening later = relaxing cockpitEnabledForRole.
+  const cockpitOn = cockpitEnabledForRole(role);
+
   const rawTab = sp.tab ?? "";
-  const tab: PageTab = (VALID_TABS as readonly string[]).includes(rawTab)
+  let tab: PageTab = (VALID_TABS as readonly string[]).includes(rawTab)
     ? (rawTab as PageTab)
-    : LEGACY_TAB_MAP[rawTab] ?? "outbox";
+    : LEGACY_TAB_MAP[rawTab] ?? (cockpitOn ? "sale" : "outbox");
+  if (tab === "sale" && !cockpitOn) tab = "outbox"; // non-internal can't reach the cockpit
   const mineOnly = sp.mine === "1";
   const fileId = sp.fileId || undefined;
   const period = VALID_PERIODS.includes(Number(sp.period)) ? Number(sp.period) : 30;
@@ -96,14 +105,6 @@ export default async function AutomatedEmailsPage({
   const deliveryStatus = sp.status && DELIVERY_STATUSES.includes(sp.status) ? (sp.status as EmailDeliveryStatus) : undefined;
   const fromDate = sp.from && !Number.isNaN(Date.parse(sp.from)) ? new Date(sp.from) : undefined;
   const limit = Number(sp.limit) > 0 ? Number(sp.limit) : undefined;
-
-  const role = session.user.role as
-    | "director"
-    | "negotiator"
-    | "sales_progressor"
-    | "admin"
-    | "superadmin"
-    | "viewer";
 
   // If a fileId was deep-linked, resolve the address up-front so the subtitle
   // can name it and the filter pill can show "Filtered to: <address>".
@@ -147,7 +148,8 @@ export default async function AutomatedEmailsPage({
     // but scope-only and heavy — served from a short-TTL memo so tab/filter/
     // toggle clicks reuse it instead of re-running the per-file fan-out.
     getUpcomingForecastCached(scopeBase).catch(() => null),
-    tab === "insights" ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
+    // Also fetched for the "By sale" cockpit — the per-file rollup is its backbone.
+    (tab === "insights" || tab === "sale") ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
     tab === "insights" ? getChasePerformance({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
     tab === "insights" ? getEmailHealth({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
   ]);
@@ -157,6 +159,12 @@ export default async function AutomatedEmailsPage({
     // page rather than 404, with explanatory copy via the empty state.
     notFound();
   }
+
+  // The "By sale" cockpit (internal-only): re-group the per-file rollup + needs +
+  // forecast the page already loaded, and sign the photos. Only on its own tab.
+  const cockpit = tab === "sale" && cockpitOn
+    ? await getBySaleCockpit(scopeBase, fileRows ?? [], needs?.items ?? [], forecast).catch(() => null)
+    : null;
 
   // The Problems tab shows missing-email gaps as their own strip (they have no
   // email row to render). Mapped here so the client view stays presentational.
@@ -213,6 +221,8 @@ export default async function AutomatedEmailsPage({
         sentTodayRows={sentTodayRows}
         counts={list.counts}
         tab={tab}
+        cockpit={cockpit}
+        showBySale={cockpitOn}
         mineOnly={mineOnly}
         fileId={fileId}
         fileLabel={fileLabel}

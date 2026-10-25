@@ -36,6 +36,7 @@ export type PredictedItem = {
   contactId: string | null;                    // client predictions
   side: "vendor" | "purchaser" | null;         // solicitor predictions
   chaseNumber: number;
+  chaseMax: number;                             // cap for this lane (for "chase N of M")
   predictedFor: Date;
 };
 
@@ -172,6 +173,7 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
         contactId: u.contactId,
         side: null,
         chaseNumber: u.chaseNumber,
+        chaseMax: CLIENT_CHASE_COUNT_CAP,
         predictedFor: u.predictedFireDate,
       });
     }
@@ -207,6 +209,7 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
       contactId: null,
       side: s.side === "vendor" ? "vendor" : "purchaser",
       chaseNumber: s.chaseCount + 1,
+      chaseMax: max,
       predictedFor,
     });
   }

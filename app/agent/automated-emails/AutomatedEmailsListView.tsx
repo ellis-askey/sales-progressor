@@ -29,14 +29,20 @@ import type { ChasePerformance, EmailHealth } from "@/lib/services/automated-ema
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
+import { BySaleView } from "@/components/automated-emails/BySaleView";
+import type { Cockpit } from "@/lib/services/automated-emails-cockpit";
 
-export type FeedTab = "outbox" | "history" | "problems" | "insights";
+export type FeedTab = "sale" | "outbox" | "history" | "problems" | "insights";
 
 type Props = {
   rows: EmailRow[];            // the active feed: outbox → queued, history → sent, problems → problem emails
   sentTodayRows: EmailRow[];   // outbox only — what actually went today
   counts: { pending: number; sentLast7d: number; sentLast30d: number; errored: number };
   tab: FeedTab;
+  // The "By sale" cockpit (internal-only). showBySale gates the tab; cockpit is
+  // the assembled data, present only on the sale tab.
+  cockpit?: Cockpit | null;
+  showBySale?: boolean;
   mineOnly: boolean;
   fileId?: string;
   fileLabel: string | null;
@@ -54,8 +60,9 @@ type Props = {
   emailHealth?: EmailHealth | null;
 };
 
-const TABS: { value: FeedTab; label: string }[] = [
-  { value: "outbox", label: "Outbox" },
+// "By sale" is prepended only for internal staff (showBySale).
+const BASE_TABS: { value: FeedTab; label: string }[] = [
+  { value: "outbox", label: "Schedule" },
   { value: "history", label: "History (30d)" },
   { value: "problems", label: "Problems" },
   { value: "insights", label: "Insights" },
@@ -63,6 +70,7 @@ const TABS: { value: FeedTab; label: string }[] = [
 
 // The CSV export route keeps the original view vocabulary.
 const EXPORT_TAB: Record<FeedTab, string> = {
+  sale: "pending",
   outbox: "pending",
   history: "sent",
   problems: "errored",
@@ -102,7 +110,8 @@ function countForTab(t: FeedTab, counts: Props["counts"], needsTotal: number, fo
 }
 
 export function AutomatedEmailsListView(props: Props) {
-  const { rows, sentTodayRows, counts, tab, mineOnly, fileId, fileLabel, showMineToggle, hasMore, needsTotal, missingItems, forecast, fileRows, chasePerformance, emailHealth } = props;
+  const { rows, sentTodayRows, counts, tab, cockpit, showBySale, mineOnly, fileId, fileLabel, showMineToggle, hasMore, needsTotal, missingItems, forecast, fileRows, chasePerformance, emailHealth } = props;
+  const TABS = showBySale ? [{ value: "sale" as FeedTab, label: "By sale" }, ...BASE_TABS] : BASE_TABS;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<EmailRow | null>(null);
@@ -160,8 +169,9 @@ export function AutomatedEmailsListView(props: Props) {
         })}
       </div>
 
-      {/* Toolbar: search + filters — hidden on Insights (nothing to filter) */}
-      {tab !== "insights" && (
+      {/* Toolbar: search + filters — hidden on Insights and the By-sale cockpit
+          (neither filters the per-email feed). */}
+      {tab !== "insights" && tab !== "sale" && (
       <div className="flex flex-wrap items-center gap-2">
         <form
           onSubmit={(e) => { e.preventDefault(); go({ q: searchDraft.trim() || null }); }}
@@ -230,7 +240,9 @@ export function AutomatedEmailsListView(props: Props) {
       )}
 
       {/* Feed */}
-      {tab === "outbox" ? (
+      {tab === "sale" ? (
+        cockpit ? <BySaleView cockpit={cockpit} /> : <EmptyState title="Nothing to show yet" description="When files start chasing, they appear here." compact />
+      ) : tab === "outbox" ? (
         <OutboxView
           sentToday={sentTodayRows}
           pending={rows}
@@ -328,6 +340,7 @@ export function AutomatedEmailsListView(props: Props) {
 function emptyTitle(tab: FeedTab, filtered: boolean): string {
   if (filtered) return "No matching emails";
   switch (tab) {
+    case "sale": return "Nothing to show yet";
     case "outbox": return "Nothing sent today and nothing scheduled";
     case "history": return "No automated email activity in this period";
     case "problems": return "No problems";
