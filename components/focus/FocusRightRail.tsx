@@ -49,8 +49,9 @@ export function FocusRightRail({
 }: {
   enquiries: FocusEnquiry[]; openEnquiryCount: number; searches: FocusSearch[]; searchCount: number;
 }) {
-  const enquiriesTag = useGlassTag("focus-enquiries-card", "Focus · enquiries card");
-  const searchesTag = useGlassTag("focus-searches-card", "Focus · searches card");
+  // Baked Focus defaults (Ellis's export, 2026-10-25); still Lab-overridable.
+  const enquiriesTag = useGlassTag("focus-enquiries-card", "Focus · enquiries card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
+  const searchesTag = useGlassTag("focus-searches-card", "Focus · searches card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   return (
     <aside className="fr">
       <style>{CSS}</style>

@@ -8,6 +8,7 @@
 
 import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import type { GlassPick } from "@/lib/glass/variants";
 
 export type TodoTab = {
   key: string;
@@ -26,6 +27,7 @@ export function TodoTabs({
   children,
   glassId,
   glassLabel,
+  glassBaseline,
 }: {
   tabs: TodoTab[];
   active: string;
@@ -40,9 +42,18 @@ export function TodoTabs({
   // pick independently). No visual change until a variant is picked.
   glassId?: string;
   glassLabel?: string;
+  // Baked default look for the bar (per consumer). The sliding pill is tagged
+  // separately as `${glassId}-pill` so it can be styled on its own in the Lab.
+  glassBaseline?: GlassPick;
 }) {
   const activeIdx = Math.max(0, tabs.findIndex((t) => t.key === active));
-  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Tabs");
+  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Tabs", glassBaseline);
+  // The active-tab pill is its own Lab surface (the slider thumb Ellis asked to
+  // be editable). Derived id so each consumer's pill is independent.
+  const pillTag = useGlassTag(
+    glassId ? `${glassId}-pill` : "",
+    glassLabel ? `${glassLabel} · active pill` : "Tab pill",
+  );
   // Briefly stretch the sliding pill while it travels between tabs.
   const [travelling, setTravelling] = useState(false);
   const travelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +75,11 @@ export function TodoTabs({
           {...(glassId ? tag.props : {})}
           style={{ "--tt-count": tabs.length, "--tt-idx": activeIdx, flex: "1 1 300px" } as CSSProperties}
         >
-          <span className={`todotabs-pill${travelling ? " travelling" : ""}`} aria-hidden />
+          <span
+            className={`todotabs-pill${travelling ? " travelling" : ""}${glassId && pillTag.className ? ` ${pillTag.className}` : ""}`}
+            aria-hidden
+            {...(glassId ? pillTag.props : {})}
+          />
           {tabs.map((t) => (
             <button
               key={t.key}

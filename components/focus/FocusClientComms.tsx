@@ -100,7 +100,9 @@ function dirLabel(c: FocusChannelContact): string {
 export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, needsYou }: { files: FocusCommsFile[]; totalSides: number; doneSides: number; showWhatsApp: boolean; needsYou: Record<string, string> }) {
   const router = useRouter();
   const { toast } = useAgentToast();
-  const fileCardTag = useGlassTag("focus-file-card", "Focus · file card");
+  // Baked Focus defaults (Ellis's export, 2026-10-25) — the "for everybody"
+  // look; still overridable per-account in the Design Lab.
+  const fileCardTag = useGlassTag("focus-file-card", "Focus · file card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const [, startTransition] = useTransition();
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [composeTx, setComposeTx] = useState<string | null>(null);
@@ -224,7 +226,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         </header>
 
         <div className="fc-main">
-          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" action={
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" glassBaseline={{ light: "v02", dark: "v05" }} action={
             <span className="fc-actionrow">
               <AutoToggle on={includeAuto} onChange={setIncludeAuto} />
               <SideSeg value={sideFilter} onChange={setSideFilter} />
@@ -324,7 +326,7 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
     { k: "purchaser", label: "Buyer" },
   ];
   const idx = Math.max(0, opts.findIndex((o) => o.k === value));
-  const tag = useGlassTag("focus-side-filter", "Focus · side filter");
+  const tag = useGlassTag("focus-side-filter", "Focus · side filter", { light: "v02", dark: "v05" });
   return (
     <div className={`fc-seg2 ${tag.className}`} {...tag.props} style={{ "--seg-count": opts.length, "--seg-idx": idx } as CSSProperties} role="tablist" aria-label="Side">
       <span className="fc-seg2-thumb" aria-hidden />
@@ -776,13 +778,13 @@ const CSS = `
 
 /* Hover tooltip — the full record. Distinct class from the Contact dropdown's
    .fc-pop so the two never collide. */
-.fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:10px; border:1px solid var(--agent-border-default); background:rgba(255,255,255,0.72); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); box-shadow:0 12px 30px rgba(20,12,6,0.16); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
-:root[data-theme="dark"] .fcl-tip { background:rgba(20,26,36,0.72); border-color:rgba(255,255,255,0.12); box-shadow:0 12px 30px rgba(0,0,0,0.45); }
+.fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:10px; border:1px solid var(--agent-border-default); background:rgba(255,255,255,0.30); backdrop-filter:blur(30px) saturate(200%); -webkit-backdrop-filter:blur(30px) saturate(200%); box-shadow:0 12px 30px rgba(20,12,6,0.16); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+:root[data-theme="dark"] .fcl-tip { background:rgba(20,26,36,0.30); border-color:rgba(255,255,255,0.12); box-shadow:0 12px 30px rgba(0,0,0,0.45); }
 .fc-u:hover .fcl-tip, .fc-u:focus-visible .fcl-tip { opacity:1; transform:translateY(0); }
 /* Tapped open on touch (critique #298) — wins over the mobile .fcl-tip display:none. */
 .fc-u.tip-open .fcl-tip { display:block; opacity:1; transform:translateY(0); pointer-events:auto; }
-.fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:rgba(255,255,255,0.72); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); border-right:1px solid var(--agent-border-default); border-bottom:1px solid var(--agent-border-default); }
-:root[data-theme="dark"] .fcl-tip::after { background:rgba(20,26,36,0.72); border-color:rgba(255,255,255,0.12); }
+.fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:rgba(255,255,255,0.30); backdrop-filter:blur(30px) saturate(200%); -webkit-backdrop-filter:blur(30px) saturate(200%); border-right:1px solid var(--agent-border-default); border-bottom:1px solid var(--agent-border-default); }
+:root[data-theme="dark"] .fcl-tip::after { background:rgba(20,26,36,0.30); border-color:rgba(255,255,255,0.12); }
 .fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.01em; color:var(--agent-text-muted); margin-bottom:6px; }
 .fcl-tip-h svg { color:var(--agent-text-muted); }
 .fcl-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }
