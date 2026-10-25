@@ -29,7 +29,7 @@ it("a side with no contacts at all is not a gap (nothing to chase)", () => {
   expect(sidesWithNoEmail([c("vendor", "sell@x.com")], null)).toEqual([]);
 });
 
-it("ignores an archived previous buyer — only the active round counts", () => {
+it("ignores an archived previous buyer: only the active round counts", () => {
   // Old buyer (round-1, no email) is off the active round; new buyer HAS email.
   const contacts = [c("purchaser", null, "round-1"), c("purchaser", "new@x.com", "round-2")];
   expect(sidesWithNoEmail(contacts, "round-2")).toEqual([]);
