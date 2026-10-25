@@ -983,7 +983,13 @@
     box-sizing: border-box; line-height: 1; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
     background: transparent; color: var(--agent-coral-deep); border: 1.25px solid var(--agent-coral-deep);
   }
-  .todotabs-panel { animation: todotabsFade 0.26s ease both; margin-top: 18px; }
+  /* fill: backwards (not both) — a forwards/both-filling animation that touched
+     transform/opacity keeps this panel a composite layer FOREVER after it ends,
+     which severs the backdrop-filter of any glass card inside it from the aurora
+     behind the panel (blur silently renders nothing — see PageFadeIn docstring).
+     backwards keeps the no-flash entrance but releases the layer once settled, so
+     the file cards frost correctly. 2026-10-25. */
+  .todotabs-panel { animation: todotabsFade 0.26s ease backwards; margin-top: 18px; }
   @keyframes todotabsFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) {
     .todotabs-pill, .todotabs-pill.travelling { transition: none; transform: translateX(calc(var(--tt-idx, 0) * 100%)); }
