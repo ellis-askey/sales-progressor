@@ -7,6 +7,7 @@ import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
 import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { confirmationSentence, resolveConfirmer, bellNotificationSentence, pillLabelForType, BELL_NOTIFICATION_TYPES } from "@/lib/updates-copy";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
+import { londonDayBounds } from "@/lib/utils";
 
 // "draft" is added to the TransactionStatus enum — type cast until Prisma client regenerates
 const DRAFT = "draft" as TransactionStatus;
@@ -427,14 +428,6 @@ export async function getCompletionsMomentum(vis: AgentVisibility): Promise<{
 // Newest completion first, capped — the page shows the 3 most recent and lets
 // the rest expand, so a busy agency never gets an endless page.
 // The UTC instants for the start and end of "today" in Europe/London.
-function londonDayBounds(now: Date): { start: Date; end: Date } {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(now);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
-  const offset = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"), get("second")) - now.getTime();
-  const start = new Date(Date.UTC(get("year"), get("month") - 1, get("day"), 0, 0, 0) - offset);
-  return { start, end: new Date(start.getTime() + 86_400_000) };
-}
-
 // Nav badge: files whose completion date is TODAY and not yet confirmed complete
 // (still active). Drops to zero the moment completion is confirmed (status flips
 // to "completed").
