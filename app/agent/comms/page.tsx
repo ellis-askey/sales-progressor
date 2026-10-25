@@ -137,7 +137,7 @@ export default async function AgentCommsPage() {
 
         {entries.length === 0 && isInternalStaff && !isBusinessOwner && (
           <>
-            <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <div className="agent-glass-strong agent-empty-card agent-bloom" style={{ padding: "48px 24px", textAlign: "center" }}>
               <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
               <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                 No updates yet

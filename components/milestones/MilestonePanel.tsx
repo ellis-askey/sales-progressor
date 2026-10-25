@@ -8,6 +8,7 @@ import type { PartyNameContext } from "@/lib/milestones/step-name";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { ExchangeStageBanner } from "@/components/milestones/ExchangeStageBanner";
 import { Card } from "@/components/ui/Card";
+import { AccordionBody } from "@/components/ui/AccordionBody";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { buildCompletionLookup, computeSlowness, computeStaleness, MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import type { AggregatedClientChase } from "@/lib/services/client-chase-state";
@@ -457,9 +458,8 @@ export function MilestonePanel({
                   </div>
                 </button>
 
-                <div className={`agent-acc${!isCollapsed ? " open" : ""}`}>
-                  <div className="agent-acc-in">
-                    {rows.length > 0 ? (
+                <AccordionBody open={!isCollapsed}>
+                  {rows.length > 0 ? (
                       rows.map((def) => {
                         // Slowness signal: only for rows that are currently
                         // available + not done. Computed once per render from
@@ -519,8 +519,7 @@ export function MilestonePanel({
                         All steps in this section are skipped
                       </div>
                     ) : null}
-                  </div>
-                </div>
+                </AccordionBody>
               </div>
             );
           })}
@@ -553,13 +552,11 @@ export function MilestonePanel({
                   />
                 </div>
               </button>
-              <div className={`agent-acc${!nrCollapsed ? " open" : ""}`}>
-                <div className="agent-acc-in">
-                  {nrMilestones.map((def) => (
-                    <NotRequiredRow key={def.id} def={def} transactionId={transactionId} buyerNames={buyerNames} partyNames={partyNames} />
-                  ))}
-                </div>
-              </div>
+              <AccordionBody open={!nrCollapsed}>
+                {nrMilestones.map((def) => (
+                  <NotRequiredRow key={def.id} def={def} transactionId={transactionId} buyerNames={buyerNames} partyNames={partyNames} />
+                ))}
+              </AccordionBody>
             </div>
           )}
         </Card>

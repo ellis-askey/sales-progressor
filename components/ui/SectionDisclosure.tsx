@@ -22,6 +22,7 @@
 
 import { type ReactNode, type KeyboardEvent } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { useRevealStagger } from "@/lib/agent/use-reveal-stagger";
 
 export function SectionDisclosure({
   label,
@@ -58,6 +59,10 @@ export function SectionDisclosure({
       onToggle();
     }
   };
+
+  // On expand (not first mount), the cards/rows bloom in one at a time —
+  // the page load-in, fired on reveal. See useRevealStagger.
+  const revealRef = useRevealStagger<HTMLDivElement>(open);
 
   return (
     <div className="space-y-2" id={id} style={id ? { scrollMarginTop: 80 } : undefined}>
@@ -110,8 +115,9 @@ export function SectionDisclosure({
       <div className={`agent-acc wq-acc${open ? " open" : ""}`}>
         <div className="agent-acc-in">
           {/* Free cards: full width, 12px apart, 40px bottom so the last card's
-              soft shadow isn't clipped by the accordion's overflow. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "4px 0 40px" }}>
+              soft shadow isn't clipped by the accordion's overflow. On expand,
+              the children bloom in one at a time (revealRef). */}
+          <div ref={revealRef} style={{ display: "flex", flexDirection: "column", gap: 12, padding: "4px 0 40px" }}>
             {children}
           </div>
         </div>

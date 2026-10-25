@@ -13,6 +13,7 @@
 
 import { useState, useTransition, useMemo, useRef } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { useRevealStagger, useMergedRefs } from "@/lib/agent/use-reveal-stagger";
 import Link from "next/link";
 import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
@@ -157,6 +158,13 @@ export function ReviewsSection({
   const [, startTransition] = useTransition();
   const [dueRef] = useAutoAnimate<HTMLDivElement>();
   const [upcomingRef] = useAutoAnimate<HTMLDivElement>();
+  // Stagger the rows in on expand (merged with the auto-animate ref on the same
+  // container for Due/Upcoming; Completed has no auto-animate ref).
+  const dueReveal = useRevealStagger<HTMLDivElement>(dueOpen);
+  const upcomingReveal = useRevealStagger<HTMLDivElement>(upcomingOpen);
+  const doneReveal = useRevealStagger<HTMLDivElement>(showDone);
+  const dueMerged = useMergedRefs<HTMLDivElement>(dueRef, dueReveal);
+  const upcomingMerged = useMergedRefs<HTMLDivElement>(upcomingRef, upcomingReveal);
 
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -392,7 +400,7 @@ export function ReviewsSection({
           {/* Due now — open by default, most-overdue first */}
           {dueItems.length > 0 && (
             <ReviewDrawer title="Due now" open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
-              <div ref={dueRef}>
+              <div ref={dueMerged}>
                 {dueItems.map((item, i) => (
                   <ReviewRow key={item.key} item={item} topBorder={i > 0} {...rowProps} />
                 ))}
@@ -403,7 +411,7 @@ export function ReviewsSection({
           {/* Upcoming — closed by default */}
           {upcomingItems.length > 0 && (
             <ReviewDrawer title="Upcoming" count={upcomingItems.length} open={upcomingOpen} onToggle={() => setUpcomingOpen((v) => !v)}>
-              <div ref={upcomingRef}>
+              <div ref={upcomingMerged}>
                 {upcomingItems.map((item, i) => (
                   <ReviewRow key={item.key} item={item} topBorder={i > 0} {...rowProps} />
                 ))}
@@ -414,7 +422,7 @@ export function ReviewsSection({
           {/* Completed manual reviews — same drawer, closed by default */}
           {done.length > 0 && (
             <ReviewDrawer title="Completed" count={done.length} open={showDone} onToggle={() => setShowDone((v) => !v)} muted>
-              <div>
+              <div ref={doneReveal}>
                 {done.map((item, i) => (
                   <ReviewRow key={item.key} item={item} topBorder={i > 0} dimmed {...rowProps} />
                 ))}

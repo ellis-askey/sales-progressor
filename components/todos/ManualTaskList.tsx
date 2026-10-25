@@ -9,6 +9,7 @@ import { useTabBadge } from "@/components/transaction/TabBadgeContext";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
 import { Card } from "@/components/ui/Card";
+import { AccordionBody } from "@/components/ui/AccordionBody";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 
 // Canonical disclosure bar for the done/resolved tails of each card
@@ -51,9 +52,7 @@ function DoneDisclosure({
           }}
         />
       </div>
-      <div className={`agent-acc${open ? " open" : ""}`}>
-        <div className="agent-acc-in">{children}</div>
-      </div>
+      <AccordionBody open={open}>{children}</AccordionBody>
     </>
   );
 }

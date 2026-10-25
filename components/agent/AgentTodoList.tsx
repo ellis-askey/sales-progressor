@@ -347,7 +347,7 @@ function Section({
           2026-08-10 (fix missed in the Aug-9 empty-state sweep). */}
       {!hasOpen ? (
         <div
-          className="agent-glass-strong agent-empty-card"
+          className="agent-glass-strong agent-empty-card agent-bloom"
           style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
         >
           <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>

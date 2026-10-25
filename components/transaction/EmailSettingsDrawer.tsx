@@ -37,6 +37,7 @@ import {
   CalendarBlank,
 } from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
+import { AccordionBody } from "@/components/ui/AccordionBody";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import {
@@ -479,8 +480,7 @@ function EmailSettingsDrawer({
                 />
               }
             >
-              <div className={`agent-acc${confirmOpen ? " open" : ""}`}>
-                <div className="agent-acc-in">
+              <AccordionBody open={confirmOpen}>
                   <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingBottom: 6 }}>
                     {!hasClients ? (
                       <p style={{ margin: "10px 16px", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
@@ -519,8 +519,7 @@ function EmailSettingsDrawer({
                       </>
                     )}
                   </div>
-                </div>
-              </div>
+              </AccordionBody>
             </SectionCard>
 
             <SectionCard
@@ -539,8 +538,7 @@ function EmailSettingsDrawer({
                 />
               }
             >
-              <div className={`agent-acc${chasingOpen ? " open" : ""}`}>
-                <div className="agent-acc-in">
+              <AccordionBody open={chasingOpen}>
                   <div style={{ borderTop: "0.5px solid var(--agent-border-default)", paddingBottom: 6 }}>
                     {noOneToChase ? (
                       <p style={{ margin: "10px 16px", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
@@ -601,8 +599,7 @@ function EmailSettingsDrawer({
                       </>
                     )}
                   </div>
-                </div>
-              </div>
+              </AccordionBody>
             </SectionCard>
 
             {/* What the client sees: the key-dates card on their portal. Agency

@@ -119,6 +119,11 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Lives at** [components/ui/SectionDisclosure.tsx](../../components/ui/SectionDisclosure.tsx).
 - **Status:** canonical. Migrating the nested "outer card wraps inner cards" surfaces onto it — Completions (`CompletionsGroupList`, `CompletedSection`) shipped 2026-10-25; Updates (`CommsActivityFeed`), Reviews, To-Do next; the work-queue itself to retrofit last for a single source.
 
+### 1.12 `AccordionBody` + `useRevealStagger` ✓ canonical (new 2026-10-25)
+
+- **Purpose:** the staggered "bloom reveal" on expand — when a disclosure opens, its rows/cards cascade in with the `agent-bloom` blur+rise (the page load-in, fired on reveal) instead of a bare height-slide. `useRevealStagger(open)` ([lib/agent/use-reveal-stagger.ts](../../lib/agent/use-reveal-stagger.ts)) returns a ref for the element whose direct children should stagger; it skips first mount (page entrance owns that) and clears itself after so nothing lingers to sever glass. `useMergedRefs` combines it with an existing ref (e.g. auto-animate). `AccordionBody` ([components/ui/AccordionBody.tsx](../../components/ui/AccordionBody.tsx)) is a drop-in for the hand-rolled `<div class="agent-acc"><div class="agent-acc-in">…</div></div>` that bakes the reveal in and is safe inside `.map()`.
+- **Status:** canonical. `SectionDisclosure` uses the hook directly; `AccordionBody` is used by MilestonePanel, ManualTaskList, EmailSettingsDrawer; Reviews uses the hook via `useMergedRefs`. Replaces bare `agent-acc` where a reveal animation is wanted.
+
 ---
 
 ## 2. To extract — canonical primitives needed
