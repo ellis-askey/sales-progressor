@@ -19,7 +19,7 @@ import {
   type GlassPicks,
 } from "./variants";
 import { DEFAULT_PICKS } from "./default-picks";
-import { glassStylesCss, isCustomStyleId, parseGlassStyles, recipeToCssBody, type GlassStyle, type GlassRecipe } from "./custom";
+import { DEFAULT_STYLES, glassStylesCss, isCustomStyleId, parseGlassStyles, recipeToCssBody, type GlassStyle, type GlassRecipe } from "./custom";
 
 type Preview = { glassId: string; mode: GlassMode; recipe: GlassRecipe } | null;
 
@@ -136,13 +136,22 @@ export function GlassPicksProvider({
     });
   }, []);
 
+  // App-wide baked styles + the user's own (user id wins over a default of the
+  // same id). This is what renders and what the drawer lists — so a baked
+  // DEFAULT_PICKS / baseline pick that references a default cs- id resolves for
+  // everyone, and Ellis still sees the baked styles in the picker.
+  const effectiveStyles = useMemo(() => {
+    const ownIds = new Set(styles.map((s) => s.id));
+    return [...DEFAULT_STYLES.filter((s) => !ownIds.has(s.id)), ...styles];
+  }, [styles]);
+
   const value = useMemo(
-    () => ({ picks, styles, mode, setPick, saveStyle, deleteStyle, preview, setPreview, resetAll }),
-    [picks, styles, mode, setPick, saveStyle, deleteStyle, preview, setPreview, resetAll],
+    () => ({ picks, styles: effectiveStyles, mode, setPick, saveStyle, deleteStyle, preview, setPreview, resetAll }),
+    [picks, effectiveStyles, mode, setPick, saveStyle, deleteStyle, preview, setPreview, resetAll],
   );
 
   const css =
-    glassStylesCss(styles) +
+    glassStylesCss(effectiveStyles) +
     (preview ? `\n[data-glass-id].glass-cs-preview {\n${recipeToCssBody(preview.recipe)}\n}` : "");
 
   return (

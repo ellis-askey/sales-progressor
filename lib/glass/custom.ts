@@ -30,6 +30,25 @@ export type GlassRecipe = {
 
 export type GlassStyle = { id: string; name: string; recipe: GlassRecipe };
 
+// App-wide baked custom styles — the "for everybody" half of a Design Lab
+// export (DEFAULT_PICKS is the other half). Merged into every user's styles so
+// a DEFAULT_PICKS / useGlassTag-baseline entry that references one of these cs-
+// ids resolves and renders for all users. A user who forks their own style
+// (always a new id) layers on top; these are never mutated in place. Grows as
+// Ellis bakes more pages. 2026-10-25.
+export const DEFAULT_STYLES: GlassStyle[] = [
+  {
+    id: "cs-053799eb",
+    name: "Dark Frosted Main Everywhere Card",
+    recipe: { blur: 60, bg: "255, 255, 255", bgA: 0.06, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.12, shadow: 22 },
+  },
+  {
+    id: "cs-b7c9ec28",
+    name: "Light Main Card",
+    recipe: { blur: 50, bg: "255, 255, 255", bgA: 0.5, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.12, shadow: 30 },
+  },
+];
+
 // The baseline a brand-new custom style starts from — roughly today's plain
 // agent card (v00-ish), so "Customise" opens on a sensible surface.
 export const DEFAULT_RECIPE: GlassRecipe = {

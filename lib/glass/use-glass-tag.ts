@@ -1,7 +1,7 @@
 "use client";
 
 import { useGlassPicks } from "./context";
-import { classFor, DEFAULT_VARIANT } from "./variants";
+import { classFor, DEFAULT_VARIANT, type GlassPick } from "./variants";
 
 // Make an EXISTING, already-styled element pickable in the Design Lab WITHOUT
 // changing how it looks today. Unlike <GlassCard> (which always applies a
@@ -22,9 +22,18 @@ import { classFor, DEFAULT_VARIANT } from "./variants";
 // drop the inline background/border/shadow when `picked` so the glass variant
 // owns the surface, e.g.
 //   style={{ ...layout, ...(tag.picked ? {} : { background, border }) }}
+//
+// `baseline` is an OPTIONAL per-call baked default — the "for everybody" look
+// for this surface once Ellis has perfected it (a variant "vNN" or a custom
+// style "cs-…" per mode). It's applied only when the user has no own pick, so a
+// user can still override it in the Design Lab. This is deliberately a per-call
+// arg, NOT the global DEFAULT_PICKS: a tag honours only the baseline its own
+// component passes, so baking one page can't silently restyle tagged surfaces
+// on another page that happen to share a DEFAULT_PICKS entry.
 export function useGlassTag(
   glassId: string,
   label: string,
+  baseline?: GlassPick,
 ): {
   className: string;
   picked: boolean;
@@ -34,23 +43,19 @@ export function useGlassTag(
     "data-glass-variant": string;
   };
 } {
-  // Read ONLY the user's own pick for the active mode — deliberately NOT
-  // usePickForCard (which also applies app-wide DEFAULT_PICKS). The whole point
-  // of a tag is "unchanged until Ellis picks it", so a stale/aspirational
-  // DEFAULT_PICKS entry for this id must not silently restyle the element.
   const { picks, mode, preview } = useGlassPicks();
-  const pick =
+  const resolved =
     preview && preview.glassId === glassId && preview.mode === mode
       ? "cs-preview"
-      : picks[glassId]?.[mode];
+      : picks[glassId]?.[mode] ?? baseline?.[mode];
   return {
-    // No pick → no glass class → the element is visually unchanged.
-    className: pick ? classFor(pick) : "",
-    picked: !!pick,
+    // No pick and no baseline → no glass class → the element is unchanged.
+    className: resolved ? classFor(resolved) : "",
+    picked: !!resolved,
     props: {
       "data-glass-id": glassId,
       "data-glass-label": label,
-      "data-glass-variant": pick ?? DEFAULT_VARIANT,
+      "data-glass-variant": resolved ?? DEFAULT_VARIANT,
     },
   };
 }
