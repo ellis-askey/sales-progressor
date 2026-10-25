@@ -13,6 +13,7 @@ import { useEffect, useRef, useState, useTransition, type CSSProperties } from "
 import { useRouter } from "next/navigation";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
@@ -520,26 +521,10 @@ function ContactMenu({
   const [phoneDraft, setPhoneDraft] = useState("");
   const [dialed, setDialed] = useState(false);
   const [coarse, setCoarse] = useState(false); // touch/mobile pointer → offer to dial
-  const ref = useRef<HTMLSpanElement>(null);
+  const trigRef = useRef<HTMLButtonElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { setCoarse(window.matchMedia?.("(pointer: coarse)")?.matches ?? false); }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { if (mode === "call") setMode("menu"); else setOpen(false); }
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, mode]);
 
   // Reset to the menu (and clear the draft) whenever the popover closes.
   useEffect(() => { if (!open) { setMode("menu"); setNote(""); setPhoneDraft(""); setDialed(false); } }, [open]);
@@ -577,8 +562,9 @@ function ContactMenu({
   }
 
   return (
-    <span className={`fc-menu${open ? " open" : ""}`} ref={ref}>
+    <span className={`fc-menu${open ? " open" : ""}`}>
       <button
+        ref={trigRef}
         type="button"
         className="fc-trig"
         onClick={() => setOpen((v) => !v)}
@@ -589,7 +575,12 @@ function ContactMenu({
         <CaretDown size={12} weight="bold" className="fc-cv" />
       </button>
 
-      <div className={`fc-pop${mode === "call" ? " note" : ""}`} role="menu">
+      <AnchoredPanel anchorRef={trigRef} open={open} onClose={() => setOpen(false)} placement="bottom-end" bare>
+      <div
+        className={`fc-pop${mode === "call" ? " note" : ""}`}
+        role="menu"
+        style={{ position: "static", background: "none", border: "none", boxShadow: "none", opacity: 1, transform: "none", pointerEvents: "auto" }}
+      >
         {mode === "call" ? (
           <div className="fc-note">
             <div className="fc-note-h">{dialed ? `How did the call with ${names} go?` : `Call with ${names}`}</div>
@@ -658,6 +649,7 @@ function ContactMenu({
           </>
         )}
       </div>
+      </AnchoredPanel>
     </span>
   );
 }
