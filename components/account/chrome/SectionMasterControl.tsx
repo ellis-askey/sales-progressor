@@ -3,12 +3,12 @@
 // components/account/chrome/SectionMasterControl.tsx
 //
 // The "All on / All off / Custom" control shown in the header of the Email and
-// Push notification cards. A preset dropdown (label reflects the aggregate of
-// the section's toggles) plus a master switch. Picking a preset, or flipping
-// the switch, sets every toggle in that section at once via onSetAll.
+// Push notification cards. A preset dropdown (on the canonical Popover) plus a
+// master switch. Picking a preset, or flipping the switch, sets every toggle in
+// that section at once via onSetAll.
 
-import { useEffect, useRef, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 
 export function SectionMasterControl({
   values,
@@ -22,102 +22,45 @@ export function SectionMasterControl({
   const allOn = values.length > 0 && values.every(Boolean);
   const allOff = values.every((v) => !v);
   const label = allOn ? "All on" : allOff ? "All off" : "Custom";
-  const labelColor = allOn ? "#16a34a" : "#6b7280";
+  const labelColor = allOn ? "var(--agent-success)" : "var(--agent-text-muted)";
 
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const triggerBtn = (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-haspopup="menu"
+      className="account-master-drop"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 8px",
+        fontSize: 13,
+        fontWeight: 600,
+        color: labelColor,
+        background: "transparent",
+        border: "none",
+        borderRadius: 7,
+        cursor: disabled ? "default" : "pointer",
+      }}
+    >
+      {label}
+      <CaretDown size={12} weight="bold" />
+    </button>
+  );
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div ref={ref} style={{ position: "relative" }}>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          disabled={disabled}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          className="account-master-drop"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "5px 8px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: labelColor,
-            background: "transparent",
-            border: "none",
-            borderRadius: 7,
-            cursor: disabled ? "default" : "pointer",
-          }}
-        >
-          {label}
-          <CaretDown size={12} weight="bold" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
-        </button>
-        {open && (
-          <div
-            role="menu"
-            style={{
-              position: "absolute",
-              right: 0,
-              top: "calc(100% + 4px)",
-              minWidth: 130,
-              background: "#fff",
-              border: "0.5px solid rgba(0,0,0,0.10)",
-              borderRadius: 10,
-              boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
-              padding: 6,
-              zIndex: 30,
-              animation: "account-rowmenu-in 130ms cubic-bezier(0.22,1,0.36,1) both",
-            }}
-          >
-            {[
-              { label: "All on", value: true },
-              { label: "All off", value: false },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onSetAll(opt.value);
-                }}
-                className="account-rowmenu-item"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "8px 10px",
-                  border: "none",
-                  background: "none",
-                  borderRadius: 7,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#111827",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+      <div style={{ position: "relative" }}>
+        {disabled ? triggerBtn : (
+          <Popover preset="menu" placement="bottom-end" width={140} trigger={triggerBtn}>
+            {(close) => (
+              <>
+                <PopoverMenuItem onClick={() => { close(); onSetAll(true); }}>All on</PopoverMenuItem>
+                <PopoverMenuItem onClick={() => { close(); onSetAll(false); }}>All off</PopoverMenuItem>
+              </>
+            )}
+          </Popover>
         )}
       </div>
 
@@ -158,9 +101,7 @@ export function SectionMasterControl({
       </button>
 
       <style>{`
-        .account-master-drop:hover { background: rgba(0,0,0,0.04); }
-        .account-rowmenu-item { transition: background 140ms ease, box-shadow 140ms ease; }
-        .account-rowmenu-item:hover { background: rgba(0,0,0,0.05); box-shadow: var(--agent-hover-lift); }
+        .account-master-drop:hover { background: var(--agent-hover-shade); }
       `}</style>
     </div>
   );
