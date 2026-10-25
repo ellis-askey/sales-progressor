@@ -23,6 +23,11 @@ export type CockpitNeedRow = {
   pillLabel: string;       // the deviation badge ("Email bounced" etc.)
   headline: string;        // the one-line situation
   actionLabel: string;     // the single safe action (navigates to the file)
+  // Who the problem is about — drives the per-side avatar (seller blue / buyer
+  // green / solicitor navy) or their photo, matching the contact card.
+  avatarName: string;
+  avatarRole: string;      // Contact.roleType: "vendor" | "purchaser" | "solicitor"
+  avatarImage: string | null;
 };
 export type CockpitChaseRow = {
   txId: string; address: string; photoUrl: string | null;
@@ -79,30 +84,43 @@ export function assembleCockpit(input: AssembleInput, now: Date): Cockpit {
   const fileById = new Map(files.map((f) => [f.txId, f]));
 
   // ── Per-file "stuck" signals ──
-  type Stuck = { kind: CockpitNeedKind; reason: string | null };
+  type Who = { name: string; role: string; image: string | null };
+  type Stuck = { kind: CockpitNeedKind; reason: string | null; who: Who | null };
   const stuckByFile = new Map<string, Stuck>();
-  const consider = (txId: string, kind: CockpitNeedKind, reason: string | null) => {
+  const consider = (txId: string, kind: CockpitNeedKind, reason: string | null, who: Who | null = null) => {
     const cur = stuckByFile.get(txId);
-    if (!cur || NEED_RANK[kind] < NEED_RANK[cur.kind]) stuckByFile.set(txId, { kind, reason });
+    if (!cur || NEED_RANK[kind] < NEED_RANK[cur.kind]) stuckByFile.set(txId, { kind, reason, who });
   };
   for (const it of needsItems) {
-    if (it.status === "bounced" || it.status === "blocked") consider(it.transactionId, "bounced", it.reason);
-    else if (it.status === "missing") consider(it.transactionId, "missing", it.recipientRole);
-    else if (it.status === "failed" || it.status === "errored" || it.status === "deferred") consider(it.transactionId, "errored", it.reason);
+    const who: Who = { name: it.recipientName, role: it.recipientRole, image: it.recipientImage };
+    if (it.status === "bounced" || it.status === "blocked") consider(it.transactionId, "bounced", it.reason, who);
+    else if (it.status === "missing") consider(it.transactionId, "missing", it.recipientRole, who);
+    else if (it.status === "failed" || it.status === "errored" || it.status === "deferred") consider(it.transactionId, "errored", it.reason, who);
   }
   // A file-level missing-email gap (needInfo) that didn't surface as an item.
   for (const f of files) if (f.status === "needInfo" && !stuckByFile.has(f.txId)) consider(f.txId, "missing", null);
-  for (const ex of exhausted) consider(ex.txId, "chased_out", `${ex.chasesSent} of ${ex.cap} chases sent · ${ex.milestoneLabel} still open (${ex.daysOutstanding}d)`);
+  for (const ex of exhausted) consider(ex.txId, "chased_out", `${ex.chasesSent} of ${ex.cap} chases sent · ${ex.milestoneLabel} still open (${ex.daysOutstanding}d)`, { name: ex.recipientLabel, role: sideFromLabel(ex.recipientLabel).isSolicitor ? "solicitor" : sideFromLabel(ex.recipientLabel).isBuyer ? "purchaser" : "vendor", image: null });
 
   const addressOf = (txId: string, fallback: string) => fileById.get(txId)?.address ?? fallback;
 
+  const sideWord = (role: string | null | undefined) => role === "vendor" ? "seller" : role === "purchaser" ? "buyer" : null;
   const needsYou: CockpitNeedRow[] = [...stuckByFile.entries()].map(([txId, s]) => {
     const addr = addressOf(txId, needsItems.find((n) => n.transactionId === txId)?.transactionAddress
       ?? exhausted.find((e) => e.txId === txId)?.address ?? "this sale");
-    const base = { txId, address: addr, photoUrl: photo(txId), kind: s.kind };
+    const named = s.who?.name?.trim() || "";
+    const base = {
+      txId, address: addr, photoUrl: photo(txId), kind: s.kind,
+      avatarName: named, avatarRole: s.who?.role ?? "", avatarImage: s.who?.image ?? null,
+    };
     switch (s.kind) {
-      case "bounced": return { ...base, pillLabel: "Email bounced", headline: "A client's email bounced. Chasing is paused until it's fixed.", actionLabel: "Update email" };
-      case "missing": return { ...base, pillLabel: "Needs an email", headline: `No ${s.reason ? s.reason + " " : ""}email on file, so nothing can send yet.`, actionLabel: "Add email" };
+      case "bounced": return { ...base, pillLabel: "Email bounced", headline: named ? `${named}'s email bounced. Chasing is paused until it's fixed.` : "A client's email bounced. Chasing is paused until it's fixed.", actionLabel: "Update email" };
+      case "missing": {
+        const word = sideWord(s.reason);
+        const headline = named
+          ? `We don't have an email for ${named}, so nothing can send yet.`
+          : word ? `No ${word} email on file, so nothing can send yet.` : "No email on file, so nothing can send yet.";
+        return { ...base, pillLabel: "Needs an email", headline, actionLabel: "Add email" };
+      }
       case "errored": return { ...base, pillLabel: "Send failed", headline: s.reason?.trim() || "A send failed and needs a look.", actionLabel: "Review" };
       case "chased_out": return { ...base, pillLabel: "Chased out", headline: s.reason?.trim() || "Every automated chase has been sent and the step is still open.", actionLabel: "Log a call" };
     }

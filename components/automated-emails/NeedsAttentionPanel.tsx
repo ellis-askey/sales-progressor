@@ -12,7 +12,8 @@ import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import type { PillProps } from "@/components/ui/Pill";
-import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
+import { ContactAvatar } from "@/components/ui/Avatar";
+import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type { NeedsAttention, NeedsAttentionItem, IssueStatus } from "@/lib/services/automated-emails-overview";
 
 // Display cap for this compact panel — the Problems tab shows the full list.
@@ -92,20 +93,14 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
 
 function IssueCard({ item }: { item: NeedsAttentionItem }) {
   const fileHref = `/agent/transactions/${item.transactionId}`;
-  const role = asRole(item.recipientRole);
   const cta = ctaFor(item);
 
   return (
     <div style={{ display: "flex", gap: 12, paddingBottom: 12, borderBottom: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.08))" }}>
-      <span
-        aria-hidden="true"
-        style={{
-          width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: "grid", placeItems: "center",
-          background: iconBg(item.status), color: iconColor(item.status),
-        }}
-      >
-        {iconFor(item)}
-      </span>
+      {/* The person this is about — their photo, or the side-tinted contact art
+          (seller blue / buyer green / solicitor navy). Same avatar as the file's
+          contact card, so the circle matches the name in the headline. */}
+      <ContactAvatar contact={{ name: item.recipientName || "?", roleType: item.recipientRole || undefined }} image={item.recipientImage} size={38} />
 
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -144,11 +139,19 @@ function who(item: NeedsAttentionItem): string {
   return r ? roleLabel(r).toLowerCase() : "recipient";
 }
 
+// We know who they are — name them. Falls back to "the seller/buyer" when the
+// record has no usable name (placeholder rows).
+function personName(item: NeedsAttentionItem): string {
+  const n = item.recipientName?.trim();
+  if (!n || n === "(unknown)" || n === "(solicitor)") return `the ${who(item)}`;
+  return n;
+}
+
 function headline(item: NeedsAttentionItem): string {
   switch (item.status) {
     case "bounced":
-    case "blocked": return `We can't reach the ${who(item)}`;
-    case "missing": return `Missing ${who(item)} email`;
+    case "blocked": return `We can't reach ${personName(item)}`;
+    case "missing": return `Missing ${personName(item)}'s email`;
     case "failed": return item.recipientRole === "solicitor" ? "Solicitor chase failed" : "Send failed";
     case "deferred": return "Repeatedly deferred";
     case "errored": return "Send errored";
@@ -183,32 +186,4 @@ function countChip(item: NeedsAttentionItem): ReactNode {
   }
   if (item.status === "missing") return <Pill tone="warning" size="sm" outline>1 file</Pill>;
   return null;
-}
-
-// ── Icon family ──────────────────────────────────────────────────────────────
-
-function iconFor(item: NeedsAttentionItem): ReactNode {
-  if (item.status === "missing") {
-    const role = asRole(item.recipientRole);
-    return role ? <RoleIcon role={role} size={17} /> : <UserGlyph />;
-  }
-  if (item.recipientRole === "solicitor") return <ScaleGlyph />;
-  return <MailGlyph />;
-}
-
-function iconBg(status: IssueStatus): string {
-  return status === "missing" ? "var(--agent-warning-bg)" : "var(--agent-danger-bg)";
-}
-function iconColor(status: IssueStatus): string {
-  return status === "missing" ? "var(--agent-warning)" : "var(--agent-danger)";
-}
-
-function MailGlyph() {
-  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
-}
-function ScaleGlyph() {
-  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18M7 7l-4 6a4 4 0 0 0 8 0zM17 7l-4 6a4 4 0 0 0 8 0zM5 21h14" /></svg>;
-}
-function UserGlyph() {
-  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
 }

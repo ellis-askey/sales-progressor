@@ -39,6 +39,11 @@ export const DEFAULT_PICKS: GlassPicks = {
   "overview-notes": { light: "v23", dark: "v11" },
   "steps-progress": { light: "v05", dark: "v05" },
   "auto-emails-row": { light: "v08", dark: "v05" },
+  // "By sale" cockpit — Ellis's export, 2026-10-25 (the frosted main card, same
+  // as the reminders file card). The quiet summary cards (All set / Paused)
+  // aren't in the export; matched to the row so the cockpit reads as one piece.
+  "auto-cockpit-row": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  "auto-cockpit-quiet": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "reminders-group": { light: "v05", dark: "v05" },
   // To-Do task group (GlassCard) — Ellis's export, 2026-10-25.
   "todo-page-group": { light: "v05", dark: "cs-053799eb" },

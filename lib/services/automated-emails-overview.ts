@@ -15,6 +15,16 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { toUKDateStr, londonDayBounds } from "@/lib/utils";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
+import { sidesWithNoEmail, isActiveRoundContact } from "@/lib/contacts/round-scope";
+
+// Join contact names into a readable phrase: "Jane", "Jane and John",
+// "Jane, John and Sam". Used to NAME the people on a side we can't reach.
+function joinNames(names: string[]): string {
+  const ns = names.filter((n) => n && n.trim());
+  if (ns.length === 0) return "";
+  if (ns.length === 1) return ns[0];
+  return `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`;
+}
 
 const DAY = 86_400_000;
 
@@ -269,6 +279,7 @@ export type NeedsAttentionItem = {
   recipientName: string;
   recipientEmail: string;
   recipientRole: string;
+  recipientImage: string | null; // contact photo, for the per-side avatar
   reason: string | null;
   deferredCount: number;
   action: IssueAction; // safe, link-only actions (no send/retry here)
@@ -305,7 +316,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
   const now = new Date();
   const from = new Date(now.getTime() - input.periodDays * DAY);
 
-  const [queueProblems, solProblems, missingContacts] = await Promise.all([
+  const [queueProblems, solProblems, coverageTxs] = await Promise.all([
     prisma.outboundEmailQueue.findMany({
       // Only ACTIVE files: a historical bounce/block/error on a file that has
       // since completed or been withdrawn must not surface as a live "needs
@@ -317,7 +328,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
         id: true, bouncedAt: true, bouncedReason: true, blockedAt: true, blockedReason: true,
         errorAt: true, errorMessage: true, deferredAt: true, deferredCount: true, deliveredAt: true,
         recipientEmail: true,
-        recipientContact: { select: { name: true, roleType: true, propertyTransactionId: true } },
+        recipientContact: { select: { name: true, roleType: true, propertyTransactionId: true, image: true } },
       },
       orderBy: [{ bouncedAt: "desc" }, { blockedAt: "desc" }, { errorAt: "desc" }],
       take: 200,
@@ -330,18 +341,22 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       orderBy: { failedAt: "desc" },
       take: 200,
     }),
-    // Missing-email gap: client contacts on ACTIVE files with no address, so
-    // the chase engine never queued anything for them. Not time-bounded (a
-    // setup gap doesn't age out of the period like a delivery event does).
-    prisma.contact.findMany({
-      where: {
-        propertyTransactionId: { in: txIds },
-        roleType: { in: ["vendor", "purchaser"] },
-        OR: [{ email: null }, { email: "" }],
-        transaction: { status: "active" },
+    // Missing-email gap: active files whose client contacts we read per-SIDE
+    // (seller / buyer) to find a side the chase engine can't reach at all. Not
+    // time-bounded (a setup gap doesn't age out like a delivery event does).
+    // We pull every vendor/purchaser contact — not just the email-less ones —
+    // because a side is only a gap when NO contact on it has an address (a
+    // couple with one email between them is reachable, critique below).
+    prisma.propertyTransaction.findMany({
+      where: { id: { in: txIds }, status: "active" },
+      select: {
+        id: true,
+        activeBuyerRoundId: true,
+        contacts: {
+          where: { roleType: { in: ["vendor", "purchaser"] } },
+          select: { id: true, name: true, roleType: true, email: true, buyerRoundId: true, image: true },
+        },
       },
-      select: { id: true, name: true, roleType: true, propertyTransactionId: true },
-      take: 200,
     }),
   ]);
 
@@ -378,6 +393,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       recipientName: r.recipientContact?.name ?? "(unknown)",
       recipientEmail: r.recipientEmail,
       recipientRole: r.recipientContact?.roleType ?? "",
+      recipientImage: r.recipientContact?.image ?? null,
       reason,
       deferredCount: r.deferredCount,
       // A bad address is fixable by updating the contact; deferrals/errors are
@@ -399,6 +415,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
       recipientName: m.recipientName ?? "(solicitor)",
       recipientEmail: m.recipientEmail ?? "",
       recipientRole: "solicitor",
+      recipientImage: null,
       reason: m.failureReason,
       deferredCount: 0,
       action: "review",
@@ -406,22 +423,32 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     });
   }
 
-  for (const c of missingContacts) {
-    files.add(c.propertyTransactionId);
-    byKey.set(`missing|${c.id}`, {
-      emailId: c.id,
-      source: "queue",
-      status: "missing",
-      transactionId: c.propertyTransactionId,
-      transactionAddress: txAddressById.get(c.propertyTransactionId) ?? "(unknown file)",
-      recipientName: c.name,
-      recipientEmail: "",
-      recipientRole: c.roleType,
-      reason: "No email address on file",
-      deferredCount: 0,
-      action: "update_contact",
-      count: 1,
-    });
+  // One item per unreachable SIDE (not per email-less contact), naming the
+  // people on it so the card reads "Missing David and Jennifer Robinson's
+  // email" and the avatar matches. A side is a gap only when none of its
+  // active-round contacts has an address.
+  for (const tx of coverageTxs) {
+    for (const side of sidesWithNoEmail(tx.contacts, tx.activeBuyerRoundId)) {
+      const onSide = tx.contacts.filter((c) => c.roleType === side && isActiveRoundContact(c, tx.activeBuyerRoundId));
+      files.add(tx.id);
+      const named = joinNames(onSide.map((c) => c.name));
+      const rep = onSide.find((c) => c.image) ?? onSide[0];
+      byKey.set(`missing|${tx.id}|${side}`, {
+        emailId: rep?.id ?? `${tx.id}:${side}`,
+        source: "queue",
+        status: "missing",
+        transactionId: tx.id,
+        transactionAddress: txAddressById.get(tx.id) ?? "(unknown file)",
+        recipientName: named || (side === "vendor" ? "the seller" : "the buyer"),
+        recipientEmail: "",
+        recipientRole: side,
+        recipientImage: rep?.image ?? null,
+        reason: "No email address on file",
+        deferredCount: 0,
+        action: "update_contact",
+        count: 1,
+      });
+    }
   }
 
   const items = [...byKey.values()].sort((a, b) => rank[a.status] - rank[b.status]);
@@ -433,6 +460,6 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     affectedFiles: files.size,
     byStatus,
     items,
-    truncated: queueProblems.length === 200 || solProblems.length === 200 || missingContacts.length === 200,
+    truncated: queueProblems.length === 200 || solProblems.length === 200,
   };
 }

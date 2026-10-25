@@ -47,7 +47,6 @@ export function AutomationBanner({
       : state === "attention"
         ? `Chasing is running across ${banner.activeFiles} active ${fileWord}, but ${needsTotal === 1 ? "1 thing needs" : `${needsTotal} things need`} a person. They're listed below.`
         : `We're monitoring and chasing ${banner.activeFiles === 1 ? "" : "across "}${banner.activeFiles} active ${fileWord}. Nothing needs you.`;
-  const tileBg = state === "healthy" ? "var(--agent-success-bg)" : "var(--agent-warning-bg)";
   const tileFg = state === "healthy" ? "var(--agent-success)" : "var(--agent-warning)";
 
   return (
@@ -65,21 +64,15 @@ export function AutomationBanner({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px 24px", flexWrap: "wrap" }}>
         {/* Health lead */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 260, flex: "1 1 340px" }}>
-          <span
-            aria-hidden="true"
-            style={{
-              width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-              display: "grid", placeItems: "center",
-              background: tileBg,
-              color: tileFg,
-            }}
-          >
+          {/* Bare icon, no faded backer (founder 2026-10-25): just the glyph in
+              its state colour, sized to sit level with the headline. */}
+          <span aria-hidden="true" style={{ flexShrink: 0, display: "grid", placeItems: "center", color: tileFg }}>
             {state === "paused" ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
             ) : state === "attention" ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
             )}
           </span>
           <div style={{ minWidth: 0 }}>

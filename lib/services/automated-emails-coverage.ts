@@ -18,6 +18,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
+import { sidesWithNoEmail } from "@/lib/contacts/round-scope";
 
 // The chase cron's global gate (mirrors automated-emails-preview.ts). Anything
 // other than the literal "true" leaves every file's chases dormant.
@@ -42,10 +43,11 @@ export async function getAutomationCoverage(input: EmailScopeInput): Promise<Aut
     select: {
       id: true,
       clientEmailsPaused: true,
+      activeBuyerRoundId: true,
       agency: { select: { chaseEmailsEnabled: true } },
       contacts: {
         where: { roleType: { in: ["vendor", "purchaser"] } },
-        select: { email: true },
+        select: { roleType: true, email: true, buyerRoundId: true },
       },
     },
   });
@@ -59,7 +61,9 @@ export async function getAutomationCoverage(input: EmailScopeInput): Promise<Aut
       paused++;
       continue;
     }
-    const missingEmail = t.contacts.some((c) => !c.email || c.email.trim() === "");
+    // needInfo only when a whole SIDE has no emailable contact (per-side,
+    // round-scoped) — a couple with one address between them is reachable.
+    const missingEmail = sidesWithNoEmail(t.contacts, t.activeBuyerRoundId).length > 0;
     if (missingEmail) needInfo++;
     else covered++;
   }
@@ -100,8 +104,9 @@ export async function getAutomationFiles(input: EmailScopeInput, search?: string
       select: {
         id: true,
         clientEmailsPaused: true,
+        activeBuyerRoundId: true,
         agency: { select: { chaseEmailsEnabled: true } },
-        contacts: { where: { roleType: { in: ["vendor", "purchaser"] } }, select: { email: true } },
+        contacts: { where: { roleType: { in: ["vendor", "purchaser"] } }, select: { roleType: true, email: true, buyerRoundId: true } },
       },
     }),
     prisma.outboundEmailQueue.findMany({
@@ -151,7 +156,7 @@ export async function getAutomationFiles(input: EmailScopeInput, search?: string
     if (globalOff) { status = "paused"; pauseReason = "global"; }
     else if (t.agency?.chaseEmailsEnabled === false) { status = "paused"; pauseReason = "agency"; }
     else if (t.clientEmailsPaused) { status = "paused"; pauseReason = "file"; }
-    else if (t.contacts.some((c) => !c.email || c.email.trim() === "")) { status = "needInfo"; }
+    else if (sidesWithNoEmail(t.contacts, t.activeBuyerRoundId).length > 0) { status = "needInfo"; }
     else { status = "covered"; }
 
     const pending = pendingByFile.get(t.id);

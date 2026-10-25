@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Warning, EnvelopeSimple, PhoneCall, CheckCircle, PauseCircle, CaretRight } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { StatusPill } from "@/components/reminders/StatusPill";
@@ -42,6 +43,26 @@ function PhotoIdentity({ txId, address, photoUrl }: { txId: string; address: str
   return (
     <Link href={fileHref(txId)} className="agent-link" style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, flex: "1 1 auto", textDecoration: "none" }}>
       <PropertyThumb photoUrl={photoUrl} size={40} />
+      <div style={{ minWidth: 0 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
+          <span className="rem-addr" style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{line}</span>
+          <LinkArrow />
+        </span>
+        {location && <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
+      </div>
+    </Link>
+  );
+}
+
+// The person the problem is about: their photo, or the side-tinted contact art
+// (seller blue / buyer green / solicitor navy) — the same avatar as the file's
+// contact card, so the circle matches the name in the headline. Still links to
+// the file; the address sits alongside so the row stays identifiable.
+function PersonIdentity({ txId, address, avatarName, avatarRole, avatarImage }: { txId: string; address: string; avatarName: string; avatarRole: string; avatarImage: string | null }) {
+  const { line, location } = splitAddress(address);
+  return (
+    <Link href={fileHref(txId)} className="agent-link" style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, flex: "1 1 auto", textDecoration: "none" }}>
+      <ContactAvatar contact={{ name: avatarName || "?", roleType: avatarRole || undefined }} image={avatarImage} size={40} />
       <div style={{ minWidth: 0 }}>
         <span style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%" }}>
           <span className="rem-addr" style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{line}</span>
@@ -96,7 +117,7 @@ export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
             {needsYou.map((r) => (
               <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
                 <div style={ROW_INNER}>
-                  <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
+                  <PersonIdentity txId={r.txId} address={r.address} avatarName={r.avatarName} avatarRole={r.avatarRole} avatarImage={r.avatarImage} />
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0, marginLeft: "auto" }}>
                     <StatusPill tone={needTone[r.kind]} icon={needIcon[r.kind]} label={r.pillLabel} />
                     <Link href={fileHref(r.txId)} className="agent-btn agent-btn-sm agent-btn-color-primary" style={{ textDecoration: "none" }}>{r.actionLabel}</Link>
