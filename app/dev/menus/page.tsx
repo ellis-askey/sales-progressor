@@ -276,6 +276,22 @@ border-radius: ${c.radius}px;   hover: ${c.hover}`;
               <p className="dm-fill">Filler. Filler. Filler. Filler. Filler. Filler. Filler. Filler. Filler.</p>
             </div>
           </div>
+
+          <div style={{ marginTop: 34 }}>
+            <div className="dm-spec-lbl">Chart / data-viz tooltips — pick a surface. These hover over busy chart lines, so the 30% menu glass may read too thin for small numbers. Left = the standard menu glass (30%). Right = a more opaque chart variant (72%). Toggle dark too, then tell me which (or a value between).</div>
+            <div className="dm-chartrow">
+              <div className="dm-chart">
+                <svg className="dm-chart-svg" viewBox="0 0 320 120" preserveAspectRatio="none"><path d="M0,90 L50,70 L100,82 L150,44 L200,58 L260,30 L320,52" fill="none" stroke="var(--agent-coral)" strokeWidth="2.5" /><path d="M0,100 L60,96 L120,88 L180,92 L240,78 L320,84" fill="none" stroke="#c9972f" strokeWidth="2.5" /></svg>
+                <div className="dm-cht-tip a"><b>5 Sept</b><span className="o">7 created</span><span className="e">0 exchanged</span></div>
+                <div className="dm-cht-cap">A · standard glass (30%)</div>
+              </div>
+              <div className="dm-chart">
+                <svg className="dm-chart-svg" viewBox="0 0 320 120" preserveAspectRatio="none"><path d="M0,90 L50,70 L100,82 L150,44 L200,58 L260,30 L320,52" fill="none" stroke="var(--agent-coral)" strokeWidth="2.5" /><path d="M0,100 L60,96 L120,88 L180,92 L240,78 L320,84" fill="none" stroke="#c9972f" strokeWidth="2.5" /></svg>
+                <div className="dm-cht-tip b"><b>5 Sept</b><span className="o">7 created</span><span className="e">0 exchanged</span></div>
+                <div className="dm-cht-cap">B · opaque chart variant (72%)</div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <p className="dm-foot">Curate here as long as you like — nothing's committed to the look until you say. When one feels right, tell me (the recipe box has the exact values) and I'll build it into the single shared primitive, then wire the positioning and migrate every menu onto it.</p>
@@ -360,6 +376,17 @@ const CSS = `
 .dm-infotip:hover { color:var(--agent-coral-deep); background:rgba(var(--agent-coral-rgb,255,107,74),0.12); }
 .dm-edge { margin-top:26px; }
 .dm-clip { height:200px; overflow:auto; transform:translateZ(0); border:1px solid var(--agent-border-default); border-radius:12px; padding:16px; background:var(--agent-surface-elevated); }
+.dm-chartrow { display:flex; gap:20px; flex-wrap:wrap; margin-top:10px; }
+.dm-chart { --dm-glass-rgb:255,255,255; position:relative; flex:1 1 300px; min-width:280px; height:150px; border-radius:14px; overflow:hidden; border:0.5px solid var(--agent-border-subtle); background:linear-gradient(160deg, rgba(255,107,74,0.06), rgba(201,151,47,0.05)); }
+:root[data-theme="dark"] .dm-chart { --dm-glass-rgb:20,26,36; background:linear-gradient(160deg, rgba(255,107,74,0.10), rgba(201,151,47,0.08)); }
+.dm-chart-svg { position:absolute; inset:0; width:100%; height:100%; opacity:0.8; }
+.dm-cht-tip { position:absolute; top:40px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:1px; padding:9px 12px; border-radius:10px; border:1px solid var(--agent-border-default); box-shadow:0 12px 30px rgba(20,12,6,0.16); font-size:12px; color:var(--agent-text-primary); }
+.dm-cht-tip b { font-size:12.5px; font-weight:700; margin-bottom:2px; }
+.dm-cht-tip .o { color:var(--agent-coral-deep); font-weight:600; }
+.dm-cht-tip .e { color:#b07d1e; font-weight:600; }
+.dm-cht-tip.a { background:rgba(var(--dm-glass-rgb),0.30); backdrop-filter:blur(30px) saturate(200%); -webkit-backdrop-filter:blur(30px) saturate(200%); }
+.dm-cht-tip.b { background:rgba(var(--dm-glass-rgb),0.72); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); }
+.dm-cht-cap { position:absolute; left:0; right:0; bottom:8px; text-align:center; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
 .dm-fill { font-size:13px; color:var(--agent-text-muted); line-height:1.6; margin:0 0 12px; }
 .dm-fill code { font-family:ui-monospace, monospace; font-size:12px; background:var(--agent-surface-subtle, rgba(0,0,0,0.05)); padding:1px 5px; border-radius:5px; }
 `;
