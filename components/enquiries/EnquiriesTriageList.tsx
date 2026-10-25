@@ -292,9 +292,6 @@ export function EnquiriesTriageList({
           <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
           <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
           <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
-          {tiles.onHold > 0 && (
-            <Tile icon={<ClockCountdown size={22} weight="regular" />} tone="neutral" value={tiles.onHold} label="On hold" sub="Waiting on a pack" />
-          )}
         </div>
       </GlassCard>
 
