@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
@@ -116,7 +118,14 @@ const ROLE_LABEL: Record<UserRole, string> = {
 function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false, isBusinessMember = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean; isBusinessMember?: boolean }) {
   const [open, setOpen] = useState(false);
   const [billingModalOpen, setBillingModalOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number; width: number } | null>(null);
+  // The card portals to <body> so its glass can blur the PAGE. A backdrop-filter
+  // can't nest inside another (the topbar is itself blur(28px)), so an inline
+  // card never blurred. usePortalTheme re-establishes the --agent-* tokens on the
+  // portal (it sits outside .agent-shell-root).
+  const { theme, isNight } = usePortalTheme();
   // Billing is for agency users (director + negotiator). Internal staff
   // and admins have no billing because they don't own an agency that's
   // being charged. Show the entry only for those two roles.
@@ -127,10 +136,22 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   // below stays gated on isBusinessOwner. Nothing changes for agency users.
   const accountHref = isBusinessMember ? "/agent/settings/profile" : "/agent/account/profile";
 
+  // Keep the portalled card glued to the reserved topbar slot.
+  useLayoutEffect(() => {
+    function measure() {
+      const r = slotRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.top, right: Math.max(0, window.innerWidth - r.right), width: r.width });
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
     document.addEventListener("mousedown", handleClick);
@@ -150,11 +171,100 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   };
   const rowIcon = { width: 15, height: 15, color: "var(--agent-text-muted)" } as const;
 
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
+  // The pill+menu card — identical morph markup, just portalled over the slot.
+  const card = (
+    <div
+      ref={cardRef}
+      data-theme={theme}
+      data-night={isNight ? "" : undefined}
+      className={`uacc-card${isNight ? " nv2-night" : ""}`}
+      style={{
+        position: "fixed",
+        top: pos?.top ?? 0,
+        right: pos?.right ?? 12,
+        minWidth: pos?.width ?? 0,
+        visibility: pos ? "visible" : "hidden",
+        border: "1px solid var(--agent-border-default)",
+        borderRadius: PILL_R,
+        overflow: "hidden",
+        zIndex: 1300,
+        boxShadow: open ? "0 12px 30px rgba(20,12,6,0.16)" : "none",
+        transition: "box-shadow 200ms",
+      }}
+    >
+      {/* Trigger row */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: 7, width: "100%",
+          border: "none", background: "transparent",
+          padding: "4px 10px 4px 4px",
+          cursor: "pointer",
+        }}
+        className="agent-hover-ctl"
+        aria-label="User menu"
+        aria-expanded={open}
+      >
+        <UserAvatar user={{ name: userName, image: userImage }} size={26} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, textAlign: "left", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {userName}
+        </span>
+        <CaretDown
+          weight="bold"
+          style={{
+            width: 11, height: 11, color: "var(--agent-text-muted)", flexShrink: 0,
+            transition: "transform 150ms",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
 
-      {/* Invisible spacer — keeps the header flex layout sized correctly */}
-      <div aria-hidden style={{
+      {/* Animated menu content — grid-rows 0fr → 1fr */}
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">
+          <div style={{ height: "0.5px", background: "var(--agent-border-subtle)" }} />
+          <div style={{ padding: "5px 6px 8px" }}>
+            <p style={{ margin: "4px 10px 6px", fontSize: 11, color: "var(--agent-text-muted)" }}>
+              {ROLE_LABEL[role]}
+            </p>
+            <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
+            <Link href={accountHref} onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
+              <GearSix weight="regular" style={rowIcon} />
+              {isBusinessMember ? "Settings" : "Account"}
+            </Link>
+            {isBusinessOwner && (
+              <Link href="/agent/settings/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
+                <CreditCard weight="regular" style={rowIcon} />
+                Billing
+              </Link>
+            )}
+            {showBillingEntry && (
+              role === "director" ? (
+                <Link href="/agent/account/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
+                  <CreditCard weight="regular" style={rowIcon} />
+                  Billing
+                </Link>
+              ) : (
+                <button onClick={() => { setOpen(false); setBillingModalOpen(true); }} style={rowStyle} className="agent-hover-row">
+                  <CreditCard weight="regular" style={rowIcon} />
+                  Billing
+                </button>
+              )
+            )}
+            <button onClick={() => signOut({ callbackUrl: "/login" })} style={{ ...rowStyle, color: "var(--agent-text-secondary)" }} className="agent-hover-row">
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Invisible slot — reserves the chip's width in the topbar flex and
+          anchors the portalled card. */}
+      <div ref={slotRef} aria-hidden style={{
         visibility: "hidden", pointerEvents: "none",
         display: "flex", alignItems: "center", gap: 7,
         padding: "4px 10px 4px 4px",
@@ -166,92 +276,14 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
         <div style={{ width: 11, height: 11, flexShrink: 0 }} />
       </div>
 
-      {/* Floating card — one container that grows downward (the pill morphs into
-          the menu). Surface = the locked menu glass via .uacc-card, so it matches
-          every other menu while keeping the grow animation. */}
-      <div className="uacc-card" style={{
-        position: "absolute", top: 0, right: 0, minWidth: "100%",
-        border: "1px solid var(--agent-border-default)",
-        borderRadius: PILL_R,
-        overflow: "hidden",
-        zIndex: 200,
-        boxShadow: open ? "0 12px 30px rgba(20,12,6,0.16)" : "none",
-        transition: "box-shadow 200ms",
-      }}>
-
-        {/* Trigger row */}
-        <button
-          onClick={() => setOpen((v) => !v)}
-          style={{
-            display: "flex", alignItems: "center", gap: 7, width: "100%",
-            border: "none", background: "transparent",
-            padding: "4px 10px 4px 4px",
-            cursor: "pointer",
-          }}
-          className="agent-hover-ctl"
-          aria-label="User menu"
-          aria-expanded={open}
-        >
-          <UserAvatar user={{ name: userName, image: userImage }} size={26} />
-          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)", flex: 1, textAlign: "left", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {userName}
-          </span>
-          <CaretDown
-            weight="bold"
-            style={{
-              width: 11, height: 11, color: "var(--agent-text-muted)", flexShrink: 0,
-              transition: "transform 150ms",
-              transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            }}
-          />
-        </button>
-
-        {/* Animated menu content — grid-rows 0fr → 1fr */}
-        <div className={`agent-acc${open ? " open" : ""}`}>
-          <div className="agent-acc-in">
-            <div style={{ height: "0.5px", background: "var(--agent-border-subtle)" }} />
-            <div style={{ padding: "5px 6px 8px" }}>
-              <p style={{ margin: "4px 10px 6px", fontSize: 11, color: "var(--agent-text-muted)" }}>
-                {ROLE_LABEL[role]}
-              </p>
-              <div style={{ height: "0.5px", background: "var(--agent-border-subtle)", margin: "0 4px 4px" }} />
-              <Link href={accountHref} onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
-                <GearSix weight="regular" style={rowIcon} />
-                {isBusinessMember ? "Settings" : "Account"}
-              </Link>
-              {isBusinessOwner && (
-                <Link href="/agent/settings/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
-                  <CreditCard weight="regular" style={rowIcon} />
-                  Billing
-                </Link>
-              )}
-              {showBillingEntry && (
-                role === "director" ? (
-                  <Link href="/agent/account/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
-                    <CreditCard weight="regular" style={rowIcon} />
-                    Billing
-                  </Link>
-                ) : (
-                  <button onClick={() => { setOpen(false); setBillingModalOpen(true); }} style={rowStyle} className="agent-hover-row">
-                    <CreditCard weight="regular" style={rowIcon} />
-                    Billing
-                  </button>
-                )
-              )}
-              <button onClick={() => signOut({ callbackUrl: "/login" })} style={{ ...rowStyle, color: "var(--agent-text-secondary)" }} className="agent-hover-row">
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {typeof document !== "undefined" && createPortal(card, document.body)}
 
       {/* Negotiator-clicked Billing → modal explaining director-only + 3 paths. */}
       <BillingNegotiatorModal open={billingModalOpen} onClose={() => setBillingModalOpen(false)} />
 
       <style>{`
         .uacc-card { --ui-ink: 45,24,16; background: rgba(255,255,255,0.30); backdrop-filter: blur(30px) saturate(200%); -webkit-backdrop-filter: blur(30px) saturate(200%); }
-        :root[data-theme="dark"] .uacc-card { --ui-ink: 235,235,240; background: rgba(20,26,36,0.30); }
+        .uacc-card[data-night] { --ui-ink: 235,235,240; background: rgba(20,26,36,0.30); }
         .uacc-card .agent-hover-row:hover { background: rgba(var(--ui-ink), 0.06); box-shadow: var(--agent-hover-lift); }
       `}</style>
     </div>
