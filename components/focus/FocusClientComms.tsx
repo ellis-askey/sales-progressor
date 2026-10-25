@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { AnchoredPanel } from "@/components/ui/Popover";
+import { AnchoredPanel, Tooltip } from "@/components/ui/Popover";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
@@ -226,7 +226,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         </header>
 
         <div className="fc-main">
-          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" glassBaseline={{ light: "v04", dark: "v04" }} action={
+          <TodoTabs tabs={tabs} active={view} onChange={(k) => setView(k as FocusView)} glassId="focus-tabs" glassLabel="Focus · tabs" glassBaseline={{ light: "v04", dark: "v04" }} glassPillBaseline={{ light: "v03", dark: "v04" }} action={
             <span className="fc-actionrow">
               <AutoToggle on={includeAuto} onChange={setIncludeAuto} />
               <SideSeg value={sideFilter} onChange={setSideFilter} />
@@ -454,54 +454,55 @@ function ChannelUnit({ channel, c, onOpen, recent = false, tone = null }: { chan
   // The most-recent touch is drawn SOLID, with its time coloured by how overdue
   // it is (#293). A null/empty channel is never "recent".
   const recentColor = recent && tone ? (tone === "ok" ? "var(--agent-success)" : "var(--agent-danger)") : undefined;
-  // On a touch device (no hover) the detail tooltip is hidden, so a first tap
-  // shows it (same content as the desktop hover); a second tap opens the thread
-  // (critique #298). On a hover device, a click opens straight away.
-  const [tipOpen, setTipOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!tipOpen) return;
-    const close = () => setTipOpen(false);
-    function onDown(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) close(); }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("scroll", close, true);
-    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("scroll", close, true); };
-  }, [tipOpen]);
-  const isTouch = () => typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
+  // The detail popover is the canonical portalled Tooltip (hover on desktop, tap
+  // to pin on touch) — it's rendered at <body> so its glass blurs the page like
+  // the menus, which the old in-card .fcl-tip couldn't (nested inside the card's
+  // own backdrop-filter). On a hover device a click still opens the thread.
   if (!c) {
     return (
-      <button type="button" ref={ref} className={`fc-u ${channel} ghost${tipOpen ? " tip-open" : ""}`} onClick={() => setTipOpen((v) => !v)}>
-        <span className="fc-ic"><Icon size={16} /></span>
-        <span className="fc-ut">—</span>
-        <span className="fcl-tip" role="tooltip">
-          <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-          <span className="fcl-tip-empty">{EMPTY_LABEL[channel]}</span>
-        </span>
-      </button>
+      <Tooltip
+        placement="top-start"
+        content={
+          <>
+            <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+            <span className="fcl-tip-empty">{EMPTY_LABEL[channel]}</span>
+          </>
+        }
+      >
+        <button type="button" className={`fc-u ${channel} ghost`}>
+          <span className="fc-ic"><Icon size={16} /></span>
+          <span className="fc-ut">—</span>
+        </button>
+      </Tooltip>
     );
   }
   const meta = CONTACT_STATE[c.state];
   const detail = c.channel === "email" ? c.subject : c.preview;
   return (
-    <button
-      type="button"
-      ref={ref}
-      className={`fc-u ${channel}${tipOpen ? " tip-open" : ""}${recent ? " recent" : ""}`}
-      onClick={() => { if (isTouch() && !tipOpen) setTipOpen(true); else onOpen(c); }}
+    <Tooltip
+      placement="top-start"
+      content={
+        <>
+          <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
+          <span className={`fcl-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
+          <span className="fcl-tip-when">{fmtDateTime(c.at)}</span>
+          {detail ? <span className="fcl-tip-snip">{detail}</span> : null}
+        </>
+      }
     >
-      <span className="fc-ic">
-        <Icon size={16} weight={recent ? "fill" : "regular"} />
-        <span className={`fc-pip ${meta.tone}`} aria-hidden />
-      </span>
-      <span className="fc-ut" style={recentColor ? { color: recentColor, fontWeight: 750 } : undefined}>{relWhen(c.at)}</span>
-      <span className="fcl-tip" role="tooltip">
-        <span className="fcl-tip-h"><Icon size={13} /><b>{CHANNEL_NAME[channel]}</b></span>
-        <span className={`fcl-tip-state ${meta.tone}`}>{dirLabel(c)} · {meta.label}</span>
-        <span className="fcl-tip-when">{fmtDateTime(c.at)}</span>
-        {detail ? <span className="fcl-tip-snip">{detail}</span> : null}
-      </span>
-    </button>
+      <button
+        type="button"
+        className={`fc-u ${channel}${recent ? " recent" : ""}`}
+        onClick={() => onOpen(c)}
+      >
+        <span className="fc-ic">
+          <Icon size={16} weight={recent ? "fill" : "regular"} />
+          <span className={`fc-pip ${meta.tone}`} aria-hidden />
+        </span>
+        <span className="fc-ut" style={recentColor ? { color: recentColor, fontWeight: 750 } : undefined}>{relWhen(c.at)}</span>
+      </button>
+    </Tooltip>
   );
 }
 
