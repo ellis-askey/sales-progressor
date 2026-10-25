@@ -15,7 +15,7 @@
 // middle stage below a populated later one stays unlocked.
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Popover } from "@/components/ui/Popover";
 import {
   FolderOpen, MagnifyingGlass, ChatCircleDots, CheckSquare, ArrowsClockwise, Key,
   Hourglass, Lock, ArrowRight,
@@ -102,39 +102,19 @@ export function PipelineAtAGlance({
 // When the stage holds more than the bubble shows, a final row links to the
 // Files list (filtered where that route exists).
 function MoreBubble({ count, items, filesHref }: { count: number; items: PipelineMoreItem[]; filesHref: string | null }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const overflow = count - items.length;
   return (
-    <div ref={wrapRef} className="pipe-more-wrap">
-      <button
-        type="button"
-        className="pipe-more pipe-more-btn"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-      >
-        +{count} more
-      </button>
-      {open && (
-        <div className="pipe-more-bubble" role="menu">
+    <Popover
+      preset="menu"
+      placement="bottom-start"
+      trigger={
+        <button type="button" className="pipe-more pipe-more-btn" aria-haspopup="menu">
+          +{count} more
+        </button>
+      }
+    >
+      {(close) => (
+        <>
           {items.map((f) => (
             <Link
               key={f.id}
@@ -142,18 +122,19 @@ function MoreBubble({ count, items, filesHref }: { count: number; items: Pipelin
               href={`/agent/transactions/${f.id}`}
               className="pipe-more-item"
               data-sensitive="true"
+              onClick={close}
             >
               {f.propertyAddress.split(",")[0].trim()}
             </Link>
           ))}
           {overflow > 0 && (
-            <Link role="menuitem" href={filesHref ?? "/agent/transactions"} className="pipe-more-item pipe-more-item-rest">
+            <Link role="menuitem" href={filesHref ?? "/agent/transactions"} className="pipe-more-item pipe-more-item-rest" onClick={close}>
               View all in Files
             </Link>
           )}
-        </div>
+        </>
       )}
-    </div>
+    </Popover>
   );
 }
 
