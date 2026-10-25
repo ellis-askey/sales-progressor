@@ -20,6 +20,7 @@ import {
   isGlassVariantId,
   type GlassVariantId,
 } from "@/lib/glass/variants";
+import { DEFAULT_PICKS } from "@/lib/glass/default-picks";
 
 type DiscoveredCard = {
   glassId: string;
@@ -276,13 +277,22 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {(["light", "dark"] as const).map((m) => {
                       const set = !!entry?.[m];
+                      // Show the EFFECTIVE variant — the user's pick, else the
+                      // app-wide default (DEFAULT_PICKS), else v00 — so the
+                      // dropdown reflects what's actually on screen, not a
+                      // misleading "v00" for a card that really renders v05/v06.
+                      // Mirrors usePickForCard's resolution. When it's showing an
+                      // inherited default (no explicit pick), tag the label so the
+                      // user can tell "default" from "your pick".
+                      const effective = entry?.[m] ?? DEFAULT_PICKS[card.glassId]?.[m] ?? "v00";
+                      const fromDefault = !set && effective !== "v00";
                       return (
                         <div key={m}>
                           <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: set ? "#5b8cff" : c.sub, marginBottom: 4 }}>
-                            {m === "light" ? "☀ Light" : "🌙 Dark"}
+                            {m === "light" ? "☀ Light" : "🌙 Dark"}{fromDefault ? " · default" : ""}
                           </label>
                           <select
-                            value={entry?.[m] ?? "v00"}
+                            value={effective}
                             onChange={(e) => setPick(card.glassId, e.target.value as GlassVariantId, m)}
                             style={{
                               width: "100%",
