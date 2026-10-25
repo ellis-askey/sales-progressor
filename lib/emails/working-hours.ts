@@ -99,6 +99,29 @@ function isWorkingDay(d: Date): boolean {
   return true;
 }
 
+// London Mon–Fri check (weekday only). Matches the chase crons' Vercel
+// schedule ("… 1-5"), which fires Monday–Friday INCLUDING bank holidays — so
+// this is deliberately NOT isWorkingDay (which also drops bank holidays). Used
+// to decide when a predicted chase will actually go out, so the Automated-emails
+// page never says "sending today" on a weekend.
+export function isLondonWeekday(d: Date = new Date()): boolean {
+  const { weekday } = londonParts(d);
+  return weekday !== 0 && weekday !== 6;
+}
+
+// The London day the chase crons will NEXT run, on or after `from`: `from`
+// itself when that's a weekday, else the following Monday. Weekday-only (bank
+// holidays still send). Returns a Date inside that day at `from`'s clock time —
+// suitable for day-key / day-label formatting, not as a precise send instant.
+export function nextChaseSendDay(from: Date = new Date()): Date {
+  let cursor = new Date(from.getTime());
+  for (let i = 0; i < 7; i++) {
+    if (isLondonWeekday(cursor)) return cursor;
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return cursor; // unreachable (a weekday always falls within 7 days)
+}
+
 // Build a UTC instant that corresponds to a target London local hour on
 // the given UTC year/month/day. Tries the three plausible UTC hours and
 // picks the one whose London-rendering matches. Robust across BST/GMT

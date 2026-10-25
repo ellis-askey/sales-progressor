@@ -16,6 +16,7 @@ import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automate
 import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-emails-preview";
 import { CLIENT_CHASE_COUNT_CAP } from "@/lib/services/client-chase-cron";
 import { MILESTONE_LABELS } from "@/lib/email-skeletons/journey-order";
+import { isLondonWeekday } from "@/lib/emails/working-hours";
 
 const DAY = 86_400_000;
 const HORIZON_DAYS = 14;
@@ -201,13 +202,15 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
   // ── Automation exhausted ──
   const exhausted = await computeExhausted(txIds, txAddressById, ruleByCode, defMax, now);
 
-  // "Due today" = today's batch plus any overdue batches (the Outbox clamps
-  // overdue-unsent sends into Today, so count them here the same way).
+  // "Due today" = today's batch plus any overdue batches (the next chase run
+  // clears the backlog). But chases run weekdays only — on a weekend NOTHING
+  // goes out today, so the figure is 0 and the backlog surfaces under the next
+  // send day (Monday) in the Outbox instead of a misleading "Today". (2026-10-25)
   const todayK = dayKey(now);
   const batches = Array.from(batchMap.values());
-  const dueTodayCount = batches
-    .filter((b) => b.key <= todayK)
-    .reduce((n, b) => n + b.items.length, 0);
+  const dueTodayCount = isLondonWeekday(now)
+    ? batches.filter((b) => b.key <= todayK).reduce((n, b) => n + b.items.length, 0)
+    : 0;
 
   return {
     predicted: batches,

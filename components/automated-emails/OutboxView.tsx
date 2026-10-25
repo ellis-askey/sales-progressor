@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CompactRow, dayKey, dayLabel, rowTime } from "./EmailFeedRow";
+import { nextChaseSendDay } from "@/lib/emails/working-hours";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
 import type { UpcomingForecast, ExhaustedItem } from "@/lib/services/automated-emails-upcoming";
 
@@ -71,21 +72,35 @@ export function OutboxView({
   // ones, they step back and say so.
   const predictedRows = filtersActive ? [] : predictedToRows(forecast);
 
-  const todayK = dayKey(new Date());
+  const now = new Date();
+  const todayK = dayKey(now);
   const all = [...sentToday, ...pending, ...predictedRows];
 
-  // Group by London day. An overdue-but-unsent row belongs to TODAY (it goes
-  // out on the next run), never to the day it originally missed — and its
-  // stale original time would mislead, so clamped rows show no time
-  // (screenshot verification 2026-10-21: a wall of overdue predictions all
-  // read "06:00" under Today).
+  // Group by the London day each row will actually go out on. An overdue-but-
+  // unsent row belongs to the next run, never the day it originally missed — and
+  // its stale time would mislead, so clamped rows show no time (screenshot
+  // verification 2026-10-21). Chases run WEEKDAYS only: an overdue-or-weekend
+  // chase rolls to the next send day (today if a weekday, else Monday) so it's
+  // never mislabelled "Today" on a Sat/Sun (2026-10-25). Queued/other rows keep
+  // the simple clamp-to-today.
   const clampedIds = new Set<string>();
   const groups = new Map<string, { label: string; rows: EmailRow[] }>();
   for (const row of all) {
     const t = rowTime(row);
     let k = dayKey(t);
     let label = dayLabel(t);
-    if (row.status !== "sent" && k < todayK) { k = todayK; label = "Today"; clampedIds.add(`${row.source}-${row.id}`); }
+    if (row.status !== "sent") {
+      if (row.category === "chase") {
+        const base = t && t.getTime() > now.getTime() ? t : now;
+        const send = nextChaseSendDay(base);
+        const sendK = dayKey(send);
+        if (sendK !== dayKey(t)) clampedIds.add(`${row.source}-${row.id}`);
+        k = sendK;
+        label = dayLabel(send);
+      } else if (k < todayK) {
+        k = todayK; label = "Today"; clampedIds.add(`${row.source}-${row.id}`);
+      }
+    }
     if (!groups.has(k)) groups.set(k, { label, rows: [] });
     groups.get(k)!.rows.push(row);
   }
