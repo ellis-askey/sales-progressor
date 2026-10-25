@@ -36,11 +36,15 @@ export function isGlassVariantId(v: unknown): v is GlassVariantId {
  *  data-theme. Legacy flat `{card: variant}` is migrated to `{light, dark}`
  *  on read. */
 export type GlassMode = "light" | "dark";
-export type GlassPick = { light?: GlassVariantId; dark?: GlassVariantId };
+// A pick value is a built-in variant ("vNN") OR a custom style id ("cs-…"),
+// so the value type is a broad string. Validation (isGlassVariantId /
+// isCustomStyleId) gates what's actually accepted.
+export type GlassPick = { light?: string; dark?: string };
 export type GlassPicks = Record<string, GlassPick>;
 
-/** Class the CSS in app/styles/glass.css applies via `.glass-vNN`. */
-export function classFor(id: GlassVariantId): string {
+/** Class the CSS applies: `.glass-vNN` for a variant, `.glass-cs-…` for a
+ *  custom style (generated + injected by GlassPicksProvider). */
+export function classFor(id: string): string {
   return `glass-${id}`;
 }
 

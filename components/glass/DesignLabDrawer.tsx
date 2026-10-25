@@ -21,6 +21,8 @@ import {
   type GlassVariantId,
 } from "@/lib/glass/variants";
 import { DEFAULT_PICKS } from "@/lib/glass/default-picks";
+import { DEFAULT_RECIPE, newStyleId, type GlassRecipe, type GlassStyle } from "@/lib/glass/custom";
+import type { GlassMode } from "@/lib/glass/variants";
 
 type DiscoveredCard = {
   glassId: string;
@@ -49,13 +51,15 @@ function discoverCards(): DiscoveredCard[] {
 }
 
 export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { picks, mode, setPick, resetAll } = useGlassPicks();
+  const { picks, styles, mode, setPick, saveStyle, setPreview, resetAll } = useGlassPicks();
   // Drawer's own light/dark toggle. Flips the whole app theme (and this
   // panel), so the cards behind the drawer re-render in the chosen mode and
   // setPick writes that mode's slot. That's how light + dark get mixed.
   const { isDark, setDark } = useDarkMode();
   const [cards, setCards] = useState<DiscoveredCard[]>([]);
   const [copiedExport, setCopiedExport] = useState(false);
+  // When set, the drawer body swaps to the live glass editor for this card.
+  const [editing, setEditing] = useState<{ glassId: string; label: string } | null>(null);
   const pathname = usePathname();
 
   // Re-discover the page's tagged cards whenever they could have changed:
@@ -100,7 +104,9 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
   }, [open, onClose]);
 
   const handleExport = useCallback(async () => {
-    const json = JSON.stringify(picks, null, 2);
+    // Both halves, so a page can be baked: picks (what's assigned) + styles
+    // (the custom recipes those picks reference).
+    const json = JSON.stringify({ picks, styles }, null, 2);
     try {
       await navigator.clipboard.writeText(json);
       setCopiedExport(true);
@@ -115,7 +121,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
       a.click();
       URL.revokeObjectURL(url);
     }
-  }, [picks]);
+  }, [picks, styles]);
 
   const totalPicks = Object.keys(picks).length;
 
@@ -251,8 +257,27 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           </div>
         </div>
 
-        {/* Card list */}
+        {/* Card list — or the live glass editor when customising a card. */}
         <div style={{ flex: 1, overflow: "auto", padding: "12px 16px" }}>
+          {editing ? (() => {
+            const current = picks[editing.glassId]?.[mode];
+            const base = current ? styles.find((s) => s.id === current) : undefined;
+            return (
+              <GlassStyleEditor
+                key={`${editing.glassId}-${mode}`}
+                glassId={editing.glassId}
+                label={editing.label}
+                mode={mode}
+                start={base?.recipe ?? DEFAULT_RECIPE}
+                baseName={base?.name}
+                c={c}
+                saveStyle={saveStyle}
+                setPick={setPick}
+                setPreview={setPreview}
+                onClose={() => { setPreview(null); setEditing(null); }}
+              />
+            );
+          })() : (<>
           {cards.length === 0 ? (
             <p style={{ padding: "24px 12px", fontSize: 13, color: c.sub, textAlign: "center" }}>
               No <code>data-glass-id</code> cards found on this page yet.
@@ -300,7 +325,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                           </label>
                           <select
                             value={effective}
-                            onChange={(e) => setPick(card.glassId, e.target.value as GlassVariantId, m)}
+                            onChange={(e) => setPick(card.glassId, e.target.value, m)}
                             style={{
                               width: "100%",
                               padding: "6px 8px",
@@ -312,6 +337,13 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                               cursor: "pointer",
                             }}
                           >
+                            {styles.length > 0 && (
+                              <optgroup label="Your styles">
+                                {styles.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
                             {visibleFamilies.map((family) => (
                               <optgroup key={family.id} label={family.label}>
                                 {family.variants.map((v) => (
@@ -335,6 +367,13 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                       );
                     })}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({ glassId: card.glassId, label: card.label })}
+                    style={{ marginTop: 9, width: "100%", padding: "7px 8px", fontSize: 11, fontWeight: 600, borderRadius: 8, border: `0.5px solid ${c.border}`, background: c.chip, color: c.sub, cursor: "pointer" }}
+                  >
+                    ✎ Customise ({mode})
+                  </button>
                 </div>
               );
             })
@@ -366,6 +405,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
               })}
             </div>
           </details>
+          </>)}
         </div>
 
         {/* Footer */}
@@ -424,5 +464,121 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
       </aside>
     </>,
     document.body,
+  );
+}
+
+// ── Live glass editor ────────────────────────────────────────────────────────
+// Design a surface's glass recipe (blur / tint / vibrancy / border / shadow)
+// with the real card updating live (via setPreview). Save always FORKS a new
+// named style (never mutates an existing one) and assigns it to this card+mode.
+
+function hexToTriple(hex: string): string {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+function tripleToHex(t: string): string {
+  const p = t.split(",").map((s) => Math.max(0, Math.min(255, parseInt(s.trim(), 10) || 0)));
+  const r = p[0] ?? 255, g = p[1] ?? 255, b = p[2] ?? 255;
+  return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+function GlassStyleEditor({
+  glassId, label, mode, start, baseName, c, saveStyle, setPick, setPreview, onClose,
+}: {
+  glassId: string;
+  label: string;
+  mode: GlassMode;
+  start: GlassRecipe;
+  baseName?: string;
+  c: Record<string, string>;
+  saveStyle: (s: GlassStyle) => void;
+  setPick: (glassId: string, value: string, mode?: GlassMode) => void;
+  setPreview: (p: { glassId: string; mode: GlassMode; recipe: GlassRecipe } | null) => void;
+  onClose: () => void;
+}) {
+  const [recipe, setRecipe] = useState<GlassRecipe>(start);
+  const [name, setName] = useState(baseName ? `${baseName} copy` : "");
+
+  // Push the draft to the real card live; clear the preview when we leave.
+  useEffect(() => { setPreview({ glassId, mode, recipe }); }, [recipe, glassId, mode, setPreview]);
+  useEffect(() => () => setPreview(null), [setPreview]);
+
+  const patch = (p: Partial<GlassRecipe>) => setRecipe((r) => ({ ...r, ...p }));
+
+  function doSave() {
+    const id = newStyleId();
+    saveStyle({ id, name: name.trim() || "Custom style", recipe });
+    setPick(glassId, id, mode);
+    setPreview(null);
+    onClose();
+  }
+
+  const Slider = ({ label: l, value, min, max, step, onChange, fmt }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt: (v: number) => string }) => (
+    <div style={{ marginBottom: 13 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600, color: c.sub, marginBottom: 5 }}>
+        <span>{l}</span><span style={{ color: c.text, fontVariantNumeric: "tabular-nums" }}>{fmt(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#5b8cff", cursor: "pointer" }} />
+    </div>
+  );
+  const Swatch = ({ triple, onChange }: { triple: string; onChange: (t: string) => void }) => (
+    <label style={{ position: "relative", width: 30, height: 30, borderRadius: 7, flexShrink: 0, cursor: "pointer", overflow: "hidden", border: `1px solid ${c.border}`, background: `rgb(${triple})` }}>
+      <input type="color" value={tripleToHex(triple)} onChange={(e) => onChange(hexToTriple(e.target.value))} style={{ position: "absolute", inset: -4, width: "150%", height: "150%", opacity: 0, cursor: "pointer", border: "none", padding: 0 }} />
+    </label>
+  );
+
+  return (
+    <div>
+      <button type="button" onClick={onClose} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: c.sub, background: "none", border: "none", cursor: "pointer", padding: "2px 0 10px" }}>
+        ← Back to list
+      </button>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: c.text }}>{label}</p>
+      <p style={{ margin: "2px 0 14px", fontSize: 11, color: c.sub }}>Editing the <b style={{ color: c.text }}>{mode}</b> surface · live</p>
+
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Name this style (e.g. Frosted bar)"
+        style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 9, border: `1px solid ${c.border}`, background: c.input, color: c.text, outline: "none", marginBottom: 16, boxSizing: "border-box" }}
+      />
+
+      <Slider label="Blur" value={recipe.blur} min={0} max={80} step={1} onChange={(v) => patch({ blur: v })} fmt={(v) => `${Math.round(v)}px`} />
+
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600, color: c.sub, marginBottom: 5 }}>
+          <span>Tint</span><span style={{ color: c.text }}>{Math.round(recipe.bgA * 100)}%</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Swatch triple={recipe.bg} onChange={(t) => patch({ bg: t })} />
+          <input type="range" min={0} max={1} step={0.01} value={recipe.bgA} onChange={(e) => patch({ bgA: parseFloat(e.target.value) })} style={{ flex: 1, accentColor: "#5b8cff", cursor: "pointer" }} />
+        </div>
+      </div>
+
+      <Slider label="Vibrancy" value={recipe.sat} min={0.5} max={2} step={0.05} onChange={(v) => patch({ sat: v })} fmt={(v) => `${v.toFixed(2)}×`} />
+
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600, color: c.sub, marginBottom: 5 }}>
+          <span>Border</span><span style={{ color: c.text }}>{recipe.borderW === 0 ? "off" : `${recipe.borderW}px · ${Math.round(recipe.borderA * 100)}%`}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Swatch triple={recipe.borderC} onChange={(t) => patch({ borderC: t })} />
+          <input type="range" min={0} max={6} step={0.5} value={recipe.borderW} onChange={(e) => patch({ borderW: parseFloat(e.target.value) })} title="Width" style={{ flex: 1, accentColor: "#5b8cff", cursor: "pointer" }} />
+          <input type="range" min={0} max={1} step={0.01} value={recipe.borderA} onChange={(e) => patch({ borderA: parseFloat(e.target.value) })} title="Opacity" style={{ flex: 1, accentColor: "#5b8cff", cursor: "pointer" }} />
+        </div>
+      </div>
+
+      <Slider label="Shadow" value={recipe.shadow} min={0} max={100} step={1} onChange={(v) => patch({ shadow: v })} fmt={(v) => `${Math.round(v)}`} />
+
+      <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+        <button type="button" onClick={onClose} style={{ flex: 1, padding: "9px 12px", fontSize: 12, fontWeight: 600, borderRadius: 9, border: `0.5px solid ${c.border}`, background: c.chip, color: c.text, cursor: "pointer" }}>
+          Cancel
+        </button>
+        <button type="button" onClick={doSave} style={{ flex: 2, padding: "9px 12px", fontSize: 12, fontWeight: 700, borderRadius: 9, border: "1px solid #5b8cff", background: "#5b8cff", color: "#fff", cursor: "pointer" }}>
+          Save as style
+        </button>
+      </div>
+    </div>
   );
 }

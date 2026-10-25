@@ -36,7 +36,9 @@ export function GlassCard({
   ...rest
 }: Props) {
   const pick = usePickForCard(glassId);
-  const active: GlassVariantId = pick ?? defaultVariant;
+  // A pick is a variant ("vNN") or a custom style ("cs-…"); classFor builds the
+  // class either way. Falls back to the component's defaultVariant.
+  const active: string = pick ?? defaultVariant;
   const combined = className
     ? `${classFor(active)} ${className}`
     : classFor(active);

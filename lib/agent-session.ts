@@ -41,6 +41,7 @@ import type { AppColourConfig } from "@/lib/agent/brand-theme";
 import { readThemeModeFromPrefs, type ThemeMode } from "@/lib/agent/theme-mode";
 import { readAuroraOpacityFromPrefs } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, type GlassVariantId, type GlassPick, type GlassPicks } from "@/lib/glass/variants";
+import { isCustomStyleId, parseGlassStyles, type GlassStyle } from "@/lib/glass/custom";
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
 
@@ -118,6 +119,9 @@ export type AgentSessionContext = {
   // time. Written to User.agentPreferences.glassPicks by
   // updateGlassPicksAction. 2026-08-08.
   glassPicks: GlassPicks;
+  // Ellis's saved custom glass styles (named recipes). Empty for everyone
+  // else. Written to User.agentPreferences.glassStyles.
+  glassStyles: GlassStyle[];
   chainDeclineNotif: string | null;
   // Server-backed baseline for the notification bell's unread count
   // (User.agentPreferences.agentBellClearedAt). Null until the user first
@@ -166,6 +170,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
   const backgroundOpacity = readAuroraOpacityFromPrefs(userRecord?.agentPreferences);
   const glassPicks = readGlassPicksFromPrefs(userRecord?.agentPreferences);
+  const glassStyles = readGlassStylesFromPrefs(userRecord?.agentPreferences);
   const agentBellClearedAt =
     userRecord?.agentPreferences && typeof userRecord.agentPreferences === "object"
       ? (() => {
@@ -195,6 +200,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     themeMode,
     backgroundOpacity,
     glassPicks,
+    glassStyles,
     chainDeclineNotif,
     agentBellClearedAt,
     agencyModeProfile,
@@ -217,13 +223,20 @@ function readGlassPicksFromPrefs(prefs: unknown): GlassPicks {
       out[k] = { light: v, dark: v };
     } else if (v && typeof v === "object") {
       const rec = v as { light?: unknown; dark?: unknown };
+      const valid = (x: unknown): x is string => isGlassVariantId(x) || isCustomStyleId(x);
       const entry: GlassPick = {};
-      if (isGlassVariantId(rec.light)) entry.light = rec.light;
-      if (isGlassVariantId(rec.dark)) entry.dark = rec.dark;
+      if (valid(rec.light)) entry.light = rec.light;
+      if (valid(rec.dark)) entry.dark = rec.dark;
       if (entry.light || entry.dark) out[k] = entry;
     }
   }
   return out;
+}
+
+/** Reads Ellis's saved custom glass styles off the agentPreferences JSON. */
+function readGlassStylesFromPrefs(prefs: unknown): GlassStyle[] {
+  if (!prefs || typeof prefs !== "object") return [];
+  return parseGlassStyles((prefs as { glassStyles?: unknown }).glassStyles);
 }
 
 /**

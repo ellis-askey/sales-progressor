@@ -38,8 +38,11 @@ export function useGlassTag(
   // usePickForCard (which also applies app-wide DEFAULT_PICKS). The whole point
   // of a tag is "unchanged until Ellis picks it", so a stale/aspirational
   // DEFAULT_PICKS entry for this id must not silently restyle the element.
-  const { picks, mode } = useGlassPicks();
-  const pick = picks[glassId]?.[mode];
+  const { picks, mode, preview } = useGlassPicks();
+  const pick =
+    preview && preview.glassId === glassId && preview.mode === mode
+      ? "cs-preview"
+      : picks[glassId]?.[mode];
   return {
     // No pick → no glass class → the element is visually unchanged.
     className: pick ? classFor(pick) : "",

@@ -8,6 +8,7 @@ import { normaliseHex, parseAppColour, type AppColourConfig } from "@/lib/agent/
 import { isThemeMode, type ThemeMode } from "@/lib/agent/theme-mode";
 import { clampAuroraOpacity } from "@/lib/agent/aurora-opacity";
 import { isGlassVariantId, DEFAULT_VARIANT } from "@/lib/glass/variants";
+import { isCustomStyleId, parseGlassStyles, type GlassStyle } from "@/lib/glass/custom";
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 import { pushToUser } from "@/lib/services/push";
 
@@ -387,9 +388,11 @@ export async function updateGlassPicksAction(
     for (const [k, v] of Object.entries(picks)) {
       if (typeof k !== "string" || k.length === 0) continue;
       if (!v || typeof v !== "object") continue;
+      // A value is a built-in variant OR a custom style id ("cs-…").
+      const ok = (x: unknown): x is string => (isGlassVariantId(x) || isCustomStyleId(x)) && x !== DEFAULT_VARIANT;
       const entry: { light?: string; dark?: string } = {};
-      if (isGlassVariantId(v.light) && v.light !== DEFAULT_VARIANT) entry.light = v.light;
-      if (isGlassVariantId(v.dark) && v.dark !== DEFAULT_VARIANT) entry.dark = v.dark;
+      if (ok(v.light)) entry.light = v.light;
+      if (ok(v.dark)) entry.dark = v.dark;
       if (entry.light || entry.dark) cleaned[k] = entry;
     }
   }
@@ -419,6 +422,33 @@ export async function updateGlassPicksAction(
   // whole page.
 
   return { ok: true as const, count: Object.keys(cleaned).length };
+}
+
+// Design Lab (Ellis-only) — persists Ellis's saved custom glass styles on
+// User.agentPreferences.glassStyles. Read-merge-write so other prefs are
+// preserved; sanitised through parseGlassStyles. These are per-account; "for
+// everybody" happens via Export JSON → bake into DEFAULT_STYLES page by page.
+export async function updateGlassStylesAction(styles: GlassStyle[]) {
+  const session = await requireSession();
+  const cleaned = parseGlassStyles(styles);
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      agentPreferences: { ...existingPrefs, glassStyles: cleaned },
+    },
+  });
+
+  return { ok: true as const, count: cleaned.length };
 }
 
 // Retention email opt-out lives on its own column (not in agentPreferences
