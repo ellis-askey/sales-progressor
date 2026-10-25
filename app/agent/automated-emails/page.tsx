@@ -21,7 +21,7 @@ import { listAutomatedEmails, getSendingToday, getSentTodayRows, type EmailListT
 import { getAutomationOverview, getNeedsAttention } from "@/lib/services/automated-emails-overview";
 import { getAutomationCoverage, getAutomationFiles } from "@/lib/services/automated-emails-coverage";
 import { getChasePerformance, getEmailHealth } from "@/lib/services/automated-emails-analytics";
-import { getUpcomingForecast } from "@/lib/services/automated-emails-upcoming";
+import { getUpcomingForecastCached } from "@/lib/services/automated-emails-upcoming";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { AutomatedEmailsListView } from "./AutomatedEmailsListView";
@@ -143,8 +143,10 @@ export default async function AutomatedEmailsPage({
     getNeedsAttention({ ...scopeBase, periodDays: period }).catch(() => null),
     getAutomationCoverage(scopeBase).catch(() => null),
     getSendingToday(scopeBase).catch(() => null),
-    // Always fetched: the Outbox count and schedule both need the forecast.
-    getUpcomingForecast(scopeBase).catch(() => null),
+    // Always needed (the "Still to send today" count + the Outbox schedule),
+    // but scope-only and heavy — served from a short-TTL memo so tab/filter/
+    // toggle clicks reuse it instead of re-running the per-file fan-out.
+    getUpcomingForecastCached(scopeBase).catch(() => null),
     tab === "insights" ? getAutomationFiles(scopeBase, search, period).catch(() => null) : Promise.resolve(null),
     tab === "insights" ? getChasePerformance({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),
     tab === "insights" ? getEmailHealth({ ...scopeBase, periodDays: period }).catch(() => null) : Promise.resolve(null),

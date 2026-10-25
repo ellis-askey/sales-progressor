@@ -17,6 +17,7 @@ import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-email
 import { CLIENT_CHASE_COUNT_CAP } from "@/lib/services/client-chase-cron";
 import { MILESTONE_LABELS } from "@/lib/email-skeletons/journey-order";
 import { isLondonWeekday } from "@/lib/emails/working-hours";
+import { createTtlMemo } from "@/lib/utils/ttl-memo";
 
 const DAY = 86_400_000;
 const HORIZON_DAYS = 14;
@@ -116,6 +117,26 @@ function roleLabelFor(role: string): string {
 }
 function milestoneLabel(code: string): string {
   return MILESTONE_LABELS[code] ?? code;
+}
+
+// ── Short-TTL cache (perf) ───────────────────────────────────────────────────
+// The forecast is the heaviest module on /agent/automated-emails: a per-file
+// projection (~9 queries each, deliberately throttled to 2 files at a time to
+// spare the connection pool). It depends ONLY on scope — never on the tab,
+// search, or filters — yet the page is a server component, so every tab/filter/
+// toggle click (a URL change) re-ran it from scratch. That was the felt lag.
+//
+// This memo returns the same scope's forecast for a short window, so clicking
+// around the page reuses it. ≤60s stale is fine for a predictions panel (the
+// page also auto-refreshes every 2 min). Consumers only read it, never mutate.
+const forecastMemo = createTtlMemo<string, UpcomingForecast>({ ttlMs: 60_000 });
+
+function forecastScopeKey(input: EmailScopeInput): string {
+  return [input.role, input.userId, input.agencyId ?? "", input.mineOnly ? 1 : 0, input.fileId ?? "", input.hasAdminPowers ? 1 : 0].join("|");
+}
+
+export function getUpcomingForecastCached(input: EmailScopeInput): Promise<UpcomingForecast> {
+  return forecastMemo.get(forecastScopeKey(input), () => getUpcomingForecast(input));
 }
 
 export async function getUpcomingForecast(input: EmailScopeInput): Promise<UpcomingForecast> {
