@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 import { completeFileAction } from "@/app/actions/completions";
 import { withFrom } from "@/lib/agent/back-nav";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { CaretDown } from "@phosphor-icons/react";
 import {
   CompletionFileRowView,
   GROUP_STYLES,
   type CompletionFileRow,
 } from "@/components/completions/CompletionFileRowView";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
 
@@ -52,105 +51,77 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   }
 
   return (
-    <>
+    // Free "section bar + free cards" — the work-queue pattern (SectionDisclosure).
+    // Each urgency band is a slim bar; its file cards sit free at full width
+    // below it, not nested inside an enclosing card. Status reads from the
+    // label's urgency colour (s.label), not a bar wash.
+    <div className="space-y-5">
       {groups.map(({ key, label, files, groupFeeTotal, missingFeeCount }) => {
         const s = GROUP_STYLES[key];
         const isOpen = !!openGroups[key];
+        const feesRight =
+          groupFeeTotal > 0 ? (
+            <span className="agent-acc-summary">{fmt(groupFeeTotal / 100)} fees</span>
+          ) : files.length > 0 ? (
+            <span className="agent-acc-summary" style={{ opacity: 0.55 }}>Fees TBC</span>
+          ) : null;
 
         return (
-          // Design Lab: `completions-group`. Default v05 to match the other
-          // page group cards (not in Ellis's export — Completions was empty
-          // when he picked). borderRadius restored: same square-corner fix
-          // as Updates — the GlassCard conversion dropped the agent-glass
-          // rounding. Matches --agent-radius-xl (16px). 2026-08-09.
-          <GlassCard key={key} glassId="completions-group" label="Completions · Group card" defaultVariant="v05" id={`section-${key}`} style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
-
-            {/* Group header — agent-acc-hdr
-                Urgency colours (dot, label) applied to CHILD elements only — not to agent-acc-hdr
-                itself — to avoid conflict with the canonical class's hover/focus styles.
-                agent-acc-title NOT used: it forces color:var(--agent-text-primary) which
-                suppresses urgency text-red-600 / text-amber-600 classes. */}
-            {/* OLD: <button className="w-full flex items-center gap-2.5 mb-2 text-left"> */}
-            <div
-              className="agent-acc-hdr"
-              role="button"
-              tabIndex={0}
-              onClick={() => toggle(key)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(key); } }}
-            >
-              {/* Left: urgency label — its colour carries the status (no dot). */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <span className={`text-[13px] font-semibold tracking-[0.01em] truncate ${s.label}`}>
-                  {label} ({files.length})
-                </span>
-              </div>
-              {/* Right: fees for the band (never a sale total) + caret. */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                {groupFeeTotal > 0 ? (
-                  <span className="agent-acc-summary">{fmt(groupFeeTotal / 100)} fees</span>
-                ) : files.length > 0 ? (
-                  <span className="agent-acc-summary" style={{ opacity: 0.55 }}>Fees TBC</span>
-                ) : null}
-                <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-              </div>
-            </div>
-
-            {/* Body — agent-acc animation (200ms open / 150ms close via agent-system.css) */}
-            {/* OLD: {!isCollapsed && <div className="space-y-2">{files...}</div>} — no animation */}
-            <div className={`agent-acc${isOpen ? " open" : ""}`}>
-              <div className="agent-acc-in">
-                <div className="agent-acc-body">
-                  {/* Missing-fee note — OLD: rendered outside accordion, between header and file list */}
-                  {groupFeeTotal > 0 && missingFeeCount > 0 && (
-                    <p className="text-xs text-slate-900/30 ml-[22px] -mt-2 mb-0">
-                      ({missingFeeCount} file{missingFeeCount !== 1 ? "s" : ""} with no fee set)
-                    </p>
-                  )}
-                  <div className="space-y-2">
-                    {files.map((f) => (
-                      <div key={f.id}>
-                        <div className={`glass-card block px-5 py-4 border ${s.border}`}>
-                          <CompletionFileRowView
-                            file={f}
-                            groupKey={key}
-                            href={withFrom(`/agent/transactions/${f.id}`, "/agent/completions")}
-                            isOpen={!collapsedCards.has(f.id)}
-                            onToggle={() => toggleCard(f.id)}
-                            onComplete={() => { setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}
-                          />
-                        </div>
-
-                        {/* Quick-confirm completion */}
-                        {openCompleteId === f.id && (
-                          <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Mark completed as of</span>
-                            <DateField className="agent-input agent-input-sm" style={{ width: "auto", fontSize: 13 }} wrapperStyle={{ display: "inline-block" }} value={completeDate} onChange={(e) => setCompleteDate(e.target.value)} autoFocus />
-                            <Button
-                              size="sm"
-                              disabled={!completeDate || isPending}
-                              onClick={() => {
-                                startTransition(async () => {
-                                  const res = await completeFileAction(f.id, completeDate);
-                                  if (res.ok) { toast.success(`${f.propertyAddress} completed`); setOpenCompleteId(null); router.refresh(); }
-                                  else { toast.error(res.error); }
-                                });
-                              }}
-                            >
-                              {isPending ? "Completing…" : "Complete file"}
-                            </Button>
-                            <button className="agent-link agent-link-muted" style={{ fontSize: 11 }} onClick={() => setOpenCompleteId(null)}>Cancel</button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+          <SectionDisclosure
+            key={key}
+            id={`section-${key}`}
+            label={label}
+            count={files.length}
+            labelClassName={s.label}
+            right={feesRight}
+            open={isOpen}
+            onToggle={() => toggle(key)}
+          >
+            {/* Missing-fee note */}
+            {groupFeeTotal > 0 && missingFeeCount > 0 && (
+              <p className="text-xs text-slate-900/30" style={{ margin: "0 0 2px 2px" }}>
+                ({missingFeeCount} file{missingFeeCount !== 1 ? "s" : ""} with no fee set)
+              </p>
+            )}
+            {files.map((f) => (
+              <div key={f.id}>
+                <div className={`glass-card block px-5 py-4 border ${s.border}`}>
+                  <CompletionFileRowView
+                    file={f}
+                    groupKey={key}
+                    href={withFrom(`/agent/transactions/${f.id}`, "/agent/completions")}
+                    isOpen={!collapsedCards.has(f.id)}
+                    onToggle={() => toggleCard(f.id)}
+                    onComplete={() => { setOpenCompleteId(f.id); setCompleteDate(f.completionDateIso ? f.completionDateIso.split("T")[0] : today); }}
+                  />
                 </div>
-              </div>
-            </div>
 
-          </GlassCard>
+                {/* Quick-confirm completion */}
+                {openCompleteId === f.id && (
+                  <div className="agent-reveal-in" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>Mark completed as of</span>
+                    <DateField className="agent-input agent-input-sm" style={{ width: "auto", fontSize: 13 }} wrapperStyle={{ display: "inline-block" }} value={completeDate} onChange={(e) => setCompleteDate(e.target.value)} autoFocus />
+                    <Button
+                      size="sm"
+                      disabled={!completeDate || isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          const res = await completeFileAction(f.id, completeDate);
+                          if (res.ok) { toast.success(`${f.propertyAddress} completed`); setOpenCompleteId(null); router.refresh(); }
+                          else { toast.error(res.error); }
+                        });
+                      }}
+                    >
+                      {isPending ? "Completing…" : "Complete file"}
+                    </Button>
+                    <button className="agent-link agent-link-muted" style={{ fontSize: 11 }} onClick={() => setOpenCompleteId(null)}>Cancel</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </SectionDisclosure>
         );
       })}
-    </>
+    </div>
   );
 }

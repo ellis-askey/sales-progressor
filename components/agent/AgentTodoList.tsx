@@ -3,8 +3,9 @@
 import { useState, createContext, useContext, type ReactNode } from "react";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
-import { CaretDown, ListChecks, UsersThree } from "@phosphor-icons/react";
+import { ListChecks, UsersThree } from "@phosphor-icons/react";
 import { SectionHeader } from "@/components/agent/SectionHeader";
+import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 import { createManualTaskAction, updateManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
@@ -367,41 +368,19 @@ function Section({
           agent-acc slide. */}
       {doneCount > 0 && (
         <div style={{ marginTop: 16 }}>
-          <div className="agent-glass" style={{ borderRadius: 12, overflow: "hidden" }}>
-            <div
-              className="agent-acc-hdr"
-              style={{ borderBottom: "none" }}
-              role="button"
-              tabIndex={0}
-              aria-expanded={showDone}
-              onClick={onToggleShowDone}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleShowDone(); } }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="agent-acc-title" style={{ color: "var(--agent-text-muted)" }}>Completed</span>
-                <span className="agent-badge">{doneCount}</span>
-              </div>
-              <CaretDown
-                size={12}
-                weight="bold"
-                aria-hidden
-                style={{
-                  flexShrink: 0,
-                  color: "var(--agent-text-muted)",
-                  transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-                  transform: showDone ? "rotate(180deg)" : "rotate(0deg)",
-                }}
-              />
-            </div>
-          </div>
-
-          <div className={`agent-acc${showDone ? " open" : ""}`}>
-            <div className="agent-acc-in" style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 10 }}>
-              {doneGroups.map((group) => (
-                <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} isProgressorView={isProgressorView} />
-              ))}
-            </div>
-          </div>
+          {/* Free bar + free cards (SectionDisclosure) — the done TaskGroup cards
+              float at full width under the bar, matching the open groups above
+              instead of nesting inside an enclosing card. */}
+          <SectionDisclosure
+            label="Completed"
+            count={doneCount}
+            open={showDone}
+            onToggle={onToggleShowDone}
+          >
+            {doneGroups.map((group) => (
+              <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} isProgressorView={isProgressorView} />
+            ))}
+          </SectionDisclosure>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import { Pill } from "@/components/ui/Pill";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
+import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
 function relativeDate(iso: string) {
@@ -546,29 +547,15 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
         const countLabel = `${updateCount} update${updateCount !== 1 ? "s" : ""}`;
 
         return (
-          <div key={label} className="agent-glass" style={{ overflow: "hidden", borderRadius: "var(--agent-radius-xl)" }}>
-            <div
-              className="agent-acc-hdr"
-              role="button"
-              tabIndex={0}
-              onClick={() => toggle(label, open)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(label, open); } }}
-            >
-              <span className="agent-acc-title">{label}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="agent-acc-summary">{countLabel}</span>
-                <CaretDown style={{ width: 14, height: 14, color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
-              </div>
-            </div>
-
-            <div className={`agent-acc${open ? " open" : ""}`}>
-              <div className="agent-acc-in">
-                <div className="agent-acc-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {txGroups.map((tx) => <TxCard key={tx.transactionId} tx={tx} />)}
-                </div>
-              </div>
-            </div>
-          </div>
+          <SectionDisclosure
+            key={label}
+            label={label}
+            right={<span className="agent-acc-summary">{countLabel}</span>}
+            open={open}
+            onToggle={() => toggle(label, open)}
+          >
+            {txGroups.map((tx) => <TxCard key={tx.transactionId} tx={tx} />)}
+          </SectionDisclosure>
         );
       })}
         </div>

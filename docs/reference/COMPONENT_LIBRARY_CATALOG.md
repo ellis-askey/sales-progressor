@@ -112,6 +112,13 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Exports:** `Popover` (click-trigger; `preset="menu"|"popover"`), `PopoverMenuItem`, `PopoverDivider`, `Tooltip` (hover). Lives at [components/ui/Popover.tsx](../../components/ui/Popover.tsx); `.ui-pop*` CSS in agent-system.css.
 - **Status:** canonical. Replaces the scattered `agent-dropdown-in` menus, `RowActionsMenu`, focus `fcl-tip`, `lum-menu`, `files-view-menu` (migration in progress — see project_menus_consolidation). Preview/test at `/dev/menus`.
 
+### 1.11 `SectionDisclosure` ✓ canonical (new 2026-10-25)
+
+- **Purpose:** THE "free section bar + free cards" collapsible — a slim standalone bar as the clickable header, and a TRANSPARENT accordion body whose children are standalone cards sitting free at full width. Distinct from `Accordion` (2.6), which wraps its body inside a card; `SectionDisclosure` deliberately does NOT, so list cards never read as cards-inside-a-card and keep full width on mobile. Originated as the work-queue "Needs you / On autopilot" bars.
+- **Mechanics:** reuses existing CSS — `.agent-wq-secbar` (neutral glass bar; status reads from the label text colour, not a bar wash), `.agent-acc`/`.open` (grid-rows collapse), `.wq-acc > .agent-acc-in` (shadow room while clipping). Controlled `open`/`onToggle`; optional `count`, `sub`, `right` slot, `labelClassName` (urgency colour), `id` anchor.
+- **Lives at** [components/ui/SectionDisclosure.tsx](../../components/ui/SectionDisclosure.tsx).
+- **Status:** canonical. Migrating the nested "outer card wraps inner cards" surfaces onto it — Completions (`CompletionsGroupList`, `CompletedSection`) shipped 2026-10-25; Updates (`CommsActivityFeed`), Reviews, To-Do next; the work-queue itself to retrofit last for a single source.
+
 ---
 
 ## 2. To extract — canonical primitives needed
