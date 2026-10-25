@@ -1160,7 +1160,8 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const [sideFilter, setSideFilter] = useState<"all" | "seller" | "buyer">("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "snoozed">("active");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ "needs-you": false, "coming-up": true, chased: true, autopilot: true });
-  const sectionBarTag = useGlassTag("work-queue-section-bar", "Work queue · section bar");
+  // Baked Reminders default (Ellis's export, 2026-10-25); Lab-overridable.
+  const sectionBarTag = useGlassTag("work-queue-section-bar", "Work queue · section bar", { dark: "v05" });
   const searchTag = useGlassTag("work-queue-search", "Work queue · search bar");
   const sideFilterTag = useGlassTag("work-queue-side-filter", "Work queue · side filter");
   // Deferred-draw for collapsed groups (perf follow-up 2026-10-12): a

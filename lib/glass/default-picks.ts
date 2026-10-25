@@ -55,7 +55,8 @@ export const DEFAULT_PICKS: GlassPicks = {
   "overview-ai-summary": { light: "v27", dark: "v05" },
   "overview-solicitors": { light: "v05", dark: "v05" },
   "reminders-completed": { light: "v05", dark: "v05" },
-  "reminders-file-card": { light: "v05", dark: "v05" },
+  // Reminders file card (GlassCard) — Ellis's export, 2026-10-25.
+  "reminders-file-card": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   // Enquiries · summary card (GlassCard). Light v03 per Ellis's export, 2026-10-25;
   // dark keeps its v05 defaultVariant. Other Enquiries surfaces are useGlassTag so
   // their baked look is passed as a baseline in EnquiriesTriageList, not here.
@@ -65,7 +66,7 @@ export const DEFAULT_PICKS: GlassPicks = {
   "todo-agent-requests": { light: "v05", dark: "v05" },
   "activity-comms-entry": { light: "v22", dark: "v22" },
   "overview-next-action": { light: "v18", dark: "v07" },
-  "reminders-filter-bar": { light: "v06", dark: "v19" },
+  "reminders-filter-bar": { light: "v06", dark: "v02" },
   "hub-exchange-forecast": { light: "v05", dark: "v05" },
   "activity-compose-email": { light: "v08", dark: "v08" },
   "reminders-alerts-strip": { light: "v27", dark: "v25" },
