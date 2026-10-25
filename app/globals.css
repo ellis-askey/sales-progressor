@@ -2461,9 +2461,13 @@ select {
     background: rgba(30, 41, 59, 0.95);
   }
 
-  /* Topbar */
+  /* Topbar. Near-opaque in dark (0.98, up from 0.92): the frosted main cards are
+     very see-through with white text, and as they scroll up UNDER this fixed bar
+     its own backdrop-filter sampled + blurred that light content into a white
+     haze along the bottom edge (visible only in dark, only at the top). Cutting
+     the show-through ~4x removes it while keeping a whisper of glass. */
   :root[data-theme="dark"] .agent-shell-root .agent-topbar {
-    background: rgba(13, 20, 33, 0.92);
+    background: rgba(13, 20, 33, 0.98);
     box-shadow: 0 0 0 0.5px rgba(255,255,255,0.07), 0 2px 12px rgba(0,0,0,0.30);
   }
 
