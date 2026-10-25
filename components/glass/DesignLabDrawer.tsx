@@ -9,7 +9,7 @@
 // accurate as tabs are switched or new cards mount.
 // 2026-08-08.
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { X, RotateCcw, Download, Sparkle, Sun, Moon } from "lucide-react";
@@ -61,6 +61,32 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
   // When set, the drawer body swaps to the live glass editor for this card.
   const [editing, setEditing] = useState<{ glassId: string; label: string } | null>(null);
   const pathname = usePathname();
+
+  // Drag-to-move: the lab docks top-right, which covers whatever sits there
+  // (e.g. the Focus right-rail cards). The header is a drag handle so you can
+  // slide it aside and watch a card update live behind it. Offset from the
+  // dock; reset whenever the lab re-opens so it always returns home.
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ sx: number; sy: number; bx: number; by: number } | null>(null);
+  useEffect(() => {
+    if (open) setDragPos({ x: 0, y: 0 });
+  }, [open]);
+  const onHeaderPointerDown = (e: React.PointerEvent) => {
+    // Let the close button work normally — don't start a drag from it.
+    if ((e.target as HTMLElement).closest("button")) return;
+    dragRef.current = { sx: e.clientX, sy: e.clientY, bx: dragPos.x, by: dragPos.y };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onHeaderPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setDragPos({ x: d.bx + (e.clientX - d.sx), y: d.by + (e.clientY - d.sy) });
+  };
+  const onHeaderPointerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* capture may already be gone */ }
+  };
 
   // Re-discover the page's tagged cards whenever they could have changed:
   //   - open toggles / picks change (a pick re-renders tagged cards)
@@ -149,19 +175,11 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
   // after the app-wide blur restoration made topbar blur real).
   return createPortal(
     <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15, 23, 42, 0.20)",
-          zIndex: 9998,
-          animation: "design-lab-backdrop-in 180ms ease",
-        }}
-      />
+      {/* No dimming backdrop: this is a design tool, not a modal. The page
+          behind must stay fully visible (undistorted, so the real glass look
+          is judged true) and interactive (scroll, click a card to retarget)
+          while the lab is open. Close via Esc or the X. */}
       <style>{`
-        @keyframes design-lab-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes design-lab-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
       `}</style>
 
@@ -182,17 +200,28 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
           zIndex: 9999,
           display: "flex",
           flexDirection: "column",
+          // Entrance slide runs once (no fill), then this inline transform (the
+          // drag offset) takes over — translate(0,0) keeps it docked until moved.
+          transform: `translate(${dragPos.x}px, ${dragPos.y}px)`,
           animation: "design-lab-drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {/* Header */}
-        <header style={{
+        {/* Header — doubles as the drag handle (see onHeaderPointerDown). */}
+        <header
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerUp}
+          style={{
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
           padding: "16px 20px",
           borderBottom: `0.5px solid ${c.border}`,
           background: c.headerGrad,
+          cursor: "grab",
+          touchAction: "none",
+          userSelect: "none",
         }}>
           <div>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#5b8cff", textTransform: "uppercase", letterSpacing: "0.08em" }}>
