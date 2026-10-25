@@ -11,7 +11,8 @@ import type { GlassPicks } from "./variants";
 // Ellis sends more pages of picks. Typed as GlassPicks so every id is
 // compile-checked against the variant catalog. 2026-08-10.
 export const DEFAULT_PICKS: GlassPicks = {
-  "hub-wins": { light: "v05", dark: "v05" },
+  // Hub cards — Ellis's export, 2026-10-25 (frosted main everywhere).
+  "hub-wins": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "todo-main": { light: "v05", dark: "v05" },
   "nav-topbar": { light: "v19", dark: "v19" },
   "nav-sidebar": { light: "v19", dark: "v19" },
@@ -41,7 +42,7 @@ export const DEFAULT_PICKS: GlassPicks = {
   "reminders-group": { light: "v05", dark: "v05" },
   "todo-page-group": { light: "v05", dark: "v05" },
   "updates-tx-card": { light: "v16", dark: "v02" },
-  "hub-service-split": { light: "v05", dark: "v05" },
+  "hub-service-split": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "sidebar-key-dates": { light: "v06", dark: "v05" },
   "milestone-timeline": { light: "v29", dark: "cs-9049173a" },
   "overview-reminders": { light: "v04", dark: "v04" },
@@ -49,9 +50,9 @@ export const DEFAULT_PICKS: GlassPicks = {
   "analytics-list-card": { light: "v05", dark: "v05" },
   "analytics-stat-card": { light: "v05", dark: "v26" },
   "analytics-counts": { dark: "v14" },
-  "hub-activity-ribbon": { light: "v05", dark: "v05" },
+  "hub-activity-ribbon": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "hub-pipeline-glance": { light: "v26", dark: "v14" },
-  "hub-pipeline-health": { light: "v05", dark: "v05" },
+  "hub-pipeline-health": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "overview-ai-summary": { light: "v27", dark: "v05" },
   "overview-solicitors": { light: "v05", dark: "v05" },
   "reminders-completed": { light: "v05", dark: "v05" },
@@ -67,7 +68,7 @@ export const DEFAULT_PICKS: GlassPicks = {
   "activity-comms-entry": { light: "v22", dark: "v22" },
   "overview-next-action": { light: "v18", dark: "v19" },
   "reminders-filter-bar": { light: "v06", dark: "v02" },
-  "hub-exchange-forecast": { light: "v05", dark: "v05" },
+  "hub-exchange-forecast": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "activity-compose-email": { light: "v08", dark: "v08" },
   "reminders-alerts-strip": { light: "v27", dark: "v25" },
   "overview-property-intel": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
