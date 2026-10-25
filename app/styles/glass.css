@@ -578,6 +578,24 @@
 }
 
 /* ────────────────────────────────────────────────────────────────────── */
+/*  Hub attention cards — opaque base, no load-in flash                     */
+/* ────────────────────────────────────────────────────────────────────── */
+/* The three hub attention cards (Needs your attention / Files at risk /     */
+/* Enquiries gone quiet) all carry data-glass-id="hub-attention". Their      */
+/* glass base is near-transparent (~6-10% white) — the solid look is ENTIRELY*/
+/* the backdrop-filter frost. Browsers suspend backdrop-filter while an      */
+/* element animates, so during the Hub's load-in these cards flash           */
+/* see-through (just the faint base over the bright aurora) then snap to      */
+/* opaque white once the frost kicks back in. Give them a near-solid white   */
+/* base so the settled look is present from the first frame — no flash. The  */
+/* backdrop-filter still layers on top for the frosted finish once settled.  */
+/* Light mode only (where the see-through over the aurora is most visible);   */
+/* dark keeps its existing look. Specificity (0,3,0) beats the variant class.*/
+:root:not([data-theme="dark"]) [data-glass-id="hub-attention"] {
+  background-color: rgba(255, 255, 255, 0.82);
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
 /*  prefers-reduced-motion — no changes needed today (nothing animates),  */
 /*  but reserved: if we later add breathing highlights or hover-in        */
 /*  transitions, they belong under a @media (prefers-reduced-motion) gate.*/
