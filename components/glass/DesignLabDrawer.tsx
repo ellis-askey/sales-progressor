@@ -50,6 +50,68 @@ function discoverCards(): DiscoveredCard[] {
   return found;
 }
 
+// Parse a computed "rgb()/rgba()" string into an "r, g, b" triple + alpha.
+function parseRgb(s: string | null | undefined): { rgb: string; a: number } | null {
+  if (!s) return null;
+  const m = s.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)/i);
+  if (!m) return null;
+  const rgb = `${Math.round(+m[1])}, ${Math.round(+m[2])}, ${Math.round(+m[3])}`;
+  const a = m[4] == null ? 1 : m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+  return { rgb, a };
+}
+
+// Best-effort GlassRecipe from an element's live computed glass. Used to seed
+// the editor when the current look is a built-in variant (no stored recipe) —
+// so "Customise" opens on what's actually on screen, not a blank default.
+function recipeFromElement(el: HTMLElement): GlassRecipe {
+  const cs = getComputedStyle(el);
+  const bf = cs.backdropFilter && cs.backdropFilter !== "none"
+    ? cs.backdropFilter
+    : ((cs as unknown as { webkitBackdropFilter?: string }).webkitBackdropFilter ?? "");
+  const blur = Math.round(parseFloat(bf.match(/blur\(([\d.]+)px\)/)?.[1] ?? "") || DEFAULT_RECIPE.blur);
+  const sat = parseFloat(bf.match(/saturate\(([\d.]+)\)/)?.[1] ?? "") || 1;
+  const bg = parseRgb(cs.backgroundColor);
+  const bc = parseRgb(cs.borderTopColor);
+  const bw = Math.round(parseFloat(cs.borderTopWidth) || 0);
+  // box-shadow computed as "color offx offy blur spread" — the 3rd px is blur;
+  // reverse our shadowValue() mapping (blur ≈ depth * 0.6) back to a depth.
+  let shadow = DEFAULT_RECIPE.shadow;
+  const sh = cs.boxShadow;
+  if (!sh || sh === "none") shadow = 0;
+  else {
+    const pxs = sh.match(/(-?[\d.]+)px/g);
+    if (pxs && pxs.length >= 3) shadow = Math.round(parseFloat(pxs[2]) / 0.6);
+  }
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  return {
+    blur: clamp(blur, 0, 80),
+    bg: bg?.rgb ?? DEFAULT_RECIPE.bg,
+    bgA: bg ? clamp(bg.a, 0, 1) : DEFAULT_RECIPE.bgA,
+    sat: clamp(sat, 0, 3),
+    borderW: clamp(bw, 0, 6),
+    borderC: bc?.rgb ?? DEFAULT_RECIPE.borderC,
+    borderA: bc ? clamp(bc.a, 0, 1) : DEFAULT_RECIPE.borderA,
+    shadow: clamp(shadow, 0, 100),
+  };
+}
+
+// Seed "Customise" from whatever is CURRENTLY applied to the card, so a small
+// tweak starts from the real look. The element's data-glass-variant is its
+// resolved pick (user pick → baked default/baseline → defaultVariant), so this
+// works even when the look comes from a baked default and not a saved pick.
+function resolveStartRecipe(glassId: string, styles: GlassStyle[]): { recipe: GlassRecipe; name?: string } {
+  if (typeof document === "undefined") return { recipe: DEFAULT_RECIPE };
+  const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(glassId) : glassId;
+  const el = document.querySelector<HTMLElement>(`[data-glass-id="${esc}"]`);
+  const effective = el?.dataset.glassVariant;
+  if (effective && effective.startsWith("cs-")) {
+    const s = styles.find((x) => x.id === effective);
+    if (s) return { recipe: { ...s.recipe }, name: s.name };
+  }
+  if (el) return { recipe: recipeFromElement(el) };
+  return { recipe: DEFAULT_RECIPE };
+}
+
 export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { picks, styles, mode, setPick, saveStyle, setPreview, resetAll } = useGlassPicks();
   // Drawer's own light/dark toggle. Flips the whole app theme (and this
@@ -289,16 +351,17 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
         {/* Card list — or the live glass editor when customising a card. */}
         <div style={{ flex: 1, overflow: "auto", padding: "12px 16px" }}>
           {editing ? (() => {
-            const current = picks[editing.glassId]?.[mode];
-            const base = current ? styles.find((s) => s.id === current) : undefined;
+            // Seed from whatever is applied right now (saved pick OR baked
+            // default OR variant), so a small edit doesn't start from scratch.
+            const seed = resolveStartRecipe(editing.glassId, styles);
             return (
               <GlassStyleEditor
                 key={`${editing.glassId}-${mode}`}
                 glassId={editing.glassId}
                 label={editing.label}
                 mode={mode}
-                start={base?.recipe ?? DEFAULT_RECIPE}
-                baseName={base?.name}
+                start={seed.recipe}
+                baseName={seed.name}
                 c={c}
                 saveStyle={saveStyle}
                 setPick={setPick}
