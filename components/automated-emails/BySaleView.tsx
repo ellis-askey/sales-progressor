@@ -86,7 +86,7 @@ export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
       {/* NEEDS YOU */}
       <div data-bloom>
         <GroupHeader title="Needs you" count={needsYou.length} tone="danger"
-          hint={needsYou.length ? "automation can't proceed until you act" : "all clear — nothing stuck"} />
+          hint={needsYou.length ? "automation can't proceed until you act" : "all clear, nothing stuck"} />
         {needsYou.length === 0 ? (
           <GlassCard glassId="auto-cockpit-row" label="Cockpit · row" style={CARD_STYLE}>
             <p style={{ ...ROW_INNER, margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>Nothing needs you. Every file&rsquo;s automation is running or quiet.</p>
