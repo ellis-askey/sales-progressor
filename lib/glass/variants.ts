@@ -53,6 +53,10 @@ export type GlassVariant = {
   recommended?: boolean;
   /** Extra "when to use" note shown next to the recommended star. */
   recommendedFor?: string;
+  /** Not used anywhere in the product — kept (so existing picks still resolve)
+   *  but tucked into a "Legacy" tray at the bottom of the picker so the main
+   *  list stays clean. */
+  hidden?: boolean;
 };
 
 export type GlassFamily = {
@@ -97,7 +101,7 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
       "Deciding \"how much of the aurora should bleed through\"",
     ],
     variants: [
-      { id: "v01", label: "Solid baseline",   technique: "solid bg · no blur · hairline" },
+      { id: "v01", label: "Solid baseline",   technique: "solid bg · no blur · hairline", hidden: true },
       { id: "v02", label: "Faint glass",      technique: "bg 3% · blur 4px" },
       { id: "v04", label: "Thin glass",       technique: "bg 6% · blur 8px" },
       { id: "v03", label: "Standard glass",   technique: "panel bg · blur 12px", recommended: true, recommendedFor: "Elevra's production default. Hard to beat for body-text legibility." },
@@ -143,7 +147,7 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
     variants: [
       { id: "v10", label: "Accent tint",      technique: "accent 8% · blur 12px · accent hairline", recommended: true, recommendedFor: "Standard for accent callouts." },
       { id: "v08", label: "Deep frost",       technique: "white 14% · blur 40px · true frost, no hue", recommendedFor: "The real-glassmorphism light card. Obscures the aurora." },
-      { id: "v09", label: "Warm tint (warn)", technique: "amber 8% · blur 12px" },
+      { id: "v09", label: "Warm tint (warn)", technique: "amber 8% · blur 12px", hidden: true },
       { id: "v21", label: "Obsidian",         technique: "smoked near-black 52% · blur 40px · dark-first" },
     ],
   },
@@ -163,9 +167,9 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
     ],
     variants: [
       { id: "v15", label: "Gradient hairline", technique: "1px brand-gradient border + glass body", recommended: true, recommendedFor: "Hero candidate. Brand identity baked into the frame." },
-      { id: "v12", label: "Sharp glass",       technique: "bg 10% · blur 12px · 2px white border" },
+      { id: "v12", label: "Sharp glass",       technique: "bg 10% · blur 12px · 2px white border", hidden: true },
       { id: "v14", label: "Border-only frame", technique: "transparent · blur 12px · 2px white border" },
-      { id: "v13", label: "Pillow glass",      technique: "bg 6% · blur 12px · inner + outer shadow" },
+      { id: "v13", label: "Pillow glass",      technique: "bg 6% · blur 12px · inner + outer shadow", hidden: true },
     ],
   },
   {
@@ -184,7 +188,7 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
     ],
     variants: [
       { id: "v18", label: "Bento dual-glow",  technique: "glass body · two radial highlights", recommended: true, recommendedFor: "Best of the decorative family. Depth without texture noise." },
-      { id: "v17", label: "Noise-textured",   technique: "glass body · 8% SVG grain overlay" },
+      { id: "v17", label: "Noise-textured",   technique: "glass body · 8% SVG grain overlay", hidden: true },
       { id: "v19", label: "Inner glow",       technique: "glass body · inset accent glow" },
       { id: "v22", label: "Iridescent",       technique: "multi-hue diagonal sheen overlay" },
     ],
@@ -205,7 +209,7 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
     ],
     variants: [
       { id: "v23", label: "Liquid glass",     technique: "white 25% · specular inset · saturate + brighten · springy hover", recommended: true, recommendedFor: "The Apple liquid-glass look. Strong hero + card default." },
-      { id: "v24", label: "Specular glow bar", technique: "inner glow ring · mirrored radial sheen layers" },
+      { id: "v24", label: "Specular glow bar", technique: "inner glow ring · mirrored radial sheen layers", hidden: true },
       { id: "v25", label: "Masked duo edge",   technique: "white edge top-left + coral edge bottom-right, opposing masks" },
       { id: "v26", label: "Contrast lens",     technique: "blur 24px · contrast 1.35 · lens-edge highlight" },
       { id: "v27", label: "Classic frost bar", technique: "white 15% · blur 8px · 18% hairline · deep soft shadow" },

@@ -120,6 +120,13 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
   const totalPicks = Object.keys(picks).length;
 
   const options = useMemo(() => GLASS_FAMILIES, []);
+  // Hidden/unused variants are pulled out of their families and tucked into a
+  // single "Legacy" optgroup at the bottom, so the main list stays clean.
+  const visibleFamilies = useMemo(
+    () => options.map((f) => ({ ...f, variants: f.variants.filter((v) => !v.hidden) })).filter((f) => f.variants.length > 0),
+    [options],
+  );
+  const hiddenVariants = useMemo(() => options.flatMap((f) => f.variants.filter((v) => v.hidden)), [options]);
 
   // Panel palette follows the mode being edited so the drawer itself is
   // legible in dark (and you preview cards in the matching theme).
@@ -305,7 +312,7 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                               cursor: "pointer",
                             }}
                           >
-                            {options.map((family) => (
+                            {visibleFamilies.map((family) => (
                               <optgroup key={family.id} label={family.label}>
                                 {family.variants.map((v) => (
                                   <option key={v.id} value={v.id}>
@@ -314,6 +321,15 @@ export function DesignLabDrawer({ open, onClose }: { open: boolean; onClose: () 
                                 ))}
                               </optgroup>
                             ))}
+                            {hiddenVariants.length > 0 && (
+                              <optgroup label="Legacy (unused)">
+                                {hiddenVariants.map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.id}. {v.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
                         </div>
                       );
