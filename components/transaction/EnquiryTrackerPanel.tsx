@@ -12,6 +12,7 @@
 // The hero slider is the one-tap handover; this panel is the full desk.
 
 import { useState, type CSSProperties } from "react";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import {
   logEnquiryMovementAction,
   setEnquiryOutstandingAction,
@@ -71,6 +72,9 @@ export function EnquiryTrackerPanel({
   // Two-tap guard for "Mark satisfied": it closes the loop and opens the
   // exchange gate, so it confirms before committing (same as the enquiries page).
   const [armed, setArmed] = useState(false);
+  // Design Lab: the file's enquiries tracker card. Baked default = the main
+  // frosted look (Ellis's export, 2026-10-25); overridable in the Lab.
+  const cardTag = useGlassTag("overview-enquiry-tracker", "Enquiries · tracker card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
 
   async function run(fn: () => Promise<unknown>) {
     if (pending) return; // double-submit guard
@@ -159,7 +163,7 @@ export function EnquiryTrackerPanel({
   const satisfiedBtn: CSSProperties = { ...primaryBtn, background: "var(--agent-success)" };
 
   return (
-    <div className="glass-card p-5" style={{ clipPath: "inset(0 round 20px)" }}>
+    <div className={`glass-card p-5 ${cardTag.className}`} {...cardTag.props} style={{ clipPath: "inset(0 round 20px)" }}>
       <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
         <h3 style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Enquiries</h3>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: chip.color }}>{chip.label}</span>

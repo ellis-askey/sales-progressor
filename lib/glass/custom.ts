@@ -47,6 +47,11 @@ export const DEFAULT_STYLES: GlassStyle[] = [
     name: "Light Main Card",
     recipe: { blur: 50, bg: "255, 255, 255", bgA: 0.5, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.12, shadow: 30 },
   },
+  {
+    id: "cs-9049173a",
+    name: "Dark Property Hero",
+    recipe: { blur: 50, bg: "255, 255, 255", bgA: 0.06, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.15, shadow: 22 },
+  },
 ];
 
 // The baseline a brand-new custom style starts from — roughly today's plain

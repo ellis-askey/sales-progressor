@@ -307,7 +307,7 @@ export function PropertyChainCard({
   }
 
   return (
-    <Card id="chain-section" padding="none">
+    <Card id="chain-section" padding="none" glassId="overview-chain" glassLabel="Overview · Property chain">
       <div className="cx2">
         {/* Header */}
         <div className="cx2-hd">
