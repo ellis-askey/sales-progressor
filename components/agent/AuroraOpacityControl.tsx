@@ -41,11 +41,12 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
       preset="popover"
       placement="bottom-end"
       width={240}
-      trigger={
+      trigger={(open) => (
         <button
           type="button"
           title="Moving background"
           aria-label="Adjust the moving background"
+          aria-expanded={open}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -54,17 +55,17 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
             height: 32,
             borderRadius: 8,
             border: "1px solid var(--agent-border-default)",
-            background: "transparent",
+            background: open ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
             color: "var(--agent-text-secondary)",
             cursor: "pointer",
             transition: "background 120ms ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--agent-hover-shade)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "var(--agent-hover-shade)"; }}
+          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
         >
           <Contrast size={15} />
         </button>
-      }
+      )}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>Moving background</span>

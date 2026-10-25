@@ -84,7 +84,10 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
 }
 
 export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width }: {
-  trigger: ReactNode;
+  // Pass a function to style the trigger by open state (e.g. rotate a caret /
+  // tint when open). The anchor also carries data-open so CSS carets can target
+  // `.ui-pop-anchor[data-open]`.
+  trigger: ReactNode | ((open: boolean) => ReactNode);
   children: ReactNode | ((close: () => void) => ReactNode);
   placement?: Placement;
   preset?: "menu" | "popover";
@@ -114,7 +117,7 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
 
   return (
     <>
-      <span ref={anchorRef} className="ui-pop-anchor" onClick={() => setOpen((o) => !o)}>{trigger}</span>
+      <span ref={anchorRef} className="ui-pop-anchor" data-open={open ? "" : undefined} onClick={() => setOpen((o) => !o)}>{typeof trigger === "function" ? trigger(open) : trigger}</span>
       {render && typeof document !== "undefined" && (
         <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
           {typeof children === "function" ? children(close) : children}

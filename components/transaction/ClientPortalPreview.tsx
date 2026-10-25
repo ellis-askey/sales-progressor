@@ -301,11 +301,12 @@ function ClientSwitcherDropdown({
         preset="menu"
         placement="bottom-start"
         width={240}
-        trigger={
+        trigger={(open) => (
           <button
             type="button"
             className="cpp-dd-trigger"
             aria-haspopup="listbox"
+            aria-expanded={open}
             aria-label="Choose a client"
             style={{
               display: "inline-flex",
@@ -326,11 +327,11 @@ function ClientSwitcherDropdown({
           >
             <ContactAvatar contact={{ name: current.name, roleType: current.roleType }} size={24} />
             <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current.name}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transform: open ? "rotate(180deg)" : "none", transition: "transform 180ms ease" }}>
               <path d="m6 9 6 6 6-6" />
             </svg>
           </button>
-        }
+        )}
       >
         {(close) => (
           <div role="listbox" aria-label="Choose a client">

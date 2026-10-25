@@ -5310,6 +5310,13 @@ body[data-demo-file] [data-onboarding-checklist] {
   color: #eef2f7;
 }
 @media (prefers-reduced-motion: reduce) { .ui-pop-item:hover { transform: none; } }
+/* Caret flips when the menu is open — the primitive stamps data-open on the
+   anchor so the chevron animates again (open-state used to live on the bespoke
+   trigger before migration). Each caret keeps its own transition. */
+.ui-pop-anchor[data-open] .fm-caret,
+.ui-pop-anchor[data-open] .act-caret,
+.ui-pop-anchor[data-open] .ce-caret,
+.ui-pop-anchor[data-open] .rem-chase-caret svg { transform: rotate(180deg); }
 /* View pills match the Filter button exactly — same height, icon and text size,
    gap and radius — so the whole bar sits on one line. */
 .files-views .agent-segment-pill-sm {

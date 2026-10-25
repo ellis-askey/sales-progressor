@@ -61,7 +61,18 @@ export function RowActionMenu({
   if (disabled) return triggerBtn;
 
   return (
-    <Popover preset="menu" placement="bottom-end" width={262} trigger={triggerBtn}>
+    <Popover preset="menu" placement="bottom-end" width={262} trigger={(open) => (
+      <button
+        type="button"
+        aria-label={label ?? ariaLabel}
+        aria-expanded={open}
+        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: label ? 5 : 0, ...joinedStyle }}
+      >
+        {label}
+        <CaretDown size={13} weight="bold" style={{ transition: "transform 160ms", transform: open ? "rotate(180deg)" : "none" }} />
+      </button>
+    )}>
       {(close) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {items.map((item) => {
