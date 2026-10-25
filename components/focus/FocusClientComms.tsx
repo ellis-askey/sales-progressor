@@ -773,11 +773,13 @@ const CSS = `
 
 /* Hover tooltip — the full record. Distinct class from the Contact dropdown's
    .fc-pop so the two never collide. */
-.fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:12px; border:1px solid var(--agent-border-strong); background:var(--agent-surface-elevated); box-shadow:0 10px 30px rgba(45,24,16,0.18); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+.fcl-tip { position:absolute; bottom:calc(100% + 9px); left:-6px; z-index:40; width:212px; padding:11px 12px; border-radius:10px; border:1px solid var(--agent-border-default); background:rgba(255,255,255,0.72); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); box-shadow:0 12px 30px rgba(20,12,6,0.16); text-align:left; opacity:0; transform:translateY(4px); pointer-events:none; transition:opacity .13s ease,transform .13s ease; }
+:root[data-theme="dark"] .fcl-tip { background:rgba(20,26,36,0.72); border-color:rgba(255,255,255,0.12); box-shadow:0 12px 30px rgba(0,0,0,0.45); }
 .fc-u:hover .fcl-tip, .fc-u:focus-visible .fcl-tip { opacity:1; transform:translateY(0); }
 /* Tapped open on touch (critique #298) — wins over the mobile .fcl-tip display:none. */
 .fc-u.tip-open .fcl-tip { display:block; opacity:1; transform:translateY(0); pointer-events:auto; }
-.fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:var(--agent-surface-elevated); border-right:1px solid var(--agent-border-strong); border-bottom:1px solid var(--agent-border-strong); }
+.fcl-tip::after { content:""; position:absolute; top:100%; left:16px; width:9px; height:9px; margin-top:-5px; transform:rotate(45deg); background:rgba(255,255,255,0.72); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%); border-right:1px solid var(--agent-border-default); border-bottom:1px solid var(--agent-border-default); }
+:root[data-theme="dark"] .fcl-tip::after { background:rgba(20,26,36,0.72); border-color:rgba(255,255,255,0.12); }
 .fcl-tip-h { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.01em; color:var(--agent-text-muted); margin-bottom:6px; }
 .fcl-tip-h svg { color:var(--agent-text-muted); }
 .fcl-tip-state { display:block; font-size:13px; font-weight:750; letter-spacing:-0.01em; }

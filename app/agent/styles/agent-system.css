@@ -5289,6 +5289,26 @@ body[data-demo-file] [data-onboarding-checklist] {
 .ui-pop-pick:hover { background: rgba(var(--ui-ink), 0.06); color: var(--agent-text-primary); }
 .ui-pop-pick-add { color: var(--agent-coral-deep); font-weight: 650; border-top: 1px solid var(--agent-border-subtle); }
 .ui-pop-pick-empty { margin: 0; padding: 10px 13px; font-size: 13px; color: var(--agent-text-muted); }
+/* Chart / data-viz tooltip surface (Ellis chose "B", 2026-10-25): the same
+   glass family as menus but more opaque (72%) so small numbers stay legible
+   over busy chart lines + map tiles. Positioning stays chart/cursor-specific;
+   only the surface is shared. Theme-aware via the app-wide dark flag so it
+   works inline AND on body-portalled chart bubbles. */
+.ui-chart-tip {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--agent-border-default, rgba(45, 24, 16, 0.10));
+  box-shadow: 0 12px 30px rgba(20, 12, 6, 0.16);
+  border-radius: 10px;
+  color: var(--agent-text-primary, #2d1810);
+}
+:root[data-theme="dark"] .ui-chart-tip {
+  background: rgba(20, 26, 36, 0.72);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  color: #eef2f7;
+}
 @media (prefers-reduced-motion: reduce) { .ui-pop-item:hover { transform: none; } }
 /* View pills match the Filter button exactly — same height, icon and text size,
    gap and radius — so the whole bar sits on one line. */
@@ -5624,10 +5644,13 @@ body[data-demo-file] [data-onboarding-checklist] {
    mirroring .comp-pop. Uses ambient agent tokens; the chart lives inside the
    shell so they resolve in both themes (unlike a portaled popover, it isn't
    detached from the theme scope). */
+/* .fc-tip surface = the shared B chart-tooltip glass (.ui-chart-tip values). */
 .fc-tip { position: absolute; top: 10px; z-index: 6; pointer-events: none; transform: translateX(-50%);
-  min-width: 156px; padding: 10px 12px; border-radius: 12px;
-  background: var(--agent-surface-elevated, #fff); color: var(--agent-text-primary);
-  border: 0.5px solid var(--agent-border-default); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16); }
+  min-width: 156px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72); color: var(--agent-text-primary);
+  backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--agent-border-default); box-shadow: 0 12px 30px rgba(20, 12, 6, 0.16); }
+:root[data-theme="dark"] .fc-tip { background: rgba(20, 26, 36, 0.72); border-color: rgba(255, 255, 255, 0.12); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
 .fc-tip-h { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--agent-text-primary); }
 .fc-tip-h span { font-weight: 500; color: var(--agent-text-muted); }
 .fc-tip-r { display: flex; align-items: center; gap: 7px; font-size: 11.5px; margin-top: 3px; color: var(--agent-text-secondary); }
@@ -5748,11 +5771,14 @@ body[data-demo-file] [data-onboarding-checklist] {
 /* Pin hover preview (Pins mode) — photo + address, MapLibre popup. Never steals
    the pin's click (pointer-events:none). See PropertyMap.pinCardHTML. */
 .map-pin-popup { pointer-events: none; }
+/* Surface = the shared B chart-tooltip glass (.ui-chart-tip values). */
 .map-pin-popup .maplibregl-popup-content {
-  padding: 0; border-radius: 12px; overflow: hidden;
-  background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-default);
-  box-shadow: 0 8px 28px rgba(var(--agent-shadow-rgb), 0.18);
+  padding: 0; border-radius: 10px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--agent-border-default); box-shadow: 0 12px 30px rgba(20, 12, 6, 0.16);
 }
+:root[data-theme="dark"] .map-pin-popup .maplibregl-popup-content { background: rgba(20, 26, 36, 0.72); border-color: rgba(255, 255, 255, 0.12); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
 .map-pin-popup .maplibregl-popup-tip { display: none; }
 .map-pin-card { display: flex; align-items: center; gap: 10px; width: 224px; padding: 8px; }
 .map-pin-thumb {

@@ -32,16 +32,7 @@ export function KpiSparkline({ data, labels, color = "#FF8A65" }: KpiSparklinePr
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               return (
-                <div style={{
-                  background: "rgba(20,10,5,0.80)",
-                  backdropFilter: "blur(6px)",
-                  color: "#fff",
-                  fontSize: 11,
-                  padding: "5px 9px",
-                  borderRadius: 7,
-                  lineHeight: 1.4,
-                  pointerEvents: "none",
-                }}>
+                <div className="ui-chart-tip" style={{ fontSize: 11, padding: "6px 10px", lineHeight: 1.4, pointerEvents: "none" }}>
                   {labels?.[Number(label)] && (
                     <div style={{ opacity: 0.65, fontSize: 10 }}>{labels[Number(label)]}</div>
                   )}

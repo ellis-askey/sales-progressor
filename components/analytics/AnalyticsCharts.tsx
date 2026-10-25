@@ -10,13 +10,7 @@ import type { MonthlyActivityBucket } from "@/lib/services/analytics";
 
 function TooltipShell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      background: "var(--agent-surface-elevated)",
-      border: "1px solid rgba(var(--agent-coral-base-rgb),0.25)",
-      borderRadius: 8, padding: "5px 10px", fontSize: 12,
-      color: "var(--agent-text-primary)",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    }}>
+    <div className="ui-chart-tip" style={{ padding: "6px 11px", fontSize: 12 }}>
       {children}
     </div>
   );

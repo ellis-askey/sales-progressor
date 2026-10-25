@@ -90,13 +90,9 @@ function positionFor(anchor: DOMRect): { style: CSSProperties; placement: "above
 }
 
 const bubbleBaseStyle: CSSProperties = {
+  // Surface comes from the shared .ui-chart-tip class (B glass). Only layout +
+  // positioning live here.
   padding: "12px 14px",
-  borderRadius: 12,
-  background: "var(--agent-surface-elevated)",
-  border: "0.5px solid var(--agent-glass-border)",
-  boxShadow: "0 12px 32px rgba(15,23,42,0.14), 0 2px 6px rgba(15,23,42,0.06)",
-  backdropFilter: "blur(24px) saturate(1.8)",
-  WebkitBackdropFilter: "blur(24px) saturate(1.8)",
   // Shell topbar dropdown is 200, sidebar 100. Stay above both so the
   // bubble never gets covered when a stage circle is near the top of
   // the viewport and the bubble flips above the header.
@@ -196,7 +192,7 @@ export function PipelineStageHover(props: StageHoverProps) {
   const tokens = (isDark ? HOVER_TOKENS_DARK : HOVER_TOKENS_LIGHT) as CSSProperties;
 
   const bubble = (
-    <div style={{ ...tokens, ...bubbleBaseStyle, ...posStyle }} role="tooltip">
+    <div className="ui-chart-tip" style={{ ...tokens, ...bubbleBaseStyle, ...posStyle }} role="tooltip">
       <div style={arrowStyleFor(placement, props.anchor, bubbleLeft)} />
       {renderBody(props)}
     </div>

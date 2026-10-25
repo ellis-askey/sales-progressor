@@ -18,16 +18,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   if (!active || !payload || payload.length === 0) return null;
   const total = payload.reduce((sum, p) => sum + (p.value ?? 0), 0);
   return (
-    <div
-      style={{
-        background: "var(--agent-surface-raised, #fff)",
-        border: "1px solid var(--agent-border-default)",
-        borderRadius: 8,
-        padding: "8px 10px",
-        boxShadow: "var(--agent-shadow-md, 0 4px 16px rgba(0,0,0,0.12))",
-        fontSize: 12,
-      }}
-    >
+    <div className="ui-chart-tip" style={{ padding: "8px 11px", fontSize: 12 }}>
       <p style={{ margin: 0, fontWeight: 600, color: "var(--agent-text-primary)" }}>{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ margin: "2px 0 0", color: "var(--agent-text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>

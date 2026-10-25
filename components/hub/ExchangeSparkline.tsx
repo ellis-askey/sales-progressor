@@ -130,27 +130,23 @@ export function ExchangeSparkline({
       {active != null && (
         <div
           role="status"
+          className="ui-chart-tip"
           style={{
             position: "absolute",
             left: Math.max(46, Math.min(w - 46, xAt(active))),
             top: yAt(weeks[active]) - 10,
             transform: "translate(-50%, -100%)",
             pointerEvents: "none",
-            background: "#1c1917",
-            color: "#fff",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 9,
-            padding: "5px 9px",
+            padding: "6px 10px",
             fontSize: 11,
             lineHeight: 1.3,
             whiteSpace: "nowrap",
-            boxShadow: "0 6px 20px -8px rgba(0,0,0,0.55)",
             zIndex: 3,
           }}
         >
           <strong style={{ fontWeight: 700 }}>{weekLabel(active)}</strong>
           <br />
-          <span style={{ color: "#ff9078" }}>{weeks[active]}</span> exchange
+          <span style={{ color: "var(--agent-coral-deep)" }}>{weeks[active]}</span> exchange
           {weeks[active] === 1 ? "" : "s"}
         </div>
       )}

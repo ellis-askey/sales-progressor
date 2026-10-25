@@ -169,6 +169,7 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
       {open && openIdx !== null && (
         <div
           role="tooltip"
+          className="ui-chart-tip"
           style={{
             position: "absolute",
             bottom: "calc(100% + 8px)",
@@ -178,13 +179,7 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
                 ? { right: 0 }
                 : { left: `${((openIdx + 0.5) * 100) / data.length}%`, transform: "translateX(-50%)" }),
             zIndex: 20, width: "max-content", maxWidth: 250, pointerEvents: "none",
-            background: isDark ? "rgba(20, 28, 44, 0.72)" : "rgba(255, 255, 255, 0.85)",
-            border: isDark ? "0.5px solid rgba(255,255,255,0.14)" : "0.5px solid rgba(15,23,42,0.08)",
-            backdropFilter: "blur(24px) saturate(1.8)",
-            WebkitBackdropFilter: "blur(24px) saturate(1.8)",
-            borderRadius: 10, padding: "8px 12px",
-            color: isDark ? "#EFF6FF" : "#1e293b",
-            boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.40)" : "0 12px 32px rgba(15,23,42,0.14)",
+            padding: "8px 12px",
           }}
         >
           <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
