@@ -241,7 +241,7 @@
 /* BloomStage orchestrator (components/agent/BloomStage.tsx). Whole-page load-in
    in document order. Blocks marked [data-bloom] start HIDDEN from first paint
    (no flash — never shown-then-hidden), then BloomStage sets a per-block
-   transition-delay and adds .bloom-in to transition each in. End state is
+   transition-delay and sets [data-bloom-in] to transition each in. End state is
    transform/filter:none so nothing lingers to sever glass backdrop-filter. */
 .bloom-stage [data-bloom] {
   opacity: 0;
@@ -251,7 +251,7 @@
               transform 520ms cubic-bezier(0.25, 0, 0, 1),
               filter 520ms cubic-bezier(0.25, 0, 0, 1);
 }
-.bloom-stage [data-bloom].bloom-in {
+.bloom-stage [data-bloom][data-bloom-in] {
   opacity: 1;
   transform: none;
   filter: none;

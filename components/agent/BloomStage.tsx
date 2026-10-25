@@ -6,8 +6,8 @@
 //
 // NO FLASH: the blocks start hidden FROM FIRST PAINT via CSS
 // (`.bloom-stage [data-bloom]`), so they're never shown-then-hidden. On mount we
-// set each block's transition-delay in document order and add `.bloom-in`, which
-// transitions it to visible. The end state is transform/filter: none, so nothing
+// set each block's transition-delay in document order and add the
+// `data-bloom-in` attribute, which transitions it to visible. The end state is transform/filter: none, so nothing
 // lingers to sever glass backdrop-filter. Reduced-motion shows everything at
 // once (CSS media query + JS skip).
 //
@@ -47,10 +47,15 @@ export function BloomStage({
     // Reveal one block: flip it to visible and clean up its inline hints once the
     // fade has run, so nothing lingers to sever glass backdrop-filter.
     const reveal = (el: HTMLElement, delayMs: number) => {
-      if (el.classList.contains("bloom-in")) return;
+      if (el.hasAttribute("data-bloom-in")) return;
       el.style.transitionDelay = delayMs > 0 ? `${delayMs}ms` : "";
       el.style.willChange = "opacity, transform, filter";
-      el.classList.add("bloom-in");
+      // The revealed state lives on a DATA ATTRIBUTE, not a class: React owns
+      // `className` and will clobber a JS-added class the next time the element
+      // re-renders (e.g. a Design Lab glass-variant pick changes its className),
+      // which would silently re-hide the block. React never manages this
+      // attribute, so the reveal survives any className re-render.
+      el.setAttribute("data-bloom-in", "");
       const done = (e: TransitionEvent) => {
         if (e.propertyName !== "opacity") return; // once, after the opacity leg
         el.style.transitionDelay = "";
