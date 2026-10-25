@@ -162,9 +162,10 @@ export function EnquiriesTriageList({
   // Design Lab tags — make these surfaces pickable without changing their
   // current look (no variant class until a pick exists). The two filter selects
   // share one id so the Lab shows a single "filters" row that drives both.
-  const searchTag = useGlassTag("enquiries-search", "Enquiries · search bar");
-  const filtersTag = useGlassTag("enquiries-filters", "Enquiries · filters");
-  const cardTag = useGlassTag("enquiries-card", "Enquiries · enquiry card");
+  // Baked Enquiries defaults (Ellis's export, 2026-10-25); all Lab-overridable.
+  const searchTag = useGlassTag("enquiries-search", "Enquiries · search bar", { light: "cs-b7c9ec28", dark: "v05" });
+  const filtersTag = useGlassTag("enquiries-filters", "Enquiries · filters", { dark: "v05" });
+  const cardTag = useGlassTag("enquiries-card", "Enquiries · enquiry card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
 
   // FLIP the list: actioned rows glide to their new sorted slot (with a lift)
   // and the rows between reflow to fill the gap. Animation is paused while the

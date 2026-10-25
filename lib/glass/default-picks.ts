@@ -56,6 +56,10 @@ export const DEFAULT_PICKS: GlassPicks = {
   "overview-solicitors": { light: "v05", dark: "v05" },
   "reminders-completed": { light: "v05", dark: "v05" },
   "reminders-file-card": { light: "v05", dark: "v05" },
+  // Enquiries · summary card (GlassCard). Light v03 per Ellis's export, 2026-10-25;
+  // dark keeps its v05 defaultVariant. Other Enquiries surfaces are useGlassTag so
+  // their baked look is passed as a baseline in EnquiriesTriageList, not here.
+  "enquiries-summary": { light: "v03" },
   "sidebar-quick-links": { light: "v06", dark: "v05" },
   "sidebar-sale-health": { light: "v06", dark: "v05" },
   "todo-agent-requests": { light: "v05", dark: "v05" },
