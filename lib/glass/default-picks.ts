@@ -40,7 +40,8 @@ export const DEFAULT_PICKS: GlassPicks = {
   "steps-progress": { light: "v05", dark: "v05" },
   "auto-emails-row": { light: "v08", dark: "v05" },
   "reminders-group": { light: "v05", dark: "v05" },
-  "todo-page-group": { light: "v05", dark: "v05" },
+  // To-Do task group (GlassCard) — Ellis's export, 2026-10-25.
+  "todo-page-group": { light: "v05", dark: "cs-053799eb" },
   "updates-tx-card": { light: "v16", dark: "v02" },
   "hub-service-split": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "sidebar-key-dates": { light: "v06", dark: "v05" },

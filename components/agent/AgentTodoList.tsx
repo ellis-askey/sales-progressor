@@ -227,7 +227,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
     <ProgressorNameContext.Provider value={progressorName}>
     <RescheduleContext.Provider value={handleReschedule}>
     <DueDateContext.Provider value={handleDueDate}>
-    <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction} glassId="todo-tabs" glassLabel="To-Do · tabs">
+    <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction} glassId="todo-tabs" glassLabel="To-Do · tabs" glassBaseline={{ light: "v04", dark: "v04" }} glassPillBaseline={{ light: "v03", dark: "v04" }}>
       {/* ── To-Do (agency): add form + my notes ── */}
       {safeActive === "mine" && (
         <div className="space-y-8">
@@ -378,6 +378,7 @@ function Section({
             onToggle={onToggleShowDone}
             glassId="todo-completed-bar"
             glassLabel="To-Do · completed bar"
+            glassBaseline={{ dark: "v05" }}
           >
             {doneGroups.map((group) => (
               <TaskGroup key={group.transactionId ?? "_general"} group={group} onToggle={onToggle} dimmed progressor={progressor} isProgressorView={isProgressorView} />

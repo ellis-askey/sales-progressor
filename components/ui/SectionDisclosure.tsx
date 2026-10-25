@@ -24,6 +24,7 @@ import { type ReactNode, type KeyboardEvent } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { useRevealStagger } from "@/lib/agent/use-reveal-stagger";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import type { GlassPick } from "@/lib/glass/variants";
 
 export function SectionDisclosure({
   label,
@@ -37,6 +38,7 @@ export function SectionDisclosure({
   id,
   glassId,
   glassLabel,
+  glassBaseline,
   children,
 }: {
   label: ReactNode;
@@ -58,6 +60,8 @@ export function SectionDisclosure({
    *  a variant is picked. */
   glassId?: string;
   glassLabel?: string;
+  /** Baked default look for the bar (per consumer), applied until a pick exists. */
+  glassBaseline?: GlassPick;
   children: ReactNode;
 }) {
   const onKeyDown = (e: KeyboardEvent) => {
@@ -70,7 +74,7 @@ export function SectionDisclosure({
   // On expand (not first mount), the cards/rows bloom in one at a time —
   // the page load-in, fired on reveal. See useRevealStagger.
   const revealRef = useRevealStagger<HTMLDivElement>(open);
-  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Section bar");
+  const tag = useGlassTag(glassId ?? "", glassLabel ?? "Section bar", glassBaseline);
 
   return (
     <div className="space-y-2" id={id} style={id ? { scrollMarginTop: 80 } : undefined}>

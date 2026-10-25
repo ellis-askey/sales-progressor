@@ -28,6 +28,7 @@ export function TodoTabs({
   glassId,
   glassLabel,
   glassBaseline,
+  glassPillBaseline,
 }: {
   tabs: TodoTab[];
   active: string;
@@ -45,6 +46,7 @@ export function TodoTabs({
   // Baked default look for the bar (per consumer). The sliding pill is tagged
   // separately as `${glassId}-pill` so it can be styled on its own in the Lab.
   glassBaseline?: GlassPick;
+  glassPillBaseline?: GlassPick;
 }) {
   const activeIdx = Math.max(0, tabs.findIndex((t) => t.key === active));
   const tag = useGlassTag(glassId ?? "", glassLabel ?? "Tabs", glassBaseline);
@@ -53,6 +55,7 @@ export function TodoTabs({
   const pillTag = useGlassTag(
     glassId ? `${glassId}-pill` : "",
     glassLabel ? `${glassLabel} · active pill` : "Tab pill",
+    glassPillBaseline,
   );
   // Briefly stretch the sliding pill while it travels between tabs.
   const [travelling, setTravelling] = useState(false);
