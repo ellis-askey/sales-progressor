@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { Popover } from "@/components/ui/Popover";
 import { inviteNewClientToPortalAction, resendPortalInviteAction } from "@/app/actions/portal-invite";
 
 export type PortalPreviewClient = {
@@ -291,141 +292,88 @@ function ClientSwitcherDropdown({
   onSelect: (i: number) => void;
   reduced: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const current = clients[active];
   if (!current) return null;
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", width: "fit-content", margin: "0 auto 16px" }}>
-      <button
-        type="button"
-        className="cpp-dd-trigger"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label="Choose a client"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 14px 6px 8px",
-          borderRadius: 999,
-          border: "1px solid var(--agent-border-subtle)",
-          background: "var(--agent-surface-elevated, #fff)",
-          boxShadow: "0 1px 3px rgba(15,23,42,0.10)",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          fontSize: 13.5,
-          fontWeight: 700,
-          color: "var(--agent-text-primary)",
-          maxWidth: 300,
-        }}
+    <div style={{ width: "fit-content", margin: "0 auto 16px" }}>
+      <Popover
+        preset="menu"
+        placement="bottom-start"
+        width={240}
+        trigger={
+          <button
+            type="button"
+            className="cpp-dd-trigger"
+            aria-haspopup="listbox"
+            aria-label="Choose a client"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 14px 6px 8px",
+              borderRadius: 999,
+              border: "1px solid var(--agent-border-subtle)",
+              background: "var(--agent-surface-elevated, #fff)",
+              boxShadow: "0 1px 3px rgba(15,23,42,0.10)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: "var(--agent-text-primary)",
+              maxWidth: 300,
+            }}
+          >
+            <ContactAvatar contact={{ name: current.name, roleType: current.roleType }} size={24} />
+            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current.name}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)" }}>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        }
       >
-        <ContactAvatar contact={{ name: current.name, roleType: current.roleType }} size={24} />
-        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current.name}</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-          style={{
-            flexShrink: 0,
-            color: "var(--agent-text-muted)",
-            transform: open ? "rotate(180deg)" : "none",
-            transition: reduced ? "none" : "transform 180ms ease",
-          }}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          aria-label="Choose a client"
-          className="cpp-dd-menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 60,
-            minWidth: 230,
-            maxWidth: 300,
-            padding: 5,
-            borderRadius: 13,
-            background: "var(--agent-surface-elevated, #fff)",
-            border: "1px solid var(--agent-border-subtle)",
-            boxShadow: "0 12px 34px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.08)",
-            animation: reduced ? "none" : "cpp-dd-in 160ms cubic-bezier(0.16,1,0.3,1) both",
-            transformOrigin: "top center",
-          }}
-        >
-          {clients.map((c, i) => {
-            const on = i === active;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="option"
-                aria-selected={on}
-                className="cpp-dd-item"
-                onClick={() => {
-                  onSelect(i);
-                  setOpen(false);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  width: "100%",
-                  border: 0,
-                  background: "transparent",
-                  cursor: "pointer",
-                  padding: "7px 10px",
-                  borderRadius: 9,
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: on ? 700 : 600,
-                  color: "var(--agent-text-primary)",
-                  textAlign: "left",
-                }}
-              >
-                <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} />
-                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                {on && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--agent-coral-deep)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+        {(close) => (
+          <div role="listbox" aria-label="Choose a client">
+            {clients.map((c, i) => {
+              const on = i === active;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  className="cpp-dd-item"
+                  onClick={() => { onSelect(i); close(); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    width: "100%",
+                    border: 0,
+                    background: "transparent",
+                    cursor: "pointer",
+                    padding: "7px 10px",
+                    borderRadius: 9,
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: on ? 700 : 600,
+                    color: "var(--agent-text-primary)",
+                    textAlign: "left",
+                  }}
+                >
+                  <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={22} />
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                  {on && (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--agent-coral-deep)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Popover>
     </div>
   );
 }
