@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 import { DateField } from "@/components/ui/DateField";
+import { AccordionBody } from "@/components/ui/AccordionBody";
 
 export function AddManualTaskForm({
   transactionId,
@@ -69,6 +70,15 @@ export function AddManualTaskForm({
   // GlassCard div), so it's tagged in place — variant class + data
   // attributes computed from the current pick (default v03). 2026-08-09.
   const formVariant = usePickForCard("todo-add-form") ?? "v03";
+
+  // Focus the title when the form opens. Done via effect (not autoFocus) because
+  // in the tab-row/hideTrigger mode the form stays mounted inside a collapse, so
+  // autoFocus would fire on page load and steal focus.
+  const titleRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open) titleRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function localDateStr(d: Date): string {
     const y = d.getFullYear();
@@ -142,9 +152,8 @@ export function AddManualTaskForm({
     setOpen(false);
   }
 
-  if (!open) {
-    // Trigger lives elsewhere (e.g. the To-Do tab row) — render nothing closed.
-    if (hideTrigger) return null;
+  // Closed + self-contained (own trigger): show the "Add" button.
+  if (!open && !hideTrigger) {
     return (
       // Primary to match the add trigger on the To-Do page itself (critique
       // #300) — treatment only, same agent-btn-sm size.
@@ -157,10 +166,10 @@ export function AddManualTaskForm({
     );
   }
 
-  return (
+  const form = (
     <form
       onSubmit={handleSubmit}
-      className={`${classFor(formVariant)} p-4 space-y-3 agent-reveal-in rounded-[12px] overflow-hidden`}
+      className={`${classFor(formVariant)} p-4 space-y-3 rounded-[12px] overflow-hidden`}
       data-glass-id="todo-add-form"
       data-glass-label="To-Do · Add task form"
       data-glass-variant={formVariant}
@@ -169,7 +178,7 @@ export function AddManualTaskForm({
         <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>
       )}
       <input
-        autoFocus
+        ref={titleRef}
         type="text"
         placeholder="What needs to be done?"
         value={title}
@@ -290,4 +299,18 @@ export function AddManualTaskForm({
       </div>
     </form>
   );
+
+  // Tab-row / parent-controlled (hideTrigger): animate open AND close with the
+  // height collapse, so the form pushes content down on open and the page
+  // tightens back up on save/cancel. The bottom gap lives inside the clip so it
+  // collapses too (no stray space when closed).
+  if (hideTrigger) {
+    return (
+      <AccordionBody open={open} innerStyle={{ paddingBottom: 32 }}>
+        {form}
+      </AccordionBody>
+    );
+  }
+  // Self-contained, open: the inline reveal.
+  return <div className="agent-reveal-in">{form}</div>;
 }

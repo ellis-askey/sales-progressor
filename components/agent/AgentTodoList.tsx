@@ -3,7 +3,8 @@
 import { useState, createContext, useContext, type ReactNode } from "react";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
-import { ListChecks, UsersThree } from "@phosphor-icons/react";
+import { ListChecks, UsersThree, CalendarPlus } from "@phosphor-icons/react";
+import { ReviewAddContext } from "@/components/agent/ReviewsSection";
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
@@ -212,13 +213,17 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 
   // Primary "Add" trigger that sits on the tab row (right-aligned). Only on the
   // tabs that have an add form, and hidden while the form is open.
-  const canAdd = safeActive === "internal" || safeActive === "mine";
+  const canAdd = safeActive === "internal" || safeActive === "mine" || safeActive === "reviews";
   const addAction = canAdd && !addOpen ? (
     <button type="button" onClick={() => setAddOpen(true)} className="agent-btn agent-btn-sm agent-btn-primary">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-      {safeActive === "internal" ? "Add internal to-do" : "Add to-do"}
+      {safeActive === "reviews" ? (
+        <CalendarPlus size={12} weight="bold" />
+      ) : (
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      )}
+      {safeActive === "reviews" ? "Add a review" : safeActive === "internal" ? "Add internal to-do" : "Add to-do"}
     </button>
   ) : null;
 
@@ -228,9 +233,12 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
     <RescheduleContext.Provider value={handleReschedule}>
     <DueDateContext.Provider value={handleDueDate}>
     <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction} glassId="todo-tabs" glassLabel="To-Do · tabs" glassBaseline={{ light: "v04", dark: "v04" }} glassPillBaseline={{ light: "v03", dark: "v04" }}>
+      {/* Lets the Reviews slot's add-form share this tab-row's open state, so the
+          top-right "Add a review" button drives the review composer. */}
+      <ReviewAddContext.Provider value={{ open: addOpen, setOpen: setAddOpen }}>
       {/* ── To-Do (agency): add form + my notes ── */}
       {safeActive === "mine" && (
-        <div className="space-y-8">
+        <div>
           <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-mine"
@@ -250,7 +258,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 
       {/* ── Internal (progressor): add form + internal notes ── */}
       {safeActive === "internal" && (
-        <div className="space-y-8">
+        <div>
           <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-internal"
@@ -291,6 +299,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 
       {/* ── Reviews (both) — the section with its own empty state + add one ── */}
       {safeActive === "reviews" && reviewsSlot}
+      </ReviewAddContext.Provider>
     </TodoTabs>
     </DueDateContext.Provider>
     </RescheduleContext.Provider>

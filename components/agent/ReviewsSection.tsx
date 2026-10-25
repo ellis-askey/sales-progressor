@@ -11,12 +11,12 @@
 // edit or remove. Both menus portal to the body so they never clip or fall
 // behind the accordion/card.
 
-import { useState, useTransition, useMemo, useRef } from "react";
+import { useState, useTransition, useMemo, useRef, useEffect, createContext, useContext } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRevealStagger, useMergedRefs } from "@/lib/agent/use-reveal-stagger";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import Link from "next/link";
-import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
+import { CaretDown, Check, CalendarPlus, CalendarCheck, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
@@ -24,6 +24,13 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
 import { AnchoredPanel } from "@/components/ui/Popover";
+import { SectionHeader } from "@/components/agent/SectionHeader";
+import { AccordionBody } from "@/components/ui/AccordionBody";
+
+// Shared with AgentTodoList's tab row: the top-right "Add a review" button opens
+// this slot's composer. ReviewsSection is passed into AgentTodoList as a prop,
+// so the open state is shared via context, not props. Null when standalone.
+export const ReviewAddContext = createContext<{ open: boolean; setOpen: (v: boolean) => void } | null>(null);
 
 function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -108,7 +115,14 @@ export function ReviewsSection({
   const [items, setItems] = useState(initialItems);
   const [done, setDone] = useState(initialDone);
   // Add-a-review mini-form (a review is a to-do flagged isReview + a date).
-  const [addOpen, setAddOpen] = useState(false);
+  // Open state comes from the To-Do tab row when embedded there (shared via
+  // ReviewAddContext), else a local fallback.
+  const reviewAddCtx = useContext(ReviewAddContext);
+  const [addOpenLocal, setAddOpenLocal] = useState(false);
+  const addOpen = reviewAddCtx ? reviewAddCtx.open : addOpenLocal;
+  const setAddOpen = reviewAddCtx ? reviewAddCtx.setOpen : setAddOpenLocal;
+  const aTitleRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (addOpen) aTitleRef.current?.focus(); }, [addOpen]);
   const [aTitle, setATitle] = useState("");
   const [aTxId, setATxId] = useState("");
   const [aDate, setADate] = useState("");
@@ -343,17 +357,24 @@ export function ReviewsSection({
   return (
     <div id="section-reviews" className="space-y-3">
       <style>{RV_STYLES}</style>
-      {/* No section header: the "Reviews" tab already names this and carries the
-          count (redundant row removed 2026-10-15). */}
+      {/* Section header — matches the Internal / From-agents tabs (icon + title +
+          subtitle), rides the same tab-panel fade on switch. */}
+      <SectionHeader
+        icon={<CalendarCheck size={22} weight="regular" />}
+        title="Reviews"
+        subtitle="Files you've set a date to come back to."
+      />
 
-      {/* Add-a-review form — a review is a to-do ticked as a review + a date. */}
-      {addOpen && (
+      {/* Add-a-review form — a review is a to-do ticked as a review + a date.
+          In the collapse so it animates in (pushing the list down) and out
+          (tightening up) on save/cancel. */}
+      <AccordionBody open={addOpen}>
         <div className="agent-glass" style={{ borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <input
+            ref={aTitleRef}
             value={aTitle}
             onChange={(e) => setATitle(e.target.value)}
             placeholder="What to come back to (e.g. chase the management pack)"
-            autoFocus
             onKeyDown={(e) => { if (e.key === "Enter") handleAddReview(); if (e.key === "Escape") resetAdd(); }}
             style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", fontFamily: "inherit", fontSize: 13.5, color: "var(--agent-text-primary)", outline: "none" }}
           />
@@ -373,7 +394,7 @@ export function ReviewsSection({
             <button type="button" onClick={handleAddReview} disabled={!aTitle.trim() || aSaving} className="agent-btn agent-btn-sm agent-btn-primary">Add review</button>
           </div>
         </div>
-      )}
+      </AccordionBody>
 
       {openCount === 0 && done.length === 0 ? (
         !addOpen ? (
@@ -393,11 +414,6 @@ export function ReviewsSection({
         ) : null
       ) : (
         <div className="space-y-3">
-          {!addOpen && (
-            <button type="button" onClick={() => setAddOpen(true)} className="agent-link" style={{ fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <CalendarPlus size={13} weight="bold" /> Add a review
-            </button>
-          )}
           {/* Due now — open by default, most-overdue first */}
           {dueItems.length > 0 && (
             <ReviewDrawer title="Due now" open={dueOpen} onToggle={() => setDueOpen((v) => !v)} accent="var(--agent-warning)">
