@@ -17,8 +17,9 @@
 // values are set (the delta needs a concrete from/to). The caller decides who
 // sees this at all.
 
-import { useState, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useState, useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phosphor-icons/react";
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -126,10 +127,12 @@ function StaticValue({ value, label, sensitive }: { value: string; label: string
   );
 }
 
-// Anchored option menu: a dropdown under the trigger on desktop, a bottom sheet
-// on mobile. Rendered to a body portal so the hero card can't clip it.
-function OptionMenu<T extends string>({ anchor, options, current, onPick, onClose }: {
-  anchor: DOMRect;
+// Anchored option menu: a dropdown under the trigger on desktop (canonical
+// AnchoredPanel — locked glass, flip/shift, edge gutter), a bottom sheet on
+// mobile (its own body portal).
+function OptionMenu<T extends string>({ anchorRef, open, options, current, onPick, onClose }: {
+  anchorRef: RefObject<HTMLElement | null>;
+  open: boolean;
   options: { value: T; label: string }[];
   current: T | null;
   onPick: (v: T) => void;
@@ -171,6 +174,7 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
   );
 
   if (isMobile) {
+    if (!open) return null;
     return createPortal(
       <>
         <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 59, background: "rgba(15,23,42,0.28)" }} />
@@ -191,30 +195,10 @@ function OptionMenu<T extends string>({ anchor, options, current, onPick, onClos
     );
   }
 
-  return createPortal(
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div
-        className="agent-reveal-in"
-        style={{
-          position: "fixed",
-          top: anchor.bottom + 6,
-          // Clamp so the ≥180px menu never runs past the right viewport edge
-          // when the stat cell sits near it (audit C6).
-          left: Math.max(8, Math.min(anchor.left, (typeof window !== "undefined" ? window.innerWidth : 9999) - Math.max(180, anchor.width) - 8)),
-          zIndex: 60,
-          minWidth: Math.max(180, anchor.width),
-          background: "var(--agent-surface-elevated, #fff)",
-          border: "0.5px solid var(--agent-border-default, rgba(15,23,42,0.12))",
-          borderRadius: 10,
-          boxShadow: "0 12px 32px rgba(0,0,0,0.14)",
-          overflow: "hidden",
-        }}
-      >
-        {list}
-      </div>
-    </>,
-    document.body,
+  return (
+    <AnchoredPanel anchorRef={anchorRef} open={open} onClose={onClose} placement="bottom-start" bare width={220}>
+      {list}
+    </AnchoredPanel>
   );
 }
 
@@ -273,7 +257,6 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
 
   // ── Type / Tenure popover + confirm ──
   const [openField, setOpenField] = useState<"type" | "tenure" | null>(null);
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const typeBtnRef = useRef<HTMLDivElement>(null);
   const tenureBtnRef = useRef<HTMLDivElement>(null);
 
@@ -291,23 +274,8 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
   const inRecovery = !exchanged && (purchaseType == null || tenure == null);
 
   function openPopover(field: "type" | "tenure") {
-    const ref = field === "type" ? typeBtnRef : tenureBtnRef;
-    const rect = ref.current?.getBoundingClientRect() ?? null;
-    setAnchorRect(rect);
     setOpenField(field);
   }
-
-  // Close the popover if the page scrolls/resizes — the anchored rect goes stale.
-  useEffect(() => {
-    if (!openField) return;
-    const close = () => setOpenField(null);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [openField]);
 
   async function pickOption(field: "type" | "tenure", value: string) {
     setOpenField(null);
@@ -442,24 +410,22 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
             card (2026-10-19). The tenure text above still reflects share-of-freehold. */}
       </CellFrame>
 
-      {openField === "type" && anchorRect && (
-        <OptionMenu
-          anchor={anchorRect}
-          options={PURCHASE_TYPE_OPTIONS}
-          current={purchaseType}
-          onPick={(v) => pickOption("type", v)}
-          onClose={() => setOpenField(null)}
-        />
-      )}
-      {openField === "tenure" && anchorRect && (
-        <OptionMenu
-          anchor={anchorRect}
-          options={TENURE_CHOICE_OPTIONS}
-          current={currentTenureChoice(tenure, isShareOfFreehold)}
-          onPick={(v) => pickOption("tenure", v)}
-          onClose={() => setOpenField(null)}
-        />
-      )}
+      <OptionMenu
+        anchorRef={typeBtnRef}
+        open={openField === "type"}
+        options={PURCHASE_TYPE_OPTIONS}
+        current={purchaseType}
+        onPick={(v) => pickOption("type", v)}
+        onClose={() => setOpenField(null)}
+      />
+      <OptionMenu
+        anchorRef={tenureBtnRef}
+        open={openField === "tenure"}
+        options={TENURE_CHOICE_OPTIONS}
+        current={currentTenureChoice(tenure, isShareOfFreehold)}
+        onPick={(v) => pickOption("tenure", v)}
+        onClose={() => setOpenField(null)}
+      />
 
       <SaleDetailChangeModal
         open={pending !== null}
