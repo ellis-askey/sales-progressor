@@ -55,12 +55,23 @@
   --c-glass-hairline: rgba(15, 26, 46, 0.08);
 }
 
+/* Every glass variant is scoped `[data-glass-id].glass-vNN` (specificity
+   0,2,0) rather than the bare `.glass-vNN` (0,1,0). Both GlassCard and the
+   useGlassTag helper put `data-glass-id` on the surface, so this is always
+   satisfied — but it lets a picked variant WIN over a bespoke single-class
+   surface rule (e.g. `.fc-card { background … }` defined in a component's
+   own <style>, which otherwise beats the variant on source order and made
+   Lab picks have no visible effect on tagged bespoke surfaces). GlassCards
+   render identically (same declarations, just higher specificity). The
+   nesting-strip rule below (`[data-glass-id] [data-glass-id]`) is unchanged
+   and still wins for nested cards. */
+
 /* ────────────────────────────────────────────────────────────────────── */
 /*  v00 — Agent current (the baseline every card starts at)               */
 /*  Reproduces today's coral-warm agent-app card look so tagged cards     */
 /*  render identically to today until Ellis picks a real variant.         */
 /* ────────────────────────────────────────────────────────────────────── */
-.glass-v00 {
+[data-glass-id].glass-v00 {
   background: var(--agent-surface-elevated);
   border: 0.5px solid rgba(15, 23, 42, 0.06);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -71,33 +82,33 @@
 /*  Same blur, five background alphas + a solid control.                  */
 /*  Recommended: v03 (the current Elevra default).                        */
 /* ────────────────────────────────────────────────────────────────────── */
-.glass-v01 {
+[data-glass-id].glass-v01 {
   background: var(--c-glass-bg-elevated);
   border: 1px solid var(--c-glass-hairline);
   box-shadow: var(--c-glass-shadow-card);
 }
-.glass-v02 {
+[data-glass-id].glass-v02 {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
-.glass-v04 {
+[data-glass-id].glass-v04 {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
-.glass-v03 {
+[data-glass-id].glass-v03 {
   background: var(--c-glass-panel-bg);
   border: 1px solid var(--c-glass-row-border);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
-.glass-v05 {
+[data-glass-id].glass-v05 {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
@@ -113,28 +124,28 @@
 /*  with the stacking-context fix, the moving background bled through.    */
 /*  Ellis's brief: "heavy frost does — that's the blur I want".           */
 /* ────────────────────────────────────────────────────────────────────── */
-.glass-v06 {
+[data-glass-id].glass-v06 {
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(48px) saturate(1.5);
   backdrop-filter: blur(48px) saturate(1.5);
 }
-.glass-v11 {
+[data-glass-id].glass-v11 {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
   backdrop-filter: blur(64px) saturate(1.8) brightness(1.05);
 }
-.glass-v07 {
+[data-glass-id].glass-v07 {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(56px) saturate(2) brightness(1.10);
   backdrop-filter: blur(56px) saturate(2) brightness(1.10);
 }
-.glass-v20 {
+[data-glass-id].glass-v20 {
   background: rgba(255, 255, 255, 0.20);
   border-top: 1px solid rgba(255, 255, 255, 0.30);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -148,7 +159,7 @@
    Uses a gradient border trick: outer box is a linear gradient, inner is
    the glass fill, background-clip splits them so the "border" appears as a
    fading bright top edge. */
-.glass-v16 {
+[data-glass-id].glass-v16 {
   background:
     linear-gradient(var(--c-glass-panel-bg), var(--c-glass-panel-bg)) padding-box,
     linear-gradient(to bottom, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0.02) 100%) border-box;
@@ -163,7 +174,7 @@
 /*  Coloured glass for callouts. Recommended: v10 (accent tint).          */
 /*  Blur bumped 2026-08-08 (see Family 02 note).                          */
 /* ────────────────────────────────────────────────────────────────────── */
-.glass-v10 {
+[data-glass-id].glass-v10 {
   background: rgba(var(--c-glass-accent-rgb), 0.16);
   border: 1px solid rgba(var(--c-glass-accent-rgb), 0.30);
   box-shadow: var(--c-glass-shadow-card);
@@ -175,7 +186,7 @@
    soft wash rather than a moving picture. Neutral white body (no hue), heavy
    40px blur + gentle saturate for life, bright top-edge specular. Tuned for
    light mode; assign the dark-mode slot to v21 (Obsidian). */
-.glass-v08 {
+[data-glass-id].glass-v08 {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.40);
   box-shadow:
@@ -188,7 +199,7 @@
    whisper of the brand hue, theme-aware via color-mix over the elevated
    token (near-white in light, near-black in dark). A solid drawer/modal
    candidate — no aurora bleed. */
-.glass-v09 {
+[data-glass-id].glass-v09 {
   background: color-mix(in srgb, var(--agent-coral, #ff6b4a) 5%, var(--c-glass-bg-elevated));
   border: 1px solid var(--c-glass-hairline);
   box-shadow: var(--c-glass-shadow-card);
@@ -197,7 +208,7 @@
    glass: a deep smoked body over a 40px frost so it reads as premium dark glass
    in dark mode (and a dark widget on light). Cool near-black tint rather than
    flat black, faint top-edge light. Pair as the dark-mode partner to v08. */
-.glass-v21 {
+[data-glass-id].glass-v21 {
   background: rgba(17, 21, 30, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow:
@@ -216,21 +227,21 @@
 /* ────────────────────────────────────────────────────────────────────── */
 /* v12 — Sharp glass (restyled 2026-09-03). Crisp medium-blur glass with a
    defined bright 1px edge — structure without heaviness. */
-.glass-v12 {
+[data-glass-id].glass-v12 {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: var(--c-glass-shadow-card);
   -webkit-backdrop-filter: blur(22px) saturate(1.4);
   backdrop-filter: blur(22px) saturate(1.4);
 }
-.glass-v14 {
+[data-glass-id].glass-v14 {
   background: rgba(255, 255, 255, 0.04);
   border: 2px solid rgba(255, 255, 255, 0.20);
   -webkit-backdrop-filter: blur(48px);
   backdrop-filter: blur(48px);
 }
 /* v15 — brand-gradient hairline. RECOMMENDED for family 04. */
-.glass-v15 {
+[data-glass-id].glass-v15 {
   background:
     linear-gradient(var(--c-glass-panel-bg), var(--c-glass-panel-bg)) padding-box,
     linear-gradient(135deg, rgba(56, 225, 255, 0.6) 0%, rgba(91, 140, 255, 0.2) 100%) border-box;
@@ -242,7 +253,7 @@
 /* v13 — Pillow glass (restyled 2026-09-03). Soft, lifted glass: gentle blur,
    a bright inner top highlight and a diffuse outer shadow so the panel reads
    as a raised cushion. */
-.glass-v13 {
+[data-glass-id].glass-v13 {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
@@ -261,7 +272,7 @@
 /* v17 — Deep frost (restyled 2026-09-03). Heavy, clean frost that fully
    obscures the aurora into a soft wash — the calmest reading surface for a
    dense drawer. Theme-aware via the panel token. */
-.glass-v17 {
+[data-glass-id].glass-v17 {
   position: relative;
   background: var(--c-glass-panel-bg);
   border: 1px solid var(--c-glass-row-border);
@@ -269,7 +280,7 @@
   -webkit-backdrop-filter: blur(72px) saturate(1.3);
   backdrop-filter: blur(72px) saturate(1.3);
 }
-.glass-v17::before {
+[data-glass-id].glass-v17::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -283,7 +294,7 @@
 }
 
 /* v18 — bento dual-glow. RECOMMENDED for family 05. */
-.glass-v18 {
+[data-glass-id].glass-v18 {
   position: relative;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -291,7 +302,7 @@
   -webkit-backdrop-filter: blur(48px);
   backdrop-filter: blur(48px);
 }
-.glass-v18::before {
+[data-glass-id].glass-v18::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -302,7 +313,7 @@
     radial-gradient(50% 40% at 90% 95%, rgba(168, 255, 96, 0.12), transparent 70%);
 }
 
-.glass-v19 {
+[data-glass-id].glass-v19 {
   background: var(--c-glass-panel-bg);
   border: 1px solid rgba(var(--c-glass-accent-rgb), 0.25);
   box-shadow:
@@ -312,7 +323,7 @@
   backdrop-filter: blur(48px);
 }
 
-.glass-v22 {
+[data-glass-id].glass-v22 {
   position: relative;
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -320,7 +331,7 @@
   -webkit-backdrop-filter: blur(56px);
   backdrop-filter: blur(56px);
 }
-.glass-v22::before {
+[data-glass-id].glass-v22::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -350,7 +361,7 @@
    one class — saturate + brightness vibrancy, white 25% overlay, dual
    specular inset, springy hover transition. (The SVG lens-distortion
    filter from the demo is omitted — it needs an inline SVG per page.) */
-.glass-v23 {
+[data-glass-id].glass-v23 {
   background: rgba(255, 255, 255, 0.25);
   border: none;
   box-shadow:
@@ -370,7 +381,7 @@
 /* v24 — Specular edge (restyled 2026-09-03). Glass body with a bright
    top-left specular border (gradient-border trick) fading to nothing bottom-
    right — a premium light-catch cue without saturation noise. */
-.glass-v24 {
+[data-glass-id].glass-v24 {
   background:
     linear-gradient(var(--c-glass-panel-bg), var(--c-glass-panel-bg)) padding-box,
     linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.10) 35%, rgba(255, 255, 255, 0.02) 100%) border-box;
@@ -379,8 +390,8 @@
   -webkit-backdrop-filter: blur(40px);
   backdrop-filter: blur(40px);
 }
-.glass-v24::before,
-.glass-v24::after {
+[data-glass-id].glass-v24::before,
+[data-glass-id].glass-v24::after {
   content: "";
   background: radial-gradient(ellipse, rgba(238, 238, 238, 0), rgba(255, 255, 255, 0.40));
   border-radius: inherit;
@@ -389,7 +400,7 @@
   scale: 1.25;
   pointer-events: none;
 }
-.glass-v24::before {
+[data-glass-id].glass-v24::before {
   height: 55%;
   scale: 1 -1;
   mask: linear-gradient(transparent, black);
@@ -400,7 +411,7 @@
    two 1px borders on opposing mask gradients — a white edge lit from the
    top-left, a coral edge rising from the bottom-right — over a soft
    left-to-right white glass fade. Coral replaces the demo's blue. */
-.glass-v25 {
+[data-glass-id].glass-v25 {
   position: relative;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.05));
   border: none;
@@ -408,8 +419,8 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
-.glass-v25::before,
-.glass-v25::after {
+[data-glass-id].glass-v25::before,
+[data-glass-id].glass-v25::after {
   content: "";
   display: block;
   position: absolute;
@@ -417,12 +428,12 @@
   border-radius: inherit;
   pointer-events: none;
 }
-.glass-v25::before {
+[data-glass-id].glass-v25::before {
   border: 1px solid #fff;
   mask-image: linear-gradient(135deg, #fff, transparent 50%);
   -webkit-mask-image: linear-gradient(135deg, #fff, transparent 50%);
 }
-.glass-v25::after {
+[data-glass-id].glass-v25::after {
   border: 1px solid rgba(var(--agent-coral-rgb), 0.9);
   mask-image: linear-gradient(135deg, transparent 50%, #fff);
   -webkit-mask-image: linear-gradient(135deg, transparent 50%, #fff);
@@ -432,7 +443,7 @@
    blur + contrast punch so what's behind the card pops like it's under
    curved glass, thin white lens-edge highlight. Contrast tamed from the
    demo's 500% to stay readable behind card content. */
-.glass-v26 {
+[data-glass-id].glass-v26 {
   background: rgba(255, 255, 255, 0.06);
   border: none;
   box-shadow:
@@ -446,7 +457,7 @@
 /* v27 — Classic frost bar. From Ellis's snippet 4 (the Uiverse music
    bar): white 15% body, 8px blur, crisp 18% white hairline, deep soft
    drop shadow. The most "canonical glassmorphism" of the family. */
-.glass-v27 {
+[data-glass-id].glass-v27 {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 8px 32px 0 rgba(13, 38, 38, 0.30);
@@ -459,7 +470,7 @@
    of the Elevra mobile tab bar (Tailwind `backdrop-blur` default) instead of
    v26's 24px. Reads sharper — the aurora shows through more, the contrast
    punch stays. 8px at every breakpoint, matching the tab bar. */
-.glass-v28 {
+[data-glass-id].glass-v28 {
   background: rgba(255, 255, 255, 0.06);
   border: none;
   box-shadow:
@@ -476,7 +487,7 @@
    and a soft inner-white bloom. Then v26's contrast-lens inner white glow
    layered in — reduced from 24px/0.28 to 22px/0.20 so it lifts the centre
    without blowing out against the recipe's own 0.50 inner bloom. */
-.glass-v29 {
+[data-glass-id].glass-v29 {
   position: relative;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.13);
@@ -490,7 +501,7 @@
   -webkit-backdrop-filter: blur(13px);
   backdrop-filter: blur(13px);
 }
-.glass-v29::before {
+[data-glass-id].glass-v29::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -498,7 +509,7 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.80), transparent);
   pointer-events: none;
 }
-.glass-v29::after {
+[data-glass-id].glass-v29::after {
   content: "";
   position: absolute;
   top: 0; left: 0;
@@ -535,43 +546,43 @@
  * looked identical to the desktop see-through issue. Ellis wants heavy
  * frost, even on phones. */
 @media (max-width: 1023px) {
-  .glass-v02 { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-  .glass-v04 { backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-  .glass-v03 { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-  .glass-v05 { backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); }
-  .glass-v06 { backdrop-filter: blur(28px) saturate(1.4); -webkit-backdrop-filter: blur(28px) saturate(1.4); }
-  .glass-v11 { backdrop-filter: blur(32px) saturate(1.6); -webkit-backdrop-filter: blur(32px) saturate(1.6); }
-  .glass-v07 { backdrop-filter: blur(30px) saturate(1.7); -webkit-backdrop-filter: blur(30px) saturate(1.7); }
-  .glass-v20 { backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); }
-  .glass-v16,
-  .glass-v10,
-  .glass-v08,
-  .glass-v09,
-  .glass-v21,
-  .glass-v12,
-  .glass-v14,
-  .glass-v15,
-  .glass-v13,
-  .glass-v17,
-  .glass-v18,
-  .glass-v19,
-  .glass-v22 {
+  [data-glass-id].glass-v02 { backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  [data-glass-id].glass-v04 { backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+  [data-glass-id].glass-v03 { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  [data-glass-id].glass-v05 { backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); }
+  [data-glass-id].glass-v06 { backdrop-filter: blur(28px) saturate(1.4); -webkit-backdrop-filter: blur(28px) saturate(1.4); }
+  [data-glass-id].glass-v11 { backdrop-filter: blur(32px) saturate(1.6); -webkit-backdrop-filter: blur(32px) saturate(1.6); }
+  [data-glass-id].glass-v07 { backdrop-filter: blur(30px) saturate(1.7); -webkit-backdrop-filter: blur(30px) saturate(1.7); }
+  [data-glass-id].glass-v20 { backdrop-filter: blur(30px) saturate(1.6); -webkit-backdrop-filter: blur(30px) saturate(1.6); }
+  [data-glass-id].glass-v16,
+  [data-glass-id].glass-v10,
+  [data-glass-id].glass-v08,
+  [data-glass-id].glass-v09,
+  [data-glass-id].glass-v21,
+  [data-glass-id].glass-v12,
+  [data-glass-id].glass-v14,
+  [data-glass-id].glass-v15,
+  [data-glass-id].glass-v13,
+  [data-glass-id].glass-v17,
+  [data-glass-id].glass-v18,
+  [data-glass-id].glass-v19,
+  [data-glass-id].glass-v22 {
     -webkit-backdrop-filter: blur(28px);
     backdrop-filter: blur(28px);
   }
   /* Bespoke family (2026-08-08 recipes): these are light-blur looks by
      design, so mobile only trims, never bulldozes to 28px. v23 keeps its
      desktop filter (4px is already cheap). */
-  .glass-v24,
-  .glass-v25 {
+  [data-glass-id].glass-v24,
+  [data-glass-id].glass-v25 {
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
-  .glass-v26 {
+  [data-glass-id].glass-v26 {
     -webkit-backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
     backdrop-filter: blur(16px) contrast(1.3) saturate(1.15);
   }
-  .glass-v27 {
+  [data-glass-id].glass-v27 {
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
   }

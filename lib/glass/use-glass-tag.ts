@@ -16,11 +16,18 @@ import { classFor, DEFAULT_VARIANT } from "./variants";
 //
 // Share one glassId across repeated elements (e.g. every enquiry card) to get a
 // single Lab row that drives them all — exactly how hub-attention works.
+//
+// `picked` tells the consumer whether a variant is active. Use it on surfaces
+// styled with INLINE styles (which beat any class, so the variant can't show):
+// drop the inline background/border/shadow when `picked` so the glass variant
+// owns the surface, e.g.
+//   style={{ ...layout, ...(tag.picked ? {} : { background, border }) }}
 export function useGlassTag(
   glassId: string,
   label: string,
 ): {
   className: string;
+  picked: boolean;
   props: {
     "data-glass-id": string;
     "data-glass-label": string;
@@ -36,6 +43,7 @@ export function useGlassTag(
   return {
     // No pick → no glass class → the element is visually unchanged.
     className: pick ? classFor(pick) : "",
+    picked: !!pick,
     props: {
       "data-glass-id": glassId,
       "data-glass-label": label,

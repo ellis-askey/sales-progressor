@@ -130,7 +130,7 @@ export function PartnersDirectory({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 12, color: "var(--agent-text-muted)", flexShrink: 0 }}>Sort</span>
-          <div className={sortTag.className} {...sortTag.props} style={{ display: "inline-flex", padding: 2, borderRadius: 10, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-default)" }}>
+          <div className={sortTag.className} {...sortTag.props} style={{ display: "inline-flex", padding: 2, borderRadius: 10, ...(sortTag.picked ? {} : { background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-default)" }) }}>
             {SORTS.map((s) => {
               const active = sort === s.key;
               return (

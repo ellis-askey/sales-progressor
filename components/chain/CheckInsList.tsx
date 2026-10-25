@@ -395,9 +395,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
             style={{
               padding: "13px 16px",
               borderRadius: 13,
-              background: "var(--agent-surface-elevated, #fff)",
-              border: "1px solid var(--agent-border-subtle)",
-              boxShadow: "0 1px 2px rgba(45,24,16,0.04)",
+              ...(rowTag.picked ? {} : {
+                background: "var(--agent-surface-elevated, #fff)",
+                border: "1px solid var(--agent-border-subtle)",
+                boxShadow: "0 1px 2px rgba(45,24,16,0.04)",
+              }),
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>

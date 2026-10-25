@@ -40,7 +40,7 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
               key={f.transactionId}
               className={cardTag.className}
               {...cardTag.props}
-              style={{ border: "1px solid var(--agent-border-subtle)", borderRadius: 14, background: "var(--agent-surface-elevated, #fff)", overflow: "hidden", boxShadow: "0 1px 2px rgba(42,23,16,0.04)" }}
+              style={{ borderRadius: 14, overflow: "hidden", ...(cardTag.picked ? {} : { border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface-elevated, #fff)", boxShadow: "0 1px 2px rgba(42,23,16,0.04)" }) }}
             >
               <button
                 onClick={() => toggle(f.transactionId)}
