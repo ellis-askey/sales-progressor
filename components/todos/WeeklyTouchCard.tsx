@@ -8,8 +8,9 @@
 // and "Not required" (parks the side till Monday). The photo + address is a link
 // to the file.
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
@@ -39,22 +40,6 @@ export function WeeklyTouchCard({ files, totalSides, doneSides }: { files: Weekl
   const [resolved, setResolved] = useState<Set<string>>(new Set()); // "txId:side" hidden optimistically
   const [composeTx, setComposeTx] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState<string | null>(null); // "txId:side"
-  const [emenuOpen, setEmenuOpen] = useState<string | null>(null);
-  const menuWrapRef = useRef<HTMLSpanElement>(null);
-
-  // Close the chevron menu on click-outside / Escape (not on mouse-leave — that
-  // killed it as the cursor crossed the gap toward an option).
-  useEffect(() => {
-    if (!emenuOpen) return;
-    function onDown(e: MouseEvent) {
-      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) setEmenuOpen(null);
-    }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setEmenuOpen(null); }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [emenuOpen]);
-
   const key = (tx: string, side: string) => `${tx}:${side}`;
   const localDone = doneSides + resolved.size;
   const pct = totalSides ? Math.round((localDone / totalSides) * 100) : 100;
@@ -63,7 +48,7 @@ export function WeeklyTouchCard({ files, totalSides, doneSides }: { files: Weekl
 
   function resolve(tx: string, side: string, msg: string, action: () => Promise<unknown>) {
     setResolved((p) => new Set([...p, key(tx, side)]));
-    setCallOpen(null); setEmenuOpen(null);
+    setCallOpen(null);
     toast.success(msg);
     startTransition(async () => { await action().catch(() => {}); router.refresh(); });
   }
@@ -107,7 +92,7 @@ export function WeeklyTouchCard({ files, totalSides, doneSides }: { files: Weekl
                 const label = s.side === "vendor" ? "Seller" : "Buyer";
                 const names = s.contacts.length ? s.contacts.map((c) => c.name).join(" & ") : s.name;
                 return (
-                  <div className={`wtc-side ${s.side}`} key={s.side} style={emenuOpen === k ? { zIndex: 60 } : undefined}>
+                  <div className={`wtc-side ${s.side}`} key={s.side}>
                     <span className="wtc-id">
                       <span className="wtc-avs">
                         {(s.contacts.length ? s.contacts : [{ id: s.primaryContactId, name: s.name }]).map((c) => (
@@ -127,20 +112,29 @@ export function WeeklyTouchCard({ files, totalSides, doneSides }: { files: Weekl
                       <CallForm who={s.name} onSave={(note) => resolve(f.transactionId, s.side, `${label} · call logged`, () => logSideCall(f.transactionId, s.side as "vendor" | "purchaser", s.contactIds, note))} onCancel={() => setCallOpen(null)} />
                     ) : (
                       <span className="wtc-acts">
-                        <span className="wtc-split" ref={emenuOpen === k ? menuWrapRef : undefined}>
+                        <span className="wtc-split">
                           <button className="m" onClick={() => setComposeTx(f.transactionId)}>{ENV} Email</button>
-                          <button className="c" aria-label="Email options" onClick={(e) => { e.stopPropagation(); setEmenuOpen(emenuOpen === k ? null : k); }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-                          </button>
-                          {emenuOpen === k && (
-                            <div className="wtc-emenu">
-                              <button onClick={() => resolve(f.transactionId, s.side, `${label} · emailed (logged)`, () => logSideEmailed(f.transactionId, s.side as "vendor" | "purchaser", s.contactIds))}>
-                                <span className="mic">{ENV}</span><span><span className="ml">I&rsquo;ve already emailed</span><span className="ms">Sent it elsewhere, just log it</span></span>
+                          <Popover
+                            preset="menu"
+                            placement="bottom-end"
+                            width={248}
+                            trigger={
+                              <button className="c" aria-label="Email options">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                               </button>
-                            </div>
-                          )}
+                            }
+                          >
+                            {(close) => (
+                              <PopoverMenuItem
+                                icon={ENV}
+                                onClick={() => { resolve(f.transactionId, s.side, `${label} · emailed (logged)`, () => logSideEmailed(f.transactionId, s.side as "vendor" | "purchaser", s.contactIds)); close(); }}
+                              >
+                                I&rsquo;ve already emailed<small style={{ display: "block", fontWeight: 400, fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 }}>Sent it elsewhere, just log it</small>
+                              </PopoverMenuItem>
+                            )}
+                          </Popover>
                         </span>
-                        <button className="wtc-ib" title="Log a call" onClick={() => { setCallOpen(k); setEmenuOpen(null); }}>{PHONE}</button>
+                        <button className="wtc-ib" title="Log a call" onClick={() => { setCallOpen(k); }}>{PHONE}</button>
                         <button className="wtc-nr" onClick={() => resolve(f.transactionId, s.side, `${label} · parked this week`, () => markSideNotRequiredThisWeek(f.transactionId, s.side as "vendor" | "purchaser"))}>Not required</button>
                       </span>
                     )}
