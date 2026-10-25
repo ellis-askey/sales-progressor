@@ -9,6 +9,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { NumericFormat } from "react-number-format";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { addRecommendedSolicitorWithContactAction, getSolicitorFirmHandlersAction } from "@/app/actions/solicitors";
@@ -53,14 +54,6 @@ export function AddSolicitorForm({
   const [error, setError] = useState("");
   const searchRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowList(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   // Load the firm's existing handlers whenever a known firm is chosen. A brand
   // new firm (no id) has none, so we go straight to the add-handler fields.
@@ -167,21 +160,21 @@ export function AddSolicitorForm({
               autoFocus
               className="agent-input"
             />
-            {showList && (query.length > 0 || filtered.length > 0) && (
-              <div style={{
-                position: "absolute", zIndex: 5, left: 0, right: 0, marginTop: 4,
-                borderRadius: 10, overflow: "hidden", maxHeight: 220, overflowY: "auto",
-                background: "var(--agent-surface-elevated)",
-                border: "1px solid var(--agent-border-default)",
-                boxShadow: "0 12px 32px rgba(0,0,0,0.14)",
-              }}>
+            <AnchoredPanel
+              anchorRef={searchRef}
+              open={showList && (query.length > 0 || filtered.length > 0)}
+              onClose={() => setShowList(false)}
+              matchWidth
+              bare
+              placement="bottom-start"
+            >
+              <div style={{ maxHeight: 220, overflowY: "auto" }}>
                 {filtered.map((f) => (
                   <button
                     key={f.id}
                     type="button"
                     onMouseDown={() => pickFirm({ id: f.id, name: f.name })}
-                    className="agent-hover-row"
-                    style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, color: "var(--agent-text-primary)", background: "none", border: "none", cursor: "pointer" }}
+                    className="ui-pop-pick"
                   >
                     {f.name}
                   </button>
@@ -190,14 +183,13 @@ export function AddSolicitorForm({
                   <button
                     type="button"
                     onMouseDown={() => pickFirm({ name: query.trim() })}
-                    className="agent-hover-row"
-                    style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", fontSize: 13, fontWeight: 600, color: `rgb(${ACCENT})`, background: "none", border: "none", borderTop: "0.5px solid var(--agent-border-default)", cursor: "pointer" }}
+                    className="ui-pop-pick ui-pop-pick-add"
                   >
                     + Add &ldquo;{query.trim()}&rdquo; as a new firm
                   </button>
                 )}
               </div>
-            )}
+            </AnchoredPanel>
           </>
         )}
       </div>
