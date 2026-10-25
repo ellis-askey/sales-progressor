@@ -347,15 +347,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
-  // Scope dropdown (the view filter, now a menu inside the search bar).
-  const [scopeOpen, setScopeOpen] = useState(false);
-  const scopeRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!scopeOpen) return;
-    const h = (e: MouseEvent) => { if (scopeRef.current && !scopeRef.current.contains(e.target as Node)) setScopeOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [scopeOpen]);
 
   // Per-entry "show more" (long bodies) and "show original" (synced inbound
   // emails: reveal the full untrimmed original vs the cleaned body).
@@ -923,28 +914,31 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
       `}</style>
       <div className="act-filterbar" data-bloom>
-        <div className="act-scope" ref={scopeRef}>
-          <button className="act-scope-btn" data-open={scopeOpen} onClick={() => setScopeOpen((v) => !v)} aria-haspopup="menu" aria-expanded={scopeOpen}>
-            <FunnelSimple size={14} weight="regular" />
-            {FILTERS.find((f) => f.value === filter)?.label ?? "All"}
-            <span className="act-caret">▼</span>
-          </button>
-          {scopeOpen && (
-            <div className="act-scope-menu agent-dropdown-in" role="menu">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.value}
-                  role="menuitemradio"
-                  aria-checked={filter === f.value}
-                  className="act-mi"
-                  data-on={filter === f.value}
-                  onClick={() => { handleFilter(f.value); setScopeOpen(false); }}
-                >
-                  <span className="act-radio" />{f.label}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="act-scope">
+          <Popover
+            preset="menu"
+            placement="bottom-start"
+            trigger={
+              <button className="act-scope-btn" aria-haspopup="menu">
+                <FunnelSimple size={14} weight="regular" />
+                {FILTERS.find((f) => f.value === filter)?.label ?? "All"}
+                <span className="act-caret">▼</span>
+              </button>
+            }
+          >
+            {(close) => FILTERS.map((f) => (
+              <button
+                key={f.value}
+                role="menuitemradio"
+                aria-checked={filter === f.value}
+                className="act-mi"
+                data-on={filter === f.value}
+                onClick={() => { handleFilter(f.value); close(); }}
+              >
+                <span className="act-radio" />{f.label}
+              </button>
+            ))}
+          </Popover>
         </div>
         <MagnifyingGlass size={15} weight="regular" className="act-search-ico" />
         <input
