@@ -55,6 +55,14 @@ export const DEFAULT_PICKS: GlassPicks = {
   "updates-day-bar": { dark: "v05" },
   "updates-search": { dark: "v04" },
   "updates-filter-rail": { dark: "v05" },
+  // Completions page — Ellis's export, 2026-10-26. File card + completed row to
+  // the frosted main card; the section / completed bars are dark-only v05;
+  // momentum keeps its v05 defaultVariant on dark (light-only pick in the export).
+  "completions-file-card": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  "completions-completed-row": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  "completions-section-bar": { dark: "v05" },
+  "completions-completed-bar": { dark: "v05" },
+  "completions-momentum": { light: "v03" },
   "hub-service-split": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "sidebar-key-dates": { light: "v06", dark: "v05" },
   "milestone-timeline": { light: "v29", dark: "cs-9049173a" },
