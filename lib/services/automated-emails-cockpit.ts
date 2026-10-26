@@ -188,7 +188,11 @@ export async function getBySaleCockpit(
     files,
     needsItems,
     predicted: (forecast?.predicted ?? []).flatMap((b) => b.items),
-    exhausted: forecast?.exhausted ?? [],
+    // Chased-out steps are owned by the Reminders work queue ("Log a call"
+    // lives there), so the By-sale cockpit no longer duplicates them — it was
+    // just noise, and pulled in withdrawn files + old-round buyers. The cockpit
+    // keeps the genuinely email-specific problems (bounced / missing / failed).
+    exhausted: [],
     photoByTx,
   }, new Date());
 }
