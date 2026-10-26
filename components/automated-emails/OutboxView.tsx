@@ -146,10 +146,14 @@ export function OutboxView({
 
       {ordered.map((g) => {
         const sent = g.rows.filter((r) => r.status === "sent").length;
-        const toGo = g.rows.length - sent;
+        // "To go" = real queued sends only. Predicted chases are a forecast (they
+        // rolled stale overdue ones onto today and over-counted), so they're shown
+        // separately as "forecast", never as confirmed today-sends. 2026-10-26.
+        const toGo = g.rows.filter((r) => r.status === "pending").length;
+        const forecastN = g.rows.filter((r) => r.status === "upcoming").length;
         const summary =
           g.key === todayK
-            ? [sent > 0 ? `${sent} sent` : null, toGo > 0 ? `${toGo} to go` : null].filter(Boolean).join(" · ") || `${g.rows.length} emails`
+            ? [sent > 0 ? `${sent} sent` : null, toGo > 0 ? `${toGo} to go` : null, forecastN > 0 ? `${forecastN} forecast` : null].filter(Boolean).join(" · ") || `${g.rows.length} emails`
             : `${g.rows.length} ${g.rows.length === 1 ? "email" : "emails"}`;
         return (
           <DayGroup

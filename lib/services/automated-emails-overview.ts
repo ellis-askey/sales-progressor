@@ -162,7 +162,10 @@ export async function getAutomationOverview(input: OverviewInput): Promise<Autom
     }),
     // Banner — queued sends (any type) still due to go out by end of today.
     prisma.outboundEmailQueue.count({
-      where: { ...queueScope, sentAt: null, errorAt: null, scheduledFor: { lt: endOfToday } },
+      // Genuinely-today only (>= start of today): real queued sends due to go
+      // out today. Previously had no lower bound, so an overdue backlog counted
+      // as "today" too — misleading. 2026-10-26.
+      where: { ...queueScope, sentAt: null, errorAt: null, scheduledFor: { gte: startOfToday, lt: endOfToday } },
     }),
     // Banner — solicitor sends that went today (queue sends-today are derived
     // from the period rows below, digest-collapsed, so bundles count once).

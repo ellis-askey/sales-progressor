@@ -204,7 +204,12 @@ export default async function AutomatedEmailsPage({
       {/* Row A — what needs a person, what's about to go out, how well set up we are */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         {needs && <div data-bloom><NeedsAttentionPanel data={needs} /></div>}
-        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} sentToday={overview?.banner.sentToday ?? 0} stillToGo={(overview?.banner.stillToGoToday ?? 0) + (forecast?.dueTodayCount ?? 0)} /></div>}
+        {/* "Still to send today" = real queued sends due today, NOT the chase
+            forecast. The forecast rolls overdue chases onto "today" and predicts
+            ones that may never fire, which wildly over-counted (e.g. 46 shown
+            when 0 were actually queued). The forecast still lives in the Outbox,
+            labelled as a forecast. 2026-10-26. */}
+        {sendingToday && <div data-bloom><SendingTodayPanel rows={sendingToday} sentToday={overview?.banner.sentToday ?? 0} stillToGo={overview?.banner.stillToGoToday ?? 0} /></div>}
         {coverage && <div data-bloom><AutomationCoveragePanel coverage={coverage} /></div>}
       </div>
 

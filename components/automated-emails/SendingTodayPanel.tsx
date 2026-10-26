@@ -22,11 +22,11 @@ const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)
 const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
 
 export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: SendingTodayRow[]; sentToday?: number; stillToGo?: number }) {
-  // The true remaining-today figure (`stillToGo`) is the live forecast of
-  // automated emails due to go out today — queued sends PLUS predicted chases
-  // not yet materialised in the queue — so it matches the Outbox below and
-  // drops as steps get confirmed (critique #295A). `rows` is a capped preview of
-  // the queued, send-now/skip-able part; predicted ones are actioned in the Outbox.
+  // `stillToGo` is the REAL queued sends due to go out today — not the chase
+  // forecast, which over-counted by rolling stale overdue chases onto "today"
+  // and predicting ones that never fire (46 shown when 0 were queued). `rows` is
+  // a capped preview of those queued, send-now/skip-able emails; the full chase
+  // forecast lives in the Outbox, labelled there as a forecast. 2026-10-26.
   const total = stillToGo ?? rows.length;
   return (
     <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
