@@ -4,10 +4,12 @@
 // Fuses the two old Focus widgets: the weekly "touch both sides of every file"
 // quota (progress bar, Monday reset, "not required" parking) AND the per-side
 // act-now actions (email / call / WhatsApp). On top it layers what the client has
-// actually received: the last AUTOMATED email with its live delivery/open status
-// (click to open the exact email we sent), and a bounce flag when a client is
-// unreachable. Human touches still drive the quiet clock; automated sends are a
-// quiet secondary signal and never reset it.
+// actually received: the last email with its live delivery/open status (click to
+// open the exact email we sent), and a bounce flag when a client is unreachable.
+// Human touches drive the quiet clock by default; the "Include automated" toggle
+// (#297) switches the email channel to show automated chases too AND lets them
+// count toward the quiet clock, so a side chased by the engine stops reading as
+// overdue. WhatsApp and calls are never automated, so the toggle never affects them.
 
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -360,12 +362,16 @@ function SideBlock({
   const avatars = side.contacts.length ? side.contacts : [{ id: side.primaryContactId, name: side.name }];
   const lc = side.lastContact;
 
+  // Which email counts here depends on the toggle (#297): ON = the latest email
+  // of any kind, including our automated chases; OFF = only the latest HUMAN
+  // email (one we sent, or their reply). WhatsApp and calls are never automated,
+  // so they read the same either way.
+  const activeEmail = includeAuto ? lc.email : lc.emailHuman;
+
   // The freshest touch per side (#293): drawn solid, its time coloured by how
-  // overdue it is. Human contact only unless the "include automated" toggle is on
-  // (#297) — automated engine emails are the only thing that flag excludes
-  // (WhatsApp, calls and inbound replies are never automated).
-  const candidates = [lc.email, lc.whatsapp, lc.call].filter(
-    (c): c is NonNullable<typeof c> => !!c && (includeAuto || !c.automated),
+  // overdue it is — across the active email + WhatsApp + call.
+  const candidates = [activeEmail, lc.whatsapp, lc.call].filter(
+    (c): c is NonNullable<typeof c> => !!c,
   );
   const mostRecent = candidates.reduce<(typeof candidates)[number] | null>(
     (best, c) => (!best || new Date(c.at).getTime() > new Date(best.at).getTime() ? c : best),
@@ -374,6 +380,17 @@ function SideBlock({
   const recentDays = mostRecent ? daysAgo(mostRecent.at) : null;
   const recentTone: "ok" | "danger" | null =
     recentDays == null ? null : recentDays <= 7 ? "ok" : recentDays >= 14 ? "danger" : null;
+
+  // "Quiet Nd" is server-computed on HUMAN contact only (getWeeklyTouch excludes
+  // automated), so it already matches the toggle OFF. When automated is included,
+  // let a more-recent automated email pull the quiet clock down so the badge
+  // agrees with the chip. 14 days = the server's NO_COMMS threshold.
+  let effQuiet = side.quiet;
+  let effDays = side.daysSince;
+  if (includeAuto && lc.email) {
+    const ed = daysAgo(lc.email.at);
+    if (side.daysSince === null || ed < side.daysSince) { effDays = ed; effQuiet = ed >= 14; }
+  }
   // Mobile has no hover, so a truncated name is unreachable — tap to show it in
   // full (wrapped), tap again to collapse (critique #299).
   const [namesExpanded, setNamesExpanded] = useState(false);
@@ -405,14 +422,14 @@ function SideBlock({
         <span className="fc-right">
           {done ? (
             <span className="fc-status ok">Touched</span>
-          ) : side.quiet && needsYouReason ? (
+          ) : effQuiet && needsYouReason ? (
             <span className="fc-status danger" title={needsYouReason}>
               <Flame size={11} weight="fill" />
-              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
+              {effDays != null ? `Quiet ${effDays}d` : "Never contacted"}
             </span>
-          ) : side.quiet ? (
+          ) : effQuiet ? (
             <span className="fc-status warn">
-              {side.daysSince != null ? `Quiet ${side.daysSince}d` : "Never contacted"}
+              {effDays != null ? `Quiet ${effDays}d` : "Never contacted"}
             </span>
           ) : null}
           <ContactMenu
@@ -430,7 +447,7 @@ function SideBlock({
           full record (direction, state, exact time, subject/snippet) is one hover
           away. WhatsApp is dropped entirely when it isn't a live channel here. */}
       <div className="fc-led">
-        <ChannelUnit channel="email" c={lc.email} recent={!!mostRecent && mostRecent === lc.email} tone={recentTone} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
+        <ChannelUnit channel="email" c={activeEmail} recent={!!mostRecent && mostRecent === activeEmail} tone={recentTone} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
         {showWhatsApp ? (
           <ChannelUnit channel="whatsapp" c={lc.whatsapp} recent={!!mostRecent && mostRecent === lc.whatsapp} tone={recentTone} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
         ) : null}

@@ -46,7 +46,14 @@ export type FocusChannelContact = {
 };
 
 export type FocusSideContacts = {
+  // The latest email on record for this side (any kind — our automated chase,
+  // a human email we sent, or their inbound reply).
   email: FocusChannelContact | null;
+  // The latest NON-automated email (a human email we sent, or their reply).
+  // Shown when the "Include automated" toggle is OFF, so the email chip reads
+  // "the last email WE sent that wasn't automated" rather than a chase. Null =
+  // no human email ever (only automated), which renders as an honest "none".
+  emailHuman: FocusChannelContact | null;
   whatsapp: FocusChannelContact | null;
   call: FocusChannelContact | null;
 };
@@ -72,7 +79,7 @@ export type FocusLeft = {
   whatsappInUse: boolean;
 };
 
-const EMPTY_CONTACTS: FocusSideContacts = { email: null, whatsapp: null, call: null };
+const EMPTY_CONTACTS: FocusSideContacts = { email: null, emailHuman: null, whatsapp: null, call: null };
 
 // Email statuses that mean "not actually sent yet" — excluded so a queued or
 // draft message never reads as a real contact.
@@ -232,11 +239,15 @@ export async function getFocusLeft(vis: AgentVisibility): Promise<FocusLeft> {
       ...f,
       sides: f.sides.map((s) => {
         const sideIds = new Set(s.contactIds);
-        const lc: FocusSideContacts = { email: null, whatsapp: null, call: null };
+        const lc: FocusSideContacts = { email: null, emailHuman: null, whatsapp: null, call: null };
         for (const { ids, c } of pool) {
           if (!ids.some((id) => sideIds.has(id))) continue;
           const cur = lc[c.channel];
           if (!cur || c.at.getTime() > cur.at.getTime()) lc[c.channel] = c;
+          // Track the latest non-automated email separately for the toggle-off view.
+          if (c.channel === "email" && !c.automated && (!lc.emailHuman || c.at.getTime() > lc.emailHuman.at.getTime())) {
+            lc.emailHuman = c;
+          }
         }
         let lastOutreach = 0, lastInbound = 0;
         for (const r of rawPool) {
