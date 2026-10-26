@@ -8,7 +8,8 @@
 // send/retry here — those live on the pending row (PR 4) behind the atomic guard.
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+import { resendQueuedEmailAction } from "@/app/actions/resend-queued-email";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import type { PillProps } from "@/components/ui/Pill";
@@ -116,16 +117,45 @@ function IssueCard({ item }: { item: NeedsAttentionItem }) {
         </Link>
         <p style={{ margin: "3px 0 8px", fontSize: 12, color: "var(--agent-text-muted)" }}>{descLine(item)}</p>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {cta && (
+          {item.status === "errored" && item.source === "queue" ? (
+            <ResendButton emailId={item.emailId} />
+          ) : cta ? (
             /* Library button sizes, no ad-hoc inline resizing (upgrade phase 4). */
             <Link href={fileHref} className="agent-btn agent-btn-xs agent-btn-color-primary" style={{ textDecoration: "none" }}>
               {cta}
             </Link>
-          )}
+          ) : null}
           <Link href={fileHref} className="agent-link agent-link-muted" style={{ fontSize: 12 }}>View file</Link>
         </div>
       </div>
     </div>
+  );
+}
+
+// Resend a queued email that errored but never sent. Re-fires it into the next
+// working window via the drain. One-shot per card — flips to a confirmation so
+// it can't be spammed into a double-queue.
+function ResendButton({ emailId }: { emailId: string }) {
+  const [pending, start] = useTransition();
+  const [state, setState] = useState<"idle" | "done" | "error">("idle");
+
+  if (state === "done") {
+    return <span className="agent-link-muted" style={{ fontSize: 12, color: "var(--agent-success)" }}>Queued to resend</span>;
+  }
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          const res = await resendQueuedEmailAction(emailId);
+          setState(res.ok ? "done" : "error");
+        })
+      }
+      className="agent-btn agent-btn-xs agent-btn-color-primary"
+    >
+      {pending ? "Resending…" : state === "error" ? "Try again" : "Resend"}
+    </button>
   );
 }
 
@@ -165,8 +195,20 @@ function descLine(item: NeedsAttentionItem): string {
     case "missing": return "Add an email address so we can start chasing.";
     case "failed": return item.recipientRole === "solicitor" ? "The solicitor's email address is failing." : "The last send failed.";
     case "deferred": return `Their mail server keeps deferring us (${item.deferredCount} attempts).`;
-    case "errored": return item.reason ?? "The last send errored.";
+    case "errored": return friendlyReason(item.reason);
   }
+}
+
+// Plain-English for the raw internal error codes stored on the queue row, so the
+// panel never shows a code like "retry_age_exceeded" to an agent. Unknown codes
+// fall back to a generic line rather than leaking the raw string.
+const REASON_LABELS: Record<string, string> = {
+  retry_age_exceeded: "We couldn't get this sent after a day of trying. Resend to try again.",
+  no_recipient_columns_set: "This email had no recipient on file.",
+};
+function friendlyReason(reason: string | null): string {
+  if (!reason) return "The last send didn't go through.";
+  return REASON_LABELS[reason] ?? "The last send didn't go through.";
 }
 
 function ctaFor(item: NeedsAttentionItem): string | null {
