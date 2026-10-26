@@ -45,8 +45,9 @@ export const DEFAULT_PICKS: GlassPicks = {
   "auto-cockpit-row": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "auto-cockpit-quiet": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "reminders-group": { light: "v05", dark: "v05" },
-  // To-Do task group (GlassCard) — Ellis's export, 2026-10-25.
-  "todo-page-group": { light: "v05", dark: "cs-053799eb" },
+  // To-Do task group (GlassCard) — Ellis's export, 2026-10-26 (light moved to the
+  // frosted main card to match the dark side and the rest of the To-Do page).
+  "todo-page-group": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "updates-tx-card": { light: "v16", dark: "v02" },
   "hub-service-split": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
   "sidebar-key-dates": { light: "v06", dark: "v05" },
