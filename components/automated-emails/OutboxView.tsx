@@ -118,9 +118,10 @@ export function OutboxView({
       }),
     }));
 
-  const exhausted = filtersActive ? [] : (forecast?.exhausted ?? []);
-
-  if (ordered.length === 0 && exhausted.length === 0) {
+  // "Automation exhausted" strip removed (2026-10-26): chased-out steps live in
+  // the Reminders work queue, where an agent actions them. Showing them here too
+  // was just noise — and it surfaced stale / inactive sales (142d-old chases).
+  if (ordered.length === 0) {
     return (
       <EmptyState
         title={filtersActive ? "No matching emails" : "Nothing sent today and nothing scheduled"}
@@ -162,20 +163,6 @@ export function OutboxView({
         );
       })}
 
-      {exhausted.length > 0 && (
-        <div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 8px" }}>
-            <h3 className="agent-eyebrow" style={{ margin: 0, color: "var(--agent-warning)" }}>Automation exhausted</h3>
-            <Pill glass tone="warning" size="sm">{exhausted.length}</Pill>
-          </div>
-          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--agent-text-muted)" }}>
-            Every automated chase has been sent and the step is still open. These need a person.
-          </p>
-          <div className="space-y-2">
-            {exhausted.map((e) => <ExhaustedCard key={`${e.kind}-${e.id}`} item={e} />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
