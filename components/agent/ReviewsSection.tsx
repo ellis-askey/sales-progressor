@@ -16,7 +16,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRevealStagger, useMergedRefs } from "@/lib/agent/use-reveal-stagger";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import Link from "next/link";
-import { CaretDown, Check, CalendarPlus, CalendarCheck, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
+import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
@@ -24,7 +24,6 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { toUKDateStr } from "@/lib/utils";
 import { DateField } from "@/components/ui/DateField";
 import { AnchoredPanel } from "@/components/ui/Popover";
-import { SectionHeader } from "@/components/agent/SectionHeader";
 import { AccordionBody } from "@/components/ui/AccordionBody";
 
 // Shared with AgentTodoList's tab row: the top-right "Add a review" button opens
@@ -355,16 +354,12 @@ export function ReviewsSection({
   };
 
   return (
+    <>
+    <style>{RV_STYLES}</style>
+    {/* No header here — the To-Do page renders ONE shared header above all three
+        tabs so they line up at the same height. Style tag lives outside the
+        layout flow so it can't push the first row down. */}
     <div id="section-reviews" className="space-y-3">
-      <style>{RV_STYLES}</style>
-      {/* Section header — matches the Internal / From-agents tabs (icon + title +
-          subtitle), rides the same tab-panel fade on switch. */}
-      <SectionHeader
-        icon={<CalendarCheck size={22} weight="regular" />}
-        title="Reviews"
-        subtitle="Files you've set a date to come back to."
-      />
-
       {/* Add-a-review form — a review is a to-do ticked as a review + a date.
           In the collapse so it animates in (pushing the list down) and out
           (tightening up) on save/cancel. */}
@@ -449,6 +444,7 @@ export function ReviewsSection({
         </div>
       )}
     </div>
+    </>
   );
 }
 

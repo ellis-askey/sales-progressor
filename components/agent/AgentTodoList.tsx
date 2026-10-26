@@ -3,7 +3,7 @@
 import { useState, createContext, useContext, type ReactNode } from "react";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
-import { ListChecks, UsersThree, CalendarPlus } from "@phosphor-icons/react";
+import { ListChecks, UsersThree, CalendarPlus, CalendarCheck } from "@phosphor-icons/react";
 import { ReviewAddContext } from "@/components/agent/ReviewsSection";
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
@@ -236,12 +236,26 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       {/* Lets the Reviews slot's add-form share this tab-row's open state, so the
           top-right "Add a review" button drives the review composer. */}
       <ReviewAddContext.Provider value={{ open: addOpen, setOpen: setAddOpen }}>
+      {/* ONE header for the active tab, rendered first so all three tabs line up
+          at exactly the same height. The per-section headers below are suppressed
+          (hideHeader), and the Reviews slot renders headerless. Previously each
+          tab carried its own header at a different offset (add-form above it on
+          Internal/Mine, a stray style-tag margin on Reviews). */}
+      {(() => {
+        const H =
+          safeActive === "internal" ? { icon: <ListChecks size={22} weight="regular" />, title: "Internal to-dos", subtitle: "Your team's notes and follow-ups." }
+          : safeActive === "prog" ? { icon: <UsersThree size={22} weight="regular" />, title: isProgressor ? "From agents" : "With your progressor", subtitle: isProgressor ? "Requests from your agents." : `Requests you've sent ${progressorName ?? "our team"}.` }
+          : safeActive === "reviews" ? { icon: <CalendarCheck size={22} weight="regular" />, title: "Reviews", subtitle: "Files you've set a date to come back to." }
+          : { icon: <ListChecks size={22} weight="regular" />, title: "My to-dos", subtitle: "Your notes and reminders." };
+        return <div style={{ marginBottom: 12 }}><SectionHeader icon={H.icon} title={H.title} subtitle={H.subtitle} /></div>;
+      })()}
       {/* ── To-Do (agency): add form + my notes ── */}
       {safeActive === "mine" && (
         <div>
           <AddManualTaskForm showOwnership={canUseProgressor} onAdd={handleAdd} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-mine"
+            hideHeader
             title="My to-dos"
             subtitle="Your notes and reminders."
             overdueGroups={groupByTransaction(ownOverdue)}
@@ -262,6 +276,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
           <AddManualTaskForm internalMode onAdd={handleAddInternal} attachableFiles={attachableFiles} controlledOpen={addOpen} onOpenChange={setAddOpen} hideTrigger />
           <Section
             id="section-internal"
+            hideHeader
             title="Internal to-dos"
             subtitle="Your team's notes and follow-ups."
             overdueGroups={groupByTransaction(internalOverdue)}
@@ -281,6 +296,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
       {safeActive === "prog" && (
         <Section
           id="section-progressor"
+          hideHeader
           title={isProgressor ? "From agents" : "With your progressor"}
           subtitle={isProgressor ? "Requests from your agents." : `Requests you've sent ${progressorName ?? "our team"}.`}
           icon={<UsersThree size={22} weight="regular" />}
@@ -309,13 +325,16 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 }
 
 function Section({
-  id, title, subtitle, icon, overdueGroups, openGroups, doneGroups, doneCount, showDone,
+  id, title, subtitle, icon, hideHeader = false, overdueGroups, openGroups, doneGroups, doneCount, showDone,
   onToggleShowDone, onToggle, progressor = false, isProgressorView = false, emptyText,
 }: {
   id: string;
   title: string;
   subtitle?: string;
   icon?: ReactNode;
+  // When the parent renders one shared header above (so all tabs align), the
+  // section's own header is suppressed.
+  hideHeader?: boolean;
   overdueGroups: Group[];
   openGroups: Group[];
   doneGroups: Group[];
@@ -332,12 +351,15 @@ function Section({
   return (
     <div id={id} className="space-y-3">
       {/* Section header — matches the top of the No-comms card. No count badge:
-          it duplicated the active tab's own number (founder, 2026-10-20). */}
-      <SectionHeader
-        icon={icon ?? <ListChecks size={22} weight="regular" />}
-        title={title}
-        subtitle={subtitle ?? ""}
-      />
+          it duplicated the active tab's own number (founder, 2026-10-20).
+          Suppressed when the parent renders one shared header above. */}
+      {!hideHeader && (
+        <SectionHeader
+          icon={icon ?? <ListChecks size={22} weight="regular" />}
+          title={title}
+          subtitle={subtitle ?? ""}
+        />
+      )}
 
       {/* Overdue sub-group */}
       {overdueGroups.length > 0 && (
