@@ -21,6 +21,7 @@ import { sendAgentEmail } from "@/lib/email/agent-log";
 import { resolveSenderForTransaction } from "@/lib/email";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 import { greetingName } from "@/lib/contacts/displayName";
 import {
   TONE_KEY_MAP,
@@ -444,12 +445,15 @@ export async function sendNeighbourChase(input: {
     ? sanitizeChaseBodyHtml(input.bodyHtml)
     : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
   // The AI no longer writes a sign-off (shared chase guidance), so the app adds
-  // one for BASIC-family signatures — the neighbour drawer has no phrase editor,
-  // so it uses the default. Image/custom signatures carry their own valediction.
-  const signOffHtml = sig.mode === "BASIC"
+  // "Kind regards," unless the signature already carries one (the neighbour
+  // drawer has no phrase editor, so it uses the default). A pasted signature
+  // that opens with a sign-off, or an image signature, keeps its own — one
+  // sign-off, never two, never none. See lib/email/sign-off.ts.
+  const addSignOff = shouldAddSignOff(sig.html);
+  const signOffHtml = addSignOff
     ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">Kind regards,</p>`
     : "";
-  const signOffText = sig.mode === "BASIC" ? `\n\nKind regards,` : "";
+  const signOffText = addSignOff ? `\n\nKind regards,` : "";
   const html = wrapEmailHtml(renderedBody + signOffHtml, sig.html);
   const subject = input.subject.trim() || `Quick update on ${target.neighbourAddress ?? "the chain"}?`;
 
@@ -793,10 +797,13 @@ export async function sendLinkChase(input: {
   const renderedBody = input.bodyHtml.trim()
     ? sanitizeChaseBodyHtml(input.bodyHtml)
     : escapeHtml(bodyText).replace(/\r?\n/g, "<br>");
-  const signOffHtml = sig.mode === "BASIC"
+  // Add "Kind regards," unless the signature already carries a sign-off (one
+  // sign-off, never two, never none). See lib/email/sign-off.ts.
+  const addSignOff = shouldAddSignOff(sig.html);
+  const signOffHtml = addSignOff
     ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">Kind regards,</p>`
     : "";
-  const signOffText = sig.mode === "BASIC" ? `\n\nKind regards,` : "";
+  const signOffText = addSignOff ? `\n\nKind regards,` : "";
   const html = wrapEmailHtml(renderedBody + signOffHtml, sig.html);
   const subject = input.subject.trim() || exchangeSubject(target.ourAddress, target.recipientAddress);
 

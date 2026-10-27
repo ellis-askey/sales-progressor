@@ -13,6 +13,7 @@
 // freehold/leasehold and every funding type.
 
 import { timeGreeting } from "@/lib/emails/greeting";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 
 export type EnquiryChaseCourt = "seller_solicitor" | "buyer_solicitor";
 
@@ -121,6 +122,12 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
     ? `If you have an update, please can you confirm using the button below. If you're still waiting on anything before you can respond, but have an idea of when you expect to be able to do so, please let us know and we'll hold off checking in again until then.`
     : `If you're satisfied with the replies, please confirm below. If anything remains outstanding, please let me know when you expect it to be resolved and we'll hold off chasing until then.`;
 
+  // Add our "Best regards," only when the signature doesn't already open with a
+  // sign-off (prevents a double for pasted signatures that carry their own). No
+  // signature at all -> the name/agency fallback below leads with it. See
+  // lib/email/sign-off.ts.
+  const addSignOff = shouldAddSignOff(input.agentSignatureHtml);
+
   const text = [
     greeting,
     ``,
@@ -136,12 +143,12 @@ export function buildEnquiryChaseEmail(input: EnquiryChaseInput): {
     ``,
     `If you'd prefer to email, please reply to this email and it will come directly to me.`,
     ``,
-    `Best regards,`,
+    ...(addSignOff ? [`Best regards,`] : []),
     input.agentSignatureText ?? `${senderName}\n${agencyName}`,
   ].join("\n");
 
   const signoffHtml = input.agentSignatureHtml
-    ? `<p>Best regards,</p>${input.agentSignatureHtml}`
+    ? `${addSignOff ? `<p>Best regards,</p>` : ``}${input.agentSignatureHtml}`
     : `<p>Best regards,<br>${esc(senderName)}<br>${esc(agencyName)}</p>`;
 
   const html = `<div style="${WRAP}">

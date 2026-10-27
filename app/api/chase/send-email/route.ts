@@ -9,6 +9,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { deriveChaseTargetSide } from "@/lib/services/comms";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 import type { EmailAttachment } from "@/lib/email";
 
 // SendGrid caps a message at ~30MB; keep the base64 total well under that.
@@ -86,13 +87,17 @@ export async function POST(req: NextRequest) {
   const renderedBody = typeof bodyHtml === "string" && bodyHtml.trim()
     ? sanitizeChaseBodyHtml(bodyHtml)
     : escapeHtmlBody(body).replace(/\r?\n/g, "<br>");
-  // Sign-off phrase sits above the signature block, for BASIC-family signatures
-  // only (an image/custom signature already includes its own valediction).
+  // Sign-off phrase sits above the signature block — added only when the
+  // signature doesn't already carry one (built-in and block-only pasted
+  // signatures need ours; a pasted signature that opens with "Best regards," or
+  // an image signature already has it). One sign-off, never two, never none.
+  // See lib/email/sign-off.ts.
   const signOffPhrase = typeof signOff === "string" && signOff.trim() ? signOff.trim() : "Kind regards,";
-  const signOffHtml = sig.mode === "BASIC"
+  const addSignOff = shouldAddSignOff(sig.html);
+  const signOffHtml = addSignOff
     ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">${escapeHtmlBody(signOffPhrase)}</p>`
     : "";
-  const signOffText = sig.mode === "BASIC" ? `\n\n${signOffPhrase}` : "";
+  const signOffText = addSignOff ? `\n\n${signOffPhrase}` : "";
   const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${signOffHtml}${sig.html}</div>`;
 
   // Stable RFC Message-ID + full recipient/subject/time on the log row so the

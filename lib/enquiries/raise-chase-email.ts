@@ -8,6 +8,7 @@ import { timeGreeting } from "@/lib/emails/greeting";
 import { solicitorEmailSubject } from "@/lib/enquiries/chase-email";
 import { emailButton, type EmailTheme } from "@/lib/email/brand-theme";
 import { updateButton } from "@/lib/enquiries/chase-email";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -127,6 +128,10 @@ export function buildRaiseSolicitorEmail(input: {
   const line2 = `Have you been able to raise your enquiries with ${sellerFirm} yet?`;
   const line3 = `If so, please can you confirm using the button below. If not, but you have an idea of when you expect to raise them, please let me know and we'll hold off checking in again until then.`;
 
+  // Add our "Best regards," only when the signature doesn't already carry one
+  // (see lib/email/sign-off.ts) — one sign-off, never two, never none.
+  const addSignOff = shouldAddSignOff(input.agentSignatureHtml);
+
   const text = [
     greeting,
     ``,
@@ -142,12 +147,12 @@ export function buildRaiseSolicitorEmail(input: {
     ``,
     `Alternatively, simply reply to this email and it will come directly to me.`,
     ``,
-    `Best regards,`,
+    ...(addSignOff ? [`Best regards,`] : []),
     input.agentSignatureText ?? `${senderName}\n${agencyName}`,
   ].join("\n");
 
   const signoffHtml = input.agentSignatureHtml
-    ? `<p>Best regards,</p>${input.agentSignatureHtml}`
+    ? `${addSignOff ? `<p>Best regards,</p>` : ``}${input.agentSignatureHtml}`
     : `<p>Best regards,<br>${esc(senderName)}<br>${esc(agencyName)}</p>`;
 
   const html = `<div style="${WRAP}">
