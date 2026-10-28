@@ -2249,8 +2249,13 @@ export type CheckInRow = {
 // the listChainsForScope pattern (our chained files → their chains → that
 // chain's links) then keeps only the links that aren't ours.
 export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInRow[]> {
+  // Once our own sale in a chain has exchanged we stop caring about chasing the
+  // rest of that chain, so an exchanged file no longer anchors a check-in group
+  // (critique #298). exchangedAt is the canonical signal the push-to-exchange
+  // surface already filters on. A chain with another, still-live sale of ours
+  // keeps showing, anchored on that one.
   const ourTxns = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, exchangedAt: null, chainLinkId: { not: null }, ...serviceTypeFilter(scope) }] },
     select: { id: true, agencyId: true, propertyAddress: true, chainLink: { select: { chainId: true } } },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));

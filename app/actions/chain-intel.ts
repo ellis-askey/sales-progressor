@@ -322,3 +322,104 @@ export async function toggleChainStepAction(
 
   return { steps, entry };
 }
+
+// Bulk "Confirm ready" / "Undo" for the check-in 3-dot menu (critique #297).
+// `ready: true` marks every step for our side in one go (the agent has heard the
+// node is ready to exchange) and stamps exchangeReadyConfirmedAt — the same flag
+// the push-to-exchange surface reads. `ready: false` is the undo: it reconciles
+// our side's marks back to exactly `priorSteps` (what was completed before the
+// confirm) and, because the node is no longer all-in, retracts the readiness
+// stamp this confirm set. Unlike the per-pill toggle, confirm-all logs no entry:
+// the readiness stamp (who/when) is the record, and keeping it entry-free means
+// the undo is a clean reversal with nothing to delete. Same own-side / in-chain
+// access + side-key model as toggleChainStepAction.
+export async function setChainExchangeReadyAction(
+  linkId: string,
+  ready: boolean,
+  priorSteps: string[] | null,
+  contextTransactionId?: string,
+): Promise<{ steps: string[] }> {
+  const session = await requireSession();
+  if (priorSteps) {
+    for (const k of priorSteps) if (!CHECK_IN_STEP_KEYS.has(k)) throw new Error("Unknown step.");
+  }
+
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: {
+      id: true, chainId: true, transactionId: true, createdByUserId: true,
+      exchangeReadyConfirmedAt: true,
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
+    },
+  });
+  if (!link) throw new Error("Chain link not found");
+
+  const scope = getAccessScope(session);
+  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, businessId: session.user.progressionBusinessId ?? null, scope };
+  const ownSide = canEditNodeIntel(viewer, {
+    transactionId: link.transactionId,
+    linkCreatedByUserId: link.createdByUserId,
+    linkCreatedByAgencyId: link.createdBy?.agencyId ?? null,
+    txAgencyId: link.transaction?.agencyId ?? null,
+    txAssignedUserId: link.transaction?.assignedUserId ?? null,
+    txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
+  });
+  if (!ownSide) {
+    const inChain = await prisma.propertyTransaction.findFirst({
+      where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+      select: { id: true },
+    });
+    if (!inChain) throw new Error("You don't have permission to update this chain node.");
+  }
+
+  let contextTx: { id: string; agencyId: string } | null = null;
+  if (contextTransactionId) {
+    contextTx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, contextTransactionId),
+      select: { id: true, agencyId: true },
+    });
+  }
+  const sideKey = contextTx
+    ? agencySideKey(contextTx.agencyId)
+    : ownSide && link.transaction?.agencyId
+      ? agencySideKey(link.transaction.agencyId)
+      : noteSideKey(viewer);
+
+  const desired = ready ? CHECK_IN_STEPS.map((s) => s.key) : (priorSteps ?? []);
+  const desiredSet = new Set(desired);
+  const current = await prisma.chainNodeStepMark.findMany({
+    where: { chainLinkId: linkId, sideKey },
+    select: { stepKey: true },
+  });
+  const currentSet = new Set(current.map((m) => m.stepKey));
+  const toAdd = desired.filter((k) => !currentSet.has(k));
+  const toRemove = [...currentSet].filter((k) => !desiredSet.has(k));
+
+  for (const stepKey of toAdd) {
+    await prisma.chainNodeStepMark.upsert({
+      where: { chainLinkId_sideKey_stepKey: { chainLinkId: linkId, sideKey, stepKey } },
+      create: { chainLinkId: linkId, sideKey, stepKey, markedById: session.user.id, markedByName: session.user.name ?? null },
+      update: {},
+    });
+  }
+  if (toRemove.length) {
+    await prisma.chainNodeStepMark.deleteMany({ where: { chainLinkId: linkId, sideKey, stepKey: { in: toRemove } } });
+  }
+
+  const allIn = desired.length === CHECK_IN_STEPS.length;
+  if (allIn && !link.exchangeReadyConfirmedAt) {
+    await prisma.chainLink.update({
+      where: { id: linkId },
+      data: { exchangeReadyConfirmedAt: new Date(), exchangeReadyConfirmedById: session.user.id },
+    });
+  } else if (!allIn && link.exchangeReadyConfirmedAt) {
+    await prisma.chainLink.update({
+      where: { id: linkId },
+      data: { exchangeReadyConfirmedAt: null, exchangeReadyConfirmedById: null },
+    });
+  }
+
+  return { steps: desired };
+}

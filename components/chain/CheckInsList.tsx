@@ -16,7 +16,7 @@
 import { useState, useTransition, useRef, useLayoutEffect, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { addChainEntryAction, toggleChainStepAction } from "@/app/actions/chain-intel";
+import { addChainEntryAction, toggleChainStepAction, setChainExchangeReadyAction } from "@/app/actions/chain-intel";
 import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
@@ -171,6 +171,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // row jumping to the bottom of its chain mid-tap would pull the pills out
   // from under their cursor. The next page load applies the normal ordering.
   const [stepBusy, setStepBusy] = useState<Set<string>>(new Set());
+  // "Confirm ready" undo (critique #297). After a bulk confirm-all from the ⋯
+  // menu we remember the steps that were marked BEFORE it, keyed by link, so
+  // "Undo confirm ready" can restore exactly that. Session-scoped: an immediate
+  // corrective affordance, cleared once the agent touches the pills by hand.
+  const [undoByLink, setUndoByLink] = useState<Map<string, string[]>>(new Map());
   // Which rows have their milestone line expanded. Closed by default — the
   // summary bar's mini dots carry the read; opening is only for confirming.
   const [stepsOpen, setStepsOpen] = useState<Set<string>>(new Set());
@@ -182,9 +187,67 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       return next;
     });
   }
+  // Once the agent adjusts the pills by hand, the bulk-confirm undo no longer
+  // maps to a clean "before" state — drop it so the menu stops offering it.
+  function clearUndo(linkId: string) {
+    setUndoByLink((cur) => {
+      if (!cur.has(linkId)) return cur;
+      const next = new Map(cur);
+      next.delete(linkId);
+      return next;
+    });
+  }
+
+  // ⋯ menu "Confirm ready": mark every step for our side in one go (stamps the
+  // node ready to exchange) and remember the prior steps so Undo can revert.
+  function confirmReady(row: CheckInRow) {
+    if (busy === row.linkId) return;
+    const prior = row.steps;
+    setBusy(row.linkId);
+    const allKeys = CHECK_IN_STEPS.map((s) => s.key);
+    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: allKeys } : r)));
+    setUndoByLink((cur) => new Map(cur).set(row.linkId, prior));
+    startTransition(async () => {
+      try {
+        const res = await setChainExchangeReadyAction(row.linkId, true, null, row.ourTransactionId ?? undefined);
+        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: res.steps } : r)));
+        toast.success("Confirmed ready to exchange");
+      } catch (e) {
+        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: prior } : r)));
+        clearUndo(row.linkId);
+        toast.error(e instanceof Error ? e.message : "Couldn't confirm ready.");
+      } finally {
+        setBusy(null);
+      }
+    });
+  }
+
+  // ⋯ menu "Undo confirm ready": restore the steps that were marked before the
+  // confirm, and retract the readiness the confirm set.
+  function undoConfirmReady(row: CheckInRow) {
+    if (busy === row.linkId) return;
+    const prior = undoByLink.get(row.linkId);
+    if (!prior) return;
+    setBusy(row.linkId);
+    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: prior } : r)));
+    clearUndo(row.linkId);
+    startTransition(async () => {
+      try {
+        const res = await setChainExchangeReadyAction(row.linkId, false, prior, row.ourTransactionId ?? undefined);
+        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: res.steps } : r)));
+        toast.success("Reverted to the previous progress");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Couldn't undo that.");
+      } finally {
+        setBusy(null);
+      }
+    });
+  }
+
   function toggleStep(row: CheckInRow, stepKey: string) {
     const busyKey = `${row.linkId}:${stepKey}`;
     if (stepBusy.has(busyKey)) return;
+    clearUndo(row.linkId);
     const wasDone = row.steps.includes(stepKey);
     const next = !wasDone;
     setStepBusy((s) => new Set(s).add(busyKey));
@@ -265,6 +328,10 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     const items: RowAction[] = [];
     const chainTxId = row.ourTransactionId ?? row.transactionId;
     if (chainTxId) items.push({ label: "View chain", onClick: () => setOpenChainTxId(chainTxId) });
+    // Confirm ready (bulk-mark all steps) / Undo (restore the pre-confirm steps).
+    const allIn = row.steps.length === CHECK_IN_STEPS.length;
+    if (undoByLink.has(row.linkId)) items.push({ label: "Undo confirm ready", onClick: () => undoConfirmReady(row) });
+    else if (!allIn) items.push({ label: "Confirm ready", onClick: () => confirmReady(row) });
     const who = row.agentName ? extractFirstName(row.agentName) : "agent";
     if (row.agentPhone) items.push({ label: `Call ${who}`, onClick: () => { window.location.href = `tel:${row.agentPhone}`; } });
     if (row.agentEmail) items.push({ label: `Email ${who}`, onClick: () => { window.location.href = `mailto:${row.agentEmail}`; } });
@@ -356,6 +423,18 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       @keyframes ciq-logger-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
       .ciq-logger { animation: ciq-logger-in 200ms cubic-bezier(0.22,1,0.36,1); }
       @media (prefers-reduced-motion: reduce) { .ciq-logger { animation: none; } }
+      /* Collapsed "Log update" trigger — same size as before, now with hover +
+         press states (critique #298). */
+      .ciq-logbtn {
+        border: 1px solid var(--agent-border-default); border-radius: 9px;
+        padding: 8px 14px; font-family: inherit; font-size: 12.5px; font-weight: 650;
+        color: var(--agent-coral-deep); background: var(--agent-surface-elevated, #fff);
+        cursor: pointer; white-space: nowrap;
+        transition: background 130ms ease, border-color 130ms ease, transform 90ms ease;
+      }
+      .ciq-logbtn:hover { background: var(--agent-hover-shade, rgba(45,24,16,0.04)); border-color: rgba(var(--agent-coral-rgb), 0.55); }
+      .ciq-logbtn:active { transform: scale(0.97); }
+      @media (prefers-reduced-motion: reduce) { .ciq-logbtn { transition: none; } .ciq-logbtn:active { transform: none; } }
       @media (prefers-reduced-motion: reduce) {
         .ciq-bar, .ciq-md, .ciq-chev svg, .ciq-body, .ciq-track, .ciq-node { transition: none; }
         .ciq-step.done .ciq-node { animation: none; }
@@ -450,19 +529,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 4 }}>
                 {!isOpen && (
                   <button
+                    type="button"
+                    className="ciq-logbtn"
                     onClick={() => { setOpenId(row.linkId); setDraft(""); }}
-                    style={{
-                      border: "1px solid var(--agent-border-default)",
-                      borderRadius: 9,
-                      padding: "8px 14px",
-                      fontFamily: "inherit",
-                      fontSize: 12.5,
-                      fontWeight: 650,
-                      color: "var(--agent-coral-deep)",
-                      background: "var(--agent-surface-elevated, #fff)",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
                   >
                     Log update
                   </button>
@@ -471,17 +540,17 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               </div>
             </div>
 
-            {/* Last update line (critique #286): confirmer photo + name in the
-                sentence, small/grey, with the date right-aligned — pinned bottom-
-                right when the sentence wraps, like the activity log. */}
+            {/* Last update line (critique #286, #297): confirmer photo + name in
+                the sentence, small/grey, spanning the full width, with the date
+                dropped onto its own line underneath, bottom-right aligned. */}
             {row.lastUpdateBody ? (
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12 }}>
                 <span style={{ flexShrink: 0, marginTop: 1 }}>
                   <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: "agent" }} size={22} image={row.lastUpdateAuthorImage} />
                 </span>
-                <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 10, alignItems: "flex-end", justifyContent: "space-between" }}>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
-                  <span style={{ fontSize: 11, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap", alignSelf: "flex-end" }}>
                     {shortDate(row.lastUpdateAt as string)}
                   </span>
                 </div>
@@ -500,12 +569,12 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoFocus
-                  rows={2}
+                  rows={3}
                   placeholder="What did you hear? (e.g. spoke to their agent, searches back, chasing solicitor)"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) logUpdate(row);
                   }}
-                  style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.5 }}
+                  style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.5, minHeight: 72 }}
                 />
                 {/* Proper Cancel (ghost) + primary Log update (critique #279) */}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

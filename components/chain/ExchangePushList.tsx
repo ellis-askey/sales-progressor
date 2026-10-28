@@ -27,6 +27,12 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
 
   return (
     <div>
+      {/* Card expander header — hover + press background (critique #298). */}
+      <style>{`
+        .exchpush-head { background: transparent; transition: background 130ms ease; }
+        .exchpush-head:hover { background: var(--agent-hover-shade, rgba(42,23,16,0.04)); }
+        .exchpush-head:active { background: var(--agent-hover-shade, rgba(42,23,16,0.07)); }
+      `}</style>
       <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
         Your sales that are ready, waiting on their chains. Tick each party as you confirm them. Closest to done first.
       </p>
@@ -43,9 +49,11 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
               style={{ borderRadius: 14, overflow: "hidden", ...(cardTag.picked ? {} : { border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface-elevated, #fff)", boxShadow: "0 1px 2px rgba(42,23,16,0.04)" }) }}
             >
               <button
+                type="button"
+                className="exchpush-head"
                 onClick={() => toggle(f.transactionId)}
                 aria-expanded={isOpen}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 13, padding: "14px 15px", background: "none", border: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 13, padding: "14px 15px", border: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               >
                 <PropertyThumb photoUrl={f.push.rows.find((r) => r.isUs)?.photoUrl ?? null} size={40} />
                 <span style={{ flex: 1, minWidth: 0 }}>

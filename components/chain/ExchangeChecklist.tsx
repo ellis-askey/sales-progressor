@@ -72,6 +72,12 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
         overflow: "hidden",
       }}
     >
+      {/* "Chase" text button — hover + press colour (critique #298). */}
+      <style>{`
+        .exchk-chase { color: var(--agent-coral-deep); background: none; transition: color 120ms ease, opacity 120ms ease; }
+        .exchk-chase:hover { color: var(--agent-coral-darker); }
+        .exchk-chase:active { opacity: 0.7; }
+      `}</style>
       {/* Header — flips green + a Book CTA once everyone's ready. */}
       <div style={{ padding: "15px 16px 2px" }}>
         <h3 style={{ margin: "0 0 3px", fontSize: 16.5, fontWeight: 730, color: "var(--agent-text-primary)" }}>
@@ -153,8 +159,10 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
               ) : null /* not ready → no pill; the off toggle + Chase say it all */}
               {row.chaseable && !row.ready && (
                 <button
+                  type="button"
+                  className="exchk-chase"
                   onClick={() => setChaseTarget(row)}
-                  style={{ fontSize: 11.5, fontWeight: 650, color: "var(--agent-coral-deep)", background: "none", border: 0, cursor: "pointer", padding: "4px 2px", whiteSpace: "nowrap" }}
+                  style={{ fontSize: 11.5, fontWeight: 650, border: 0, cursor: "pointer", padding: "4px 2px", whiteSpace: "nowrap" }}
                 >
                   Chase
                 </button>
