@@ -1041,22 +1041,22 @@ export function ChaseDrawer({
             {/* Send via */}
             <div style={{ flex: "1.35 1 0", minWidth: 0 }}>
               <p className="agent-section-label agent-section-label-plain" style={{ margin: "0 0 8px" }}>Send via</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {/* Email tab — solid backgroundColor (not a gradient) so the fill
-                  morphs smoothly between the glass and coral states. Coral is the
-                  themed accent, so it tracks the agency's colour. */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {/* Email tab — canonical coral gloss when selected (matches the
+                  primary button + the Yes/No toggles); glass when not. Coral is
+                  the themed accent, so it tracks the agency's colour. */}
               <button
                 onClick={() => switchChannel("email")}
                 className={`chase-tab chase-tab-email${channel === "email" ? " is-selected" : ""}`}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
-                  border: channel === "email" ? "1.5px solid var(--agent-coral-deep)" : "0.5px solid var(--agent-border-subtle)",
-                  backgroundColor: channel === "email" ? "var(--agent-coral-deep)" : "var(--agent-surface-glass)",
+                  padding: "8px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                  border: channel === "email" ? "1.5px solid transparent" : "0.5px solid var(--agent-border-subtle)",
+                  background: channel === "email" ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "var(--agent-surface-glass)",
                   color: channel === "email" ? "white" : "var(--agent-text-muted)",
                   cursor: "pointer",
-                  transition: "background-color 240ms ease, color 200ms ease, border-color 240ms ease, box-shadow 240ms ease",
-                  boxShadow: channel === "email" ? "0 4px 16px rgba(var(--agent-coral-rgb), 0.28)" : "none",
+                  transition: "color 200ms ease, border-color 240ms ease, box-shadow 240ms ease",
+                  boxShadow: channel === "email" ? "0 4px 16px rgba(var(--agent-coral-rgb), 0.28), inset 0 1px 0 rgba(255,255,255,0.26)" : "none",
                 }}
               >
                 <EnvelopeSimple size={15} weight={channel === "email" ? "fill" : "regular"} /> Email
@@ -1070,14 +1070,14 @@ export function ChaseDrawer({
                 title={recipientIsSolicitor ? "Solicitors are emailed" : (!selectedRecipient?.phone ? "No phone number on file" : undefined)}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
-                  border: channel === "whatsapp" ? "1.5px solid #22c55e" : "0.5px solid var(--agent-border-subtle)",
-                  backgroundColor: channel === "whatsapp" ? "#22c55e" : "var(--agent-surface-glass)",
+                  padding: "8px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                  border: channel === "whatsapp" ? "1.5px solid transparent" : "0.5px solid var(--agent-border-subtle)",
+                  background: channel === "whatsapp" ? "linear-gradient(180deg, #4ade80, #22c55e)" : "var(--agent-surface-glass)",
                   color: channel === "whatsapp" ? "white" : "var(--agent-text-muted)",
                   cursor: waAvailable ? "pointer" : "not-allowed",
                   opacity: waAvailable ? 1 : 0.5,
-                  transition: "background-color 240ms ease, color 200ms ease, border-color 240ms ease, box-shadow 240ms ease, opacity 150ms ease",
-                  boxShadow: channel === "whatsapp" ? "0 4px 16px rgba(34,197,94,0.25)" : "none",
+                  transition: "color 200ms ease, border-color 240ms ease, box-shadow 240ms ease, opacity 150ms ease",
+                  boxShadow: channel === "whatsapp" ? "0 4px 16px rgba(34,197,94,0.25), inset 0 1px 0 rgba(255,255,255,0.26)" : "none",
                 }}
               >
                 <ChatText size={15} weight={channel === "whatsapp" ? "fill" : "regular"} /> WhatsApp
@@ -1093,7 +1093,7 @@ export function ChaseDrawer({
                 className="chase-tone-btn"
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
+                  padding: "8px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
                   background: "var(--agent-surface-glass)", cursor: "pointer", transition: "border-color 140ms",
                 }}
               >

@@ -264,14 +264,16 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
   return (
     <>
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</span>
-          {value && (
-            <button type="button" onClick={clear} className="text-xs text-slate-900/30 hover:text-slate-900/50 transition-colors">
-              Clear
-            </button>
-          )}
-        </div>
+        {(label || value) && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</span>
+            {value && (
+              <button type="button" onClick={clear} className="text-xs text-slate-900/30 hover:text-slate-900/50 transition-colors">
+                Clear
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Firm typeahead */}
         <div ref={wrapperRef} className="relative sol-search-wrap">

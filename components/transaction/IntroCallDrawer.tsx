@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, PhoneCall, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
+import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
@@ -91,9 +91,9 @@ const sectionCircleStyle: CSSProperties = {
 };
 
 // One numbered question section (circle + title + description + fields).
-function QSection({ n, title, desc, first, children }: { n: number; title: string; desc: string; first?: boolean; children: ReactNode }) {
+function QSection({ n, title, desc, first, last, children }: { n: number; title: string; desc: string; first?: boolean; last?: boolean; children: ReactNode }) {
   return (
-    <div style={{ display: "flex", gap: 13, paddingTop: first ? 0 : 22, paddingBottom: 22, borderTop: first ? "none" : "1px solid var(--agent-border-subtle)" }}>
+    <div style={{ display: "flex", gap: 13, paddingTop: first ? 0 : 22, paddingBottom: last ? 4 : 22, borderTop: first ? "none" : "1px solid var(--agent-border-subtle)" }}>
       <span style={sectionCircleStyle}>{n}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</p>
@@ -112,6 +112,34 @@ function QSection({ n, title, desc, first, children }: { n: number; title: strin
 function Cols({ n = 2, children }: { n?: number; children: ReactNode }) {
   const min = n >= 4 ? 148 : n === 3 ? 162 : 200;
   return <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))`, gap: 12 }}>{children}</div>;
+}
+
+// Tweens a whole number towards its target so the captured count rolls up
+// rather than jumping. Settles instantly when reduced motion is requested.
+function useCountUp(value: number, duration = 340): number {
+  const [display, setDisplay] = useState(value);
+  const displayRef = useRef(value);
+  useEffect(() => { displayRef.current = display; }, [display]);
+  useEffect(() => {
+    const from = displayRef.current;
+    const to = value;
+    if (from === to) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(to);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return display;
 }
 
 // Small progress ring for the "N of M captured" header pill.
@@ -172,18 +200,12 @@ function SelectField({ label, initial, options, onSave, placeholder }: { label: 
 
 function ToggleField({ label, initial, onSave }: { label: string; initial: boolean | null; onSave: (v: boolean) => void }) {
   const [v, setV] = useState<boolean | null>(initial);
-  const btn = (val: boolean, text: string): CSSProperties => ({
-    flex: 1, padding: "8px 0", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-    borderRadius: 8, border: "1px solid " + (v === val ? "transparent" : "var(--agent-border-default)"),
-    background: v === val ? "var(--agent-coral)" : "var(--agent-surface)",
-    color: v === val ? "#fff" : "var(--agent-text-secondary)",
-  });
   return (
     <div style={labelStyle}>
       {label}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="button" style={btn(true, "Yes")} onClick={() => { setV(true); onSave(true); }}>Yes</button>
-        <button type="button" style={btn(false, "No")} onClick={() => { setV(false); onSave(false); }}>No</button>
+        <button type="button" className={`ic-toggle-opt${v === true ? " is-selected" : ""}`} onClick={() => { setV(true); onSave(true); }}>Yes</button>
+        <button type="button" className={`ic-toggle-opt${v === false ? " is-selected" : ""}`} onClick={() => { setV(false); onSave(false); }}>No</button>
       </div>
     </div>
   );
@@ -240,7 +262,12 @@ const TENURE_OPTS = [{ value: "freehold", label: "Freehold" }, { value: "leaseho
 const STANCE_OPTS = [{ value: "PREPARED", label: "Prepared to break the chain" }, { value: "IF_REQUIRED", label: "Would break if required" }, { value: "UNWILLING", label: "Not willing to break the chain" }];
 
 // ── the drawer ───────────────────────────────────────────────────────────────
-export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }: { data: IntroCallData; onClose: () => void; onCompleted: () => void; focusSide?: "vendor" | "purchaser" | null }) {
+export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focusSide = null }: { data: IntroCallData; onClose: () => void; onCompleted: () => void; focusSide?: "vendor" | "purchaser" | null }) {
+  // Local copy of the intro record so field saves can optimistically update the
+  // completeness gauge (the ring + "N of M" count) live as answers are captured.
+  // The server actions still persist; this keeps the in-drawer view in sync
+  // without waiting for a refetch.
+  const [data, setData] = useState<IntroCallData>(initialData);
   const { theme, isNight } = usePortalTheme();
   const [page, setPage] = useState<"script" | "questions">("script");
   const [closing, setClosing] = useState(false);
@@ -285,13 +312,22 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   };
 
   const tx = data.transactionId;
-  const saveMove = (side: "vendor" | "purchaser", patch: Partial<MoveInfo>) => run(() => saveMoveInfoAgentAction(tx, side, patch));
-  const saveCosts = (patch: CostsPatch) => run(() => saveClientCostsAgentAction(tx, patch));
+  const saveMove = (side: "vendor" | "purchaser", patch: Partial<MoveInfo>) => {
+    setData((d) => side === "vendor"
+      ? { ...d, moveVendor: { ...d.moveVendor, ...patch } }
+      : { ...d, movePurchaser: { ...d.movePurchaser, ...patch } });
+    run(() => saveMoveInfoAgentAction(tx, side, patch));
+  };
+  const saveCosts = (patch: CostsPatch) => {
+    setData((d) => ({ ...d, costs: { ...d.costs, ...patch } }));
+    run(() => saveClientCostsAgentAction(tx, patch));
+  };
 
   // Chain intel is saved as a whole object; keep a live copy.
   const [intel, setIntel] = useState(data.chainIntel);
   const saveIntel = (next: NonNullable<IntroCallData["chainIntel"]>) => {
     setIntel(next);
+    setData((d) => ({ ...d, chainIntel: next }));
     if (data.chainLinkId) {
       run(() => saveChainIntelAction(data.chainLinkId as string, {
         breakChainStance: (next.breakChainStance as ChainNodeIntelInput["breakChainStance"]) ?? null,
@@ -332,6 +368,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
   const isBuyerSide = side === "purchaser";
   const isCashBuyer = data.purchaseType === "cash_buyer";
   const prog = computeSideProgress(data, side);
+  const filledDisplay = useCountUp(prog.filled);
 
   // Add a sale into the chain (onward above / related sale below), reusing the
   // exact chain flow. Creates a chain first if the file isn't in one yet.
@@ -366,6 +403,12 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
     justifySelf: "start",
   };
 
+  // Split the address so the street leads the title and the town + postcode sit
+  // beneath it as the subtitle (no eyebrow/icon needed).
+  const addrParts = data.address.split(",").map((s) => s.trim()).filter(Boolean);
+  const headerTitle = addrParts[0] ?? data.address;
+  const headerSubtitle = addrParts.length > 1 ? addrParts.slice(1).join(", ") : undefined;
+
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
@@ -381,27 +424,25 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
           animation: closing ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards" : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
       >
-        {/* Header — address full width with the close top-right, then the
-            Script/Questions toggle beneath it, bottom-right. Reads the same at
-            every width (the address wraps instead of fighting the toggle). */}
-        <div style={{ ...SHEET_BAND_STYLE, display: "flex", flexDirection: "column", gap: 10, flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <SheetBandHeader kicker="Intro call" title={data.address} icon={<PhoneCall size={18} weight="fill" />} />
+        {/* Header — street as the title with town + postcode beneath. The
+            Script/Questions toggle shares the top row and only drops to its own
+            row when a long address leaves no room. Close is pinned top-right. */}
+        <div style={{ ...SHEET_BAND_STYLE, position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={doClose}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ position: "absolute", top: 11, right: 16, color: "rgba(255,255,255,0.85)", background: "transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <X size={14} weight="bold" />
+          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 10, paddingRight: 40 }}>
+            <div style={{ flex: "1 1 auto", minWidth: 170 }}>
+              <SheetBandHeader title={headerTitle} subtitle={headerSubtitle} />
             </div>
-            <button
-              onClick={doClose}
-              aria-label="Close"
-              className="agent-icon-btn agent-icon-btn-sm"
-              style={{ color: "rgba(255,255,255,0.85)", background: "transparent", flexShrink: 0 }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <X size={14} weight="bold" />
-            </button>
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.18)", borderRadius: 99, padding: 3 }}>
+            <div style={{ flexShrink: 0, marginLeft: "auto", display: "inline-flex", background: "rgba(255,255,255,0.18)", borderRadius: 99, padding: 3 }}>
               {(["script", "questions"] as const).map((p) => (
                 <button key={p} type="button" onClick={() => setPage(p)}
                   style={{
@@ -465,14 +506,14 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
             <div style={{ width: "50%", height: "100%", display: "flex", flexDirection: "column" }}>
               {/* Sub-header: back to script + progress up top */}
               <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", borderBottom: "1px solid var(--agent-border-subtle)" }}>
-                <button type="button" onClick={() => setPage("script")}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+                <button type="button" onClick={() => setPage("script")} className="ic-back"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                   <CaretLeft size={15} weight="bold" /> Back
                 </button>
                 {prog.total > 0 && (
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
                     <div style={{ textAlign: "right", lineHeight: 1.15 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{prog.filled} of {prog.total}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{filledDisplay} of {prog.total}</div>
                       <div style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>captured</div>
                     </div>
                     <ProgressRing filled={prog.filled} total={prog.total} />
@@ -481,7 +522,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
               </div>
 
               {/* Scrollable sections */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 28px" }}>
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 18px" }}>
                 <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--agent-text-primary)" }}>{isBuyerSide ? "Buyer" : "Seller"}</p>
                 <p style={{ margin: "2px 0 18px", fontSize: 12.5, color: "var(--agent-text-muted)" }}>
                   {isBuyerSide ? "Their position, funding and plans." : "Their onward position, timing and logistics."}
@@ -504,7 +545,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                     <QSection n={2} title="Buying position" desc="How they're buying and any related sale.">
                       <Cols n={3}>
                         <SelectField label="How they're buying" initial={data.purchaseType} options={POSITION_OPTS} placeholder="Not set"
-                          onSave={(v) => { if (v) run(() => savePurchaseTypeAction(tx, v as PurchaseType)); }} />
+                          onSave={(v) => { if (v) { setData((d) => ({ ...d, purchaseType: v as PurchaseType })); run(() => savePurchaseTypeAction(tx, v as PurchaseType)); } }} />
                         <ToggleField label="First-time buyer?" initial={data.costs.firstTimeBuyer} onSave={(v) => saveCosts({ firstTimeBuyer: v })} />
                         <ToggleField label="Will own another property after?" initial={data.costs.additionalProperty} onSave={(v) => saveCosts({ additionalProperty: v })} />
                       </Cols>
@@ -555,7 +596,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                       <AreaField label="Anything else about the buyer?" initial={data.movePurchaser.progressorNote ?? ""} placeholder="Notes only your team sees…" onSave={(v) => saveMove("purchaser", { progressorNote: v || null })} />
                     </QSection>
 
-                    <QSection n={6} title="Solicitor" desc="Their solicitor acting on this transaction.">
+                    <QSection n={6} last title="Solicitor" desc="Their solicitor acting on this transaction.">
                       <SolicitorSection transactionId={tx} vendor={data.solVendor} purchaser={data.solPurchaser} referredFirmId={data.referredFirmId} referralFee={data.referralFee} address={data.address} contacts={data.contactRoles} onlySide="purchaser" hideHeader briefcaseIcon embedded />
                     </QSection>
                   </>
@@ -632,7 +673,7 @@ export function IntroCallDrawer({ data, onClose, onCompleted, focusSide = null }
                       </QSection>
                     )}
 
-                    <QSection n={data.chainLinkId && intel ? 5 : 4} title="Solicitor" desc="Their solicitor acting on this transaction.">
+                    <QSection n={data.chainLinkId && intel ? 5 : 4} last title="Solicitor" desc="Their solicitor acting on this transaction.">
                       <SolicitorSection transactionId={tx} vendor={data.solVendor} purchaser={data.solPurchaser} referredFirmId={data.referredFirmId} referralFee={data.referralFee} address={data.address} contacts={data.contactRoles} onlySide="vendor" hideHeader briefcaseIcon embedded />
                     </QSection>
                   </>

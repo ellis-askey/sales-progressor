@@ -264,6 +264,12 @@ function SdltCalc({ priceGBP }: { priceGBP: number }) {
         .sdlt-price-field { border: 0.5px solid var(--agent-border-default); transition: border-color 140ms ease; }
         .sdlt-price-field:hover { border-color: var(--agent-coral); }
         .sdlt-price-field:focus-within { border-color: var(--agent-coral-deep); }
+        /* Option rows: hairline border that lights coral on hover; the selected
+           row drops the border and carries the coral gloss gradient (set inline,
+           matching the Yes/No toggles). */
+        .sdlt-opt { border: 1px solid var(--agent-border-default); transition: border-color 140ms ease, box-shadow 140ms ease; }
+        .sdlt-opt:not(.is-on):not(:disabled):hover { border-color: var(--agent-coral); }
+        .sdlt-opt.is-on { border-color: transparent; }
       `}</style>
     </div>
   );
@@ -285,33 +291,35 @@ function ToggleRow({
       onClick={onClick}
       disabled={disabled}
       aria-pressed={on}
+      className={`sdlt-opt${on ? " is-on" : ""}`}
       style={{
         display: "flex", alignItems: "flex-start", gap: 11, textAlign: "left", width: "100%",
         padding: "11px 13px", borderRadius: 11, cursor: disabled ? "not-allowed" : "pointer",
-        border: `${on ? 1.5 : 1}px solid ${on ? "var(--agent-coral-deep)" : "var(--agent-border-default)"}`,
-        background: on ? "rgba(var(--agent-coral-rgb), 0.06)" : isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.5)",
+        background: on
+          ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))"
+          : isNight ? "var(--agent-surface-elevated)" : "rgba(255,255,255,0.5)",
+        boxShadow: on ? "0 4px 16px rgba(var(--agent-coral-rgb), 0.26), inset 0 1px 0 rgba(255,255,255,0.26)" : "none",
         opacity: disabled ? 0.5 : 1, fontFamily: "inherit",
-        transition: "border-color 140ms ease, background 140ms ease",
       }}
     >
-      {/* Same checkbox as the sign-up T&C tick: rounded square, accent fill +
-          white tick when on, hairline border when off. */}
+      {/* Checkbox — white box + coral tick on the selected (coral) row, hairline
+          box when off. The tick draws on and retracts via stroke-dashoffset
+          (same idiom as the Contacts tick). */}
       <span style={{
         width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: on ? "var(--agent-coral-deep)" : "transparent",
-        border: `1.5px solid ${on ? "var(--agent-coral-deep)" : "var(--agent-border-strong)"}`,
-        transition: "all 0.15s ease",
+        background: on ? "#fff" : "transparent",
+        border: `1.5px solid ${on ? "#fff" : "var(--agent-border-strong)"}`,
+        transition: "background 0.15s ease, border-color 0.15s ease",
       }}>
-        {on && (
-          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        )}
+        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="var(--agent-coral-deep)" strokeWidth={3}
+          style={{ strokeDasharray: 22, strokeDashoffset: on ? 0 : 22, transition: "stroke-dashoffset 220ms cubic-bezier(0.65,0,0.35,1) 40ms" }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
       </span>
       <span style={{ minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{label}</span>
-        <span style={{ display: "block", fontSize: 11.5, marginTop: 2, lineHeight: 1.35, color: "var(--agent-text-muted)" }}>{sub}</span>
+        <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: on ? "#fff" : "var(--agent-text-primary)" }}>{label}</span>
+        <span style={{ display: "block", fontSize: 11.5, marginTop: 2, lineHeight: 1.35, color: on ? "rgba(255,255,255,0.82)" : "var(--agent-text-muted)" }}>{sub}</span>
       </span>
     </button>
   );

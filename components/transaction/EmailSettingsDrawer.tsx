@@ -636,9 +636,9 @@ function EmailSettingsDrawer({
                               position: "absolute", top: 2, bottom: 2, left: 2,
                               width: "calc((100% - 4px) / 3)",
                               transform: `translateX(${(val === null ? 0 : val ? 1 : 2) * 100}%)`,
-                              background: "var(--agent-coral, #FF6B4A)",
+                              background: "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))",
                               borderRadius: 7,
-                              boxShadow: "0 2px 6px -2px rgba(232,90,53,0.5)",
+                              boxShadow: "0 2px 6px -2px rgba(232,90,53,0.5), inset 0 1px 0 rgba(255,255,255,0.26)",
                               transition: "transform 340ms cubic-bezier(0.34, 1.56, 0.64, 1)",
                             }}
                           />
@@ -650,6 +650,8 @@ function EmailSettingsDrawer({
                                 type="button"
                                 disabled={pendingKey !== null}
                                 onClick={() => setKeyDates(side, v)}
+                                onMouseEnter={(e) => { if (!sel) e.currentTarget.style.color = "var(--agent-text-primary)"; }}
+                                onMouseLeave={(e) => { if (!sel) e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
                                 style={{
                                   position: "relative", zIndex: 1,
                                   flex: 1,

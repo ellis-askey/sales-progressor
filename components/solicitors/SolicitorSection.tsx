@@ -168,6 +168,7 @@ function SolicitorTile({
   referralFee,
   showReferralFee,
   briefcaseIcon = false,
+  hideSidePill = false,
   onChange,
   onRemove,
 }: {
@@ -183,6 +184,10 @@ function SolicitorTile({
   referralFee?: number | null;
   showReferralFee?: boolean;
   briefcaseIcon?: boolean;
+  // When only one side's solicitor is shown (the intro-call drawer scopes to a
+  // single side), the Vendor/Purchaser pill is redundant — the surrounding
+  // context already names the side.
+  hideSidePill?: boolean;
   onChange: (v: SolicitorSelection | null, referral: ReferralData) => void;
   onRemove: () => void;
 }) {
@@ -268,17 +273,17 @@ function SolicitorTile({
   if (!info.firm && !editing && !exiting) {
     return (
       <div className="people-item">
-        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "8px 14px" }}>
           {briefcaseIcon ? (
-            <span aria-hidden style={{ width: 40, height: 40, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--agent-text-secondary)" }}>
-              <Briefcase size={24} weight="regular" />
+            <span aria-hidden style={{ width: 34, height: 34, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--agent-text-secondary)" }}>
+              <Briefcase size={22} weight="regular" />
             </span>
           ) : (
             <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
+              {!hideSidePill && <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>}
             </div>
             <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, fontStyle: "italic" }}>
               No {side} solicitor yet
@@ -293,7 +298,7 @@ function SolicitorTile({
   }
 
   return (
-    <div className="agent-hover-row people-item">
+    <div className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
@@ -308,7 +313,7 @@ function SolicitorTile({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
-                  <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>
+                  {!hideSidePill && <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {info.contact?.name ? info.contact.name : "No handler on file"}
@@ -428,9 +433,11 @@ function SolicitorTile({
           className={exiting ? "agent-reveal-out" : "agent-reveal-in"}
           style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
-          </div>
+          {!hideSidePill && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
+            </div>
+          )}
           <SolicitorPicker
             label=""
             value={draft}
@@ -599,6 +606,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           referralFee={referralFee ?? null}
           showReferralFee={vendorHasReferral}
           briefcaseIcon={briefcaseIcon}
+          hideSidePill={!!onlySide}
           onChange={handleVendorChange}
           onRemove={handleVendorRemove}
         />
@@ -615,6 +623,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           referralFee={referralFee ?? null}
           showReferralFee={purchaserHasReferral}
           briefcaseIcon={briefcaseIcon}
+          hideSidePill={!!onlySide}
           onChange={handlePurchaserChange}
           onRemove={handlePurchaserRemove}
         />
