@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, House, Buildings, User, Note } from "@phosphor-icons/react";
+import { X, House, Buildings, User, Note, LockSimple } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -92,29 +92,36 @@ function SectionHeader({
   title,
   note,
   description,
+  badge,
 }: {
   icon: React.ReactNode;
   title: string;
   note?: string;
-  description: string;
+  description?: string;
+  badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 mb-3">
-      <span className="shrink-0 mt-0.5" style={{ color: "var(--agent-text-secondary)" }}>
+    <div className={`flex gap-3 mb-3 ${description ? "items-start" : "items-center"}`}>
+      <span className={`shrink-0${description ? " mt-0.5" : ""}`} style={{ color: "var(--agent-text-secondary)" }}>
         {icon}
       </span>
       <div className="min-w-0">
-        <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--agent-text-primary)" }}>
-          {title}
-          {note && (
-            <span className="ml-1.5 text-xs font-normal" style={{ color: "var(--agent-text-muted)" }}>
-              ({note})
-            </span>
-          )}
-        </h3>
-        <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--agent-text-muted)" }}>
-          {description}
-        </p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--agent-text-primary)" }}>
+            {title}
+            {note && (
+              <span className="ml-1.5 text-xs font-normal" style={{ color: "var(--agent-text-muted)" }}>
+                ({note})
+              </span>
+            )}
+          </h3>
+          {badge}
+        </div>
+        {description && (
+          <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--agent-text-muted)" }}>
+            {description}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -585,11 +592,15 @@ export function AddNodeDrawer({
   // required stub fields in stub mode.
   const canSubmit = mode === "own" ? !!selectedFile : requiredFilled;
 
-  const propertyDesc = insertBetween
-    ? "Add the property that sits between these two sales in the chain."
+  const headerSubtitle = isEditMode
+    ? "Update this sale and the agency handling it."
+    : insertBetween
+    ? "Add the property that sits between these two sales, along with the agency handling its sale."
+    : isBranch
+    ? "Add another onward purchase, along with the agency handling it."
     : direction === "above"
-      ? "Add the property that sits above this sale in the chain."
-      : "Add the property that sits below this sale in the chain.";
+    ? "Add the next property up the chain and the agency handling its sale."
+    : "Add the next property down the chain and the agency handling its sale.";
 
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
@@ -614,7 +625,7 @@ export function AddNodeDrawer({
         {/* Header */}
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            <SheetBandHeader kicker="Chain" title={title} />
+            <SheetBandHeader title={title} subtitle={headerSubtitle} />
           </div>
           <button
             onClick={doClose}
@@ -749,7 +760,6 @@ export function AddNodeDrawer({
                 <SectionHeader
                   icon={<House size={22} />}
                   title="Property"
-                  description={propertyDesc}
                 />
                 <AddressFields
                   hideHeading
@@ -768,7 +778,6 @@ export function AddNodeDrawer({
                 <SectionHeader
                   icon={<Buildings size={22} />}
                   title="Agency"
-                  description="The estate agent handling this sale."
                 />
                 <GhostField
                   label="Agency name"
@@ -789,7 +798,7 @@ export function AddNodeDrawer({
                   icon={<User size={22} />}
                   title="Agent contact"
                   note="optional"
-                  description="Add a contact at the agency, and we'll send them an invite."
+                  description="Add their details to invite them to follow the sale."
                 />
                 <div className="space-y-3">
                   <GhostField
@@ -828,18 +837,19 @@ export function AddNodeDrawer({
                     />
                   </div>
                   {emailError && <p className="text-xs text-red-500">{emailError}</p>}
-                  {!emailError && !isEditMode && (
-                    <p className="text-xs text-slate-900/40">We&apos;ll use this to send them an invite.</p>
-                  )}
                 </div>
               </section>
 
               {/* Notes */}
-              <section className="py-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
+              <section className="pt-5" style={{ borderTop: "0.5px solid var(--agent-border-default)" }}>
                 <SectionHeader
                   icon={<Note size={22} />}
                   title="Notes"
-                  description="Only you can see this."
+                  badge={
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: "var(--agent-text-muted)" }}>
+                      <LockSimple size={11} weight="fill" /> Private
+                    </span>
+                  }
                 />
                 <Field
                   label=""
@@ -865,7 +875,7 @@ export function AddNodeDrawer({
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="agent-btn agent-btn-neutral agent-btn-sm"
+              className="agent-btn agent-btn-neutral py-3 px-5 rounded-xl text-sm font-semibold"
             >
               Cancel
             </button>

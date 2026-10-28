@@ -45,6 +45,7 @@ function ToolButton({
   return (
     <button
       type="button"
+      className="chase-tool-btn"
       title={title}
       aria-label={title}
       aria-pressed={active}

@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, CaretLeft, Eye, EyeSlash } from "@phosphor-icons/react";
+import { X, CaretLeft, Eye, EyeSlash, SunDim, MoonStars } from "@phosphor-icons/react";
 import type { SheetEntry, DesignSelection } from "../_registry/types";
 import type { DesignByMode } from "../_registry/design";
 import { SURFACE_OPTIONS, SURFACE_GROUP_ORDER, FOOTER_OPTIONS, DEFAULT_SELECTION, selectionFromPreset, DARK_HEADERS } from "../_registry/design";
@@ -407,6 +407,25 @@ function InspectorBar({
   // restore pill in the bottom-left, clear of the right-anchored drawer.
   const [collapsed, setCollapsed] = useState(false);
 
+  // Live theme mirror + toggle, so light/dark can be flipped straight from the
+  // bar — without minimising the drawer and scrolling up to the catalogue's own
+  // toggle. Flips <html> data-theme the same way the catalogue does, so its
+  // toggle (and the design bench) stay in sync via their MutationObservers.
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const read = () => setIsDark(document.documentElement.dataset.theme === "dark");
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+  function toggleTheme() {
+    const next = isDark ? "light" : "dark";
+    (window as unknown as { __salesProgressorThemeMode__?: string }).__salesProgressorThemeMode__ = next;
+    document.documentElement.dataset.theme = next;
+    document.documentElement.classList.add("elevra-bg");
+  }
+
   if (collapsed) {
     return (
       <div
@@ -511,6 +530,18 @@ function InspectorBar({
             ))}
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="agent-btn agent-btn-sm agent-btn-secondary"
+          style={{ flexShrink: 0, marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 6 }}
+          title="Toggle light / dark"
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? <SunDim size={15} weight="bold" /> : <MoonStars size={15} weight="bold" />}
+          {isDark ? "Light" : "Dark"}
+        </button>
 
         <button
           type="button"

@@ -5856,3 +5856,47 @@ body[data-demo-file] [data-onboarding-checklist] {
 .paused-save:hover:not(:disabled) { background: var(--agent-bg-hover, rgba(127,127,127,.12)); }
 .paused-save:disabled { opacity: .55; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .paused-edit, .paused-edit.closing { animation: none; } }
+
+/* ── Chase drawer composer micro-interactions ──────────────────────────── */
+/* Sentence-case variant of the section label (drops the all-caps + tracking). */
+.agent-section-label-plain { text-transform: none; letter-spacing: 0; }
+
+/* Rich-text toolbar: on hover the icon alone turns primary (no fill, no border). */
+.chase-tool-btn:hover:not(:disabled) { color: var(--agent-coral-deep) !important; }
+
+/* Tone picker: border turns primary on hover. */
+.chase-tone-btn:hover { border-color: var(--agent-coral-deep) !important; }
+
+/* Send-via tabs are a segmented toggle (filled look when selected handled
+   inline): a 1px coloured border appears on hover of an unselected tab — coral
+   for Email, hardcoded green for WhatsApp (WhatsApp is never themed). */
+.chase-tab-email:not(.is-selected):not(:disabled):hover { border: 1px solid var(--agent-coral-deep) !important; }
+.chase-tab-wa:not(.is-selected):not(:disabled):hover { border: 1px solid #22c55e !important; }
+
+/* Send-via WhatsApp primary CTA ("Send via WhatsApp"): the canonical primary
+   button, but semantic green instead of the themed coral. */
+.agent-btn-primary.chase-primary-green {
+  background: linear-gradient(180deg, #4ade80, #22c55e) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.26) !important;
+}
+.agent-btn-primary.chase-primary-green:hover:not(:disabled) {
+  box-shadow: 0 7px 22px rgba(34, 197, 94, 0.32) !important;
+}
+
+/* Secondary button inside the (dark) chase drawer: use the drawer's own glass
+   surface so it reads dark, not the lighter default glass token. Keeps the
+   canonical secondary's coral hover ring. */
+.agent-btn-secondary.chase-secondary { background: var(--agent-surface-glass) !important; border: 0.5px solid var(--agent-border-default) !important; }
+.agent-btn-secondary.chase-secondary:hover:not(:disabled) { background: var(--agent-surface-glass) !important; filter: brightness(1.1); }
+
+/* Tone dropdown options: the canonical menu-item lift on hover (bg + rise + shadow). */
+.chase-tone-opt { transition: background .12s ease, transform .12s ease, box-shadow .12s ease; }
+.chase-tone-opt:hover { background: rgba(127, 127, 127, 0.10) !important; transform: translateY(-1px); box-shadow: 0 5px 14px -4px rgba(0, 0, 0, 0.3); }
+@media (prefers-reduced-motion: reduce) { .chase-tone-opt:hover { transform: none; } }
+
+/* Regenerate: one spin of the arrows on hover. (The continuous spin while
+   generating is driven separately by the .animate-spin class on the icon.) */
+@keyframes chase-spin-once { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.chase-regen:hover:not(:disabled) svg { animation: chase-spin-once 0.5s ease; }
+@media (prefers-reduced-motion: reduce) { .chase-regen:hover:not(:disabled) svg { animation: none; } }

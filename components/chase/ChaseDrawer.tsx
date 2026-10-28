@@ -768,7 +768,12 @@ export function ChaseDrawer({
         {/* ── Header — coral band ─────────────────────────────────── */}
         <div style={{ ...SHEET_BAND_STYLE, display: "flex", alignItems: "center", flexShrink: 0, gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <SheetBandHeader title={sentCtx ? "Chase sent" : "Send chase"} />
+            <SheetBandHeader
+              title={sentCtx ? "Chase sent" : "Send chase"}
+              subtitle={sentCtx
+                ? "Your follow-up has been sent and logged on the file."
+                : "A quick reminder to keep things moving."}
+            />
           </div>
           <button
             onClick={() => (sentCtx ? onSent() : doClose())}
@@ -1035,13 +1040,14 @@ export function ChaseDrawer({
           <div style={{ padding: "4px 20px 12px", display: "flex", gap: 12, alignItems: "flex-start" }}>
             {/* Send via */}
             <div style={{ flex: "1.35 1 0", minWidth: 0 }}>
-              <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Send via</p>
+              <p className="agent-section-label agent-section-label-plain" style={{ margin: "0 0 8px" }}>Send via</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {/* Email tab — solid backgroundColor (not a gradient) so the fill
                   morphs smoothly between the glass and coral states. Coral is the
                   themed accent, so it tracks the agency's colour. */}
               <button
                 onClick={() => switchChannel("email")}
+                className={`chase-tab chase-tab-email${channel === "email" ? " is-selected" : ""}`}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                   padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
@@ -1059,6 +1065,7 @@ export function ChaseDrawer({
                   solicitor recipients (email only) and recipients with no phone. */}
               <button
                 onClick={() => { if (waAvailable) switchChannel("whatsapp"); }}
+                className={`chase-tab chase-tab-wa${channel === "whatsapp" ? " is-selected" : ""}`}
                 disabled={!waAvailable}
                 title={recipientIsSolicitor ? "Solicitors are emailed" : (!selectedRecipient?.phone ? "No phone number on file" : undefined)}
                 style={{
@@ -1079,10 +1086,11 @@ export function ChaseDrawer({
             </div>
             {/* Tone */}
             <div style={{ flex: "1 1 0", minWidth: 0 }}>
-              <p className="agent-section-label" style={{ margin: "0 0 8px" }}>Tone</p>
+              <p className="agent-section-label agent-section-label-plain" style={{ margin: "0 0 8px" }}>Tone</p>
               <div style={{ position: "relative" }} ref={toneMenuRef}>
               <button
                 onClick={() => setToneMenuOpen((o) => !o)}
+                className="chase-tone-btn"
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)",
@@ -1099,6 +1107,7 @@ export function ChaseDrawer({
                   <button
                     key={t}
                     onClick={() => { setTone(t); setToneMenuOpen(false); }}
+                    className="chase-tone-opt"
                     style={{
                       width: "100%", textAlign: "left", padding: "8px 12px",
                       display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2,
@@ -1161,17 +1170,8 @@ export function ChaseDrawer({
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                width: "100%", padding: "11px 0", borderRadius: 12,
-                background: isGenerating
-                  ? "rgba(var(--agent-coral-rgb), 0.40)"
-                  : "linear-gradient(135deg, var(--agent-coral-deep) 0%, var(--agent-coral-light) 100%)",
-                border: "none", color: "white", fontSize: 13, fontWeight: 700,
-                cursor: isGenerating ? "not-allowed" : "pointer",
-                boxShadow: isGenerating ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.32)",
-                transition: "all 160ms", letterSpacing: "0.01em",
-              }}
+              className="agent-btn agent-btn-md agent-btn-primary"
+              style={{ width: "100%" }}
             >
               {isGenerating
                 ? <><CircleNotch size={15} className="animate-spin" />Generating…</>
@@ -1196,7 +1196,7 @@ export function ChaseDrawer({
                 default "Chase: <address>". */}
             {channel === "email" && (
               <div ref={composeTopRef} style={{ scrollMarginTop: 12 }}>
-                <p className="agent-section-label" style={{ margin: "0 0 6px" }}>Subject</p>
+                <p className="agent-section-label agent-section-label-plain" style={{ margin: "0 0 6px" }}>Subject</p>
                 <input
                   className="agent-field"
                   value={subject}
@@ -1214,10 +1214,11 @@ export function ChaseDrawer({
             {/* Message label + Regenerate — re-runs generation for the current
                 recipient / channel / tone. */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p className="agent-section-label" style={{ margin: 0 }}>Message</p>
+              <p className="agent-section-label agent-section-label-plain" style={{ margin: 0 }}>Message</p>
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
+                className="chase-regen"
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   background: "none", border: "none", padding: 0,
@@ -1285,26 +1286,8 @@ export function ChaseDrawer({
           <button
             onClick={handleSend}
             disabled={bodyEmpty || isSending}
-            style={{
-              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "13px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-              border: "none", cursor: bodyEmpty || isSending ? "not-allowed" : "pointer",
-              transition: "all 160ms",
-              ...(channel === "whatsapp"
-                ? {
-                    // WhatsApp green — semantic channel colour, must not theme
-                    background: bodyEmpty || isSending ? "rgba(34,197,94,0.35)" : "linear-gradient(135deg, #22c55e, #4ade80)",
-                    color: "white",
-                    boxShadow: bodyEmpty || isSending ? "none" : "0 4px 20px rgba(34,197,94,0.28)",
-                  }
-                : {
-                    background: bodyEmpty || isSending
-                      ? "rgba(var(--agent-coral-rgb), 0.35)"
-                      : "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))",
-                    color: "white",
-                    boxShadow: bodyEmpty || isSending ? "none" : "0 4px 20px rgba(var(--agent-coral-rgb), 0.28)",
-                  }),
-            }}
+            className={`agent-btn agent-btn-md agent-btn-primary${channel === "whatsapp" ? " chase-primary-green" : ""}`}
+            style={{ width: "100%" }}
           >
             {isSending
               ? <><CircleNotch size={15} className="animate-spin" />Sending…</>
@@ -1319,14 +1302,8 @@ export function ChaseDrawer({
                 onClick={handleOpenInMyEmail}
                 disabled={bodyEmpty || !selectedRecipient?.email || isSending || hasAttachments}
                 title={hasAttachments ? "Remove attachments to use your own email app" : "Opens your own email app with this ready to send"}
-                style={{
-                  marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
-                  border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-glass)",
-                  color: (bodyEmpty || !selectedRecipient?.email || hasAttachments) ? "var(--agent-text-tertiary)" : "var(--agent-text-primary)",
-                  cursor: (bodyEmpty || !selectedRecipient?.email || isSending || hasAttachments) ? "not-allowed" : "pointer",
-                  transition: "all 150ms",
-                }}
+                className="agent-btn agent-btn-md agent-btn-secondary chase-secondary"
+                style={{ width: "100%", marginTop: 8 }}
               >
                 <ArrowSquareOut size={15} weight="bold" /> Open in my email
               </button>
