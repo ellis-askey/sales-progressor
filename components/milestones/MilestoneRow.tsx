@@ -861,8 +861,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   max={def.code === "PM6" || def.code === "PM9" ? undefined : new Date().toISOString().split("T")[0]}
                   disabled={isPM6 && desktopValuation}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="glass-input px-2 py-1.5 text-sm disabled:opacity-40"
-                  wrapperStyle={{ display: "inline-block" }}
+                  className="glass-input w-full px-2 py-1.5 text-sm disabled:opacity-40"
+                  wrapperStyle={{ display: "block" }}
                 />
               </div>
               {/* No-quote route: name the surveyor (PM9) / valuer (PM6) inline
@@ -886,8 +886,8 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                             background: "linear-gradient(180deg, #FF6F4E 0%, #F04E2C 100%)",
                             boxShadow: "0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.3)",
                           } : {
-                            borderColor: "rgba(15,23,42,0.14)",
-                            color: "rgba(15,23,42,0.55)",
+                            borderColor: "var(--agent-border-default)",
+                            color: "var(--agent-text-secondary)",
                             background: "transparent",
                           }}
                         >
