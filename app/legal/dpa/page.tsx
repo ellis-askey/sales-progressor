@@ -310,7 +310,7 @@ const SECTIONS: PolicySection[] = [
             <tr>
               <td>Vercel</td>
               <td>Application hosting</td>
-              <td>US (SCCs + UK IDTA)</td>
+              <td>Dublin, Ireland (EEA) compute; US company (SCCs + UK IDTA)</td>
             </tr>
             <tr>
               <td>SendGrid (Twilio)</td>
