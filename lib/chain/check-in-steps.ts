@@ -62,3 +62,14 @@ export function checkInConfirmationLine(
   const from = agencyName ? ` from ${agencyName}` : "";
   return `${confirmerName} received confirmation${from} that ${clause}.`;
 }
+
+// The single line a bulk "Confirm ready" logs (critique #297). Same shape as the
+// per-step line, with a whole-node clause instead of one step's: "{who} received
+// confirmation from {agency} that their sale is ready to exchange."
+export function checkInReadyConfirmationLine(
+  confirmerName: string,
+  agencyName: string | null,
+): string {
+  const from = agencyName ? ` from ${agencyName}` : "";
+  return `${confirmerName} received confirmation${from} that their sale is ready to exchange.`;
+}

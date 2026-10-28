@@ -172,10 +172,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // from under their cursor. The next page load applies the normal ordering.
   const [stepBusy, setStepBusy] = useState<Set<string>>(new Set());
   // "Confirm ready" undo (critique #297). After a bulk confirm-all from the ⋯
-  // menu we remember the steps that were marked BEFORE it, keyed by link, so
-  // "Undo confirm ready" can restore exactly that. Session-scoped: an immediate
-  // corrective affordance, cleared once the agent touches the pills by hand.
-  const [undoByLink, setUndoByLink] = useState<Map<string, string[]>>(new Map());
+  // menu we remember the whole pre-confirm row (steps + last-update line) and the
+  // id of the confirmation entry it logged, keyed by link, so "Undo confirm
+  // ready" restores exactly that and deletes the logged line. Session-scoped: an
+  // immediate corrective affordance, cleared once the agent touches pills by hand.
+  const [undoByLink, setUndoByLink] = useState<Map<string, { row: CheckInRow; entryId: string | null }>>(new Map());
   // Which rows have their milestone line expanded. Closed by default — the
   // summary bar's mini dots carry the read; opening is only for confirming.
   const [stepsOpen, setStepsOpen] = useState<Set<string>>(new Set());
@@ -199,21 +200,34 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   }
 
   // ⋯ menu "Confirm ready": mark every step for our side in one go (stamps the
-  // node ready to exchange) and remember the prior steps so Undo can revert.
+  // node ready to exchange and logs one "ready to exchange" line), remembering
+  // the whole pre-confirm row + the logged entry so Undo can revert cleanly.
   function confirmReady(row: CheckInRow) {
     if (busy === row.linkId) return;
-    const prior = row.steps;
+    const snapshot = { ...row };
     setBusy(row.linkId);
     const allKeys = CHECK_IN_STEPS.map((s) => s.key);
     setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: allKeys } : r)));
-    setUndoByLink((cur) => new Map(cur).set(row.linkId, prior));
     startTransition(async () => {
       try {
         const res = await setChainExchangeReadyAction(row.linkId, true, null, row.ourTransactionId ?? undefined);
-        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: res.steps } : r)));
+        setRows((cur) =>
+          cur.map((r) =>
+            r.linkId === row.linkId
+              ? {
+                  ...r,
+                  steps: res.steps,
+                  ...(res.entry
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: row.lastUpdateAuthorName, history: [{ at: res.entry.at, body: res.entry.body }, ...r.history] }
+                    : {}),
+                }
+              : r,
+          ),
+        );
+        setUndoByLink((cur) => new Map(cur).set(row.linkId, { row: snapshot, entryId: res.entry?.id ?? null }));
         toast.success("Confirmed ready to exchange");
       } catch (e) {
-        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: prior } : r)));
+        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? snapshot : r)));
         clearUndo(row.linkId);
         toast.error(e instanceof Error ? e.message : "Couldn't confirm ready.");
       } finally {
@@ -222,18 +236,18 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     });
   }
 
-  // ⋯ menu "Undo confirm ready": restore the steps that were marked before the
-  // confirm, and retract the readiness the confirm set.
+  // ⋯ menu "Undo confirm ready": restore the whole pre-confirm row (steps +
+  // last-update line), retract the readiness, and delete the logged line.
   function undoConfirmReady(row: CheckInRow) {
     if (busy === row.linkId) return;
-    const prior = undoByLink.get(row.linkId);
-    if (!prior) return;
+    const snap = undoByLink.get(row.linkId);
+    if (!snap) return;
     setBusy(row.linkId);
-    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: prior } : r)));
+    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? snap.row : r)));
     clearUndo(row.linkId);
     startTransition(async () => {
       try {
-        const res = await setChainExchangeReadyAction(row.linkId, false, prior, row.ourTransactionId ?? undefined);
+        const res = await setChainExchangeReadyAction(row.linkId, false, snap.row.steps, row.ourTransactionId ?? undefined, snap.entryId);
         setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: res.steps } : r)));
         toast.success("Reverted to the previous progress");
       } catch (e) {

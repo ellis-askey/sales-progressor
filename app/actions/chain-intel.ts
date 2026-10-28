@@ -11,7 +11,7 @@ import {
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
 } from "@/lib/chain/intel";
-import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel, checkInConfirmationLine } from "@/lib/chain/check-in-steps";
+import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel, checkInConfirmationLine, checkInReadyConfirmationLine } from "@/lib/chain/check-in-steps";
 
 // Shared guard: load the link's ownership facts and assert the caller may edit
 // this node (canEditNodeIntel). Own-side only — never another agency, never the
@@ -338,7 +338,8 @@ export async function setChainExchangeReadyAction(
   ready: boolean,
   priorSteps: string[] | null,
   contextTransactionId?: string,
-): Promise<{ steps: string[] }> {
+  undoEntryId?: string | null,
+): Promise<{ steps: string[]; entry: { id: string; at: string; body: string } | null }> {
   const session = await requireSession();
   if (priorSteps) {
     for (const k of priorSteps) if (!CHECK_IN_STEP_KEYS.has(k)) throw new Error("Unknown step.");
@@ -349,6 +350,9 @@ export async function setChainExchangeReadyAction(
     select: {
       id: true, chainId: true, transactionId: true, createdByUserId: true,
       exchangeReadyConfirmedAt: true,
+      // The node's agency — "received confirmation from {agency}" (#286/#297).
+      stubAgencyName: true,
+      claimedBy: { select: { firmName: true } },
       createdBy: { select: { agencyId: true } },
       transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
     },
@@ -421,5 +425,28 @@ export async function setChainExchangeReadyAction(
     });
   }
 
-  return { steps: desired };
+  // Confirm logs ONE summary line (the readiness confirmation); undo removes it,
+  // so the check-in reverts cleanly to its pre-confirm "Last update" (#297).
+  let entry: { id: string; at: string; body: string } | null = null;
+  if (ready) {
+    const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? null;
+    const created = await prisma.chainLinkEntry.create({
+      data: {
+        chainLinkId: linkId,
+        body: checkInReadyConfirmationLine(session.user.name ?? "Your team", agencyName),
+        authorId: session.user.id,
+        authorName: session.user.name ?? null,
+        authorSideKey: sideKey,
+        authorAgencyId: session.user.agencyId ?? null,
+        authorBusinessId: session.user.progressionBusinessId ?? null,
+      },
+      select: { id: true, body: true, createdAt: true },
+    });
+    entry = { id: created.id, at: created.createdAt.toISOString(), body: created.body };
+  } else if (undoEntryId) {
+    // Scoped delete — only our own side's confirm line on this link.
+    await prisma.chainLinkEntry.deleteMany({ where: { id: undoEntryId, chainLinkId: linkId, authorSideKey: sideKey } });
+  }
+
+  return { steps: desired, entry };
 }
