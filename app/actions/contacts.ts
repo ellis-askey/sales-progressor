@@ -173,3 +173,32 @@ export async function generatePortalTokenAction(
   revalidateTx(transactionId);
   return { portalToken: token };
 }
+
+// Rotate a contact's portal link: mints a fresh token so the previous link
+// stops working immediately (the portal looks a contact up by exact token).
+// Used by the "reset link" control when a link may have been shared too widely.
+export async function reissuePortalTokenAction(
+  contactId: string,
+  transactionId: string,
+): Promise<{ portalToken: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const txWhere = scopeOwnershipWhere(scope, transactionId);
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, transaction: txWhere },
+    select: { id: true, name: true },
+  });
+  if (!contact) throw new Error("Contact not found");
+  const token = randomUUID();
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: { portalToken: token },
+  });
+  await logActivity(
+    transactionId,
+    `${session.user.name} reset the portal link for ${contact.name}`,
+    session.user.id,
+  );
+  revalidateTx(transactionId);
+  return { portalToken: token };
+}

@@ -297,6 +297,30 @@ const SECTIONS: PolicySection[] = [
               </td>
               <td>EU (West), with appropriate international data-transfer safeguards where required</td>
             </tr>
+            <tr>
+              <td>OpenAI</td>
+              <td>
+                AI review used only within our internal growth and outreach tooling. It does not
+                process client transaction data.
+              </td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
+            <tr>
+              <td>Google</td>
+              <td>
+                Secure sign-in for staff who choose to sign in with a Google account. Used to verify
+                identity at login only.
+              </td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
+            <tr>
+              <td>Meta (WhatsApp)</td>
+              <td>
+                WhatsApp Business messaging, where enabled, to send and receive messages relating to a
+                sale through the official WhatsApp Business API.
+              </td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
           </tbody>
         </table>
         <p>

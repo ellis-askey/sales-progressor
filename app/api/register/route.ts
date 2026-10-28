@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { validatePassword } from "@/lib/auth/password-policy";
 import { checkSignupLimit, rateLimitJson } from "@/lib/ratelimit";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { createProgressionBusinessWithOwner } from "@/lib/auth/create-progression-business-with-owner";
@@ -59,8 +60,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (password.length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    const pwCheck = await validatePassword(password);
+    if (!pwCheck.ok) {
+      return NextResponse.json({ error: pwCheck.error }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });

@@ -2,6 +2,7 @@
 
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { validatePassword } from "@/lib/auth/password-policy";
 import { validateInvitationToken } from "@/lib/auth/validate-invitation-token";
 import { notifyNegotiatorOfAcceptance } from "@/lib/notifications/director-accepted";
 
@@ -19,7 +20,9 @@ export async function acceptInvitationPassword(
   const name = formData.get("name");
 
   if (typeof token !== "string" || !token) return { error: "Invalid request." };
-  if (typeof password !== "string" || password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (typeof password !== "string") return { error: "Password must be at least 10 characters." };
+  const pwCheck = await validatePassword(password);
+  if (!pwCheck.ok) return { error: pwCheck.error };
   if (typeof name !== "string" || !name.trim()) return { error: "Please enter your full name." };
 
   const result = await validateInvitationToken(token);

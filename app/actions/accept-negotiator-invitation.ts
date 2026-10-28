@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { validatePassword } from "@/lib/auth/password-policy";
 
 type Result = { ok: true } | { error: string };
 
@@ -16,8 +17,9 @@ export async function acceptNegotiatorInvitation(
   if (!token || !password || !name) {
     return { error: "Missing required fields" };
   }
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters" };
+  const pwCheck = await validatePassword(password);
+  if (!pwCheck.ok) {
+    return { error: pwCheck.error };
   }
 
   const invitation = await prisma.negotiatorInvitation.findUnique({

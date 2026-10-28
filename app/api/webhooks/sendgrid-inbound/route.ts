@@ -28,6 +28,15 @@ import type { IngestMessage } from "@/lib/integrations/mail/types";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // Shared-secret gate. SendGrid Inbound Parse doesn't sign its requests, so the
+  // Parse URL carries a secret query param (?k=...) that only SendGrid knows.
+  // Enforced once SENDGRID_INBOUND_SECRET is set; until then the endpoint keeps
+  // working so live inbound mail isn't interrupted before the URL is configured.
+  const inboundSecret = process.env.SENDGRID_INBOUND_SECRET;
+  if (inboundSecret && req.nextUrl.searchParams.get("k") !== inboundSecret) {
+    return NextResponse.json({ ok: false }, { status: 403 });
+  }
+
   let form: FormData;
   try {
     form = await req.formData();

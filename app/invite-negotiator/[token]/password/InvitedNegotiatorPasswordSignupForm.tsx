@@ -45,8 +45,8 @@ export function InvitedNegotiatorPasswordSignupForm({ token, negotiatorEmail, ne
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (password.length < 10) {
+      setError("Password must be at least 10 characters.");
       return;
     }
     if (password !== confirm) {
@@ -117,7 +117,7 @@ export function InvitedNegotiatorPasswordSignupForm({ token, negotiatorEmail, ne
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="At least 8 characters"
+            placeholder="At least 10 characters"
             style={inputStyle}
           />
           <PasswordStrength password={password} />

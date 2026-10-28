@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { validatePassword } from "@/lib/auth/password-policy";
 
 export async function POST(req: NextRequest) {
   const { email, token, password } = await req.json();
@@ -8,8 +9,12 @@ export async function POST(req: NextRequest) {
   if (!email || !token || !password) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
-  if (typeof password !== "string" || password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+  if (typeof password !== "string") {
+    return NextResponse.json({ error: "Password must be at least 10 characters." }, { status: 400 });
+  }
+  const pwCheck = await validatePassword(password);
+  if (!pwCheck.ok) {
+    return NextResponse.json({ error: pwCheck.error }, { status: 400 });
   }
 
   const normalised = email.trim().toLowerCase();

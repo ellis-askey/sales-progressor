@@ -334,6 +334,7 @@ async function getPortalDataInner(token: string) {
           showPortalCosts: true,
           showPortalProgressPercent: true,
           showPortalWelcomeSheet: true,
+          aiExplainEmailEnabled: true,
         },
       },
       // Portal display resolves off the RESPONSIBLE party (same rule as email
@@ -347,6 +348,7 @@ async function getPortalDataInner(token: string) {
           showPortalCosts: true,
           showPortalProgressPercent: true,
           showPortalWelcomeSheet: true,
+          aiExplainEmailEnabled: true,
         },
       },
     },
@@ -369,6 +371,7 @@ async function getPortalDataInner(token: string) {
     costs: displayOwner?.showPortalCosts ?? true,
     progressPercent: displayOwner?.showPortalProgressPercent ?? true,
     welcomeSheet: displayOwner?.showPortalWelcomeSheet ?? true,
+    aiExplainEmail: displayOwner?.aiExplainEmailEnabled ?? true,
   };
 
   const postcode = extractPostcode(tx.propertyAddress);

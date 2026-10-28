@@ -16,6 +16,7 @@ import {
   generateBackupCodes,
   hashBackupCodes,
 } from "@/lib/security/totp";
+import { encryptSecret, decryptIfEncrypted } from "@/lib/security/token-crypto";
 
 export async function getTwoFactorStatus(): Promise<{ enabled: boolean; hasPassword: boolean; backupCodesRemaining: number }> {
   const session = await requireSession();
@@ -40,7 +41,9 @@ export async function startTwoFactorEnrollment(): Promise<{ ok: true; qrDataUrl:
   if (user.totpActivatedAt) return { ok: false, error: "Two-step verification is already on." };
 
   const secret = generateTotpSecret();
-  await prisma.user.update({ where: { id: session.user.id }, data: { totpSecret: secret } });
+  // Store the TOTP secret encrypted at rest (AES-256-GCM) so a database copy
+  // can't be used to clone the second factor. Verified by decrypting on read.
+  await prisma.user.update({ where: { id: session.user.id }, data: { totpSecret: encryptSecret(secret) } });
   const qrDataUrl = await QRCode.toDataURL(otpauthURL(secret, session.user.email), { margin: 1, width: 200 });
   return { ok: true, qrDataUrl, secret };
 }
@@ -53,7 +56,7 @@ export async function enableTwoFactor(input: { token: string }): Promise<{ ok: t
   });
   if (!user?.totpSecret) return { ok: false, error: "Start setup first." };
   if (user.totpActivatedAt) return { ok: false, error: "Two-step verification is already on." };
-  if (!verifyTotp(user.totpSecret, input.token ?? "")) {
+  if (!verifyTotp(decryptIfEncrypted(user.totpSecret), input.token ?? "")) {
     return { ok: false, error: "That code isn't right. Check your authenticator app and try again." };
   }
 

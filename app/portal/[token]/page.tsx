@@ -688,7 +688,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
   const showGuidance       = stage === "completed" ? true : tips.length > 0;
-  const showExplain        = !hasCompleted;
+  const showExplain        = !hasCompleted && transaction.portalDisplay.aiExplainEmail;
 
   const MOVABLE_KEYS = ["survey-quote","survey-status","providers","mortgage-broker","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
   const MOVABLE_LABELS: Record<string, string> = {

@@ -13,6 +13,7 @@ import { ViewAsButton } from "@/components/command/ViewAsButton";
 import { ReadinessDetail, ReadinessPill } from "@/components/command/agencies/ReadinessDetail";
 import { AgencyAutomationControls } from "@/components/command/agency-file/AgencyAutomationControls";
 import { AgencyFeeEditor } from "@/components/command/agency-file/AgencyFeeEditor";
+import { AgencyDataControls } from "@/components/command/agency-file/AgencyDataControls";
 
 export const dynamic = "force-dynamic";
 
@@ -239,6 +240,9 @@ export default async function AgencyFilePage({
           </SettingsGroup>
         </div>
       </section>
+
+      {/* ── Data & GDPR (danger zone) ───────────────────────────── */}
+      <AgencyDataControls agencyId={data.id} agencyName={data.name} isInternal={data.isInternal} />
 
       {/* ── Team ────────────────────────────────────────────────── */}
       <section>

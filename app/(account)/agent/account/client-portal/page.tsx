@@ -12,6 +12,8 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
 import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { AutoInviteToggle } from "@/components/account/client-portal/AutoInviteToggle";
+import { AiExplainerToggle } from "@/components/account/client-portal/AiExplainerToggle";
+import { AiExplainerTryIt } from "@/components/account/client-portal/AiExplainerTryIt";
 import { PreviewPortalLink } from "@/components/account/client-portal/PreviewPortalLink";
 import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 
@@ -28,6 +30,7 @@ export default async function AccountClientPortalPage() {
       showPortalCosts: true,
       showPortalProgressPercent: true,
       showPortalWelcomeSheet: true,
+      aiExplainEmailEnabled: true,
       autoInviteClientsOnAdd: true,
     },
   });
@@ -61,6 +64,10 @@ export default async function AccountClientPortalPage() {
             }}
             exampleKeyDates={examplePreviewKeyDates()}
           />
+          <div style={{ marginTop: 20, borderTop: "1px solid var(--agent-border-subtle)", paddingTop: 16 }}>
+            <AiExplainerToggle initial={agency?.aiExplainEmailEnabled ?? true} />
+            <AiExplainerTryIt />
+          </div>
         </AccountCard>
       </div>
     </>

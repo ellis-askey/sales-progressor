@@ -57,7 +57,7 @@ function ResetForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password.length < 10) { setError("Password must be at least 10 characters."); return; }
     setLoading(true);
     setError("");
     try {
@@ -112,7 +112,7 @@ function ResetForm() {
             required
             autoFocus
             autoComplete="new-password"
-            placeholder="Min. 8 characters"
+            placeholder="Min. 10 characters"
             style={inputStyle}
           />
           <button
@@ -234,7 +234,7 @@ export default function ResetPasswordPage() {
             Choose a new password
           </h1>
           <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
-            Make it at least 8 characters
+            Make it at least 10 characters
           </p>
         </div>
 

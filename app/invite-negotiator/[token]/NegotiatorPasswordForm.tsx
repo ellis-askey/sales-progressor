@@ -23,7 +23,7 @@ export function NegotiatorPasswordForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) { setError("Please enter your name"); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (password.length < 10) { setError("Password must be at least 10 characters"); return; }
     if (password !== confirm) { setError("Passwords don't match"); return; }
     setError(null);
 
@@ -88,7 +88,7 @@ export function NegotiatorPasswordForm({
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="At least 8 characters"
+          placeholder="At least 10 characters"
           required
           style={inputStyle}
         />

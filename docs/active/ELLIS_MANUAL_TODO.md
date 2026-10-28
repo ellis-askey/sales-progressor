@@ -1194,3 +1194,25 @@ Email ingestion v2 Phase D reads each new inbound email with Claude Haiku and st
 Email ingestion v2 Phase E2 added a `PendingInboundEmail` table (migration `20260916140000_pending_inbound_email`) for the agent-side "Needs filing" tray. It applies automatically on the next Vercel deploy (`prisma migrate deploy`) — staging first. Local `prisma generate` hit EPERM (the `:3001` dev server holds the query-engine DLL), so it was regenerated with `--no-engine` (types only).
 
 **Action:** stop the `:3001` dev server, then run `npx prisma generate` (restores the engine-equipped client) before relying on a local dev-server restart. Staging/prod unaffected — the Vercel build runs a full generate + migrate deploy.
+
+## Manual data retention — 7-year transaction purge (added 2026-10-27)
+
+Our Privacy Policy and DPA (Schedule A) commit to deleting/anonymising transaction, contact, communication and document data **7 years after a sale completes**. The automated retention cron (`app/api/cron/data-retention`) currently anonymises inactive **staff User accounts only** — it does NOT purge completed transactions, contacts, comms logs, or Supabase Storage documents. Decision (2026-10-27): this will be done **manually**, not built, for now.
+
+**Action (recurring, long-horizon):** periodically review completed sales and remove/anonymise any whose `completionDate` is more than 7 years ago, including their Contacts, OutboundMessage logs, and uploaded documents in Supabase Storage. First real candidates arrive ~2032-2033 (pre-launch has no live completions before then), but set a standing annual calendar reminder now so the policy commitment is honoured. If volume grows, revisit building an automated purge instead.
+
+## Manual erasure-on-request for client records (added 2026-10-27)
+
+Decision (DPIA, 2026-10-27): the privacy policy's promise to anonymise a client's records on an erasure request is kept as written, but is **not built** — so, like the 7-year purge, erasure requests are handled **manually** until the Command Centre anonymisation tool ships. When a buyer/seller/solicitor (via their agency as controller) requests erasure, manually anonymise the Contact (name/email/phone), their OutboundMessage content, and remove their uploaded documents from Supabase Storage. Tracked in docs/compliance/dpia/GDPR-ACTION-PLAN.md (Medium: build contact/document anonymisation tool).
+
+## SendGrid inbound-parse secret — SENDGRID_INBOUND_SECRET (added 2026-10-27)
+
+The inbound-email webhook (`app/api/webhooks/sendgrid-inbound`) now enforces a shared secret passed as a `?k=...` query param, because SendGrid Inbound Parse does not sign its requests. The check is skipped while the env var is unset (so live inbound mail isn't interrupted), and enforced once it's set.
+
+**Action:** (1) set `SENDGRID_INBOUND_SECRET` to a long random value in Vercel (staging first). (2) In SendGrid → Settings → Inbound Parse, append `?k=<that value>` to the POST URL for each configured host. Once both are done the endpoint rejects any unsigned request. Rotating = change both places.
+
+## HaveIBeenPwned password check — new outbound integration (added 2026-10-27)
+
+The shared password validator (`lib/auth/password-policy.ts`) now rejects passwords found in known breaches, checked against the HaveIBeenPwned range API using k-anonymity (only the first 5 chars of the SHA-1 hash leave the server; never the password or full hash). No API key or account is required for the range endpoint. The call is fail-open (a HIBP outage never blocks sign-ups; the length rule still applies). Minimum length raised to 10.
+
+**Action:** none required to run (no key). Surfaced here per the "new third-party integration" rule. If you later want the authenticated HIBP API for other features, that needs a key. Also note: client-side sign-up/reset forms still display an "at least 8 characters" hint in a few places (cosmetic) — align them to 10 in a follow-up so the hint matches the server rule.

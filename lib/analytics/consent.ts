@@ -33,6 +33,19 @@ export function setConsent(analytics: boolean): void {
   // Plain cookie so middleware / SSR can detect a decision was made (no JS needed)
   document.cookie = `${COOKIE_NAME}=${analytics ? "accepted" : "declined"}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
 
+  // Fire-and-forget server-side audit record. localStorage above stays the
+  // device source of truth; this just gives us an auditable copy on request.
+  try {
+    void fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analytics }),
+      keepalive: true,
+    });
+  } catch {
+    // Never let a failed audit write affect the user's saved choice.
+  }
+
   window.dispatchEvent(new CustomEvent("consent-updated", { detail: { analytics } }));
 }
 

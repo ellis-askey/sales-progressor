@@ -46,6 +46,16 @@ export function encryptSecret(plaintext: string): string {
   return `${iv.toString("hex")}:${tag.toString("hex")}:${enc.toString("hex")}`;
 }
 
+/**
+ * Returns the plaintext secret, decrypting it when it is in the encrypted
+ * `iv:tag:ciphertext` form and passing legacy plaintext values through unchanged.
+ * Lets a store migrate from plaintext to encrypted without a hard cutover: a
+ * value with exactly three colon-separated parts is treated as encrypted.
+ */
+export function decryptIfEncrypted(stored: string): string {
+  return stored.split(":").length === 3 ? decryptSecret(stored) : stored;
+}
+
 /** Decrypts a stored secret. Throws if the format is invalid or the data was tampered with. */
 export function decryptSecret(stored: string): string {
   const parts = stored.split(":");

@@ -2,6 +2,7 @@
 
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { validatePassword } from "@/lib/auth/password-policy";
 import { validateNegotiatorInvitationToken } from "@/lib/auth/validate-negotiator-invitation-token";
 import { notifyDirectorOfAcceptance } from "@/lib/notifications/negotiator-accepted";
 
@@ -20,8 +21,9 @@ export async function acceptNegotiatorInvitationPassword(
   if (!token || !name || !password || !confirm) {
     return { ok: false, error: "All fields are required." };
   }
-  if (password.length < 8) {
-    return { ok: false, error: "Password must be at least 8 characters." };
+  const pwCheck = await validatePassword(password);
+  if (!pwCheck.ok) {
+    return { ok: false, error: pwCheck.error };
   }
   if (password !== confirm) {
     return { ok: false, error: "Passwords don't match." };

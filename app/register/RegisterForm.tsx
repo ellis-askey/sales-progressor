@@ -101,7 +101,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
   }, [loading]);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const step1Valid = name.trim() && emailValid && password.length >= 8 && termsAccepted;
+  const step1Valid = name.trim() && emailValid && password.length >= 10 && termsAccepted;
 
   function advanceToStep2() {
     if (!step1Valid) return;
@@ -308,7 +308,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   <label style={labelStyle}>Password</label>
                   <div style={{ position: "relative" }}>
                     <input className="ri ri-pr" type={showPassword ? "text" : "password"} value={password}
-                      onChange={e => setPassword(e.target.value)} placeholder="Min. 8 characters"
+                      onChange={e => setPassword(e.target.value)} placeholder="Min. 10 characters"
                       required autoComplete="new-password" style={inputStyle} />
                     <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
                       style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(32,36,46,0.40)", padding: 0, display: "flex" }}>
@@ -325,7 +325,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                     </button>
                   </div>
                   {password.length > 0 && password.length < 8 && (
-                    <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 8 characters required</p>
+                    <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 10 characters required</p>
                   )}
                   <PasswordStrength password={password} />
                 </div>

@@ -437,6 +437,18 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
               <p style={{ margin: "8px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
                 Signed in as {contactName}.
               </p>
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: P.textMuted, textAlign: "center" }}>
+                We handle your information in line with our{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: P.textSecondary, textDecoration: "underline" }}
+                >
+                  privacy policy
+                </a>
+                .
+              </p>
             </div>
           )}
         </div>

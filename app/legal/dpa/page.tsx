@@ -350,6 +350,21 @@ const SECTIONS: PolicySection[] = [
               <td>Hosting for the WhatsApp connection service</td>
               <td>EU (West)</td>
             </tr>
+            <tr>
+              <td>OpenAI</td>
+              <td>AI review in internal growth tooling (no client transaction data)</td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
+            <tr>
+              <td>Google</td>
+              <td>Sign-in for staff</td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
+            <tr>
+              <td>Meta (WhatsApp)</td>
+              <td>WhatsApp Business messaging (where enabled)</td>
+              <td>US (SCCs + UK IDTA)</td>
+            </tr>
           </tbody>
         </table>
       </>

@@ -8,6 +8,7 @@
 import { compare, hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { validatePassword } from "@/lib/auth/password-policy";
 
 export async function changePasswordAction(
   input: { currentPassword: string; newPassword: string },
@@ -16,8 +17,9 @@ export async function changePasswordAction(
   const current = input.currentPassword ?? "";
   const next = input.newPassword ?? "";
 
-  if (next.length < 8) {
-    return { ok: false, error: "New password must be at least 8 characters." };
+  const pwCheck = await validatePassword(next);
+  if (!pwCheck.ok) {
+    return { ok: false, error: pwCheck.error };
   }
 
   const user = await prisma.user.findUnique({

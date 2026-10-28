@@ -22,6 +22,7 @@ import { join, relative } from "path";
 
 const ROOT = process.cwd();
 const API_DIR = join(ROOT, "app/api");
+const ACTIONS_DIR = join(ROOT, "app/actions");
 
 // Multi-tenant Prisma models. A findMany / findFirst / findUnique on any
 // of these from a non-allowlisted route without an access-scope helper
@@ -43,6 +44,7 @@ const MULTI_TENANT_MODELS = [
 // Routes that legitimately bypass the scope helper:
 const ALLOWLIST_PREFIXES = [
   "app/api/command/",          // superadmin Command Centre via commandDb
+  "app/api/gdpr/",             // superadmin GDPR tooling (export / erase) — superadmin role + Command-Centre step-up auth, not session agency scope
   "app/api/webhooks/",         // external webhooks (e.g. SendGrid bounce, Vercel deploy)
   "app/api/cron/",             // scheduled jobs run under cron secret
   "app/api/portal/",           // portal token auth — not session-based
@@ -61,6 +63,13 @@ const FILE_ALLOWLIST: Record<string, string> = {
   // Platform-wide count of portal-confirmed events for the SP bell.
   // POLISH_TBD entry filed to review whether this should be scoped.
   "app/api/notifications/portal/route.ts": "Platform-wide count for the SP bell. Filed in POLISH_TBD 2026-06-26 for scope review.",
+  // Portal/broker token-bearer server actions: the request is authenticated by
+  // an unguessable portalToken that resolves to a single Contact/transaction
+  // (same model as the app/api/portal/ prefix). No NextAuth session to scope.
+  "app/actions/portal-menu.ts": "Portal-token auth: every action calls requirePortalContact(token) → Contact by portalToken. No session scoping. 2026-10-27.",
+  "app/actions/portal-onward.ts": "Portal-token auth: resolveVendor(token) → Contact by portalToken, vendor-gated. No session scoping. 2026-10-27.",
+  "app/actions/portal-related-sale.ts": "Portal-token auth: resolvePurchaser(token) → Contact by portalToken, purchaser-gated. No session scoping. 2026-10-27.",
+  "app/actions/broker-callback.ts": "Portal-token auth: requestBrokerCallbackAction(token) → Contact by portalToken. No session scoping. 2026-10-27.",
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -69,6 +78,18 @@ function walk(dir: string, out: string[] = []): string[] {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
     else if (entry === "route.ts" || entry === "route.tsx") out.push(full);
+  }
+  return out;
+}
+
+// Server actions aren't named route.ts — collect every .ts under app/actions/
+// (excluding tests and type decls) so the same scope check covers them too.
+function walkActions(dir: string, out: string[] = []): string[] {
+  if (!statSync(dir, { throwIfNoEntry: false })) return out;
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walkActions(full, out);
+    else if (entry.endsWith(".ts") && !entry.endsWith(".test.ts") && !entry.endsWith(".d.ts")) out.push(full);
   }
   return out;
 }
@@ -135,17 +156,30 @@ function usesAccessScopeHelper(content: string): boolean {
   const usesAgencyIdInWhereClause =
     /where:\s*\{[^}]*agencyId[^}]*\}/.test(content);
 
-  return usesAccessScope || usesAgentVisibility || usesLegacyAgencyIdFilter || usesAgencyIdInWhereClause;
+  // Pattern E: self-scoped work — the row is keyed to the acting user rather
+  // than an agency (e.g. a user editing their own account, sessions, tasks, or
+  // an internal progressor scoped by assignedUserId). Common in app/actions/*.
+  // Correctly isolated by the user id, not agencyId.
+  const usesSelfScope =
+    /session\.user\.id/.test(content) &&
+    /\b(userId|createdById|authorId|assignedUserId|adminUserId|recipientUserId)\b/.test(content);
+
+  return usesAccessScope || usesAgentVisibility || usesLegacyAgencyIdFilter || usesAgencyIdInWhereClause || usesSelfScope;
 }
 
 describe("Multi-tenant safety — access-scope coverage", () => {
   const routes = walk(API_DIR);
+  const actionFiles = walkActions(ACTIONS_DIR);
 
   it("finds API routes to audit", () => {
     expect(routes.length).toBeGreaterThan(10);
   });
 
-  for (const abs of routes) {
+  it("finds server actions to audit", () => {
+    expect(actionFiles.length).toBeGreaterThan(10);
+  });
+
+  for (const abs of [...routes, ...actionFiles]) {
     const rel = relative(ROOT, abs).replace(/\\/g, "/");
     const content = readFileSync(abs, "utf8");
     const models = usesMultiTenantModel(content);

@@ -5,6 +5,7 @@ import AzureADProvider from "next-auth/providers/azure-ad";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { verifyTotp, consumeBackupCode } from "@/lib/security/totp";
+import { decryptIfEncrypted } from "@/lib/security/token-crypto";
 import { prisma } from "@/lib/prisma";
 import { checkAuthLimit } from "@/lib/ratelimit";
 import type { UserRole } from "@prisma/client";
@@ -126,7 +127,7 @@ export const authOptions: NextAuthOptions = {
         // only when the account has 2FA on.
         if (user.totpActivatedAt && user.totpSecret) {
           const code = (credentials.totp ?? "").trim();
-          let twoFaOk = code ? verifyTotp(user.totpSecret, code) : false;
+          let twoFaOk = code ? verifyTotp(decryptIfEncrypted(user.totpSecret), code) : false;
           if (!twoFaOk && code && user.totpBackupCodes.length > 0) {
             const remaining = await consumeBackupCode(code, user.totpBackupCodes);
             if (remaining) {

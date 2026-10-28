@@ -33,7 +33,7 @@ import { useState, useTransition, useCallback, useEffect } from "react";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction } from "@/app/actions/contacts";
+import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction, reissuePortalTokenAction } from "@/app/actions/contacts";
 import { looksLikeBusiness } from "@/lib/contacts/business";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CommsButton } from "@/components/ui/CommsButton";
@@ -41,7 +41,7 @@ import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Envelope, ArrowSquareOut, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
@@ -177,6 +177,9 @@ function PortalStatusCard({
   inviteSent,
   generatingToken,
   copied,
+  onReissue,
+  reissuing,
+  canReissue,
 }: {
   state: PortalState;
   lastViewed: Date | undefined;
@@ -188,6 +191,9 @@ function PortalStatusCard({
   inviteSent: boolean;
   generatingToken: boolean;
   copied: boolean;
+  onReissue: () => void;
+  reissuing: boolean;
+  canReissue: boolean;
 }) {
   if (state === "none") return null;
 
@@ -264,6 +270,19 @@ function PortalStatusCard({
             className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
           >
             {inviteSent ? "✓ Sent" : inviting ? "Sending…" : "Resend invite"}
+          </button>
+        )}
+        {canReissue && (
+          <button
+            type="button"
+            onClick={onReissue}
+            disabled={reissuing}
+            title="Reset the portal link so the current one stops working"
+            aria-label="Reset portal link"
+            className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+            style={{ minWidth: 34, padding: "0 8px" }}
+          >
+            {reissuing ? "…" : <ArrowsClockwise size={12} weight="regular" />}
           </button>
         )}
         <button
@@ -450,6 +469,7 @@ export function ContactsSection({
   const [inviting, setInviting] = useState<string | null>(null);
   const [inviteSent, setInviteSent] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
+  const [reissuing, setReissuing] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -495,6 +515,28 @@ export function ContactsSection({
     // the file. Fire-and-forget — a logging failure must never break the
     // copy the agent just did.
     logPortalLinkCopiedAction(transactionId, contactId).catch(() => {});
+  }
+
+  async function reissuePortalLink(contactId: string) {
+    const ok = window.confirm(
+      "Reset this client's portal link? Their current link will stop working straight away, and we'll copy a fresh one for you to share.",
+    );
+    if (!ok) return;
+    setReissuing(contactId);
+    try {
+      const { portalToken } = await reissuePortalTokenAction(contactId, transactionId);
+      const url = `${window.location.origin}/portal/${portalToken}`;
+      await copyToClipboard(url);
+      setCopied(portalToken);
+      setTimeout(() => setCopied(null), 2000);
+      toast.success("Portal link reset", {
+        description: "The old link no longer works. A fresh link is on your clipboard to share.",
+      });
+    } catch {
+      toast.error("We couldn't reset that link", { description: "Please try again." });
+    } finally {
+      setReissuing(null);
+    }
   }
 
   async function sendInvite(token: string, contactId: string) {
@@ -1054,6 +1096,9 @@ export function ContactsSection({
                             onSendInvite={() => contact.portalToken && sendInvite(contact.portalToken, contact.id)}
                             onSetupToken={() => setupPortalToken(contact.id)}
                             onCopyLink={() => contact.portalToken && copyPortalLink(contact.portalToken, contact.id)}
+                            onReissue={() => reissuePortalLink(contact.id)}
+                            reissuing={reissuing === contact.id}
+                            canReissue={!!contact.portalToken}
                             inviting={inviting === contact.id}
                             inviteSent={inviteSent === contact.id}
                             generatingToken={generatingToken === contact.id}

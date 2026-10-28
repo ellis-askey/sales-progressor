@@ -64,6 +64,7 @@ model Agency {
   showPortalCosts           Boolean @default(true) // buyer SDLT estimate + "Your costs" card
   showPortalProgressPercent Boolean @default(true) // the % progress figure in the overview
   showPortalWelcomeSheet    Boolean @default(true) // the first-visit welcome sheet
+  aiExplainEmailEnabled     Boolean @default(true) // client AI "explain this email" helper in the portal
   // When true (today's behaviour), adding an outsourced sale emails the buyer +
   // seller their portal link straight away (the "Getting your sale moving" intro).
   // Off = add sales quietly; the agent invites clients when ready. Gated in
@@ -318,6 +319,7 @@ model ProgressionBusiness {
   showPortalCosts           Boolean @default(true)
   showPortalProgressPercent Boolean @default(true)
   showPortalWelcomeSheet    Boolean @default(true)
+  aiExplainEmailEnabled     Boolean @default(true)
   // Auto-invite policy for the clients on sales this business progresses, split
   // by who added the sale. True (default) = behaviour today. Gated in
   // lib/emails/send-outsource-intro.ts; overrides the agency toggle for any file
@@ -4554,6 +4556,24 @@ model AdminAuditLog {
   @@index([adminUserId, occurredAt])
   @@index([action, occurredAt])
   @@index([targetType, targetId])
+}
+
+// ─── ConsentRecord ──────────────────────────────────────────────────────
+// Server-side audit record of a cookie-consent decision, so we can produce
+// evidence of consent on request (localStorage on the user's device alone is
+// not auditable). Written fire-and-forget from the banner via POST /api/consent.
+// userId is null when the decision is made before login / on a public page.
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  analytics     Boolean
+  userId        String?
+  ipAddress     String?
+  userAgent     String?
+  policyVersion String?
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 // â”€â”€â”€ OutsourcedAssignmentNotification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
