@@ -204,7 +204,7 @@ function TxCard({ tx }: { tx: TxGroup }) {
           href={`/agent/transactions/${tx.transactionId}`}
           style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, textDecoration: "none" }}
         >
-          <PropertyThumb photoUrl={tx.photoUrl} size={56} />
+          <PropertyThumb photoUrl={tx.photoUrl} size={48} />
           <span style={{ minWidth: 0 }}>
             <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {line1}

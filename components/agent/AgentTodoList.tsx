@@ -443,7 +443,7 @@ function TaskGroup({ group, onToggle, dimmed = false, progressor = false, overdu
             className="todo-id"
             style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, textDecoration: "none" }}
           >
-            <PropertyThumb photoUrl={photoByTx?.get(group.transactionId) ?? null} size={38} />
+            <PropertyThumb photoUrl={photoByTx?.get(group.transactionId) ?? null} size={48} />
             <span style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
               <span className="todo-addr" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line}</span>
               {location && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{location}</span>}

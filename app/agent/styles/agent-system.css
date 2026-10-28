@@ -1611,6 +1611,13 @@
   .email-settings-pill.is-attention {
     border-color: var(--agent-warning-border-strong, rgba(201, 125, 26, 0.50));
   }
+  /* The gear takes a single eased turn on hover (interaction-study pick 1). */
+  .email-settings-pill svg { transform-box: fill-box; transform-origin: center; }
+  .email-settings-pill:hover svg { animation: email-settings-gear-turn 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+  @keyframes email-settings-gear-turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .email-settings-pill:hover svg { animation: none; }
+  }
   @media (max-width: 767px) {
     .email-settings-pill {
       background: rgba(255, 255, 255, 0.14);
@@ -5023,8 +5030,12 @@ body[data-demo-file] [data-onboarding-checklist] {
   row-gap: 2px;
   padding: 12px 20px 12px 17px;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  /* The status reads as a small toned word above the step line, never an inline
+     pill (critique #295). The pill slot in .attn-addr is hidden; the word takes
+     its own grid row between the address and the status. */
   grid-template-areas:
     "thumb addr   actions"
+    "thumb label  actions"
     "thumb status actions";
 }
 .attn-thumb { grid-area: thumb; align-self: center; }
@@ -5044,7 +5055,13 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .attn-actions { grid-area: actions; display: flex; align-items: center; gap: 6px; justify-self: end; }
 .attn-chev { display: none; }
-.attn-label-m { display: none; }
+/* Toned word in its own grid row (critique #295); the inline pill is gone. */
+.attn-label-m {
+  grid-area: label; display: block; align-self: end;
+  font-size: 10.5px; font-weight: 750; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.attn-pill-d { display: none; }
 
 /* Chevron button chrome (only visible ≤500px). */
 .attn-chev {
@@ -5119,14 +5136,13 @@ body[data-demo-file] [data-onboarding-checklist] {
    the town/postcode carries its own muted colour so it stays muted on hover. */
 .hub-addr-full { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-addr-line, .hub-addr-loc, .hub-r-meta-m, .hub-r-meta-below { display: none; }
-/* Pill vs mobile toned-word, mirroring the Needs-attention rows (critique #267).
-   Desktop/tablet: the inline pill. ≤500px: a small toned word above the address
-   instead, so it never crowds the address. */
-.hub-label-m { display: none; }
-@media (max-width: 500px) {
-  .hub-pill-d { display: none; }
-  .hub-label-m { display: block; font-size: 10.5px; font-weight: 750; line-height: 1.3; margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
+/* The status now reads as a small toned word ABOVE the address at every width,
+   never an inline pill (critique #295: "no pills, always text above" — the
+   tab/mobile treatment, promoted to the default because it feels cleaner). The
+   word keeps the tone colour via its inline style, so the at-a-glance signal
+   stays. */
+.hub-label-m { display: block; font-size: 10.5px; font-weight: 750; line-height: 1.3; margin-bottom: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-pill-d { display: none; }
 /* Subtext 2-line clamp lives in CSS (not inline) so the breakpoints can control
    it — an inline display would win and leak the line onto mobile (#255 follow-up). */
 .hub-r-meta-d { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
