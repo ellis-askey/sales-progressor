@@ -143,7 +143,10 @@ export function PipelineBoard({
       onScroll={onScroll}
       style={{ maskImage: mask, WebkitMaskImage: mask }}
     >
-      <div className="pboard-board">
+      {/* Columns bloom in left-to-right on view-switch — the universal load-in
+          (critique #294). Each column is a GlassCard animating its OWN
+          transform/filter, which is frost-safe. */}
+      <div className="pboard-board agent-bloom-stagger">
         {grouped.map((col) => {
           const Icon = STAGE_ICON[col.key];
           const busy = col.key === busyKey;

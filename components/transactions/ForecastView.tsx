@@ -174,7 +174,7 @@ export function ForecastView({
   const targetPct = mode === "fees" && target != null ? Math.min(100, (target / maxBar) * 100) : null;
 
   return (
-    <GlassCard glassId="files-forecast" label="My files · Forecast" className="fc">
+    <GlassCard glassId="files-forecast" label="My files · Forecast" className="fc agent-bloom">
       <div className="fc-head">
         <div style={{ minWidth: 0 }}>
           <p className="fc-title">Exchange forecast</p>

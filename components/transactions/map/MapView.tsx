@@ -54,8 +54,12 @@ export function MapView({
   basePath: string;
   streetViewKey?: string | null;
 }) {
-  const { theme } = usePortalTheme();
-  const mapTheme = theme === "dark" ? "dark" : "light";
+  // Dark mode is the app-wide night toggle (isNight), NOT `theme` — `theme` is
+  // the agent PALETTE name (sunset/coastal/…), which is never "dark", so the map
+  // was stuck light in dark mode (critique #294). `theme` is still used below to
+  // stamp the Street View modal's agent-palette tokens.
+  const { theme, isNight } = usePortalTheme();
+  const mapTheme = isNight ? "dark" : "light";
 
   const [shade, setShade] = useState<Shade>("sales");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("both");
@@ -237,7 +241,7 @@ export function MapView({
   }
 
   return (
-    <div className="mapview">
+    <div className="mapview agent-bloom-stagger">
       <div className={`map-toolbar ${toolbarTag.className}`} {...toolbarTag.props}>
         <Seg label="View" value={mode} onChange={setMode} opts={[["heat", "Heat"], ["pins", "Pins"]]} />
         {mode === "heat" ? (
