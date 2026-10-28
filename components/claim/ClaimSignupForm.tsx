@@ -65,7 +65,7 @@ export function ClaimSignupForm({
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     emailOk &&
-    password.length >= 8 &&
+    password.length >= 10 &&
     firmName.trim().length > 0;
   const canSubmit = accountReady && tenure !== null && purchaseType !== null;
 
@@ -168,7 +168,7 @@ export function ClaimSignupForm({
             <div className="claim-field claim-field-gap">
               <label className="claim-field-label">Password</label>
               <div className="claim-field-row">
-                <input className="claim-field-input" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="At least 8 characters" style={{ paddingRight: 42 }} />
+                <input className="claim-field-input" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="At least 10 characters" style={{ paddingRight: 42 }} />
                 <ClaimPasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
               </div>
             </div>

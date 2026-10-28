@@ -1,0 +1,25 @@
+# Final Risk Register (DPIA)
+
+**Date:** 28 October 2026. Risks to **individuals' rights and freedoms**, not to TSP as a business.
+
+**Methodology.** Likelihood (L) and Severity (S) each Low/Medium/High. Rating matrix: High+High=Critical; High+Medium or Medium+High=High; Medium+Medium=Medium; any Low pairing=Low (Low+High=Medium). **Residual** uses only **verified** safeguards — proposed/unverified controls are NOT counted as implemented. Owner: Ellis Askey (data-protection lead) unless noted.
+
+| ID | Risk to individuals | Data / who | L | S | Inherent | Verified safeguards | Unverified safeguards | Residual | Action |
+|---|---|---|---|---|---|---|---|---|---|
+| FR1 | AI providers (US) retain or train on submitted personal data | Pasted emails, documents, client names of buyers/sellers/solicitors | Med | High | High | Commercial API not consumer tool; explain-email not stored by TSP; off-switch now enforced [VERIFIED-CODE] | No-training / zero-retention terms (Q1) | **High** | Confirm Anthropic/OpenAI terms (Q1); consider minimising the unminimised features |
+| FR2 | One agency/person reaches another's data | Transaction + contact data | Low | High | Medium | App-layer access-scope verified across all touched surfaces; portal minimised; CC tools scoped [VERIFIED-CODE] | DB row-level security (Q2) | **Low–Med** | Confirm/enable RLS as defence-in-depth |
+| FR3 | Client data retained longer than necessary | All transaction/contact/document data | High | Med | High | 3-year staff anonymisation automated; manual purge + erasure tools exist [VERIFIED-CODE; manual OWNER-CONFIRMED] | — | **Med** | Operate manual 7-year purge reliably; consider automation later |
+| FR4 | Unminimised third-party PII sent to AI | Names/contacts of other parties | Med | Med | Med | Chase/summary/voice-profile minimise; explain-email not stored [VERIFIED-CODE] | Provider terms (Q1) | **Med** | Minimise explain-email/refine/memo inputs where feasible; owner accepted no user warning |
+| FR5 | Leaked portal link grants indefinite access | One party's transaction view | Med | Med | Med | Strong random token; instant revoke/reissue [VERIFIED-CODE] | — | **Low–Med** | No auto-expiry; rely on manual reset (NOT-IMPLEMENTED expiry) |
+| FR6 | Uploaded documents exposed via misconfigured storage | Contracts, ID, financial | Low | High | Medium | Private buckets + signed URLs + ownership check [VERIFIED-CODE; private OWNER-CONFIRMED] | — | **Low** | Maintain bucket privacy |
+| FR7 | Account access remains after termination | Staff / agency data | Low | Med | Low | Session revocation; deactivation; offboarding tool [VERIFIED-CODE] | — | **Low** | — |
+| FR8 | Compromised staff login exposes an agency's files | Whole agency book | Med | High | High | bcrypt-12; 2FA (optional); rate limiting live [VERIFIED-CODE + OWNER-CONFIRMED] | 2FA not mandatory; cookie SameSite (Q7) | **Med** | Consider mandatory 2FA for directors; confirm cookie flags |
+| FR9 | Founder account single-factor into Command Centre | Platform-wide | Low | High | Medium | Password; optional IP allowlist; agent-side 2FA available [VERIFIED-CODE] | — | **Med (owner-accepted)** | Owner decision; recommend enabling the founder's own 2FA |
+| FR10 | Inadequate backup / recovery loses or corrupts data | All personal data | Low | High | Medium | Supabase managed backups (standard) | Backups/PITR enabled + ever test-restored (Q2) | **Med (unverified)** | Confirm and test-restore |
+| FR11 | Special-category/criminal data in free text or documents, no detection | Any individual | Med | Med | Med | Contractually barred in DPA; AI doesn't store explain content [DOCUMENT + VERIFIED-CODE] | — | **Med (owner-accepted)** | No technical guard; accepted residual |
+| FR12 | International transfer without a valid safeguard | Data to US providers | Med | Med | Med | Compute in EEA; EU DB; US providers disclosed [VERIFIED-CODE/CONFIG] | Signed SCCs/IDTA per provider (Q3) | **Med** | Confirm each provider DPA |
+| FR13 | Consent records (IP/UA) kept indefinitely; endpoint abuse | Visitors | Low | Low | Low | Consent gated client-side; masked analytics [VERIFIED-CODE] | — | **Low** | Add rate limit + purge for ConsentRecord (recommended) |
+| FR14 | On-screen PII captured in an error replay | Staff/clients | Low | Med | Low | Error-only replay; no PII default [VERIFIED-CODE] | Replay text masking (Q4) | **Low** | Confirm Sentry masking |
+| FR15 | Superadmin 2FA format lockout / legacy plaintext secret | Admin accounts | Low | Med | Low | Staff path encrypted [VERIFIED-CODE] | No CBC-format superadmin exists (Q6) | **Low** | Prod DB check; re-enrol if needed |
+
+**Summary:** no Critical residual risks. The single **High** residual is **FR1 (AI provider terms)**, resolvable by confirming Anthropic/OpenAI data terms. The Medium residuals (FR3 retention, FR4 minimisation, FR8 account compromise, FR9 founder bypass, FR10 backups, FR11 special-category, FR12 transfers) each have a clear action or a documented owner acceptance.

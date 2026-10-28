@@ -318,6 +318,11 @@ const SECTIONS: PolicySection[] = [
               <td>US (SCCs + UK IDTA)</td>
             </tr>
             <tr>
+              <td>Microsoft</td>
+              <td>Connected Outlook / Microsoft 365 mailbox access (Graph), where a user connects their inbox</td>
+              <td>Per the mailbox&rsquo;s Microsoft 365 region, with transfer safeguards where required</td>
+            </tr>
+            <tr>
               <td>Anthropic</td>
               <td>
                 AI-assisted message drafting (limited data — see Terms{" "}

@@ -118,7 +118,7 @@ export function InvitedPasswordSignupForm({ token, directorEmail, directorName }
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={8}
+            minLength={10}
             placeholder="At least 10 characters"
             style={inputStyle}
           />

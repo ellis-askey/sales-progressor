@@ -29,6 +29,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Enforce the agency/business off-switch at the data-flow level, not just by
+  // hiding the card. Resolve the responsible party for this sale (an external
+  // progression business if the file is theirs, otherwise the agency) exactly as
+  // lib/services/portal.ts does, and refuse if the helper is turned off.
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: contact.propertyTransactionId },
+    select: {
+      progressionBusinessId: true,
+      agency: { select: { aiExplainEmailEnabled: true } },
+      progressionBusiness: { select: { aiExplainEmailEnabled: true } },
+    },
+  });
+  const owner = tx?.progressionBusinessId ? tx.progressionBusiness : tx?.agency;
+  if (owner && owner.aiExplainEmailEnabled === false) {
+    return NextResponse.json({ error: "This feature is turned off." }, { status: 403 });
+  }
+
   // Rate limit: max 3 explain-email uses per contact per hour
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS);
   const recentUses = await prisma.outboundMessage.count({
