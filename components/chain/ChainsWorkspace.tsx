@@ -410,6 +410,11 @@ export function ChainsWorkspace({
         /* Open-chain action: under the links chip on desktop, moved to a
            bottom-right footer on narrow screens for breathing room. */
         .chain-prop-card .chain-open-bottom { display: none; }
+        /* #299: the inline (on-the-circle-row) open-chain and the mobile-only
+           trimmed meta row are off by default; the mobile rules below switch
+           them on. Keeps desktop byte-identical. */
+        .chain-prop-card .chain-open-inline { display: none; }
+        .chain-prop-card .chain-meta-mobile { display: none; }
         @media (max-width: 560px) {
           .chain-prop-card .chain-open-top { display: none; }
           .chain-prop-card .chain-open-bottom { display: flex; justify-content: flex-end; }
@@ -421,6 +426,15 @@ export function ChainsWorkspace({
           .chain-prop-card .chain-head-addr { align-self: stretch; }
           .chain-prop-card .chain-head-side { align-self: stretch; }
           .chain-prop-card .chain-addr-text { white-space: normal; overflow: visible; text-overflow: clip; }
+          /* #299: trim the status notes to the top three on mobile (desktop
+             keeps the full set). */
+          .chain-prop-card .chain-meta-desktop { display: none; }
+          .chain-prop-card .chain-meta-mobile { display: flex; }
+          /* #299: short chains (<=4 links, marked .chain-tight-ok) let Open chain
+             ride the circle row on the right; longer chains fall back to the
+             bottom footer so the circle strip keeps the full width. */
+          .chain-prop-card.chain-tight-ok .chain-open-inline { display: inline-flex; }
+          .chain-prop-card.chain-tight-ok .chain-open-bottom { display: none; }
         }
       `}</style>
 

@@ -70,52 +70,83 @@ export function ChainCard({
   // the invite count.
   const allConnected = agentsConnected >= length;
 
-  const meta: React.ReactNode[] = [];
+  // Each note carries a mobile priority (lower = more important). Desktop renders
+  // every note; mobile keeps only the top three so the row never wraps to leave a
+  // lone note stranded (critique #299). Danger flags outrank everything; the plain
+  // "connected" status is the lowest, so it's the first to drop on mobile.
+  const metaItems: { key: string; prio: number; node: React.ReactNode }[] = [];
   if (linksBelow > 0) {
-    meta.push(<MetaItem key="below" icon={<CaretDown size={12} weight="bold" />}>{linksBelow} below you</MetaItem>);
+    metaItems.push({ key: "below", prio: 4, node: <MetaItem icon={<CaretDown size={12} weight="bold" />}>{linksBelow} below you</MetaItem> });
   }
   if (linksAbove > 0) {
-    meta.push(<MetaItem key="above" icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem>);
+    metaItems.push({ key: "above", prio: 5, node: <MetaItem icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem> });
   }
   if (allConnected) {
-    meta.push(
-      <MetaItem key="allconnected" icon={<CheckCircle size={13} weight="fill" />} tone="success">
-        All agents connected
-      </MetaItem>,
-    );
+    metaItems.push({
+      key: "allconnected",
+      prio: 6,
+      node: (
+        <MetaItem icon={<CheckCircle size={13} weight="fill" />} tone="success">
+          All agents connected
+        </MetaItem>
+      ),
+    });
   } else {
-    meta.push(
-      <MetaItem key="connected" icon={<UsersThree size={13} weight="regular" />}>
-        {agentsConnected} of {length} connected
-      </MetaItem>,
-    );
+    metaItems.push({
+      key: "connected",
+      prio: 8,
+      node: (
+        <MetaItem icon={<UsersThree size={13} weight="regular" />}>
+          {agentsConnected} of {length} connected
+        </MetaItem>
+      ),
+    });
     if (needsInviteCount > 0) {
-      meta.push(
-        <MetaItem key="invite" icon={<Warning size={12} weight="fill" />} tone="warning">
-          {needsInviteCount} to invite
-        </MetaItem>,
-      );
+      metaItems.push({
+        key: "invite",
+        prio: 3,
+        node: (
+          <MetaItem icon={<Warning size={12} weight="fill" />} tone="warning">
+            {needsInviteCount} to invite
+          </MetaItem>
+        ),
+      });
     }
   }
   // A dead neighbour (bounced email / declined invite) is more urgent than a
   // never-sent one — flag it in danger so it can't hide as a muted dot.
   if (bouncedCount > 0) {
-    meta.push(
-      <MetaItem key="bounced" icon={<Warning size={12} weight="fill" />} tone="danger">
-        {bouncedCount} bounced
-      </MetaItem>,
-    );
+    metaItems.push({
+      key: "bounced",
+      prio: 1,
+      node: (
+        <MetaItem icon={<Warning size={12} weight="fill" />} tone="danger">
+          {bouncedCount} bounced
+        </MetaItem>
+      ),
+    });
   }
   if (declinedCount > 0) {
-    meta.push(
-      <MetaItem key="declined" icon={<XCircle size={13} weight="fill" />} tone="danger">
-        {declinedCount} declined
-      </MetaItem>,
-    );
+    metaItems.push({
+      key: "declined",
+      prio: 2,
+      node: (
+        <MetaItem icon={<XCircle size={13} weight="fill" />} tone="danger">
+          {declinedCount} declined
+        </MetaItem>
+      ),
+    });
   }
 
+  // Top three by priority, rendered back in insertion order so the mobile row
+  // reads left-to-right the same way the desktop row does.
+  const mobileKeys = new Set(
+    [...metaItems].sort((a, b) => a.prio - b.prio).slice(0, 3).map((m) => m.key),
+  );
+  const mobileItems = metaItems.filter((m) => mobileKeys.has(m.key));
+
   return (
-    <GlassCard glassId="chains-card" label="Chains · chain card" defaultVariant="v05" className="chain-prop-card" data-bloom style={{ padding: 16, borderRadius: 14 }}>
+    <GlassCard glassId="chains-card" label="Chains · chain card" defaultVariant="v05" className={`chain-prop-card${length <= 4 ? " chain-tight-ok" : ""}`} data-bloom style={{ padding: 16, borderRadius: 14 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Header: photo + address, and the open-chain action */}
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
@@ -156,20 +187,39 @@ export function ChainCard({
           </div>
         </div>
 
-        {/* Chain visual — full width, first node left-aligned under the photo */}
-        <ChainMiniMap spine={chain.spine} branches={chain.branches} />
+        {/* Chain visual — full width, first node left-aligned under the photo.
+            On mobile, short chains (<=4 links) let Open chain ride this row on the
+            right, vertically centred; longer chains keep it in the bottom footer
+            below so the circle strip gets the full width (critique #299). */}
+        <div className="chain-map-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="chain-map-strip" style={{ flex: 1, minWidth: 0 }}>
+            <ChainMiniMap spine={chain.spine} branches={chain.branches} />
+          </div>
+          <span className="chain-open-inline">
+            <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+          </span>
+        </div>
 
-        {/* Concise chain metadata — full width */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
-          {meta.map((m, i) => (
-            <Fragment key={i}>
+        {/* Concise chain metadata. Desktop: every note. Mobile: top three only. */}
+        <div className="chain-meta chain-meta-desktop" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
+          {metaItems.map((m, i) => (
+            <Fragment key={m.key}>
               {i > 0 && <Divider />}
-              {m}
+              {m.node}
+            </Fragment>
+          ))}
+        </div>
+        <div className="chain-meta chain-meta-mobile" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 6 }}>
+          {mobileItems.map((m, i) => (
+            <Fragment key={m.key}>
+              {i > 0 && <Divider />}
+              {m.node}
             </Fragment>
           ))}
         </div>
 
-        {/* Mobile-only open-chain, bottom-right (hidden on desktop). */}
+        {/* Mobile-only open-chain, bottom-right — shown only for longer chains
+            that can't fit it on the circle row (hidden on desktop). */}
         <div className="chain-open-bottom">
           <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         </div>
