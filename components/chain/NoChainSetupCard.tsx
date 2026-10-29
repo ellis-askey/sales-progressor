@@ -75,6 +75,7 @@ export function NoChainSetupCard({
           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
             <span
               data-sensitive="true"
+              className="ncs-addr-text"
               style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}
             >
               {line1}
@@ -88,7 +89,7 @@ export function NoChainSetupCard({
             )}
           </div>
           {line2 && (
-            <div data-sensitive="true" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div data-sensitive="true" className="ncs-addr-text" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {line2}
             </div>
           )}
@@ -139,17 +140,25 @@ export function NoChainSetupCard({
         </div>
       </div>
 
-      {/* Mobile tidy (critiques #289/#290). On a narrow screen the horizontal row
-          cramps, so: the "On hold" pill lifts to the card's top-right, the age +
-          agency stack onto their own lines (dot hidden), and the "Set up chain"
-          action drops to the bottom-right, opposite the agency. */}
+      {/* Mobile tidy (critiques #289/#290/#297). On a narrow screen the horizontal
+          3-column row cramps and the address line clips, so: the "On hold" pill
+          lifts to the card's top-right, the age + agency stack onto their own
+          lines (dot hidden), the address takes the full width and wraps instead
+          of clipping, and the actions drop to a full-width footer row in the
+          bottom-right (primary "Set up chain" above the secondary). */}
       <style>{`
         @media (max-width: 640px) {
-          .ncs-card .ncs-row { align-items: stretch; }
+          .ncs-card .ncs-row { flex-wrap: wrap; align-items: flex-start; }
           .ncs-card .ncs-hold { position: absolute; top: 12px; right: 12px; }
           .ncs-card .ncs-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
           .ncs-card .ncs-dot { display: none; }
-          .ncs-card .ncs-actions { justify-content: flex-end; }
+          /* Actions no longer share the row with the address — they wrap onto
+             their own full-width line below, staying right-aligned and stacked. */
+          .ncs-card .ncs-actions { flex-basis: 100%; justify-content: flex-end; }
+          /* With the actions gone from its right, the address uses the full width
+             and wraps rather than clipping (mirrors critique #298). This also
+             removes the horizontal overflow the nowrap line forced on the row. */
+          .ncs-card .ncs-addr-text { white-space: normal; overflow: visible; text-overflow: clip; }
         }
       `}</style>
     </GlassCard>
