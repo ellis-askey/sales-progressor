@@ -94,6 +94,9 @@ export type ModalProps = {
   // Close-button contrast. "onDark" renders a white X for coral/dark band
   // headers (see SheetHeader). Default reads on a light header.
   closeTone?: "default" | "onDark";
+  // When false, omits the 2px coral accent line on the card's top edge.
+  // Default true.
+  accent?: boolean;
   children: ReactNode;
 };
 
@@ -111,6 +114,7 @@ export function Modal({
   // footerVariant="default" on a specific modal to opt back to the hairline.
   footerVariant = "glass",
   closeTone = "default",
+  accent = true,
   children,
 }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -222,8 +226,8 @@ export function Modal({
           maxHeight: "calc(100dvh - 120px)",
           borderRadius: 16,
           // 2px coral accent line on the top edge — kept inline so it survives
-          // whichever surface variant is applied.
-          borderTop: "2px solid var(--agent-coral-deep, #FF6B4A)",
+          // whichever surface variant is applied. `accent={false}` omits it.
+          borderTop: accent ? "2px solid var(--agent-coral-deep, #FF6B4A)" : "none",
           boxShadow: "0 24px 64px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08)",
           display: "flex",
           flexDirection: "column",

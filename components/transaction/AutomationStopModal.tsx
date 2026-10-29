@@ -17,6 +17,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
+import { Pause } from "@phosphor-icons/react";
 
 type Choice = "pause" | "hold";
 
@@ -69,20 +70,28 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
     <Modal
       open={true}
       onClose={onClose}
-      ariaLabel={step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
+      ariaLabel={step === "choose" ? "Stop automation on this file" : "When should we revisit this sale?"}
       size="md"
       zLayer="escalated"
       closeTone="onDark"
+      accent={false}
     >
       <div
         data-theme={theme}
         data-night={isNight ? "" : undefined}
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
+        {/* The date + reason inputs light their border coral on hover and
+            deepen on focus. Scoped here (and !important) because glass-input's
+            night cascade otherwise holds the resting hairline through hover. */}
+        <style>{`
+          .asm-field:hover:not(:focus):not(:disabled) { border-color: var(--agent-coral) !important; }
+          .asm-field:focus { border-color: var(--agent-coral-deep) !important; }
+        `}</style>
         <Modal.Header style={SHEET_BAND_STYLE}>
           <SheetBandHeader
-            kicker="Automation"
-            title={step === "choose" ? "Stop automation on this file" : "When should we surface this again?"}
+            title={step === "choose" ? "Stop automation on this file" : "When should we revisit this sale?"}
+            subtitle={step === "choose" ? undefined : "Pause this sale until you're ready to pick things back up."}
           />
         </Modal.Header>
 
@@ -124,20 +133,20 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
           <>
             <Modal.Body>
               <p style={{ fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6, margin: 0 }}>
-                We&apos;ll surface this file on the hub when the date arrives, so it doesn&apos;t get forgotten.
+                We&apos;ll bring this sale back to your hub on the date you choose.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
-                    Pick a return date
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
+                    Bring back on
                   </label>
                   <div style={{ display: "flex", gap: 8 }}>
                     <DateField
                       value={customDate}
                       onChange={(e) => setCustomDate(e.target.value)}
                       min={formatDateInput(addDays(1))}
-                      className="glass-input"
+                      className="glass-input asm-field"
                       style={{ flex: 1, padding: "10px 12px", fontSize: 13, width: "100%" }}
                       wrapperStyle={{ flex: 1 }}
                     />
@@ -146,6 +155,7 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
                       onClick={handleHoldCustom}
                       disabled={isPending || !customDate}
                       className="agent-btn agent-btn-sm agent-btn-primary"
+                      style={{ alignSelf: "stretch", height: "auto" }}
                     >
                       {holdOnly ? "Pause this sale" : "Put on hold"}
                     </button>
@@ -153,30 +163,35 @@ export function AutomationStopModal({ onPick, onClose, isPending, holdOnly = fal
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
-                    Reason <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)", display: "block", marginBottom: 6 }}>
+                    Reason <span style={{ fontWeight: 400 }}>(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     maxLength={500}
-                    placeholder="Waiting for buyer searches, probate, chain issue…"
+                    placeholder="Waiting for searches, probate, chain issues…"
                     className="glass-input"
                     style={{ width: "100%", padding: "10px 12px", fontSize: 13 }}
                   />
                 </div>
 
-                <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12, marginTop: 4 }}>
+                <div style={{ borderTop: "0.5px solid rgba(15,23,42,0.08)", paddingTop: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 14 }}>
                   <button
                     type="button"
                     onClick={handleHoldIndefinite}
                     disabled={isPending}
-                    className="agent-link"
-                    style={{ fontSize: 12, color: "var(--agent-text-muted)", textAlign: "left", padding: "4px 0" }}
+                    className="agent-btn agent-btn-sm agent-btn-neutral"
+                    style={{ flexShrink: 0, gap: 6 }}
                   >
-                    {holdOnly ? "Or pause indefinitely (won" : "Or hold indefinitely (won"}&apos;t auto-surface)
+                    <Pause size={13} weight="fill" />
+                    {holdOnly ? "Or pause indefinitely" : "Or hold indefinitely"}
                   </button>
+                  <span aria-hidden style={{ width: 1, alignSelf: "stretch", background: "var(--agent-border-default)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                    {holdOnly ? "This sale won" : "This file won"}&apos;t automatically reappear in your hub.
+                  </span>
                 </div>
               </div>
             </Modal.Body>
