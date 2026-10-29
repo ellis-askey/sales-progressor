@@ -578,12 +578,13 @@ function HoldReviewRow({
       <div style={{ flex: "1 1 220px", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <AddressLink href={`/agent/transactions/${item.transactionId}`} address={item.address} />
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, color: meta.color, background: meta.bg, border: `1px solid ${meta.border}`, flexShrink: 0 }}>
-            {meta.label}
-          </span>
         </div>
-        <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-          {item.reason ?? "On hold. No reason recorded."}
+        {/* Status lives in this line (not a duplicate chip): the origin label in
+            its tone, then the reason — "On hold: {reason}" or, with none,
+            "On hold. No reason recorded." */}
+        <p style={{ margin: "3px 0 0", fontSize: 12, lineHeight: 1.4 }}>
+          <span style={{ color: meta.color, fontWeight: 600 }}>{meta.label}{item.reason ? ":" : "."}</span>
+          <span style={{ color: "var(--agent-text-muted)" }}>{item.reason ? ` ${item.reason}` : " No reason recorded."}</span>
         </p>
       </div>
 

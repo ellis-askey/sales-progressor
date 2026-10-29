@@ -48,6 +48,7 @@ export const DEFAULT_PICKS: GlassPicks = {
   // To-Do task group (GlassCard) — Ellis's export, 2026-10-26 (light moved to the
   // frosted main card to match the dark side and the rest of the To-Do page).
   "todo-page-group": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  "todo-review-drawer": { dark: "v05" },
   // Updates page — Ellis's export, 2026-10-26. The file card moves to the frosted
   // main card (was v16/v02); the day bar, search and filter rail are dark-only
   // picks (light stays their v00 baseline, as exported).
