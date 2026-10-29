@@ -120,28 +120,29 @@ export function ChainCard({
         {/* Header: photo + address, and the open-chain action */}
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
           <PropertyThumb photoUrl={chain.ourPhotoUrl} size={60} />
-          <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-            <div style={{ minWidth: 0 }}>
+          <div className="chain-head-content" style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <div className="chain-head-addr" style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 <span
                   data-sensitive="true"
+                  className="chain-addr-text"
                   style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}
                 >
                   {addrLine1}
                 </span>
               </div>
               {addrLine2 && (
-                <div data-sensitive="true" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div data-sensitive="true" className="chain-addr-text" style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {addrLine2}
                 </div>
               )}
               {(agreed || agencyName) && (
-                <div style={{ fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div className="chain-addr-text" style={{ fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {[agreed, agencyName].filter(Boolean).join("  ·  ")}
                 </div>
               )}
             </div>
-            <div style={{ flexShrink: 0, textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+            <div className="chain-head-side" style={{ flexShrink: 0, textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-secondary)", whiteSpace: "nowrap" }}>
                 <LinkSimpleHorizontal size={13} weight="bold" aria-hidden style={{ color: "var(--agent-coral-deep)" }} />
                 {length} {length === 1 ? "link" : "links"}

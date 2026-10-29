@@ -413,6 +413,14 @@ export function ChainsWorkspace({
         @media (max-width: 560px) {
           .chain-prop-card .chain-open-top { display: none; }
           .chain-prop-card .chain-open-bottom { display: flex; justify-content: flex-end; }
+          /* #298: on mobile the address no longer shares a row with the links
+             column on its right. The header content stacks (links chip on top,
+             address below) so the address block takes the full width and its
+             town/postcode + sale-agreed·agency lines wrap instead of clipping. */
+          .chain-prop-card .chain-head-content { flex-direction: column-reverse; }
+          .chain-prop-card .chain-head-addr { align-self: stretch; }
+          .chain-prop-card .chain-head-side { align-self: stretch; }
+          .chain-prop-card .chain-addr-text { white-space: normal; overflow: visible; text-overflow: clip; }
         }
       `}</style>
 
