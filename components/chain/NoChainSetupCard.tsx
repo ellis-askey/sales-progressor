@@ -96,8 +96,7 @@ export function NoChainSetupCard({
             {/* Age carries its own staleness signal: it turns amber once the sale
                 has sat unresolved for 3+ months, so no separate "N months, no
                 chain" pill is needed (it only restated the age + the section).
-                Mobile: age + agency stack on their own lines, the dot + cash-buyer
-                pill are hidden (critique #290). */}
+                Mobile: age + agency stack on their own lines, the dot is hidden. */}
             {agreed && (
               <span style={{ fontSize: 10.5, fontWeight: showAge ? 600 : 400, color: showAge ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
                 {agreed}
@@ -105,9 +104,6 @@ export function NoChainSetupCard({
             )}
             {agreed && agencyName && <span className="ncs-dot" style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
             {agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{agencyName}</span>}
-            {sale.buyerPosition && (
-              <span className="ncs-cash"><Pill tone="muted" size="sm" outline>{sale.buyerPosition}</Pill></span>
-            )}
             {sale.resurfaced && (
               <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
             )}
@@ -145,14 +141,14 @@ export function NoChainSetupCard({
 
       {/* Mobile tidy (critiques #289/#290). On a narrow screen the horizontal row
           cramps, so: the "On hold" pill lifts to the card's top-right, the age +
-          agency stack onto their own lines (dot + cash-buyer pill hidden), and the
-          "Set up chain" action drops to the bottom-right, opposite the agency. */}
+          agency stack onto their own lines (dot hidden), and the "Set up chain"
+          action drops to the bottom-right, opposite the agency. */}
       <style>{`
         @media (max-width: 640px) {
           .ncs-card .ncs-row { align-items: stretch; }
           .ncs-card .ncs-hold { position: absolute; top: 12px; right: 12px; }
           .ncs-card .ncs-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
-          .ncs-card .ncs-dot, .ncs-card .ncs-cash { display: none; }
+          .ncs-card .ncs-dot { display: none; }
           .ncs-card .ncs-actions { justify-content: flex-end; }
         }
       `}</style>
