@@ -563,7 +563,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
             {row.lastUpdateBody ? (
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
                 <span style={{ flexShrink: 0 }}>
-                  <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: "agent" }} size={22} image={row.lastUpdateAuthorImage} />
+                  <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: row.lastUpdateAuthorRole ?? "agent" }} size={22} image={row.lastUpdateAuthorImage} />
                 </span>
                 {/* Text + date share a row: the date sits at the right, bottom-
                     aligned so it lands on the last line when the text wraps, with

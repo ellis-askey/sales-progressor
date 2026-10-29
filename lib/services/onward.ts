@@ -935,14 +935,16 @@ async function bridgeConfirmToCheckIn(
 
     let confirmerName: string;
     let markedById: string | null;
+    let authorRole: string | null = null;
     if (confirmer.source === "agent") {
       const u = await prisma.user.findUnique({ where: { id: confirmer.userId }, select: { name: true } });
       confirmerName = u?.name?.trim() || "Your team";
       markedById = confirmer.userId;
     } else {
-      const c = await prisma.contact.findUnique({ where: { id: confirmer.contactId }, select: { name: true } });
+      const c = await prisma.contact.findUnique({ where: { id: confirmer.contactId }, select: { name: true, roleType: true } });
       confirmerName = c?.name?.trim() || "The client";
       markedById = null;
+      authorRole = c?.roleType ?? null; // vendor/purchaser → the side-tinted avatar on the check-in line
     }
 
     const body = onwardCheckInLine({ stepKey, side, source: confirmer.source, confirmerName, solicitorName: loc.solicitorName });
@@ -961,6 +963,8 @@ async function bridgeConfirmToCheckIn(
         authorSideKey: loc.sideKey,
         authorAgencyId: loc.agencyId,
         authorBusinessId: null,
+        authorRole,
+        checkInStepKey: stepKey,
       },
     });
 
@@ -989,11 +993,13 @@ async function bridgeUndoFromCheckIn(
     if (!stepKey) return;
     const loc = await resolveBridgeTarget(transactionId, kind);
     if (!loc) return;
-    // Clear the progress dot (mirrors the manual unmark, which leaves the log
-    // line as history). Cleanly removing the stale line needs a per-entry step
-    // marker on ChainLinkEntry — deferred to the bridge follow-up migration.
+    // Clear the progress dot AND remove the bridged "Last update" line for this
+    // beat (identified by checkInStepKey, so manual notes are never touched).
     await prisma.chainNodeStepMark.deleteMany({
       where: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey, stepKey },
+    });
+    await prisma.chainLinkEntry.deleteMany({
+      where: { chainLinkId: loc.adjacentLinkId, authorSideKey: loc.sideKey, checkInStepKey: stepKey },
     });
   } catch (err) {
     console.error("[onward->checkin bridge] undo failed", err);

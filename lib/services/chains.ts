@@ -2230,6 +2230,9 @@ export type CheckInRow = {
   // authorImage null → the tinted SVG fallback (ContactAvatar).
   lastUpdateAuthorName: string | null;
   lastUpdateAuthorImage: string | null;
+  // Confirmer role (vendor/purchaser) when a client self-confirmed a bridged
+  // onward/related step — drives the side-tinted avatar. Null for agent lines.
+  lastUpdateAuthorRole: string | null;
   // Our full private update trail on this node (our team side only), newest first.
   // Powers the ⋯ menu "Update history". Capped at the 30 most recent entries loaded.
   history: Array<{ at: string; body: string }>;
@@ -2304,7 +2307,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
           entries: {
             orderBy: { createdAt: "desc" },
             take: 30,
-            select: { body: true, createdAt: true, authorSideKey: true, authorName: true, authorId: true },
+            select: { body: true, createdAt: true, authorSideKey: true, authorName: true, authorId: true, authorRole: true },
           },
           // Confirm-progress marks; filtered to our side key below (#235).
           stepMarks: { select: { stepKey: true, sideKey: true } },
@@ -2357,6 +2360,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         lastUpdateBody: latest?.body ?? null,
         lastUpdateAuthorName: latest?.authorName ?? null,
         lastUpdateAuthorImage: latest?.authorId ? authorImageById.get(latest.authorId) ?? null : null,
+        lastUpdateAuthorRole: latest?.authorRole ?? null,
         history: ourEntries.map((e) => ({ at: e.createdAt.toISOString(), body: e.body })),
         steps: sideKey ? l.stepMarks.filter((m) => m.sideKey === sideKey).map((m) => m.stepKey) : [],
         chainId: chain.id,

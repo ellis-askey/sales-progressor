@@ -3060,6 +3060,13 @@ model ChainLinkEntry {
   authorSideKey    String?
   authorAgencyId   String?
   authorBusinessId String?
+  // When a CLIENT self-confirmed an onward/related step that bridged here, the
+  // confirmer's role (vendor/purchaser) so the check-in avatar reads side-tinted;
+  // null for agent-authored lines.
+  authorRole       String?
+  // The bridged check-in beat key, set only on onward/related-bridge lines, so an
+  // undo on that side can remove this exact line (manual lines leave it null).
+  checkInStepKey   String?
   createdAt        DateTime @default(now())
 
   chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
