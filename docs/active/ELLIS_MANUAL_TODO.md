@@ -4,7 +4,15 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-19
+Last updated: 2026-10-26
+
+---
+
+## Finish domain authentication for Akeman Residential (2026-10-26)
+
+Akeman sends client emails from `ellis@akeman-residential.co.uk` as a **single-sender-verified** address only — their **domain** auth is incomplete (`VerifiedDomain` row for `akeman-residential.co.uk` is `status: pending`, not `verified`). Consequence: mail is DKIM-signed as `sendgrid.net`, not their own domain, so recipients' clients are more likely to block the logo image and treat it as a less-trusted sender (weaker inbox placement).
+
+**Action:** add the CNAME records SendGrid provides for `akeman-residential.co.uk` (SendGrid → Sender Authentication → Authenticate Your Domain) to the domain's DNS, then verify. Once SendGrid shows it verified, the nightly stamp flips the `VerifiedDomain` row to `verified`. This reduces image-blocking for their clients and improves deliverability. DNS change is on the agency's side (or Ellis on their behalf) — nothing to deploy.
 
 ---
 

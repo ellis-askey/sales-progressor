@@ -2322,7 +2322,7 @@ export function richMilestoneEmailHtml({
   <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a1d29;line-height:1.5">${interpolate(copy.opening, vars)}</p>
   <p style="margin:0 0 ${copy.whatNext ? "20px" : "28px"};font-size:14px;line-height:1.7;color:#4a5162">${interpolate(copy.whatHappened, vars)}</p>
   ${whatNextBlock}
-  ${copy.action ? `<p style="margin:0 0 28px"><a href="${ctaUrl}" style="display:inline-block;background:${ctaBg};color:${ctaText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">${ctaLabel}</a></p>` : ""}
+  ${copy.action ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px"><tr><td bgcolor="${ctaBg}" style="border-radius:12px;background:${ctaBg}"><a href="${ctaUrl}" style="display:inline-block;color:${ctaText};padding:13px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">${ctaLabel}</a></td></tr></table>` : ""}
   ${signatureBlock}
 </div>
 </body></html>`;
