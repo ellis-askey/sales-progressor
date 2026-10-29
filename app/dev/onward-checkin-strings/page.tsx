@@ -152,12 +152,12 @@ export default function DevOnwardCheckinStringsPage() {
 
       <Direction
         title="1 · Our buyer's related sale"
-        sub="Our buyer is the seller of that sale — they confirm via their portal (buyer-green). Firm = our buyer's solicitor."
+        sub="Our buyer is the seller of that sale, confirming via their portal (buyer-green). Firm is our buyer's solicitor."
         data={RELATED_SALE}
       />
       <Direction
         title="2 · Our seller's onward purchase"
-        sub="Our seller is the buyer of that sale — they confirm via their portal (seller-blue). Firm = our seller's solicitor."
+        sub="Our seller is the buyer of that sale, confirming via their portal (seller-blue). Firm is our seller's solicitor."
         data={ONWARD_PURCHASE}
       />
     </div>
