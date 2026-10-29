@@ -121,7 +121,10 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const rowTag = useGlassTag("chains-checkin-row", "Chains · check-in row");
+  // Baked default (Ellis's export, 2026-10-29): the frosted main card on both
+  // modes (light cs-b7c9ec28 / dark cs-053799eb). Per-call baseline; the inline
+  // bg/border below drop out via rowTag.picked so the glass owns the surface.
+  const rowTag = useGlassTag("chains-checkin-row", "Chains · check-in row", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   // "View chain" opens the shared ChainDrawer anchored on our own file in that
   // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
   const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
