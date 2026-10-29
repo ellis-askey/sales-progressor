@@ -2022,6 +2022,13 @@ select {
 .chain-addmode-tab:hover { color: rgba(15,23,42,0.85); }
 .chain-addmode-tab.is-active { background: #fff; color: rgba(15,23,42,0.95);
   box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
+/* Dark mode: the drawer is portalled (carries nv2-night / data-night), so the
+   global shell overrides don't reach it. Light the muted tab text and give the
+   unselected tab a visible hover; the active tab stays a bright pill. */
+.nv2-night[data-night] .chain-addmode { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.10); }
+.nv2-night[data-night] .chain-addmode-tab { color: rgba(226,232,240,0.62); }
+.nv2-night[data-night] .chain-addmode-tab:hover { color: rgba(226,232,240,0.95); background: rgba(255,255,255,0.06); }
+.nv2-night[data-night] .chain-addmode-tab.is-active { background: rgba(255,255,255,0.92); color: rgba(15,23,42,0.95); box-shadow: 0 1px 3px rgba(0,0,0,0.30); }
 .chain-act-danger:hover { color: var(--agent-danger); opacity: 1; }
 .chain-act-link:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); border-radius: 4px; }
 

@@ -603,7 +603,10 @@ export function AddNodeDrawer({
     : "Add the next property down the chain and the agency handling its sale.";
 
   return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 2000 }}>
+      {/* zIndex 2000 = the "deep" modal level (DESIGN_TOKENS z-index escalation):
+          this opens OVER the chain drawer (1500) and must sit above the nav
+          user-menu pill (1300), which was poking through at the old 1000. */}
       {/* Backdrop */}
       <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
 

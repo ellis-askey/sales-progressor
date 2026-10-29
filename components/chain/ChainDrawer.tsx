@@ -1574,7 +1574,7 @@ export function ChainView({
   // Drawer mode: timeline = right-hand slide-over; map = a docked command centre
   // (compact chain panel beside the nav, map filling the rest, nav still visible).
   return createPortal(
-    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0${isMap ? "" : " flex justify-end"}${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000, pointerEvents: isMap ? "none" : undefined }}>
+    <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0${isMap ? "" : " flex justify-end"}${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1500, pointerEvents: isMap ? "none" : undefined }}>
       {/* Backdrop — timeline only; map mode leaves the nav visible. */}
       {!isMap && <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />}
       {isMap ? (
