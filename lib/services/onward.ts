@@ -19,6 +19,9 @@
 import { prisma } from "@/lib/prisma";
 import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
+import { agencySideKey } from "@/lib/chain/intel";
+import { checkInStepForMilestone, onwardCheckInLine } from "@/lib/chain/onward-checkin-bridge";
+import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 import type { Tenure, PurchaseType, OnwardConfirmSource, OnwardTrackerStatus, OnwardTrackerKind, MilestoneSide } from "@prisma/client";
 
 // Direction config — the ONE tracker runs in two directions (Law 4, reuse not
@@ -826,6 +829,8 @@ export async function confirmOnwardStep(
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "completed" } });
   }
 
+  await bridgeConfirmToCheckIn(transactionId, milestoneCode, kind, dir.side, confirmer);
+
   return { ok: true };
 }
 
@@ -866,7 +871,133 @@ export async function undoOnwardStep(
     await prisma.onwardTracker.update({ where: { id: tracker.id }, data: { status: "active" } });
   }
 
+  await bridgeUndoFromCheckIn(transactionId, milestoneCode, kind, dir.side);
+
   return { ok: true };
+}
+
+// ── Check-in bridge ──────────────────────────────────────────────────────────
+// When a tracked onward/related step is confirmed, mirror it onto the chain
+// check-in row for that same (adjacent) node: a side-private ChainNodeStepMark +
+// a dated "Last update" line, so the chains page reflects what the client/agent
+// reported. Best-effort — fully wrapped so a bridge failure can NEVER break the
+// confirmation itself. Only the 9 coarse beats bridge (checkInStepForMilestone
+// returns null for every other milestone).
+
+// Resolve the adjacent chain link, our side key + agencyId, and the tracked
+// side's solicitor firm name for a tracker on `transactionId` of `kind`.
+async function resolveBridgeTarget(
+  transactionId: string,
+  kind: OnwardTrackerKind,
+): Promise<{ adjacentLinkId: string; sideKey: string; agencyId: string; solicitorName: string | null } | null> {
+  const tx = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      agencyId: true,
+      chainLinkId: true,
+      vendorSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+    },
+  });
+  if (!tx?.chainLinkId) return null;
+  const link = await prisma.chainLink.findUnique({ where: { id: tx.chainLinkId }, select: { position: true, chainId: true } });
+  if (!link) return null;
+  // onward kinds track the link ABOVE (position - 1); related kinds the link BELOW (+ 1).
+  const isOnward = kind === "onward_purchase" || kind === "onward_purchase_seller";
+  const adjacent = await prisma.chainLink.findFirst({
+    where: { chainId: link.chainId, position: isOnward ? link.position - 1 : link.position + 1 },
+    select: { id: true },
+  });
+  if (!adjacent) return null;
+  // The tracked side's solicitor = our own client's solicitor on this file:
+  // onward_purchase → our seller (vendor on our file); related_sale → our buyer
+  // (purchaser on our file). The two FAR kinds concern the other party, whose
+  // solicitor isn't on our file → neutral line.
+  const solicitorName =
+    kind === "onward_purchase" ? (tx.vendorSolicitorFirm?.name ?? null)
+    : kind === "related_sale" ? (tx.purchaserSolicitorFirm?.name ?? null)
+    : null;
+  return { adjacentLinkId: adjacent.id, sideKey: agencySideKey(tx.agencyId), agencyId: tx.agencyId, solicitorName };
+}
+
+async function bridgeConfirmToCheckIn(
+  transactionId: string,
+  milestoneCode: string,
+  kind: OnwardTrackerKind,
+  side: MilestoneSide,
+  confirmer: { source: "agent"; userId: string } | { source: "seller" | "buyer"; contactId: string },
+): Promise<void> {
+  try {
+    const stepKey = checkInStepForMilestone(side, milestoneCode);
+    if (!stepKey) return;
+    const loc = await resolveBridgeTarget(transactionId, kind);
+    if (!loc) return;
+
+    let confirmerName: string;
+    let markedById: string | null;
+    if (confirmer.source === "agent") {
+      const u = await prisma.user.findUnique({ where: { id: confirmer.userId }, select: { name: true } });
+      confirmerName = u?.name?.trim() || "Your team";
+      markedById = confirmer.userId;
+    } else {
+      const c = await prisma.contact.findUnique({ where: { id: confirmer.contactId }, select: { name: true } });
+      confirmerName = c?.name?.trim() || "The client";
+      markedById = null;
+    }
+
+    const body = onwardCheckInLine({ stepKey, side, source: confirmer.source, confirmerName, solicitorName: loc.solicitorName });
+
+    await prisma.chainNodeStepMark.upsert({
+      where: { chainLinkId_sideKey_stepKey: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey, stepKey } },
+      create: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey, stepKey, markedById, markedByName: confirmerName },
+      update: {},
+    });
+    await prisma.chainLinkEntry.create({
+      data: {
+        chainLinkId: loc.adjacentLinkId,
+        body,
+        authorId: markedById,
+        authorName: confirmerName,
+        authorSideKey: loc.sideKey,
+        authorAgencyId: loc.agencyId,
+        authorBusinessId: null,
+      },
+    });
+
+    // All 9 beats marked for our side → flag the node ready to exchange (same
+    // signal the manual "Confirm ready" sets, read by push-to-exchange).
+    const marks = await prisma.chainNodeStepMark.count({ where: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey } });
+    if (marks >= CHECK_IN_STEPS.length) {
+      await prisma.chainLink.update({
+        where: { id: loc.adjacentLinkId },
+        data: { exchangeReadyConfirmedAt: new Date(), exchangeReadyConfirmedById: markedById },
+      });
+    }
+  } catch (err) {
+    console.error("[onward->checkin bridge] confirm failed", err);
+  }
+}
+
+async function bridgeUndoFromCheckIn(
+  transactionId: string,
+  milestoneCode: string,
+  kind: OnwardTrackerKind,
+  side: MilestoneSide,
+): Promise<void> {
+  try {
+    const stepKey = checkInStepForMilestone(side, milestoneCode);
+    if (!stepKey) return;
+    const loc = await resolveBridgeTarget(transactionId, kind);
+    if (!loc) return;
+    // Clear the progress dot (mirrors the manual unmark, which leaves the log
+    // line as history). Cleanly removing the stale line needs a per-entry step
+    // marker on ChainLinkEntry — deferred to the bridge follow-up migration.
+    await prisma.chainNodeStepMark.deleteMany({
+      where: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey, stepKey },
+    });
+  } catch (err) {
+    console.error("[onward->checkin bridge] undo failed", err);
+  }
 }
 
 // ── Stage 3: inheritance on claim ────────────────────────────────────────────

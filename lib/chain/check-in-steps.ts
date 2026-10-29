@@ -39,15 +39,18 @@ export function checkInStepLabel(key: string): string | null {
 }
 
 // The "last update" sentence for a confirmed check-in step (critique #286):
-// "{who} received confirmation from {agency} that {clause}." Reviewed on
-// /dev/chain-checkin-update before wiring. PROPOSED wording — awaiting sign-off.
+// "{who} received confirmation from {agency} that {clause}." Wording signed off
+// 2026-10-28 (aligned with the onward/related bridge clauses in
+// lib/chain/onward-checkin-bridge.ts). The manual-toggle line keeps the "from
+// {agency}" shape because there the firm is the estate agent who told us — the
+// bridge instead makes the solicitor the actor ("…that {firm} have …").
 const CONFIRMATION_CLAUSE: Record<string, string> = {
   dcp_issued: "the draft contract pack has been issued",
   searches_ordered: "searches have been ordered",
-  finances_arranged: "finances have been arranged",
-  searches_received: "the search results have been received",
+  finances_arranged: "finances are in place",
+  searches_received: "the search results are back",
   enquiries_raised: "enquiries have been raised",
-  enquiries_satisfied: "all enquiries have been satisfied",
+  enquiries_satisfied: "all enquiries are satisfied",
   contracts_issued: "contracts have been issued",
   seller_signed_returned: "the seller has signed and returned their contract",
   buyer_signed_returned: "the buyer has signed and returned their contract",
