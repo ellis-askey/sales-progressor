@@ -405,7 +405,7 @@ export function FeeEngine({
         .fe-band { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .fe-band-th { font-size: 13.5px; color: var(--agent-text-primary); font-weight: 600; display: inline-flex; align-items: center; gap: 7px; min-width: 128px; }
         .fe-rm { appearance: none; border: none; background: none; cursor: pointer; color: var(--agent-text-muted); font-size: 18px; line-height: 1; padding: 2px 5px; border-radius: 6px; transition: color .14s, background .14s; }
-        .fe-rm:hover { color: var(--agent-coral-deep); background: rgba(var(--agent-coral-rgb),0.1); }
+        .fe-rm:hover { color: var(--agent-coral-deep); background: var(--agent-hover-shade); }
         .fe-addband { appearance: none; border: none; background: none; cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); padding: 4px 0; text-align: left; align-self: flex-start; }
         .fe-addband:hover { text-decoration: underline; }
         .fe-bandrows { display: flex; flex-direction: column; gap: 2px; }

@@ -453,7 +453,7 @@ function SearchRow({
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 12,
         padding: "11px 16px", border: "none", cursor: "pointer", textAlign: "left",
-        background: selected ? "var(--agent-coral-bg-tint)" : "transparent",
+        background: selected ? "var(--agent-hover-shade)" : "transparent",
         transition: "background 80ms",
         borderLeft: selected ? "2px solid var(--agent-coral)" : "2px solid transparent",
       }}

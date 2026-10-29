@@ -3016,7 +3016,7 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--agent-border-default);
 }
-.chain-chip-no:hover { background: rgba(var(--agent-coral-rgb), 0.05); color: var(--agent-text-secondary); }
+.chain-chip-no:hover { background: var(--agent-hover-shade); color: var(--agent-text-secondary); }
 .chain-chip-yes:focus-visible, .chain-chip-no:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
 
 /* Chain builder — position segmented control (brand-tinted, follows the

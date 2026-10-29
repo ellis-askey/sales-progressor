@@ -204,7 +204,7 @@ export function AutomatedEmailsList({ base = "/api/agent/email-templates" }: { b
       </AccountDrawer>
 
       <style>{`
-        .account-editemail-btn:hover { background: rgba(255,107,74,0.06); }
+        .account-editemail-btn:hover { background: var(--agent-hover-shade); }
         @media (max-width: 640px) { .account-emails-rowpills { display: none !important; } }
       `}</style>
     </>

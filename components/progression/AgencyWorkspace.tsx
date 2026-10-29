@@ -433,7 +433,7 @@ export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: {
         .aw-sales-hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
         .aw-sales-hdr h4 { margin: 0; }
         .aw-invoice-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--agent-coral-ink, #BE3C1C); text-decoration: none; padding: 6px 8px; border-radius: 9px; border: none; margin-left: auto; transition: background .15s; }
-        .aw-invoice-link:hover { background: rgba(var(--agent-coral-rgb),0.08); }
+        .aw-invoice-link:hover { background: var(--agent-hover-shade); }
         .aw-empty { font-size: 13px; color: var(--agent-text-muted); margin: 0; }
 
         .aw-ov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

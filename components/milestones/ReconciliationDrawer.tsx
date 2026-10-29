@@ -364,13 +364,13 @@ export function ReconciliationDrawer({
           padding: 3px 6px; border-radius: 6px; font-variant-numeric: tabular-nums;
           transition: background 120ms;
         }
-        .recon-date-chip-val:hover { background: rgba(var(--agent-coral-rgb), 0.14); }
+        .recon-date-chip-val:hover { background: var(--agent-hover-shade); }
         .recon-date-chip-x {
           display: inline-flex; align-items: center; justify-content: center;
           width: 20px; height: 20px; border: none; background: none; cursor: pointer;
           color: var(--agent-coral-deep); border-radius: 5px; opacity: 0.7; transition: opacity 120ms, background 120ms;
         }
-        .recon-date-chip-x:hover { opacity: 1; background: rgba(var(--agent-coral-rgb), 0.14); }
+        .recon-date-chip-x:hover { opacity: 1; background: var(--agent-hover-shade); }
         @keyframes recon-chip-in { from { opacity: 0; transform: translateY(2px) scale(0.94); } to { opacity: 1; transform: none; } }
         @media (prefers-reduced-motion: reduce) { .recon-date-chip { animation: none; } }
       `}</style>

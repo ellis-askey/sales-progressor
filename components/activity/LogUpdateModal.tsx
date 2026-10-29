@@ -560,7 +560,7 @@ const CSS = `
 .lum-ph-l1 { font-size:13px; font-weight:650; color:var(--agent-text-primary,#2D1810); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lum-ph-l2 { font-size:11px; color:var(--agent-text-muted,rgba(45,24,16,.55)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lum-ph-x { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; color:var(--agent-text-muted,rgba(45,24,16,.55)); background:rgba(45,24,16,.05); flex:0 0 auto; transition:color .14s, background .14s; }
-.lum-prophead:hover .lum-ph-x { color:var(--agent-coral-darker); background:var(--agent-coral-bg-tint,rgba(255,138,101,.12)); }
+.lum-prophead:hover .lum-ph-x { color:var(--agent-text-secondary); background:var(--agent-hover-shade); }
 /* Property search (step 1 of the standalone Add-note launcher). */
 .anb-search { display:flex; align-items:center; gap:9px; background:transparent; border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
 .anb-search:focus-within { border-color:var(--agent-coral-deep,#FF6B4A); }
@@ -570,7 +570,7 @@ const CSS = `
 .anb-search input:focus-visible { outline:none; }
 .anb-results { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
 .anb-mi { display:flex; align-items:center; gap:10px; width:100%; padding:8px 10px; border:1px solid transparent; border-radius:10px; background:transparent; font:inherit; text-align:left; cursor:pointer; transition:background .12s, border-color .12s; }
-.anb-mi:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); border-color:var(--agent-coral,#FF8A65); }
+.anb-mi:hover { background:var(--agent-hover-shade); border-color:var(--agent-border-subtle); }
 .anb-mi-addr { min-width:0; display:flex; flex-direction:column; }
 .anb-mi-l1 { font-size:13px; font-weight:600; color:var(--agent-text-primary,#2D1810); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .anb-mi-l2 { font-size:11px; color:var(--agent-text-muted,rgba(45,24,16,.55)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -595,7 +595,7 @@ const CSS = `
 @media (max-width:1024px) { .lum-more { display:inline-flex; } .lum-logsection { display:none; } }
 .lum-menu { margin-top:10px; background:var(--agent-surface-elevated,#fff); border:1px solid var(--agent-border-default,rgba(45,24,16,.1)); border-radius:12px; box-shadow:0 8px 24px rgba(45,24,16,.12); overflow:hidden; animation:lum-fade .18s ease both; }
 .lum-mm { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; border:0; background:transparent; font:inherit; text-align:left; cursor:pointer; border-bottom:1px solid var(--agent-border-subtle,rgba(45,24,16,.06)); }
-.lum-mm:last-child { border-bottom:0; } .lum-mm:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.08)); }
+.lum-mm:last-child { border-bottom:0; } .lum-mm:hover { background:var(--agent-hover-shade); }
 .lum-mmic { color:var(--agent-text-secondary,#5A3A28); display:grid; place-items:center; flex:0 0 auto; }
 .lum-mmt { font-size:13.5px; font-weight:600; display:block; color:var(--agent-text-primary,#2D1810); } .lum-mms { font-size:11.5px; color:var(--agent-text-muted,rgba(45,24,16,.55)); }
 .lum-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:8px; }
@@ -731,7 +731,7 @@ const CSS = `
 .lum-sub { text-align:center; font-size:11.5px; color:var(--agent-text-muted,rgba(45,24,16,.55)); margin:8px 0 0; }
 /* Close (X) — tinted hover + the X rotates. */
 .lum-ic-x svg { transition:transform .2s ease; }
-.lum-ic-x:hover { background:var(--agent-coral-bg-tint,rgba(255,138,101,.12)); color:var(--agent-coral-darker); border-color:var(--agent-coral,#FF8A65); }
+.lum-ic-x:hover { background:var(--agent-hover-shade); color:var(--agent-text-secondary); border-color:var(--agent-border-default); }
 .lum-ic-x:hover svg { transform:rotate(90deg); }
 /* Start-recording button: border lights coral, mic icon pulses on hover. */
 .lum-recbtn:hover { border-color:var(--agent-coral,#FF8A65); color:var(--agent-coral-darker); }

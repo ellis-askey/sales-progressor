@@ -16,7 +16,7 @@ function injectStyles() {
   const el = document.createElement("style");
   el.textContent = `
     .infotip-btn { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: 16px; height: 16px; margin-left: 5px; padding: 0; border: none; border-radius: 50%; background: none; color: var(--agent-text-muted, #9ca3af); cursor: pointer; flex-shrink: 0; transition: color .14s ease, background .14s ease; }
-    .infotip-btn:hover, .infotip-btn[aria-expanded="true"] { color: var(--agent-coral-deep, #E2452A); background: rgba(var(--agent-coral-rgb, 255,107,74),0.12); }
+    .infotip-btn:hover, .infotip-btn[aria-expanded="true"] { color: var(--agent-coral-deep, #E2452A); background: var(--agent-hover-shade); }
     .infotip-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(var(--agent-coral-rgb, 255,107,74),0.4); }
   `;
   document.head.appendChild(el);
