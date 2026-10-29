@@ -219,7 +219,7 @@ export function AddManualTaskForm({
                   style={{
                     display: "flex", flexDirection: "column", gap: 2, marginTop: 6, padding: 4,
                     maxHeight: 168, overflowY: "auto",
-                    background: "var(--agent-surface, #fff)",
+                    background: "var(--agent-surface-elevated, #fff)",
                     border: "0.5px solid var(--agent-border-subtle)",
                     borderRadius: 10,
                     boxShadow: "0 1px 2px rgba(20,14,10,0.05), 0 8px 24px -10px rgba(20,14,10,0.22)",
