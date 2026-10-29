@@ -465,8 +465,8 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         const salesLabel = ourSalesLabel(group.ourAddresses);
         return (
         <section key={group.chainId} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", padding: "0 2px" }}>
-            <h3 className="ciq-chainname" style={{ margin: 0, fontSize: 13.5, fontWeight: 750, color: "var(--agent-text-primary)" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", padding: "0 2px" }}>
+            <h3 className="ciq-chainname" style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)" }}>
               {group.chainName ?? "Chain"}{salesLabel ? ":" : ""}
             </h3>
             {salesLabel && (
