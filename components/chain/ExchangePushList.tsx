@@ -14,7 +14,10 @@ import type { ExchangePushSummary } from "@/lib/services/exchange-push";
 export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
   // First card open by default so the tab lands on something to work.
   const [open, setOpen] = useState<Set<string>>(() => new Set(files.slice(0, 1).map((f) => f.transactionId)));
-  const cardTag = useGlassTag("chains-push-card", "Chains · push-to-exchange card");
+  // Baked default (Ellis's export, 2026-10-29): light v02 (faint glass), dark
+  // cs-053799eb (frosted main). Per-call baseline; the inline bg/border below
+  // drop out via cardTag.picked so the glass owns the surface.
+  const cardTag = useGlassTag("chains-push-card", "Chains · push-to-exchange card", { light: "v02", dark: "cs-053799eb" });
 
   function toggle(id: string) {
     setOpen((prev) => {
