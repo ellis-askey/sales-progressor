@@ -115,6 +115,12 @@ export const DEFAULT_PICKS: GlassPicks = {
   "new-sale-file-worth": { light: "v06", dark: "v07" },
   "new-sale-notes": { light: "v06", dark: "v04" },
 
+  // Chains page (GlassCard) — Ellis's export, 2026-10-29. The chain card takes the
+  // Dark Property Hero (cs-9049173a) on dark, keeping its v05 look on light. The
+  // search bar is a useGlassTag, so its dark v03 baseline is passed in
+  // ChainsWorkspace, not here.
+  "chains-card": { light: "v05", dark: "cs-9049173a" },
+
   // Onboarding empty states (Hub / Completions / To-Do / Updates / All Files /
   // Analytics). Mostly dark-only picks — light stays v00 baseline. 2026-08-31.
   "empty-hub-place": { dark: "v04" },

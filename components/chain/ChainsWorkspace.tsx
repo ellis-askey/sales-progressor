@@ -250,7 +250,9 @@ export function ChainsWorkspace({
   const [tab, setTab] = useState<Tab>(chains.length === 0 && needsSetupAll.length > 0 ? "needs" : "chains");
   const [query, setQuery] = useState("");
   const tabsTag = useGlassTag("chains-tabs", "Chains · tabs");
-  const searchTag = useGlassTag("chains-search", "Chains · search bar");
+  // Baked default (Ellis's export, 2026-10-29): frosted v03 on dark; light keeps
+  // its own look. Per-call baseline, not DEFAULT_PICKS (useGlassTag convention).
+  const searchTag = useGlassTag("chains-search", "Chains · search bar", { dark: "v03" });
   const [chainSort, setChainSort] = useState<ChainSort>("attention");
   const [onlyNeedsInvite, setOnlyNeedsInvite] = useState(false);
   const [needsSort, setNeedsSort] = useState<NeedsSort>("oldest");
