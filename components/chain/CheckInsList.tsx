@@ -561,13 +561,16 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                 the sentence, small/grey, spanning the full width, with the date
                 dropped onto its own line underneath, bottom-right aligned. */}
             {row.lastUpdateBody ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 12 }}>
-                <span style={{ flexShrink: 0, marginTop: 1 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+                <span style={{ flexShrink: 0 }}>
                   <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: "agent" }} size={22} image={row.lastUpdateAuthorImage} />
                 </span>
-                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
-                  <span style={{ fontSize: 11, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap", alignSelf: "flex-end" }}>
+                {/* Text + date share a row: the date sits at the right, bottom-
+                    aligned so it lands on the last line when the text wraps, with
+                    a guaranteed gap (its column is reserved, so they never touch). */}
+                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-end", gap: 10 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
+                  <span style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
                     {shortDate(row.lastUpdateAt as string)}
                   </span>
                 </div>
