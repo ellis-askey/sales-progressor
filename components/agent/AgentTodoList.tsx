@@ -3,7 +3,7 @@
 import { useState, createContext, useContext, type ReactNode } from "react";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
-import { ListChecks, UsersThree, CalendarPlus, CalendarCheck } from "@phosphor-icons/react";
+import { ListChecks, UsersThree, CalendarPlus, CalendarCheck, CalendarBlank } from "@phosphor-icons/react";
 import { ReviewAddContext } from "@/components/agent/ReviewsSection";
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
@@ -615,8 +615,10 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
                 type="button"
                 onClick={openResched}
                 title="Reschedule and add an update"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "right" }}
+                className="atl-date-btn"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}
               >
+                <CalendarBlank size={12} weight="bold" className="atl-date-cal" aria-hidden />
                 {dueStatus ? (
                   <span style={{ fontSize: 11, fontWeight: 600, color: dueStatus.color }}>{dueStatus.label}</span>
                 ) : (
@@ -627,26 +629,26 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
           >
             {(close) => (
               <div style={{ textAlign: "left" }}>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", marginBottom: 5 }}>
-                  New date
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)", marginBottom: 5 }}>
+                  New Date
                 </label>
                 <input
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="agent-focus"
-                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-primary)", boxSizing: "border-box" }}
+                  className="glass-input"
+                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", boxSizing: "border-box" }}
                 />
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
-                  Update <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
+                  Update <span style={{ fontWeight: 500 }}>(optional)</span>
                 </label>
                 <textarea
                   value={updateText}
                   onChange={(e) => setUpdateText(e.target.value)}
                   placeholder="What's happened?"
                   rows={2}
-                  className="agent-focus"
-                  style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface, #fff)", color: "var(--agent-text-secondary)", resize: "vertical", boxSizing: "border-box" }}
+                  className="glass-input"
+                  style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", resize: "vertical", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
                   <button type="button" onClick={close} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>

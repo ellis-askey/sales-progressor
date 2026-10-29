@@ -5958,3 +5958,8 @@ body[data-demo-file] [data-onboarding-checklist] {
   100% { transform: translateX(0); }
 }
 @media (prefers-reduced-motion: reduce) { .ic-back:hover svg { animation: none; } }
+
+/* To-do card reschedule date: a calendar glyph fades in on hover so the date
+   reads as a clickable date control. */
+.atl-date-cal { opacity: 0; color: var(--agent-text-muted); transition: opacity 140ms ease; flex-shrink: 0; }
+.atl-date-btn:hover .atl-date-cal { opacity: 0.75; }
