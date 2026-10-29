@@ -33,7 +33,6 @@ import type { getAgentReminderLogs } from "@/lib/services/reminders";
 import { withSolicitorRecipients, whoToChase, joinNames, type SolicitorRef, type ChaseContact } from "@/lib/services/chase-recipients";
 import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
 import { markEnquiriesRaisedAction, snoozeEnquiryRaiseAction, markRaiseChasedAction } from "@/app/actions/enquiries";
-import { RaiseChaseDrawer } from "@/components/reminders/RaiseChaseDrawer";
 import type { EnquiryEscalationReminder } from "@/lib/services/enquiry-escalations";
 
 type AgentReminderLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
@@ -489,10 +488,22 @@ function EnquiryEscalationCard({
         </div>
       </FileCardShell>
       {chaseOpen && (
-        <RaiseChaseDrawer
+        // The SAME drawer as a normal reminder chase. It runs on a provisioned
+        // PM14 chase task (reminder.chaseTaskId); onChaseSent stamps the enquiry
+        // nudge ledger + re-arms (markRaiseChased) so the escalation's count,
+        // snooze and close stay correct.
+        <ChaseDrawer
+          chaseTaskId={reminder.chaseTaskId ?? ""}
           transactionId={reminder.transactionId}
           propertyAddress={reminder.propertyAddress}
+          propertyPhotoUrl={photoUrl}
+          milestoneName={reminder.milestoneName}
+          chaseCount={reminder.nudgeCount}
+          contacts={reminder.contacts}
+          preferRole="solicitor"
+          defaultAddRole="purchaser"
           onClose={() => setChaseOpen(false)}
+          onChaseSent={() => { void markRaiseChasedAction({ transactionId: reminder.transactionId }); }}
           onSent={chaseSent}
         />
       )}

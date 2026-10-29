@@ -13,6 +13,9 @@
 import { prisma } from "@/lib/prisma";
 import { txWhereWorkQueue } from "@/lib/services/work-queue";
 import type { AgentVisibility } from "@/lib/services/agent";
+import { withSolicitorRecipients, type ChaseContact, type SolicitorRef } from "@/lib/services/chase-recipients";
+import { isActiveRoundContact } from "@/lib/contacts/round-scope";
+import { ensureRaiseChaseTask } from "@/lib/enquiries/ensure-raise-chase-task";
 
 export type EnquiryEscalationReminder = {
   transactionId: string;
@@ -22,6 +25,13 @@ export type EnquiryEscalationReminder = {
   openedAt: Date;
   nudgeCount: number;
   solicitorName: string | null; // the buyer's solicitor firm (or contact), for the card's contact line
+  // Everything the polished ChaseDrawer needs, so the escalation chase is the
+  // SAME drawer as a normal reminder: a provisioned PM14 chase task to run on,
+  // the buyer-side recipients (client[s] + the injected buyer's solicitor), and
+  // the milestone label. See lib/enquiries/ensure-raise-chase-task.ts.
+  chaseTaskId: string | null;
+  contacts: ChaseContact[];
+  milestoneName: string;
 };
 
 export async function getEscalatedEnquiryReminders(
@@ -47,8 +57,10 @@ export async function getEscalatedEnquiryReminders(
           propertyAddress: true,
           photoStoragePath: true,
           activeBuyerRoundId: true,
-          purchaserSolicitorFirm: { select: { name: true } },
-          purchaserSolicitorContact: { select: { name: true } },
+          assignedUserId: true,
+          contacts: { select: { id: true, name: true, roleType: true, email: true, phone: true, buyerRoundId: true } },
+          purchaserSolicitorFirm: { select: { id: true, name: true } },
+          purchaserSolicitorContact: { select: { id: true, name: true, email: true, phone: true, secondaryEmail: true } },
           // The active buyer's "enquiries raised" (PM14): its state closes the
           // reminder when complete; its expectedDate is the snooze ("raised by").
           milestoneCompletions: {
@@ -70,6 +82,21 @@ export async function getEscalatedEnquiryReminders(
     if (pm14?.state === "complete" || pm14?.state === "not_required") continue;
     // Snoozed: a promised "raised by" date still in the future → stay quiet until then.
     if (pm14?.expectedDate && pm14.expectedDate.getTime() > now) continue;
+    // Build the buyer-side recipients the way the normal reminder path does:
+    // round-scoped buyer client(s) + the injected buyer's solicitor (pre-selected
+    // via preferRole="solicitor" on the card).
+    const purchaserSolicitor: SolicitorRef | null = tx.purchaserSolicitorContact
+      ? { ...tx.purchaserSolicitorContact, firm: tx.purchaserSolicitorFirm ?? null }
+      : null;
+    const buyerContacts = tx.contacts.filter(
+      (c) => ["purchaser", "broker"].includes(c.roleType) && isActiveRoundContact(c, tx.activeBuyerRoundId),
+    );
+    const contacts = withSolicitorRecipients(buyerContacts, { purchaserSolicitor, side: "purchaser" });
+    const chaseTaskId = await ensureRaiseChaseTask(r.transactionId, {
+      buyerRoundId: tx.activeBuyerRoundId,
+      assignedUserId: tx.assignedUserId,
+      nudgeCount: r.nudgeCount,
+    });
     out.push({
       transactionId: r.transactionId,
       propertyAddress: tx.propertyAddress,
@@ -78,6 +105,9 @@ export async function getEscalatedEnquiryReminders(
       openedAt: r.openedAt,
       nudgeCount: r.nudgeCount,
       solicitorName: tx.purchaserSolicitorFirm?.name ?? tx.purchaserSolicitorContact?.name ?? null,
+      chaseTaskId,
+      contacts,
+      milestoneName: "Initial enquiries raised",
     });
   }
   return out;
