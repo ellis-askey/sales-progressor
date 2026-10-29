@@ -243,6 +243,17 @@ export function ChainView({
   const [chain, setChain] = useState<ChainV2 | null>(initialChainData?.chain ?? null);
   // Timeline (the cards) vs Map (the geographic command centre). Drawer-only.
   const [view, setView] = useState<"timeline" | "map" | "activity">("timeline");
+  // Match the To-Do / Focus tab selector's spring: briefly stretch the sliding
+  // pill while it travels between views (same style + animation, same size).
+  const [vsTravelling, setVsTravelling] = useState(false);
+  const vsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function selectView(v: "timeline" | "map" | "activity") {
+    if (v === view) return;
+    setVsTravelling(true);
+    if (vsTimer.current) clearTimeout(vsTimer.current);
+    vsTimer.current = setTimeout(() => setVsTravelling(false), 260);
+    setView(v);
+  }
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // Mobile: the panel is a bottom sheet — peek by default, tap the handle to open.
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -1129,12 +1140,12 @@ export function ChainView({
           the moment the chain first appears (critique #254). */}
       {!loading && chain && links.length > 0 && (
         <div
-          className={`chain-viewswitch chain-viewswitch--enter${inline ? " chain-viewswitch--inline" : ""}`}
+          className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""}`}
           style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
         >
-          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => setView("timeline")}>Timeline</button>
-          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => setView("map")}>Map</button>
-          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => setView("activity")}>Activity</button>
+          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => selectView("timeline")}>Timeline</button>
+          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => selectView("map")}>Map</button>
+          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
         </div>
       )}
 
