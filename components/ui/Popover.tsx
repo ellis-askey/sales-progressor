@@ -51,9 +51,9 @@ function surfaceStyle(isNight: boolean): CSSProperties {
   };
 }
 
-function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, width, role, children }: {
+function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, width, role, zIndex, children }: {
   isNight: boolean; theme: string; preset: Preset; bare?: boolean; closing?: boolean; floatRef: Ref<HTMLDivElement>;
-  pos: { top: number; left: number } | null; width?: number; role?: string; children: ReactNode;
+  pos: { top: number; left: number } | null; width?: number; role?: string; zIndex?: number; children: ReactNode;
 }) {
   return createPortal(
     <div
@@ -68,7 +68,7 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
         left: pos?.left ?? 0,
         width,
         visibility: pos ? "visible" : "hidden",
-        zIndex: 1400,
+        zIndex: zIndex ?? 1400,
         // While exiting, don't let the fading layer swallow clicks.
         pointerEvents: closing ? "none" : undefined,
         ...surfaceStyle(isNight),
@@ -83,7 +83,7 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
   );
 }
 
-export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width }: {
+export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width, zIndex }: {
   // Pass a function to style the trigger by open state (e.g. rotate a caret /
   // tint when open). The anchor also carries data-open so CSS carets can target
   // `.ui-pop-anchor[data-open]`.
@@ -93,6 +93,9 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
   preset?: "menu" | "popover";
   bare?: boolean;
   width?: number;
+  // Stacking context (default 1400). Raise it when the trigger lives inside an
+  // escalated drawer/modal (z 1500) so the menu isn't hidden behind it.
+  zIndex?: number;
 }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
@@ -119,7 +122,7 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
     <>
       <span ref={anchorRef} className="ui-pop-anchor" data-open={open ? "" : undefined} onClick={() => setOpen((o) => !o)}>{typeof trigger === "function" ? trigger(open) : trigger}</span>
       {render && typeof document !== "undefined" && (
-        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} role={preset === "menu" ? "menu" : undefined}>
+        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} zIndex={zIndex} role={preset === "menu" ? "menu" : undefined}>
           {typeof children === "function" ? children(close) : children}
         </FloatLayer>
       )}

@@ -846,16 +846,18 @@ export type UpdateEmailPayloadInput = {
 //   - Email must be pending (sentAt + errorAt both null).
 //   - Caller must be a director in the agency OR the file's agentUserId.
 //     sales_progressor / admin / unrelated negotiators get 403.
-export async function updateEmailPayload(
+// Load a queued email and gate it for editing: editable type, not yet sent,
+// and the caller is in scope. Shared by updateEmailPayload (persist) and
+// renderEmailPreview (live, no persist) so the live preview can never render
+// something the save would reject — one permission gate, not two.
+//   admin / superadmin  → any file platform-wide
+//   sales_progressor    → their assigned outsourced files
+//   director            → any file in their agency
+//   negotiator / viewer → files where they're the assigned agent
+async function loadEditableEmail(
+  session: Awaited<ReturnType<typeof requireSession>>,
   emailId: string,
-  patch: UpdateEmailPayloadInput,
-): Promise<ActionResult> {
-  const session = await requireSession();
-
-  if (!patch.subject?.trim() || !patch.text?.trim()) {
-    return { ok: false, error: "Subject and body can't be empty." };
-  }
-
+) {
   const email = await prisma.outboundEmailQueue.findUnique({
     where: { id: emailId },
     select: {
@@ -872,28 +874,15 @@ export async function updateEmailPayload(
       },
     },
   });
-
-  if (!email) return { ok: false, error: "Email not found." };
-  // 2026-08-09 review-tray: MILESTONE_CONFIRMATION rows are also
-  // editable from the file-page review tray now. Same permission +
-  // "not yet sent" gates apply. Every other emailType remains locked.
+  if (!email) return { ok: false as const, error: "Email not found." };
   if (email.emailType !== "CLIENT_CHASE" && email.emailType !== "MILESTONE_CONFIRMATION") {
-    return { ok: false, error: "This email type can't be edited." };
+    return { ok: false as const, error: "This email type can't be edited." };
   }
   if (email.sentAt || email.errorAt) {
-    return { ok: false, error: "This email has already been sent and can't be edited." };
+    return { ok: false as const, error: "This email has already been sent and can't be edited." };
   }
-
   const tx = email.recipientContact?.transaction;
-  if (!tx) return { ok: false, error: "Email's transaction not found." };
-
-  // Permission gate: anyone who can VIEW this email can also edit it
-  // (mirrors the inScope rule in getEmailForPreview). Effectively:
-  //   admin / superadmin  → any file platform-wide
-  //   sales_progressor    → their assigned outsourced files
-  //   director            → any file in their agency
-  //   negotiator / viewer → files where they're the assigned agent
-  // Plus the gates above: emailType=CLIENT_CHASE + still pending.
+  if (!tx) return { ok: false as const, error: "Email's transaction not found." };
   const role = session.user.role;
   let inScope = false;
   if (hasAdminPowers(session)) {
@@ -906,21 +895,21 @@ export async function updateEmailPayload(
     inScope = tx.agencyId === session.user.agencyId && tx.agentUserId === session.user.id;
   }
   if (!inScope) {
-    return { ok: false, error: "You don't have permission to edit this email." };
+    return { ok: false as const, error: "You don't have permission to edit this email." };
   }
+  return { ok: true as const, email, tx };
+}
 
-  // 2026-08-11: for milestone-confirmation rows, re-render the HTML part
-  // from the edited text. Email apps display the HTML part, and leaving
-  // the original html in place meant the edit shipped invisibly (new
-  // subject, stale body). Older rows without address/portalUrl metadata
-  // keep their original html (pre-batching rows; none should be pending).
-  //
-  // 2026-08-19: same treatment for CLIENT_CHASE rows. Chase edits shipped
-  // the stale original html too (founder report: edited line breaks, and
-  // in fact the whole edit, never reached the recipient). Rows enqueued
-  // from today carry the shell ingredients (agencyName / respondUrl /
-  // pauseUrl / unsubscribeUrl) so the branded chase shell rebuilds around
-  // the edited body; older pending rows keep their original html.
+// Rebuild the branded HTML shell around an edited subject/body — the SAME
+// render the real send uses, so a preview matches what ships. Returns null for
+// older rows that lack the stored shell ingredients (they keep their original
+// html on save).
+async function rebuildEmailHtml(
+  email: { emailType: string; payload: unknown; recipientContact: { propertyTransactionId: string | null } | null },
+  agencyId: string,
+  subject: string,
+  text: string,
+): Promise<string | null> {
   const currentPayload = (email.payload ?? {}) as Record<string, unknown>;
   // Brand theme (agency colours; coral default) so the rebuilt shell matches
   // what actually sends — resolved from the file it belongs to.
@@ -928,17 +917,16 @@ export async function updateEmailPayload(
   const rebuildTheme = rebuildTxId
     ? (await resolveAgencySenderForTransaction(rebuildTxId)).theme ?? resolveEmailTheme(null)
     : resolveEmailTheme(null);
-  let rebuiltHtml: string | null = null;
   if (email.emailType === "MILESTONE_CONFIRMATION") {
     const address = typeof currentPayload.address === "string" ? currentPayload.address : null;
     const portalUrl = typeof currentPayload.portalUrl === "string" ? currentPayload.portalUrl : null;
     if (address && portalUrl) {
-      rebuiltHtml = renderEditedEmailHtml({
+      return renderEditedEmailHtml({
         address,
-        heading: patch.subject.trim(),
-        text: patch.text.trim(),
+        heading: subject,
+        text,
         portalUrl,
-        logoBand: await agencyLogoBand(tx.agencyId),
+        logoBand: await agencyLogoBand(agencyId),
         theme: rebuildTheme,
       });
     }
@@ -954,10 +942,10 @@ export async function updateEmailPayload(
     const pLogoUrl = typeof currentPayload.studioLogoUrl === "string" ? currentPayload.studioLogoUrl : undefined;
     const pTileColor = typeof currentPayload.studioTileColor === "string" ? currentPayload.studioTileColor : undefined;
     if (agencyName && respondUrl && pauseUrl && unsubscribeUrl) {
-      rebuiltHtml = renderEditedChaseEmailHtml({
+      return renderEditedChaseEmailHtml({
         agencyName,
-        subject: patch.subject.trim(),
-        text: patch.text.trim(),
+        subject,
+        text,
         respondUrl,
         pauseUrl,
         unsubscribeUrl,
@@ -969,6 +957,55 @@ export async function updateEmailPayload(
       });
     }
   }
+  return null;
+}
+
+// Live preview: render the branded shell around an in-progress edit WITHOUT
+// persisting, so the detail drawer can show what the edited email will look
+// like as the agent types. Same gate + same render path as the save.
+export async function renderEmailPreview(
+  emailId: string,
+  patch: { subject: string; text: string },
+): Promise<{ ok: true; html: string } | { ok: false; error: string }> {
+  const session = await requireSession();
+  if (!patch.subject?.trim() || !patch.text?.trim()) {
+    return { ok: false, error: "Subject and body can't be empty." };
+  }
+  const loaded = await loadEditableEmail(session, emailId);
+  if (!loaded.ok) return loaded;
+  const html = await rebuildEmailHtml(loaded.email, loaded.tx.agencyId, patch.subject.trim(), patch.text.trim());
+  if (!html) return { ok: false, error: "This email can't be previewed live." };
+  return { ok: true, html };
+}
+
+export async function updateEmailPayload(
+  emailId: string,
+  patch: UpdateEmailPayloadInput,
+): Promise<ActionResult> {
+  const session = await requireSession();
+
+  if (!patch.subject?.trim() || !patch.text?.trim()) {
+    return { ok: false, error: "Subject and body can't be empty." };
+  }
+
+  const loaded = await loadEditableEmail(session, emailId);
+  if (!loaded.ok) return loaded;
+  const { email, tx } = loaded;
+
+  // 2026-08-11: for milestone-confirmation rows, re-render the HTML part
+  // from the edited text. Email apps display the HTML part, and leaving
+  // the original html in place meant the edit shipped invisibly (new
+  // subject, stale body). Older rows without address/portalUrl metadata
+  // keep their original html (pre-batching rows; none should be pending).
+  //
+  // 2026-08-19: same treatment for CLIENT_CHASE rows. Chase edits shipped
+  // the stale original html too (founder report: edited line breaks, and
+  // in fact the whole edit, never reached the recipient). Rows enqueued
+  // from today carry the shell ingredients (agencyName / respondUrl /
+  // pauseUrl / unsubscribeUrl) so the branded chase shell rebuilds around
+  // the edited body; older pending rows keep their original html.
+  const currentPayload = (email.payload ?? {}) as Record<string, unknown>;
+  const rebuiltHtml = await rebuildEmailHtml(email, tx.agencyId, patch.subject.trim(), patch.text.trim());
 
   // Overwrite subject + text (and, where rebuilt, html) in the payload JSON.
   const nextPayload = {

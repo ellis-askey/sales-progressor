@@ -32,7 +32,7 @@ import { Pill } from "@/components/ui/Pill";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { getEmailForPreview, updateEmailPayload } from "@/app/actions/automation";
+import { getEmailForPreview, updateEmailPayload, renderEmailPreview } from "@/app/actions/automation";
 import { cancelPendingEmail, sendPendingEmailNow, movePendingEmail, getMessageForPreview } from "@/app/actions/automated-emails";
 import { previewChaseEmailAction, rescheduleChaseThreadAction } from "@/app/actions/chase-timeline";
 import { DateField } from "@/components/ui/DateField";
@@ -141,6 +141,9 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
   const [moveDate, setMoveDate] = useState("");
   const [saving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Live preview of the in-progress edit (branded shell, re-rendered server-side).
+  const [liveHtml, setLiveHtml] = useState<string | null>(null);
+  const [livePending, setLivePending] = useState(false);
   const [acting, startActing] = useTransition();
 
   const emailId = row?.id ?? null;
@@ -265,6 +268,23 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
       .finally(() => setLoading(false));
   }, [row, emailId, isQueue, seedPreview]);
 
+  // While editing, re-render the branded email shell from the in-progress
+  // subject/body (debounced) so the preview below the editor shows what will
+  // actually send — branding, button and all. Same render path as the save, so
+  // it can't drift from reality.
+  useEffect(() => {
+    if (mode !== "edit" || !emailId || !subject.trim() || !text.trim()) return;
+    let cancelled = false;
+    setLivePending(true);
+    const t = setTimeout(async () => {
+      const res = await renderEmailPreview(emailId, { subject, text });
+      if (cancelled) return;
+      if (res.ok) setLiveHtml(res.html);
+      setLivePending(false);
+    }, 450);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [subject, text, mode, emailId]);
+
   function handleSave() {
     if (!emailId) return;
     setSaveError(null);
@@ -298,10 +318,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
           <PaperPlaneTilt size={26} weight="regular" style={{ flexShrink: 0, color: "var(--agent-text-on-coral, #fff)" }} aria-hidden />
           <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--sheet-band-kicker, rgba(255,255,255,0.78))" }}>
-              Auto email
-            </p>
-            <p style={{ margin: "2px 0 0", fontSize: 17, fontWeight: 700, color: "var(--agent-text-on-coral, #fff)", lineHeight: 1.25 }}>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--agent-text-on-coral, #fff)", lineHeight: 1.25 }}>
               {headerTitle(row)}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "rgba(255,255,255,0.9)", display: "inline-flex", alignItems: "center", gap: 7 }}>
@@ -423,12 +440,36 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
                     onChange={(e) => setText(e.target.value)}
                     disabled={saving}
                     aria-label="Body"
-                    style={{ width: "100%", minHeight: 380, border: "none", outline: "none", background: "#fff", color: "#1f2937", fontSize: 15, lineHeight: 1.65, fontFamily: "inherit", padding: "20px", resize: "vertical", boxSizing: "border-box" }}
+                    style={{ width: "100%", minHeight: 220, border: "none", outline: "none", background: "#fff", color: "#1f2937", fontSize: 15, lineHeight: 1.65, fontFamily: "inherit", padding: "20px", resize: "vertical", boxSizing: "border-box" }}
                   />
                 )}
                 {mode === "edit" && saveError && (
                   <p style={{ margin: 0, padding: "0 20px 14px", fontSize: 12, color: "var(--agent-danger)" }}>{saveError}</p>
                 )}
+              </div>
+            )}
+
+            {mode === "edit" && preview && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <Eyebrow noMargin>Live preview</Eyebrow>
+                  <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontStyle: "italic", visibility: livePending ? "visible" : "hidden" }}>Updating…</span>
+                </div>
+                <div style={{ border: "1px solid var(--agent-border-strong)", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
+                  {liveHtml ? (
+                    <iframe
+                      title="Live email preview"
+                      srcDoc={previewSrcDoc(liveHtml)}
+                      sandbox=""
+                      style={{ width: "100%", minHeight: 420, border: "none", background: "#fff", display: "block" }}
+                    />
+                  ) : (
+                    <p style={{ margin: 0, padding: 20, fontSize: 13, color: "var(--agent-text-muted)", fontStyle: "italic" }}>Start typing to see the preview.</p>
+                  )}
+                </div>
+                <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                  This is the branded email as it will send, with your edits wrapped in the agency header and portal button.
+                </p>
               </div>
             )}
 
@@ -473,7 +514,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
               )}
               {isQueue && canEdit && (
                 <button
-                  onClick={() => setMode("edit")}
+                  onClick={() => { setLiveHtml(preview?.html ?? null); setMode("edit"); }}
                   disabled={acting}
                   className="email-detail-outline-btn"
                   style={{ ...primaryBtn, background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)", border: "0.5px solid var(--agent-border-strong)" }}
@@ -502,7 +543,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
                 className="agent-input agent-input-sm"
                 style={{ fontSize: 12, width: 150 }}
               />
-              <button onClick={() => setMode("view")} className="agent-btn agent-btn-neutral agent-btn-sm" disabled={acting}>Cancel</button>
+              <button onClick={() => setMode("view")} className="email-detail-outline-btn" style={{ ...primaryBtn, background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)", border: "0.5px solid var(--agent-border-strong)" }} disabled={acting}>Cancel</button>
               <button onClick={doMove} className="agent-btn-color-primary" style={primaryBtn} disabled={acting || !moveDate}>
                 {acting ? "Moving…" : "Move"}
               </button>
@@ -511,7 +552,7 @@ export function EmailDetailDrawer({ row, onClose, onChanged, seedPreview = null 
 
           {isQueue && mode === "edit" && (
             <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-              <button onClick={() => { setMode("view"); setSubject(preview?.subject ?? ""); setText(preview?.text ?? ""); setSaveError(null); }} className="agent-btn agent-btn-neutral agent-btn-sm" disabled={saving}>Cancel</button>
+              <button onClick={() => { setMode("view"); setSubject(preview?.subject ?? ""); setText(preview?.text ?? ""); setSaveError(null); }} className="email-detail-outline-btn" style={{ ...primaryBtn, background: "var(--agent-surface-elevated)", color: "var(--agent-text-primary)", border: "0.5px solid var(--agent-border-strong)" }} disabled={saving}>Cancel</button>
               <button onClick={handleSave} className="agent-btn-color-primary" style={primaryBtn} disabled={saving || !subject.trim() || !text.trim()}>{saving ? "Saving…" : "Save"}</button>
             </span>
           )}
@@ -536,6 +577,7 @@ function UpwardMenu({ items }: { items: { label: string; onClick: () => void; da
         preset="menu"
         placement="top-end"
         width={168}
+        zIndex={1600}
         trigger={
           <button
             type="button"
@@ -573,7 +615,7 @@ function UpwardMenu({ items }: { items: { label: string; onClick: () => void; da
 }
 
 function Eyebrow({ children, noMargin = false }: { children: React.ReactNode; noMargin?: boolean }) {
-  return <p className="agent-eyebrow" style={{ margin: noMargin ? 0 : "0 0 10px" }}>{children}</p>;
+  return <p className="agent-eyebrow" style={{ margin: noMargin ? 0 : "0 0 10px", textTransform: "none", letterSpacing: "normal" }}>{children}</p>;
 }
 
 function Divider() {
