@@ -24,6 +24,11 @@ describe("matchByAddress", () => {
     entry("tx-flint", "7 east flint", "HP1 2LS"),
     entry("tx-evans2", "2 evans way", "AL1 1AA"),
     entry("tx-evans12", "12 evans way", "AL1 1BB"),
+    // Two live files at the SAME address (an old sale + its relist), the shape
+    // behind critique #296 — 2 Magnolia Way had an on-hold file and a new active
+    // file, both EN8 0FD.
+    entry("tx-magA", "2 magnolia way", "EN8 0FD"),
+    entry("tx-magB", "2 magnolia way", "EN8 0FD"),
   ];
 
   it("strong-matches on postcode + first line together", () => {
@@ -40,6 +45,18 @@ describe("matchByAddress", () => {
     expect(matchByAddress("re 12 Evans Way, AL1 1BB", index)).toEqual(["tx-evans12"]);
     // Email names 2 Evans Way; must resolve to tx-evans2 only.
     expect(matchByAddress("re 2 Evans Way, AL1 1AA", index)).toEqual(["tx-evans2"]);
+  });
+
+  it("offers BOTH files when two share an address line, not hidden (critique #296)", () => {
+    // No postcode in the email: still surface both so the agent chooses, rather
+    // than silently dropping them.
+    expect(matchByAddress("quick update on 2 Magnolia Way please", index).sort()).toEqual(["tx-magA", "tx-magB"]);
+  });
+
+  it("offers both even with the shared postcode present (the 2 Magnolia Way case)", () => {
+    expect(
+      matchByAddress("2 Magnolia Way, Cheshunt, Waltham Cross, EN8 0FD", index).sort(),
+    ).toEqual(["tx-magA", "tx-magB"]);
   });
 
   it("returns nothing when the email names no held property", () => {

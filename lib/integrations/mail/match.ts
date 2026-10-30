@@ -225,10 +225,14 @@ export function firstLineAppears(lowerText: string, firstLine: string): boolean 
 // Match an email's text to files by the property it names. HIGH-CONFIDENCE only:
 //   - Strong match: a file's postcode AND its first line both appear → it's that
 //     property. Returns strong matches if any.
-//   - Otherwise: a first-line match with no postcode is trusted ONLY when exactly
-//     one file has that first line (so "7 East Flint" with no postcode still
-//     links, but never ambiguously).
-// Returns the matching txIds (caller decides: one → file it, many → review).
+//   - Otherwise: return EVERY file whose first line appears. The caller decides by
+//     count — matchMessage auto-files only on a single hit and sends 2+ to the
+//     "needs filing" review tray — so a shared address line (two files at "2
+//     Magnolia Way") is never auto-filed to the wrong one, it's offered as a
+//     choice. Collapsing the 2+ case to [] would wrongly HIDE those review
+//     candidates, which is why this is not a "size === 1" guard. Locked by the
+//     two-files-same-address test.
+// Returns the matching txIds (caller: one → file it, many → review).
 export function matchByAddress(text: string, index: AddressEntry[]): string[] {
   if (!text || index.length === 0) return [];
   const lc = text.toLowerCase();
@@ -241,7 +245,7 @@ export function matchByAddress(text: string, index: AddressEntry[]): string[] {
     if ([...e.postcodes].some((pc) => postcodes.has(pc))) strong.add(e.txId);
   }
   if (strong.size) return [...strong];
-  return firstLineHits.size === 1 ? [...firstLineHits] : [...firstLineHits];
+  return [...firstLineHits];
 }
 
 // A sender that is really US, not an external party — our automated sender domain

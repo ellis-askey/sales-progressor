@@ -41,6 +41,14 @@ function firstLine(address: string): string {
   return (address || "").split(",")[0].trim();
 }
 
+// Friendly file-state labels + a sort rank, so when two files share an address
+// the active one leads and each button can show what tells them apart (#296).
+const STATUS_LABEL: Record<string, string> = {
+  active: "Active", on_hold: "On hold", withdrawn: "Withdrawn", completed: "Completed", draft: "Draft",
+};
+const STATUS_RANK: Record<string, number> = { active: 0, on_hold: 1, withdrawn: 2, completed: 3, draft: 4 };
+function statusRank(s?: string): number { return s && s in STATUS_RANK ? STATUS_RANK[s] : 5; }
+
 // "RE: RE: Fwd: Update - 25 Austin Hluse" → "update - 25 austin hluse"
 function threadKey(subject: string): string {
   let s = subject.trim().toLowerCase();
@@ -256,22 +264,42 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
               {/* Actions */}
               <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
                 {t.candidates.length > 0 ? (
-                  t.candidates.map((c) => (
-                    <button
-                      key={c.transactionId}
-                      type="button"
-                      disabled={rowBusy}
-                      onClick={() => fileThread(t, c)}
-                      title={c.address || undefined}
-                      className="agent-btn agent-btn-sm agent-btn-primary"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
-                    >
-                      <Check size={12} weight="bold" />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {multi ? `File all ${t.rows.length} to ${firstLine(c.address) || "this file"}` : `File to ${firstLine(c.address) || "this file"}`}
-                      </span>
-                    </button>
-                  ))
+                  (() => {
+                    // Active file first; and when two candidates share the same
+                    // address line, append each file's state + price so the
+                    // buttons aren't identical (critique #296).
+                    const sorted = [...t.candidates].sort((a, b) => statusRank(a.status) - statusRank(b.status));
+                    const flCount = new Map<string, number>();
+                    for (const c of sorted) {
+                      const fl = firstLine(c.address).toLowerCase();
+                      flCount.set(fl, (flCount.get(fl) ?? 0) + 1);
+                    }
+                    return sorted.map((c) => {
+                      const fl = firstLine(c.address) || "this file";
+                      const ambiguous = (flCount.get(firstLine(c.address).toLowerCase()) ?? 0) > 1;
+                      const detail = ambiguous
+                        ? [c.status ? (STATUS_LABEL[c.status] ?? c.status) : null, c.priceLabel].filter(Boolean).join(" · ")
+                        : "";
+                      const base = multi ? `File all ${t.rows.length} to ${fl}` : `File to ${fl}`;
+                      const labelText = detail ? `${base} (${detail})` : base;
+                      return (
+                        <button
+                          key={c.transactionId}
+                          type="button"
+                          disabled={rowBusy}
+                          onClick={() => fileThread(t, c)}
+                          title={c.address || undefined}
+                          className="agent-btn agent-btn-sm agent-btn-primary"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
+                        >
+                          <Check size={12} weight="bold" />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {labelText}
+                          </span>
+                        </button>
+                      );
+                    });
+                  })()
                 ) : (
                   <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)" }}>
                     Open the sale to file {multi ? "these" : "it"}, or dismiss.
