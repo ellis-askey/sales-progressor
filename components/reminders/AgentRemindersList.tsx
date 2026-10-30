@@ -216,6 +216,7 @@ function FileCardShell({
       glassId="reminders-file-card"
       label="Reminders · File card"
       defaultVariant="v05"
+      className="wq-card-cq"
       style={{ borderRadius: 20 }}
     >
       {/* Property header — click it to collapse/expand the file's reminders
@@ -632,6 +633,7 @@ function SplitFileCard({
       glassId="reminders-file-card"
       label="Reminders · File card"
       defaultVariant="v05"
+      className="wq-card-cq"
       style={{ borderRadius: 20 }}
     >
       {/* Property header — click it to collapse/expand the file's reminders

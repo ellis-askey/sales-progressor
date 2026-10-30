@@ -883,9 +883,14 @@
   /* Whole-file "Chase all / Snooze all" cluster. In a wide column it shows; in a
      narrow one (e.g. the autopilot column) it would crush the property address,
      so a container query hides it below the width needed to show both cleanly.
-     Each cards column is the query container (.wq-cardq). Per-row Chase buttons
-     stay, so nothing is lost — just the bulk shortcut. */
-  .wq-cardq { container-type: inline-size; container-name: wqcard; }
+     Each CARD is the query container (.wq-card-cq), NOT the column: a
+     container-type on the column (an ancestor) severs the cards' glass
+     backdrop-filter — the frost can't see past a containment context, so the
+     cards render see-through. The container lives on the frosted card itself
+     instead; an element's own containment doesn't break its own backdrop-filter,
+     and one card per row means the width the Chase cluster queries is unchanged.
+     Per-row Chase buttons stay, so nothing is lost — just the bulk shortcut. */
+  .wq-card-cq { container-type: inline-size; container-name: wqcard; }
   .wq-allactions { display: inline-flex; align-items: center; gap: 8px; }
   @container wqcard (max-width: 600px) {
     .wq-allactions { display: none; }
