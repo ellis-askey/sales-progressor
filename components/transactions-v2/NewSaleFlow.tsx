@@ -454,7 +454,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // fallen-through), offer to add the new buyer there instead of making a
   // duplicate. relistCatch holds the matched file; relistOpen swaps the catch
   // dialog for the pre-filled add-new-buyer modal.
-  const [relistCatch, setRelistCatch] = useState<{ id: string; status: string | null; previousPurchasePrice: number | null; inChain: boolean; previousBuyerName: string | null } | null>(null);
+  const [relistCatch, setRelistCatch] = useState<{ id: string; status: string | null; previousPurchasePrice: number | null; inChain: boolean; previousBuyerName: string | null; fileTenure: string | null; fileIsShareOfFreehold: boolean; fileVendorName: string | null } | null>(null);
   const [relistOpen, setRelistOpen] = useState(false);
 
   // ── Draft state ───────────────────────────────────────────────────────────
@@ -1148,6 +1148,9 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               previousPurchasePrice: result.previousPurchasePrice,
               inChain: result.inChain,
               previousBuyerName: result.previousBuyerName,
+              fileTenure: result.fileTenure,
+              fileIsShareOfFreehold: result.fileIsShareOfFreehold,
+              fileVendorName: result.fileVendorName,
             });
           } else {
             setDuplicateInfo({ id: result.duplicateId, assignedTo: result.assignedTo });
@@ -1815,6 +1818,45 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           initialPurchaseType={(formFields.purchaseType || null) as PurchaseType | null}
           initialSolicitor={formFields.purchaserSolicitor}
           initialBroker={formFields.broker}
+          catchUpdates={(() => {
+            const cap = (s: string | null) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+            const entVendorName = formFields.vendors.map((v) => resolveBusinessSplit(v).name).filter(Boolean).join(" and ");
+            const hasFee = formFields.agentFeeType === "amount" ? formFields.agentFeeAmount != null : !!(parseFloat(formFields.agentFeePercentStr) || 0);
+            return {
+              apply: {
+                agentFeeAmount: formFields.agentFeeType === "amount" ? formFields.agentFeeAmount : null,
+                agentFeePercent: formFields.agentFeeType === "percent" ? (parseFloat(formFields.agentFeePercentStr) || null) : null,
+                agentFeeIsVatInclusive: formFields.agentFeeVat === "inclusive",
+                note: formFields.notes.trim() || null,
+                photoStoragePath: formFields.photoStoragePath,
+                assignToUserId: formFields.assignToUserId || null,
+                enteredTenure: (formFields.tenure as "freehold" | "leasehold") || null,
+                enteredIsShareOfFreehold: formFields.tenure === "leasehold" ? formFields.isShareOfFreehold : false,
+                enteredVendorContacts: formFields.vendors.filter((v) => v.name.trim()).map((v) => {
+                  const { name, companyName } = resolveBusinessSplit(v);
+                  return { name, companyName: companyName ?? undefined, phone: v.phone.trim() || undefined, email: v.email.trim() || undefined };
+                }),
+                enteredVendorSolicitorFirmId: formFields.vendorSolicitor?.firmId ?? null,
+                enteredVendorSolicitorContactId: formFields.vendorSolicitor?.contactId ?? null,
+              },
+              safeUpdates: [
+                ...(hasFee ? [{ label: "Agent fee", value: "Updated" }] : []),
+                ...(formFields.notes.trim() ? [{ label: "Your sale note", value: "Added to the file" }] : []),
+                ...(formFields.photoStoragePath ? [{ label: "Property photo", value: "Added" }] : []),
+              ],
+              conflicts: {
+                ...(formFields.tenure && relistCatch.fileTenure && formFields.tenure !== relistCatch.fileTenure
+                  ? { tenure: { file: cap(relistCatch.fileTenure), entered: cap(formFields.tenure) } }
+                  : {}),
+                ...(entVendorName && relistCatch.fileVendorName && entVendorName.toLowerCase() !== relistCatch.fileVendorName.toLowerCase()
+                  ? { seller: { file: relistCatch.fileVendorName, entered: entVendorName } }
+                  : {}),
+                ...(formFields.chainStubs.some((s) => s.direction === "above") && relistCatch.inChain
+                  ? { onward: { file: "Existing chain above", entered: "Different chain entered" } }
+                  : {}),
+              },
+            };
+          })()}
           onRelisted={() => { if (typeof window !== "undefined") window.location.href = `/agent/transactions/${relistCatch.id}`; }}
           onClose={() => { setRelistOpen(false); setRelistCatch(null); }}
         />

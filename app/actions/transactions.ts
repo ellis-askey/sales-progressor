@@ -410,8 +410,8 @@ export async function createTransactionAction(input: {
         where: { id: duplicate.id },
         select: {
           status: true, exchangedAt: true, activeBuyerRoundId: true,
-          tenure: true, purchaseType: true, chainLinkId: true, purchasePrice: true,
-          contacts: { where: { roleType: "purchaser" }, select: { name: true } },
+          tenure: true, isShareOfFreehold: true, purchaseType: true, chainLinkId: true, purchasePrice: true,
+          contacts: { where: { roleType: { in: ["purchaser", "vendor"] } }, select: { name: true, roleType: true } },
         },
       });
       const relistable =
@@ -421,9 +421,13 @@ export async function createTransactionAction(input: {
         file.activeBuyerRoundId !== null &&
         !!file.tenure &&
         !!file.purchaseType;
+      const purchaserNames = (file?.contacts ?? []).filter((c) => c.roleType === "purchaser").map((c) => c.name);
+      const vendorNames = (file?.contacts ?? []).filter((c) => c.roleType === "vendor").map((c) => c.name);
       // Expected failure — RETURNED, not thrown. Production redacts thrown
       // server-action messages (and drops custom props), so the old throw
       // surfaced raw boilerplate to the user instead of the duplicate modal.
+      // The file* fields let the catch flow show the tenure / seller keep-or-
+      // replace cards only when what the agent entered differs from the file.
       return {
         duplicate: "address" as const,
         duplicateId: duplicate.id,
@@ -432,7 +436,10 @@ export async function createTransactionAction(input: {
         relistable,
         previousPurchasePrice: file?.purchasePrice ?? null,
         inChain: file?.chainLinkId != null,
-        previousBuyerName: file?.contacts.map((c) => c.name).join(" and ") || null,
+        previousBuyerName: purchaserNames.join(" and ") || null,
+        fileTenure: file?.tenure ?? null,
+        fileIsShareOfFreehold: file?.isShareOfFreehold ?? false,
+        fileVendorName: vendorNames.join(" and ") || null,
       };
     }
   }
@@ -3473,6 +3480,114 @@ export async function attachRelistMosAction(input: {
       },
     }).catch(() => {});
   }
+
+  revalidatePath(`/agent/transactions/${input.transactionId}`);
+  return { ok: true };
+}
+
+// Carry the non-buyer data the agent typed in the new-sale flow onto the file
+// they were routed to relist (critique #296 catch). Runs AFTER the relist commits
+// — deliberately NOT inside the relist $transaction, so the contamination-sensitive
+// round-swap stays untouched. Two kinds of write:
+//   - SAFE / additive, always applied when provided: agent fee, a setup note,
+//     the property photo (only when the file has none), and the file owner.
+//   - CONFLICT resolutions, applied ONLY when the agent chose "replace" (the
+//     modal only offers the choice when the entered value differs from the file):
+//     tenure (field swap), seller (vendor contacts + solicitor swap), and the
+//     seller's onward purchase (flagged chainSetupPending for manual setup — we
+//     never auto-rebuild a chain). "keep" is a no-op.
+export async function applyRelistFileUpdatesAction(input: {
+  transactionId: string;
+  agentFeeAmount?: number | null;
+  agentFeePercent?: number | null;
+  agentFeeIsVatInclusive?: boolean | null;
+  note?: string | null;
+  photoStoragePath?: string | null;
+  assignToUserId?: string | null;
+  tenureResolution?: "keep" | "replace";
+  tenureValue?: Tenure | null;
+  isShareOfFreehold?: boolean;
+  sellerResolution?: "keep" | "replace";
+  // roleType is set to "vendor" by this action, so callers omit it.
+  vendorContacts?: { name: string; companyName?: string; phone?: string; email?: string }[];
+  vendorSolicitorFirmId?: string | null;
+  vendorSolicitorContactId?: string | null;
+  sellerOnwardResolution?: "keep" | "replace";
+}): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true, agencyId: true, photoStoragePath: true },
+  });
+  if (!tx) return { ok: false };
+
+  const data: Prisma.PropertyTransactionUncheckedUpdateInput = {};
+  if (input.agentFeeAmount !== undefined) data.agentFeeAmount = input.agentFeeAmount;
+  if (input.agentFeePercent !== undefined) data.agentFeePercent = input.agentFeePercent;
+  if (input.agentFeeIsVatInclusive !== undefined) data.agentFeeIsVatInclusive = input.agentFeeIsVatInclusive;
+  // Photo: fill only when the file has none — never overwrite an existing one.
+  if (input.photoStoragePath && !tx.photoStoragePath) {
+    data.photoStoragePath = input.photoStoragePath;
+    data.photoUploadedAt = new Date();
+  }
+  // Assignment: honour the owner the agent picked (the relist otherwise clears it).
+  if (input.assignToUserId) {
+    data.assignedUserId = input.assignToUserId;
+    data.assignedAt = new Date();
+  }
+  // Tenure conflict — replace the property's tenure only when chosen.
+  if (input.tenureResolution === "replace" && input.tenureValue) {
+    data.tenure = input.tenureValue;
+    data.isShareOfFreehold = input.tenureValue === "leasehold" ? !!input.isShareOfFreehold : false;
+  }
+  // Seller's onward purchase — "replace" flags the file for manual chain setup
+  // rather than attempting any chain surgery.
+  if (input.sellerOnwardResolution === "replace") data.chainSetupPending = true;
+
+  await prisma.$transaction(async (ptx) => {
+    if (Object.keys(data).length > 0) {
+      await ptx.propertyTransaction.update({ where: { id: tx.id }, data });
+    }
+    // Seller conflict — swap the file-level vendor contacts + vendor solicitor.
+    if (input.sellerResolution === "replace") {
+      await ptx.contact.deleteMany({ where: { propertyTransactionId: tx.id, roleType: "vendor" } });
+      if (input.vendorContacts && input.vendorContacts.length > 0) {
+        await ptx.contact.createMany({
+          data: input.vendorContacts.map((c) => ({
+            propertyTransactionId: tx.id,
+            name: c.name,
+            companyName: c.companyName ?? null,
+            phone: c.phone ?? null,
+            email: c.email ?? null,
+            roleType: "vendor" as const,
+          })),
+        });
+      }
+      await ptx.propertyTransaction.update({
+        where: { id: tx.id },
+        data: {
+          vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,
+          vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,
+        },
+      });
+    }
+    // Setup note appended to the file's notes feed (same shape as new-sale).
+    if (input.note && input.note.trim()) {
+      await ptx.outboundMessage.create({
+        data: {
+          transactionId: tx.id,
+          agencyId: tx.agencyId,
+          type: "internal_note",
+          subject: "Setup note",
+          contactIds: [],
+          content: input.note.trim(),
+          createdById: session.user.id,
+          createdByRole: session.user.role,
+        },
+      });
+    }
+  });
 
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   return { ok: true };

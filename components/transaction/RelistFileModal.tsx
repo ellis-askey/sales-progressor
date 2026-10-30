@@ -26,7 +26,7 @@ import { PriceInput } from "@/components/ui/PriceInput";
 import { Pill } from "@/components/ui/Pill";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
-import { relistTransactionAction, getPriorEarnedReferralAction, attachRelistMosAction } from "@/app/actions/transactions";
+import { relistTransactionAction, getPriorEarnedReferralAction, attachRelistMosAction, applyRelistFileUpdatesAction } from "@/app/actions/transactions";
 import { autoFillSolicitor } from "@/lib/utils/solicitor-autofill";
 import type { PurchaseType } from "@prisma/client";
 // Same input-hygiene helpers used in the new-sale ContactsSection so
@@ -47,6 +47,79 @@ type OnwardSale =
   | { kind: "internal"; agentEmail: string }
   | { kind: "external"; agencyName: string; agentName: string; agentEmail: string }
   | { kind: "unknown" };
+
+// Carry-over payload when the modal opens from the new-sale catch (critique #296):
+// what to write to the file, the plain-English safe-updates list to show, and the
+// tenure/seller/onward conflicts to resolve — each present only when the entered
+// value differs from the file.
+type RelistCatchUpdates = {
+  apply: {
+    agentFeeAmount: number | null;
+    agentFeePercent: number | null;
+    agentFeeIsVatInclusive: boolean | null;
+    note: string | null;
+    photoStoragePath: string | null;
+    assignToUserId: string | null;
+    enteredTenure: "freehold" | "leasehold" | null;
+    enteredIsShareOfFreehold: boolean;
+    enteredVendorContacts: { name: string; companyName?: string; phone?: string; email?: string }[];
+    enteredVendorSolicitorFirmId: string | null;
+    enteredVendorSolicitorContactId: string | null;
+  };
+  safeUpdates: { label: string; value: string }[];
+  conflicts: {
+    tenure?: { file: string; entered: string };
+    seller?: { file: string; entered: string };
+    onward?: { file: string; entered: string };
+  };
+};
+
+// Keep / replace segmented control — the same gradient-when-active treatment used
+// across the app, so the catch resolutions match the rest of this modal.
+function KeepReplace({ value, onChange, keepLabel, replaceLabel }: { value: "keep" | "replace"; onChange: (v: "keep" | "replace") => void; keepLabel: string; replaceLabel: string }) {
+  const opts: { id: "keep" | "replace"; label: string }[] = [{ id: "keep", label: keepLabel }, { id: "replace", label: replaceLabel }];
+  return (
+    <div style={{ display: "inline-flex", padding: 3, gap: 3, borderRadius: 10, background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)" }}>
+      {opts.map((o) => {
+        const active = o.id === value;
+        return (
+          <button key={o.id} type="button" onClick={() => onChange(o.id)}
+            style={{
+              fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: 7, border: "none", cursor: "pointer",
+              transition: "background 140ms ease, color 140ms ease, box-shadow 140ms ease",
+              color: active ? "var(--agent-text-on-coral, #fff)" : "var(--agent-text-secondary)",
+              background: active ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "transparent",
+              boxShadow: active ? "0 2px 8px rgba(var(--agent-coral-rgb), 0.26)" : "none",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConflictRow({ title, file, entered, keepLabel, replaceLabel, value, onChange, note }: { title: string; file: string; entered: string; keepLabel: string; replaceLabel: string; value: "keep" | "replace"; onChange: (v: "keep" | "replace") => void; note?: string }) {
+  return (
+    <div style={{ borderRadius: 12, border: "0.5px solid var(--agent-border-default)", borderLeft: "3px solid var(--agent-warning, #D08700)", background: "var(--agent-surface-glass)", padding: "12px 14px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 10 }}>{title}</div>
+      <div style={{ display: "flex", alignItems: "stretch", marginBottom: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>On the file</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", marginTop: 3 }}>{file}</div>
+        </div>
+        <div aria-hidden style={{ width: 1, background: "var(--agent-border-default)", margin: "0 14px", alignSelf: "stretch" }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>You entered</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", marginTop: 3 }}>{entered}</div>
+        </div>
+      </div>
+      <KeepReplace value={value} onChange={onChange} keepLabel={keepLabel} replaceLabel={replaceLabel} />
+      {note && <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>{note}</p>}
+    </div>
+  );
+}
 
 type Props = {
   open: boolean;
@@ -73,6 +146,10 @@ type Props = {
   // file-page banner leaves this unset (reloads in place); the new-sale catch
   // flow sets it to navigate to the file the new buyer landed on.
   onRelisted?: () => void;
+  // Present only on the new-sale catch flow. Drives the "we'll update the file"
+  // section + the tenure/seller/onward keep-or-replace cards, and is applied via
+  // applyRelistFileUpdatesAction after the relist commits.
+  catchUpdates?: RelistCatchUpdates;
   onClose: () => void;
 };
 
@@ -121,7 +198,7 @@ export function RelistFileModal({
   open, transactionId, previousPurchasePrice, inChain,
   initialBuyerName, initialBuyerEmail, initialBuyerPhone, initialPricePence,
   initialPurchaseType, initialSolicitor, initialBroker,
-  onRelisted, onClose,
+  onRelisted, catchUpdates, onClose,
 }: Props) {
   const { theme, isNight } = usePortalTheme();
   const [stage, setStage] = useState<Stage>("form");
@@ -177,6 +254,11 @@ export function RelistFileModal({
   const [onwardExternalAgent, setOnwardExternalAgent] = useState("");
   const [onwardExternalEmail, setOnwardExternalEmail] = useState("");
 
+  // Catch-flow conflict resolutions (default keep — the safe choice).
+  const [tenureRes, setTenureRes] = useState<"keep" | "replace">("keep");
+  const [sellerRes, setSellerRes] = useState<"keep" | "replace">("keep");
+  const [onwardRes, setOnwardRes] = useState<"keep" | "replace">("keep");
+
   // Reset when modal opens.
   useEffect(() => {
     if (open) {
@@ -200,6 +282,9 @@ export function RelistFileModal({
       setOnwardExternalAgent("");
       setOnwardExternalEmail("");
       setPriorReferral(null);
+      setTenureRes("keep");
+      setSellerRes("keep");
+      setOnwardRes("keep");
     }
   }, [open, previousPurchasePrice, initialBuyerName, initialBuyerEmail, initialBuyerPhone, initialPricePence, initialPurchaseType, initialSolicitor, initialBroker]);
 
@@ -405,6 +490,28 @@ export function RelistFileModal({
           // / new-link creation / chain invite emails.
           onwardSale: buildOnwardPayload(),
         });
+        // New-sale catch (critique #296): carry the non-buyer data the agent
+        // typed onto the file. Best-effort — a miss here never undoes the relist
+        // that already committed; the agent can still edit the file.
+        if (catchUpdates) {
+          await applyRelistFileUpdatesAction({
+            transactionId,
+            agentFeeAmount: catchUpdates.apply.agentFeeAmount,
+            agentFeePercent: catchUpdates.apply.agentFeePercent,
+            agentFeeIsVatInclusive: catchUpdates.apply.agentFeeIsVatInclusive,
+            note: catchUpdates.apply.note,
+            photoStoragePath: catchUpdates.apply.photoStoragePath,
+            assignToUserId: catchUpdates.apply.assignToUserId,
+            tenureResolution: catchUpdates.conflicts.tenure ? tenureRes : undefined,
+            tenureValue: catchUpdates.apply.enteredTenure,
+            isShareOfFreehold: catchUpdates.apply.enteredIsShareOfFreehold,
+            sellerResolution: catchUpdates.conflicts.seller ? sellerRes : undefined,
+            vendorContacts: catchUpdates.apply.enteredVendorContacts,
+            vendorSolicitorFirmId: catchUpdates.apply.enteredVendorSolicitorFirmId,
+            vendorSolicitorContactId: catchUpdates.apply.enteredVendorSolicitorContactId,
+            sellerOnwardResolution: catchUpdates.conflicts.onward ? onwardRes : undefined,
+          }).catch((e) => console.error("relist file-updates failed:", e));
+        }
         // If the agent uploaded the new memo, tick the "Memorandum of sale
         // received" step for the new round and file the memo against the sale.
         // Runs after the relist commits (which reset that step to available),
@@ -883,6 +990,41 @@ export function RelistFileModal({
                         maxLength={120}
                         className="w-full glass-input text-sm rounded-lg px-3 py-2"
                               />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {catchUpdates && (catchUpdates.safeUpdates.length > 0 || catchUpdates.conflicts.tenure || catchUpdates.conflicts.seller || catchUpdates.conflicts.onward) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingTop: 2 }}>
+                {catchUpdates.safeUpdates.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-secondary)", marginBottom: 8 }}>We&rsquo;ll update the file</div>
+                    <div style={{ borderRadius: 12, border: "0.5px solid var(--agent-border-default)", padding: "2px 14px" }}>
+                      {catchUpdates.safeUpdates.map((u, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
+                          <CheckCircle size={15} weight="fill" color="var(--agent-success, #1F8A4A)" style={{ flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, color: "var(--agent-text-secondary)" }}>{u.label}</span>
+                          <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", textAlign: "right" }}>{u.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(catchUpdates.conflicts.tenure || catchUpdates.conflicts.seller || catchUpdates.conflicts.onward) && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-secondary)", marginBottom: 8 }}>Needs your confirmation</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {catchUpdates.conflicts.tenure && (
+                        <ConflictRow title="Tenure differs" file={catchUpdates.conflicts.tenure.file} entered={catchUpdates.conflicts.tenure.entered} keepLabel="Keep file's" replaceLabel="Use what you entered" value={tenureRes} onChange={setTenureRes} note="Changing tenure reshuffles the legal steps on the file, so we never flip it without you." />
+                      )}
+                      {catchUpdates.conflicts.seller && (
+                        <ConflictRow title="Seller differs" file={catchUpdates.conflicts.seller.file} entered={catchUpdates.conflicts.seller.entered} keepLabel="Keep file's" replaceLabel="Replace" value={sellerRes} onChange={setSellerRes} note="The seller rarely changes when only the buyer does, so we keep the file's unless you say otherwise." />
+                      )}
+                      {catchUpdates.conflicts.onward && (
+                        <ConflictRow title="Seller's onward purchase differs" file={catchUpdates.conflicts.onward.file} entered={catchUpdates.conflicts.onward.entered} keepLabel="Keep file's" replaceLabel="Set up fresh" value={onwardRes} onChange={setOnwardRes} note="We won't merge two chains automatically. Replace flags the file so you set the chain up fresh." />
+                      )}
                     </div>
                   </div>
                 )}
