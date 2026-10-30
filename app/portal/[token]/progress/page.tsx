@@ -5,7 +5,8 @@ import { calculateProgress } from "@/lib/services/fees";
 import { getMilestoneCopy, WHO_LABELS } from "@/lib/portal-copy";
 import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
-import { getOnwardTrackerView, getRelatedSaleSignalForFile } from "@/lib/services/onward";
+import { getOnwardTrackerView, getRelatedSaleSignalForFile, resolveOwnOnwardFileId } from "@/lib/services/onward";
+import { resolveTwinContactOnFile } from "@/lib/services/portal-twin";
 import { prisma } from "@/lib/prisma";
 import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
 import { recordPortalEvent } from "@/lib/services/portal-events";
@@ -34,6 +35,42 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
     description:        getMilestoneCopy(m.code).description ?? null,
     eventDateRequired:  m.eventDateRequired,
   }));
+}
+
+// Onward portal mirror (docs/active/onward-portal-mirror.md): when the client's
+// onward purchase / related sale is a file WE run (resolveOwnOnwardFileId) and we
+// can tie this person to their own contact on it (resolveTwinContactOnFile),
+// render that file's REAL steps — confirmable, under their own token — in the
+// side tab, instead of the lightweight stand-in tracker. A nested
+// PortalMilestoneList with no onward/other panels renders exactly the solo
+// confirmable column. No tie yet → return null and fall back to the stand-in
+// (the read-only fallback lands in a follow-up slice).
+async function buildNeighbourStepsPanel(
+  sourceTxId: string,
+  sourceContactId: string,
+  kind: "onward_purchase" | "related_sale",
+): Promise<ReactNode | null> {
+  const neighbourId = await resolveOwnOnwardFileId(sourceTxId, kind);
+  if (!neighbourId) return null;
+  const twin = await resolveTwinContactOnFile(sourceContactId, neighbourId);
+  if (!twin?.portalToken) return null;
+  const bData = await getPortalData(twin.portalToken);
+  if (!bData || bData.kind === "deadRound") return null;
+  const bContact = bData.data.contact;
+  const bTx = bData.data.transaction;
+  const bSide = bContact.roleType === "vendor" ? "vendor" : "purchaser";
+  const bMilestones = await getPortalMilestones(bTx.id, bSide, portalOwnSideScope(bContact, bTx));
+  const bHasExchanged = bMilestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
+  return (
+    <PortalMilestoneList
+      token={twin.portalToken}
+      milestones={toPortalShape(bMilestones)}
+      otherSideMilestones={[]}
+      hasExchanged={bHasExchanged}
+      side={bSide}
+      saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
+    />
+  );
 }
 
 export default async function PortalProgressPage({
@@ -85,37 +122,48 @@ export default async function PortalProgressPage({
   let onwardPanel: ReactNode = undefined;
   let onwardLabel = "Your onward";
   if (side === "vendor") {
-    const [onwardView, moveInfo, chainAgent] = await Promise.all([
-      getOnwardTrackerView(transaction.id),
-      prisma.clientMoveInfo.findUnique({
-        where: { transactionId_side: { transactionId: transaction.id, side: "vendor" } },
-        select: { buyingOnward: true },
-      }),
-      getPortalChainAgent(transaction.id, "vendor").catch(() => null),
-    ]);
-    const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
-    const onwardLinkKnown = !!ca?.present;
-    // The onward property address is already known from the chain (the link
-    // above), so the seller doesn't re-enter it — they only set tenure + method.
-    const onwardAddress = ca?.propertyAddress ?? null;
-    if (onwardView.exists || moveInfo?.buyingOnward === true || onwardLinkKnown) {
-      onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} onwardAddress={onwardAddress} />;
+    // Onward is a file we run + person tied → show its real confirmable steps.
+    onwardPanel = (await buildNeighbourStepsPanel(transaction.id, contact.id, "onward_purchase")) ?? undefined;
+    if (!onwardPanel) {
+      const [onwardView, moveInfo, chainAgent] = await Promise.all([
+        getOnwardTrackerView(transaction.id),
+        prisma.clientMoveInfo.findUnique({
+          where: { transactionId_side: { transactionId: transaction.id, side: "vendor" } },
+          select: { buyingOnward: true },
+        }),
+        getPortalChainAgent(transaction.id, "vendor").catch(() => null),
+      ]);
+      const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
+      const onwardLinkKnown = !!ca?.present;
+      // The onward property address is already known from the chain (the link
+      // above), so the seller doesn't re-enter it — they only set tenure + method.
+      const onwardAddress = ca?.propertyAddress ?? null;
+      if (onwardView.exists || moveInfo?.buyingOnward === true || onwardLinkKnown) {
+        onwardPanel = <PortalOnwardPanel token={token} initialView={onwardView} onwardAddress={onwardAddress} />;
+      }
     }
   } else {
-    const [relatedView, signal, chainAgent] = await Promise.all([
-      getOnwardTrackerView(transaction.id, "related_sale"),
-      getRelatedSaleSignalForFile(transaction.id),
-      getPortalChainAgent(transaction.id, "purchaser").catch(() => null),
-    ]);
-    const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
-    const relatedLinkKnown = !!ca?.present;
-    // Address of the property they're selling (the link below), if known.
-    const relatedAddress = ca?.propertyAddress ?? signal.relatedAddress ?? null;
-    if (relatedView.exists || signal.selling || relatedLinkKnown) {
+    // Related sale is a file we run + person tied → show its real confirmable steps.
+    const mirror = await buildNeighbourStepsPanel(transaction.id, contact.id, "related_sale");
+    if (mirror) {
       onwardLabel = "Your sale";
-      onwardPanel = (
-        <PortalOnwardPanel token={token} initialView={relatedView} onwardAddress={relatedAddress} direction="related" />
-      );
+      onwardPanel = mirror;
+    } else {
+      const [relatedView, signal, chainAgent] = await Promise.all([
+        getOnwardTrackerView(transaction.id, "related_sale"),
+        getRelatedSaleSignalForFile(transaction.id),
+        getPortalChainAgent(transaction.id, "purchaser").catch(() => null),
+      ]);
+      const ca = chainAgent as { present?: boolean; propertyAddress?: string | null } | null;
+      const relatedLinkKnown = !!ca?.present;
+      // Address of the property they're selling (the link below), if known.
+      const relatedAddress = ca?.propertyAddress ?? signal.relatedAddress ?? null;
+      if (relatedView.exists || signal.selling || relatedLinkKnown) {
+        onwardLabel = "Your sale";
+        onwardPanel = (
+          <PortalOnwardPanel token={token} initialView={relatedView} onwardAddress={relatedAddress} direction="related" />
+        );
+      }
     }
   }
 
