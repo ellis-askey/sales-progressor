@@ -87,6 +87,9 @@ Unchanged. Both files stay independent and send their own milestone emails as to
 - `app/portal/[token]/progress/page.tsx` — `buildNeighbourStepsPanel`: confirmable real steps when tied, **read-only real steps when not**, both directions; falls back to the stand-in only when the neighbour isn't our live file.
 - **Revert is automatic** — `resolveOwnOnwardFileId` gates on a live file, so a withdrawn/unlinked neighbour drops back to the stand-in with no extra code.
 - **Neighbour's own state respected** — `saleActive` is passed from the neighbour's status, and all confirms run through the neighbour's own token so its server-side rules (availability, pause, auth) are enforced regardless of the UI.
+- **Fail-safe** — `buildNeighbourStepsPanel` is wrapped in try/catch; any hiccup falls back to the stand-in, so a bug here can never break a client's progress page.
+- **Kill switch** — `ONWARD_PORTAL_MIRROR_ENABLED=false` (Vercel env) disables the whole mirror instantly without a code revert. Default on.
+- **No write side-effects** — loading the neighbour via `getPortalData` / `getPortalMilestones` is read-only; visit-stamping lives in the layout, so rendering the mirror never stamps a visit or triggers automation on the neighbour file.
 
 ## Remaining before sign-off
 

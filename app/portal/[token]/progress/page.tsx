@@ -56,11 +56,18 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
 // solo column. Returns null only when the neighbour isn't our live file, so the
 // caller falls back to the stand-in (and reverts there automatically if the
 // neighbour is later withdrawn — resolveOwnOnwardFileId gates on a live file).
+// Kill switch for this silent, client-facing feature: set
+// ONWARD_PORTAL_MIRROR_ENABLED=false in Vercel to disable it instantly without a
+// code revert — every file falls back to the lightweight stand-in.
+const ONWARD_MIRROR_ENABLED = process.env.ONWARD_PORTAL_MIRROR_ENABLED !== "false";
+
 async function buildNeighbourStepsPanel(
   sourceTxId: string,
   sourceContactId: string,
   kind: "onward_purchase" | "related_sale",
 ): Promise<ReactNode | null> {
+  if (!ONWARD_MIRROR_ENABLED) return null;
+  try {
   const neighbourId = await resolveOwnOnwardFileId(sourceTxId, kind);
   if (!neighbourId) return null;
 
@@ -112,6 +119,12 @@ async function buildNeighbourStepsPanel(
       />
     </PortalReadOnlyProvider>
   );
+  } catch (err) {
+    // Fail safe: a hiccup resolving the neighbour must NEVER break the client's
+    // progress page — fall back to the lightweight stand-in instead.
+    console.error("[onward-mirror] neighbour panel failed; using stand-in", err);
+    return null;
+  }
 }
 
 export default async function PortalProgressPage({
