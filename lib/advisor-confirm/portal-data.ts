@@ -140,6 +140,7 @@ export async function getAdvisorPortalView(
       overridePredictedDate: tx.overridePredictedDate ?? null,
       targetCompletionDate: tx.completionDate ?? null,
     },
+    tx.purchaseType ?? null,
   );
   const completedCount = displayStages.filter((s) => s.status === "complete" || s.status === "skipped").length;
   const inProgCount = displayStages.filter((s) => s.status === "in_progress").length;

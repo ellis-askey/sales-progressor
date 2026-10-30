@@ -43,7 +43,12 @@
 // Component fails at render (2026-07-03 outage). The client-side strip
 // looks up the icon from its own map keyed by DisplayStageKey.
 
-export type DisplayStageKey = "instructed" | "draft_pack" | "searches" | "enquiries" | "exchange" | "completion";
+export type DisplayStageKey = "instructed" | "draft_pack" | "finances" | "searches" | "enquiries" | "exchange" | "completion";
+
+// Funding route for the Finances stage. A mortgage file tracks it through the
+// engine (PM5 -> PM11); both cash routes have no mortgage steps and show the
+// stage as "in place" from the outset (see resolveDisplayStages).
+export type PurchaseTypeForStages = "mortgage" | "cash_buyer" | "cash_from_proceeds";
 
 export type DisplayStageDef = {
   key: DisplayStageKey;
@@ -57,6 +62,10 @@ export type DisplayStageDef = {
 export const DISPLAY_STAGES: DisplayStageDef[] = [
   { key: "instructed", name: "Instructed", entryCodes: ["VM1", "PM1"],   exitCodes: ["VM1", "PM1"] },
   { key: "draft_pack", name: "Draft pack", entryCodes: ["VM7"],          exitCodes: ["PM7"]  },
+  // Finances — a universal stage. Mortgage files run PM5 (application) -> PM11
+  // (offer), with PM6 (valuation) the mid-step. Cash routes have no mortgage
+  // milestones, so the stage resolves to "in place" (see resolveDisplayStages).
+  { key: "finances",   name: "Finances",   entryCodes: ["PM5"],          exitCodes: ["PM11"] },
   { key: "searches",   name: "Searches",   entryCodes: ["PM8"],          exitCodes: ["PM13"] },
   { key: "enquiries",  name: "Enquiries",  entryCodes: ["PM14"],         exitCodes: ["PM20"] },
   { key: "exchange",   name: "Exchange",   entryCodes: ["VM18", "PM25"], exitCodes: ["VM19"] },
@@ -129,6 +138,10 @@ export type ForecastInputs = {
 export function resolveDisplayStages(
   milestones: MilestoneRowForStages[],
   forecast: ForecastInputs,
+  // The buyer's funding route. Drives the Finances stage: mortgage files
+  // resolve it through the engine; cash / cash-from-proceeds files show it "in
+  // place". Optional — when absent, Finances falls back to the engine path.
+  purchaseType?: PurchaseTypeForStages | null,
 ): ResolvedStage[] {
   const byCode = new Map<string, MilestoneRowForStages>();
   for (const m of milestones) byCode.set(m.code, m);
@@ -140,7 +153,24 @@ export function resolveDisplayStages(
   const isCodeSettled = (code: string) => isCodeComplete(code) || isCodeNotRequired(code);
   const completedAtOf = (code: string) => byCode.get(code)?.completion?.completedAt ?? null;
 
+  const isCashRoute = purchaseType === "cash_buyer" || purchaseType === "cash_from_proceeds";
+
   const rows = DISPLAY_STAGES.map((def) => {
+    // Finances on a cash file: there are no mortgage milestones (PM5/6/11 are
+    // not-required), but the buyer's funds stand in place from the start — so
+    // the stage reads complete with NO date ("In place"), never skipped. The
+    // renderers show "In place" for a complete finances stage with no date.
+    if (def.key === "finances" && isCashRoute) {
+      return {
+        def,
+        isComplete: true,
+        isSettled: true,
+        isSkipped: false,
+        hasBegun: true,
+        completedAt: null as Date | null,
+        forecastDate: null as Date | null,
+      };
+    }
     const isComplete = def.exitCodes.every(isCodeComplete);
     // Settled = every exit code is complete OR skipped. A stage that's settled
     // but not fully complete was skipped (at least one exit was not_required).

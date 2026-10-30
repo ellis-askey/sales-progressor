@@ -511,6 +511,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
                     overridePredictedDate: transaction.overridePredictedDate ?? null,
                     targetCompletionDate: transaction.completionDate ?? null,
                   },
+                  transaction.purchaseType ?? null,
                 ) as MilestoneStage[]}
                 exchangeDaySlot={exchangeDayControl}
                 exchangeDayActive={exchangeDayActive}

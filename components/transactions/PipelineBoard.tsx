@@ -8,7 +8,7 @@
 // flagged so a log-jam shows itself before you read a card.
 
 import Link from "next/link";
-import { FileText, Files, MagnifyingGlass, ChatCircleText, ArrowsLeftRight, Key, Flame } from "@phosphor-icons/react";
+import { FileText, Files, Coins, MagnifyingGlass, ChatCircleText, ArrowsLeftRight, Key, Flame } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 import type { TransactionRow } from "./TransactionTable";
@@ -40,6 +40,7 @@ export type PipelineRow = TransactionRow & {
 const STAGE_ICON: Record<DisplayStageKey, typeof FileText> = {
   instructed: FileText,
   draft_pack: Files,
+  finances: Coins,
   searches: MagnifyingGlass,
   enquiries: ChatCircleText,
   exchange: ArrowsLeftRight,

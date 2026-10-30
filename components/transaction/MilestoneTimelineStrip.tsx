@@ -95,6 +95,11 @@ function formatStageDate(stage: MilestoneStage): string {
   if (stage.status === "complete" && stage.completedAt) {
     return formatDate(stage.completedAt);
   }
+  // Finances on a cash file is complete but carries no date — the funds are
+  // simply in place from the outset (see resolveDisplayStages).
+  if (stage.status === "complete" && stage.key === "finances") {
+    return "In place";
+  }
   if (stage.status === "skipped") {
     return "Skipped";
   }
@@ -194,6 +199,22 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
   const size = 40;
   const ringWidth = 2;
 
+  // Beveled-coin treatment for the two stages that carry live meaning —
+  // complete (emerald) and in-progress (coral) — so they read as minted discs
+  // against the glass rather than faded rings. A gradient rim (padding-box /
+  // border-box trick) around a tinted face, with a top light-catch. The quiet
+  // stages (up next / pending / skipped) keep the flat ring.
+  const isCoin = stage.status === "complete" || stage.status === "in_progress";
+  const coinFace = stage.status === "complete"
+    ? "rgba(16, 185, 129, 0.18)"
+    : "rgba(var(--agent-coral-rgb), 0.14)";
+  const coinRim = stage.status === "complete"
+    ? "conic-gradient(from 135deg, rgba(16,185,129,0.5), #047857, #10b981, rgba(16,185,129,0.5))"
+    : "conic-gradient(from 135deg, var(--agent-coral), var(--agent-coral-deep), var(--agent-coral))";
+  const coinShadow = stage.status === "complete"
+    ? "inset 0 1.5px 0 rgba(255,255,255,0.45), 0 3px 9px rgba(16,185,129,0.22)"
+    : "inset 0 1.5px 0 rgba(255,255,255,0.45), 0 3px 10px rgba(var(--agent-coral-rgb),0.26)";
+
   return (
     <div
       style={{
@@ -210,17 +231,21 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
           width: size,
           height: size,
           borderRadius: "50%",
-          background: tone.bg,
-          border: `${ringWidth}px solid ${tone.ring}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: tone.iconColor,
-          boxShadow: stage.status === "in_progress"
-            ? "0 2px 8px rgba(var(--agent-coral-rgb), 0.20)"
-            : stage.status === "complete"
-              ? "0 1px 3px rgba(15,23,42,0.06)"
-              : "none",
+          ...(isCoin
+            ? {
+                border: "3px solid transparent",
+                background: `linear-gradient(${coinFace}, ${coinFace}) padding-box, ${coinRim} border-box`,
+                boxShadow: coinShadow,
+              }
+            : {
+                background: tone.bg,
+                border: `${ringWidth}px solid ${tone.ring}`,
+                boxShadow: "none",
+              }),
         }}
       >
         {stage.status === "complete" ? (

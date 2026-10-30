@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, House, FileText, MagnifyingGlass, ChatText, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { Check, House, FileText, Coins, MagnifyingGlass, ChatText, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import type { ResolvedStage, DisplayStageKey } from "@/lib/milestones/display-stages";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { ProgressStripScroller } from "./ProgressStripScroller";
@@ -68,6 +68,7 @@ export function CardKicker({ children, right }: { children: React.ReactNode; rig
 const STAGE_ICON: Record<DisplayStageKey, React.ReactNode> = {
   instructed: <House size={15} weight="regular" />,
   draft_pack: <FileText size={15} weight="regular" />,
+  finances: <Coins size={15} weight="regular" />,
   searches: <MagnifyingGlass size={15} weight="regular" />,
   enquiries: <ChatText size={15} weight="regular" />,
   exchange: <ArrowsLeftRight size={15} weight="regular" />,
@@ -113,7 +114,9 @@ function StageNode({ stage }: { stage: ResolvedStage }) {
   const iconColor = st === "complete" ? "#ffffff" : st === "in_progress" ? S.accent : S.muted;
   const sub =
     st === "complete"
-      ? "Complete"
+      ? stage.key === "finances" && !stage.completedAt
+        ? "In place"
+        : "Complete"
       : st === "in_progress"
         ? "In progress"
         : st === "up_next"

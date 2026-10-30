@@ -44,6 +44,7 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
     expect(s).toEqual({
       instructed: "up_next",
       draft_pack: "pending",
+      finances: "pending",
       searches: "pending",
       enquiries: "pending",
       exchange: "pending",
@@ -93,7 +94,7 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
   });
 
   test("readiness confirmed: Exchange shows in progress; exchanged: complete", () => {
-    const base = ["VM1", "PM1", "VM7", "PM7", "PM8", "PM13", "PM14", "PM20"];
+    const base = ["VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20"];
     const ready = statusMap(resolveDisplayStages(rows(...base, "VM18"), NO_FORECAST));
     expect(ready.exchange).toBe("in_progress");
 
@@ -105,7 +106,7 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
   test("everything done: all complete, nothing active or up next", () => {
     const s = statusMap(
       resolveDisplayStages(
-        rows("VM1", "PM1", "VM7", "PM7", "PM8", "PM13", "PM14", "PM20", "VM18", "VM19", "VM20"),
+        rows("VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20", "VM18", "VM19", "VM20"),
         NO_FORECAST,
       ),
     );
@@ -142,7 +143,7 @@ describe("resolveDisplayStages — skipped (not_required) stages", () => {
   test("searches skipped mid-file: Searches shows skipped, Enquiries becomes up next", () => {
     const s = statusMap(
       resolveDisplayStages(
-        [...rows("VM1", "PM1", "VM7", "PM7"), ...skipped("PM8", "PM13")],
+        [...rows("VM1", "PM1", "VM7", "PM7", "PM5", "PM11"), ...skipped("PM8", "PM13")],
         NO_FORECAST,
       ),
     );
@@ -154,7 +155,7 @@ describe("resolveDisplayStages — skipped (not_required) stages", () => {
   test("searches began then skipped: still resolves to skipped, not in progress", () => {
     const s = statusMap(
       resolveDisplayStages(
-        [...rows("VM1", "PM1", "VM7", "PM7", "PM8"), ...skipped("PM13")],
+        [...rows("VM1", "PM1", "VM7", "PM7", "PM8", "PM5", "PM11"), ...skipped("PM13")],
         NO_FORECAST,
       ),
     );
@@ -165,7 +166,7 @@ describe("resolveDisplayStages — skipped (not_required) stages", () => {
   test("a skipped stage never blocks a later in-progress stage", () => {
     const s = statusMap(
       resolveDisplayStages(
-        [...rows("VM1", "PM1", "VM7", "PM7", "PM14"), ...skipped("PM13")],
+        [...rows("VM1", "PM1", "VM7", "PM7", "PM14", "PM5", "PM11"), ...skipped("PM13")],
         NO_FORECAST,
       ),
     );
@@ -175,9 +176,54 @@ describe("resolveDisplayStages — skipped (not_required) stages", () => {
 
   test("skipped stage is never left as up_next (the 4 Covert Road regression)", () => {
     const stages = resolveDisplayStages(
-      [...rows("VM1", "PM1", "VM7", "PM7"), ...skipped("PM8", "PM13")],
+      [...rows("VM1", "PM1", "VM7", "PM7", "PM5", "PM11"), ...skipped("PM8", "PM13")],
       NO_FORECAST,
     );
     expect(stages.find((s) => s.key === "searches")?.status).not.toBe("up_next");
+  });
+});
+
+// Finances (2026-10-30) — a universal stage that means different things by
+// funding route. Mortgage files track it through the engine (PM5 application ->
+// PM11 offer); both cash routes have no mortgage milestones and show the stage
+// "in place" (complete, no date) from the outset — never skipped.
+describe("resolveDisplayStages — Finances stage", () => {
+  function financesStage(
+    ms: MilestoneRowForStages[],
+    pt?: "mortgage" | "cash_buyer" | "cash_from_proceeds",
+  ) {
+    return resolveDisplayStages(ms, NO_FORECAST, pt).find((s) => s.key === "finances")!;
+  }
+
+  test("mortgage, nothing yet: Finances pending", () => {
+    expect(financesStage([], "mortgage").status).toBe("pending");
+  });
+
+  test("mortgage, application submitted (PM5): Finances in progress", () => {
+    expect(financesStage(rows("PM5"), "mortgage").status).toBe("in_progress");
+  });
+
+  test("mortgage, offer received (PM11): Finances complete with the offer date", () => {
+    const fin = financesStage(rows("PM5", "PM11"), "mortgage");
+    expect(fin.status).toBe("complete");
+    expect(fin.completedAt).toEqual(new Date("2026-08-01T10:00:00Z"));
+  });
+
+  test("cash buyer: Finances complete and in place (no date), never skipped", () => {
+    const fin = financesStage([], "cash_buyer");
+    expect(fin.status).toBe("complete");
+    expect(fin.completedAt).toBeNull();
+  });
+
+  test("cash from proceeds: Finances complete and in place (no date)", () => {
+    const fin = financesStage([], "cash_from_proceeds");
+    expect(fin.status).toBe("complete");
+    expect(fin.completedAt).toBeNull();
+  });
+
+  test("cash buyer shows Finances in place even if mortgage steps were marked not-required", () => {
+    const fin = financesStage(skipped("PM5", "PM6", "PM11"), "cash_buyer");
+    expect(fin.status).toBe("complete");
+    expect(fin.completedAt).toBeNull();
   });
 });

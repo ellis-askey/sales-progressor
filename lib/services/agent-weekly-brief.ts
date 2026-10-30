@@ -118,6 +118,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
         expectedExchangeDate: true,
         overridePredictedDate: true,
         completionDate: true,
+        purchaseType: true,
         serviceType: true,
         chaseTasks: {
           where: { status: "pending", priority: "escalated" },
@@ -151,7 +152,7 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
               expectedExchangeDate: tx.expectedExchangeDate ?? null,
               overridePredictedDate: tx.overridePredictedDate ?? null,
               targetCompletionDate: tx.completionDate ?? null,
-            }),
+            }, tx.purchaseType ?? null),
           );
         } catch {
           // leave the safe defaults above

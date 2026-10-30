@@ -114,6 +114,7 @@ export default async function SolicitorOverviewPage({ params }: { params: Promis
   const displayStages = resolveDisplayStages(
     allRows.map((r) => ({ code: r.milestoneDefinition.code, isComplete: r.state === "complete", isNotRequired: r.state === "not_required", completion: { completedAt: r.completedAt } })),
     { expectedExchangeDate: tx.expectedExchangeDate ?? null, overridePredictedDate: tx.overridePredictedDate ?? null, targetCompletionDate: tx.completionDate ?? null },
+    tx.purchaseType ?? null,
   );
 
   // Enquiries loop / raise chase.
