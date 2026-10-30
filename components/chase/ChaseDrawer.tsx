@@ -873,11 +873,15 @@ export function ChaseDrawer({
                     {propertyAddress}
                   </p>
                   {selectedRecipient && (
-                    <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                      <RecipientAvatar contact={selectedRecipient} size={18} />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient.name}</span>
-                      <span style={{ color: "var(--agent-text-tertiary)", flexShrink: 0 }}>· {recipientRoleLabel(selectedRecipient)}</span>
-                    </p>
+                    // Recipient reads like a picker-menu row: a larger avatar,
+                    // the name on top, the role/firm (or Buyer/Seller) beneath.
+                    <div style={{ margin: "7px 0 0", display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <RecipientAvatar contact={selectedRecipient} size={34} />
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient.name}</span>
+                        <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{recipientRoleLabel(selectedRecipient)}</span>
+                      </span>
+                    </div>
                   )}
                 </div>
                 {recipientCandidates.length > 1 && (

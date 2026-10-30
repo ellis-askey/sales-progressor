@@ -187,7 +187,10 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
         border: "1px solid var(--agent-border-default)",
         borderRadius: PILL_R,
         overflow: "hidden",
-        zIndex: 1300,
+        // Sits just above the topbar, but BELOW the overlay tier (modals 210+,
+        // drawers 1000+) so an open drawer/modal always covers the user pill +
+        // its menu, instead of the account pill bleeding through. (#user-nav)
+        zIndex: 150,
         boxShadow: open ? "0 12px 30px rgba(20,12,6,0.16)" : "none",
         transition: "box-shadow 200ms",
       }}
