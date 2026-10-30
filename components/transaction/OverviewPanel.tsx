@@ -48,7 +48,7 @@ import { BrokerContactsList } from "@/components/transaction/BrokerContactsList"
 import { ProfessionalsList } from "@/components/transaction/ProfessionalsList";
 import { PeoplePanel } from "@/components/transaction/PeoplePanel";
 import { WhatsAppGroupControl } from "@/components/contacts/WhatsAppGroupControl";
-import { BrokerSection } from "@/components/transaction/BrokerSection";
+import { BrokersSection } from "@/components/brokers/BrokersSection";
 import { HousingAssociationSection } from "@/components/transaction/HousingAssociationSection";
 import { RiskScoreWidget } from "@/components/transaction/RiskScoreWidget";
 import { PropertyIntelCard } from "@/components/property/PropertyIntelCard";
@@ -241,14 +241,14 @@ export async function OverviewPanel({
         brokerReferralFeeReceived: true,
         purchaserBrokerReferral: true,
         brokerFirm: { select: { id: true, name: true } },
-        brokerContact: { select: { id: true, name: true } },
+        brokerContact: { select: { id: true, name: true, phone: true, email: true } },
         onwardBrokerFirmId: true,
         onwardBrokerContactId: true,
         onwardBrokerReferralFee: true,
         onwardBrokerReferralFeeReceived: true,
         onwardBrokerReferral: true,
         onwardBrokerFirm: { select: { id: true, name: true } },
-        onwardBrokerContact: { select: { id: true, name: true } },
+        onwardBrokerContact: { select: { id: true, name: true, phone: true, email: true } },
       },
     }).catch(() => null),
 
@@ -565,45 +565,46 @@ export async function OverviewPanel({
                 canEdit={currentUserRole !== "sales_progressor" || viewerIsExternalProgressor}
               />
             )}
-            {/* Mortgage broker (the referral broker) now lives here with the
-                other professionals, not in a standalone card lower down. */}
-            {(brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage") && (
-              <BrokerSection
-                transactionId={transaction.id}
-                brokerFirmId={brokerRow?.brokerFirmId ?? null}
-                brokerContactId={brokerRow?.brokerContactId ?? null}
-                brokerFirmName={brokerRow?.brokerFirm?.name ?? null}
-                brokerContactName={brokerRow?.brokerContact?.name ?? null}
-                brokerReferralFee={brokerRow?.brokerReferralFee ?? null}
-                brokerReferralFeeReceived={brokerRow?.brokerReferralFeeReceived ?? false}
-                purchaserBrokerReferral={brokerRow?.purchaserBrokerReferral ?? false}
-                purchaseType={transaction.purchaseType}
-                // Anyone working the file (incl. an internal TSP progressor) can
-                // attach a broker; the fee stays agency-only via canEditFee + the
-                // server action, which forces a progressor's write to attach-only.
-                canEdit
-                canEditFee={currentUserRole !== "sales_progressor"}
-              />
-            )}
-            {/* Seller's onward-purchase broker (Phase 2). Only when the seller is
-                buying onward — a second referral + fee, agent income like the
-                buyer's. Also shows if one's already set, even if the signal blips. */}
-            {(onwardSignal.buyingOnward || brokerRow?.onwardBrokerFirmId) && (
-              <BrokerSection
-                transactionId={transaction.id}
-                side="vendor"
-                brokerFirmId={brokerRow?.onwardBrokerFirmId ?? null}
-                brokerContactId={brokerRow?.onwardBrokerContactId ?? null}
-                brokerFirmName={brokerRow?.onwardBrokerFirm?.name ?? null}
-                brokerContactName={brokerRow?.onwardBrokerContact?.name ?? null}
-                brokerReferralFee={brokerRow?.onwardBrokerReferralFee ?? null}
-                brokerReferralFeeReceived={brokerRow?.onwardBrokerReferralFeeReceived ?? false}
-                purchaserBrokerReferral={brokerRow?.onwardBrokerReferral ?? false}
-                purchaseType={transaction.purchaseType}
-                canEdit
-                canEditFee={currentUserRole !== "sales_progressor"}
-              />
-            )}
+            {/* Brokers — the referral broker(s) rendered in the same roster
+                style as the solicitors above. Buyer's mortgage broker, plus the
+                seller's onward broker when they're buying onward. The buyer slot
+                shows whenever a broker's set or it's a mortgage file; the vendor
+                slot when the seller's buying onward (or one's already set, in case
+                the signal blips). An empty slot renders a "+ Add" row. */}
+            <BrokersSection
+              transactionId={transaction.id}
+              canEditFee={currentUserRole !== "sales_progressor"}
+              slots={[
+                ...((brokerRow?.brokerFirmId || transaction.purchaseType === "mortgage")
+                  ? [{
+                      side: "purchaser" as const,
+                      firmId: brokerRow?.brokerFirmId ?? null,
+                      contactId: brokerRow?.brokerContactId ?? null,
+                      firmName: brokerRow?.brokerFirm?.name ?? null,
+                      contactName: brokerRow?.brokerContact?.name ?? null,
+                      phone: brokerRow?.brokerContact?.phone ?? null,
+                      email: brokerRow?.brokerContact?.email ?? null,
+                      referralFee: brokerRow?.brokerReferralFee ?? null,
+                      received: brokerRow?.brokerReferralFeeReceived ?? false,
+                      referred: brokerRow?.purchaserBrokerReferral ?? false,
+                    }]
+                  : []),
+                ...((onwardSignal.buyingOnward || brokerRow?.onwardBrokerFirmId)
+                  ? [{
+                      side: "vendor" as const,
+                      firmId: brokerRow?.onwardBrokerFirmId ?? null,
+                      contactId: brokerRow?.onwardBrokerContactId ?? null,
+                      firmName: brokerRow?.onwardBrokerFirm?.name ?? null,
+                      contactName: brokerRow?.onwardBrokerContact?.name ?? null,
+                      phone: brokerRow?.onwardBrokerContact?.phone ?? null,
+                      email: brokerRow?.onwardBrokerContact?.email ?? null,
+                      referralFee: brokerRow?.onwardBrokerReferralFee ?? null,
+                      received: brokerRow?.onwardBrokerReferralFeeReceived ?? false,
+                      referred: brokerRow?.onwardBrokerReferral ?? false,
+                    }]
+                  : []),
+              ]}
+            />
             <ClientOwnBrokerRow brokers={ownBrokers} />
             <BrokerContactsList contacts={brokerContacts} />
             {showOtherProfessionals && (

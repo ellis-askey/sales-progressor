@@ -574,7 +574,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           pill on top, subtext beneath, so Clients and Professionals read
           identically. Saving pulse tucks in next to the title. */}
       {!hideHeader && (
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "12px 16px", borderBottom: "0.5px solid var(--agent-border-default)" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Solicitors</h3>
