@@ -201,7 +201,7 @@ export function ChainCard({
         </div>
 
         {/* Concise chain metadata. Desktop: every note. Mobile: top three only. */}
-        <div className="chain-meta chain-meta-desktop" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
+        <div className="chain-meta chain-meta-desktop" style={{ alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
           {metaItems.map((m, i) => (
             <Fragment key={m.key}>
               {i > 0 && <Divider />}
@@ -209,7 +209,7 @@ export function ChainCard({
             </Fragment>
           ))}
         </div>
-        <div className="chain-meta chain-meta-mobile" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 6 }}>
+        <div className="chain-meta chain-meta-mobile" style={{ alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 6 }}>
           {mobileItems.map((m, i) => (
             <Fragment key={m.key}>
               {i > 0 && <Divider />}

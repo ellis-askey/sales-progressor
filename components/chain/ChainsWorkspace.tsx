@@ -414,6 +414,11 @@ export function ChainsWorkspace({
            trimmed meta row are off by default; the mobile rules below switch
            them on. Keeps desktop byte-identical. */
         .chain-prop-card .chain-open-inline { display: none; }
+        /* Desktop shows the full meta row, mobile the trimmed one. Display lives
+           here (not inline on the divs) so this toggle actually wins — an inline
+           display:flex would override it and render both rows (the duplicate
+           bug). */
+        .chain-prop-card .chain-meta-desktop { display: flex; }
         .chain-prop-card .chain-meta-mobile { display: none; }
         @media (max-width: 560px) {
           .chain-prop-card .chain-open-top { display: none; }
