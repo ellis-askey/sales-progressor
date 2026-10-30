@@ -1,5 +1,6 @@
 import { listLiveTransactionDocuments, type LiveTransactionDocumentRow } from "@/lib/services/transaction-documents";
 import { docLabel } from "@/lib/portal-documents";
+import { GlassTagDiv } from "@/components/glass/GlassTagDiv";
 
 function fileIcon(mimeType: string) {
   if (mimeType === "application/pdf") return "📄";
@@ -25,18 +26,20 @@ export function DocumentsList({ docs }: { docs: LiveTransactionDocumentRow[] }) 
   return (
     <div className="space-y-2">
       {docs.map((doc) => (
-        <div
+        <GlassTagDiv
           key={doc.id}
+          glassId="documents-row"
+          label="Documents · document row"
           data-bloom
           className="flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{ background: "rgba(255,255,255,0.4)" }}
+          surfaceClassName="border border-[var(--agent-border-subtle)] bg-[var(--agent-surface-glass)]"
         >
           <span className="text-xl flex-shrink-0">{fileIcon(doc.mimeType)}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900/80 truncate">
+            <p className="text-sm font-medium text-[var(--agent-text-primary)] truncate">
               {doc.docType ? docLabel(doc.docType) : doc.filename}
             </p>
-            <p className="text-xs text-slate-900/40 mt-0.5 truncate">
+            <p className="text-xs text-[var(--agent-text-muted)] mt-0.5 truncate">
               {doc.docType ? `${doc.filename} · ` : ""}{fmtSize(doc.fileSize)} · {fmtDate(doc.createdAt)}
               {doc.contact && (
                 <span className="ml-1">· Uploaded by {doc.contact.name} ({doc.contact.roleType})</span>
@@ -54,9 +57,9 @@ export function DocumentsList({ docs }: { docs: LiveTransactionDocumentRow[] }) 
               Download
             </a>
           ) : (
-            <span className="flex-shrink-0 text-xs text-slate-900/30">Unavailable</span>
+            <span className="flex-shrink-0 text-xs text-[var(--agent-text-muted)]">Unavailable</span>
           )}
-        </div>
+        </GlassTagDiv>
       ))}
     </div>
   );
@@ -73,11 +76,11 @@ export async function DocumentsSection({ transactionId }: Props) {
   if (docsWithUrls.length === 0) return null;
 
   return (
-    <div className="glass-card p-5">
-      <p className="glass-section-label text-slate-900/40 mb-4">
+    <GlassTagDiv glassId="documents-panel" label="Documents · panel" className="p-5" surfaceClassName="glass-card">
+      <p className="glass-section-label text-[var(--agent-text-muted)] mb-4">
         Documents ({docsWithUrls.length})
       </p>
       <DocumentsList docs={docsWithUrls} />
-    </div>
+    </GlassTagDiv>
   );
 }

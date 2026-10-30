@@ -12,6 +12,7 @@ import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { Pill } from "@/components/ui/Pill";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { Drawer } from "@/components/ui/Drawer";
@@ -309,6 +310,7 @@ function EmailConversationDrawer({
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts, solicitors }: Props) {
+  const searchTag = useGlassTag("activity-searchbar", "Activity · search bar");
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId]   = useState<string | null>(null);
@@ -913,7 +915,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-mi[data-on="true"] .act-radio { border-color:var(--agent-coral); }
         .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
       `}</style>
-      <div className="act-filterbar" data-bloom>
+      <div className={`act-filterbar ${searchTag.className}`} {...searchTag.props} data-bloom>
         <div className="act-scope">
           <Popover
             preset="menu"

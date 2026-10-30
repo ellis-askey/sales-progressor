@@ -5,23 +5,24 @@
 import { listLiveTransactionDocuments } from "@/lib/services/transaction-documents";
 import { DocumentsList } from "./DocumentsSection";
 import { AgentDocumentUpload } from "./AgentDocumentUpload";
+import { GlassTagDiv } from "@/components/glass/GlassTagDiv";
 
 export async function DocumentsPanel({ transactionId }: { transactionId: string }) {
   const docs = await listLiveTransactionDocuments(transactionId);
 
   return (
-    <div className="glass-card p-5">
+    <GlassTagDiv glassId="documents-panel" label="Documents · panel" className="p-5" surfaceClassName="glass-card">
       <div className="flex items-center justify-between mb-4" data-bloom>
-        <p className="glass-section-label text-slate-900/40">Documents ({docs.length})</p>
+        <p className="glass-section-label text-[var(--agent-text-muted)]">Documents ({docs.length})</p>
         <AgentDocumentUpload transactionId={transactionId} />
       </div>
       {docs.length === 0 ? (
-        <p className="text-sm text-slate-900/40 py-6 text-center">
+        <p className="text-sm text-[var(--agent-text-muted)] py-6 text-center">
           No documents on this file yet. Use “Add document” to upload one.
         </p>
       ) : (
         <DocumentsList docs={docs} />
       )}
-    </div>
+    </GlassTagDiv>
   );
 }

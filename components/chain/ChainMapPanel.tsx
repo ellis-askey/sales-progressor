@@ -15,6 +15,7 @@ import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { ChainCardBadge } from "@/components/chain/LinkCard";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
@@ -295,6 +296,8 @@ export function ChainMapPanel({
   actions?: ChainMapActions;
 }) {
   const selRef = useRef<HTMLDivElement>(null);
+  const addTag = useGlassTag("chain-add-btn", "Chain · add sale button");
+
   useEffect(() => {
     if (selectedId) selRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedId]);
@@ -313,7 +316,7 @@ export function ChainMapPanel({
           {it.canColumnAdd && actions.onColumnAdd && (
             it.depth === 0 ? (
               <TreeRow depth={0} spacing="tight" railThrough={it.forkParent}>
-                <button type="button" className="chain-addbtn chain-addbtn-above cmp-coladd" onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
+                <button type="button" {...addTag.props} className={`chain-addbtn chain-addbtn-above cmp-coladd ${addTag.className}`} onClick={() => actions.onColumnAdd!(it.id)}>+ Add sale above</button>
               </TreeRow>
             ) : (
               <TreeRow depth={it.depth} spacing="none" railThrough={it.forkParent} railCap="none">
@@ -342,7 +345,7 @@ export function ChainMapPanel({
         </Fragment>
       ))}
 
-      {onAddBelow && <button type="button" className="chain-addbtn chain-addbtn-below" onClick={onAddBelow}>+ Add sale below</button>}
+      {onAddBelow && <button type="button" {...addTag.props} className={`chain-addbtn chain-addbtn-below ${addTag.className}`} onClick={onAddBelow}>+ Add sale below</button>}
     </div>
   );
 }

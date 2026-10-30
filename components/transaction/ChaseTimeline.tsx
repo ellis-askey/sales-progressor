@@ -18,6 +18,7 @@ import { NextChaseControl } from "@/components/transaction/NextChaseControl";
 import { RescheduleChaseControl } from "@/components/transaction/RescheduleChaseControl";
 import { Pill } from "@/components/ui/Pill";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 // State → glossy Pill tone (the app's canonical pill, not a flat chip).
 const STATE_TONE: Record<ChaseThreadState, "info" | "brand" | "warning" | "success" | "danger" | "muted"> = {
@@ -120,10 +121,13 @@ function PauseBanner({ pause }: { pause: NonNullable<ChasePauseState> }) {
 
 // ── overview stats ───────────────────────────────────────────────────────────
 function StatCard({ n, label, color }: { n: number; label: string; color: string }) {
+  const tag = useGlassTag("chase-stat", "Chase · stat card");
   return (
-    <div style={{
+    <div {...tag.props} className={tag.className} style={{
       flex: "1 1 120px", minWidth: 120, padding: "12px 16px", borderRadius: 14,
-      background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)",
+      ...(tag.picked ? {} : {
+        background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)",
+      }),
     }}>
       <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color }}>{n}</div>
       <div style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
@@ -138,15 +142,19 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
   const sideColor = thread.track === "exchange"
     ? "var(--agent-primary)"
     : isVendor ? "var(--agent-warning)" : "var(--agent-info)";
+  const tag = useGlassTag("chase-thread-row", "Chase · thread row");
   return (
     <button
+      {...tag.props}
       onClick={onSelect}
-      className="w-full text-left transition-colors"
+      className={`w-full text-left transition-colors ${tag.className}`}
       style={{
         padding: "10px 12px", borderRadius: 12, display: "block",
-        background: selected ? `rgba(${m.rgb}, 0.08)` : "transparent",
-        borderLeft: `3px solid ${selected ? m.color : "transparent"}`,
-        outline: selected ? "0.5px solid var(--agent-border-default)" : "none",
+        ...(tag.picked ? {} : {
+          background: selected ? `rgba(${m.rgb}, 0.08)` : "transparent",
+          borderLeft: `3px solid ${selected ? m.color : "transparent"}`,
+          outline: selected ? "0.5px solid var(--agent-border-default)" : "none",
+        }),
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
@@ -358,10 +366,13 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // automated send is genuinely scheduled (each lane has its own hold field the
   // sender respects; the raise chaser's is PM14's expected date).
   const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget;
+  const tag = useGlassTag("chase-upnext", "Chase · up-next card");
   return (
-    <div className="chase-upnext-card" style={{
+    <div {...tag.props} className={`chase-upnext-card ${tag.className}`} style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
-      background: "var(--agent-surface-nested, var(--agent-surface-elevated))", border: "0.5px solid var(--agent-border-subtle)",
+      ...(tag.picked ? {} : {
+        background: "var(--agent-surface-nested, var(--agent-surface-elevated))", border: "0.5px solid var(--agent-border-subtle)",
+      }),
     }}>
       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} aria-hidden />
       {canMove && send.dueAt && send.overrideTarget ? (
@@ -484,6 +495,8 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
   const [showDone, setShowDone] = useState(false);
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const selected = useMemo(() => threads.find((t) => t.id === selectedId) ?? threads[0], [threads, selectedId]);
+  const listTag = useGlassTag("chase-list-panel", "Chase · thread list panel");
+  const detailTag = useGlassTag("chase-detail-panel", "Chase · thread detail panel");
 
   return (
     <div data-tour="chase-threads" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -500,7 +513,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
       {/* List + detail */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr]" style={{ gap: 16, alignItems: "start" }}>
         {/* Left: thread list */}
-        <div data-bloom style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: 8 }}>
+        <div data-bloom {...listTag.props} className={listTag.className} style={{ borderRadius: 16, padding: 8, ...(listTag.picked ? {} : { background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)" }) }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", padding: "6px 8px 8px" }}>
             Chase threads
           </div>
@@ -537,7 +550,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
         </div>
 
         {/* Right: detail */}
-        <div data-bloom style={{ borderRadius: 16, background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)", padding: "18px 20px", minHeight: 200 }}>
+        <div data-bloom {...detailTag.props} className={detailTag.className} style={{ borderRadius: 16, padding: "18px 20px", minHeight: 200, ...(detailTag.picked ? {} : { background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-subtle)" }) }}>
           {selected ? <ThreadDetail thread={selected} transactionId={transactionId} onOpenEmail={(id, label) => setOpenEmail({ id, label })} /> : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, gap: 8, color: "var(--agent-text-muted)" }}>
               <Clock size={16} /> <span style={{ fontSize: 13 }}>Select a thread to see its history.</span>

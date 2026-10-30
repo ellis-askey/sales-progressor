@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { Check, ArrowRight, CaretDown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { HeroSaleFields } from "@/components/transaction/HeroSaleFields";
 import { HeroExchangeCell } from "@/components/transaction/HeroExchangeCell";
@@ -26,7 +27,7 @@ function ProgressRing({ pct }: { pct: number }) {
   return (
     <span className="relative inline-flex items-center justify-center shrink-0" style={{ width: 52, height: 52 }}>
       <svg width={52} height={52} viewBox="0 0 52 52" aria-hidden>
-        <circle cx={26} cy={26} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={5} />
+        <circle cx={26} cy={26} r={r} fill="none" stroke="var(--agent-border-subtle)" strokeWidth={5} />
         <circle
           cx={26} cy={26} r={r} fill="none"
           stroke="var(--agent-coral)" strokeWidth={5} strokeLinecap="round"
@@ -35,7 +36,7 @@ function ProgressRing({ pct }: { pct: number }) {
           style={{ transition: "stroke-dashoffset 500ms ease" }}
         />
       </svg>
-      <span className="absolute text-[13px] font-bold tabular-nums text-slate-900">{pct}%</span>
+      <span className="absolute text-[13px] font-bold tabular-nums text-[var(--agent-text-primary)]">{pct}%</span>
     </span>
   );
 }
@@ -74,6 +75,9 @@ function InlineEditor({ itemKey, values }: { itemKey: string; values: FileSetupV
 export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | null }) {
   const { setActiveTab } = useTabContext();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  // One Design Lab row drives every section row (shared glassId). When a variant
+  // is picked, drop the base surface utilities so the glass owns the surface.
+  const rowTag = useGlassTag("file-setup-row", "File setup · section row");
 
   function jump(tab: string | null, anchor: string | null) {
     if (tab) setActiveTab(tab);
@@ -95,7 +99,7 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
   if (!summary || summary.totalCount === 0 || !summary.values) {
     return (
       <GlassCard glassId="file-setup" label="File setup" defaultVariant="v25" style={{ borderRadius: 12, padding: 20 }}>
-        <p className="text-sm text-slate-900/60">Nothing else to set up.</p>
+        <p className="text-sm text-[var(--agent-text-secondary)]">Nothing else to set up.</p>
       </GlassCard>
     );
   }
@@ -109,23 +113,23 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
       <div className="flex items-center gap-4">
         <ProgressRing pct={pct} />
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold text-slate-900">File setup</h2>
-          <p className="text-[13px] text-slate-900/55 mt-0.5">
+          <h2 className="text-base font-semibold text-[var(--agent-text-primary)]">File setup</h2>
+          <p className="text-[13px] text-[var(--agent-text-secondary)] mt-0.5">
             Everything this file needs to be ready for progression.
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[13px] font-semibold text-slate-900 tabular-nums">{doneCount} of {totalCount}</div>
+          <div className="text-[13px] font-semibold text-[var(--agent-text-primary)] tabular-nums">{doneCount} of {totalCount}</div>
           {remaining > 0 ? (
-            <div className="text-[12px] text-slate-900/55 mt-0.5">about {remaining} min left</div>
+            <div className="text-[12px] text-[var(--agent-text-secondary)] mt-0.5">about {remaining} min left</div>
           ) : (
-            <div className="text-[12px] font-medium text-emerald-700 mt-0.5">All done</div>
+            <div className="text-[12px] font-medium text-[var(--agent-success)] mt-0.5">All done</div>
           )}
         </div>
       </div>
 
       {complete && (
-        <p className="text-[13px] font-medium text-emerald-700 mt-4 rounded-xl bg-emerald-500/10 px-4 py-3">
+        <p className="text-[13px] font-medium text-[var(--agent-success)] mt-4 rounded-xl bg-emerald-500/10 px-4 py-3">
           File setup complete. Everything needed to progress this sale is on file.
         </p>
       )}
@@ -137,8 +141,13 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
           return (
             <div
               key={item.key}
-              className={`rounded-xl border transition-colors ${
-                open ? "border-black/10 bg-white/60" : "border-black/[0.06] bg-white/30 hover:bg-white/50"
+              {...rowTag.props}
+              className={`rounded-xl border transition-colors ${rowTag.className} ${
+                rowTag.picked
+                  ? ""
+                  : open
+                  ? "border-[var(--agent-border-default)] bg-[var(--agent-surface-glass)]"
+                  : "border-[var(--agent-border-subtle)] bg-[var(--agent-surface-subtle)] hover:bg-[var(--agent-surface-glass)]"
               }`}
             >
               <button
@@ -147,18 +156,18 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
               >
                 {item.done ? (
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-700">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15 text-[var(--agent-success)]">
                     <Check size={15} weight="bold" aria-hidden />
                   </span>
                 ) : (
-                  <span className="w-6 h-6 rounded-full border-2 border-slate-900/20 shrink-0" aria-hidden />
+                  <span className="w-6 h-6 rounded-full border-2 border-[var(--agent-border-strong)] shrink-0" aria-hidden />
                 )}
                 <span className="flex-1 min-w-0">
-                  <span className={`block text-[14px] font-semibold ${item.done ? "text-slate-900/60" : "text-slate-900"}`}>
+                  <span className={`block text-[14px] font-semibold ${item.done ? "text-[var(--agent-text-secondary)]" : "text-[var(--agent-text-primary)]"}`}>
                     {item.label}
                   </span>
                   {item.done && item.valueSummary && (
-                    <span className="block text-[12.5px] text-slate-900/55 truncate">{item.valueSummary}</span>
+                    <span className="block text-[12.5px] text-[var(--agent-text-secondary)] truncate">{item.valueSummary}</span>
                   )}
                 </span>
                 {!item.done && !open && (
@@ -170,16 +179,16 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
                   size={15}
                   weight="bold"
                   aria-hidden
-                  className={`shrink-0 text-slate-900/40 transition-transform ${open ? "rotate-180" : ""}`}
+                  className={`shrink-0 text-[var(--agent-text-muted)] transition-transform ${open ? "rotate-180" : ""}`}
                 />
               </button>
 
               {open && (
                 <div className="px-3 pb-3.5 pt-1">
-                  <p className="text-[12.5px] text-slate-900/55 mb-1">{item.description}</p>
-                  <p className="text-[12px] text-slate-900/45 mb-3 italic">{item.why}</p>
+                  <p className="text-[12.5px] text-[var(--agent-text-secondary)] mb-1">{item.description}</p>
+                  <p className="text-[12px] text-[var(--agent-text-muted)] mb-3 italic">{item.why}</p>
                   {item.inline ? (
-                    <div className="rounded-lg bg-black/[0.02] px-3 py-3">
+                    <div className="rounded-lg bg-[var(--agent-surface-subtle)] px-3 py-3">
                       <InlineEditor itemKey={item.key} values={values} />
                     </div>
                   ) : (

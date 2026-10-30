@@ -20,6 +20,7 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
@@ -229,6 +230,7 @@ export function ChainView({
   // Internal staff progress files they didn't originate — they get the same
   // edit reach the server now grants (mirrors canViewChain).
   const isInternal = isInternalStaff(currentUserRole);
+  const addTag = useGlassTag("chain-add-btn", "Chain · add sale button");
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -976,8 +978,9 @@ export function ChainView({
         <div key={link.id}>
           {canAddTop && (
             <button
+              {...addTag.props}
               onClick={() => onOpenAddNode?.("above", chainId, undefined, undefined, link.id)}
-              className="chain-addbtn chain-addbtn-above"
+              className={`chain-addbtn chain-addbtn-above ${addTag.className}`}
             >
               + Add sale above
             </button>
@@ -1248,7 +1251,7 @@ export function ChainView({
                     </button>
                     <button
                       onClick={() => onOpenAddNode("below", chain.id)}
-                      className="px-4 py-2 text-sm font-medium rounded-xl border border-white/50 bg-white/30 hover:bg-white/60 text-slate-900/70 transition-all"
+                      className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--agent-border-default)] bg-[var(--agent-surface-subtle)] hover:bg-[var(--agent-surface-glass)] text-[var(--agent-text-secondary)] transition-all"
                     >
                       + Add sale below
                     </button>
@@ -1524,8 +1527,9 @@ export function ChainView({
               {/* Add below button */}
               {showAddBelow && (
                 <button
+                  {...addTag.props}
                   onClick={() => onOpenAddNode?.("below", chain.id)}
-                  className="chain-addbtn chain-addbtn-below"
+                  className={`chain-addbtn chain-addbtn-below ${addTag.className}`}
                 >
                   + Add sale below
                 </button>

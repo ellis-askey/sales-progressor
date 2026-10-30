@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Lock } from "@phosphor-icons/react";
 import type { ChainActivityEvent } from "@/lib/services/chains";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 function relativeTime(at: string): string {
   const diff = Math.floor((Date.now() - new Date(at).getTime()) / 1000);
@@ -24,6 +25,7 @@ export function ChainActivityCard({
   chainId: string;
   refreshKey?: number;
 }) {
+  const cardTag = useGlassTag("chain-activity", "Chain · activity feed");
   const [optedIn, setOptedIn] = useState(false);
   const [events, setEvents] = useState<ChainActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export function ChainActivityCard({
   }
 
   return (
-    <div className="chain-scard">
+    <div {...cardTag.props} className={`chain-scard ${cardTag.className}`}>
       <div className="chain-acthead">
         <span className="t">Chain activity</span>
         <button

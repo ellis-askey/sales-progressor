@@ -9,6 +9,7 @@ import { useState } from "react";
 import { CloudConversation } from "@/components/whatsapp/CloudConversation";
 import { listThreadMessagesAction } from "@/app/actions/whatsapp-cloud";
 import type { ThreadSummary, ThreadMessage } from "@/lib/services/whatsapp-cloud-inbox";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 export function WhatsAppCloudPanel({
   threads,
@@ -23,6 +24,7 @@ export function WhatsAppCloudPanel({
     initialThread ? { thread: initialThread, messages: initialMessages } : null,
   );
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const panelTag = useGlassTag("whatsapp-panel", "WhatsApp · panel");
 
   if (threads.length === 0) return null;
 
@@ -39,12 +41,16 @@ export function WhatsAppCloudPanel({
 
   return (
     <div
+      {...panelTag.props}
+      className={panelTag.className}
       style={{
-        border: "1px solid var(--agent-border-subtle)",
         borderRadius: 16,
-        background: "var(--agent-glass-bg, rgba(255,255,255,0.55))",
         marginBottom: 18,
         overflow: "hidden",
+        ...(panelTag.picked ? {} : {
+          border: "1px solid var(--agent-border-subtle)",
+          background: "var(--agent-glass-bg, var(--agent-surface-elevated))",
+        }),
       }}
     >
       <div style={{ padding: "12px 14px 0" }}>

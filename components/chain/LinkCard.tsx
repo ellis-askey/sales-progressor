@@ -16,6 +16,7 @@ import type { ChainLinkV2, ChainNodeIntel, ChainSideSummary } from "@/lib/servic
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { ChainNodeSteps } from "@/components/chain/ChainNodeSteps";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 function relativeTime(date: Date | string | null): string {
   if (!date) return "";
@@ -777,6 +778,7 @@ export function LinkCard({
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
+  const cardTag = useGlassTag("chain-node-card", "Chain · property card");
   const status = getChainLinkStatus(
     {
       transactionId: link.transactionId,
@@ -882,7 +884,8 @@ export function LinkCard({
 
   return (
     <div
-      className={`chain-card${isYourFile ? " chain-card-you" : ""}`}
+      {...cardTag.props}
+      className={`chain-card${isYourFile ? " chain-card-you" : ""} ${cardTag.className}`}
       onClick={expandable ? handleCardToggle : undefined}
       style={expandable ? { cursor: "pointer" } : undefined}
     >
