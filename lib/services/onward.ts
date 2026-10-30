@@ -19,6 +19,7 @@
 import { prisma } from "@/lib/prisma";
 import { DIRECT_PREREQUISITES, RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes } from "@/lib/milestone-auto-nr";
+import { isSameProgressingTeam } from "@/lib/services/progressing-team";
 import { agencySideKey } from "@/lib/chain/intel";
 import { checkInStepForMilestone, onwardCheckInLine } from "@/lib/chain/onward-checkin-bridge";
 import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
@@ -430,28 +431,49 @@ export async function getOnwardTrackerView(
 // above, related = the link below) resolves to a real transaction in the SAME
 // agency. Far-side trackers are the neighbour's own agent's side — never ours.
 // Used to gate key-collection + surveyor-firm capture (see OnwardStepView).
-async function isLinkedSaleOwnAgency(
+// Resolve the chain-adjacent file that the SAME TEAM runs — the real onward
+// purchase (link above) or related sale (link below) we hold ourselves. Returns
+// its id, or null when the neighbour is a stub, someone else's, or not live.
+// Team-aware via isSameProgressingTeam so it's solid across all three service
+// models. The onward portal mirror renders this file's real steps in the side
+// tab; see docs/active/onward-portal-mirror.md.
+export async function resolveOwnOnwardFileId(
   transactionId: string,
   kind: OnwardTrackerKind,
-): Promise<boolean> {
+): Promise<string | null> {
   // Only the near sides can be our own sale.
-  if (kind !== "onward_purchase" && kind !== "related_sale") return false;
+  if (kind !== "onward_purchase" && kind !== "related_sale") return null;
   const tx = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { agencyId: true, chainLinkId: true },
+    select: { agencyId: true, progressionBusinessId: true, serviceType: true, chainLinkId: true },
   });
-  if (!tx?.agencyId || !tx.chainLinkId) return false;
+  if (!tx?.chainLinkId) return null;
   const link = await prisma.chainLink.findUnique({
     where: { id: tx.chainLinkId },
     select: { position: true, chainId: true },
   });
-  if (!link) return false;
+  if (!link) return null;
   const adjacentPosition = kind === "onward_purchase" ? link.position - 1 : link.position + 1;
   const adjacent = await prisma.chainLink.findFirst({
     where: { chainId: link.chainId, position: adjacentPosition },
-    select: { transaction: { select: { agencyId: true } } },
+    select: {
+      transaction: {
+        select: { id: true, agencyId: true, progressionBusinessId: true, serviceType: true, status: true },
+      },
+    },
   });
-  return adjacent?.transaction?.agencyId != null && adjacent.transaction.agencyId === tx.agencyId;
+  const other = adjacent?.transaction;
+  if (!other?.id) return null;
+  // Only a live file can stand in as the real steps.
+  if (other.status !== "active" && other.status !== "on_hold") return null;
+  return isSameProgressingTeam(tx, other) ? other.id : null;
+}
+
+async function isLinkedSaleOwnAgency(
+  transactionId: string,
+  kind: OnwardTrackerKind,
+): Promise<boolean> {
+  return (await resolveOwnOnwardFileId(transactionId, kind)) != null;
 }
 
 // Has the adjacent sale (onward above / related below) been claimed by ANOTHER
