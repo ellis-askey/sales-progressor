@@ -7,6 +7,7 @@ import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
 import { getOnwardTrackerView, getRelatedSaleSignalForFile, resolveOwnOnwardFileId } from "@/lib/services/onward";
 import { resolveTwinContactOnFile } from "@/lib/services/portal-twin";
+import { PortalReadOnlyProvider } from "@/components/portal/PortalReadOnlyProvider";
 import { prisma } from "@/lib/prisma";
 import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
 import { recordPortalEvent } from "@/lib/services/portal-events";
@@ -38,13 +39,23 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
 }
 
 // Onward portal mirror (docs/active/onward-portal-mirror.md): when the client's
-// onward purchase / related sale is a file WE run (resolveOwnOnwardFileId) and we
-// can tie this person to their own contact on it (resolveTwinContactOnFile),
-// render that file's REAL steps — confirmable, under their own token — in the
-// side tab, instead of the lightweight stand-in tracker. A nested
-// PortalMilestoneList with no onward/other panels renders exactly the solo
-// confirmable column. No tie yet → return null and fall back to the stand-in
-// (the read-only fallback lands in a follow-up slice).
+// onward purchase / related sale is a file WE run (resolveOwnOnwardFileId), the
+// side tab shows that file's REAL steps instead of the lightweight stand-in.
+//
+//   - CONFIRMABLE when we can tie this person to their OWN contact on the
+//     neighbour (resolveTwinContactOnFile): render a nested PortalMilestoneList
+//     under their own token, so confirming records on the real file and fires
+//     its normal emails. It inherits the ambient read-only context, so an agent
+//     previewing the portal still sees it inert.
+//   - READ-ONLY when we can't tie them (no matching email / dead round): still
+//     show the real progress — step status only, no personal data — wrapped in a
+//     forced read-only provider so nothing writes. They can see it; they just
+//     can't tick it until tied (Phase 2 adds an agent-confirmed tie).
+//
+// A nested PortalMilestoneList with no onward/other panels renders exactly the
+// solo column. Returns null only when the neighbour isn't our live file, so the
+// caller falls back to the stand-in (and reverts there automatically if the
+// neighbour is later withdrawn — resolveOwnOnwardFileId gates on a live file).
 async function buildNeighbourStepsPanel(
   sourceTxId: string,
   sourceContactId: string,
@@ -52,24 +63,54 @@ async function buildNeighbourStepsPanel(
 ): Promise<ReactNode | null> {
   const neighbourId = await resolveOwnOnwardFileId(sourceTxId, kind);
   if (!neighbourId) return null;
+
+  // Confirmable path: this person's own token on the neighbour file.
   const twin = await resolveTwinContactOnFile(sourceContactId, neighbourId);
-  if (!twin?.portalToken) return null;
-  const bData = await getPortalData(twin.portalToken);
-  if (!bData || bData.kind === "deadRound") return null;
-  const bContact = bData.data.contact;
-  const bTx = bData.data.transaction;
-  const bSide = bContact.roleType === "vendor" ? "vendor" : "purchaser";
-  const bMilestones = await getPortalMilestones(bTx.id, bSide, portalOwnSideScope(bContact, bTx));
+  if (twin?.portalToken) {
+    const bData = await getPortalData(twin.portalToken);
+    if (bData && bData.kind !== "deadRound") {
+      const bContact = bData.data.contact;
+      const bTx = bData.data.transaction;
+      const bSide = bContact.roleType === "vendor" ? "vendor" : "purchaser";
+      const bMilestones = await getPortalMilestones(bTx.id, bSide, portalOwnSideScope(bContact, bTx));
+      const bHasExchanged = bMilestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
+      return (
+        <PortalMilestoneList
+          token={twin.portalToken}
+          milestones={toPortalShape(bMilestones)}
+          otherSideMilestones={[]}
+          hasExchanged={bHasExchanged}
+          side={bSide}
+          saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
+        />
+      );
+    }
+  }
+
+  // Read-only fallback: the neighbour is ours and live, but we can't tie this
+  // person to a confirmable contact on it. Show the real progress read-only.
+  // Side they'd be on: buying the file above (purchaser) / selling the file
+  // below (vendor). A synthetic active-round scope reads the live progress.
+  const bTx = await prisma.propertyTransaction.findUnique({
+    where: { id: neighbourId },
+    select: { id: true, status: true, activeBuyerRoundId: true },
+  });
+  if (!bTx) return null;
+  const bSide: "vendor" | "purchaser" = kind === "onward_purchase" ? "purchaser" : "vendor";
+  const scope = portalOwnSideScope({ roleType: bSide, buyerRoundId: bTx.activeBuyerRoundId }, bTx);
+  const bMilestones = await getPortalMilestones(bTx.id, bSide, scope);
   const bHasExchanged = bMilestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   return (
-    <PortalMilestoneList
-      token={twin.portalToken}
-      milestones={toPortalShape(bMilestones)}
-      otherSideMilestones={[]}
-      hasExchanged={bHasExchanged}
-      side={bSide}
-      saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
-    />
+    <PortalReadOnlyProvider readOnly={true}>
+      <PortalMilestoneList
+        token=""
+        milestones={toPortalShape(bMilestones)}
+        otherSideMilestones={[]}
+        hasExchanged={bHasExchanged}
+        side={bSide}
+        saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
+      />
+    </PortalReadOnlyProvider>
   );
 }
 
