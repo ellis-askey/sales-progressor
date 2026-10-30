@@ -20,7 +20,7 @@
 import { useState, useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnchoredPanel } from "@/components/ui/Popover";
-import { CurrencyGbp, UserCircle, HouseSimple, PencilSimple, Check } from "@phosphor-icons/react";
+import { CurrencyGbp, Coins, Scroll, PencilSimple, Check } from "@phosphor-icons/react";
 import type { PurchaseType, Tenure } from "@prisma/client";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -384,7 +384,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       </CellFrame>
 
       {/* Purchase type */}
-      <CellFrame Icon={UserCircle}>
+      <CellFrame Icon={Coins}>
         <div ref={typeBtnRef}>
           {typeTenureLocked ? (
             <StaticValue value={purchaseTypeLabel(purchaseType)} label="Purchase type" />
@@ -395,7 +395,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
       </CellFrame>
 
       {/* Tenure */}
-      <CellFrame Icon={HouseSimple}>
+      <CellFrame Icon={Scroll}>
         <div ref={tenureBtnRef}>
           {(() => {
             const tenureText = tenure === "leasehold" && isShareOfFreehold ? "Share of freehold" : tenureLabel(tenure);
