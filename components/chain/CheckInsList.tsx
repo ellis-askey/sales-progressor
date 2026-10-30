@@ -392,6 +392,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       .ciq-chev { flex: 0 0 auto; color: var(--agent-text-muted); display: grid; place-items: center; }
       .ciq-chev svg { transition: transform 200ms ease; display: block; }
       .ciq-chev.open svg { transform: rotate(180deg); }
+      /* The update date renders twice: inline beside the text (desktop) and up in
+         the action row, far right (mobile). CSS swaps which is visible. */
+      .ciq-date-top { display: none; }
       @media (max-width: 640px) {
         /* Hide the bold "Chain:" heading — just "Your sale is …" stays. */
         .ciq-chainname { display: none; }
@@ -401,6 +404,11 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         .ciq-hint { display: none; }
         .ciq-barlabel, .ciq-ready { order: 2; }
         .ciq-chev { order: 3; }
+        /* Move the update date up to the action row's far right (where the green
+           line was), and let the update text take the full width and wrap. */
+        .ciq-action { flex: 1 1 100% !important; }
+        .ciq-date-top { display: inline-block; margin-left: auto; align-self: center; font-size: 11px; line-height: 1.45; color: var(--agent-text-faint, #b8b0a4); white-space: nowrap; }
+        .ciq-date-inline { display: none; }
       }
       .ciq-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms cubic-bezier(0.22,1,0.36,1); }
       .ciq-body > div { overflow: hidden; min-height: 0; }
@@ -543,7 +551,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
 
               {/* Action — primary Log update, plus the ⋯ overflow for secondary
                   chain actions (View chain, and later Contact / History). */}
-              <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 4 }}>
+              <div className="ciq-action" style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 4 }}>
                 {!isOpen && (
                   <button
                     type="button"
@@ -554,6 +562,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   </button>
                 )}
                 <RowActionsMenu label="More chain actions" items={menuItems(row)} />
+                {row.lastUpdateAt && (
+                  <span className="ciq-date-top">{shortDate(row.lastUpdateAt as string)}</span>
+                )}
               </div>
             </div>
 
@@ -570,7 +581,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                     a guaranteed gap (its column is reserved, so they never touch). */}
                 <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-end", gap: 10 }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
-                  <span style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
+                  <span className="ciq-date-inline" style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
                     {shortDate(row.lastUpdateAt as string)}
                   </span>
                 </div>
