@@ -389,14 +389,38 @@ export async function createTransactionAction(input: {
   // different agency than the admin's own — admin's own agencyId is null anyway).
   if (effectiveAgencyId) {
     const normAddress = input.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim();
-    const allActive = await prisma.propertyTransaction.findMany({
-      where: { agencyId: effectiveAgencyId, status: { in: ["active", "on_hold"] } },
+    // Match active + on-hold + withdrawn files at the same address. An active
+    // match is a genuine clash (the "already exists" notice). An on-hold /
+    // withdrawn match is "relistable": the add-sale flow offers to add the new
+    // buyer onto that file instead of creating a duplicate (critique #296
+    // prevention — a fallen-through sale shouldn't spawn a second file).
+    const existing = await prisma.propertyTransaction.findMany({
+      where: { agencyId: effectiveAgencyId, status: { in: ["active", "on_hold", "withdrawn"] } },
       select: { id: true, propertyAddress: true, agentUser: { select: { name: true } } },
     });
-    const duplicate = allActive.find(
+    const duplicate = existing.find(
       (t) => t.propertyAddress.toLowerCase().replace(/\s+/g, " ").trim() === normAddress
     );
     if (duplicate && !input.forceCreate) {
+      // Enrich the matched file so the client can decide how to route: an active
+      // file → the "already exists" notice; an on-hold / withdrawn file that can
+      // take a new buyer (not exchanged, has a buyer round + tenure + purchase
+      // type) → the "add new buyer to this file" catch.
+      const file = await prisma.propertyTransaction.findUnique({
+        where: { id: duplicate.id },
+        select: {
+          status: true, exchangedAt: true, activeBuyerRoundId: true,
+          tenure: true, purchaseType: true, chainLinkId: true, purchasePrice: true,
+          contacts: { where: { roleType: "purchaser" }, select: { name: true } },
+        },
+      });
+      const relistable =
+        !!file &&
+        (file.status === "on_hold" || file.status === "withdrawn") &&
+        file.exchangedAt === null &&
+        file.activeBuyerRoundId !== null &&
+        !!file.tenure &&
+        !!file.purchaseType;
       // Expected failure — RETURNED, not thrown. Production redacts thrown
       // server-action messages (and drops custom props), so the old throw
       // surfaced raw boilerplate to the user instead of the duplicate modal.
@@ -404,6 +428,11 @@ export async function createTransactionAction(input: {
         duplicate: "address" as const,
         duplicateId: duplicate.id,
         assignedTo: duplicate.agentUser?.name ?? null,
+        status: file?.status ?? null,
+        relistable,
+        previousPurchasePrice: file?.purchasePrice ?? null,
+        inChain: file?.chainLinkId != null,
+        previousBuyerName: file?.contacts.map((c) => c.name).join(" and ") || null,
       };
     }
   }
@@ -3496,8 +3525,12 @@ export async function relistTransactionImpl(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  if (tx.status !== "withdrawn") {
-    throw new Error(`Relist requires status=withdrawn (current: ${tx.status})`);
+  // Relist applies to a sale that fell through (withdrawn) OR one paused when the
+  // buyer dropped out (on_hold) — both can take a new buyer. Any open hold period
+  // is closed inside this transaction below (the holdsClosed updateMany), so an
+  // on-hold file comes out active with no stale hold row.
+  if (tx.status !== "withdrawn" && tx.status !== "on_hold") {
+    throw new Error(`Relist requires status=withdrawn or on_hold (current: ${tx.status})`);
   }
   if (tx.exchangedAt !== null) {
     throw new Error("Cannot relist after exchange has happened");

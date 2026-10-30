@@ -57,6 +57,22 @@ type Props = {
   // in a chain at all skip it (there's nothing for the closed-loop arc
   // to reattach to).
   inChain: boolean;
+  // Pre-fill from the new-sale flow when the agent is routed here after the
+  // "add new buyer to this file" catch (critique #296). The buyer details they
+  // already typed carry over so they don't re-enter them. All undefined on the
+  // normal relist entry (the banner on a fallen-through file), so that path is
+  // byte-identical to before.
+  initialBuyerName?: string;
+  initialBuyerEmail?: string;
+  initialBuyerPhone?: string;
+  initialPricePence?: number | null;
+  initialPurchaseType?: PurchaseType | null;
+  initialSolicitor?: SolicitorSelection | null;
+  initialBroker?: BrokerSelection | null;
+  // Called instead of the default page reload after a successful relist. The
+  // file-page banner leaves this unset (reloads in place); the new-sale catch
+  // flow sets it to navigate to the file the new buyer landed on.
+  onRelisted?: () => void;
   onClose: () => void;
 };
 
@@ -101,26 +117,32 @@ function MemoRelinkButton({ onClick, disabled, label }: { onClick: () => void; d
   );
 }
 
-export function RelistFileModal({ open, transactionId, previousPurchasePrice, inChain, onClose }: Props) {
+export function RelistFileModal({
+  open, transactionId, previousPurchasePrice, inChain,
+  initialBuyerName, initialBuyerEmail, initialBuyerPhone, initialPricePence,
+  initialPurchaseType, initialSolicitor, initialBroker,
+  onRelisted, onClose,
+}: Props) {
   const { theme, isNight } = usePortalTheme();
   const [stage, setStage] = useState<Stage>("form");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   // Form fields.
-  const [buyerName, setBuyerName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerName, setBuyerName] = useState(initialBuyerName ?? "");
+  const [buyerEmail, setBuyerEmail] = useState(initialBuyerEmail ?? "");
+  const [buyerPhone, setBuyerPhone] = useState(initialBuyerPhone ?? "");
   // Agreed price in pence — matches the canonical PriceInput used on the
-  // new-sale hero (value/onChange both in pence).
-  const [pricePence, setPricePence] = useState<number | null>(previousPurchasePrice);
+  // new-sale hero (value/onChange both in pence). Seeds from the price just
+  // entered in the new-sale flow when pre-filling, else the file's old price.
+  const [pricePence, setPricePence] = useState<number | null>(initialPricePence ?? previousPurchasePrice);
   // Buyer's purchase method — required step. Mirrors the new-sale flow
   // (components/transactions-v2/form/Stage1Fields.tsx). Drives the auto-NR
   // set on the new round's PMs (cash buyer skips mortgage steps, etc.), so
   // we collect it fresh per buyer rather than inheriting the previous one.
-  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(null);
-  const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(null);
-  const [broker, setBroker] = useState<BrokerSelection | null>(null);
+  const [purchaseType, setPurchaseType] = useState<PurchaseType | null>(initialPurchaseType ?? null);
+  const [solicitor, setSolicitor] = useState<SolicitorSelection | null>(initialSolicitor ?? null);
+  const [broker, setBroker] = useState<BrokerSelection | null>(initialBroker ?? null);
 
   // Optional memo re-upload (critique #4). On a relist the sale is starting
   // over with a NEW buyer, so we read only the BUYER side of the new memo
@@ -160,13 +182,13 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
     if (open) {
       setStage("form");
       setError(null);
-      setBuyerName("");
-      setBuyerEmail("");
-      setBuyerPhone("");
-      setPricePence(previousPurchasePrice);
-      setPurchaseType(null);
-      setSolicitor(null);
-      setBroker(null);
+      setBuyerName(initialBuyerName ?? "");
+      setBuyerEmail(initialBuyerEmail ?? "");
+      setBuyerPhone(initialBuyerPhone ?? "");
+      setPricePence(initialPricePence ?? previousPurchasePrice);
+      setPurchaseType(initialPurchaseType ?? null);
+      setSolicitor(initialSolicitor ?? null);
+      setBroker(initialBroker ?? null);
       setMemoState("idle");
       setMemoFilled([]);
       setMemoDragOver(false);
@@ -179,7 +201,7 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
       setOnwardExternalEmail("");
       setPriorReferral(null);
     }
-  }, [open, previousPurchasePrice]);
+  }, [open, previousPurchasePrice, initialBuyerName, initialBuyerEmail, initialBuyerPhone, initialPricePence, initialPurchaseType, initialSolicitor, initialBroker]);
 
   // Fetch the outgoing buyer's earned referral (if any) when the modal opens.
   useEffect(() => {
@@ -394,8 +416,14 @@ export function RelistFileModal({ open, transactionId, previousPurchasePrice, in
         onClose();
         // Force a refresh so the file detail rerenders with the new round
         // active. Next.js's revalidatePath inside the action handles the
-        // server cache; this nudges the client view.
-        if (typeof window !== "undefined") window.location.reload();
+        // server cache; this nudges the client view. From the new-sale catch
+        // flow, onRelisted navigates to the file instead of reloading the
+        // (now-stale) new-sale form.
+        if (onRelisted) {
+          onRelisted();
+        } else if (typeof window !== "undefined") {
+          window.location.reload();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong relisting the file.");
       }

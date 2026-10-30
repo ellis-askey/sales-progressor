@@ -24,6 +24,9 @@ import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileMod
 import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
+import { RelistCatchModal } from "@/components/transactions-v2/RelistCatchModal";
+import { RelistFileModal } from "@/components/transaction/RelistFileModal";
+import type { PurchaseType } from "@prisma/client";
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
 import { DraftPanel } from "@/components/transactions-v2/DraftPanel";
 import { autoFillSolicitor } from "@/components/transactions-v2/form/SolicitorSection";
@@ -447,6 +450,12 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // ── Submit state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ id: string; assignedTo: string | null } | null>(null);
+  // Relist catch (critique #296): when the matched file is reusable (on-hold or
+  // fallen-through), offer to add the new buyer there instead of making a
+  // duplicate. relistCatch holds the matched file; relistOpen swaps the catch
+  // dialog for the pre-filled add-new-buyer modal.
+  const [relistCatch, setRelistCatch] = useState<{ id: string; status: string | null; previousPurchasePrice: number | null; inChain: boolean; previousBuyerName: string | null } | null>(null);
+  const [relistOpen, setRelistOpen] = useState(false);
 
   // ── Draft state ───────────────────────────────────────────────────────────
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
@@ -1130,7 +1139,19 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       if ("duplicate" in result) {
         setIsSubmitting(false);
         if (result.duplicate === "address") {
-          setDuplicateInfo({ id: result.duplicateId, assignedTo: result.assignedTo });
+          // Reusable on-hold / fallen-through file → the relist catch; a live
+          // active file → the plain "already exists" notice.
+          if (result.relistable) {
+            setRelistCatch({
+              id: result.duplicateId,
+              status: result.status,
+              previousPurchasePrice: result.previousPurchasePrice,
+              inChain: result.inChain,
+              previousBuyerName: result.previousBuyerName,
+            });
+          } else {
+            setDuplicateInfo({ id: result.duplicateId, assignedTo: result.assignedTo });
+          }
         } else {
           // Server caught a pairwise contact conflict the client-side live
           // check should have caught earlier — surface it as a toast so the
@@ -1763,6 +1784,39 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           assignedTo={duplicateInfo.assignedTo}
           onClose={() => setDuplicateInfo(null)}
           onForceCreate={handleForceCreate}
+        />
+      )}
+
+      {/* Relist catch (critique #296): matched an on-hold / fallen-through file
+          that can take a new buyer. Offer to add the buyer there (pre-filled
+          from what they just typed) instead of creating a duplicate file. */}
+      {relistCatch && !relistOpen && (
+        <RelistCatchModal
+          open
+          address={[formFields.streetAddress, formFields.city, formFields.postcode].map((s) => s.trim()).filter(Boolean).join(", ")}
+          status={relistCatch.status}
+          previousPurchasePrice={relistCatch.previousPurchasePrice}
+          previousBuyerName={relistCatch.previousBuyerName}
+          onAddNewBuyer={() => setRelistOpen(true)}
+          onCreateSeparate={() => { setRelistCatch(null); handleSubmit(true); }}
+          onClose={() => setRelistCatch(null)}
+        />
+      )}
+      {relistCatch && relistOpen && (
+        <RelistFileModal
+          open
+          transactionId={relistCatch.id}
+          previousPurchasePrice={relistCatch.previousPurchasePrice}
+          inChain={relistCatch.inChain}
+          initialBuyerName={formFields.purchasers[0]?.name?.trim() || undefined}
+          initialBuyerEmail={formFields.purchasers[0]?.email?.trim() || undefined}
+          initialBuyerPhone={formFields.purchasers[0]?.phone?.trim() || undefined}
+          initialPricePence={formFields.purchasePricePence}
+          initialPurchaseType={(formFields.purchaseType || null) as PurchaseType | null}
+          initialSolicitor={formFields.purchaserSolicitor}
+          initialBroker={formFields.broker}
+          onRelisted={() => { if (typeof window !== "undefined") window.location.href = `/agent/transactions/${relistCatch.id}`; }}
+          onClose={() => { setRelistOpen(false); setRelistCatch(null); }}
         />
       )}
 
