@@ -15,7 +15,7 @@
 // alone: one transaction query instead of the old eleven.
 
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope } from "@/lib/security/access-scope";
@@ -61,6 +61,21 @@ export const loadFilePageContext = cache(async (id: string): Promise<FilePageCon
     : await getTransactionCached(id, session.user.agencyId);
 
   if (!transaction) notFound();
+
+  // A draft is NOT a property file. It's a half-finished sale that lives on its
+  // creator's "add a new sale" list until it's cancelled or formally added, and
+  // it must never render as a live file for anyone — not colleagues, not admins,
+  // not the founder. Send the one person it belongs to (the agent who started it)
+  // back to the wizard to finish it; everyone else gets a clean not-found. This
+  // sits at the shared trunk so it covers the shell layout AND every tab segment.
+  // Founder decision 2026-10-30 (no spec doc): drafts are private to their author
+  // and the file-detail route is for live files only.
+  if (transaction.status === "draft") {
+    if (transaction.agentUserId === session.user.id) {
+      redirect("/agent/transactions/new");
+    }
+    notFound();
+  }
 
   const isDirectorRole = session.user.role === "director";
   const isAgentRole = isDirectorRole || session.user.role === "negotiator";
