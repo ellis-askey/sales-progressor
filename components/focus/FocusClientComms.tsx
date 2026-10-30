@@ -85,6 +85,19 @@ function relWhen(at: Date): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
+// Compact form for the mobile contact timeframes — "5d", "2wks", "2wks 1d",
+// "3mo", "1y". Saves space on a phone (critique #299).
+function relWhenShort(at: Date): string {
+  const a = new Date(at); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  const days = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days < 14) return `${days}d`;
+  if (days < 56) { const w = Math.floor(days / 7), d = days % 7; return d ? `${w}wks ${d}d` : `${w}wks`; }
+  if (days < 365) return `${Math.floor(days / 30)}mo`;
+  return `${Math.floor(days / 365)}y`;
+}
+
 // Whole calendar days since a contact — drives the most-recent urgency colour.
 function daysAgo(at: Date): number {
   const a = new Date(at); a.setHours(0, 0, 0, 0);
@@ -115,6 +128,12 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
   // Whether automated engine emails count toward "last contact" when judging the
   // most-recent touch per side. Off by default = your own contact only (#297).
   const [includeAuto, setIncludeAuto] = useState(false);
+  // Collapsible cards on mobile/tablet (#300): the first 3 in the list are open by
+  // default; `toggled` holds the cards the user has flipped from that default.
+  // Desktop ignores this (CSS keeps every card expanded).
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
+  const toggleCard = (id: string) =>
+    setToggled((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   // Bar fills left-to-right on first paint: start at 0, flip to the real
   // percentage on the next frame so the width transition animates in.
@@ -241,16 +260,27 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
               </div>
             ) : (
               <div className="fc-list">
-                {viewFiles.map(({ file: f, sides }) => (
-                  <article className={`fc-card ${fileCardTag.className}`} {...fileCardTag.props} key={f.transactionId} data-bloom>
-                    <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
-                      <PropertyThumb photoUrl={f.photoUrl} size={42} />
-                      <span className="fc-addr-wrap">
-                        <span className="fc-addr">{f.addressLine}</span>
-                        <span className="fc-loc">{f.townPostcode.replace(/ · /g, ", ")}</span>
-                      </span>
-                    </button>
+                {viewFiles.map(({ file: f, sides }, i) => {
+                  const defaultOpen = i < 3;
+                  const open = toggled.has(f.transactionId) ? !defaultOpen : defaultOpen;
+                  return (
+                  <article className={`fc-card ${fileCardTag.className}${open ? " open" : ""}`} {...fileCardTag.props} key={f.transactionId} data-bloom>
+                    <div className="fc-top">
+                      <button type="button" className="fc-ph" onClick={() => router.push(`/agent/transactions/${f.transactionId}`)}>
+                        <PropertyThumb photoUrl={f.photoUrl} size={42} />
+                        <span className="fc-addr-wrap">
+                          <span className="fc-addr">{f.addressLine}</span>
+                          <span className="fc-loc">{f.townPostcode.replace(/ · /g, ", ")}</span>
+                        </span>
+                      </button>
+                      {/* The rest of the top bar (+ chevron) toggles the card on
+                          mobile/tablet; only the photo/address above navigates. */}
+                      <button type="button" className="fc-toggle" onClick={() => toggleCard(f.transactionId)} aria-expanded={open} aria-label={open ? "Collapse" : "Expand"}>
+                        <CaretDown size={16} weight="bold" className="fc-chev" />
+                      </button>
+                    </div>
 
+                    <div className="fc-body"><div>
                     {sides.map((s) => (
                       <SideBlock
                         key={s.side}
@@ -270,8 +300,10 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
                         onOpenEmail={(id) => setOpenEmail({ id, label: f.addressLine })}
                       />
                     ))}
+                    </div></div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TodoTabs>
@@ -517,7 +549,10 @@ function ChannelUnit({ channel, c, onOpen, recent = false, tone = null }: { chan
           <Icon size={16} weight={recent ? "fill" : "regular"} />
           <span className={`fc-pip ${meta.tone}`} aria-hidden />
         </span>
-        <span className="fc-ut" style={recentColor ? { color: recentColor, fontWeight: 750 } : undefined}>{relWhen(c.at)}</span>
+        <span className="fc-ut" style={recentColor ? { color: recentColor, fontWeight: 750 } : undefined}>
+          <span className="fc-ut-full">{relWhen(c.at)}</span>
+          <span className="fc-ut-short">{relWhenShort(c.at)}</span>
+        </span>
       </button>
     </Tooltip>
   );
@@ -733,7 +768,10 @@ const CSS = `
 .fc-role { font-size:10px; font-weight:700; line-height:1.2; margin-bottom:1px; }
 .fc-side.vendor .fc-role { color:#0C447C; }
 .fc-side.purchaser .fc-role { color:#085041; }
-.fc-sp { flex:1 1 4px; min-width:0; }
+/* Fixed gap, not a second flex-grow: the name box (.fc-who) alone takes the
+   free width so names use the full row before truncating (the spacer used to
+   grow too, splitting the space and clipping names early). */
+.fc-sp { flex:0 0 16px; }
 
 /* Right-hand stack: the status line above the Contact control, both right-
    aligned. Rows with no status just show the button at its usual height. */
@@ -846,4 +884,25 @@ const CSS = `
 @media (min-width:1000px){ .fc-hd{ grid-area:header; } .fc-main{ grid-area:list; } }
 @media (prefers-reduced-motion:reduce){ .fc-bar i,.fc-u,.fc-trig,.fc-cv,.fc-pop,.fcl-tip,.fc-seg2-thumb,.fc-side,.fc-mi{ transition:none; } .fcl-sub{ animation:none; } }
 @media (max-width:560px){ .fc-side-top{ gap:8px; } .fc-led{ margin-left:0; gap:7px 18px; } .fcl-tip{ display:none; } }
+
+/* #300 — collapsible focus cards on mobile/tablet. The photo+address still
+   navigates (and hover-highlights); the rest of the top bar + the chevron toggle
+   the card. Desktop keeps every card expanded and hides the chevron. */
+.fc-top { display:flex; align-items:center; gap:4px; margin:0 0 2px; }
+.fc-ph { margin:0; flex:0 1 auto; }
+.fc-toggle { display:none; flex:1 1 auto; align-self:stretch; align-items:center; justify-content:flex-end; background:none; border:0; padding:4px 2px; cursor:pointer; color:var(--agent-text-muted); -webkit-tap-highlight-color:transparent; }
+.fc-chev { display:block; flex-shrink:0; transition:transform .2s ease; }
+.fc-card.open .fc-chev { transform:rotate(180deg); }
+.fc-body { display:grid; grid-template-rows:1fr; transition:grid-template-rows .26s cubic-bezier(.22,1,.36,1); }
+.fc-body > div { min-height:0; overflow:hidden; }
+@media (max-width:999px){
+  .fc-toggle { display:flex; }
+  .fc-toggle:hover { color:var(--agent-text-secondary); }
+  .fc-body { grid-template-rows:0fr; }
+  .fc-card.open .fc-body { grid-template-rows:1fr; }
+}
+/* #299 — compact contact timeframes on a phone ("2wks 1d"). */
+.fc-ut-short { display:none; }
+@media (max-width:560px){ .fc-ut-full { display:none; } .fc-ut-short { display:inline; } }
+@media (prefers-reduced-motion:reduce){ .fc-body, .fc-chev { transition:none; } }
 `;
