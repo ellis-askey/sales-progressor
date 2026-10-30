@@ -14,7 +14,7 @@ import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerP
 import { saveBrokerReferralAction } from "@/app/actions/transactions";
 import { getAdvisorPortalLinkAction } from "@/app/actions/advisor-portal";
 import { PriceInput } from "@/components/ui/PriceInput";
-import { Pill } from "@/components/ui/Pill";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -35,18 +35,18 @@ export type BrokerSlot = {
 
 const COPY = {
   purchaser: {
-    pill: "Buyer's broker",
-    empty: "No buyer's broker yet",
-    referredPill: "Buyer referred to broker",
-    addBlurb: "Add your recommended broker so your buyer can request a call back from their portal.",
-    referredLabel: "Referred the buyer to this broker",
+    pill: "Purchaser",
+    empty: "No purchaser broker yet",
+    referredPill: "Purchaser referred to broker",
+    addBlurb: "Add the purchaser's broker.",
+    referredLabel: "Referred the purchaser to this broker",
   },
   vendor: {
-    pill: "Seller's broker",
-    empty: "No seller's broker yet",
-    referredPill: "Seller referred to broker",
-    addBlurb: "Add the broker helping the seller with their onward purchase, so the referral and fee are on the file.",
-    referredLabel: "Referred the seller to this broker",
+    pill: "Vendor",
+    empty: "No vendor broker yet",
+    referredPill: "Vendor referred to broker",
+    addBlurb: "Add the vendor's broker.",
+    referredLabel: "Referred the vendor to this broker",
   },
 } as const;
 
@@ -200,7 +200,8 @@ function BrokerTile({
     }, "Broker removed");
   }
 
-  const tone: "info" | "success" = slot.side === "vendor" ? "info" : "success";
+  // Side colour for the role eyebrow above the firm name — seller blue, buyer green.
+  const sideTint = slot.side === "vendor" ? "var(--agent-info)" : "var(--agent-success)";
   const emailHref = contact.email ? `mailto:${contact.email}` : null;
   const telHref = contact.phone ? `tel:${contact.phone.replace(/\s/g, "")}` : undefined;
   const waHref = contact.phone ? `https://wa.me/${contact.phone.replace(/[^\d]/g, "")}` : undefined;
@@ -210,11 +211,9 @@ function BrokerTile({
     return (
       <div className="people-item">
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "8px 14px" }}>
-          <ContactAvatar contact={{ name: copy.pill, roleType: "broker" }} size={40} />
+          <ContactAvatar contact={{ name: copy.pill, roleType: "broker" }} size={40} sideTint={slot.side} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              <Pill glass tone={tone} size="sm">{copy.pill}</Pill>
-            </div>
+            <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: sideTint, lineHeight: 1.3, letterSpacing: "0.01em" }}>{copy.pill}</span>
             <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, fontStyle: "italic" }}>
               {copy.empty}
             </div>
@@ -238,12 +237,10 @@ function BrokerTile({
               aria-expanded={expanded}
               className="people-row-main"
             >
-              <ContactAvatar contact={{ name: firm.name, roleType: "broker" }} size={40} />
+              <ContactAvatar contact={{ name: firm.name, roleType: "broker" }} size={40} sideTint={slot.side} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{firm.name}</span>
-                  <Pill glass tone={tone} size="sm">{copy.pill}</Pill>
-                </div>
+                <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: sideTint, lineHeight: 1.3, letterSpacing: "0.01em" }}>{copy.pill}</span>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", marginTop: 1, lineHeight: 1.25 }}>{firm.name}</span>
                 <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {contact.name ? contact.name : "No handler on file"}
                 </div>
@@ -271,7 +268,7 @@ function BrokerTile({
                 <button
                   type="button"
                   onClick={openEdit}
-                  aria-label={`Edit ${slot.side === "vendor" ? "seller's" : "buyer's"} broker`}
+                  aria-label={`Edit ${slot.side} broker`}
                   title="Edit"
                   className="agent-chip-hover"
                   style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer", flexShrink: 0 }}
@@ -360,38 +357,34 @@ function BrokerTile({
         </>
       )}
 
-      {/* Edit form — pick a different broker firm / handler, or remove. */}
+      {/* Edit form — pick a different broker firm / handler, or remove. The
+          subtext names whose broker it is (no separate title); the Referred
+          toggle and the actions share one row to keep the bottom tight. */}
       {(editing || exiting) && (
         <div
           className={exiting ? "agent-reveal-out" : "agent-reveal-in"}
-          style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}
+          style={{ padding: "13px 16px 11px", display: "flex", flexDirection: "column", gap: 10 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Pill glass tone={tone} size="sm">{copy.pill}</Pill>
-          </div>
-          {!firm && (
-            <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: 0 }}>{copy.addBlurb}</p>
-          )}
+          <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", margin: "0 0 -5px", lineHeight: 1.45 }}>
+            {firm ? copy.pill : copy.addBlurb}
+          </p>
           <BrokerPicker label="" value={draft} onChange={setDraft} />
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
-            <input type="checkbox" checked={referred} onChange={(e) => setReferred(e.target.checked)} className="w-4 h-4 accent-emerald-500" />
-            <span className="text-sm text-slate-900/70">{copy.referredLabel}</span>
-          </label>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
-            <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", rowGap: 8 }}>
+            <Checkbox checked={referred} onChange={setReferred} label={copy.referredLabel} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              {firm && (
+                <button
+                  type="button"
+                  onClick={() => { removeBroker(); closeEdit(); }}
+                  className="agent-link"
+                  style={{ fontSize: 11, color: "var(--agent-danger, #dc2626)", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Remove
+                </button>
+              )}
               <button type="button" onClick={closeEdit} className="agent-btn agent-btn-xs agent-btn-neutral">Cancel</button>
               <button type="button" onClick={saveBroker} disabled={!draft} className="agent-btn agent-btn-xs agent-btn-primary">Save</button>
             </div>
-            {firm && (
-              <button
-                type="button"
-                onClick={() => { removeBroker(); closeEdit(); }}
-                className="agent-link"
-                style={{ fontSize: 11, color: "var(--agent-danger, #dc2626)", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Remove
-              </button>
-            )}
           </div>
         </div>
       )}

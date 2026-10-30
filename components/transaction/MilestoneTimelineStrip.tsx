@@ -24,8 +24,9 @@
 // summary read.
 
 import type { ReactNode } from "react";
-import { Check, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
+import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import type { DisplayStageKey, StageStatus } from "@/lib/milestones/display-stages";
 import { useTabContext } from "./TabContext";
 
@@ -199,21 +200,20 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
   const size = 40;
   const ringWidth = 2;
 
-  // Beveled-coin treatment for the two stages that carry live meaning —
-  // complete (emerald) and in-progress (coral) — so they read as minted discs
-  // against the glass rather than faded rings. A gradient rim (padding-box /
-  // border-box trick) around a tinted face, with a top light-catch. The quiet
-  // stages (up next / pending / skipped) keep the flat ring.
-  const isCoin = stage.status === "complete" || stage.status === "in_progress";
-  const coinFace = stage.status === "complete"
-    ? "rgba(16, 185, 129, 0.18)"
-    : "rgba(var(--agent-coral-rgb), 0.14)";
-  const coinRim = stage.status === "complete"
-    ? "conic-gradient(from 135deg, rgba(16,185,129,0.5), #047857, #10b981, rgba(16,185,129,0.5))"
-    : "conic-gradient(from 135deg, var(--agent-coral), var(--agent-coral-deep), var(--agent-coral))";
-  const coinShadow = stage.status === "complete"
-    ? "inset 0 1.5px 0 rgba(255,255,255,0.45), 0 3px 9px rgba(16,185,129,0.22)"
-    : "inset 0 1.5px 0 rgba(255,255,255,0.45), 0 3px 10px rgba(var(--agent-coral-rgb),0.26)";
+  // Glossy fill for the two stages that carry live meaning — complete (emerald)
+  // and in-progress (coral): a solid saturated gradient disc with a top light
+  // highlight and a soft tinted drop shadow, the app's filled-gloss button read.
+  // The quiet stages (up next / pending / skipped) are a light filled disc with
+  // a ring.
+  const isGloss = stage.status === "complete" || stage.status === "in_progress";
+  const glossBg = stage.status === "complete"
+    ? "linear-gradient(180deg, #10b981 0%, #059669 100%)"
+    : "linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%)";
+  const glossShadow = stage.status === "complete"
+    ? "inset 0 1px 0 rgba(255,255,255,0.45), 0 3px 8px rgba(16,185,129,0.30)"
+    : "inset 0 1px 0 rgba(255,255,255,0.45), 0 3px 9px rgba(var(--agent-coral-rgb),0.34)";
+  // Glyph sits white on the saturated disc; muted on the quiet light discs.
+  const glyphColor = isGloss ? "#fff" : tone.iconColor;
 
   return (
     <div
@@ -234,22 +234,22 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: tone.iconColor,
-          ...(isCoin
+          color: glyphColor,
+          ...(isGloss
             ? {
-                border: "3px solid transparent",
-                background: `linear-gradient(${coinFace}, ${coinFace}) padding-box, ${coinRim} border-box`,
-                boxShadow: coinShadow,
+                border: "none",
+                background: glossBg,
+                boxShadow: glossShadow,
               }
             : {
-                background: tone.bg,
+                background: "var(--agent-surface-elevated)",
                 border: `${ringWidth}px solid ${tone.ring}`,
-                boxShadow: "none",
+                boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
               }),
         }}
       >
         {stage.status === "complete" ? (
-          <Check size={18} weight="bold" />
+          <AnimatedTick size={20} color={glyphColor} strokeWidth={3} delayMs={index * 60} />
         ) : stage.status === "skipped" ? (
           <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1 }} aria-hidden>–</span>
         ) : (

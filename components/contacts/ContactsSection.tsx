@@ -132,8 +132,10 @@ function autoEmailTone(count: number): { bg: string; fg: string } | null {
 // Role -> canonical Pill tone. Vendor = seller-blue, purchaser = buyer-green,
 // matching the side-tinted avatars (Avatar.tsx SIDE_STYLES). Everyone else
 // stays quiet. (Kept in sync with SolicitorSection so both cards read alike.)
-function roleTone(r: string): "info" | "success" | "muted" {
-  return r === "vendor" ? "info" : r === "purchaser" ? "success" : "muted";
+// Side colour for the role eyebrow that sits above a contact's name — seller
+// blue, buyer green, everything else muted.
+function roleTint(r: string): string {
+  return r === "vendor" ? "var(--agent-info)" : r === "purchaser" ? "var(--agent-success)" : "var(--agent-text-muted)";
 }
 
 // ── Portal state resolver ──────────────────────────────────────────────
@@ -966,11 +968,11 @@ export function ContactsSection({
                         <ContactAvatar contact={contact} size={40} art />
 
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                            <span data-sensitive="true" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.isBusiness && contact.companyName ? contact.companyName : contact.name}</span>
-                            <Pill glass tone={roleTone(r)} size="sm">
-                              {roleLabel(r)}
-                            </Pill>
+                          <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: roleTint(r), lineHeight: 1.3, letterSpacing: "0.01em" }}>
+                            {roleLabel(r)}
+                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 1 }}>
+                            <span data-sensitive="true" style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>{contact.isBusiness && contact.companyName ? contact.companyName : contact.name}</span>
                             {contact.isBusiness && (
                               <Pill glass tone="muted" size="sm" title="A company/business client. We address the named contact person.">
                                 Business

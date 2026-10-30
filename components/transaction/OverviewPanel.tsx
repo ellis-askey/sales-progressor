@@ -534,7 +534,7 @@ export async function OverviewPanel({
           />
         }
         professionals={
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <SolicitorSection
               transactionId={transaction.id}
               vendor={{

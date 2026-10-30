@@ -257,6 +257,8 @@ function SolicitorTile({
   // avatars and the Contacts card pills.
   const roleTone: "info" | "success" = side === "vendor" ? "info" : "success";
   const roleLabel = side === "vendor" ? "Vendor" : "Purchaser";
+  // Side colour for the role eyebrow above the firm name — seller blue, buyer green.
+  const sideTint = side === "vendor" ? "var(--agent-info)" : "var(--agent-success)";
 
   // CC the handler's assistant/secretary on the agent's own email too.
   const ccParam = info.contact?.secondaryEmail
@@ -282,9 +284,9 @@ function SolicitorTile({
             <ContactAvatar contact={{ name: roleLabel, roleType: "solicitor" }} size={40} sideTint={side} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-              {!hideSidePill && <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>}
-            </div>
+            {!hideSidePill && (
+              <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: sideTint, lineHeight: 1.3, letterSpacing: "0.01em" }}>{roleLabel}</span>
+            )}
             <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, fontStyle: "italic" }}>
               No {side} solicitor yet
             </div>
@@ -311,10 +313,10 @@ function SolicitorTile({
             >
               <ContactAvatar contact={{ name: info.firm.name, roleType: "solicitor" }} size={40} sideTint={side} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{info.firm.name}</span>
-                  {!hideSidePill && <Pill glass tone={roleTone} size="sm">{roleLabel}</Pill>}
-                </div>
+                {!hideSidePill && (
+                  <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: sideTint, lineHeight: 1.3, letterSpacing: "0.01em" }}>{roleLabel}</span>
+                )}
+                <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", marginTop: 1, lineHeight: 1.25 }}>{info.firm.name}</span>
                 <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {info.contact?.name ? info.contact.name : "No handler on file"}
                 </div>
