@@ -331,7 +331,7 @@ export function ChainsWorkspace({
   }, [checkIns, q]);
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "chains", label: "In chains", count: chains.length },
+    { key: "chains", label: "Chains", count: chains.length },
     { key: "checkins", label: "Check-ins", count: checkIns.length },
     { key: "pushexchange", label: "Push to exchange", count: exchangePush.length },
     { key: "needs", label: "Needs chain setup", count: needsSetupAll.length },
@@ -451,7 +451,7 @@ export function ChainsWorkspace({
           <SummaryTile
             icon={<LinkSimpleHorizontal size={22} weight="regular" />}
             value={filesInChains}
-            label="In chains"
+            label="Files in chains"
             sublabel="Linked to other sales"
             tone="info"
             onClick={() => { setTab("chains"); setOnlyNeedsInvite(false); }}
