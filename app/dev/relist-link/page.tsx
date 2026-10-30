@@ -206,7 +206,7 @@ function CatchDialog() {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>2 Magnolia Way, Cheshunt</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, padding: "1px 8px", borderRadius: 999, color: "var(--agent-warning, #D08700)", background: "rgba(208,135,0,0.12)" }}>On hold</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 999, color: "#fff", background: "linear-gradient(180deg, #E8A020, var(--agent-warning, #D08700))", boxShadow: "0 2px 7px rgba(var(--agent-warning-rgb, 208,135,0), 0.35), inset 0 1px 0 rgba(255,255,255,0.28)" }}>On hold</span>
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>£385k</span>
               <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Buyer: Tara and Billy Leonard</span>
             </div>

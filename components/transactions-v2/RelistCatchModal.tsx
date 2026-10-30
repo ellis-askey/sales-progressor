@@ -42,6 +42,12 @@ export function RelistCatchModal({
   const price = shortPrice(previousPurchasePrice);
   // First line of the address for the summary heading; full address stays below.
   const firstLine = address.split(",")[0]?.trim() || address;
+  // Solid, glossy status pill (our gradient treatment) rather than a faded tint:
+  // amber for on-hold, red for fallen-through.
+  const pillGradient = status === "withdrawn"
+    ? "linear-gradient(180deg, #E05A5A, var(--agent-danger, #C73E3E))"
+    : "linear-gradient(180deg, #E8A020, var(--agent-warning, #D08700))";
+  const pillShadowRgb = status === "withdrawn" ? "var(--agent-danger-rgb, 199,62,62)" : "var(--agent-warning-rgb, 208,135,0)";
 
   return (
     <Modal open={open} onClose={onClose} ariaLabel="You already have a file for this address" size="md" closeTone="onDark" dismissOnBackdrop={false}>
@@ -61,7 +67,7 @@ export function RelistCatchModal({
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{firstLine}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, padding: "1px 8px", borderRadius: 999, color: "var(--agent-warning, #D08700)", background: "rgba(208,135,0,0.12)" }}>{statusLabel}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 9px", borderRadius: 999, color: "#fff", background: pillGradient, boxShadow: `0 2px 7px rgba(${pillShadowRgb}, 0.35), inset 0 1px 0 rgba(255,255,255,0.28)` }}>{statusLabel}</span>
                 {price && <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{price}</span>}
                 {previousBuyerName && <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>Buyer: {previousBuyerName}</span>}
               </div>

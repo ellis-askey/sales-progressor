@@ -733,29 +733,40 @@ export function RelistFileModal({
               <label className="block text-xs font-semibold mb-1.5" style={{ color: "var(--agent-text-secondary, #4b5563)" }}>
                 Buyer&apos;s purchase method <span style={{ color: "var(--agent-danger, #C73E3E)" }}>*</span>
               </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {/* Canonical option-select treatment (mirrors EmailSignatureCard):
+                  solid coral gradient + tick on the chosen one, clean outline
+                  that lifts on hover otherwise. Replaces the old faded tint. */}
+              <style>{`.relist-pt-opt{transition:background 160ms,border-color 150ms,box-shadow 220ms,transform 160ms;} .relist-pt-opt:not(.on):hover{border-color:var(--agent-coral);transform:translateY(-1px);}`}</style>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {([
                   { value: "mortgage",           label: "Mortgage",            note: "All mortgage steps apply" },
                   { value: "cash_buyer",         label: "Cash",                note: "Mortgage steps not required" },
                   { value: "cash_from_proceeds", label: "Cash from Proceeds",  note: "Mortgage + deposit not required" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPurchaseType(opt.value)}
-                    disabled={isPending}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                      purchaseType === opt.value
-                        ? "border-[var(--agent-coral-deep,#E5502E)] bg-[rgba(255,107,74,0.06)] font-medium"
-                        : "border-[var(--agent-border-default)] hover:border-[var(--agent-coral)] agent-hover-row"
-                    }`}
-                  >
-                    <div className="text-sm font-medium" style={{ color: purchaseType === opt.value ? "var(--agent-coral-deep, #E5502E)" : "var(--agent-text-primary)" }}>{opt.label}</div>
-                    <div className="text-[11px] mt-0.5" style={{ color: purchaseType === opt.value ? "rgba(229,80,46,0.85)" : "var(--agent-text-muted)" }}>
-                      {opt.note}
-                    </div>
-                  </button>
-                ))}
+                ] as const).map((opt) => {
+                  const active = purchaseType === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPurchaseType(opt.value)}
+                      disabled={isPending}
+                      className={`relist-pt-opt${active ? " on" : ""}`}
+                      style={{
+                        textAlign: "left", cursor: "pointer", borderRadius: 12, padding: "12px 14px",
+                        border: active ? "1.5px solid transparent" : "1.5px solid var(--agent-border-default)",
+                        background: active ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "var(--agent-surface-glass)",
+                        boxShadow: active ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
+                        display: "flex", alignItems: "flex-start", gap: 10,
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: active ? "var(--agent-text-on-coral, #fff)" : "var(--agent-text-primary)" }}>{opt.label}</span>
+                        <span style={{ display: "block", fontSize: 12, marginTop: 1, color: active ? "rgba(255,255,255,0.88)" : "var(--agent-text-muted)" }}>{opt.note}</span>
+                      </span>
+                      {active && <CheckCircle size={19} weight="fill" color="var(--agent-text-on-coral, #fff)" style={{ flexShrink: 0, marginTop: 1 }} />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
