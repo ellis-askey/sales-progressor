@@ -3518,7 +3518,10 @@ export async function applyRelistFileUpdatesAction(input: {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true, agencyId: true, photoStoragePath: true },
+    select: {
+      id: true, agencyId: true, photoStoragePath: true,
+      tenure: true, purchaseType: true, hasManagementPack: true, isSharedOwnership: true,
+    },
   });
   if (!tx) return { ok: false };
 
@@ -3531,37 +3534,91 @@ export async function applyRelistFileUpdatesAction(input: {
     data.photoStoragePath = input.photoStoragePath;
     data.photoUploadedAt = new Date();
   }
-  // Assignment: honour the owner the agent picked (the relist otherwise clears it).
-  if (input.assignToUserId) {
-    data.assignedUserId = input.assignToUserId;
-    data.assignedAt = new Date();
-  }
-  // Tenure conflict — replace the property's tenure only when chosen.
-  if (input.tenureResolution === "replace" && input.tenureValue) {
-    data.tenure = input.tenureValue;
-    data.isShareOfFreehold = input.tenureValue === "leasehold" ? !!input.isShareOfFreehold : false;
+  // Assignment: honour the picked owner, but ONLY with the same checks the
+  // new-sale flow uses — director-initiated, target in THIS agency + an agent
+  // role. Never trust a raw id (audit 2026, Law 7).
+  if (input.assignToUserId && session.user.role === "director") {
+    const target = await prisma.user.findUnique({
+      where: { id: input.assignToUserId },
+      select: { agencyId: true, role: true },
+    });
+    if (target && target.agencyId === tx.agencyId && (target.role === "director" || target.role === "negotiator")) {
+      data.assignedUserId = input.assignToUserId;
+      data.assignedAt = new Date();
+    }
   }
   // Seller's onward purchase — "replace" flags the file for manual chain setup
   // rather than attempting any chain surgery.
   if (input.sellerOnwardResolution === "replace") data.chainSetupPending = true;
 
+  // Tenure "replace": re-derive the tenure-dependent legal steps (management-pack
+  // VM8/VM9/PM12 etc.) via the SAME reconciliation the Edit Sale Details screen
+  // uses — never a raw field write that would leave the steps wrong (audit 2026).
+  // Runs in its own transaction before the additive writes below.
+  const changingTenure =
+    input.tenureResolution === "replace" && !!input.tenureValue && input.tenureValue !== tx.tenure;
+  if (changingTenure && tx.purchaseType) {
+    await confirmSaleDetailsAction({
+      transactionId: tx.id,
+      newPurchaseType: tx.purchaseType,
+      newTenure: input.tenureValue!,
+      newHasManagementPack: tx.hasManagementPack,
+      newIsSharedOwnership: tx.isSharedOwnership,
+    });
+    // isShareOfFreehold is display-only (not in the NR rule), so set it here.
+    data.isShareOfFreehold = input.tenureValue === "leasehold" ? !!input.isShareOfFreehold : false;
+  }
+
+  // Seller "replace": only with a non-empty new list — never wipe all sellers
+  // (audit 2026). Update existing rows in place so their portal tokens + document
+  // / message history survive; add or remove only the delta.
+  const doSellerSwap =
+    input.sellerResolution === "replace" && !!input.vendorContacts && input.vendorContacts.length > 0;
+
   await prisma.$transaction(async (ptx) => {
     if (Object.keys(data).length > 0) {
       await ptx.propertyTransaction.update({ where: { id: tx.id }, data });
     }
-    // Seller conflict — swap the file-level vendor contacts + vendor solicitor.
-    if (input.sellerResolution === "replace") {
-      await ptx.contact.deleteMany({ where: { propertyTransactionId: tx.id, roleType: "vendor" } });
-      if (input.vendorContacts && input.vendorContacts.length > 0) {
+    if (doSellerSwap) {
+      const entered = input.vendorContacts!;
+      const existing = await ptx.contact.findMany({
+        where: { propertyTransactionId: tx.id, roleType: "vendor" },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+      });
+      // Update the overlap in place (keeps the row id + portalToken + history).
+      for (let i = 0; i < Math.min(existing.length, entered.length); i++) {
+        const c = entered[i];
+        await ptx.contact.update({
+          where: { id: existing[i].id },
+          data: {
+            name: c.name,
+            companyName: c.companyName?.trim() || null,
+            isBusiness: !!c.companyName?.trim(),
+            phone: c.phone?.trim() || null,
+            email: c.email?.trim() || null,
+          },
+        });
+      }
+      // Extra entered vendors → new rows WITH a portal token so they get access.
+      if (entered.length > existing.length) {
         await ptx.contact.createMany({
-          data: input.vendorContacts.map((c) => ({
+          data: entered.slice(existing.length).map((c) => ({
             propertyTransactionId: tx.id,
             name: c.name,
-            companyName: c.companyName ?? null,
-            phone: c.phone ?? null,
-            email: c.email ?? null,
+            companyName: c.companyName?.trim() || null,
+            isBusiness: !!c.companyName?.trim(),
+            phone: c.phone?.trim() || null,
+            email: c.email?.trim() || null,
             roleType: "vendor" as const,
+            portalToken: randomUUID(),
           })),
+        });
+      }
+      // Surplus old vendor rows → removed.
+      if (existing.length > entered.length) {
+        await ptx.contact.deleteMany({
+          where: { id: { in: existing.slice(entered.length).map((e) => e.id) } },
         });
       }
       await ptx.propertyTransaction.update({
@@ -3647,6 +3704,11 @@ export async function relistTransactionImpl(
   if (tx.status !== "withdrawn" && tx.status !== "on_hold") {
     throw new Error(`Relist requires status=withdrawn or on_hold (current: ${tx.status})`);
   }
+  // An on_hold-origin relist never ran the withdraw-time chain cascade (orphan
+  // split / snapshot), so the onward-stub attach for a chain file can silently
+  // no-op (audit 2026). Flag such files for manual chain setup so the hub prompts
+  // the agent to verify the chain rather than it quietly going missing.
+  const wasOnHold = tx.status === "on_hold";
   if (tx.exchangedAt !== null) {
     throw new Error("Cannot relist after exchange has happened");
   }
@@ -3941,6 +4003,9 @@ export async function relistTransactionImpl(
         status: "active",
         activeBuyerRoundId: newRound.id,
         fallThroughReason: null,
+        // Chain files relisted from on_hold: flag for manual chain setup (the
+        // auto onward-attach can silently skip for this origin — audit 2026).
+        ...(wasOnHold && tx.chainLinkId ? { chainSetupPending: true } : {}),
         expectedExchangeDate: forecastExpected,
         // Reset the 12-week TARGET too (was previously left at the original
         // submission + 84d, so it went stale against the new buyer). A relist
@@ -3985,6 +4050,12 @@ export async function relistTransactionImpl(
         // fallback) belonged to the old buyer's booking.
         bookedSurveyorName: null,
         bookedValuerName: null,
+        // The survey level + the surveyor's contact (email/phone) also belonged
+        // to the old buyer's booking and surface on the new buyer's PM9 (agent +
+        // portal) if left — clear them too (audit 2026, critique #296 bleed).
+        surveyLevel: null,
+        bookedSurveyorEmail: null,
+        bookedSurveyorPhone: null,
         // Buyer intro-call "done" — only the PURCHASER side (the seller's intro
         // carries over, so introCallVendorCompletedAt is left intact). Without
         // this the new buyer's "start intro call" prompt is suppressed even as
@@ -4194,6 +4265,21 @@ export async function relistTransactionImpl(
         status: "pending",
       },
       data: { status: "expired", statusReason: "sale fell through" },
+    });
+
+    // Enquiry loops belong to the OUTGOING buyer. The withdraw path closes them
+    // on status change (changeStatusAction, the "withdrawn || completed" branch);
+    // an on_hold-origin relist never closes them, which would leak buyer A's
+    // enquiry clock into buyer B's sale (premature escalation to the owner + a
+    // nudge to the new buyer on the old timeline). Close them here for BOTH
+    // origins — a relist starts a brand-new buyer whose enquiry loop hasn't begun.
+    await ptx.enquiryTracker.updateMany({
+      where: { transactionId: tx.id, closedAt: null },
+      data: { closedAt: new Date() },
+    });
+    await ptx.enquiryRaiseChase.updateMany({
+      where: { transactionId: tx.id, closedAt: null },
+      data: { closedAt: new Date() },
     });
 
     // GAP-1 closure (Phase-2 PR 1, Ellis-locked: "if unsure: close"). Close

@@ -891,6 +891,10 @@ export async function getMilestonesForTransaction(
       select: {
         id: true,
         activeBuyerRoundId: true,
+        // The current round's start — used to ignore a surveyor quote booked by a
+        // previous buyer (before this round) so it can't re-feed the new buyer's
+        // PM9 after a relist (QuoteRequest has no round stamp). Audit 2026, #296.
+        activeBuyerRound: { select: { createdAt: true } },
         bookedSurveyorName: true,
         bookedValuerName: true,
         surveyLevel: true,
@@ -904,7 +908,7 @@ export async function getMilestonesForTransaction(
     prisma.quoteRequest.findFirst({
       where: { transactionId, status: { in: ["booked", "won"] } },
       orderBy: { bookedAt: "desc" },
-      select: { provider: { select: { name: true } } },
+      select: { bookedAt: true, provider: { select: { name: true } } },
     }),
   ]);
   if (!transaction) throw new Error("Transaction not found");
@@ -972,7 +976,16 @@ export async function getMilestonesForTransaction(
   users.forEach((u) => userImageById.set(u.id, u.image ?? null));
 
   // The surveyor the buyer booked (survey-booking loop) — fetched in Wave 1.
-  const bookedSurveyorName = bookedSurveyorRow?.provider.name ?? transaction.bookedSurveyorName ?? null;
+  // Only honour a quote booked during the CURRENT round: a surveyor booked by a
+  // previous buyer (before this round started) must not re-surface on the new
+  // buyer's PM9 after a relist (QuoteRequest carries no round stamp, so scope by
+  // time). Audit 2026, critique #296 bleed.
+  const roundStart = transaction.activeBuyerRound?.createdAt ?? null;
+  const surveyorFromRound =
+    bookedSurveyorRow && (!roundStart || !bookedSurveyorRow.bookedAt || bookedSurveyorRow.bookedAt >= roundStart)
+      ? bookedSurveyorRow
+      : null;
+  const bookedSurveyorName = surveyorFromRound?.provider.name ?? transaction.bookedSurveyorName ?? null;
 
   const vendorDefs = definitions.filter((d) => d.side === "vendor");
   const purchaserDefs = definitions.filter((d) => d.side === "purchaser");

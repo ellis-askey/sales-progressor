@@ -491,26 +491,34 @@ export function RelistFileModal({
           onwardSale: buildOnwardPayload(),
         });
         // New-sale catch (critique #296): carry the non-buyer data the agent
-        // typed onto the file. Best-effort — a miss here never undoes the relist
-        // that already committed; the agent can still edit the file.
+        // typed onto the file. The relist already committed, so a failure here
+        // doesn't undo it — but we must TELL the agent rather than swallow it
+        // (audit 2026), because the fee/notes/seller changes wouldn't be saved.
+        let fileUpdatesOk = true;
         if (catchUpdates) {
-          await applyRelistFileUpdatesAction({
-            transactionId,
-            agentFeeAmount: catchUpdates.apply.agentFeeAmount,
-            agentFeePercent: catchUpdates.apply.agentFeePercent,
-            agentFeeIsVatInclusive: catchUpdates.apply.agentFeeIsVatInclusive,
-            note: catchUpdates.apply.note,
-            photoStoragePath: catchUpdates.apply.photoStoragePath,
-            assignToUserId: catchUpdates.apply.assignToUserId,
-            tenureResolution: catchUpdates.conflicts.tenure ? tenureRes : undefined,
-            tenureValue: catchUpdates.apply.enteredTenure,
-            isShareOfFreehold: catchUpdates.apply.enteredIsShareOfFreehold,
-            sellerResolution: catchUpdates.conflicts.seller ? sellerRes : undefined,
-            vendorContacts: catchUpdates.apply.enteredVendorContacts,
-            vendorSolicitorFirmId: catchUpdates.apply.enteredVendorSolicitorFirmId,
-            vendorSolicitorContactId: catchUpdates.apply.enteredVendorSolicitorContactId,
-            sellerOnwardResolution: catchUpdates.conflicts.onward ? onwardRes : undefined,
-          }).catch((e) => console.error("relist file-updates failed:", e));
+          try {
+            const res = await applyRelistFileUpdatesAction({
+              transactionId,
+              agentFeeAmount: catchUpdates.apply.agentFeeAmount,
+              agentFeePercent: catchUpdates.apply.agentFeePercent,
+              agentFeeIsVatInclusive: catchUpdates.apply.agentFeeIsVatInclusive,
+              note: catchUpdates.apply.note,
+              photoStoragePath: catchUpdates.apply.photoStoragePath,
+              assignToUserId: catchUpdates.apply.assignToUserId,
+              tenureResolution: catchUpdates.conflicts.tenure ? tenureRes : undefined,
+              tenureValue: catchUpdates.apply.enteredTenure,
+              isShareOfFreehold: catchUpdates.apply.enteredIsShareOfFreehold,
+              sellerResolution: catchUpdates.conflicts.seller ? sellerRes : undefined,
+              vendorContacts: catchUpdates.apply.enteredVendorContacts,
+              vendorSolicitorFirmId: catchUpdates.apply.enteredVendorSolicitorFirmId,
+              vendorSolicitorContactId: catchUpdates.apply.enteredVendorSolicitorContactId,
+              sellerOnwardResolution: catchUpdates.conflicts.onward ? onwardRes : undefined,
+            });
+            fileUpdatesOk = res.ok;
+          } catch (e) {
+            console.error("relist file-updates failed:", e);
+            fileUpdatesOk = false;
+          }
         }
         // If the agent uploaded the new memo, tick the "Memorandum of sale
         // received" step for the new round and file the memo against the sale.
@@ -519,6 +527,12 @@ export function RelistFileModal({
         // never fails the relist that already succeeded.
         if (memoState === "done") {
           await attachRelistMosAction({ transactionId, ...(mosMeta ?? {}) }).catch(() => {});
+        }
+        // The navigation below is a full reload, so a toast wouldn't survive —
+        // use a blocking notice to guarantee the agent sees that the file details
+        // didn't save (they can add them on the file).
+        if (!fileUpdatesOk && typeof window !== "undefined") {
+          window.alert("Your new buyer was added, but we couldn't save the extra file details you entered (agent fee, note, photo, or seller changes). Please open the file and add them.");
         }
         onClose();
         // Force a refresh so the file detail rerenders with the new round
