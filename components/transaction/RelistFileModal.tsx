@@ -54,17 +54,19 @@ type OnwardSale =
 // value differs from the file.
 type RelistCatchUpdates = {
   apply: {
-    agentFeeAmount: number | null;
-    agentFeePercent: number | null;
-    agentFeeIsVatInclusive: boolean | null;
+    // undefined = not entered, so leave the file's existing fee untouched.
+    agentFeeAmount?: number | null;
+    agentFeePercent?: number | null;
+    agentFeeIsVatInclusive?: boolean | null;
     note: string | null;
     photoStoragePath: string | null;
     assignToUserId: string | null;
     enteredTenure: "freehold" | "leasehold" | null;
     enteredIsShareOfFreehold: boolean;
     enteredVendorContacts: { name: string; companyName?: string; phone?: string; email?: string }[];
-    enteredVendorSolicitorFirmId: string | null;
-    enteredVendorSolicitorContactId: string | null;
+    // undefined = the agent entered no seller solicitor, so leave the file's as-is.
+    enteredVendorSolicitorFirmId?: string | null;
+    enteredVendorSolicitorContactId?: string | null;
   };
   safeUpdates: { label: string; value: string }[];
   conflicts: {
@@ -532,7 +534,7 @@ export function RelistFileModal({
         // use a blocking notice to guarantee the agent sees that the file details
         // didn't save (they can add them on the file).
         if (!fileUpdatesOk && typeof window !== "undefined") {
-          window.alert("Your new buyer was added, but we couldn't save the extra file details you entered (agent fee, note, photo, or seller changes). Please open the file and add them.");
+          window.alert("Your new buyer was added, but we couldn't save all the file details you entered (agent fee, note, photo, tenure, or seller changes). Some may not have applied. Please open the file and check them.");
         }
         onClose();
         // Force a refresh so the file detail rerenders with the new round
@@ -546,7 +548,14 @@ export function RelistFileModal({
           window.location.reload();
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong relisting the file.");
+        // Relist preconditions throw clear messages, but production redacts thrown
+        // server-action messages — so a race (the file changed since the catch:
+        // exchanged, no longer on hold) would otherwise read as a useless generic
+        // error. Fall back to a helpful hint in that case (audit 2026).
+        const msg = err instanceof Error ? err.message : "";
+        setError(msg && !/an error occurred/i.test(msg)
+          ? msg
+          : "Couldn't relist this file. It may have changed since you started (for example it was exchanged, or is no longer on hold). Open the file to check.");
       }
     });
   }

@@ -411,6 +411,7 @@ export async function createTransactionAction(input: {
         select: {
           status: true, exchangedAt: true, activeBuyerRoundId: true,
           tenure: true, isShareOfFreehold: true, purchaseType: true, chainLinkId: true, purchasePrice: true,
+          photoStoragePath: true,
           contacts: { where: { roleType: { in: ["purchaser", "vendor"] } }, select: { name: true, roleType: true } },
         },
       });
@@ -422,7 +423,9 @@ export async function createTransactionAction(input: {
         !!file.tenure &&
         !!file.purchaseType;
       const purchaserNames = (file?.contacts ?? []).filter((c) => c.roleType === "purchaser").map((c) => c.name);
-      const vendorNames = (file?.contacts ?? []).filter((c) => c.roleType === "vendor").map((c) => c.name);
+      // Sorted so the seller-conflict compare is order-independent (two sellers
+      // entered in a different order mustn't look like a change — audit 2026).
+      const vendorNames = (file?.contacts ?? []).filter((c) => c.roleType === "vendor").map((c) => c.name).sort((a, b) => a.localeCompare(b));
       // Expected failure — RETURNED, not thrown. Production redacts thrown
       // server-action messages (and drops custom props), so the old throw
       // surfaced raw boilerplate to the user instead of the duplicate modal.
@@ -440,6 +443,7 @@ export async function createTransactionAction(input: {
         fileTenure: file?.tenure ?? null,
         fileIsShareOfFreehold: file?.isShareOfFreehold ?? false,
         fileVendorName: vendorNames.join(" and ") || null,
+        fileHasPhoto: file?.photoStoragePath != null,
       };
     }
   }
@@ -3581,53 +3585,35 @@ export async function applyRelistFileUpdatesAction(input: {
     }
     if (doSellerSwap) {
       const entered = input.vendorContacts!;
-      const existing = await ptx.contact.findMany({
-        where: { propertyTransactionId: tx.id, roleType: "vendor" },
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
+      // "Replace" fires only when the entered seller DIFFERS from the file's, so
+      // this is a genuinely different person — remove the previous seller (and
+      // their portal access / history, which belong to that person) and create
+      // the entered seller(s) fresh with their own portal tokens. Do NOT reuse the
+      // old person's token/history on a new person (audit 2026).
+      await ptx.contact.deleteMany({ where: { propertyTransactionId: tx.id, roleType: "vendor" } });
+      await ptx.contact.createMany({
+        data: entered.map((c) => ({
+          propertyTransactionId: tx.id,
+          name: c.name,
+          companyName: c.companyName?.trim() || null,
+          isBusiness: !!c.companyName?.trim(),
+          phone: c.phone?.trim() || null,
+          email: c.email?.trim() || null,
+          roleType: "vendor" as const,
+          portalToken: randomUUID(),
+        })),
       });
-      // Update the overlap in place (keeps the row id + portalToken + history).
-      for (let i = 0; i < Math.min(existing.length, entered.length); i++) {
-        const c = entered[i];
-        await ptx.contact.update({
-          where: { id: existing[i].id },
+      // Only touch the seller solicitor when the agent actually entered one —
+      // never silently wipe a live vendor-solicitor instruction (audit 2026).
+      if (input.vendorSolicitorFirmId !== undefined) {
+        await ptx.propertyTransaction.update({
+          where: { id: tx.id },
           data: {
-            name: c.name,
-            companyName: c.companyName?.trim() || null,
-            isBusiness: !!c.companyName?.trim(),
-            phone: c.phone?.trim() || null,
-            email: c.email?.trim() || null,
+            vendorSolicitorFirmId: input.vendorSolicitorFirmId,
+            vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,
           },
         });
       }
-      // Extra entered vendors → new rows WITH a portal token so they get access.
-      if (entered.length > existing.length) {
-        await ptx.contact.createMany({
-          data: entered.slice(existing.length).map((c) => ({
-            propertyTransactionId: tx.id,
-            name: c.name,
-            companyName: c.companyName?.trim() || null,
-            isBusiness: !!c.companyName?.trim(),
-            phone: c.phone?.trim() || null,
-            email: c.email?.trim() || null,
-            roleType: "vendor" as const,
-            portalToken: randomUUID(),
-          })),
-        });
-      }
-      // Surplus old vendor rows → removed.
-      if (existing.length > entered.length) {
-        await ptx.contact.deleteMany({
-          where: { id: { in: existing.slice(entered.length).map((e) => e.id) } },
-        });
-      }
-      await ptx.propertyTransaction.update({
-        where: { id: tx.id },
-        data: {
-          vendorSolicitorFirmId: input.vendorSolicitorFirmId ?? null,
-          vendorSolicitorContactId: input.vendorSolicitorContactId ?? null,
-        },
-      });
     }
     // Setup note appended to the file's notes feed (same shape as new-sale).
     if (input.note && input.note.trim()) {
@@ -4235,6 +4221,19 @@ export async function relistTransactionImpl(
         ],
       },
     });
+
+    // The OLD buyer's "move info" (mortgage-offer expiry, funds, notice dates,
+    // their own broker, removal company) is file-level with NO round stamp, so
+    // without this it surfaces on the NEW buyer's portal "Your move" card + the
+    // agent Overview + the mortgage-offer-expiry reminder (audit 2026, live PII
+    // leak). The vendor-side row is the unchanged seller, so it carries over.
+    await ptx.clientMoveInfo.deleteMany({ where: { transactionId: tx.id, side: "purchaser" } });
+    // Advisor-chase state + broker notifications for the buyer side are the same
+    // no-round-stamp pattern as the solicitor/client chase states cleared above.
+    // The engines behind them aren't live yet, but reset now so a future buyer
+    // never inherits the old buyer's advisor cadence / notification bell.
+    await ptx.advisorChaseState.deleteMany({ where: { transactionId: tx.id, side: "purchaser" } });
+    await ptx.brokerNotification.deleteMany({ where: { transactionId: tx.id, side: "purchaser" } });
 
     // Solicitor-targeted chase edits (ChaseEmailOverride) reset (2026-09-28).
     // Client overrides are contact-keyed so a new buyer's new contact starts

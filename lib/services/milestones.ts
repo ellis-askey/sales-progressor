@@ -980,9 +980,14 @@ export async function getMilestonesForTransaction(
   // previous buyer (before this round started) must not re-surface on the new
   // buyer's PM9 after a relist (QuoteRequest carries no round stamp, so scope by
   // time). Audit 2026, critique #296 bleed.
+  // Fail CLOSED: only honour the quote when we can prove it was booked at/after
+  // this round started. A missing round-start or a missing bookedAt (e.g. a quote
+  // marked "won" without passing through "booked") must NOT re-feed a previous
+  // buyer's surveyor onto the new PM9 (audit 2026). Current-round bookings always
+  // stamp bookedAt via the survey-booked step, so this is safe.
   const roundStart = transaction.activeBuyerRound?.createdAt ?? null;
   const surveyorFromRound =
-    bookedSurveyorRow && (!roundStart || !bookedSurveyorRow.bookedAt || bookedSurveyorRow.bookedAt >= roundStart)
+    bookedSurveyorRow && roundStart && bookedSurveyorRow.bookedAt && bookedSurveyorRow.bookedAt >= roundStart
       ? bookedSurveyorRow
       : null;
   const bookedSurveyorName = surveyorFromRound?.provider.name ?? transaction.bookedSurveyorName ?? null;

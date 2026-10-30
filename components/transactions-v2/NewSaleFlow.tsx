@@ -454,7 +454,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   // fallen-through), offer to add the new buyer there instead of making a
   // duplicate. relistCatch holds the matched file; relistOpen swaps the catch
   // dialog for the pre-filled add-new-buyer modal.
-  const [relistCatch, setRelistCatch] = useState<{ id: string; status: string | null; previousPurchasePrice: number | null; inChain: boolean; previousBuyerName: string | null; fileTenure: string | null; fileIsShareOfFreehold: boolean; fileVendorName: string | null } | null>(null);
+  const [relistCatch, setRelistCatch] = useState<{ id: string; status: string | null; previousPurchasePrice: number | null; inChain: boolean; previousBuyerName: string | null; fileTenure: string | null; fileIsShareOfFreehold: boolean; fileVendorName: string | null; fileHasPhoto: boolean } | null>(null);
   const [relistOpen, setRelistOpen] = useState(false);
 
   // ── Draft state ───────────────────────────────────────────────────────────
@@ -1151,6 +1151,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               fileTenure: result.fileTenure,
               fileIsShareOfFreehold: result.fileIsShareOfFreehold,
               fileVendorName: result.fileVendorName,
+              fileHasPhoto: result.fileHasPhoto,
             });
           } else {
             setDuplicateInfo({ id: result.duplicateId, assignedTo: result.assignedTo });
@@ -1811,7 +1812,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           transactionId={relistCatch.id}
           previousPurchasePrice={relistCatch.previousPurchasePrice}
           inChain={relistCatch.inChain}
-          initialBuyerName={formFields.purchasers[0]?.name?.trim() || undefined}
+          initialBuyerName={formFields.purchasers[0] ? (resolveBusinessSplit(formFields.purchasers[0]).name.trim() || undefined) : undefined}
           initialBuyerEmail={formFields.purchasers[0]?.email?.trim() || undefined}
           initialBuyerPhone={formFields.purchasers[0]?.phone?.trim() || undefined}
           initialPricePence={formFields.purchasePricePence}
@@ -1820,13 +1821,23 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
           initialBroker={formFields.broker}
           catchUpdates={(() => {
             const cap = (s: string | null) => (s ? s[0].toUpperCase() + s.slice(1) : "");
-            const entVendorName = formFields.vendors.map((v) => resolveBusinessSplit(v).name).filter(Boolean).join(" and ");
-            const hasFee = formFields.agentFeeType === "amount" ? formFields.agentFeeAmount != null : !!(parseFloat(formFields.agentFeePercentStr) || 0);
+            // Entered sellers for display (form order) + a sorted/lowercased key
+            // for the conflict compare, so a different ORDER isn't read as a change.
+            const enteredVendorNames = formFields.vendors.map((v) => resolveBusinessSplit(v).name).filter(Boolean);
+            const entVendorName = enteredVendorNames.join(" and ");
+            const entVendorKey = [...enteredVendorNames].sort((a, b) => a.localeCompare(b)).join(" and ").toLowerCase();
+            const fileVendorKey = (relistCatch.fileVendorName ?? "").toLowerCase();
+            // Fee: only carry it when the agent actually entered one — NEVER send
+            // null, which would silently wipe the file's existing fee (audit 2026).
+            const feeAmountEntered = formFields.agentFeeType === "amount" && formFields.agentFeeAmount != null;
+            const feePercentVal = formFields.agentFeeType === "percent" ? (parseFloat(formFields.agentFeePercentStr) || null) : null;
+            const hasFee = feeAmountEntered || feePercentVal != null;
+            const enteredAbove = formFields.chainStubs.some((s) => s.direction === "above");
             return {
               apply: {
-                agentFeeAmount: formFields.agentFeeType === "amount" ? formFields.agentFeeAmount : null,
-                agentFeePercent: formFields.agentFeeType === "percent" ? (parseFloat(formFields.agentFeePercentStr) || null) : null,
-                agentFeeIsVatInclusive: formFields.agentFeeVat === "inclusive",
+                agentFeeAmount: feeAmountEntered ? formFields.agentFeeAmount : undefined,
+                agentFeePercent: feePercentVal != null ? feePercentVal : undefined,
+                agentFeeIsVatInclusive: hasFee ? formFields.agentFeeVat === "inclusive" : undefined,
                 note: formFields.notes.trim() || null,
                 photoStoragePath: formFields.photoStoragePath,
                 assignToUserId: formFields.assignToUserId || null,
@@ -1836,23 +1847,32 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                   const { name, companyName } = resolveBusinessSplit(v);
                   return { name, companyName: companyName ?? undefined, phone: v.phone.trim() || undefined, email: v.email.trim() || undefined };
                 }),
-                enteredVendorSolicitorFirmId: formFields.vendorSolicitor?.firmId ?? null,
-                enteredVendorSolicitorContactId: formFields.vendorSolicitor?.contactId ?? null,
+                // undefined (not null) when no seller solicitor entered → leave the file's.
+                enteredVendorSolicitorFirmId: formFields.vendorSolicitor?.firmId,
+                enteredVendorSolicitorContactId: formFields.vendorSolicitor?.contactId,
               },
               safeUpdates: [
                 ...(hasFee ? [{ label: "Agent fee", value: "Updated" }] : []),
                 ...(formFields.notes.trim() ? [{ label: "Your sale note", value: "Added to the file" }] : []),
-                ...(formFields.photoStoragePath ? [{ label: "Property photo", value: "Added" }] : []),
+                // Only claim "photo added" when the file actually has none (the
+                // action skips an existing photo — audit 2026).
+                ...(formFields.photoStoragePath && !relistCatch.fileHasPhoto ? [{ label: "Property photo", value: "Added" }] : []),
               ],
               conflicts: {
                 ...(formFields.tenure && relistCatch.fileTenure && formFields.tenure !== relistCatch.fileTenure
                   ? { tenure: { file: cap(relistCatch.fileTenure), entered: cap(formFields.tenure) } }
                   : {}),
-                ...(entVendorName && relistCatch.fileVendorName && entVendorName.toLowerCase() !== relistCatch.fileVendorName.toLowerCase()
-                  ? { seller: { file: relistCatch.fileVendorName, entered: entVendorName } }
+                ...(entVendorKey && fileVendorKey && entVendorKey !== fileVendorKey
+                  ? { seller: { file: relistCatch.fileVendorName!, entered: entVendorName } }
                   : {}),
-                ...(formFields.chainStubs.some((s) => s.direction === "above") && relistCatch.inChain
-                  ? { onward: { file: "Existing chain above", entered: "Different chain entered" } }
+                // Surface a seller onward the agent entered in EITHER case: the file
+                // already has a chain (keep vs set up fresh) OR the file isn't in a
+                // chain yet (so it isn't silently dropped — audit 2026).
+                ...(enteredAbove
+                  ? { onward: {
+                      file: relistCatch.inChain ? "Existing chain above" : "Not in a chain",
+                      entered: "Seller onward entered",
+                    } }
                   : {}),
               },
             };
