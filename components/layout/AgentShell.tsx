@@ -588,9 +588,6 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
               <span style={{ fontSize: 13, color: isDark ? "var(--agent-text-primary)" : "var(--agent-text-secondary)", fontWeight: 500 }}>
                 Dark mode
               </span>
-              <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", marginTop: 1 }}>
-                Dark surfaces across the app
-              </p>
             </div>
             {/* Pill toggle */}
             <div style={{
