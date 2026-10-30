@@ -41,9 +41,13 @@ type Props = {
   // The file id, so internal staff can set the assistant CC on outsourced files
   // (the server keys the override to the file's outsourcing agency).
   transactionId?: string;
+  // When the parent renders its own label + Clear (the add-sale SolicitorSection
+  // puts Clear up on the field's label row), suppress this picker's own header row
+  // so there's no empty row and no duplicate Clear.
+  hideHeader?: boolean;
 };
 
-export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId }: Props) {
+export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId, hideHeader }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -264,7 +268,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
   return (
     <>
       <div className="space-y-3">
-        {(label || value) && (
+        {(label || value) && !hideHeader && (
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-900/50 uppercase tracking-wide">{label}</span>
             {value && (

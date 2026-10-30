@@ -169,12 +169,19 @@ export function SolicitorSection({
 
       {/* Seller's solicitor */}
       <div>
-        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
-          Seller&rsquo;s solicitor
-          {vendorSolicitor && (
-            <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
+        <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "0 0 5px" }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            Seller&rsquo;s solicitor
+            {vendorSolicitor && (
+              <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
+            )}
+          </span>
+          {vendorSolicitor && !vendorSolicitor.contactId && (
+            <button type="button" onClick={() => onVendorChange(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--nv2-text-ghost)", padding: 0 }}>
+              Clear
+            </button>
           )}
-        </p>
+        </div>
 
         {isFillingVendor ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
@@ -195,6 +202,7 @@ export function SolicitorSection({
           <EmptyPickerWrap>
             <SolicitorPicker
               label=""
+              hideHeader
               value={vendorSolicitor}
               onChange={(v) => { onVendorChange(v); onEdit("vendorSolicitor"); }}
             />
@@ -212,12 +220,19 @@ export function SolicitorSection({
 
       {/* Buyer's solicitor */}
       <div>
-        <p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "flex", alignItems: "center", gap: 4 }}>
-          Buyer&rsquo;s solicitor
-          {purchaserSolicitor && (
-            <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
+        <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "0 0 5px" }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--nv2-text-reading)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            Buyer&rsquo;s solicitor
+            {purchaserSolicitor && (
+              <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
+            )}
+          </span>
+          {purchaserSolicitor && !purchaserSolicitor.contactId && (
+            <button type="button" onClick={() => onPurchaserChange(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--nv2-text-ghost)", padding: 0 }}>
+              Clear
+            </button>
           )}
-        </p>
+        </div>
 
         {isFillingPurchaser ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 40, paddingLeft: 2 }}>
@@ -238,6 +253,7 @@ export function SolicitorSection({
           <EmptyPickerWrap>
             <SolicitorPicker
               label=""
+              hideHeader
               value={purchaserSolicitor}
               onChange={(v) => { onPurchaserChange(v); onEdit("purchaserSolicitor"); }}
             />
