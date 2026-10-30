@@ -31,6 +31,7 @@ import { rollToBusinessDay } from "@/lib/services/fees";
 import { sendCompletionSurveys } from "@/lib/services/survey";
 import { cascadeChainWithdrawal, cascadeChainBuyerFound } from "@/lib/chain/withdrawal";
 import { splitChainAtBoundary } from "@/lib/chain/split";
+import { fireChainCascadeNotifications } from "@/lib/email/chainNotifications";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { computeAutoNrCodes, PURCHASE_TYPE_NR_CODES, FREEHOLD_NR_CODES } from "@/lib/milestone-auto-nr";
 import { pushFileAssigned } from "@/lib/agent/push-events";
@@ -3690,10 +3691,10 @@ export async function relistTransactionImpl(
   if (tx.status !== "withdrawn" && tx.status !== "on_hold") {
     throw new Error(`Relist requires status=withdrawn or on_hold (current: ${tx.status})`);
   }
-  // An on_hold-origin relist never ran the withdraw-time chain cascade (orphan
-  // split / snapshot), so the onward-stub attach for a chain file can silently
-  // no-op (audit 2026). Flag such files for manual chain setup so the hub prompts
-  // the agent to verify the chain rather than it quietly going missing.
+  // An on_hold-origin relist never ran the withdraw-time chain cascade, so the
+  // old buyer's related chain below us is still attached. We detach it below
+  // (just before STEP-12b) so the new buyer's related sale stitches in correctly,
+  // matching the fallen-through path (chain parity fix 2026).
   const wasOnHold = tx.status === "on_hold";
   if (tx.exchangedAt !== null) {
     throw new Error("Cannot relist after exchange has happened");
@@ -3989,9 +3990,6 @@ export async function relistTransactionImpl(
         status: "active",
         activeBuyerRoundId: newRound.id,
         fallThroughReason: null,
-        // Chain files relisted from on_hold: flag for manual chain setup (the
-        // auto onward-attach can silently skip for this origin — audit 2026).
-        ...(wasOnHold && tx.chainLinkId ? { chainSetupPending: true } : {}),
         expectedExchangeDate: forecastExpected,
         // Reset the 12-week TARGET too (was previously left at the original
         // submission + 84d, so it went stale against the new buyer). A relist
@@ -4302,11 +4300,33 @@ export async function relistTransactionImpl(
       });
     }
 
+    // on_hold-origin relist: the old buyer's related sale (everything BELOW us)
+    // was never cut loose when the file was paused — only the withdraw path does
+    // that at withdraw time. Detach it now (DOWNWARD = below = the old buyer's
+    // chain) so the slot directly below is free for the NEW buyer's related sale
+    // in STEP 12b, and the old downstream chain lives on as its own. Withdrawn
+    // files already did this at withdraw time, so they're skipped. Atomic via ptx
+    // (the CHAIN_DETACHED email to the old downstream drains post-commit). The
+    // seller's onward purchase ABOVE us is never touched. (Chain parity fix 2026.)
+    let onHoldDetachNotified = false;
+    if (wasOnHold && tx.chainLinkId) {
+      const split = await splitChainAtBoundary(
+        {
+          withdrawingLinkId: tx.chainLinkId,
+          orphanDirection: "DOWNWARD",
+          agencyId: tx.agencyId,
+          withdrawingTransactionId: tx.id,
+        },
+        ptx,
+      );
+      onHoldDetachNotified = split.kind === "split" && split.notifiedRecipientLinkId != null;
+    }
+
     // STEP 12b — closed-loop chain arc (2026-06-05): handle the new buyer's
     // onward sale per the modal's required radio step. Four paths:
     //   none     — first-time / cash buyer; chain ends below us; flag false
-    //   internal — another SP agent's email; stub link at pos K-1 + invite
-    //   external — external agency stub; stub link at pos K-1 + invite
+    //   internal — another SP agent's email; stub link at pos K+1 (below) + invite
+    //   external — external agency stub; stub link at pos K+1 (below) + invite
     //   unknown  — chainSetupPending=true; hub prompt surfaces until cleared
     //   (skipped) — modal didn't render the section (file not in a chain);
     //               nothing to do.
@@ -4325,21 +4345,25 @@ export async function relistTransactionImpl(
             data: { chainSetupPending: true },
           });
         } else if (onward.kind === "internal" || onward.kind === "external") {
-          // Position K-1 — directly below us. The withdraw-side split
-          // detached the prior K-1 into its own chain, so this slot is
-          // free. Belt-and-braces: check for any pre-existing link at
-          // that position before insert (defensive against a rare race
-          // where two relists happen concurrently — last-write loses
-          // the slot, but the chain stays consistent).
+          // The new buyer's RELATED SALE sits BELOW us = position + 1 (above, at
+          // position - 1, is the seller's onward purchase, which we never touch).
+          // The slot below is free because the old buyer's related chain was just
+          // detached (at withdraw time for a fallen-through file, or directly
+          // above for an on_hold one). Belt-and-braces: check for any pre-existing
+          // link there before inserting (defensive against a rare concurrent-
+          // relist race — last write loses the slot, but the chain stays
+          // consistent). (Chain parity fix 2026: this was wrongly position - 1,
+          // which attached the related sale on the SELLER side and, for a
+          // mid-chain sale, collided with the real onward and silently skipped.)
           const collision = await ptx.chainLink.findFirst({
-            where: { chainId: ourLink.chainId, position: ourLink.position - 1 },
+            where: { chainId: ourLink.chainId, position: ourLink.position + 1 },
             select: { id: true },
           });
           if (!collision) {
             const stub = await ptx.chainLink.create({
               data: {
                 chainId: ourLink.chainId,
-                position: ourLink.position - 1,
+                position: ourLink.position + 1,
                 createdByUserId: session.userId,
                 stubAgentEmail: onward.agentEmail,
                 stubAgencyName: onward.kind === "external" ? onward.agencyName : null,
@@ -4389,6 +4413,9 @@ export async function relistTransactionImpl(
       // send paths can reference it without re-querying.
       onwardStubLinkId,
       onwardInviteTargetEmail,
+      // on_hold detach created a CHAIN_DETACHED row for the old downstream; fire
+      // its email post-commit (parity with the withdraw-time detach email).
+      onHoldDetachNotified,
     };
   }, {
     // Relist does a lot in one atomic step (reset every milestone, recreate the
@@ -4479,6 +4506,14 @@ export async function relistTransactionImpl(
   if (tx.chainLinkId) {
     void cascadeChainBuyerFound(tx.chainLinkId).catch((err) => {
       console.error("[relist] BUYER_FOUND cascade failed", err);
+    });
+  }
+  // on_hold origin: the DOWNWARD detach above created a CHAIN_DETACHED row inside
+  // the transaction (ptx suppresses its own email fire), so drain it now - parity
+  // with the withdraw-time detach, which fires the same email.
+  if (result.onHoldDetachNotified) {
+    void fireChainCascadeNotifications().catch((err) => {
+      console.error("[relist] on_hold chain-detach notification drain failed", err);
     });
   }
   if (result.onwardStubLinkId && result.onwardInviteTargetEmail) {
