@@ -343,6 +343,7 @@ function SolicitorTile({
                 onClick={openEdit}
                 aria-label={`Edit ${side} solicitor`}
                 title="Edit"
+                className="agent-chip-hover"
                 style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", color: "var(--agent-text-muted)", cursor: "pointer", flexShrink: 0 }}
               >
                 <PencilSimple size={15} weight="regular" />

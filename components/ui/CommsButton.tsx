@@ -42,7 +42,6 @@ export function CommsButton({
     minWidth: compact ? undefined : 0,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.5 : 1,
-    transition: "background 140ms ease, border-color 140ms ease, transform 120ms ease",
   };
   const labelStyle: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
   if (disabled || !href) {
@@ -58,11 +57,8 @@ export function CommsButton({
       href={href}
       title={title ?? label}
       aria-label={label}
+      className="agent-chip-hover"
       style={style}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(15,23,42,0.045)"; e.currentTarget.style.borderColor = "rgba(15,23,42,0.20)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--agent-surface-elevated)"; e.currentTarget.style.borderColor = "var(--agent-border-default)"; e.currentTarget.style.transform = "none"; }}
-      onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.95)"; }}
-      onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
     >
       {icon}
       {!compact && <span style={labelStyle}>{label}</span>}

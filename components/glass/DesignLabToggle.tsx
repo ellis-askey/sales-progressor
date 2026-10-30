@@ -16,6 +16,7 @@ export function DesignLabToggle() {
         onClick={() => setOpen(true)}
         title="Design Lab (Ellis only)"
         aria-label="Open Design Lab"
+        className="agent-chip-hover"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -27,13 +28,6 @@ export function DesignLabToggle() {
           background: "transparent",
           color: "#5b8cff",
           cursor: "pointer",
-          transition: "background-color 120ms ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(91,140,255,0.10)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "transparent";
         }}
       >
         <FlaskConical size={15} />

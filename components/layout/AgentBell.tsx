@@ -135,7 +135,7 @@ export function AgentBell({ initialClearedAt }: { initialClearedAt: string | nul
         trigger={
           <button
             onClick={markRead}
-            className="relative w-8 h-8 flex items-center justify-center rounded-lg agent-hover-row transition-colors"
+            className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-transparent agent-chip-hover"
             title={count > 0 ? `${count} update${count === 1 ? "" : "s"}` : "Updates"}
             aria-label="Updates"
           >

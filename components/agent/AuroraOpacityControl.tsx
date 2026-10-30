@@ -47,6 +47,7 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
           title="Moving background"
           aria-label="Adjust the moving background"
           aria-expanded={open}
+          className="agent-chip-hover"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -58,10 +59,7 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
             background: open ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
             color: "var(--agent-text-secondary)",
             cursor: "pointer",
-            transition: "background 120ms ease",
           }}
-          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "var(--agent-hover-shade)"; }}
-          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
         >
           <Contrast size={15} />
         </button>

@@ -1757,7 +1757,7 @@
     color: var(--agent-text-muted); cursor: pointer; flex-shrink: 0;
     transition: color var(--agent-transition-fast);
   }
-  .people-row-chevron:hover { color: var(--agent-text-secondary); }
+  .people-row-chevron:hover { color: var(--agent-coral-deep); }
   .people-row-chevron:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
   .people-row-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
   @container (max-width: 459px) {
@@ -3708,6 +3708,26 @@
   }
   .agent-icon-btn-sm { width: 22px; height: 22px; font-size: 14px; }
   .agent-icon-btn-md { width: 28px; height: 28px; font-size: 16px; }
+
+  /* ── Chip hover (coral) ──────────────────────────────────────────────────── */
+  /* Shared hover for the small bordered icon buttons: the topbar toggles
+   * (theme / background / design lab / bell) and the contact + solicitor row
+   * actions (call / message / email / edit / expand / overflow). Border and
+   * glyph lift to coral so every floating action reads identically. Matches the
+   * Contacts-card overflow button, which set the pattern. 2026-10-30. The hover
+   * declarations are !important because each button sets its resting border and
+   * colour inline, and the svg rule forces icons that carry their own colour
+   * (the bell) to lift too. */
+  .agent-chip-hover {
+    transition: border-color 140ms ease, color 140ms ease,
+                background 140ms ease, box-shadow 140ms ease, transform 120ms ease;
+  }
+  .agent-chip-hover:hover:not(:disabled) {
+    border-color: var(--agent-coral) !important;
+    color: var(--agent-coral-deep) !important;
+  }
+  .agent-chip-hover:hover:not(:disabled) svg { color: var(--agent-coral-deep) !important; }
+  .agent-chip-hover:active:not(:disabled) { transform: scale(0.95); }
 
   /* ── Inline reveal / dismiss ─────────────────────────────────────────────── */
   /* Use for validation errors, inline edit forms, delta previews, any element

@@ -20,6 +20,7 @@ export function ThemeModeToggle({ initialMode }: { initialMode: ThemeMode }) {
       title={label}
       aria-label={label}
       aria-pressed={isDark}
+      className="agent-chip-hover"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -31,13 +32,6 @@ export function ThemeModeToggle({ initialMode }: { initialMode: ThemeMode }) {
         background: "transparent",
         color: "currentColor",
         cursor: "pointer",
-        transition: "background-color 120ms ease, border-color 120ms ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(148, 163, 184, 0.12)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
       }}
     >
       <Icon size={16} />
