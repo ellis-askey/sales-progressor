@@ -938,6 +938,7 @@ function OnwardMatchOverlay({
   ctx: { txId: string; ourAddress: string; neighbourAddress: string; ourContacts: MatchContact[]; theirContacts: MatchContact[] };
   onDone: () => void;
 }) {
+  const { theme, isNight } = usePortalTheme();
   const [saving, setSaving] = useState(false);
   async function onSave(pairs: Record<string, string | null>) {
     setSaving(true);
@@ -953,22 +954,47 @@ function OnwardMatchOverlay({
   }
   return (
     <div
+      data-theme={theme}
+      data-night={isNight ? "" : undefined}
       role="dialog"
       aria-modal="true"
-      style={{ position: "fixed", inset: 0, zIndex: 2200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(15,23,42,0.45)" }}
+      onClick={onDone}
+      style={{ position: "fixed", inset: 0, zIndex: 2200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(10,15,25,0.55)", backdropFilter: "blur(2px)" }}
     >
-      <div style={{ width: "100%", maxWidth: 520, background: "var(--agent-surface, #fff)", borderRadius: 16, padding: 22, boxShadow: "0 24px 60px -20px rgba(15,23,42,0.5)", maxHeight: "90vh", overflowY: "auto" }}>
-        <OnwardPeopleMatcher
-          ourAddress={ctx.ourAddress}
-          neighbourAddress={ctx.neighbourAddress}
-          ourContacts={ctx.ourContacts}
-          theirContacts={ctx.theirContacts}
-          onSave={onSave}
-          saving={saving}
-        />
-        <button type="button" onClick={onDone} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ marginTop: 10, width: "100%" }}>
-          Skip for now
-        </button>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 520, borderRadius: 16, overflow: "hidden",
+          background: isNight ? "#161d2e" : "var(--agent-surface, #fff)",
+          boxShadow: "0 28px 70px -24px rgba(0,0,0,0.6)",
+          maxHeight: "90vh", display: "flex", flexDirection: "column",
+          borderTop: "2px solid var(--agent-coral-deep, #FF6B4A)",
+        }}
+      >
+        <div style={{ ...SHEET_BAND_STYLE, position: "relative", flexShrink: 0 }}>
+          <SheetBandHeader title="Who's the same person?" subtitle="We couldn't match these people automatically." />
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label="Close"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ position: "absolute", top: 14, right: 14, color: "rgba(255,255,255,0.85)", background: "transparent" }}
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+        <div style={{ padding: "18px 20px 20px", overflowY: "auto" }}>
+          <OnwardPeopleMatcher
+            hideHeader
+            ourAddress={ctx.ourAddress}
+            neighbourAddress={ctx.neighbourAddress}
+            ourContacts={ctx.ourContacts}
+            theirContacts={ctx.theirContacts}
+            onSave={onSave}
+            onSkip={onDone}
+            saving={saving}
+          />
+        </div>
       </div>
     </div>
   );
