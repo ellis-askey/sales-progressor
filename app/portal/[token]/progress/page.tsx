@@ -7,7 +7,7 @@ import { PortalMilestoneList } from "@/components/portal/PortalMilestoneList";
 import { PortalOnwardPanel } from "@/components/portal/PortalOnwardPanel";
 import { getOnwardTrackerView, getRelatedSaleSignalForFile, resolveOwnOnwardFileId } from "@/lib/services/onward";
 import { resolveTwinContactOnFile } from "@/lib/services/portal-twin";
-import { PortalReadOnlyProvider } from "@/components/portal/PortalReadOnlyProvider";
+import { PortalOnwardReadOnly } from "@/components/portal/PortalOnwardReadOnly";
 import { prisma } from "@/lib/prisma";
 import { PortalProgressHeader } from "@/components/portal/PortalProgressHeader";
 import { recordPortalEvent } from "@/lib/services/portal-events";
@@ -102,7 +102,7 @@ async function buildNeighbourStepsPanel(
   // below (vendor). A synthetic active-round scope reads the live progress.
   const bTx = await prisma.propertyTransaction.findUnique({
     where: { id: neighbourId },
-    select: { id: true, status: true, activeBuyerRoundId: true },
+    select: { id: true, status: true, activeBuyerRoundId: true, propertyAddress: true },
   });
   if (!bTx) return null;
   const bSide: "vendor" | "purchaser" = kind === "onward_purchase" ? "purchaser" : "vendor";
@@ -110,16 +110,13 @@ async function buildNeighbourStepsPanel(
   const bMilestones = await getPortalMilestones(bTx.id, bSide, scope);
   const bHasExchanged = bMilestones.some((m) => (m.code === "VM19" || m.code === "PM26") && m.isComplete);
   return (
-    <PortalReadOnlyProvider readOnly={true}>
-      <PortalMilestoneList
-        token=""
-        milestones={toPortalShape(bMilestones)}
-        otherSideMilestones={[]}
-        hasExchanged={bHasExchanged}
-        side={bSide}
-        saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
-      />
-    </PortalReadOnlyProvider>
+    <PortalOnwardReadOnly
+      address={bTx.propertyAddress}
+      milestones={toPortalShape(bMilestones)}
+      side={bSide}
+      hasExchanged={bHasExchanged}
+      saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
+    />
   );
   } catch (err) {
     // Fail safe: a hiccup resolving the neighbour must NEVER break the client's

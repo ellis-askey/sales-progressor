@@ -400,7 +400,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     // button and replace with explanatory copy.
                     const isAgentOnly   = isPortalAgentOnly(m.code);
                     // saleActive gate: a withdrawn/completed sale shows steps read-only.
-                    const canConfirm    = saleActive && !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
+                    // readOnly gate: the onward mirror we can't tie this person to is a
+                    // pure view — no dead Confirm/Skip buttons (the action is a no-op).
+                    const canConfirm    = saleActive && !readOnly && !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
                     const isLocked      = !m.isComplete && !m.isNotRequired && !m.isAvailable;
                     const isProcessing  = processingId === m.id;
 
@@ -432,7 +434,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                                 Expected back approx {fmtDate(m.expectedDate)}
                               </p>
                             )}
-                            {m.code === "PM10" && !isLocked && (
+                            {m.code === "PM10" && !isLocked && !readOnly && (
                               <SearchesUpload token={token} />
                             )}
                           </div>
