@@ -303,8 +303,8 @@ export function ManualTaskList({
       </div>
 
       {myOpen.length === 0 && (
-        <div className="agent-empty-card" style={{ padding: "28px 16px", textAlign: "center" }}>
-          <p style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
+        <div style={{ padding: "20px 16px", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
             {myDone.length > 0 ? "Nothing to do. Nice." : "No tasks yet."}
           </p>
         </div>
