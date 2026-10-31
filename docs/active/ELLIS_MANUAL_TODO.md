@@ -4,7 +4,17 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-26
+Last updated: 2026-10-31
+
+---
+
+## Apply the reactivation migration to PRODUCTION before this ships to prod (2026-10-31)
+
+The "reactivate a withdrawn file" feature (#10 from the recent-work review) added two columns to `PropertyTransaction`: `withdrawnAt` and `chainReconnectPending` (migration `20261031120000_transaction_reactivation`). **It has been applied to STAGING** (via the pooler) and verified, but **not to production.** The file-page query selects all scalar columns, so if this code reaches prod before the columns exist, every file page will error.
+
+**Action:** when promoting to prod, apply the migration to the prod DB first (`prisma migrate deploy` against prod, or run the two `ALTER TABLE` statements from `prisma/migrations/20261031120000_transaction_reactivation/migration.sql` in the prod Supabase SQL editor), THEN deploy the code. Order matters: DB first, code second.
+
+**Also — not yet runtime-tested.** The reactivation path (withdraw a file, then set it back to Active) typechecks and the migration is applied on staging, but I could not drive the flow end to end (no running app during the build). Worth a manual staging test: withdraw a file that has live reminders/chases + is in a chain, wait, set it back to Active, and confirm the reminders/chases come back with sensible (not overdue) dates and the "reconnect the chain" prompt appears.
 
 ---
 
