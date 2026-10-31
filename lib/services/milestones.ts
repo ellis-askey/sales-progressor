@@ -2798,6 +2798,21 @@ export async function executeUndoMilestone(input: {
         data: { closedAt: new Date() },
       });
     }
+    // Audit ENQ-003: undoing "enquiries raised" (PM14) puts the file back into
+    // "searches done, enquiries not yet raised" — exactly the state the pre-loop
+    // raise chase exists for. The reply tracker closed above (correct), but the
+    // raise chase only ever reopened on PM8 completion, so the file fell into a
+    // no-chase gap (reply loop closed, raise chase closed) until PM14 was
+    // re-confirmed by hand. Reopen the raise chase here with a clean clock —
+    // UNLESS the same cascade also reversed searches (PM8), in which case there's
+    // nothing to raise enquiries about yet and it stays closed.
+    if (allReverseCodes.has(RAISE_CLOSE_CODE) && !allReverseCodes.has(RAISE_OPEN_CODE)) {
+      await ptx.enquiryRaiseChase.upsert({
+        where: { transactionId },
+        create: { transactionId },
+        update: { closedAt: null, openedAt: new Date(), lastNudgedAt: null, lastTarget: null, nudgeCount: 0, escalatedAt: null },
+      });
+    }
 
     // Cancel active reminder logs + pending chase tasks where EITHER the
     // rule's target OR its anchor is one of the reversed codes.
@@ -3028,7 +3043,7 @@ export async function reverseMilestoneWithCascade(input: {
             { reminderRule: { anchorMilestone: { code: { in: reversedCodes } } } },
           ],
         },
-        select: { id: true },
+        select: { id: true, reminderRule: { select: { targetMilestoneCode: true } } },
       });
       if (logs.length > 0) {
         const logIds = logs.map((l) => l.id);
@@ -3040,6 +3055,20 @@ export async function reverseMilestoneWithCascade(input: {
           where: { id: { in: logIds } },
           data: { status: "cancelled", statusReason: "Milestone reversed" },
         });
+        // Audit MILE-007: unlike executeUndoMilestone, this path previously left
+        // active ClientChaseState rows behind for the reversed codes, so the
+        // work-queue's compute-on-read hand-over (getAgentReminderLogs) kept
+        // resurfacing the step in "Needs you" with the OLD chase date. Mirror
+        // the primary path (:2850-2858) and cancel them too.
+        const chasedCodes = Array.from(
+          new Set(logs.map((l) => l.reminderRule.targetMilestoneCode).filter((c): c is string => !!c)),
+        );
+        if (chasedCodes.length > 0) {
+          await tx.clientChaseState.updateMany({
+            where: { transactionId: input.transactionId, milestoneCode: { in: chasedCodes }, status: { in: ["active", "escalated"] } },
+            data: { status: "cancelled", statusReason: "Milestone reversed" },
+          });
+        }
       }
     }
   });
