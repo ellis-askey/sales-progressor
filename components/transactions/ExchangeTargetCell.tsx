@@ -51,7 +51,7 @@ export function ExchangeTargetCell({
         >
           <span style={{
             fontSize: 12, fontWeight: 600,
-            color: saving ? "rgba(255,107,74,0.45)" : "rgba(255,107,74,0.85)",
+            color: saving ? "rgba(var(--agent-coral-rgb),0.45)" : "rgba(var(--agent-coral-rgb),0.85)",
             display: "flex", alignItems: "center", gap: 3,
             transition: "color 150ms",
           }}>

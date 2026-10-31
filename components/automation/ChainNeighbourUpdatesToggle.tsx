@@ -45,7 +45,7 @@ export function ChainNeighbourUpdatesToggle({ initialEnabled }: { initialEnabled
           disabled={pending}
           onClick={toggle}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-            enabled ? "bg-[#FF6B4A]" : "bg-slate-300"
+            enabled ? "bg-[var(--agent-coral)]" : "bg-slate-300"
           }`}
         >
           <span

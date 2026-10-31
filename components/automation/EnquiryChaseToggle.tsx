@@ -47,7 +47,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
           disabled={pending}
           onClick={toggle}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-            enabled ? "bg-[#FF6B4A]" : "bg-slate-300"
+            enabled ? "bg-[var(--agent-coral)]" : "bg-slate-300"
           }`}
         >
           <span
@@ -81,7 +81,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
           <div className="grid grid-cols-[44px_1fr] gap-3.5 items-center rounded-xl border border-slate-200 border-l-[3px] border-l-[#FF6B4A] bg-white p-3 shadow-sm">
             <div className="flex justify-center">
               <div className="relative w-11 h-12 rounded-lg bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="h-[13px] bg-[#FF6B4A]" />
+                <div className="h-[13px] bg-[var(--agent-coral)]" />
                 <div className="flex-1 flex items-center justify-center font-mono font-extrabold text-[17px] text-slate-800 tabular-nums">6</div>
               </div>
             </div>
@@ -98,7 +98,7 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
           <div className="grid grid-cols-[44px_1fr] gap-3.5 items-center rounded-xl border border-slate-200 border-l-[3px] border-l-[#FF6B4A] bg-white p-3 shadow-sm">
             <div className="flex justify-center">
               <div className="relative w-11 h-12 rounded-lg bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="h-[13px] bg-[#FF6B4A]" />
+                <div className="h-[13px] bg-[var(--agent-coral)]" />
                 <div className="flex-1 flex items-center justify-center font-mono font-extrabold text-[17px] text-slate-800 tabular-nums">11</div>
               </div>
             </div>

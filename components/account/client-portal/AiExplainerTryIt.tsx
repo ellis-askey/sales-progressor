@@ -50,7 +50,7 @@ export function AiExplainerTryIt() {
         type="button"
         onClick={run}
         disabled={loading || body.trim().length < 20}
-        className="mt-2 inline-flex items-center rounded-lg bg-[#FF6B4A] px-4 py-2 text-[13px] font-semibold text-white transition-opacity disabled:opacity-50"
+        className="mt-2 inline-flex items-center rounded-lg bg-[var(--agent-coral)] px-4 py-2 text-[13px] font-semibold text-white transition-opacity disabled:opacity-50"
       >
         {loading ? "Reading…" : "Explain it"}
       </button>
