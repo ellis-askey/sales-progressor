@@ -29,6 +29,14 @@ jest.mock("@/lib/prisma", () => {
     clientChaseState: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     solicitorChaseState: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
     chaseEmailOverride: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    // Previous-buyer resets added with the reactivation/relist work; the relist
+    // impl now deletes these for the outgoing buyer (transactions.ts).
+    clientMoveInfo: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    advisorChaseState: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    brokerNotification: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    enquiryTracker: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    enquiryRaiseChase: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    chainLink: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn().mockResolvedValue({}) },
     quoteRequest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     referral: { findFirst: jest.fn().mockResolvedValue(null), delete: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     transactionHoldPeriod: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
