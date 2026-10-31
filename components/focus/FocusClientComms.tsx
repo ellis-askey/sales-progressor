@@ -11,7 +11,7 @@
 // count toward the quiet clock, so a side chased by the engine stops reading as
 // overdue. WhatsApp and calls are never automated, so the toggle never affects them.
 
-import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { Phone, EnvelopeSimple, WhatsappLogo, CaretDown, Check, Prohibit, Flame } from "@phosphor-icons/react";
@@ -152,8 +152,26 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
   // Pending writes, keyed by side. We hide the side optimistically but delay the
   // real DB write ~5s so Undo can cancel it before anything is logged/parked —
   // no reverse mutation needed.
-  const pending = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  useEffect(() => () => { pending.current.forEach(clearTimeout); }, []);
+  const pending = useRef<Map<string, { timer: ReturnType<typeof setTimeout>; action: () => Promise<unknown> }>>(new Map());
+
+  // Fire any still-pending write immediately (dropping the Undo window) rather
+  // than discarding it. Called when the page unmounts or the tab is hidden, so a
+  // logged call/note is never lost by navigating away inside the 5s delay.
+  const flushPending = useCallback(() => {
+    pending.current.forEach(({ timer, action }) => { clearTimeout(timer); action().catch(() => {}); });
+    pending.current.clear();
+  }, []);
+
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushPending(); };
+    window.addEventListener("pagehide", flushPending);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      flushPending();
+      window.removeEventListener("pagehide", flushPending);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [flushPending]);
 
   // Once the server confirms a side (it comes back touched/parked after a
   // refresh), drop its optimistic key so the progress bar doesn't count it twice.
@@ -171,11 +189,11 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
   }, [files]);
 
   function undo(k: string) {
-    const t = pending.current.get(k);
-    if (!t) return; // already committed
-    clearTimeout(t);
+    const p = pending.current.get(k);
+    if (!p) return; // already committed
+    clearTimeout(p.timer);
     pending.current.delete(k);
-    setResolved((p) => { const n = new Set(p); n.delete(k); return n; });
+    setResolved((prev) => { const n = new Set(prev); n.delete(k); return n; });
   }
 
   function resolve(tx: string, side: string, msg: string, action: () => Promise<unknown>) {
@@ -185,7 +203,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
       pending.current.delete(k);
       startTransition(async () => { await action().catch(() => {}); router.refresh(); });
     }, 5000);
-    pending.current.set(k, t);
+    pending.current.set(k, { timer: t, action });
     toast.success(msg, { duration: 5000, action: { label: "Undo", onClick: () => undo(k) } });
   }
 
