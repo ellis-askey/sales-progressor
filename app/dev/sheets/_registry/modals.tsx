@@ -55,6 +55,7 @@ import { ClaimWelcomeModal } from "@/components/transaction/ClaimWelcomeModal";
 import { ClaimLoginForm } from "@/components/claim/ClaimLoginForm";
 import "@/app/claim/styles/claim-flow.css";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
+import { RelistCatchModal } from "@/components/transactions-v2/RelistCatchModal";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
 import { SubmissionOverlay } from "@/components/transactions-v2/SubmissionOverlay";
@@ -966,6 +967,33 @@ export const MODAL_ENTRIES: SheetEntry[] = [
         assignedTo={stateId === "assigned" ? NAME : null}
         onClose={onClose}
         onForceCreate={onClose}
+      />
+    ),
+  },
+  {
+    id: "modal-relist-catch",
+    name: "Relist catch (existing file)",
+    type: "modal",
+    area: "My Files",
+    usedIn: "New sale form · address matches an on-hold / fallen-through file",
+    file: "components/transactions-v2/RelistCatchModal.tsx",
+    componentName: "RelistCatchModal",
+    note: "Caught at the Create step when the address matches an existing on-hold / fallen-through file. 'Add the new buyer' opens RelistFileModal pre-filled; 'create a separate file' falls back to forceCreate. Status drives the pill: on-hold (amber) vs fell-through (red).",
+    preview: "overlay",
+    states: [
+      { id: "on_hold", label: "On hold", hint: "amber status pill" },
+      { id: "withdrawn", label: "Fell through", hint: "red status pill" },
+    ],
+    render: (ctx) => (
+      <RelistCatchModal
+        open={ctx.open}
+        address={ADDRESS}
+        status={ctx.stateId === "withdrawn" ? "withdrawn" : "on_hold"}
+        previousPurchasePrice={425000_00}
+        previousBuyerName={NAME}
+        onAddNewBuyer={ctx.onClose}
+        onCreateSeparate={ctx.onClose}
+        onClose={ctx.onClose}
       />
     ),
   },

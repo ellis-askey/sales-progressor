@@ -43,7 +43,6 @@ import { EmailDetailDrawer, type PreviewData } from "@/components/automated-emai
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { MemberManageDrawer, type ManageableMember } from "@/components/account/v2/MemberManageDrawer";
 // Completeness sweep additions (2026-09-19)
-import { NextChaseEmailDrawer } from "@/components/transaction/NextChaseEmailDrawer";
 import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 // 2026-10-20 gap sweep additions (docs/audits/sheets-catalogue-gaps-2026-10-20.md)
@@ -913,34 +912,6 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
 
   // ───────────────── Completeness sweep additions (2026-09-19) ─────────────────
 
-  {
-    id: "drawer-next-chase-email",
-    name: "Next chase email",
-    type: "drawer",
-    area: "Auto emails",
-    usedIn: "Chase timeline · Next email control",
-    file: "components/transaction/NextChaseEmailDrawer.tsx",
-    componentName: "NextChaseEmailDrawer",
-    note: "Loads the rendered upcoming email via a server action — the demo id surfaces the loading → error state (valid to inspect).",
-    preview: "overlay",
-    states: [
-      { id: "client", label: "Client chase" },
-      { id: "solicitor", label: "Solicitor chase" },
-    ],
-    render: (ctx) => (
-      <NextChaseEmailDrawer
-        open={ctx.open}
-        onClose={ctx.onClose}
-        transactionId={DEMO_TX_ID}
-        target={
-          ctx.stateId === "solicitor"
-            ? { kind: "solicitor", side: "vendor", milestoneCode: "VM5" }
-            : { kind: "client", contactId: "demo-contact-0000", milestoneCode: "VM5" }
-        }
-        edited={false}
-      />
-    ),
-  },
   {
     id: "drawer-enquiry-chase",
     name: "Enquiry chase",
