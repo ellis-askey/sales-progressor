@@ -178,7 +178,7 @@ export function ReconciliationDrawer({
   const title = isExchangeFlow ? "Confirm exchange" : "Confirm completion";
   const eventWord = isExchangeFlow ? "exchange" : "completion";
   const total = outstanding.length;
-  const stepsPhrase = `${total} earlier step${total === 1 ? "" : "s"}`;
+  const stepsPhrase = `${total} outstanding milestone${total === 1 ? "" : "s"}`;
 
   function handleConfirm() {
     onConfirm(
@@ -221,7 +221,7 @@ export function ReconciliationDrawer({
           <div style={{ flex: 1, minWidth: 0 }}>
             <SheetBandHeader
               title={title}
-              subtitle={isExchangeFlow ? "Record the exchange date and complete any outstanding steps." : "Confirm the date this sale completed."}
+              subtitle={isExchangeFlow ? "Record the exchange and update any outstanding milestones." : "Confirm the date this sale completed."}
             />
           </div>
           <button
@@ -248,20 +248,27 @@ export function ReconciliationDrawer({
             }}
           >
             <div>
-              <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 8 }}>
+              <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 2 }}>
                 {isExchangeFlow ? "Exchange date" : "Completion date"}
               </label>
+              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
+                {isExchangeFlow ? "When were contracts exchanged?" : "When did the sale complete?"}
+              </p>
               <DateField
                 value={eventDate}
                 onChange={setEventDate}
                 ariaLabel={isExchangeFlow ? "Exchange date" : "Completion date"}
               />
+              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: "6px 0 0" }}>Set to today by default.</p>
             </div>
             {isExchangeFlow && (
               <div>
-                <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 8 }}>
+                <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 2 }}>
                   Expected completion
                 </label>
+                <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
+                  When is completion expected?
+                </p>
                 <DateField
                   value={completionDate}
                   onChange={setCompletionDate}
@@ -278,11 +285,11 @@ export function ReconciliationDrawer({
               <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "22px 0 16px" }} aria-hidden />
 
               <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-                Outstanding steps
+                Outstanding milestones
               </p>
               <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
                 <strong style={{ color: "var(--agent-text-primary)", fontWeight: 700 }}>{stepsPhrase}</strong>
-                {" "}will also be marked complete using the {eventWord} date. Adjust individual dates if needed.
+                {" "}will be completed automatically using the {eventWord} date. You can adjust their dates below.
               </p>
 
               {groups.map((group) => (
