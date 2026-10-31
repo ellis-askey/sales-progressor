@@ -10,6 +10,8 @@ import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { getSavedChainAgents, type SavedChainAgent } from "@/app/actions/chain-agents";
+import { OnwardPeopleMatcher, type MatchContact } from "@/components/chain/OnwardPeopleMatcher";
+import { getOnwardMatchContextAny, saveOnwardPersonTiesAction } from "@/app/actions/onward-people";
 
 function joinAddress(street: string, city: string, postcode: string): string {
   return [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
@@ -408,6 +410,9 @@ export function AddNodeDrawer({
   };
   const [fileResults, setFileResults] = useState<FileCandidate[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileCandidate | null>(null);
+  // Onward portal mirror (Phase 2): after self-linking an own file, if auto-match
+  // couldn't tie some people across the two files, open the "same person?" matcher.
+  const [matchCtx, setMatchCtx] = useState<{ txId: string; ourAddress: string; neighbourAddress: string; ourContacts: MatchContact[]; theirContacts: MatchContact[] } | null>(null);
   const [searching, setSearching] = useState(false);
 
   // Debounced search over your own eligible files when in "own" mode.
@@ -499,6 +504,15 @@ export function AddNodeDrawer({
           setServerError(data.error ?? "Something went wrong. Try again.");
           return;
         }
+        // If linking this file left people auto-match couldn't tie across the two
+        // sales, open the "same person?" matcher before closing; else just close.
+        try {
+          const ctx = await getOnwardMatchContextAny(selectedFile.id);
+          if (ctx.ok && ctx.ourContacts.length > 0) {
+            setMatchCtx({ txId: selectedFile.id, ourAddress: ctx.ourAddress, neighbourAddress: ctx.neighbourAddress, ourContacts: ctx.ourContacts, theirContacts: ctx.theirContacts });
+            return;
+          }
+        } catch { /* matching is best-effort — never block the link */ }
         onSaved({ kind: "added", inviteSent: false });
       } finally {
         setSaving(false);
@@ -602,7 +616,9 @@ export function AddNodeDrawer({
     ? "Add the next property up the chain and the agency handling its sale."
     : "Add the next property down the chain and the agency handling its sale.";
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 2000 }}>
       {/* zIndex 2000 = the "deep" modal level (DESIGN_TOKENS z-index escalation):
           this opens OVER the chain drawer (1500) and must sit above the nav
@@ -899,5 +915,61 @@ export function AddNodeDrawer({
       </div>
     </div>,
     document.body,
+      )}
+      {matchCtx && createPortal(
+        <OnwardMatchOverlay
+          ctx={matchCtx}
+          onDone={() => { setMatchCtx(null); onSaved({ kind: "added", inviteSent: false }); }}
+        />,
+        document.body,
+      )}
+    </>
+  );
+}
+
+// Phase 2 "same person?" matcher, shown over the drawer right after a self-link
+// leaves people auto-match couldn't tie. Saving persists the ties; "Skip" just
+// closes (those people stay read-only until matched). See
+// docs/active/onward-portal-mirror.md.
+function OnwardMatchOverlay({
+  ctx,
+  onDone,
+}: {
+  ctx: { txId: string; ourAddress: string; neighbourAddress: string; ourContacts: MatchContact[]; theirContacts: MatchContact[] };
+  onDone: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  async function onSave(pairs: Record<string, string | null>) {
+    setSaving(true);
+    try {
+      const tiePairs = Object.entries(pairs)
+        .filter((e): e is [string, string] => !!e[1])
+        .map(([ourContactId, theirContactId]) => ({ ourContactId, theirContactId }));
+      await saveOnwardPersonTiesAction(ctx.txId, tiePairs);
+      onDone();
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 2200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(15,23,42,0.45)" }}
+    >
+      <div style={{ width: "100%", maxWidth: 520, background: "var(--agent-surface, #fff)", borderRadius: 16, padding: 22, boxShadow: "0 24px 60px -20px rgba(15,23,42,0.5)", maxHeight: "90vh", overflowY: "auto" }}>
+        <OnwardPeopleMatcher
+          ourAddress={ctx.ourAddress}
+          neighbourAddress={ctx.neighbourAddress}
+          ourContacts={ctx.ourContacts}
+          theirContacts={ctx.theirContacts}
+          onSave={onSave}
+          saving={saving}
+        />
+        <button type="button" onClick={onDone} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ marginTop: 10, width: "100%" }}>
+          Skip for now
+        </button>
+      </div>
+    </div>
   );
 }

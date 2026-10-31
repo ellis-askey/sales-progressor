@@ -80,6 +80,19 @@ export async function getOnwardMatchContext(
   };
 }
 
+// Try both directions (onward above / related below) and return the first with
+// people to match — used right after a self-link, where we don't know which way
+// the agent linked their own file.
+export async function getOnwardMatchContextAny(transactionId: string): Promise<OnwardMatchContext> {
+  const onward = await getOnwardMatchContext(transactionId, "onward_purchase");
+  if (onward.ok && onward.ourContacts.length > 0) return onward;
+  const related = await getOnwardMatchContext(transactionId, "related_sale");
+  if (related.ok && related.ourContacts.length > 0) return related;
+  // Nothing to match either way — return whichever resolved a neighbour (so the
+  // caller can tell "all matched" from "no neighbour").
+  return onward.ok ? onward : related;
+}
+
 export async function saveOnwardPersonTiesAction(
   transactionId: string,
   pairs: { ourContactId: string; theirContactId: string }[],
