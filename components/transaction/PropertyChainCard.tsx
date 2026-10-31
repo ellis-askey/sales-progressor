@@ -267,7 +267,7 @@ export function PropertyChainCard({
     // yet" hint as the card's subtitle (same slot the related card's address uses)
     // and drop it from the body, so both cards keep identical header spacing and
     // don't jump in height.
-    const hintAsSubtitle = !far && !side.view.exists && !side.signalActive && !addr.rest;
+    const hintAsSubtitle = !far && !side.view.typeFactsSet && !side.signalActive && !addr.rest;
     return (
       <div className="cx2-focus">
         <div className="cx2-focus-hd">
@@ -284,7 +284,7 @@ export function PropertyChainCard({
             ) : null}
           </div>
           {side.view.exists && (
-            <div className="cx2-sidetoggle">
+            <div style={{ flexShrink: 0 }}>
               <SegmentedSwitch
                 size="sm"
                 ariaLabel="Which side of this deal"

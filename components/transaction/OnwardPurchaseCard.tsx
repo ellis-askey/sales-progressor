@@ -727,7 +727,7 @@ export function OnwardPurchaseCard({
         />
       );
     }
-    if (embedded) return <>{<div style={{ padding: "0 16px" }}>{body}</div>}{nudgeModalEl}</>;
+    if (embedded) return <>{<div style={{ padding: 0 }}>{body}</div>}{nudgeModalEl}</>;
     return (
       <>
         <Card id={sectionId} padding="none">
@@ -810,14 +810,16 @@ export function OnwardPurchaseCard({
     const canSave = tenure !== null && (!needsPurchaseType || purchaseType !== null) && !pending;
     const factsForm = (
       <>
-        <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>
+        {/* The prompt renders in the card subtitle when embedded (hideSetupHint),
+            so it lines up with the address slot; only show it inline standalone. */}
+        {!hideSetupHint && <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>}
 
         {/* Desktop: property type + buying with sit on one row; they wrap on narrow. */}
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
             <FactRow label="Property type">
-              <Pill on={tenure === "freehold"} onClick={() => { setTenure("freehold"); setShareOfFreehold(false); }}>Freehold</Pill>
-              <Pill on={tenure === "leasehold"} onClick={() => setTenure("leasehold")}>Leasehold</Pill>
+              <Pill on={tenure === "freehold"} onClick={() => { if (tenure === "freehold") { setTenure(null); } else { setTenure("freehold"); setShareOfFreehold(false); } }}>Freehold</Pill>
+              <Pill on={tenure === "leasehold"} onClick={() => setTenure(tenure === "leasehold" ? null : "leasehold")}>Leasehold</Pill>
             </FactRow>
             {tenure === "leasehold" && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
@@ -829,9 +831,9 @@ export function OnwardPurchaseCard({
 
           {needsPurchaseType && (
             <FactRow label="Buying with">
-              <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
-              <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
-              <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from proceeds</Pill>
+              <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType(purchaseType === "mortgage" ? null : "mortgage")}>Mortgage</Pill>
+              <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType(purchaseType === "cash_buyer" ? null : "cash_buyer")}>Cash</Pill>
+              <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType(purchaseType === "cash_from_proceeds" ? null : "cash_from_proceeds")}>Cash from proceeds</Pill>
             </FactRow>
           )}
         </div>
@@ -1088,14 +1090,15 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       onMouseLeave={(e) => { if (!on) e.currentTarget.style.borderColor = "var(--agent-border, rgba(0,0,0,0.15))"; }}
       style={{
         fontSize: 12,
-        padding: "5px 10px",
+        padding: "5px 12px",
         borderRadius: 999,
         cursor: "pointer",
-        border: on ? "1px solid #FF6B4A" : "1px solid var(--agent-border, rgba(0,0,0,0.15))",
-        background: on ? "rgba(255,107,74,0.10)" : "transparent",
-        color: on ? "#FF6B4A" : "var(--agent-text-primary, #333)",
+        border: on ? "1px solid transparent" : "1px solid var(--agent-border, rgba(0,0,0,0.15))",
+        background: on ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "transparent",
+        color: on ? "#fff" : "var(--agent-text-primary, #333)",
         fontWeight: on ? 600 : 400,
-        transition: "border-color 0.15s ease",
+        boxShadow: on ? "inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 8px rgba(var(--agent-coral-rgb), 0.25)" : "none",
+        transition: "border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
       }}
     >
       {children}
