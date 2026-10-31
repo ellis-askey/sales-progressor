@@ -309,14 +309,21 @@ export async function toggleChainStepAction(
   const steps = marks.map((m) => m.stepKey);
 
   // Every step in (including both signed-and-returned finales) = this node is
-  // ready to exchange. Stamp the existing agent-maintained flag the
-  // push-to-exchange surface reads. Set once; never cleared from here, so a
-  // mis-tap undo doesn't silently retract a readiness the team may have
-  // already acted on — the exchange surface owns un-confirming.
-  if (steps.length === CHECK_IN_STEPS.length && !link.exchangeReadyConfirmedAt) {
+  // ready to exchange; drop below all-in and it isn't. Keep the agent-maintained
+  // flag the push-to-exchange surface reads in lockstep with the per-side marks
+  // so the Check-ins tab and the exchange board never disagree — the per-pill
+  // ticks are the single source of truth (same set/clear as confirm-all). An
+  // un-tick that drops the node below all-9 retracts the readiness it set.
+  const allIn = steps.length === CHECK_IN_STEPS.length;
+  if (allIn && !link.exchangeReadyConfirmedAt) {
     await prisma.chainLink.update({
       where: { id: linkId },
       data: { exchangeReadyConfirmedAt: new Date(), exchangeReadyConfirmedById: session.user.id },
+    });
+  } else if (!allIn && link.exchangeReadyConfirmedAt) {
+    await prisma.chainLink.update({
+      where: { id: linkId },
+      data: { exchangeReadyConfirmedAt: null, exchangeReadyConfirmedById: null },
     });
   }
 

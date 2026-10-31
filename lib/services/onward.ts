@@ -1023,6 +1023,17 @@ async function bridgeUndoFromCheckIn(
     await prisma.chainLinkEntry.deleteMany({
       where: { chainLinkId: loc.adjacentLinkId, authorSideKey: loc.sideKey, checkInStepKey: stepKey },
     });
+    // Dropping below all 9 beats means the node is no longer ready to exchange —
+    // clear the flag so a client self-correcting on their portal doesn't leave a
+    // stale "ready" on the agent's push-to-exchange board (mirrors the manual
+    // per-pill and Confirm-ready paths).
+    const remaining = await prisma.chainNodeStepMark.count({ where: { chainLinkId: loc.adjacentLinkId, sideKey: loc.sideKey } });
+    if (remaining < CHECK_IN_STEPS.length) {
+      await prisma.chainLink.updateMany({
+        where: { id: loc.adjacentLinkId, exchangeReadyConfirmedAt: { not: null } },
+        data: { exchangeReadyConfirmedAt: null, exchangeReadyConfirmedById: null },
+      });
+    }
   } catch (err) {
     console.error("[onward->checkin bridge] undo failed", err);
   }
