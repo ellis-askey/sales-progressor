@@ -102,6 +102,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
           id: true,
           propertyAddress: true,
           serviceType: true,
+          serviceTypeAtExchange: true,
           priceAtExchange: true,
           firstOutsourcedFree: true,
         },
@@ -137,7 +138,11 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
       // invoice is issued. Issued months never change — those edits go via the
       // reversal/CreditNote path into next month's invoice.
       for (const t of billedTxns) {
-        const fee = computeFee(t.serviceType, t.priceAtExchange, agencyVat, feeOverride);
+        // BILL-001: use the service type frozen at exchange so a later
+        // self_managed<->outsourced switch can't wipe/add the fee on this
+        // already-exchanged file. Fall back to live type for rows exchanged
+        // before the snapshot existed.
+        const fee = computeFee(t.serviceTypeAtExchange ?? t.serviceType, t.priceAtExchange, agencyVat, feeOverride);
         // First outsourced file free (D3/D4): the sale bills its band, but the
         // line nets to £0 with a clear "first file free" label. The band value
         // stays recoverable from freeReason + priceAtExchange for reporting.

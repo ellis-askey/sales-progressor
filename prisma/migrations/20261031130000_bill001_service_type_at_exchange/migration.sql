@@ -1,0 +1,11 @@
+-- BILL-001 (docs/audits/full-audit-2026-10): snapshot serviceType at the moment
+-- of exchange so the agency fee is locked to what applied at exchange, not the
+-- live service type. A sale that has exchanged but not completed is still
+-- "active" and can be switched self_managed<->outsourced; without this snapshot
+-- the month's draft invoice recomputed the fee from the CURRENT type, silently
+-- wiping (or adding) the £250-£350 outsourced fee.
+--
+-- Nullable with no backfill: existing exchanged rows stay NULL and billing falls
+-- back to the live serviceType for them, exactly as today (their fee basis is
+-- unchanged). New exchanges stamp this alongside priceAtExchange.
+ALTER TABLE "PropertyTransaction" ADD COLUMN "serviceTypeAtExchange" "ServiceType";

@@ -94,6 +94,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       id: true,
       propertyAddress: true,
       serviceType: true,
+      serviceTypeAtExchange: true,
       priceAtExchange: true,
       billedAtExchange: true,
       firstOutsourcedFree: true,
@@ -109,7 +110,9 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
   const lines: RunningTotalLine[] = [];
 
   for (const r of rows) {
-    const fee = computeFee(r.serviceType, r.priceAtExchange, vat, feeOverride);
+    // BILL-001: fee basis frozen at exchange so the running total matches the
+    // issued invoice even if the service type is switched post-exchange.
+    const fee = computeFee(r.serviceTypeAtExchange ?? r.serviceType, r.priceAtExchange, vat, feeOverride);
     // First outsourced file free (D3/D4): bills its band but nets to £0 with a
     // clear "first file free" label, matching the durable invoice. Keeps the
     // live director total correct regardless of whether the accrual cron has run.

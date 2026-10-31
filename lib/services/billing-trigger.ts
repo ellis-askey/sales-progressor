@@ -163,6 +163,8 @@ export async function maybeStampExchange(
           freeReason: "first_outsourced_free",
           billedAtExchange: now,
           priceAtExchange: txn.purchasePrice,
+          // Freeze the fee basis at exchange (audit BILL-001).
+          serviceTypeAtExchange: txn.serviceType,
         },
       });
       return;
@@ -181,6 +183,8 @@ export async function maybeStampExchange(
     data: {
       billedAtExchange: now,
       priceAtExchange: txn.purchasePrice,
+      // Freeze the fee basis at exchange (audit BILL-001).
+      serviceTypeAtExchange: txn.serviceType,
     },
   });
 }

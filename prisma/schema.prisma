@@ -1040,6 +1040,15 @@ model PropertyTransaction {
   // snapshot, not the live purchasePrice field — immune to later price edits.
   priceAtExchange Int? // pence
 
+  // Snapshot of serviceType at the moment of exchange (audit BILL-001). Billing
+  // reads from this, falling back to the live serviceType only for files
+  // exchanged before this field existed. A sale that has exchanged but not
+  // completed is still "active" and can be switched self_managed<->outsourced;
+  // without this snapshot the month's draft invoice recomputed the fee from the
+  // CURRENT type, so a switch silently wiped (or added) a £250-£350 fee. Frozen
+  // here like priceAtExchange so the fee is locked to what applied at exchange.
+  serviceTypeAtExchange ServiceType? // null = exchanged before snapshot / never billed
+
   // Pricing migration (2026-08). Why a file did not bill, for reporting only —
   // separates the free product from the giveaway: permanent_free_self
   // (self-progress, free by type), first_outsourced_free (the free first
