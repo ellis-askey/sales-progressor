@@ -179,6 +179,10 @@ export function ReconciliationDrawer({
   const eventWord = isExchangeFlow ? "exchange" : "completion";
   const total = outstanding.length;
   const stepsPhrase = `${total} outstanding milestone${total === 1 ? "" : "s"}`;
+  // Nothing to reconcile → a compact centred modal (a full-height drawer is
+  // overkill for a single date). Any outstanding steps → keep the drawer, which
+  // needs the height for the scrollable list.
+  const asModal = total === 0;
 
   function handleConfirm() {
     onConfirm(
@@ -198,14 +202,26 @@ export function ReconciliationDrawer({
   return createPortal(
     <div
       data-theme={theme} data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", justifyContent: "flex-end" }} /* escalated layer — clears the agent topbar (200), critique #292 */
+      style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", justifyContent: asModal ? "center" : "flex-end", alignItems: asModal ? "center" : "stretch", padding: asModal ? 20 : 0 }} /* escalated layer — clears the agent topbar (200), critique #292 */
     >
       {/* Backdrop — does not dismiss on click; the agent has entered data */}
       <div className="fixed inset-0 agent-backdrop-overlay" />
 
-      {/* Drawer panel — 460 on desktop/tablet, full width on mobile */}
+      {/* Panel — a centred modal when there's nothing to reconcile, otherwise
+          the right-hand drawer (460 on desktop/tablet, full width on mobile). */}
       <div
-        style={{
+        style={asModal ? {
+          position: "relative", zIndex: 1,
+          width: 460, maxWidth: "calc(100vw - 40px)", maxHeight: "calc(100vh - 40px)",
+          background: "var(--agent-surface-elevated)",
+          border: "0.5px solid rgba(0,0,0,0.08)",
+          borderRadius: 16,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.22)",
+          animation: closing
+            ? "agent-search-out 180ms ease-in both"
+            : "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        } : {
           position: "relative", zIndex: 1, height: "100%", width: 460, maxWidth: "100vw",
           background: "var(--agent-surface-elevated)",
           borderLeft: "0.5px solid rgba(0,0,0,0.08)",
@@ -237,7 +253,7 @@ export function ReconciliationDrawer({
         </div>
 
         {/* Body — scrollable */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "22px 24px 24px" }}>
+        <div style={{ ...(asModal ? {} : { flex: 1 }), overflowY: "auto", padding: "22px 24px 24px" }}>
 
           {/* Dates — 2-up on desktop/tablet, stacks on mobile */}
           <div
