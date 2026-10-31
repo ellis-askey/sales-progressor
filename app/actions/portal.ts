@@ -34,6 +34,12 @@ export async function portalConfirmMilestoneAction(input: {
   // respond-page wrapper passes "chase". Recorded on the confirm Event so we can
   // report the split going forward.
   source?: "app" | "chase";
+  // Onward-mirror only: when this list is the neighbour file's steps nested inside
+  // another portal (the "Your onward" tab), `token` is the neighbour's token, so
+  // revalidating it won't refresh the page the client is actually on. This is that
+  // page's token — revalidated too, so the confirmed tick sticks instead of
+  // reverting to the source page's stale render.
+  mirrorSourceToken?: string;
 }): Promise<PortalConfirmResult> {
   // Read-only window backstop: a write arriving from an agent session is never
   // the client — refuse it so viewing can't confirm a step. The client UI
@@ -68,6 +74,10 @@ export async function portalConfirmMilestoneAction(input: {
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
+  // Refresh the page the client is actually on when this is a nested onward mirror.
+  if (input.mirrorSourceToken && input.mirrorSourceToken !== input.token) {
+    revalidatePath(`/portal/${input.mirrorSourceToken}/progress`, "page");
+  }
 
   return { ok: true };
 }
@@ -266,6 +276,8 @@ export async function portalTrackTaskPromptAction(
 export async function portalMarkNotRequiredAction(input: {
   token: string;
   milestoneDefinitionId: string;
+  // See portalConfirmMilestoneAction — the onward-mirror source page's token.
+  mirrorSourceToken?: string;
 }) {
   if (await isAgentPortalView()) return;
   await portalMarkNotRequired(input);
@@ -273,6 +285,9 @@ export async function portalMarkNotRequiredAction(input: {
   revalidatePath(`/portal/${input.token}`, "page");
   revalidatePath(`/portal/${input.token}/progress`, "page");
   revalidatePath(`/portal/${input.token}/updates`, "page");
+  if (input.mirrorSourceToken && input.mirrorSourceToken !== input.token) {
+    revalidatePath(`/portal/${input.mirrorSourceToken}/progress`, "page");
+  }
 }
 
 // Undo a "not required" (e.g. the client changed their mind about skipping the

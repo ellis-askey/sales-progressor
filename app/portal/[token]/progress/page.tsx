@@ -65,6 +65,7 @@ async function buildNeighbourStepsPanel(
   sourceTxId: string,
   sourceContactId: string,
   kind: "onward_purchase" | "related_sale",
+  sourceToken: string,
 ): Promise<ReactNode | null> {
   if (!ONWARD_MIRROR_ENABLED) return null;
   try {
@@ -89,6 +90,7 @@ async function buildNeighbourStepsPanel(
           hasExchanged={bHasExchanged}
           side={bSide}
           saleActive={bTx.status !== "withdrawn" && bTx.status !== "completed"}
+          mirrorSourceToken={sourceToken}
         />
       );
     }
@@ -177,7 +179,7 @@ export default async function PortalProgressPage({
   let onwardLabel = "Your onward";
   if (side === "vendor") {
     // Onward is a file we run + person tied → show its real confirmable steps.
-    onwardPanel = (await buildNeighbourStepsPanel(transaction.id, contact.id, "onward_purchase")) ?? undefined;
+    onwardPanel = (await buildNeighbourStepsPanel(transaction.id, contact.id, "onward_purchase", token)) ?? undefined;
     if (!onwardPanel) {
       const [onwardView, moveInfo, chainAgent] = await Promise.all([
         getOnwardTrackerView(transaction.id),
@@ -198,7 +200,7 @@ export default async function PortalProgressPage({
     }
   } else {
     // Related sale is a file we run + person tied → show its real confirmable steps.
-    const mirror = await buildNeighbourStepsPanel(transaction.id, contact.id, "related_sale");
+    const mirror = await buildNeighbourStepsPanel(transaction.id, contact.id, "related_sale", token);
     if (mirror) {
       onwardLabel = "Your sale";
       onwardPanel = mirror;

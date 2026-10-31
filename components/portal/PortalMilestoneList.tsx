@@ -57,6 +57,10 @@ type Props = {
   // shown read-only, but the per-step Confirm / Skip actions are hidden — a dead
   // sale can't be progressed. Defaults to live.
   saleActive?: boolean;
+  // Onward-mirror only: when THIS list renders a neighbour file's steps nested in
+  // another portal, `token` is the neighbour's. Pass the source page's token so a
+  // confirm also refreshes the page the client is on and the tick doesn't revert.
+  mirrorSourceToken?: string;
 };
 
 function fmtDate(d: Date | null) {
@@ -82,7 +86,7 @@ async function fireConfetti() {
   }, 250);
 }
 
-export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel, saleActive = true }: Props) {
+export function PortalMilestoneList({ token, milestones, otherSideMilestones, hasExchanged, side, onwardPanel, onwardLabel, saleActive = true, mirrorSourceToken }: Props) {
   const readOnly = usePortalReadOnly();
   const [, startTransition] = useTransition();
   const [optimisticMilestones, addOptimistic] = useOptimistic(
@@ -198,7 +202,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     startTransition(async () => {
       addOptimistic(milestoneId);
       try {
-        const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed });
+        const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed, mirrorSourceToken });
         if (result.ok) {
           if (choice) await recordPortalSurveyBookingAction({ token, choice }).catch(() => {});
           await fireConfetti();
@@ -227,7 +231,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     startTransition(async () => {
       addOptimistic(milestoneId);
       try {
-        await portalMarkNotRequiredAction({ token, milestoneDefinitionId: milestoneId });
+        await portalMarkNotRequiredAction({ token, milestoneDefinitionId: milestoneId, mirrorSourceToken });
       } catch {
         // survey skip failed — page will revalidate and show correct state
       } finally {
