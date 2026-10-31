@@ -221,7 +221,7 @@ export function ReconciliationDrawer({
           <div style={{ flex: 1, minWidth: 0 }}>
             <SheetBandHeader
               title={title}
-              subtitle={isExchangeFlow ? "Set the exchange date and tidy up any outstanding steps." : "Confirm the date this sale completed."}
+              subtitle={isExchangeFlow ? "Record the exchange date and complete any outstanding steps." : "Confirm the date this sale completed."}
             />
           </div>
           <button
@@ -252,14 +252,14 @@ export function ReconciliationDrawer({
                 {isExchangeFlow ? "Exchange date" : "Completion date"}
               </label>
               <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
-                {isExchangeFlow ? "Enter the date contracts were exchanged." : "Enter the date the sale completed."}
+                {isExchangeFlow ? "Date contracts were exchanged." : "Date the sale completed."}
               </p>
               <DateField
                 value={eventDate}
                 onChange={setEventDate}
                 ariaLabel={isExchangeFlow ? "Exchange date" : "Completion date"}
               />
-              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: "6px 0 0" }}>Set to today. Change if it was different.</p>
+              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: "6px 0 0" }}>Defaults to today. Change if needed.</p>
             </div>
             {isExchangeFlow && (
               <div>
@@ -267,7 +267,7 @@ export function ReconciliationDrawer({
                   Expected completion
                 </label>
                 <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
-                  Add the expected completion date, if known.
+                  Enter the anticipated completion date, if known.
                 </p>
                 <DateField
                   value={completionDate}
@@ -284,15 +284,17 @@ export function ReconciliationDrawer({
             <>
               <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "22px 0 16px" }} aria-hidden />
 
+              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+                Outstanding milestones
+              </p>
               <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-                Confirming {eventWord} will also mark{" "}
                 <strong style={{ color: "var(--agent-text-primary)", fontWeight: 700 }}>{stepsPhrase}</strong>
-                {" "}complete on the {eventWord} date. Add a date to any that happened on a different day.
+                {" "}will also be marked complete using the {eventWord} date. Adjust individual dates if needed.
               </p>
 
               {groups.map((group) => (
                 <div key={group.label} style={{ marginBottom: 14 }}>
-                  <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--agent-text-muted)" }}>
                     {group.label}
                   </p>
                   <div style={{ borderRadius: 10, border: "0.5px solid var(--agent-border-subtle)", overflow: "hidden" }}>
@@ -353,24 +355,27 @@ export function ReconciliationDrawer({
         .recon-cal-btn:focus, .recon-cal-btn:focus-visible, .recon-cal-btn:active { outline: none; border-color: var(--agent-coral-deep); color: var(--agent-coral-deep); }
         .recon-date-chip {
           display: inline-flex; align-items: center; gap: 2px;
-          background: rgba(var(--agent-coral-rgb), 0.10);
-          border: 0.5px solid rgba(var(--agent-coral-rgb), 0.30);
+          /* Solid coral gradient fill — the house coral gradient (stage discs /
+             primary buttons), so an entered date reads as a confident pill. */
+          background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
+          border: none;
           border-radius: 8px; padding: 2px 3px 2px 4px;
+          box-shadow: 0 1px 2px rgba(var(--agent-coral-rgb), 0.35);
           animation: recon-chip-in 180ms cubic-bezier(0.34,1.56,0.64,1) both;
         }
         .recon-date-chip-val {
           background: none; border: none; cursor: pointer;
-          font-size: 12.5px; font-weight: 600; color: var(--agent-coral-deep);
+          font-size: 12.5px; font-weight: 600; color: #fff;
           padding: 3px 6px; border-radius: 6px; font-variant-numeric: tabular-nums;
           transition: background 120ms;
         }
-        .recon-date-chip-val:hover { background: var(--agent-hover-shade); }
+        .recon-date-chip-val:hover { background: rgba(255,255,255,0.18); }
         .recon-date-chip-x {
           display: inline-flex; align-items: center; justify-content: center;
           width: 20px; height: 20px; border: none; background: none; cursor: pointer;
-          color: var(--agent-coral-deep); border-radius: 5px; opacity: 0.7; transition: opacity 120ms, background 120ms;
+          color: #fff; border-radius: 5px; opacity: 0.85; transition: opacity 120ms, background 120ms;
         }
-        .recon-date-chip-x:hover { opacity: 1; background: var(--agent-hover-shade); }
+        .recon-date-chip-x:hover { opacity: 1; background: rgba(255,255,255,0.18); }
         @keyframes recon-chip-in { from { opacity: 0; transform: translateY(2px) scale(0.94); } to { opacity: 1; transform: none; } }
         @media (prefers-reduced-motion: reduce) { .recon-date-chip { animation: none; } }
       `}</style>
