@@ -66,19 +66,57 @@ export function matchTwin(
   return matchTwinByEmail(source.email, candidates) ?? matchTwinByName(source.name, candidates);
 }
 
-// DB wrapper: resolve the twin of `sourceContactId` on `neighbourFileId`.
+// DB wrapper: resolve the twin of `sourceContactId` on `neighbourFileId`. A
+// stored tie (shared personGroupId, set at self-link time) wins — it's durable
+// even if email/name later change — then we fall back to auto-matching.
 export async function resolveTwinContactOnFile(
   sourceContactId: string,
   neighbourFileId: string,
 ): Promise<TwinContact | null> {
   const source = await prisma.contact.findUnique({
     where: { id: sourceContactId },
-    select: { email: true, name: true },
+    select: { email: true, name: true, personGroupId: true },
   });
   if (!source) return null;
+
+  if (source.personGroupId) {
+    const tied = await prisma.contact.findFirst({
+      where: { propertyTransactionId: neighbourFileId, personGroupId: source.personGroupId },
+      select: { id: true, portalToken: true },
+    });
+    if (tied) return { contactId: tied.id, portalToken: tied.portalToken };
+  }
+
   const candidates = await prisma.contact.findMany({
     where: { propertyTransactionId: neighbourFileId },
     select: { id: true, email: true, name: true, portalToken: true },
   });
   return matchTwin({ email: source.email, name: source.name }, candidates);
+}
+
+// Persist "same person" ties between two chain-linked own files, so the mirror
+// stays confirmable even if a contact's email/name is edited later. Matches each
+// contact on file A to an unambiguous twin on file B (email then name) and gives
+// the pair a shared personGroupId. The group id is derived from the two contact
+// ids so re-running at a later self-link is idempotent (no duplicate groups).
+// Returns how many pairs were tied. Only ties what auto-match already finds —
+// the genuinely ambiguous remainder needs the (future) agent "same person?"
+// prompt. Call fire-and-forget; a failure here must never block the self-link.
+export async function tieOwnFilePeople(fileAId: string, fileBId: string): Promise<number> {
+  const [aContacts, bContacts] = await Promise.all([
+    prisma.contact.findMany({ where: { propertyTransactionId: fileAId }, select: { id: true, email: true, name: true, personGroupId: true } }),
+    prisma.contact.findMany({ where: { propertyTransactionId: fileBId }, select: { id: true, email: true, name: true, personGroupId: true } }),
+  ]);
+  const bCandidates = bContacts.map((b) => ({ id: b.id, email: b.email, name: b.name, portalToken: null }));
+  let tied = 0;
+  for (const a of aContacts) {
+    const match = matchTwin({ email: a.email, name: a.name }, bCandidates);
+    if (!match) continue;
+    const b = bContacts.find((x) => x.id === match.contactId);
+    if (!b) continue;
+    const groupId = a.personGroupId ?? b.personGroupId ?? `pg_${[a.id, b.id].sort().join("_")}`;
+    await prisma.contact.updateMany({ where: { id: { in: [a.id, b.id] } }, data: { personGroupId: groupId } });
+    tied++;
+  }
+  return tied;
 }

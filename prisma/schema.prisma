@@ -1422,6 +1422,12 @@ model Contact {
   buyerRoundId String?
   buyerRound   BuyerRound? @relation(fields: [buyerRoundId], references: [id], onDelete: SetNull)
 
+  // Onward portal mirror (docs/active/onward-portal-mirror.md): contacts that
+  // are the SAME PERSON across chain-linked files share a personGroupId, so
+  // someone can confirm their neighbour file's steps from their sale link even
+  // when email/name don't auto-match. Set at self-link time by tieOwnFilePeople.
+  personGroupId String?
+
   transaction             PropertyTransaction      @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
   pushSubscriptions       PortalPushSubscription[]
   portalMessages          PortalMessage[]
@@ -1434,6 +1440,7 @@ model Contact {
   checkpointConfirmations CheckpointConfirmation[] @relation("CheckpointConfirmedByContact")
 
   @@index([buyerRoundId])
+  @@index([personGroupId])
 }
 
 // Per-file "Checkpoints" (client-facing: "Things to confirm"). The nuanced,

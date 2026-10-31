@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink, addChainBranch, addAboveLink, insertLinkAdjacent, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
 import { isInternalStaff } from "@/lib/chain/permissions";
+import { resolveOwnOnwardFileId } from "@/lib/services/onward";
+import { tieOwnFilePeople } from "@/lib/services/portal-twin";
 import { externalMemberChainAccess } from "@/lib/chain/external-scope";
 import { normaliseAddressString } from "@/lib/utils/address";
 import { prisma } from "@/lib/prisma";
@@ -138,6 +140,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 ? "That sale's chain can't be joined automatically. Remove it from its chain first."
                 : "That sale can't be added to the chain.";
       return NextResponse.json({ error: msg }, { status: linkResult.reason === "at_limit" ? 409 : 400 });
+    }
+    // Onward portal mirror (docs/active/onward-portal-mirror.md): tie the same
+    // people across the newly-adjacent own files, so their sale portal can keep
+    // confirming the neighbour's steps even if a contact's details change later.
+    // Fire-and-forget — tying must never fail the self-link.
+    for (const kind of ["onward_purchase", "related_sale"] as const) {
+      try {
+        const neighbourId = await resolveOwnOnwardFileId(body.linkTransactionId, kind);
+        if (neighbourId) await tieOwnFilePeople(body.linkTransactionId, neighbourId);
+      } catch (err) {
+        console.error("[onward-mirror] tieOwnFilePeople failed after self-link", err);
+      }
     }
     return NextResponse.json({ chain: linkResult.chain, inviteSent: false }, { status: 201 });
   }
