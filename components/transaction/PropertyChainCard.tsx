@@ -275,7 +275,11 @@ export function PropertyChainCard({
             {addr.rest ? (
               <div className="cx2-faddr">{addr.rest}</div>
             ) : hintAsSubtitle ? (
-              <div className="cx2-faddr">Not confirmed yet. Set up tracking if they are.</div>
+              <div className="cx2-faddr">
+                {isOnward
+                  ? "Tell us the onward property type and how they are buying, so we show the right steps."
+                  : "Tell us the type of the property they're selling, so we show the right steps."}
+              </div>
             ) : null}
           </div>
           {side.view.exists && (
