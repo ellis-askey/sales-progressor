@@ -21,6 +21,10 @@ type ProfessionalInput = {
 
 async function assertOwns(transactionId: string) {
   const session = await requireSession();
+  // Founder-gated while being checked — the same condition as the render site in
+  // OverviewPanel (showOtherProfessionals === superadmin). Ungate by dropping
+  // this check AND that render condition, nothing else to flip.
+  if (session.user.role !== "superadmin") throw new Error("Not permitted");
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
