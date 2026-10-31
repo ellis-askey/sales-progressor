@@ -96,25 +96,28 @@ export function OnwardPeopleMatcher({
           const chosen = pairs[c.id] ?? null;
           const clash = !!chosen && chosen !== UNMATCHED && takenBy(chosen, c.id);
           const matched = !!chosen && chosen !== UNMATCHED && !clash;
+          const nameColor = matched ? "#fff" : "var(--agent-text-primary)";
+          const subColor = matched ? "rgba(255,255,255,0.82)" : "var(--agent-text-muted)";
           return (
             <div
               key={c.id}
               style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "10px 12px", borderRadius: 12,
-                border: `1px solid ${matched ? "rgba(var(--agent-coral-rgb), 0.35)" : "var(--agent-border-default)"}`,
-                background: matched ? "rgba(var(--agent-coral-rgb), 0.05)" : "transparent",
-                transition: "border-color 0.15s ease, background 0.15s ease",
+                border: matched ? "1px solid transparent" : "1px solid var(--agent-border-default)",
+                background: matched ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "transparent",
+                boxShadow: matched ? "inset 0 1px 0 rgba(255,255,255,0.28), 0 3px 10px rgba(var(--agent-coral-rgb), 0.28)" : "none",
+                transition: "background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
               }}
             >
               <div style={{ minWidth: 0, flex: "1 1 0" }}>
-                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: nameColor, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {c.name}
                 </p>
-                <p style={{ margin: "1px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>{c.roleLabel}</p>
+                <p style={{ margin: "1px 0 0", fontSize: 11.5, color: subColor }}>{c.roleLabel}</p>
               </div>
 
-              <CaretDown size={13} weight="bold" aria-hidden style={{ color: "var(--agent-text-muted)", transform: "rotate(-90deg)", flexShrink: 0 }} />
+              <CaretDown size={13} weight="bold" aria-hidden style={{ color: subColor, transform: "rotate(-90deg)", flexShrink: 0 }} />
 
               <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
                 <div style={{ position: "relative" }}>
@@ -122,7 +125,7 @@ export function OnwardPeopleMatcher({
                     value={chosen ?? UNMATCHED}
                     onChange={(e) => set(c.id, e.target.value === UNMATCHED ? null : e.target.value)}
                     className="glass-input"
-                    style={{ width: "100%", appearance: "none", paddingRight: 30, fontSize: 13, cursor: "pointer" }}
+                    style={{ width: "100%", appearance: "none", paddingRight: 30, fontSize: 13, cursor: "pointer", ...(matched ? { background: "#fff", color: "var(--agent-text-primary)", border: "1px solid transparent", fontWeight: 600 } : {}) }}
                     aria-label={`Match ${c.name} to a person on ${neighbourAddress}`}
                   >
                     <option value={UNMATCHED}>Not the same person</option>
