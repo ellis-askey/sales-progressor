@@ -174,7 +174,7 @@ export function DiaryEventRow({
               type="button"
               onClick={() => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); }}
               className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ color: c.accent, fontWeight: 600, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+              style={{ color: c.accent, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
               {/* Narrow rows drop to the one-word label so the address keeps its
                   room — swapped by row width (container query), not viewport. */}

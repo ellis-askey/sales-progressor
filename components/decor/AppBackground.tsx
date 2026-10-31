@@ -85,7 +85,18 @@ function useIsIOS(): boolean {
   return ios;
 }
 
-export function AppBackground() {
+// Per-user background colours. Both modes now take two colours: light is the
+// two Iridescence tints (blended across the pearlescent wash), dark is the two
+// SoftAurora bands. Both are optional — when omitted the defaults below
+// reproduce the historic look exactly, so an uncustomised user is byte-identical
+// to before (two white light tints == the untinted iridescence).
+export type AuroraColours = { light?: [string, string]; dark?: [string, string] };
+
+// The canonical defaults — these ARE the historic hardcoded values.
+export const DEFAULT_AURORA_LIGHT: [string, string] = ["#ffffff", "#ffffff"];
+export const DEFAULT_AURORA_DARK: [string, string] = ["#5b8cff", "#a8ff60"];
+
+export function AppBackground({ light, dark }: AuroraColours = {}) {
   const isMobile = useIsBelowBreakpoint(1024);
   const isDark = useIsDarkTheme();
   const isIOS = useIsIOS();
@@ -109,8 +120,8 @@ export function AppBackground() {
             speed={isMobile ? 0.08 : 0.1}
             scale={isMobile ? 1.8 : 2.8}
             brightness={isMobile ? 0.28 : 0.5}
-            color1="#5b8cff"
-            color2="#a8ff60"
+            color1={dark?.[0] ?? DEFAULT_AURORA_DARK[0]}
+            color2={dark?.[1] ?? DEFAULT_AURORA_DARK[1]}
             noiseFrequency={isMobile ? 0.4 : 0.5}
             noiseAmplitude={isMobile ? 4 : 7.5}
             bandHeight={0.5}
@@ -139,6 +150,8 @@ export function AppBackground() {
       <div className="absolute inset-0" style={{ background: "#ffffff" }} />
       <div className="absolute inset-0">
         <Iridescence
+          color={light?.[0] ?? DEFAULT_AURORA_LIGHT[0]}
+          color2={light?.[1] ?? DEFAULT_AURORA_LIGHT[1]}
           speed={0.05}
           amplitude={0.3}
           mouseReact={false}

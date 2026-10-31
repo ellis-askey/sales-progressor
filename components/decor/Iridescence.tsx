@@ -40,6 +40,7 @@ const fragment = `
 precision highp float;
 uniform float uTime;
 uniform vec3 uColor;
+uniform vec3 uColor2;
 uniform vec3 uResolution;
 uniform vec2 uMouse;
 uniform float uAmplitude;
@@ -62,12 +63,21 @@ void main() {
   d += uTime * 0.5 * uSpeed;
   vec3 col = vec3(cos(uv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
   col = cos(col * cos(vec3(d, a, 2.5)) * 0.5 + 0.5);
-  gl_FragColor = vec4(col * uColor, uOpacity);
+  // Blend the two tints across the drifting field so both chosen colours read
+  // in different regions of the wash — mirroring the two-band control of the
+  // dark aurora. color2 defaults to color on the JS side, so single-colour
+  // callers are byte-identical: mix(c, c, t) == c.
+  float t = clamp(0.5 + 0.5 * sin(a * 0.5 + d * 0.5), 0.0, 1.0);
+  vec3 tint = mix(uColor, uColor2, t);
+  gl_FragColor = vec4(col * tint, uOpacity);
 }
 `;
 
 interface IridescenceProps {
   color?: string;
+  // Second tint. Defaults to `color`, so a single-colour caller renders exactly
+  // as before (the shader blends uColor→uColor2 across the field).
+  color2?: string;
   speed?: number;
   amplitude?: number;
   mouseReact?: boolean;
@@ -76,6 +86,7 @@ interface IridescenceProps {
 
 export function Iridescence({
   color = "#ffffff",
+  color2 = color,
   speed = 1,
   amplitude = 0.1,
   mouseReact = true,
@@ -119,6 +130,7 @@ export function Iridescence({
       uniforms: {
         uTime: { value: 0 },
         uColor: { value: new Float32Array(hexToRgb(color)) },
+        uColor2: { value: new Float32Array(hexToRgb(color2)) },
         uResolution: { value: new Float32Array([1, 1, 1]) },
         uMouse: { value: new Float32Array([0.5, 0.5]) },
         uAmplitude: { value: amplitude },
@@ -208,7 +220,7 @@ export function Iridescence({
         /* ignore */
       }
     };
-  }, [color, speed, amplitude, mouseReact, opacity]);
+  }, [color, color2, speed, amplitude, mouseReact, opacity]);
 
   return (
     <div
