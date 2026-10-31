@@ -187,7 +187,7 @@ function TxCard({ tx }: { tx: TxGroup }) {
   const exchanged = tx.status === "completed" || tx.status === "withdrawn" || snap?.stage === "Post-exchange";
   const exchange = exchanged ? null : exchangeLabel(tx.expectedExchangeIso);
 
-  const tag = useGlassTag("updates-tx-card", "Updates · file card");
+  const tag = useGlassTag("updates-tx-card", "Updates · file card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   return (
     <div className={`agent-glass overflow-hidden rounded-[12px] ${tag.className}`} {...tag.props} style={{ border: "0.5px solid var(--agent-border-subtle)" }}>
       {/* Header: photo + address, with a light file snapshot on the right */}
@@ -385,8 +385,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   const [openDd, setOpenDd] = useState<string | null>(null);
   const dropsRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
-  const searchTag = useGlassTag("updates-search", "Updates · search bar");
-  const railTag = useGlassTag("updates-filter-rail", "Updates · filter rail");
+  const searchTag = useGlassTag("updates-search", "Updates · search bar", { dark: "v04" });
+  const railTag = useGlassTag("updates-filter-rail", "Updates · filter rail", { dark: "v05" });
 
   function toggleIn<T>(setter: Dispatch<SetStateAction<Set<T>>>) {
     return (k: T) => setter((prev) => {

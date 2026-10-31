@@ -39,7 +39,7 @@ export function CompletedSection({ files }: { files: CompletedFileRow[] }) {
   // Promoted (open by default): completions are the payoff, not a buried archive.
   const [open, setOpen] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  const rowTag = useGlassTag("completions-completed-row", "Completions · completed row");
+  const rowTag = useGlassTag("completions-completed-row", "Completions · completed row", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   if (files.length === 0) return null;
 
   const totalFee = files.reduce((s, f) => s + (f.agentFeeAmount ?? 0), 0);

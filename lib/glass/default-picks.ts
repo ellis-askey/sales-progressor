@@ -48,19 +48,14 @@ export const DEFAULT_PICKS: GlassPicks = {
   // To-Do task group (GlassCard) — Ellis's export, 2026-10-26 (light moved to the
   // frosted main card to match the dark side and the rest of the To-Do page).
   "todo-page-group": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
-  "todo-review-drawer": { dark: "v05" },
-  // Updates page — Ellis's export, 2026-10-26. The file card moves to the frosted
-  // main card (was v16/v02); the day bar, search and filter rail are dark-only
-  // picks (light stays their v00 baseline, as exported).
-  "updates-tx-card": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  // Updates page — Ellis's export, 2026-10-26. The file card, search and filter
+  // rail are useGlassTag surfaces, so their baked look is passed as a baseline at
+  // their call sites in CommsActivityFeed (NOT here — a DEFAULT_PICKS entry is
+  // inert for a useGlassTag tag). Only the day bar is a GlassCard.
   "updates-day-bar": { dark: "v05" },
-  "updates-search": { dark: "v04" },
-  "updates-filter-rail": { dark: "v05" },
-  // Completions page — Ellis's export, 2026-10-26. File card + completed row to
-  // the frosted main card; the section / completed bars are dark-only v05;
-  // momentum keeps its v05 defaultVariant on dark (light-only pick in the export).
-  "completions-file-card": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
-  "completions-completed-row": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  // Completions page — Ellis's export, 2026-10-26. File card + completed row are
+  // useGlassTag (baselines live at their call sites); the section / completed bars
+  // are GlassCard dark-only v05; momentum keeps its v05 defaultVariant on dark.
   "completions-section-bar": { dark: "v05" },
   "completions-completed-bar": { dark: "v05" },
   "completions-momentum": { light: "v03" },

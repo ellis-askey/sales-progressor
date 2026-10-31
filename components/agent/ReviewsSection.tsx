@@ -463,7 +463,7 @@ function ReviewDrawer({
   accent?: string;
   muted?: boolean;
 }) {
-  const tag = useGlassTag("todo-review-drawer", "To-Do · review drawer");
+  const tag = useGlassTag("todo-review-drawer", "To-Do · review drawer", { dark: "v05" });
   return (
     <div className={`agent-glass ${tag.className}`} {...tag.props} style={{ borderRadius: 12, overflow: "hidden" }}>
       <div

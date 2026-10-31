@@ -38,7 +38,7 @@ export function CompletionsGroupList({ groups }: { groups: CompletionGroup[] }) 
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useAgentToast();
-  const fileCardTag = useGlassTag("completions-file-card", "Completions · file card");
+  const fileCardTag = useGlassTag("completions-file-card", "Completions · file card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const today = new Date().toISOString().split("T")[0];
 
   function toggle(key: string) {
