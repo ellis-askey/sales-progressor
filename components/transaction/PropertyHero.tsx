@@ -338,16 +338,9 @@ export function PropertyHero({
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
-  // Mobile vs tablet, so the small-screen hero controls pick the kebab menu
-  // (mobile) or the icon-only cluster (tablet).
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+  // Every small screen (tablet + mobile, i.e. below the 768px desktop break)
+  // now uses the kebab menu for the hero actions, so the 3-dot control is
+  // present on tablet too and the standalone photo pills can hide below 768px.
   const postcode = extractPostcode(address);
   // Empty state shows the location map when we can place it; otherwise the
   // branded add-photo circle (foreign/missing postcode). A photo that failed to
@@ -935,7 +928,7 @@ export function PropertyHero({
             busy={photo.busy}
             onRemove={photo.remove}
             onAdd={photo.triggerUpload}
-            mobile={isMobile === true}
+            mobile={true}
           />
         )}
 

@@ -1596,11 +1596,14 @@
     bottom: 14px;
     left: 14px;
   }
-  /* Below 768px the photo action moves into HeroSmallControls (tablet icon
-     cluster / mobile kebab), so the desktop pill hides. */
+  /* Below 768px the photo action lives in the HeroSmallControls kebab (the
+     3-dot menu, now on tablet + mobile alike), so the standalone pill hides.
+     !important is required: the pill carries an inline `display: inline-flex`
+     for its fade, and an inline style beats a plain stylesheet rule — without
+     this the pill leaked onto mobile/tablet despite the hide. */
   @media (max-width: 767px) {
     .hero-remove-photo {
-      display: none;
+      display: none !important;
     }
   }
 
