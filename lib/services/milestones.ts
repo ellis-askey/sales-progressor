@@ -17,7 +17,7 @@ import { recordEvent } from "@/lib/command/events/write";
 import { recordAvailabilityTransition, type AvailabilityCause } from "@/lib/services/milestone-availability-history";
 import { computeReconcileUnlocks } from "@/lib/milestones/reconcile";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
-import { flipReferralEarnedForMilestone } from "@/lib/services/referrals";
+import { flipReferralEarnedForMilestone, unflipReferralEarnedForMilestone } from "@/lib/services/referrals";
 import type { MilestoneScope } from "@/lib/services/milestone-scope";
 import type { Prisma, MilestoneSide, MilestoneDefinition, MilestoneCompletion, Tenure, PurchaseType, PrismaClient } from "@prisma/client";
 
@@ -2917,6 +2917,14 @@ export async function executeUndoMilestone(input: {
       if (code) await handleExchangeReversal(transactionId, code, ptx);
     }
 
+    // Referral ledger (audit MILE-004): un-earn any commission the reversed
+    // steps had marked "earned" (PM5 → buyer broker; VM20/PM27 → solicitor), so
+    // revenue figures don't keep counting a fee for an event that's been undone.
+    // Mirrors flipReferralEarnedForMilestone; never touches a 'received' fee.
+    for (const code of allReverseCodes) {
+      await unflipReferralEarnedForMilestone(ptx, transactionId, code);
+    }
+
     // Queued-but-unsent emails announcing the undone steps (portal confirms,
     // completion pack, chain-mate exchange/completion, celebration) must not
     // go out after the undo — tear them up in the same transaction so the
@@ -3030,6 +3038,11 @@ export async function reverseMilestoneWithCascade(input: {
     // common NR-reinstate / cash-switch reverses.
     for (const code of reversedCodes) {
       await handleExchangeReversal(input.transactionId, code, tx);
+    }
+    // Referral ledger (audit MILE-004) — mirror executeUndoMilestone so this
+    // path also un-earns a commission when its trigger step is reversed.
+    for (const code of reversedCodes) {
+      await unflipReferralEarnedForMilestone(tx, input.transactionId, code);
     }
     await cancelQueuedEmailsForReversedMilestones(input.transactionId, reversedCodes, tx);
 

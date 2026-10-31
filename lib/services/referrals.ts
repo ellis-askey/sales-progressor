@@ -144,6 +144,38 @@ export async function flipReferralEarnedForMilestone(
   }
 }
 
+// Reverse of flipReferralEarnedForMilestone (audit MILE-004). When the trigger
+// milestone is UNDONE, a referral marked "earned" by it must drop back to
+// "pending" so revenue figures don't count a commission for an event that was
+// reversed. Only ever reverts status "earned" — a "received" fee is real money
+// already in and is never touched. Broker reverts the ACTIVE round only (a
+// previous buyer's earned fee stays earned on the archived round). No-op when
+// there's no matching earned referral.
+export async function unflipReferralEarnedForMilestone(
+  client: Client,
+  transactionId: string,
+  milestoneCode: string,
+): Promise<void> {
+  if (milestoneCode === BROKER_EARNED_CODE) {
+    const txn = await client.propertyTransaction.findUnique({
+      where: { id: transactionId },
+      select: { activeBuyerRoundId: true },
+    });
+    if (txn?.activeBuyerRoundId) {
+      await client.referral.updateMany({
+        where: { transactionId, kind: "buyer_broker", buyerRoundId: txn.activeBuyerRoundId, status: "earned" },
+        data: { status: "pending", earnedAt: null },
+      });
+    }
+  }
+  if (COMPLETION_CODES.has(milestoneCode)) {
+    await client.referral.updateMany({
+      where: { transactionId, kind: { in: ["buyer_solicitor", "seller_solicitor"] }, status: "earned" },
+      data: { status: "pending", earnedAt: null },
+    });
+  }
+}
+
 // Has the buyer's mortgage application (PM5) been reached on this round? Used by
 // the save path to set a broker referral's initial earned state when it's added
 // after the mortgage already went in.
