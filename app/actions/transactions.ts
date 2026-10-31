@@ -4016,6 +4016,15 @@ export async function relistTransactionImpl(
         brokerContactId: input.newBrokerContactId ?? null,
         lastActivityAt: new Date(),
         clientEmailsPaused: false,
+        // Reply-capture address reset (audit MAIL-001). The per-file reply token
+        // backs reply+<token>@<domain>, which maps an inbound reply straight onto
+        // this file. Kept across a relist, the OLD buyer's solicitor could send a
+        // straggling reply (carrying the old Reply-To in its thread) that would
+        // file into the NEW buyer's timeline. Clearing it retires the old address;
+        // the next send to the new buyer lazily mints a fresh token. Trade-off: a
+        // reply to a pre-relist email (incl. the unchanged seller's) is no longer
+        // auto-captured - acceptable against cross-buyer contamination.
+        replyToken: null,
         // ── Previous-buyer field clears (2026-09-28) ──────────────────────────
         // These file-level columns describe the OUTGOING buyer and were being
         // carried silently into the new sale. Cleared so the new buyer starts
