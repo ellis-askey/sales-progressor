@@ -329,6 +329,7 @@ export function OnwardPurchaseCard({
   onwardAddress = null,
   direction = "onward",
   embedded = false,
+  hideSetupHint = false,
   seedTenure = null,
   seedShareOfFreehold = false,
   defaultStepsOpen = false,
@@ -346,6 +347,10 @@ export function OnwardPurchaseCard({
   // When true, drops the Card + title and renders a compact action area for the
   // chain spine (PropertyChainCard). The step list collapses by default.
   embedded?: boolean;
+  // Suppress the embedded "Not confirmed yet…" passive hint — used when the host
+  // renders that hint as the card's subtitle instead, so the onward and related
+  // focus cards share the same header spacing and don't jump in height.
+  hideSetupHint?: boolean;
   // Far sides: pre-fill the type-facts form from the near sibling (same
   // property) so the agent never re-enters tenure. Only used when this tracker
   // has no tenure of its own yet.
@@ -780,7 +785,7 @@ export function OnwardPurchaseCard({
     if (embedded) {
       return (
         <div style={{ padding: "6px 4px 0" }}>
-          {!signalActive && (
+          {!signalActive && !hideSetupHint && (
             <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>Not confirmed yet. Set up tracking if they are.</p>
           )}
           {cta}

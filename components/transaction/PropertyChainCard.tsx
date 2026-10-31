@@ -215,9 +215,6 @@ export function PropertyChainCard({
         <div className="cx2-focus">
           <div className="cx2-focus-hd">
             <div style={{ minWidth: 0 }}>
-              {/* Coral label (primary colour), not a pill — matches the kicker
-                  form of onward/related while marking it as the current sale. */}
-              <div className="cx2-fkicker cur">Current sale</div>
               <div className="cx2-ftitle">{here.title}</div>
               {here.rest && <div className="cx2-faddr">{here.rest}</div>}
             </div>
@@ -265,12 +262,21 @@ export function PropertyChainCard({
       );
     }
 
+    // Onward/related, near side, not set up + passive: render the "Not confirmed
+    // yet" hint as the card's subtitle (same slot the related card's address uses)
+    // and drop it from the body, so both cards keep identical header spacing and
+    // don't jump in height.
+    const hintAsSubtitle = !far && !side.view.exists && !side.signalActive && !addr.rest;
     return (
       <div className="cx2-focus">
         <div className="cx2-focus-hd">
           <div style={{ minWidth: 0 }}>
             <div className="cx2-ftitle">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</div>
-            {addr.rest && <div className="cx2-faddr">{addr.rest}</div>}
+            {addr.rest ? (
+              <div className="cx2-faddr">{addr.rest}</div>
+            ) : hintAsSubtitle ? (
+              <div className="cx2-faddr">Not confirmed yet. Set up tracking if they are.</div>
+            ) : null}
           </div>
           {side.view.exists && (
             <div className="cx2-sidetoggle" role="tablist" aria-label="Which side of this deal">
@@ -299,6 +305,7 @@ export function PropertyChainCard({
           seedTenure={far ? side.view.tenure : null}
           seedShareOfFreehold={far ? side.view.isShareOfFreehold : false}
           nudgeClients={far ? [] : (side.nudgeClients ?? [])}
+          hideSetupHint={hintAsSubtitle}
         />
       </div>
     );
