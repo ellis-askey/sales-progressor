@@ -786,7 +786,7 @@ export function OnwardPurchaseCard({
       return (
         <div style={{ padding: "6px 4px 0" }}>
           {!signalActive && !hideSetupHint && (
-            <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>Not confirmed yet. Set up tracking if they are.</p>
+            <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>{txt.factsPrompt}</p>
           )}
           {cta}
         </div>
@@ -832,21 +832,30 @@ export function OnwardPurchaseCard({
           </FactRow>
         )}
 
-        <div style={{ margin: "2px 0 12px" }}>
-          <label style={{ display: "block", fontSize: 12, color: MUTED, marginBottom: 4 }}>
-            Property address <span style={{ opacity: 0.7 }}>(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g. 25 Austin House, Harlow, CM20 2UA"
-            style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated, #fff)", color: "var(--agent-text-primary)" }}
-          />
-          <p style={{ margin: "4px 0 0", fontSize: 11, color: MUTED }}>
-            Emails naming this property will file onto this sale automatically.
-          </p>
-        </div>
+        {/* Only ask for the address when the chain hasn't already given us one —
+            the chain-known address is pre-filled into `address` and still saved
+            for mail-matching, so hiding the input never loses it. */}
+        {!onwardAddress && (
+          <div style={{ margin: "2px 0 12px" }}>
+            <label style={{ display: "block", fontSize: 12, color: MUTED, marginBottom: 4 }}>
+              Property address <span style={{ opacity: 0.7 }}>(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. 25 Austin House, Harlow, CM20 2UA"
+              onMouseEnter={(e) => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = "var(--agent-coral)"; }}
+              onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = "var(--agent-border-default)"; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--agent-coral-deep)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--agent-border-default)"; }}
+              style={{ width: "100%", boxSizing: "border-box", padding: "7px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--agent-border-default)", outline: "none", background: "var(--agent-surface-elevated, #fff)", color: "var(--agent-text-primary)", transition: "border-color 0.15s ease" }}
+            />
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: MUTED }}>
+              Emails naming this property will file onto this sale automatically.
+            </p>
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <Button
@@ -1071,6 +1080,8 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={(e) => { if (!on) e.currentTarget.style.borderColor = "var(--agent-coral)"; }}
+      onMouseLeave={(e) => { if (!on) e.currentTarget.style.borderColor = "var(--agent-border, rgba(0,0,0,0.15))"; }}
       style={{
         fontSize: 12,
         padding: "5px 10px",
@@ -1080,6 +1091,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
         background: on ? "rgba(255,107,74,0.10)" : "transparent",
         color: on ? "#FF6B4A" : "var(--agent-text-primary, #333)",
         fontWeight: on ? 600 : 400,
+        transition: "border-color 0.15s ease",
       }}
     >
       {children}
