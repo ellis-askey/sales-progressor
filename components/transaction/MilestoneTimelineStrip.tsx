@@ -23,7 +23,7 @@
 // Full detailed milestone list stays on the Steps tab — this is a
 // summary read.
 
-import type { ReactNode } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { formatDate } from "@/lib/utils";
 import { AnimatedTick } from "@/components/ui/AnimatedTick";
@@ -129,6 +129,29 @@ export function MilestoneTimelineStrip({
   exchangeDayActive?: boolean;
 }) {
   const { setActiveTab } = useTabContext();
+
+  // Left-edge fade when the strip is scrolled off its start (house pattern,
+  // mirrors FileTabsChrome's scrollLeft > 4 check). The right-edge fade is
+  // always on — it dissolves the strip into the "View timeline" button.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const updateFade = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) setScrolled(el.scrollLeft > 4);
+  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateFade();
+    el.addEventListener("scroll", updateFade, { passive: true });
+    const ro = new ResizeObserver(updateFade);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateFade);
+      ro.disconnect();
+    };
+  }, [updateFade]);
+
   if (stages.length === 0) return null;
 
   return (
@@ -137,6 +160,7 @@ export function MilestoneTimelineStrip({
     // underneath the strip, side by side at 50% width each.
     <div className="mts-root">
       <div
+        ref={scrollRef}
         role="list"
         aria-label="File progress stages"
         style={{
@@ -148,10 +172,16 @@ export function MilestoneTimelineStrip({
           overflowX: "auto",
           overflowY: "visible",
           padding: "4px 4px 4px",
-          // Soft fade at the right edge so the scrolling strip dissolves into
-          // the "View timeline" button instead of ending on a hard cut.
-          maskImage: "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
+          // Right edge always fades so the strip dissolves into the "View
+          // timeline" button instead of ending on a hard cut. The left edge
+          // fades only once scrolled off the start, so earlier stages don't end
+          // on a hard cut either (restores the lost left fade).
+          maskImage: scrolled
+            ? "linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent 100%)"
+            : "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
+          WebkitMaskImage: scrolled
+            ? "linear-gradient(to right, transparent 0, #000 32px, #000 calc(100% - 32px), transparent 100%)"
+            : "linear-gradient(to right, #000 calc(100% - 32px), transparent 100%)",
         }}
       >
         {stages.map((stage, i) => (
