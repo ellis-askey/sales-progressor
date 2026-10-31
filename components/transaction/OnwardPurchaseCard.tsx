@@ -727,7 +727,7 @@ export function OnwardPurchaseCard({
         />
       );
     }
-    if (embedded) return <>{<div style={{ padding: "0 4px" }}>{body}</div>}{nudgeModalEl}</>;
+    if (embedded) return <>{<div style={{ padding: "0 16px" }}>{body}</div>}{nudgeModalEl}</>;
     return (
       <>
         <Card id={sectionId} padding="none">
@@ -812,25 +812,29 @@ export function OnwardPurchaseCard({
       <>
         <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>
 
-        <FactRow label="Property type">
-          <Pill on={tenure === "freehold"} onClick={() => { setTenure("freehold"); setShareOfFreehold(false); }}>Freehold</Pill>
-          <Pill on={tenure === "leasehold"} onClick={() => setTenure("leasehold")}>Leasehold</Pill>
-        </FactRow>
+        {/* Desktop: property type + buying with sit on one row; they wrap on narrow. */}
+        <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div>
+            <FactRow label="Property type">
+              <Pill on={tenure === "freehold"} onClick={() => { setTenure("freehold"); setShareOfFreehold(false); }}>Freehold</Pill>
+              <Pill on={tenure === "leasehold"} onClick={() => setTenure("leasehold")}>Leasehold</Pill>
+            </FactRow>
+            {tenure === "leasehold" && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
+                <input type="checkbox" checked={shareOfFreehold} onChange={(e) => setShareOfFreehold(e.target.checked)} />
+                Share of freehold
+              </label>
+            )}
+          </div>
 
-        {tenure === "leasehold" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
-            <input type="checkbox" checked={shareOfFreehold} onChange={(e) => setShareOfFreehold(e.target.checked)} />
-            Share of freehold
-          </label>
-        )}
-
-        {needsPurchaseType && (
-          <FactRow label="Buying with">
-            <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
-            <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
-            <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from proceeds</Pill>
-          </FactRow>
-        )}
+          {needsPurchaseType && (
+            <FactRow label="Buying with">
+              <Pill on={purchaseType === "mortgage"} onClick={() => setPurchaseType("mortgage")}>Mortgage</Pill>
+              <Pill on={purchaseType === "cash_buyer"} onClick={() => setPurchaseType("cash_buyer")}>Cash</Pill>
+              <Pill on={purchaseType === "cash_from_proceeds"} onClick={() => setPurchaseType("cash_from_proceeds")}>Cash from proceeds</Pill>
+            </FactRow>
+          )}
+        </div>
 
         {/* Only ask for the address when the chain hasn't already given us one —
             the chain-known address is pre-filled into `address` and still saved
