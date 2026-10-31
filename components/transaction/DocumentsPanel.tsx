@@ -11,7 +11,7 @@ export async function DocumentsPanel({ transactionId }: { transactionId: string 
   const docs = await listLiveTransactionDocuments(transactionId);
 
   return (
-    <GlassTagDiv glassId="documents-panel" label="Documents · panel" className="p-5" surfaceClassName="glass-card">
+    <GlassTagDiv glassId="documents-panel" label="Documents · panel" baseline={{ light: "cs-b7c9ec28", dark: "v02" }} className="p-5 rounded-[12px]" surfaceClassName="glass-card">
       <div className="flex items-center justify-between mb-4" data-bloom>
         <p className="glass-section-label text-[var(--agent-text-muted)]">Documents ({docs.length})</p>
         <AgentDocumentUpload transactionId={transactionId} />

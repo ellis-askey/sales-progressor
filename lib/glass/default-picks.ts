@@ -168,4 +168,17 @@ export const DEFAULT_PICKS: GlassPicks = {
   "empty-reminders-chase": { dark: "v04" },
   "empty-reminders-who": { dark: "v04" },
   "empty-reminders-cold": { dark: "v04" },
+
+  // Ellis's export, 2026-10-31. GlassCard tags only (the useGlassTag surfaces in
+  // the same export — chase-*, documents-*, activity-searchbar, chain-add-btn,
+  // file-setup-row — are baked as per-call baselines at their call sites, since a
+  // DEFAULT_PICKS entry is inert for a useGlassTag tag).
+  "file-setup": { light: "cs-b7c9ec28", dark: "cs-053799eb" },
+  "sidebar-property": { dark: "v05" },
+  "todo-completed-bar": { dark: "v05" },
+  "auto-emails-banner": { dark: "cs-9049173a" },
+  "auto-emails-activity": { dark: "cs-9049173a" },
+  "auto-emails-coverage": { dark: "v05" },
+  "auto-emails-attention": { dark: "v05" },
+  "auto-emails-sending-today": { dark: "v05" },
 };

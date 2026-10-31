@@ -310,7 +310,7 @@ function EmailConversationDrawer({
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts, solicitors }: Props) {
-  const searchTag = useGlassTag("activity-searchbar", "Activity · search bar");
+  const searchTag = useGlassTag("activity-searchbar", "Activity · search bar", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exitingId, setExitingId]   = useState<string | null>(null);

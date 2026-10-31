@@ -230,7 +230,7 @@ export function ChainView({
   // Internal staff progress files they didn't originate — they get the same
   // edit reach the server now grants (mirrors canViewChain).
   const isInternal = isInternalStaff(currentUserRole);
-  const addTag = useGlassTag("chain-add-btn", "Chain · add sale button");
+  const addTag = useGlassTag("chain-add-btn", "Chain · add sale button", { dark: "v05" });
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);

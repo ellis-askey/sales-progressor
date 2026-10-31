@@ -121,7 +121,7 @@ function PauseBanner({ pause }: { pause: NonNullable<ChasePauseState> }) {
 
 // ── overview stats ───────────────────────────────────────────────────────────
 function StatCard({ n, label, color }: { n: number; label: string; color: string }) {
-  const tag = useGlassTag("chase-stat", "Chase · stat card");
+  const tag = useGlassTag("chase-stat", "Chase · stat card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   return (
     <div {...tag.props} className={tag.className} style={{
       flex: "1 1 120px", minWidth: 120, padding: "12px 16px", borderRadius: 14,
@@ -142,7 +142,7 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
   const sideColor = thread.track === "exchange"
     ? "var(--agent-primary)"
     : isVendor ? "var(--agent-warning)" : "var(--agent-info)";
-  const tag = useGlassTag("chase-thread-row", "Chase · thread row");
+  const tag = useGlassTag("chase-thread-row", "Chase · thread row", { light: "v03", dark: "v04" });
   return (
     <button
       {...tag.props}
@@ -366,7 +366,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // automated send is genuinely scheduled (each lane has its own hold field the
   // sender respects; the raise chaser's is PM14's expected date).
   const canMove = !held && !send.handedToTeam && send.isAutomated && !!send.dueAt && !!send.overrideTarget;
-  const tag = useGlassTag("chase-upnext", "Chase · up-next card");
+  const tag = useGlassTag("chase-upnext", "Chase · up-next card", { light: "cs-b7c9ec28", dark: "v02" });
   return (
     <div {...tag.props} className={`chase-upnext-card ${tag.className}`} style={{
       position: "relative", overflow: "hidden", borderRadius: 14, padding: "13px 14px",
@@ -495,8 +495,8 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
   const [showDone, setShowDone] = useState(false);
   const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const selected = useMemo(() => threads.find((t) => t.id === selectedId) ?? threads[0], [threads, selectedId]);
-  const listTag = useGlassTag("chase-list-panel", "Chase · thread list panel");
-  const detailTag = useGlassTag("chase-detail-panel", "Chase · thread detail panel");
+  const listTag = useGlassTag("chase-list-panel", "Chase · thread list panel", { light: "v06", dark: "v02" });
+  const detailTag = useGlassTag("chase-detail-panel", "Chase · thread detail panel", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
 
   return (
     <div data-tour="chase-threads" style={{ display: "flex", flexDirection: "column", gap: 16 }}>

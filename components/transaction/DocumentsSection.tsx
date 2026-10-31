@@ -30,6 +30,7 @@ export function DocumentsList({ docs }: { docs: LiveTransactionDocumentRow[] }) 
           key={doc.id}
           glassId="documents-row"
           label="Documents · document row"
+          baseline={{ light: "v03", dark: "v04" }}
           data-bloom
           className="flex items-center gap-3 px-4 py-3 rounded-xl"
           surfaceClassName="border border-[var(--agent-border-subtle)] bg-[var(--agent-surface-glass)]"

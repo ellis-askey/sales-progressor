@@ -77,7 +77,7 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
   const [openKey, setOpenKey] = useState<string | null>(null);
   // One Design Lab row drives every section row (shared glassId). When a variant
   // is picked, drop the base surface utilities so the glass owns the surface.
-  const rowTag = useGlassTag("file-setup-row", "File setup · section row");
+  const rowTag = useGlassTag("file-setup-row", "File setup · section row", { light: "cs-b7c9ec28", dark: "v04" });
 
   function jump(tab: string | null, anchor: string | null) {
     if (tab) setActiveTab(tab);
