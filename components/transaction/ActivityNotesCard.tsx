@@ -203,10 +203,10 @@ export function ActivityNotesCard({
           drops it to its own line when the card runs out of width. */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, rowGap: 6, padding: "12px 16px 10px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, rowGap: 6, minWidth: 0, flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Activity &amp; notes</h3>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Activity &amp; notes</h3>
           <div style={{ display: "inline-flex", gap: 4 }}>
-            <button className={`agent-segment-pill agent-segment-pill-sm${filter === "all" ? " on" : ""}`} onClick={() => setFilter("all")}>All</button>
-            <button className={`agent-segment-pill agent-segment-pill-sm${filter === "notes" ? " on" : ""}`} onClick={() => setFilter("notes")}>
+            <button className={`agent-segment-pill agent-segment-pill-sm${filter === "all" ? " on" : ""}`} style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setFilter("all")}>All</button>
+            <button className={`agent-segment-pill agent-segment-pill-sm${filter === "notes" ? " on" : ""}`} style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setFilter("notes")}>
               Notes{noteCount > 0 ? ` ${noteCount}` : ""}
             </button>
           </div>

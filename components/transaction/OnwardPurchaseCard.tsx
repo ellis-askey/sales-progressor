@@ -416,7 +416,7 @@ export function OnwardPurchaseCard({
       abandonedBody: "This buyer's related sale is no longer going ahead.",
       signalPrompt: `This buyer is also selling${onwardAddress ? ` (${onwardAddress})` : ""}. Set up tracking so you and they can see where their sale is up to.`,
       passivePrompt: "If this buyer is also selling a property, track where their sale is up to. Reported progress stays on this file and is not shared with other agencies.",
-      setupCta: "Set up sale tracking",
+      setupCta: "Set up related tracking",
       factsPrompt: "Tell us the type of the property they're selling, so we show the right steps.",
       reportedBy: "As reported by the buyer. Not confirmed by the sale's agent.",
     },
@@ -762,7 +762,7 @@ export function OnwardPurchaseCard({
         <style>{`.opc-short{display:none}@media(max-width:640px){.opc-full{display:none}.opc-short{display:inline}}`}</style>
         <div style={{ display: "flex", gap: 9, flexWrap: "wrap", alignItems: "center" }}>
           <Button
-            variant={signalActive ? "primary" : "secondary"}
+            variant="primary"
             size="sm"
             loading={pending}
             onClick={() => run(() => actions.open(transactionId))}

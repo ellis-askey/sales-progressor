@@ -252,7 +252,6 @@ export function PropertyChainCard({
         <div className="cx2-focus">
           <div className="cx2-focus-hd">
             <div style={{ minWidth: 0 }}>
-              <div className="cx2-fkicker">Onward purchase</div>
               <div className="cx2-ftitle">Chain-free</div>
               <div className="cx2-faddr">
                 You confirmed this seller isn&rsquo;t buying another property, so there&rsquo;s no onward purchase to track.
@@ -270,7 +269,6 @@ export function PropertyChainCard({
       <div className="cx2-focus">
         <div className="cx2-focus-hd">
           <div style={{ minWidth: 0 }}>
-            <div className="cx2-fkicker">{isOnward ? "Onward purchase" : "Related sale"}</div>
             <div className="cx2-ftitle">{addr.title || (isOnward ? "Onward purchase" : "Related sale")}</div>
             {addr.rest && <div className="cx2-faddr">{addr.rest}</div>}
           </div>
