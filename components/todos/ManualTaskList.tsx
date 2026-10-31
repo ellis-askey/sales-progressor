@@ -305,7 +305,11 @@ export function ManualTaskList({
       {myOpen.length === 0 && (
         <div style={{ padding: "20px 16px", textAlign: "center" }}>
           <p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
-            {myDone.length > 0 ? "Nothing to do. Nice." : "No tasks yet."}
+            {myDone.length > 0
+              ? "Nothing to do. Nice."
+              : perspective === "progressor"
+                ? "No agent issued to-dos on this file yet."
+                : "No tasks yet."}
           </p>
         </div>
       )}
