@@ -770,6 +770,7 @@ export async function changeStatusAction(
       chainLinkId: true,
       activeBuyerRoundId: true,
       agencyId: true,
+      withdrawnAt: true,
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -822,6 +823,11 @@ export async function changeStatusAction(
   //     defensive case of multiple open periods.
   const enteringHold = status === "on_hold" && tx.status !== "on_hold";
   const leavingHold  = tx.status === "on_hold" && status !== "on_hold";
+  // Reactivation: a withdrawn sale comes back to life (the buyer recommitted).
+  // Everything the withdrawal cancelled is resurrected and every paused clock is
+  // shifted forward by how long it sat withdrawn, so it resumes where it left off
+  // rather than reading as wildly overdue.
+  const reactivating = tx.status === "withdrawn" && status === "active";
   const plannedEndAtDate: Date | null = plannedEndAt
     ? (plannedEndAt instanceof Date ? plannedEndAt : new Date(plannedEndAt))
     : null;
@@ -870,6 +876,10 @@ export async function changeStatusAction(
         // withdrawn-then-relisted-then-paused file doesn't carry a stale
         // reason forward.
         withdrawalReason: status === "withdrawn" ? withdrawalReason : null,
+        // Stamp the withdrawal moment so a later reactivation knows the paused
+        // duration; clear it on the way back to active. Untouched by other
+        // transitions (e.g. active -> on_hold) so the clock stays accurate.
+        withdrawnAt: status === "withdrawn" ? new Date() : reactivating ? null : undefined,
       },
     });
 
@@ -1003,6 +1013,74 @@ export async function changeStatusAction(
         cancelledClientChaseStateCount: ccsResult.count,
         holdsClosed: holdResult.count,
       };
+    }
+
+    // Reactivation (withdrawn -> active): resume where it left off.
+    if (reactivating) {
+      const now = new Date();
+      // How long the file sat withdrawn. Legacy files withdrawn before withdrawnAt
+      // existed shift by 0 (we simply resurrect without re-timing).
+      const gapSeconds = tx.withdrawnAt ? Math.max(0, Math.round((now.getTime() - tx.withdrawnAt.getTime()) / 1000)) : 0;
+
+      // 1. Resurrect the reminders the withdrawal cancelled ("sale fell through").
+      const resurrectLogs = await ptx.reminderLog.findMany({
+        where: { transactionId, status: "cancelled", statusReason: "sale fell through" },
+        select: { id: true },
+      });
+      const resurrectLogIds = resurrectLogs.map((l) => l.id);
+      if (resurrectLogIds.length > 0) {
+        await ptx.reminderLog.updateMany({
+          where: { id: { in: resurrectLogIds } },
+          data: { status: "active", statusReason: null },
+        });
+        // The chase tasks under those logs were pending when cancelled by withdraw.
+        await ptx.chaseTask.updateMany({
+          where: { reminderLogId: { in: resurrectLogIds }, status: "cancelled" },
+          data: { status: "pending" },
+        });
+      }
+      // Resurrect the client chases cancelled by the withdrawal.
+      await ptx.clientChaseState.updateMany({
+        where: { transactionId, status: "cancelled", statusReason: "sale fell through" },
+        data: { status: "active", statusReason: null },
+      });
+
+      // 2. Shift every now-active clock forward by the paused gap so nothing reads
+      //    as overdue. Covers the just-resurrected rows AND any that were never
+      //    cancelled (e.g. vendor-side reminders that simply didn't fire while the
+      //    file was inactive). Column arithmetic -> raw SQL (Prisma can't express it).
+      if (gapSeconds > 0) {
+        await ptx.$executeRaw`UPDATE "ReminderLog" SET "nextDueDate" = "nextDueDate" + (${gapSeconds})::bigint * interval '1 second', "snoozedUntil" = CASE WHEN "snoozedUntil" IS NOT NULL THEN "snoozedUntil" + (${gapSeconds})::bigint * interval '1 second' ELSE NULL END WHERE "transactionId" = ${transactionId} AND "status" = 'active'`;
+        await ptx.$executeRaw`UPDATE "ChaseTask" SET "dueDate" = "ChaseTask"."dueDate" + (${gapSeconds})::bigint * interval '1 second' FROM "ReminderLog" WHERE "ChaseTask"."reminderLogId" = "ReminderLog".id AND "ReminderLog"."transactionId" = ${transactionId} AND "ChaseTask"."status" = 'pending'`;
+        // Client-chase next send = addWorkingDays(lastChasedAt, repeat), so pushing
+        // lastChasedAt forward moves the next chase forward by the gap (the cron
+        // clamps a future value to now, so they're never chased the instant back).
+        await ptx.$executeRaw`UPDATE "ClientChaseState" SET "lastChasedAt" = "lastChasedAt" + (${gapSeconds})::bigint * interval '1 second' WHERE "transactionId" = ${transactionId} AND "status" = 'active' AND "lastChasedAt" IS NOT NULL`;
+      }
+
+      // 3. Reopen the enquiry trackers THIS withdrawal closed (closedAt at/after the
+      //    withdrawal moment, so a genuinely-resolved enquiry isn't reopened), and
+      //    reset the movement anchors like the leaving-hold path so the escalation
+      //    clock doesn't instantly re-stall on day one back.
+      if (tx.withdrawnAt) {
+        await ptx.enquiryTracker.updateMany({
+          where: { transactionId, closedAt: { gte: tx.withdrawnAt } },
+          data: { closedAt: null, lastChasedAt: now, lastMovementAt: now, escalatedAt: null },
+        });
+        await ptx.enquiryRaiseChase.updateMany({
+          where: { transactionId, closedAt: { gte: tx.withdrawnAt } },
+          data: { closedAt: null, lastNudgedAt: now, escalatedAt: null },
+        });
+      }
+
+      // 4. Chain: the withdrawal cascade detached this file and notified the
+      //    neighbouring agents, so it can't be safely auto-reconnected. Flag a
+      //    one-tap "reconnect the chain" prompt instead (only when it was actually
+      //    in a chain at withdrawal).
+      await ptx.propertyTransaction.update({
+        where: { id: transactionId },
+        data: { chainReconnectPending: tx.chainLinkId != null },
+      });
     }
     return null;
   });
@@ -1141,6 +1219,24 @@ export async function changeStatusAction(
   // buckets and All-Files tabs, so refresh those aggregate surfaces too.
   revalidatePath("/agent/hub");
   revalidatePath("/agent/transactions");
+}
+
+// Dismiss the "reconnect the chain" prompt shown after a reactivation — either
+// because the chain has been reconnected or because the sale genuinely needs no
+// chain now. Scope-gated like every other write on the file.
+export async function clearChainReconnectPendingAction(transactionId: string) {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+  await prisma.propertyTransaction.update({
+    where: { id: transactionId },
+    data: { chainReconnectPending: false },
+  });
+  revalidateTx(transactionId);
 }
 
 export async function savePriceAction(transactionId: string, purchasePrice: number) {

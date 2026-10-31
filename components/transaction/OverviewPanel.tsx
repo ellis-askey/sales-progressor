@@ -30,6 +30,7 @@ import { countActionable, countOverdue } from "@/lib/reminders/classify";
 import { toUKDateStr } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { FileHealthBanner } from "@/components/transaction/FileHealthBanner";
+import { ChainReconnectPrompt } from "@/components/transaction/ChainReconnectPrompt";
 import { exchangeBlockerLabel } from "@/lib/milestones/exchange-blocker-label";
 import { isTerminalSale } from "@/lib/transactions/status";
 import { ContactsSection } from "@/components/contacts/ContactsSection";
@@ -96,6 +97,7 @@ type Props = {
     clientEmailsPaused: boolean;
     chainLinkId?: string | null;
     noChainNeededAt?: Date | null;
+    chainReconnectPending?: boolean;
     referredFirmId: string | null;
     referralFee: number | null;
     holdPeriods: Array<{ startedAt: Date; endedAt: Date | null }>;
@@ -499,6 +501,10 @@ export async function OverviewPanel({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FileHealthBanner transactionId={transaction.id} actionableCount={actionableCount} overdueCount={overdueCount} onTrack={progress.onTrack} slip={slip} />
+
+      {transaction.chainReconnectPending && (
+        <ChainReconnectPrompt transactionId={transaction.id} />
+      )}
 
       {/* People: Clients (contacts) + Professionals (solicitors) in one card
           with a header toggle, so the solicitor is one tap away. The id anchors
