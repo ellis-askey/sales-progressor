@@ -5,7 +5,7 @@
 
 import { looksLikeBusiness } from "@/lib/contacts/business";
 
-const TITLE_PREFIXES = new Set([
+export const TITLE_PREFIXES = new Set([
   "mr", "mrs", "ms", "miss", "mx",
   "dr", "prof", "sir", "dame", "lord", "lady", "rev",
 ]);

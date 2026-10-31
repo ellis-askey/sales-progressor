@@ -83,7 +83,7 @@ Unchanged. Both files stay independent and send their own milestone emails as to
 ## Built so far (staging)
 
 - `lib/services/progressing-team.ts` + `resolveOwnOnwardFileId` (onward.ts) — team-aware ownership. Unit-tested.
-- `lib/services/portal-twin.ts` — person-tie by unambiguous email. Unit-tested.
+- `lib/services/portal-twin.ts` — person-tie by unambiguous email, then unambiguous title-stripped 2-word name. 16 unit tests.
 - `app/portal/[token]/progress/page.tsx` — `buildNeighbourStepsPanel`: confirmable real steps when tied, **read-only real steps when not**, both directions; falls back to the stand-in only when the neighbour isn't our live file.
 - **Revert is automatic** — `resolveOwnOnwardFileId` gates on a live file, so a withdrawn/unlinked neighbour drops back to the stand-in with no extra code.
 - **Neighbour's own state respected** — `saleActive` is passed from the neighbour's status, and all confirms run through the neighbour's own token so its server-side rules (availability, pause, auth) are enforced regardless of the UI.
@@ -94,7 +94,7 @@ Unchanged. Both files stay independent and send their own milestone emails as to
 ## Remaining before sign-off
 
 1. **Visual check** (needs eyes) — the nested side-tab layout on a tied pair, desktop + mobile. The one open risk in the built work.
-2. **Phase 2 — stored, agent-confirmed person-tie** — schema (contact↔contact link) + migration (staging-first) + auto-match at `selfLinkOwnSale` + a small agent "same person?" prompt. Lets no-email pairs confirm. (The resolver should prefer the stored tie, then email.)
+2. **Phase 2 — stored, agent-confirmed person-tie** — the auto-match now covers unambiguous email AND name, which handles most real pairs (incl. the Achilleas). The STORED tie is only for the genuinely ambiguous remainder (same name on a file, or different name+email on each side). **Blocked on a DB hazard:** it needs a new column/table, but staging deploys via `prisma db push --accept-data-loss`, which DROPS the raw-SQL `bodySearch` tsvector column (migration `20260502000005_outbound_body_search`). So the migration can't go via the normal deploy — it needs a deliberate manual apply (+ re-add bodySearch), with founder sign-off, before the resolver prefers the stored tie and a small agent "same person?" prompt writes it.
 3. **Carry-over** — when `selfLinkOwnSale` links own files, carry any pre-existing manual stand-in ticks into the real file once (reuse `getInheritedProgressForTransaction`). Edge-case; writes to the milestone engine, so do it with the reconciliation path, not ad hoc.
 4. **E2E test** — tied pair → side tab shows real steps → confirm writes to the real file. Needs a Playwright fixture + a tied pair.
 5. **Polish** — a read-only step row still opens an (inert) confirm sheet; consider suppressing the sheet entirely in the read-only onward view.
