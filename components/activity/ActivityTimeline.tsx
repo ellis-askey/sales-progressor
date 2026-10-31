@@ -890,7 +890,13 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         /* z-index must beat the compose card below it (activity-comms-entry sits
            at z-index:30 as a later sibling), or the open scope menu renders
            behind it. */
-        .act-filterbar { display:flex; align-items:center; gap:10px; margin-bottom:12px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:50; }
+        /* Search bar + "Log an update" share a wrapping row: the button sits to
+           the right of the search when there's room, and drops onto its own line
+           once the search would fall below its comfortable min width (so it never
+           gets bunched). Pure flex-wrap, so it responds to real width / zoom. */
+        .act-topbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
+        .act-topbar-action { flex:0 0 auto; }
+        .act-filterbar { display:flex; align-items:center; gap:10px; flex:1 1 460px; min-width:0; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:50; }
         .act-filterbar:focus-within { border-color:var(--agent-coral-deep); }
         .act-scope { position:relative; flex-shrink:0; }
         .act-scope-btn { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:none; border:none; border-right:1px solid var(--agent-border-default); padding:2px 12px 2px 2px; cursor:pointer; }
@@ -915,6 +921,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-mi[data-on="true"] .act-radio { border-color:var(--agent-coral); }
         .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
       `}</style>
+      <div className="act-topbar">
       <div className={`act-filterbar ${searchTag.className}`} {...searchTag.props} data-bloom>
         <div className="act-scope">
           <Popover
@@ -966,8 +973,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
           </button>
         )}
       </div>
+        {beforeEntries && <div className="act-topbar-action" data-bloom>{beforeEntries}</div>}
+      </div>
 
-      {beforeEntries && <div className="mb-3" data-bloom>{beforeEntries}</div>}
 
       {filtered.length === 0 ? (
         <div className="text-center py-8" data-bloom style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
