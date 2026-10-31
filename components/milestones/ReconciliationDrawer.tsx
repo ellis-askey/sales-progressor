@@ -248,27 +248,20 @@ export function ReconciliationDrawer({
             }}
           >
             <div>
-              <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 2 }}>
+              <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 8 }}>
                 {isExchangeFlow ? "Exchange date" : "Completion date"}
               </label>
-              <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
-                {isExchangeFlow ? "Date contracts were exchanged." : "Date the sale completed."}
-              </p>
               <DateField
                 value={eventDate}
                 onChange={setEventDate}
                 ariaLabel={isExchangeFlow ? "Exchange date" : "Completion date"}
               />
-              <p style={{ fontSize: 11, color: "var(--agent-text-muted)", margin: "6px 0 0" }}>Defaults to today. Change if needed.</p>
             </div>
             {isExchangeFlow && (
               <div>
-                <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 2 }}>
+                <label style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 8 }}>
                   Expected completion
                 </label>
-                <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>
-                  Enter the anticipated completion date, if known.
-                </p>
                 <DateField
                   value={completionDate}
                   onChange={setCompletionDate}
@@ -285,7 +278,7 @@ export function ReconciliationDrawer({
               <div style={{ height: 1, background: "var(--agent-border-subtle)", margin: "22px 0 16px" }} aria-hidden />
 
               <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-                Outstanding milestones
+                Outstanding steps
               </p>
               <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
                 <strong style={{ color: "var(--agent-text-primary)", fontWeight: 700 }}>{stepsPhrase}</strong>
