@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { sendMorningDigests, fireExchangeApproachingPushes, flushExchangeApproachingPushes, fireMortgageExpiryAlerts, type ExchangePushSink } from "@/lib/services/morning-digest";
 import { runJob } from "@/lib/cron/run-job";
@@ -36,20 +37,32 @@ export async function GET(req: NextRequest) {
     let totalSent = 0;
     let totalPushed = 0;
     let totalMortgageAlerts = 0;
+    let failures = 0;
     // Shared across every agency so one owner's exchange-soon alerts digest into
     // a single push for the whole run, not one per agency (critique #296).
     const exchangeSink: ExchangePushSink = new Map();
+    // AUTO-004 (audit full-audit-2026-10): a failing agency used to be dropped
+    // silently (.catch(() => 0)), so a stuck digest left clients hearing nothing
+    // with no trace. Log + Sentry per agency so the breakage is visible, then
+    // carry on so one bad agency never stalls the rest of the run.
+    const guard = async <T>(agencyId: string, step: string, work: Promise<T>, fallback: T): Promise<T> => {
+      try {
+        return await work;
+      } catch (err) {
+        failures++;
+        console.error(`[morning-digest] ${step} failed agency=${agencyId}:`, err);
+        Sentry.captureException(err, { tags: { cron: "morning-digest", step }, extra: { agencyId } });
+        return fallback;
+      }
+    };
     for (const agency of agencies) {
-      const sent = await sendMorningDigests(agency.id).catch(() => 0);
-      totalSent += sent;
-      const pushed = await fireExchangeApproachingPushes(agency.id, exchangeSink).catch(() => 0);
-      totalPushed += pushed;
-      const mortgageAlerts = await fireMortgageExpiryAlerts(agency.id).catch(() => 0);
-      totalMortgageAlerts += mortgageAlerts;
+      totalSent += await guard(agency.id, "sendMorningDigests", sendMorningDigests(agency.id), 0);
+      totalPushed += await guard(agency.id, "fireExchangeApproachingPushes", fireExchangeApproachingPushes(agency.id, exchangeSink), 0);
+      totalMortgageAlerts += await guard(agency.id, "fireMortgageExpiryAlerts", fireMortgageExpiryAlerts(agency.id), 0);
     }
     // One digest-or-single push per owner, now that every agency has contributed.
     flushExchangeApproachingPushes(exchangeSink);
 
-    return NextResponse.json({ sent: totalSent, exchangeApproachingPushed: totalPushed, mortgageExpiryAlerts: totalMortgageAlerts });
+    return NextResponse.json({ sent: totalSent, exchangeApproachingPushed: totalPushed, mortgageExpiryAlerts: totalMortgageAlerts, failures });
   });
 }

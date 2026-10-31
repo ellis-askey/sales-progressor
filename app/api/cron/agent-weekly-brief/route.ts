@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { sendAgentWeeklyBriefs } from "@/lib/services/agent-weekly-brief";
 import { runJob } from "@/lib/cron/run-job";
@@ -15,11 +16,19 @@ export async function GET(req: NextRequest) {
     const agencies = await prisma.agency.findMany({ select: { id: true } });
 
     let totalSent = 0;
+    let failures = 0;
+    // AUTO-004 (audit full-audit-2026-10): surface a failing agency instead of
+    // dropping it silently, then carry on with the rest of the run.
     for (const agency of agencies) {
-      const sent = await sendAgentWeeklyBriefs(agency.id).catch(() => 0);
-      totalSent += sent;
+      try {
+        totalSent += await sendAgentWeeklyBriefs(agency.id);
+      } catch (err) {
+        failures++;
+        console.error(`[agent-weekly-brief] failed agency=${agency.id}:`, err);
+        Sentry.captureException(err, { tags: { cron: "agent-weekly-brief" }, extra: { agencyId: agency.id } });
+      }
     }
 
-    return NextResponse.json({ sent: totalSent });
+    return NextResponse.json({ sent: totalSent, failures });
   });
 }
