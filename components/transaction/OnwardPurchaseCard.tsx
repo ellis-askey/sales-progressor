@@ -22,6 +22,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { Popover } from "@/components/ui/Popover";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
@@ -784,9 +785,11 @@ export function OnwardPurchaseCard({
     // the long prompt and show just the CTA (a short hint only when passive).
     if (embedded) {
       return (
-        <div style={{ padding: "6px 4px 0" }}>
+        <div style={{ padding: 0 }}>
+          {/* Flush-left, in the town/postcode (cx2-faddr) font so the prompt reads
+              as a header line under the title/address, not an indented body note. */}
           {!signalActive && !hideSetupHint && (
-            <p style={{ margin: "0 0 8px", fontSize: 12, color: MUTED }}>{txt.factsPrompt}</p>
+            <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--agent-text-secondary)" }}>{txt.factsPrompt}</p>
           )}
           {cta}
         </div>
@@ -812,20 +815,21 @@ export function OnwardPurchaseCard({
       <>
         {/* The prompt renders in the card subtitle when embedded (hideSetupHint),
             so it lines up with the address slot; only show it inline standalone. */}
-        {!hideSetupHint && <p style={{ margin: "0 0 10px", fontSize: 13, color: MUTED }}>{txt.factsPrompt}</p>}
+        {!hideSetupHint && <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--agent-text-secondary)" }}>{txt.factsPrompt}</p>}
 
-        {/* Desktop: property type + buying with sit on one row; they wrap on narrow. */}
-        <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
+        {/* Desktop: property type + buying with sit on one row; they wrap on narrow.
+            When the prompt is the card subtitle (embedded), nudge the options down a
+            touch so they don't bunch up against it. */}
+        <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start", marginTop: hideSetupHint ? 8 : 0 }}>
           <div>
             <FactRow label="Property type">
               <Pill on={tenure === "freehold"} onClick={() => { if (tenure === "freehold") { setTenure(null); } else { setTenure("freehold"); setShareOfFreehold(false); } }}>Freehold</Pill>
               <Pill on={tenure === "leasehold"} onClick={() => setTenure(tenure === "leasehold" ? null : "leasehold")}>Leasehold</Pill>
             </FactRow>
             {tenure === "leasehold" && (
-              <label style={{ display: "flex", alignItems: "center", gap: 6, margin: "0 0 10px", fontSize: 12 }}>
-                <input type="checkbox" checked={shareOfFreehold} onChange={(e) => setShareOfFreehold(e.target.checked)} />
-                Share of freehold
-              </label>
+              <div style={{ margin: "0 0 10px" }}>
+                <Checkbox checked={shareOfFreehold} onChange={setShareOfFreehold} label="Share of freehold" />
+              </div>
             )}
           </div>
 
@@ -937,7 +941,7 @@ export function OnwardPurchaseCard({
 
   function renderRows(steps: OnwardStepView[]) {
     return (
-      <ul style={{ listStyle: "none", margin: 0, padding: "0 8px 6px" }}>
+      <ul style={{ listStyle: "none", margin: 0, padding: embedded ? "0 0 6px" : "0 8px 6px" }}>
         {steps.map((rawStep) => {
           // Overlay: a step whose prerequisites were just optimistically
           // completed renders as available immediately.
@@ -963,7 +967,7 @@ export function OnwardPurchaseCard({
 
   function sectionHeader(label: string) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 10px 3px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: embedded ? "10px 0 3px" : "10px 10px 3px" }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: SECTION_TINT[label] ?? MUTED }} />
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: SECONDARY }}>{label}</span>
       </div>
@@ -1005,7 +1009,7 @@ export function OnwardPurchaseCard({
   if (embedded) {
     const pct = view.applicableCount > 0 ? Math.round((shownCompleteCount / view.applicableCount) * 100) : 0;
     return (
-      <div style={{ padding: "0 4px" }}>
+      <div style={{ padding: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
             {view.tenure && <Chip>{tenureLabel(view.tenure)}{view.isShareOfFreehold ? " · share of freehold" : ""}</Chip>}

@@ -422,7 +422,6 @@ export function PropertyChainCard({
         .cx2-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--agent-text-muted)}
         .cx2-dot[data-tone="active"],.cx2-dot[data-tone="done"]{background:var(--agent-success, #16a34a)}
         .cx2-dot[data-tone="hold"]{background:var(--agent-warning, #D59929)}
-        .cx2-sidetoggle{display:inline-flex;gap:3px;padding:3px;border-radius:10px;background:var(--agent-border-default, rgba(15,23,42,0.06));flex-shrink:0}
 
         /* Footer */
         .cx2-foot{border-top:0.5px solid var(--agent-border-default);padding:13px 22px 16px;margin-top:8px}
