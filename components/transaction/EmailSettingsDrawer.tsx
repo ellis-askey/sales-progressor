@@ -781,7 +781,9 @@ export function EmailSettingsButton({
     : anyOff
       ? "var(--agent-warning-border-strong, rgba(201, 125, 26, 0.50))"
       : null;
-  const tone = "var(--agent-text-secondary, #475569)";
+  // Routed through a CSS var so the pill's :hover can darken the gear + label a
+  // touch even though the colour is applied inline (agent-system.css).
+  const tone = "var(--settings-pill-tone, var(--agent-text-secondary, #475569))";
 
   return (
     <>

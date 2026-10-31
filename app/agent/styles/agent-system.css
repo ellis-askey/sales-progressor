@@ -1619,6 +1619,13 @@
   .email-settings-pill.is-attention {
     border-color: var(--agent-warning-border-strong, rgba(201, 125, 26, 0.50));
   }
+  /* Hover: darken the hairline border + text slightly. The gear + label read
+     --settings-pill-tone (set inline), so overriding it here darkens both. The
+     attention border is set inline, so it still wins and keeps its state colour. */
+  .email-settings-pill:hover {
+    border-color: var(--agent-border-strong);
+    --settings-pill-tone: var(--agent-text-primary);
+  }
   /* The gear takes a single eased turn on hover (interaction-study pick 1). */
   .email-settings-pill svg { transform-box: fill-box; transform-origin: center; }
   .email-settings-pill:hover svg { animation: email-settings-gear-turn 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
