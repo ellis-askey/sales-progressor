@@ -19,6 +19,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { OnwardPurchaseCard } from "@/components/transaction/OnwardPurchaseCard";
 import { useTabContext } from "@/components/transaction/TabContext";
@@ -283,17 +284,14 @@ export function PropertyChainCard({
             ) : null}
           </div>
           {side.view.exists && (
-            <div className="cx2-sidetoggle" role="tablist" aria-label="Which side of this deal">
-              <button
-                type="button" role="tab" aria-selected={!far}
-                className={`agent-segment-pill agent-segment-pill-sm${!far ? " on" : ""}`}
-                onClick={() => setFarSide((s) => ({ ...s, [which]: false }))}
-              >{nearLabel}</button>
-              <button
-                type="button" role="tab" aria-selected={far}
-                className={`agent-segment-pill agent-segment-pill-sm${far ? " on" : ""}`}
-                onClick={() => setFarSide((s) => ({ ...s, [which]: true }))}
-              >{farLabel}</button>
+            <div className="cx2-sidetoggle">
+              <SegmentedSwitch
+                size="sm"
+                ariaLabel="Which side of this deal"
+                value={far ? "far" : "near"}
+                onChange={(v) => setFarSide((s) => ({ ...s, [which]: v === "far" }))}
+                options={[{ id: "near", label: nearLabel }, { id: "far", label: farLabel }]}
+              />
             </div>
           )}
         </div>
