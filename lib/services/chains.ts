@@ -391,12 +391,16 @@ const LINK_V2_SELECT = {
       tenure: true,
       isShareOfFreehold: true,
       overridePredictedDate: true,
+      // Active buyer round — used to round-scope the chain progress % so a
+      // relisted file doesn't count the previous buyer's steps (audit DATA-005).
+      activeBuyerRoundId: true,
       milestoneCompletions: {
         select: {
           state: true,
           eventDate: true,
           completedAt: true,
           reconciledAtClaim: true,
+          buyerRoundId: true,
           milestoneDefinition: { select: { code: true, weight: true } },
         },
       },
@@ -419,6 +423,13 @@ type CompletionForChain = {
   eventDate: Date | null;
   completedAt: Date | null;
   reconciledAtClaim: boolean;
+  // Round stamp (audit DATA-005). Vendor file-level rows are null and shared
+  // across rounds; purchaser rows carry their buyer round. A relisted file keeps
+  // the previous (dead) buyer's completed rows on disk, so the progress math must
+  // drop any purchaser row that belongs to a round other than the active one —
+  // otherwise other agencies, the solicitor portal and the public claim page see
+  // the old buyer's inflated % while the owner correctly sees the reset figure.
+  buyerRoundId: string | null;
   milestoneDefinition: { code: string; weight: { toNumber(): number } | number } | null;
 };
 
@@ -428,16 +439,24 @@ function weightOf(c: CompletionForChain): number {
   return typeof w === "number" ? w : w.toNumber();
 }
 
-function computeWeightedProgress(completions: CompletionForChain[]): number | null {
+// activeRoundId is the file's current buyer round. Vendor rows (null round) always
+// count; purchaser rows count only when they belong to that round. Null when the
+// file has no active round (degrades to vendor-only). See DATA-005.
+function computeWeightedProgress(completions: CompletionForChain[], activeRoundId: string | null): number | null {
   if (!completions || completions.length === 0) return null;
   let applicableWeight = 0;
   let completedWeight = 0;
+  let sawInRound = false;
   for (const c of completions) {
+    // Skip a purchaser row from a previous/other buyer round.
+    if (c.buyerRoundId !== null && c.buyerRoundId !== activeRoundId) continue;
+    sawInRound = true;
     if (c.state === "not_required") continue;
     applicableWeight += weightOf(c);
     if (c.state === "complete") completedWeight += weightOf(c);
   }
-  if (applicableWeight === 0) return 100;
+  if (!sawInRound) return null; // no rows for this round — unknown, not "done"
+  if (applicableWeight === 0) return 100; // every applicable step is not-required
   return Math.round((completedWeight / applicableWeight) * 100);
 }
 
@@ -446,6 +465,12 @@ function computeWeightedProgress(completions: CompletionForChain[]): number | nu
 // pulling the whole (permission-scoped) chain via getChainV2. Null when the file
 // has no applicable milestones yet.
 export async function getFileProgressPercent(transactionId: string): Promise<number | null> {
+  // Round-scope to the current buyer so a relisted file shows the reset % here
+  // too (public claim page), not the previous buyer's inflated figure (DATA-005).
+  const txn = await prisma.propertyTransaction.findUnique({
+    where: { id: transactionId },
+    select: { activeBuyerRoundId: true },
+  });
   const completions = await prisma.milestoneCompletion.findMany({
     where: { transactionId },
     select: {
@@ -453,10 +478,11 @@ export async function getFileProgressPercent(transactionId: string): Promise<num
       eventDate: true,
       completedAt: true,
       reconciledAtClaim: true,
+      buyerRoundId: true,
       milestoneDefinition: { select: { code: true, weight: true } },
     },
   });
-  return computeWeightedProgress(completions);
+  return computeWeightedProgress(completions, txn?.activeBuyerRoundId ?? null);
 }
 
 // Phase-aware predicted exchange date for a chain link, matching the same
@@ -871,6 +897,7 @@ export async function getChainV2(
         isShareOfFreehold,
         overridePredictedDate,
         photoStoragePath,
+        activeBuyerRoundId,
         ...txnPublic
       } = rawTx;
       const photoUrl = photoStoragePath ? photoMap.get(photoStoragePath) ?? null : null;
@@ -912,7 +939,7 @@ export async function getChainV2(
           buyerPosition: computeBuyerPosition(purchaseType, txnPublic.clientFirstTimeBuyer),
         },
         createdBy,
-        progressPercent: computeWeightedProgress(milestoneCompletions),
+        progressPercent: computeWeightedProgress(milestoneCompletions, activeBuyerRoundId),
         // Predicted exchange date is the owning side's private forecast of when
         // THEIR sale will exchange — not a shared-chain fact. Show it on their own
         // node only (canSeeOwn: owning agency + internal staff); strip it to null
@@ -2298,8 +2325,8 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
           claimedBy: { select: { name: true, firmName: true, email: true, phone: true } },
           transaction: {
             select: {
-              id: true, propertyAddress: true, photoStoragePath: true,
-              milestoneCompletions: { select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, milestoneDefinition: { select: { code: true, weight: true } } } },
+              id: true, propertyAddress: true, photoStoragePath: true, activeBuyerRoundId: true,
+              milestoneCompletions: { select: { state: true, eventDate: true, completedAt: true, reconciledAtClaim: true, buyerRoundId: true, milestoneDefinition: { select: { code: true, weight: true } } } },
             },
           },
           // Recent chase-log entries newest-first; we pick the latest one tagged to
@@ -2354,7 +2381,7 @@ export async function listCheckInsForScope(scope: AccessScope): Promise<CheckInR
         agentEmail: l.claimedBy?.email ?? l.stubAgentEmail ?? null,
         agentPhone: l.claimedBy?.phone ?? l.stubAgentPhone ?? null,
         claimed,
-        progressPercent: claimed && l.transaction ? computeWeightedProgress(l.transaction.milestoneCompletions) : null,
+        progressPercent: claimed && l.transaction ? computeWeightedProgress(l.transaction.milestoneCompletions, l.transaction.activeBuyerRoundId) : null,
         photoUrl: photoPath, // swapped for a signed URL below
         lastUpdateAt: latest?.createdAt.toISOString() ?? null,
         lastUpdateBody: latest?.body ?? null,
