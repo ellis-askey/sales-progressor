@@ -1,17 +1,18 @@
 "use client";
 
 // Onward portal mirror — the agent "is this the same person?" matcher
-// (docs/active/onward-portal-mirror.md, Phase 2). When a client sells and buys
-// through us, we auto-tie the same people across the two files by email/name.
-// For the rare pair auto-match can't resolve, this lets the agent confirm the
-// match by hand so that person can confirm their onward file's steps from their
-// sale portal. Writing a match stamps a shared Contact.personGroupId.
+// (docs/active/onward-portal-mirror.md, Phase 2). An EXCEPTION HANDLER, not a
+// routine step: when a client sells and buys through us, we auto-tie the same
+// people across the two files by email/name at self-link time. This surfaces
+// ONLY for the people auto-match couldn't resolve, so the agent can say who's
+// who by hand. Writing a match stamps a shared Contact.personGroupId, which lets
+// that person confirm their onward file's steps from their sale portal.
 //
-// Presentational + interactive only — the page/drawer passes the two files'
-// contacts, the auto-matched starting pairs, and an onSave that persists them.
+// Presentational + interactive only — the caller passes the UNMATCHED contacts
+// on this file, the candidates on the neighbour, and an onSave that persists them.
 
 import { useState } from "react";
-import { Check, CaretDown, LinkSimple } from "@phosphor-icons/react";
+import { CaretDown, LinkSimple } from "@phosphor-icons/react";
 
 export type MatchContact = { id: string; name: string; email: string | null; roleLabel: string };
 
@@ -22,39 +23,28 @@ export function OnwardPeopleMatcher({
   ourAddress,
   ourContacts,
   theirContacts,
-  initial,
-  autoMatched,
   onSave,
   saving = false,
 }: {
   neighbourAddress: string;
   ourAddress: string;
+  // The people on this file auto-match couldn't resolve (the only ones shown).
   ourContacts: MatchContact[];
   theirContacts: MatchContact[];
-  // ourContactId -> theirContactId (or null for no match).
-  initial: Record<string, string | null>;
-  // ourContactIds whose match came from auto-match (vs set by hand) — shown with
-  // a quiet "auto" tag so the agent knows what they're overriding.
-  autoMatched: Set<string>;
   onSave?: (pairs: Record<string, string | null>) => void;
   saving?: boolean;
 }) {
-  const [pairs, setPairs] = useState<Record<string, string | null>>(() => ({ ...initial }));
-  const [dirty, setDirty] = useState(false);
+  const [pairs, setPairs] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(ourContacts.map((c) => [c.id, null])),
+  );
 
-  const set = (ourId: string, theirId: string | null) => {
+  const set = (ourId: string, theirId: string | null) =>
     setPairs((p) => ({ ...p, [ourId]: theirId }));
-    setDirty(true);
-  };
 
-  // A their-contact already chosen for a DIFFERENT our-contact — so the dropdown
-  // can flag a double-assignment (one person can't be two people).
-  const takenBy = (theirId: string, exceptOurId: string): string | null => {
-    for (const [ourId, tId] of Object.entries(pairs)) {
-      if (ourId !== exceptOurId && tId === theirId) return ourId;
-    }
-    return null;
-  };
+  // A their-contact already chosen for a DIFFERENT our-contact — one person
+  // can't be two people.
+  const takenBy = (theirId: string, exceptOurId: string): boolean =>
+    Object.entries(pairs).some(([ourId, tId]) => ourId !== exceptOurId && tId === theirId);
 
   const matchedCount = Object.values(pairs).filter((v) => v && v !== UNMATCHED).length;
 
@@ -62,11 +52,11 @@ export function OnwardPeopleMatcher({
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
         <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          Match the people
+          Who&rsquo;s the same person?
         </p>
         <p style={{ margin: "3px 0 0", fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>
-          Tell us who&rsquo;s the same person across these two sales, so they can confirm their onward
-          steps from either portal. We&rsquo;ve matched the obvious ones &mdash; just check them.
+          We couldn&rsquo;t match these people automatically. Tell us who they are on the other sale, so
+          they can confirm their onward steps from either portal.
         </p>
       </div>
 
@@ -79,8 +69,7 @@ export function OnwardPeopleMatcher({
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {ourContacts.map((c) => {
           const chosen = pairs[c.id] ?? null;
-          const clash = chosen && chosen !== UNMATCHED ? takenBy(chosen, c.id) : null;
-          const isAuto = autoMatched.has(c.id) && !dirty;
+          const clash = !!chosen && chosen !== UNMATCHED && takenBy(chosen, c.id);
           return (
             <div
               key={c.id}
@@ -114,9 +103,7 @@ export function OnwardPeopleMatcher({
                   >
                     <option value={UNMATCHED}>Not the same person</option>
                     {theirContacts.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} &middot; {t.roleLabel}
-                      </option>
+                      <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
                   <CaretDown size={13} weight="bold" aria-hidden style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }} />
@@ -124,11 +111,6 @@ export function OnwardPeopleMatcher({
                 {clash && (
                   <span style={{ fontSize: 11, color: "var(--agent-warning)", fontWeight: 500 }}>
                     Already matched to someone else &mdash; one person can&rsquo;t be two.
-                  </span>
-                )}
-                {isAuto && chosen && chosen !== UNMATCHED && !clash && (
-                  <span style={{ fontSize: 11, color: "var(--agent-success)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}>
-                    <Check size={11} weight="bold" aria-hidden /> Matched automatically
                   </span>
                 )}
               </div>
