@@ -200,7 +200,18 @@ export default withAuth(
         if (pathname.startsWith("/outsource")) return true;
         if (pathname.startsWith("/invite")) return true;
         if (pathname.startsWith("/invite-negotiator")) return true;
-        if (pathname.startsWith("/api/cron/")) return true;
+        // Cron routes authenticate by CRON_SECRET bearer inside each handler.
+        // Validate it fail-CLOSED here too (audit AUTO-003): the per-route checks
+        // compare `authorization !== "Bearer " + CRON_SECRET`, which would ACCEPT
+        // the literal "Bearer undefined" if CRON_SECRET were ever unset. Deny at
+        // the edge when the secret is missing or the header doesn't match, so a
+        // missing env var can't throw the scheduled-jobs door open. Vercel Cron
+        // sends Authorization: Bearer <CRON_SECRET>, so legitimate runs still pass;
+        // the per-route checks remain as defence-in-depth.
+        if (pathname.startsWith("/api/cron/")) {
+          const secret = process.env.CRON_SECRET;
+          return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
+        }
         if (pathname.startsWith("/api/reminders/")) return true;
         if (pathname.startsWith("/api/webhooks/")) return true;
         // Cookie-consent audit write — can be set before sign-in, on public pages.
