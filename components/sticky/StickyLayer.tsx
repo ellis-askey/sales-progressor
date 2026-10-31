@@ -29,21 +29,44 @@ export function StickyLayer({ transactionId, initialNotes, author }: { transacti
   const pending = useRef<Map<string, Partial<StickyNoteData>>>(new Map());
   const delTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  useEffect(() => () => { saveTimers.current.forEach(clearTimeout); delTimers.current.forEach(clearTimeout); }, []);
+  // Write a note's accumulated patch now, cancelling any pending debounce. Used
+  // by the debounce timer AND flushed on unmount / tab-hide so an edit made in
+  // the last moment before leaving the file is never lost.
+  const flushSave = useCallback((id: string) => {
+    const t = saveTimers.current.get(id); if (t) clearTimeout(t);
+    saveTimers.current.delete(id);
+    const p = pending.current.get(id); pending.current.delete(id);
+    if (!p) return;
+    updateStickyNote(id, transactionId, {
+      x: p.x, y: p.y, width: p.w, height: p.h, z: p.z, colour: p.colour, text: p.text, collapsed: p.collapsed,
+    }).catch(() => {});
+  }, [transactionId]);
+
+  const flushAllSaves = useCallback(() => {
+    for (const id of Array.from(pending.current.keys())) flushSave(id);
+  }, [flushSave]);
+
+  // Flush any still-pending edit before the layer goes away (route change) or the
+  // tab is hidden/closed, rather than dropping the timers unwritten.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushAllSaves(); };
+    window.addEventListener("pagehide", flushAllSaves);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      flushAllSaves();
+      delTimers.current.forEach(clearTimeout);
+      window.removeEventListener("pagehide", flushAllSaves);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [flushAllSaves]);
 
   // Debounced, coalesced save — accumulates every changed field for a note and
   // writes them together once edits go quiet.
   const scheduleSave = useCallback((id: string, patch: Partial<StickyNoteData>) => {
     pending.current.set(id, { ...(pending.current.get(id) ?? {}), ...patch });
     const prev = saveTimers.current.get(id); if (prev) clearTimeout(prev);
-    saveTimers.current.set(id, setTimeout(() => {
-      const p = pending.current.get(id); pending.current.delete(id); saveTimers.current.delete(id);
-      if (!p) return;
-      updateStickyNote(id, transactionId, {
-        x: p.x, y: p.y, width: p.w, height: p.h, z: p.z, colour: p.colour, text: p.text, collapsed: p.collapsed,
-      }).catch(() => {});
-    }, 550));
-  }, [transactionId]);
+    saveTimers.current.set(id, setTimeout(() => flushSave(id), 550));
+  }, [flushSave]);
 
   const patchNote = useCallback((id: string, patch: Partial<StickyNoteData>) => {
     let p = patch;
