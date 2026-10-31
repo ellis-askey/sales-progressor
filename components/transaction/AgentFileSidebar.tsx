@@ -342,7 +342,7 @@ export function AgentFileSidebar({
             width: 26, height: 26,
             color: healthColor,
           }}>
-            <Heartbeat size={20} weight="regular" />
+            <Heartbeat size={24} weight="regular" />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</p>

@@ -24,7 +24,7 @@ export function WhatsAppCloudPanel({
     initialThread ? { thread: initialThread, messages: initialMessages } : null,
   );
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const panelTag = useGlassTag("whatsapp-panel", "WhatsApp · panel");
+  const panelTag = useGlassTag("whatsapp-panel", "WhatsApp · panel", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
 
   if (threads.length === 0) return null;
 
