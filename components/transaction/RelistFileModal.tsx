@@ -904,15 +904,19 @@ export function RelistFileModal({
                 rest of the agent app: plain noun phrase, no parenthetical
                 "(optional)" since the absence of a required asterisk
                 already conveys it. */}
+            {/* This modal is portalled at z 1500, so the pickers' typeahead
+              * panels must sit above it (default 1400 would hide behind). */}
             <SolicitorPicker
               label="Buyer's solicitor"
               value={solicitor}
               onChange={setSolicitor}
+              panelZIndex={1600}
             />
             <BrokerPicker
               label="Buyer's broker"
               value={broker}
               onChange={setBroker}
+              panelZIndex={1600}
             />
 
             {/* Closed-loop chain arc (2026-06-05) — only shown when the

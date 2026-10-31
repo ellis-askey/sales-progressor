@@ -23,9 +23,11 @@ type Props = {
   onChange: (v: BrokerSelection | null) => void;
   /** Pre-populate with the agency's preferred broker on first render */
   preferredBroker?: BrokerSelection | null;
+  /** Raise the results panel above an escalated modal (e.g. Relist at z 1500). */
+  panelZIndex?: number;
 };
 
-export function BrokerPicker({ label, value, onChange, preferredBroker }: Props) {
+export function BrokerPicker({ label, value, onChange, preferredBroker, panelZIndex }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -185,6 +187,7 @@ export function BrokerPicker({ label, value, onChange, preferredBroker }: Props)
             matchWidth
             bare
             placement="bottom-start"
+            zIndex={panelZIndex}
           >
             {searchError ? (
               <>

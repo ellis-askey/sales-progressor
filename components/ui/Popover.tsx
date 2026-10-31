@@ -157,6 +157,7 @@ export function AnchoredPanel({
   bare,
   preset = "popover",
   role,
+  zIndex,
   children,
 }: {
   anchorRef: RefObject<HTMLElement | null>;
@@ -168,6 +169,9 @@ export function AnchoredPanel({
   bare?: boolean;
   preset?: "menu" | "popover";
   role?: string;
+  // Stacking context (default 1400). Raise it when the anchor lives inside an
+  // escalated drawer/modal (z 1500+) so the panel isn't hidden behind it.
+  zIndex?: number;
   children: ReactNode;
 }) {
   const { theme, isNight } = usePortalTheme();
@@ -213,6 +217,7 @@ export function AnchoredPanel({
       pos={pos}
       width={matchWidth ? anchorWidth : width}
       role={role}
+      zIndex={zIndex}
     >
       {children}
     </FloatLayer>

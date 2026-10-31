@@ -45,9 +45,13 @@ type Props = {
   // puts Clear up on the field's label row), suppress this picker's own header row
   // so there's no empty row and no duplicate Clear.
   hideHeader?: boolean;
+  // Raise the typeahead panels' stacking context when this picker lives inside an
+  // escalated modal (e.g. the Relist window at z 1500) so results aren't hidden
+  // behind it. Defaults to the AnchoredPanel baseline (1400).
+  panelZIndex?: number;
 };
 
-export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId, hideHeader }: Props) {
+export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId, hideHeader, panelZIndex }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -307,6 +311,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             matchWidth
             bare
             placement="bottom-start"
+            zIndex={panelZIndex}
           >
             {searchError ? (
               <>
@@ -358,6 +363,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                   matchWidth
                   bare
                   placement="bottom-start"
+                  zIndex={panelZIndex}
                 >
                   {handlers.length === 0 ? (
                     <p className="ui-pop-pick-empty">No case handlers yet</p>
