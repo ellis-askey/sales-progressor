@@ -652,11 +652,13 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
               style={{
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                 gap: 6, padding: "7px 10px", borderRadius: 8,
-                textDecoration: "none", fontSize: 12, color: "var(--agent-text-secondary)",
+                // Match the nav-rail items above (13px label + 17px icon) so the
+                // Settings/Account item doesn't read smaller than them (critique #299).
+                textDecoration: "none", fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-secondary)",
                 transition: "background 150ms",
               }}
             >
-              <GearSix weight="regular" style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <GearSix weight="regular" style={{ width: 17, height: 17, flexShrink: 0 }} />
               {isBusinessMember ? "Settings" : "Account"}
             </Link>
             <button
@@ -666,7 +668,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
                 flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
                 gap: 6, padding: "7px 10px", borderRadius: 8,
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 12, color: "var(--agent-text-secondary)",
+                fontSize: "var(--agent-text-body-sm)", color: "var(--agent-text-secondary)",
                 transition: "background 150ms",
               }}
             >
