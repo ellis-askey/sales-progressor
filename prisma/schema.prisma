@@ -862,6 +862,27 @@ model PropertyTransaction {
   // statistics. Set true by the migration action; defaults false.
   isMigrated Boolean @default(false)
 
+  // Import-time anchor for a migrated file (Boardwalk self-service Migrate Sale,
+  // and available to the admin path). DISTINCT from createdAt (which the admin
+  // path backdates to the sale's real start for a realistic age + 12-week
+  // target) and from each milestone's historical completedAt. It records WHEN
+  // the file entered our system, and is the floor every forward-looking
+  // automation respects for migrated files: the client-chase and solicitor-
+  // chase crons never anchor a chase before this instant, so a backdated file
+  // can't fire a retrospective burst of "overdue" chases the moment it lands.
+  // Null on ordinary sales and on legacy admin-migrated files (those keep the
+  // pre-existing completedAt-anchored behaviour). Set once at import.
+  migratedAt DateTime?
+
+  // Idempotency key for the Migrate Sale import (client-minted UUID, one per
+  // review session). A retry / double-submit with the same key resolves to the
+  // SAME file instead of creating a duplicate. migrationFinalizedAt is stamped
+  // only after the whole import (file + contacts + historical milestones)
+  // succeeds — a keyed-but-unfinalized row is a recoverable partial that a
+  // retry resumes. Both null on non-migrated files.
+  migrationIdempotencyKey String?   @unique
+  migrationFinalizedAt    DateTime?
+
   // True when this file was claimed onto the platform while already in
   // progress (agent reconciled ≥1 past milestone at claim). Like isMigrated,
   // it EXCLUDES the file from any date-derived velocity metric: its createdAt

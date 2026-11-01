@@ -293,7 +293,7 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   );
 }
 
-export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true }: { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean }) {
+export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false }: { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -487,6 +487,25 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
 
         {/* Nav */}
         <nav className="agent-sidebar-nav" style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Migrate sale — allowlisted agencies only (ships dark). Sits directly
+              above the New sale CTA and reuses its styling + hover states. */}
+          {canMigrateSale && (() => {
+            const isMigrate = pathname.startsWith("/agent/transactions/migrate");
+            return (
+              <Link
+                href="/agent/transactions/migrate"
+                prefetch={true}
+                onClick={() => setMobileOpen(false)}
+                className={`agent-newsale-cta${isMigrate ? " is-active" : ""}`}
+                title="Migrate a sale"
+              >
+                <span className="agent-newsale-badge" aria-hidden>
+                  <ArrowsClockwise size={14} weight="bold" color="#fff" />
+                </span>
+                <span className="agent-newsale-label">Migrate sale</span>
+              </Link>
+            );
+          })()}
           {/* New sale CTA */}
           {(() => {
             // Hide it for a team member before the business has any clients — the

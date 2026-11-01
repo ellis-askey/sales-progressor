@@ -129,39 +129,12 @@ function sideForMilestoneCode(code: string): ContactRole | null {
 // Returns null if the rule can't be anchored today (anchor not yet
 // confirmed, or reconciled-at-claim with no eventDate). Callers skip
 // those rules until the anchor lands.
-type RuleAnchorInput = {
-  rule: { anchorMilestoneId: string | null; useEventDate: boolean };
-  transaction: { createdAt: Date; isMigrated?: boolean };
-  anchorCompletion: {
-    state: string;
-    completedAt: Date | null;
-    eventDate: Date | null;
-    reconciledAtClaim: boolean;
-  } | null;
-};
-export function computeAnchorDate(input: RuleAnchorInput): Date | null {
-  const { rule, transaction, anchorCompletion } = input;
-  if (!rule.anchorMilestoneId) {
-    // No anchor → use transaction createdAt as the silence-clock base.
-    return transaction.createdAt;
-  }
-  if (!anchorCompletion || anchorCompletion.state !== "complete") return null;
-  // Brought-in (migrated) sale: always anchor on when it entered our system
-  // (import time = completedAt), NEVER a historical eventDate — otherwise every
-  // already-done step reads as overdue and the client gets chased about things
-  // that happened before the sale was ever with us. ("Count from when it's
-  // added.") Chain-claimed sales keep the eventDate anchor (recent real progress).
-  if (transaction.isMigrated) {
-    return anchorCompletion.completedAt ?? transaction.createdAt;
-  }
-  if (anchorCompletion.reconciledAtClaim) {
-    return anchorCompletion.eventDate ?? null;
-  }
-  if (rule.useEventDate && anchorCompletion.eventDate) {
-    return anchorCompletion.eventDate;
-  }
-  return anchorCompletion.completedAt ?? transaction.createdAt;
-}
+// Pure anchor maths live in ./chase-anchor (no heavy deps → unit-testable).
+// Imported for internal use below AND re-exported so existing importers of
+// computeAnchorDate from this module are unchanged.
+import { computeAnchorDate } from "@/lib/services/chase-anchor";
+export { computeAnchorDate };
+export type { RuleAnchorInput } from "@/lib/services/chase-anchor";
 
 // ─── findDueClientChases — PURE READ ────────────────────────────────────
 // Returns a per-contact map of milestone codes that should receive a
@@ -244,6 +217,9 @@ export async function findDueClientChases(now: Date): Promise<DueChaseTuple[]> {
       id: true,
       createdAt: true,
       isMigrated: true,
+      // Import instant — the floor computeAnchorDate uses so a migrated file
+      // never chases retrospectively for pre-import historical steps.
+      migratedAt: true,
       agencyId: true,
       // Exchange-day suppression: a file aiming to exchange today is dropped
       // from the whole chase pass, so no automated client chase goes out on

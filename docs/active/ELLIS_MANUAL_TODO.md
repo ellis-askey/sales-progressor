@@ -4,7 +4,21 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-10-31
+Last updated: 2026-11-01
+
+---
+
+## Boardwalk "Migrate Sale" — go-live steps (2026-11-01)
+
+New self-service **Migrate Sale** feature, built on the `staging` branch, **ships fully dark**. Three things are needed to turn it on and make it work:
+
+1. **Set the agency allowlist env var.** The feature is gated to agencies listed in `MIGRATE_SALE_AGENCY_IDS` (comma-separated DB agency ids; empty/unset = off for everyone). Once Boardwalk Property Co's agency row exists, add its **database id** to this env var in Vercel (staging first, then production). No code change or redeploy of logic is needed — the nav entry, the page, and the server action all read this one list. Until it's set, nothing is exposed.
+
+2. **Apply the migration to PRODUCTION before the code reaches prod.** Migration `20261101120000_boardwalk_migration_fields` adds three nullable columns to `PropertyTransaction` (`migratedAt`, `migrationIdempotencyKey`, `migrationFinalizedAt`) + one unique index. **Applied to STAGING** (via the pooler) and verified. It is additive and idempotent (`IF NOT EXISTS`). **Action:** when promoting to prod, run `prisma migrate deploy` against prod (or paste the SQL from that migration's `migration.sql` into the prod Supabase SQL editor) **before** deploying the code. The file-page query selects all scalar columns, so code-before-columns would error. DB first, code second.
+
+3. **Local dev only — restart the dev server + `npx prisma generate`.** The build couldn't refresh the Prisma query engine (`EPERM` — the running dev server holds the `.dll`). The generated **types** are current (tsc is clean), but the **runtime engine** won't know the three new columns until it's regenerated. Stop the local dev server, run `npx prisma generate`, restart. **Vercel builds regenerate the client automatically, so preview/production deploys are unaffected.**
+
+**Not yet runtime-tested end to end.** Because of the engine lock above I could not drive a live import against the app during the build. Verified: `tsc` clean project-wide; 37 unit tests pass (incl. 7 new covering the migrated chase-anchor flooring); the staging DDL is applied; and the silent-import path provably contains no email/push/invite/chase calls. Worth a manual staging run once the env var + regen are in place: import a sale with several historical milestones, confirm (a) the file opens at the right stage with the real historical dates, (b) no client/solicitor emails or chases fire, (c) importing the same memo twice doesn't create a duplicate, (d) after you clear the client-emails pause on the file, normal weekly updates + forward chases resume (dated from import, not retrospectively).
 
 ---
 
@@ -351,12 +365,15 @@ To critique the external-progressor surfaces live from the test accounts:
 3. **Critique button** now appears for both (they're on a temporary allowlist in `lib/security/hybrid-emails.ts` → `CRITIQUE_TESTER_EMAILS`). Notes land in the same place as your superadmin critiques (Command Centre → Critique). It only grants critique capture, nothing else in the command centre.
 4. **CLEANUP after the test:** remove the two emails from `CRITIQUE_TESTER_EMAILS` (and optionally delete the test accounts/business — note the RESTRICT FKs, so offboard their files/users first).
 
-### Business billing (#3) — DARK; go-live steps when you want to charge external businesses
-The business billing is built but **not taking any money** — it computes + shows the bill (£59 base + £39/extra member + £5/sale) and accrues the £5-per-sale when a sale is added (at exchange only for brought-in/migrated sales), but creates no Stripe objects and charges nothing until you flip the collection switch. To go live:
-1. **In Stripe:** create two **recurring (monthly) Prices** — one at £59 (the base/main user) and one at £39 (per team member seat). Copy their price IDs.
-2. **Env vars (prod):** `STRIPE_PRICE_BUSINESS_BASE=<£59 price id>`, `STRIPE_PRICE_BUSINESS_SEAT=<£39 price id>`, and `PROGRESSION_BILLING_COLLECT=true`. (Stripe keys + webhook are already set from the agency billing.)
-3. **Verify in Stripe TEST mode first** — this payments code is written but has NOT been run against Stripe. Before prod: with test keys + test prices, add a card for a test business, confirm the subscription is created with the right seat quantity, that a £5 per-sale item rides the next invoice, and that the webhook clears/sets `paymentFailedAt`.
-4. **Still to wire at go-live (small):** the card-capture UI on the Billing tab (reuse the agency Stripe-Elements form), the trigger that syncs the subscription seat count when the team changes (`syncBusinessSubscription`), and a daily cron that pushes the £5 per-sale items (`pushPendingPerSaleItems`). The building blocks exist in `lib/progression/business-stripe.ts`; they just need their callers wired + tested.
+### Business billing (#3) — ✅ LIVE IN PRODUCTION (confirmed 2026-11-01)
+**This is no longer dark. It is live and taking real money.** Confirmed 2026-11-01 via the production Stripe dashboard (`acct_1UNqo0FJibD43diI`, **live mode**): external businesses are charged on the £59 base / £39 extra member / £5-per-sale subscription model. Nov 1 2026 run showed real GBP charges — £5 and £249 succeeded, £149 **failed** for Moves By Wright (its card `•••• 9122` declined; it's now in the dunning/grace window per `business-dunning.ts`).
+
+Go-live is **done** — recorded here for history:
+1. ✅ Two recurring Stripe Prices created (£59 base, £39 seat).
+2. ✅ `STRIPE_PRICE_BUSINESS_BASE`, `STRIPE_PRICE_BUSINESS_SEAT`, `PROGRESSION_BILLING_COLLECT=true`, `PROGRESSION_BUSINESSES_ENABLED=true` all set in prod (live Stripe keys + webhook).
+3. ✅ Run against Stripe in production — real subscriptions created, prorated first invoices charged, per-sale items and the failed-payment webhook path all exercised.
+
+**Open follow-up:** a failed renewal (Moves By Wright, Nov 1) is now in real-money dunning — keep an eye on the grace→blocked transition and whether the card gets updated.
 - **Part B (business invoices its own client agencies):** separate, off-Stripe (the business collects from its agencies outside the platform) — see the billing page / Clients workspace.
 
 ---

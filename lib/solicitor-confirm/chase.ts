@@ -166,8 +166,17 @@ function resolveAnchorDate(args: {
   // Brought-in (migrated) sale: ignore historical eventDates and anchor on when
   // it entered our system, so solicitors aren't chased about pre-migration steps.
   isMigrated?: boolean;
+  // Import instant — the floor beneath which a migrated file never anchors a
+  // chase. Null on legacy admin-migrated files (prior behaviour) and ordinary
+  // files. See client-chase-cron.computeAnchorDate for the same rule.
+  migratedAt?: Date | null;
 }): Date | null {
-  const { stepCode, rule, allCompletions, side, activeBuyerRoundId, txCreatedAt, isMigrated } = args;
+  const { stepCode, rule, allCompletions, side, activeBuyerRoundId, txCreatedAt, isMigrated, migratedAt } = args;
+  const migratedFloor = isMigrated ? (migratedAt ?? null) : null;
+  const floorMigrated = (d: Date | null): Date | null => {
+    if (!d || !migratedFloor) return d;
+    return d.getTime() < migratedFloor.getTime() ? migratedFloor : d;
+  };
 
   const explicitAnchor = rule.anchorMilestoneCode;
   const directPrereq = DIRECT_PREREQUISITES[stepCode]?.[0] ?? null;
@@ -185,8 +194,10 @@ function resolveAnchorDate(args: {
         && (c.buyerRoundId === null || c.buyerRoundId === activeBuyerRoundId),
     );
     if (!anchor) return null; // anchor not complete → don't chase yet
-    // Migrated sale: use import time (completedAt), never the historical eventDate.
-    if (isMigrated) return anchor.completedAt ?? txCreatedAt;
+    // Migrated sale: floor the anchor to the import instant so a backdated file
+    // never chases a solicitor retrospectively for pre-import steps; a genuine
+    // post-import completion chases forward from its real date.
+    if (isMigrated) return floorMigrated(anchor.completedAt ?? txCreatedAt);
     if (rule.useAnchorEventDate && anchor.eventDate) {
       return anchor.eventDate;
     }
@@ -205,7 +216,7 @@ function resolveAnchorDate(args: {
   const completedTimes = sideCompleted
     .map((c) => c.completedAt?.getTime())
     .filter((t): t is number => t !== undefined);
-  return completedTimes.length ? new Date(Math.max(...completedTimes)) : txCreatedAt;
+  return floorMigrated(completedTimes.length ? new Date(Math.max(...completedTimes)) : txCreatedAt);
 }
 
 // Pure read: which (file, side) digests are due right now.
@@ -236,6 +247,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
       lastActivityAt: true,
       createdAt: true,
       isMigrated: true, // brought-in sales anchor chases on import time, not historical event dates
+      migratedAt: true, // import instant — floor so historical steps never chase retrospectively
       agency: { select: { solicitorChaseEnabled: true } }, // self/TSP files gated by this; external files follow the business pref
       progressionBusinessId: true, // business can switch solicitor chases off (business automation)
       clientEmailsPaused: true, // the file's "Automatic chasing" master — off = no chasing at all (clients OR solicitors)
@@ -345,6 +357,7 @@ export async function findDueSolicitorChases(now: Date, global: GlobalCadence): 
           activeBuyerRoundId: tx.activeBuyerRoundId,
           txCreatedAt: tx.createdAt,
           isMigrated: tx.isMigrated,
+          migratedAt: tx.migratedAt,
         });
         if (!anchor) continue; // anchor milestone not complete → not chase-eligible
 

@@ -33,6 +33,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { applyMigratedMilestoneCompletions } from "@/lib/services/migrate-milestones";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
   sendAdminMilestoneNotificationToPortal,
@@ -1665,139 +1666,16 @@ export async function migrateCompleteMilestonesAction(input: {
 
   if (input.completions.length === 0) return { applied: 0 };
 
-  const defIds = input.completions.map((c) => c.milestoneDefinitionId);
-  const defs = await prisma.milestoneDefinition.findMany({
-    where: { id: { in: defIds } },
-    select: { id: true, code: true, name: true, side: true, eventDateRequired: true },
-  });
-  const defById = new Map(defs.map((d) => [d.id, d]));
-
   // Attribute completions to the chosen agent. Null when not supplied — better
   // than the admin's id (which renders as "Admin confirmed X" in the timeline).
-  const completerId = input.agentUserId ?? null;
-
-  // Phase 1 commit 4e — round scope for migrate-action find-after-write +
-  // create-branch stamping. activeBuyerRoundId fetched once per call.
-  const txRowForMigrate = await prisma.propertyTransaction.findUnique({
-    where: { id: input.transactionId },
-    select: { activeBuyerRoundId: true },
+  // The silent backdated-tick core is shared with the Boardwalk self-service
+  // migration flow (lib/services/migrate-milestones.ts) — identical behaviour,
+  // each caller gates itself.
+  const { applied } = await applyMigratedMilestoneCompletions({
+    transactionId: input.transactionId,
+    completions: input.completions,
+    completerId: input.agentUserId ?? null,
   });
-  const migrateRoundId = txRowForMigrate?.activeBuyerRoundId ?? null;
-  const migrateScope = forRound(migrateRoundId, input.transactionId);
-
-  let applied = 0;
-  let latestEventTime = 0;
-
-  for (let i = 0; i < input.completions.length; i++) {
-    const c = input.completions[i]!;
-    const def = defById.get(c.milestoneDefinitionId);
-    if (!def) continue;
-
-    const eventDateObj = new Date(c.eventDate);
-    if (Number.isNaN(eventDateObj.getTime())) continue;
-    if (eventDateObj.getTime() > latestEventTime) latestEventTime = eventDateObj.getTime();
-
-    // eventDate is a semantic real-world-event field per
-    // docs/reference/PRODUCT_TRUTH.md — it should only be populated for
-    // milestones whose definition carries eventDateRequired: true (survey,
-    // valuation, mortgage offer, exchange, completion target). For other
-    // milestones the user-supplied date is the historical completedAt only,
-    // not an event date — so we leave eventDate null.
-    const eventDateForCompletion = def.eventDateRequired ? eventDateObj : null;
-
-    try {
-      await prisma.$transaction(async (ptx) => {
-        const existing = await ptx.milestoneCompletion.findFirst({
-          where: {
-            transactionId: input.transactionId,
-            milestoneDefinitionId: c.milestoneDefinitionId,
-            ...milestoneScopeWhere(migrateScope),
-          },
-          select: { id: true },
-        });
-        if (existing) {
-          await ptx.milestoneCompletion.update({
-            where: { id: existing.id },
-            data: {
-              state: "complete",
-              completedAt: eventDateObj,
-              eventDate: eventDateForCompletion,
-              completedById: completerId,
-              notRequiredReason: null,
-              // 2026-07-13 (Chunk 6a): admin migration - if the row was
-              // previously NR'd, complete it cleanly without dragging
-              // the NR attribution forward.
-              notRequiredById: null,
-              notRequiredAt: null,
-              summaryText: null,
-            },
-          });
-          return;
-        }
-        await ptx.milestoneCompletion.create({
-          data: {
-            transactionId: input.transactionId,
-            milestoneDefinitionId: c.milestoneDefinitionId,
-            state: "complete",
-            completedAt: eventDateObj,
-            eventDate: eventDateForCompletion,
-            completedById: completerId,
-            summaryText: null,
-            buyerRoundId: def.side === "purchaser" ? migrateRoundId : null,
-          },
-        });
-      });
-
-      await unlockDirectDependents(input.transactionId, def.code).catch((err) =>
-        console.error(`[migrateCompleteMilestonesAction] unlock failed for ${def.code}:`, err),
-      );
-
-      // Flip any chase reminders targeting this milestone to status="completed".
-      // The trailing evaluateTransactionReminders pass can race (or no-op if the
-      // file is already on hold), and even when it runs it uses deactivateLog
-      // which lands as "inactive" — the wrong terminal state for "we have proof
-      // this milestone happened". Mirrors completeMilestoneAction's flow.
-      await autoCompleteRemindersForMilestone(input.transactionId, def.code).catch((err) =>
-        console.error(`[migrateCompleteMilestonesAction] reminder auto-complete failed for ${def.code}:`, err),
-      );
-
-      applied++;
-    } catch (err) {
-      console.error(
-        `[migrateCompleteMilestonesAction] failed to apply ${def.code} on tx ${input.transactionId}:`,
-        err,
-      );
-    }
-  }
-
-  // Bump lastActivityAt to the most recent backdated event so the file reads
-  // as "Active <X> ago" rather than "Just added" on the activity-driven UIs.
-  if (latestEventTime > 0) {
-    await prisma.propertyTransaction.update({
-      where: { id: input.transactionId },
-      data: { lastActivityAt: new Date(latestEventTime) },
-    }).catch((err) =>
-      console.error(`[migrateCompleteMilestonesAction] lastActivityAt bump failed:`, err),
-    );
-  }
-
-  // Exchange gate evaluation — unlockDirectDependents only handles
-  // predecessor-chain unlocks, but VM18 / PM25 are gates that depend on ALL
-  // side-blockers being complete. After bulk-ticking, run the gate check
-  // for both sides so any side that's now fully ready gets its gate flipped
-  // from "locked" to "available".
-  await maybeUnlockExchangeGate(input.transactionId, "vendor", completerId).catch((err) =>
-    console.error(`[migrateCompleteMilestonesAction] vendor gate unlock failed:`, err),
-  );
-  await maybeUnlockExchangeGate(input.transactionId, "purchaser", completerId).catch((err) =>
-    console.error(`[migrateCompleteMilestonesAction] purchaser gate unlock failed:`, err),
-  );
-
-  // One reminder-engine pass against the new completion state — seeds the
-  // reminders the file should have right now, no duplicates for completed ones.
-  await evaluateTransactionReminders(input.transactionId).catch((err) =>
-    console.error(`[migrateCompleteMilestonesAction] reminder evaluate failed:`, err),
-  );
 
   revalidateTx(input.transactionId);
   return { applied };

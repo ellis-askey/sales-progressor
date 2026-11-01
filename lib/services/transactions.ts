@@ -963,10 +963,26 @@ export type CreateTransactionInput = {
   onwardBrokerContactId?: string | null;
   onwardBrokerReferralFee?: number | null;
   onwardBrokerReferral?: boolean;
-  // True when the file is being created via the admin Migrate Sale page.
-  // Excludes the row from milestone-velocity analytics — backdated
-  // completedAt timestamps would pollute averages otherwise.
+  // True when the file is being created via a Migrate Sale import (admin page or
+  // the Boardwalk self-service flow). Excludes the row from milestone-velocity
+  // analytics — backdated completedAt timestamps would pollute averages otherwise.
   isMigrated?: boolean;
+  // Import instant for a migrated file (Boardwalk self-service). Persisted to
+  // PropertyTransaction.migratedAt and used by the chase crons as the floor
+  // beneath which no migrated file is ever chased — see the column comment in
+  // schema.prisma. Distinct from createdAt. Null/omitted on ordinary files.
+  migratedAt?: Date | null;
+  // Client-minted idempotency key for a migration import, set ATOMICALLY with
+  // the row so a concurrent double-submit with the same key hits the unique
+  // constraint (the caller resolves the race to the existing file). Null on
+  // ordinary files.
+  migrationIdempotencyKey?: string | null;
+  // Start a file with automated client emails held (weekly updates + client
+  // chases suppressed at the cron layer) until the team deliberately activates
+  // them. Used by the Boardwalk migration so an imported sale never messages a
+  // client off the back of historical state; cleared via the normal file
+  // Email-settings control once the team has reviewed. Defaults false (normal).
+  clientEmailsPaused?: boolean;
   // Invited-agent "Send to us": the sale is created BY an ordinary agent and routed
   // to their progression business. We never block the agent for the progressor's
   // billing state (no card / dunning) — the sale is accepted, the £5 is owed and
@@ -1220,6 +1236,11 @@ export async function createTransaction(input: CreateTransactionInput) {
       tenure: input.tenure ?? null,
       isShareOfFreehold: input.isShareOfFreehold ?? false,
       isMigrated: input.isMigrated ?? false,
+      migratedAt: input.migratedAt ?? null,
+      migrationIdempotencyKey: input.migrationIdempotencyKey ?? null,
+      // Held at import for migrated files; cleared by the team when they
+      // activate client communications. No effect on ordinary creates (false).
+      clientEmailsPaused: input.clientEmailsPaused ?? false,
       isDemo: input.isDemo ?? false,
       demoExpiresAt: input.isDemo ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
       purchaseType: input.purchaseType ?? null,
