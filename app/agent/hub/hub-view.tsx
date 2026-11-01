@@ -57,7 +57,7 @@ import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Plus, Clock, Warning, CaretRight, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
+import { Clock, Warning, CaretRight, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -308,14 +308,9 @@ export default async function Hub() {
             <UserCircle size={15} weight="regular" />
             Complete your profile
           </Link>
-        ) : canCreateSale && !isExternalProgressor ? (
-          // External progressors already have a "New sale" in the sidebar — a second
-          // one up here read as too many CTAs (critique #169).
-          <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-sm" style={{ textDecoration: "none" }}>
-            <Plus size={14} weight="bold" />
-            New sale
-          </Link>
         ) : null}
+        {/* "New sale" button removed from the hub header (critique #298) — sale
+            creation stays in the sidebar / /agent/transactions/new. */}
         {/* In-app email composer — pick a sale, write, send from your own address
             (critique 2026-10-05). Available to everyone who manages files. */}
         <AddNoteButton />
