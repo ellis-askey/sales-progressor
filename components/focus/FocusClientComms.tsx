@@ -135,6 +135,19 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
   const toggleCard = (id: string) =>
     setToggled((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
+  // Mobile/tablet (or any touch device): tapping a last-contact channel glyph
+  // shows its info popover instead of navigating — there, only the photo/address
+  // opens the file. Desktop (hover + fine pointer) keeps click-to-open.
+  const [tapToInfo, setTapToInfo] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 999px), (pointer: coarse)");
+    const update = () => setTapToInfo(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   // Bar fills left-to-right on first paint: start at 0, flip to the real
   // percentage on the next frame so the width transition animates in.
   const [barIn, setBarIn] = useState(false);
@@ -306,6 +319,7 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
                         side={s}
                         includeAuto={includeAuto}
                         showWhatsApp={showWhatsApp}
+                        tapToInfo={tapToInfo}
                         done={view === "recent" && touched(f, s)}
                         needsYouReason={needsYou[f.transactionId]}
                         onLogCall={(note, phone) => resolve(f.transactionId, s.side, `${s.side === "vendor" ? "Seller" : "Buyer"} · call logged`, async () => {
@@ -392,12 +406,13 @@ function SideSeg({ value, onChange }: { value: SideFilter; onChange: (v: SideFil
 }
 
 function SideBlock({
-  file, side, includeAuto, showWhatsApp, done, needsYouReason, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
+  file, side, includeAuto, showWhatsApp, tapToInfo, done, needsYouReason, onLogCall, onCompose, onMarkEmailed, onNotRequired, onOpenEmail,
 }: {
   file: FocusCommsFile;
   side: FocusSide;
   includeAuto: boolean;
   showWhatsApp: boolean;
+  tapToInfo: boolean;
   done: boolean;
   needsYouReason?: string;
   onLogCall: (note: string, phone?: string) => void;
@@ -497,11 +512,11 @@ function SideBlock({
           full record (direction, state, exact time, subject/snippet) is one hover
           away. WhatsApp is dropped entirely when it isn't a live channel here. */}
       <div className="fc-led">
-        <ChannelUnit channel="email" c={activeEmail} recent={!!mostRecent && mostRecent === activeEmail} tone={recentTone} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
+        <ChannelUnit channel="email" c={activeEmail} recent={!!mostRecent && mostRecent === activeEmail} tone={recentTone} tapToInfo={tapToInfo} onOpen={(c) => c.direction === "in" ? router.push(`/agent/transactions/${file.transactionId}`) : onOpenEmail(c.messageId)} />
         {showWhatsApp ? (
-          <ChannelUnit channel="whatsapp" c={lc.whatsapp} recent={!!mostRecent && mostRecent === lc.whatsapp} tone={recentTone} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
+          <ChannelUnit channel="whatsapp" c={lc.whatsapp} recent={!!mostRecent && mostRecent === lc.whatsapp} tone={recentTone} tapToInfo={tapToInfo} onOpen={() => router.push(`/agent/transactions/${file.transactionId}/whatsapp`)} />
         ) : null}
-        <ChannelUnit channel="call" c={lc.call} recent={!!mostRecent && mostRecent === lc.call} tone={recentTone} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
+        <ChannelUnit channel="call" c={lc.call} recent={!!mostRecent && mostRecent === lc.call} tone={recentTone} tapToInfo={tapToInfo} onOpen={() => router.push(`/agent/transactions/${file.transactionId}`)} />
       </div>
     </div>
   );
@@ -516,7 +531,7 @@ const CHANNEL_ICON: Record<FocusChannel, typeof EnvelopeSimple> = {
 // A bare channel glyph (no backer tile), a status pip, and the relative time.
 // Hovering reveals the full record in a small popover. Empty channels show a
 // dimmed glyph and read "none" on hover — never implied contact.
-function ChannelUnit({ channel, c, onOpen, recent = false, tone = null }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void; recent?: boolean; tone?: "ok" | "danger" | null }) {
+function ChannelUnit({ channel, c, onOpen, recent = false, tone = null, tapToInfo = false }: { channel: FocusChannel; c: FocusChannelContact | null; onOpen: (c: FocusChannelContact) => void; recent?: boolean; tone?: "ok" | "danger" | null; tapToInfo?: boolean }) {
   const Icon = CHANNEL_ICON[channel];
   // The most-recent touch is drawn SOLID, with its time coloured by how overdue
   // it is (#293). A null/empty channel is never "recent".
@@ -561,7 +576,9 @@ function ChannelUnit({ channel, c, onOpen, recent = false, tone = null }: { chan
       <button
         type="button"
         className={`fc-u ${channel}${recent ? " recent" : ""}`}
-        onClick={() => onOpen(c)}
+        // On mobile/tablet (or touch) a tap only pins the info popover (the Tooltip
+        // handles that); the photo/address is the sole route to the file there.
+        onClick={() => { if (!tapToInfo) onOpen(c); }}
       >
         <span className="fc-ic">
           <Icon size={16} weight={recent ? "fill" : "regular"} />

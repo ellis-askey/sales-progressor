@@ -9,12 +9,19 @@
 // as photoUrl. Placeholder art + its light/dark switch live in
 // .property-photo-fallback; the loading gradient in .property-thumb-loading (globals.css).
 //
-// Resilience (2026-09-25): a failed load retries a few times with backoff, and a
-// regained connection retries again, so a transient network miss heals itself.
+// Resilience (2026-09-25, extended 2026-10-31): a failed load keeps retrying on a
+// capped exponential backoff — not just three quick tries — and a regained
+// connection, tab refocus or the tab becoming visible kicks off a fresh attempt
+// immediately. So a photo that missed on poor signal heals itself the moment the
+// signal returns, instead of giving up and showing the house for good.
 
 import { useEffect, useRef, useState } from "react";
 
-const MAX_RETRIES = 3;
+// Keep trying on flaky signal: quick heals first, then a slower capped backoff.
+// Stops only after MAX_RETRIES so a genuinely dead/expired URL can't loop forever
+// — reconnect/refocus re-arms it anyway.
+const MAX_RETRIES = 10;
+const MAX_BACKOFF = 30_000;
 
 export function PropertyThumb({
   photoUrl,
@@ -44,13 +51,25 @@ export function PropertyThumb({
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
   }, [attempt, photoUrl]);
 
-  // Connection came back → give a given-up image a fresh set of tries. The key
-  // change on <img> remounts it, forcing the browser to re-request the bytes.
+  // Connectivity likely restored (reconnect, tab refocus, tab becomes visible) →
+  // give a stalled/given-up image a fresh set of tries right away rather than
+  // waiting out the backoff. The key change on <img> remounts it, forcing the
+  // browser to re-request the bytes.
   useEffect(() => {
     if (!photoUrl || typeof window === "undefined") return;
-    const onOnline = () => { setGivenUp(false); setLoaded(false); setAttempt(0); };
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    const retry = () => {
+      if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) return; // already loaded
+      setGivenUp(false); setLoaded(false); setAttempt(0);
+    };
+    const onVis = () => { if (document.visibilityState === "visible") retry(); };
+    window.addEventListener("online", retry);
+    window.addEventListener("focus", retry);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("online", retry);
+      window.removeEventListener("focus", retry);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [photoUrl]);
 
   const box: React.CSSProperties = {
@@ -67,8 +86,8 @@ export function PropertyThumb({
 
   function handleError() {
     setLoaded(false);
-    if (attempt >= MAX_RETRIES) { setGivenUp(true); return; } // show the house instead of a blank
-    const delay = 400 * 2 ** attempt; // 400ms, 800ms, 1600ms
+    if (attempt >= MAX_RETRIES) { setGivenUp(true); return; } // stop hammering a dead URL; reconnect/refocus re-arms
+    const delay = Math.min(MAX_BACKOFF, 400 * 2 ** attempt); // 400ms, 800ms, 1.6s … capped at 30s
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setAttempt((a) => a + 1), delay);
   }
