@@ -151,7 +151,10 @@ export function ChainCard({
         {/* Header: photo + address, and the open-chain action */}
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
           <PropertyThumb photoUrl={chain.ourPhotoUrl} size={60} />
-          <div className="chain-head-content" style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+          {/* justify-content lives in CSS (not inline) so the mobile rule can win —
+              an inline space-between would distribute vertical free space in the
+              stacked column and push the address down off the top. */}
+          <div className="chain-head-content" style={{ flex: 1, minWidth: 0, display: "flex", gap: 12, alignItems: "flex-start" }}>
             <div className="chain-head-addr" style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                 <span

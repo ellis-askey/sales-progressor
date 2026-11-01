@@ -414,6 +414,9 @@ export function ChainsWorkspace({
            trimmed meta row are off by default; the mobile rules below switch
            them on. Keeps desktop byte-identical. */
         .chain-prop-card .chain-open-inline { display: none; }
+        /* Desktop: address left, links chip pushed right. Lives here (not inline)
+           so the mobile column can override it to pack to the top. */
+        .chain-prop-card .chain-head-content { justify-content: space-between; }
         /* Desktop shows the full meta row, mobile the trimmed one. Display lives
            here (not inline on the divs) so this toggle actually wins — an inline
            display:flex would override it and render both rows (the duplicate
@@ -426,10 +429,12 @@ export function ChainsWorkspace({
           /* #298: on mobile the address no longer shares a row with the links
              column on its right. The header content stacks (links chip on top,
              address below) so the address block takes the full width and its
-             town/postcode + sale-agreed·agency lines wrap instead of clipping. */
-          .chain-prop-card .chain-head-content { flex-direction: column-reverse; }
+             town/postcode + sale-agreed·agency lines wrap instead of clipping.
+             column + order:-1 packs both to the top (flex-start) so the address
+             sits directly under the links chip — not pushed down by space-between. */
+          .chain-prop-card .chain-head-content { flex-direction: column; justify-content: flex-start; gap: 6px; }
           .chain-prop-card .chain-head-addr { align-self: stretch; }
-          .chain-prop-card .chain-head-side { align-self: stretch; }
+          .chain-prop-card .chain-head-side { align-self: stretch; order: -1; }
           .chain-prop-card .chain-addr-text { white-space: normal; overflow: visible; text-overflow: clip; }
           /* #299: trim the status notes to the top three on mobile (desktop
              keeps the full set). */
