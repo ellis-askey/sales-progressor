@@ -1775,11 +1775,18 @@
   .people-row-chevron:hover { color: var(--agent-coral-deep); }
   .people-row-chevron:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); }
   .people-row-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+  /* Portal dot + chevron grouped together (clients) or just the chevron
+     (professionals). Sits between the identity and the comms buttons on desktop. */
+  .people-row-meta { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .people-row-meta .people-row-chevron { margin-left: 0; }
   @container (max-width: 459px) {
+    /* Narrow cards: the identity takes the whole first line; the comms buttons
+       move to the bottom LEFT and the dot + chevron sit bottom RIGHT, for a
+       cleaner row (critique #292). */
     .people-row { flex-wrap: wrap; row-gap: 6px; }
-    /* Identity + dot + chevron stay together on the first line; only the
-       comms buttons drop to a bottom row, right-aligned. */
-    .people-row-actions { flex-basis: 100%; justify-content: flex-end; }
+    .people-row-main { flex-basis: 100%; }
+    .people-row-actions { order: 1; flex: 1 1 auto; justify-content: flex-start; }
+    .people-row-meta { order: 2; margin-left: auto; }
   }
 
   /* People list — Clients (ContactsSection) + Professionals (SolicitorSection)

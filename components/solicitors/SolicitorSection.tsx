@@ -322,19 +322,22 @@ function SolicitorTile({
                 </div>
               </div>
             </button>
-            {/* Chevron — its own button so it can drop to the bottom row on
-                narrow cards; toggles the same panel. */}
-            <button
-              type="button"
-              onClick={() => setExpanded((x) => !x)}
-              aria-expanded={expanded}
-              aria-label={expanded ? `Hide details for ${info.firm.name}` : `Show details for ${info.firm.name}`}
-              className="people-row-chevron"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
-                <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+            {/* Chevron — grouped in people-row-meta so on narrow cards it sits
+                bottom-right while the comms buttons take the bottom-left, matching
+                the client rows (critique #292). No portal dot on professionals. */}
+            <div className="people-row-meta">
+              <button
+                type="button"
+                onClick={() => setExpanded((x) => !x)}
+                aria-expanded={expanded}
+                aria-label={expanded ? `Hide details for ${info.firm.name}` : `Show details for ${info.firm.name}`}
+                className="people-row-chevron"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                  <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
             {/* Comms + edit stay on the row (never hidden), like ContactsSection */}
             <div className="people-row-actions">
               <CommsButton compact href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "Call" : "No phone number on file"} />

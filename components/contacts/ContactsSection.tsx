@@ -1005,23 +1005,26 @@ export function ContactsSection({
                             );
                           })()}
                         </div>
+                      </button>
+                      {/* Portal dot + chevron, grouped so on narrow cards they
+                          sit bottom-right while the comms buttons take the
+                          bottom-left (critique #292). */}
+                      <div className="people-row-meta">
                         {dotColor !== "transparent" && (
                           <span title={`Portal ${portalState.replace(/_/g, " ")}`} style={{ width: 7, height: 7, borderRadius: 999, background: dotColor, flexShrink: 0 }} />
                         )}
-                      </button>
-                      {/* Chevron — its own button so it can drop to the bottom
-                          row on narrow cards; toggles the same panel. */}
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(contact.id)}
-                        aria-expanded={expanded}
-                        aria-label={expanded ? `Hide details for ${contact.name}` : `Show details for ${contact.name}`}
-                        className="people-row-chevron"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
-                          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(contact.id)}
+                          aria-expanded={expanded}
+                          aria-label={expanded ? `Hide details for ${contact.name}` : `Show details for ${contact.name}`}
+                          className="people-row-chevron"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+                            <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      </div>
                       {/* Comms + kebab stay on the row (never hidden) */}
                       <div className="people-row-actions">
                         <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
