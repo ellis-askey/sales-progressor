@@ -2722,7 +2722,90 @@ export type HubAttentionItem = {
   contacts: ChaseContact[];
   vendorSolicitor: SolicitorRef | null;
   purchaserSolicitor: SolicitorRef | null;
+  // Set on the synthetic "xovr-" exchange-overdue items: the file (and its whole
+  // tracked chain) is already fully ready to exchange, so a recalibrate would
+  // just return today. Fades the pointless "Recalibrate" option (critique #288).
+  readyToExchange?: boolean;
 };
+
+// True for a sale whose exchange is fully ready, so a "recalibrate" would just
+// return today — nothing left to estimate. Recalibrate re-predicts every MANAGED
+// sale in the chain and pins to the latest, so it's pointless exactly when every
+// managed sale is already gate-ready (VM18 seller + PM25 purchaser, PM25
+// round-scoped). Standalone = just this file. Chain = this file AND every other
+// managed sale we track in it (stub/neighbour links don't feed recalibrate, so
+// they don't count). Used to fade the pointless Recalibrate option (critique #288).
+async function exchangeReadyMap(
+  txIds: string[],
+  vis: AgentVisibility,
+): Promise<Map<string, boolean>> {
+  const out = new Map<string, boolean>();
+  if (txIds.length === 0) return out;
+
+  // The chains the input files sit in.
+  const inputTxs = await prisma.propertyTransaction.findMany({
+    where: { id: { in: txIds } },
+    select: { id: true, chainLink: { select: { chainId: true } } },
+  });
+  const chainIdByTx = new Map(inputTxs.map((t) => [t.id, t.chainLink?.chainId ?? null]));
+  const chainIds = [...new Set([...chainIdByTx.values()].filter((c): c is string => !!c))];
+
+  // Every MANAGED sale in those chains (stub/neighbour links have no transaction
+  // and are excluded) + the input files themselves, so we can gate-check them all.
+  const membersByChain = new Map<string, string[]>();
+  const allIds = new Set<string>(txIds);
+  if (chainIds.length) {
+    const nodes = await prisma.chainLink.findMany({
+      where: { chainId: { in: chainIds }, transaction: { is: buildTxWhere(vis) } },
+      select: { chainId: true, transactionId: true },
+    });
+    for (const n of nodes) {
+      if (!n.transactionId) continue;
+      allIds.add(n.transactionId);
+      const arr = membersByChain.get(n.chainId) ?? [];
+      arr.push(n.transactionId);
+      membersByChain.set(n.chainId, arr);
+    }
+  }
+
+  // Gate state (VM18 + PM25, PM25 round-scoped) for every file we might check.
+  const ids = [...allIds];
+  const rounds = await prisma.propertyTransaction.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, activeBuyerRoundId: true },
+  });
+  const roundByTx = new Map(rounds.map((t) => [t.id, t.activeBuyerRoundId]));
+  const gateDefs = await prisma.milestoneDefinition.findMany({
+    where: { code: { in: ["VM18", "PM25"] } },
+    select: { id: true, code: true },
+  });
+  const gateCodeById = new Map(gateDefs.map((d) => [d.id, d.code]));
+  const gateComps = await prisma.milestoneCompletion.findMany({
+    where: { transactionId: { in: ids }, state: "complete", milestoneDefinitionId: { in: gateDefs.map((d) => d.id) } },
+    select: { transactionId: true, milestoneDefinitionId: true, buyerRoundId: true },
+  });
+  const gatesByTx = new Map<string, Set<string>>();
+  for (const c of gateComps) {
+    const code = gateCodeById.get(c.milestoneDefinitionId);
+    if (!code) continue;
+    if (code.startsWith("PM") && c.buyerRoundId !== roundByTx.get(c.transactionId)) continue;
+    const s = gatesByTx.get(c.transactionId) ?? new Set<string>();
+    s.add(code);
+    gatesByTx.set(c.transactionId, s);
+  }
+  const gateReady = (id: string) => {
+    const g = gatesByTx.get(id);
+    return !!g && g.has("VM18") && g.has("PM25");
+  };
+
+  for (const txId of txIds) {
+    if (!gateReady(txId)) { out.set(txId, false); continue; }
+    const cid = chainIdByTx.get(txId);
+    const siblings = cid ? (membersByChain.get(cid) ?? []).filter((id) => id !== txId) : [];
+    out.set(txId, siblings.every(gateReady));
+  }
+  return out;
+}
 
 export async function getHubAttentionItems(
   vis: AgentVisibility
@@ -3109,6 +3192,16 @@ export async function getHubAttentionItems(
     });
   }
 
+  // Fade the pointless "Recalibrate" on files already fully ready to exchange
+  // (critique #288): a recalibrate would just return today.
+  const xovrTxIds = items.filter((i) => i.id.startsWith("xovr-")).map((i) => i.transaction.id);
+  if (xovrTxIds.length > 0) {
+    const readyMap = await exchangeReadyMap(xovrTxIds, vis);
+    for (const it of items) {
+      if (it.id.startsWith("xovr-")) it.readyToExchange = readyMap.get(it.transaction.id) ?? false;
+    }
+  }
+
   // Internal staff get a "most time-critical" ranking: keep urgency as the base
   // weight (escalated highest — something's actively going wrong), but lift
   // files close to (or past) exchange so a near-exchange file beats a routine
@@ -3150,6 +3243,10 @@ export type DiaryItem = {
   // ready     = both gates confirmed, not yet done (actionable pill)
   // not_ready = due today but the gates aren't both confirmed (info)
   status: "done" | "ready" | "not_ready";
+  // Exchange rows only: the file (and its whole tracked chain) is fully ready to
+  // exchange, so the diary's "Recalculate" option is pointless and gets faded
+  // (critique #288). Stricter than status==="ready", which is this file alone.
+  readyToExchange?: boolean;
 };
 
 export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
@@ -3331,6 +3428,16 @@ export async function getHubDiary(vis: AgentVisibility): Promise<DiaryItem[]> {
         ? "ready"
         : "not_ready";
     items.push({ type: "exchange", transactionId: tx.id, address: tx.propertyAddress, photoStoragePath: tx.photoStoragePath, status });
+  }
+
+  // Chain-aware "fully ready to exchange" flag for the exchange rows, so the diary
+  // can fade the pointless Recalculate option (critique #288).
+  const exchangeDiaryIds = items.filter((i) => i.type === "exchange").map((i) => i.transactionId);
+  if (exchangeDiaryIds.length > 0) {
+    const readyMap = await exchangeReadyMap(exchangeDiaryIds, vis);
+    for (const it of items) {
+      if (it.type === "exchange") it.readyToExchange = readyMap.get(it.transactionId) ?? false;
+    }
   }
   return items;
 }

@@ -134,6 +134,7 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
                       <ExchangeOverdueActions
                         transactionId={item.transaction.id}
                         address={item.transaction.propertyAddress}
+                        readyToExchange={item.readyToExchange ?? false}
                         onDone={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
                       />
                     </div>

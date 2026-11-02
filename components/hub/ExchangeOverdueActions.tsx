@@ -15,9 +15,13 @@ import { recalibrateExchangeDateAction, snoozeExchangeReminderAction } from "@/a
 import { RowActionMenu } from "@/components/hub/RowActionMenu";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 
-export function ExchangeOverdueActions({ transactionId, address, onDone }: {
+export function ExchangeOverdueActions({ transactionId, address, readyToExchange = false, onDone }: {
   transactionId: string;
   address: string;
+  // The file (and its whole tracked chain) is fully ready to exchange, so a
+  // recalibrate would just return today — fade it and point at Set a new date
+  // instead (critique #288).
+  readyToExchange?: boolean;
   // Called after a successful in-place resolution (new date / recalibrate /
   // snooze), so the hosting card can remove the row without waiting for a reload.
   onDone?: () => void;
@@ -63,18 +67,27 @@ export function ExchangeOverdueActions({ transactionId, address, onDone }: {
           sub: "Once you've spoken to both parties.",
           onClick: () => setReviseOpen(true),
         },
-        {
-          key: "recalibrate",
-          icon: <ArrowsClockwise size={16} weight="bold" />,
-          title: "Recalibrate estimate",
-          sub: "Re-estimate from today based on what's left.",
-          onClick: () => run(
-            () => recalibrateExchangeDateAction(transactionId),
-            "Estimate recalibrated",
-            (res) => (res.newDate ? `New expected exchange: ${res.newDate}` : "New expected date set from today."),
-            "Couldn't recalibrate",
-          ),
-        },
+        readyToExchange
+          ? {
+              key: "recalibrate",
+              icon: <ArrowsClockwise size={16} weight="bold" />,
+              title: "Ready to exchange",
+              sub: "Set a date with both parties instead.",
+              disabled: true,
+              onClick: () => {},
+            }
+          : {
+              key: "recalibrate",
+              icon: <ArrowsClockwise size={16} weight="bold" />,
+              title: "Recalibrate estimate",
+              sub: "Re-estimate from today based on what's left.",
+              onClick: () => run(
+                () => recalibrateExchangeDateAction(transactionId),
+                "Estimate recalibrated",
+                (res) => (res.newDate ? `New expected exchange: ${res.newDate}` : "New expected date set from today."),
+                "Couldn't recalibrate",
+              ),
+            },
         {
           key: "snooze",
           icon: <Clock size={16} weight="bold" />,

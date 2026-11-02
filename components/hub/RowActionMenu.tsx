@@ -89,6 +89,9 @@ export function RowActionMenu({
               display: "flex", gap: 9, alignItems: "flex-start", width: "100%", textAlign: "left",
               padding: "8px 10px", borderRadius: 8, background: "none", border: "none",
               cursor: item.disabled ? "default" : "pointer", textDecoration: "none",
+              // Faded so a disabled item reads as "can't do this here" (e.g. the
+              // Recalibrate option on a ready-to-exchange file, critique #288).
+              opacity: item.disabled ? 0.5 : 1,
             };
             return item.href ? (
               <Link key={item.key} href={item.href} className="agent-hover-row" style={rowStyle} onClick={close}>

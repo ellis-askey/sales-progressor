@@ -127,7 +127,11 @@ export function DiaryEventRow({
   const menuItems: RowMenuItem[] = [];
   if (item.type === "exchange") {
     menuItems.push({ key: "setdate", icon: <CalendarPlus size={16} weight="bold" />, title: "Set a new date", sub: "Once you've spoken to both parties.", onClick: () => setReviseOpen(true) });
-    menuItems.push({ key: "recalc", icon: <ArrowsClockwise size={16} weight="bold" />, title: "Recalculate the date", sub: "Re-estimate from today.", onClick: recalc, disabled: busy });
+    // Fully ready to exchange → recalculate would just return today, so fade it
+    // and point at setting a date instead (critique #288).
+    menuItems.push(item.readyToExchange
+      ? { key: "recalc", icon: <ArrowsClockwise size={16} weight="bold" />, title: "Ready to exchange", sub: "Set a date with both parties instead.", onClick: () => {}, disabled: true }
+      : { key: "recalc", icon: <ArrowsClockwise size={16} weight="bold" />, title: "Recalculate the date", sub: "Re-estimate from today.", onClick: recalc, disabled: busy });
   } else {
     menuItems.push({ key: "setdate", icon: <CalendarPlus size={16} weight="bold" />, title: "Set a new date", sub: "Change the completion day.", onClick: () => setCompDateOpen(true) });
   }
