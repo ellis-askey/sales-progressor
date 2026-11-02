@@ -51,6 +51,9 @@ export function BusinessCardCapture({
   // problem to retry, not a re-enter-the-card problem.
   const [cardCaptured, setCardCaptured] = useState(justReturned);
   const [saved, setSaved] = useState(false);
+  // Whether saving the card also settled an overdue payment, so the confirmation can
+  // say so instead of the generic "we'll charge on the 1st" line.
+  const [arrears, setArrears] = useState<"settled" | "retrying" | undefined>(undefined);
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(
     authFailed ? "Your bank couldn't verify that card. Please try again." : null,
@@ -66,6 +69,7 @@ export function BusinessCardCapture({
       return;
     }
     if (onComplete) { onComplete(); return; }
+    setArrears(r.arrears);
     setSaved(true);
     router.refresh();
   }
@@ -80,7 +84,11 @@ export function BusinessCardCapture({
     return (
       <div className="bcc-fade" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ padding: 16, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, color: "#166534", fontSize: 13 }}>
-          Card saved. We&rsquo;ll charge it on the 1st of each month for your subscription and the sales you add.
+          {arrears === "settled"
+            ? "Card saved and your overdue payment has gone through. You're all up to date, and we'll charge the 1st of each month from here."
+            : arrears === "retrying"
+              ? "Card saved. The overdue payment didn't go through just yet. We'll keep trying it, or you can pay it from the email we sent you."
+              : "Card saved. We'll charge it on the 1st of each month for your subscription and the sales you add."}
         </div>
         {addSaleHref && (
           <a href={addSaleHref} className="agent-btn agent-btn-primary agent-btn-md" style={{ alignSelf: "flex-start", textDecoration: "none" }}>

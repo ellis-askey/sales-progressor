@@ -1,16 +1,18 @@
-// Stripe wiring for business->TSP billing (Arc B4). DARK by default — every entry
-// point here is gated by progressionBillingCollectEnabled() in its CALLER, and the
-// functions no-op if Stripe isn't configured or the subscription prices aren't set.
-// Nothing charges until the collect flag is on AND the Stripe prices + card exist.
+// Stripe wiring for business->TSP billing (Arc B4). LIVE IN PRODUCTION as of
+// 2026-11-01 — it is taking real money (confirmed via the live Stripe dashboard,
+// acct_1UNqo0FJibD43diI). Every entry point here is gated by
+// progressionBillingCollectEnabled() in its CALLER, and the functions no-op if
+// Stripe isn't configured or the subscription prices aren't set — but in prod the
+// collect flag is ON and the prices + live keys exist, so charges happen for real.
 //
 // Model: a Stripe subscription (base price £59 qty 1 + seat price £39 qty = extra
 // members) handles the recurring charge; the £5 per-sale charges are pushed as
 // one-off pending invoice items that ride the subscription's next invoice.
 //
-// Go-live (founder, see ELLIS_MANUAL_TODO): create two recurring Stripe Prices
-// (£59/mo, £39/mo) + set STRIPE_PRICE_BUSINESS_BASE / STRIPE_PRICE_BUSINESS_SEAT,
-// set PROGRESSION_BILLING_COLLECT=true, then verify end-to-end in Stripe TEST mode
-// before production. This code is written but NOT yet run against Stripe.
+// Go-live done (founder): two recurring Stripe Prices (£59/mo, £39/mo) created,
+// STRIPE_PRICE_BUSINESS_BASE / STRIPE_PRICE_BUSINESS_SEAT + PROGRESSION_BILLING_COLLECT=true
+// set in production against LIVE Stripe keys. Real subscriptions, prorated first
+// invoices, per-sale items and the failed-payment webhook path have all run in prod.
 
 import { prisma } from "@/lib/prisma";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
@@ -208,6 +210,49 @@ export async function syncBusinessSubscription(businessId: string): Promise<void
   } else if (seatItem) {
     await stripe.subscriptionItems.del(seatItem.id);
   }
+}
+
+/** Settle any OPEN (unpaid, finalised) invoices for the business on the spot, using
+ *  the card that's now the default — so an owner who updates their card while a
+ *  payment is overdue clears the arrears immediately, instead of waiting for Stripe's
+ *  next Smart Retry (which can be days away). Call AFTER syncBusinessSubscription,
+ *  which promotes the just-added card to the customer's default payment method.
+ *
+ *  Pays ALL open invoices, not just the newest: leaving an older straggler open would
+ *  keep the business in arrears and defeat the point. A decline (or 3-D Secure needed
+ *  on the off-session charge) is swallowed — the invoice simply drops back into
+ *  Stripe's normal retry schedule, and the card save never fails because of it.
+ *
+ *  No-op (returns {0,0}) when Stripe isn't configured, there's no customer, or there
+ *  are no open invoices — so it's invisible on a healthy first-time card save. */
+export async function settleOpenBusinessInvoices(businessId: string): Promise<{ paid: number; failed: number }> {
+  if (!isStripeConfigured()) return { paid: 0, failed: 0 };
+  const business = await prisma.progressionBusiness.findUnique({
+    where: { id: businessId },
+    select: { stripeCustomerId: true },
+  });
+  if (!business?.stripeCustomerId) return { paid: 0, failed: 0 };
+
+  const stripe = getStripeClient();
+  // Only `open` invoices are both finalised and unpaid. `draft` isn't chargeable yet;
+  // `paid` / `void` / `uncollectible` are done. The status filter also self-dedupes a
+  // double-click: an invoice paid by the first call is no longer `open` on the second.
+  const open = await stripe.invoices.list({ customer: business.stripeCustomerId, status: "open", limit: 100 });
+  let paid = 0;
+  let failed = 0;
+  for (const inv of open.data) {
+    if (!inv.id) continue;
+    try {
+      const result = await stripe.invoices.pay(inv.id); // charges the customer's default PM (the new card)
+      if (result.status === "paid") paid++;
+      else failed++;
+    } catch {
+      // Decline / authentication_required — leave it to Stripe's Smart Retries and the
+      // hosted-invoice email. Never fail the card save on an arrears charge.
+      failed++;
+    }
+  }
+  return { paid, failed };
 }
 
 /** Cancel a business's plan. Collects any accrued £5 per-sale charges IMMEDIATELY

@@ -51,6 +51,18 @@ export class BusinessPaymentBlockedError extends Error {
   }
 }
 
+/** Clear a business's dunning flags immediately. Used after an in-app card update
+ *  settles the overdue invoice, so the owner is unblocked on the next page load
+ *  rather than waiting for the invoice.paid webhook to land. Idempotent with that
+ *  webhook (it clears the same two fields) and guarded so it only writes when there
+ *  was a failure to clear. */
+export async function clearBusinessDunning(businessId: string): Promise<void> {
+  await prisma.progressionBusiness.updateMany({
+    where: { id: businessId, paymentFailedAt: { not: null } },
+    data: { paymentFailedAt: null, newFileCreationBlockedAt: null },
+  });
+}
+
 /** Daily cron: any business whose first failure is 7+ days old and isn't blocked
  *  yet gets newFileCreationBlockedAt set. Idempotent via the WHERE guard. */
 export async function markOverdueBusinessesBlocked(now: Date = new Date()): Promise<{ blockedCount: number }> {

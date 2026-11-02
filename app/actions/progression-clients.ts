@@ -18,6 +18,13 @@ export type AddClientResult = { ok: true } | { ok: false; error: string };
 // something non-fatal needs a heads-up (e.g. the team changed but the Stripe seat
 // sync hiccuped and will self-heal on the next cron). ok stays true.
 type ActionResult = { ok: true; warning?: string } | { ok: false; error: string };
+// syncBusinessSubscriptionAction also reports whether it settled overdue arrears with
+// the just-added card, so the card-capture UI can tailor its confirmation: "settled"
+// (an overdue payment went through), "retrying" (the charge declined again, Stripe
+// keeps trying), or undefined (nothing was owed — the normal first-time save).
+type SyncBillingResult =
+  | { ok: true; warning?: string; arrears?: "settled" | "retrying" }
+  | { ok: false; error: string };
 
 /**
  * Save the business's chase preferences (from the welcome modal / settings).
@@ -386,7 +393,7 @@ export async function updateBusinessBillingPointAction(billAtCompletion: boolean
  * (C1). Owner-only, and only when the collection switch is on. No-ops safely if
  * Stripe or the subscription prices aren't configured (the helper handles that).
  */
-export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
+export async function syncBusinessSubscriptionAction(): Promise<SyncBillingResult> {
   if (!progressionBusinessesEnabled() || !progressionBillingCollectEnabled()) {
     return { ok: false, error: "Billing isn't live yet." };
   }
@@ -395,6 +402,29 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
   if (!owner) return { ok: false, error: "Only a progression-business owner can do this." };
   try {
     await syncBusinessSubscription(owner.businessId);
+
+    // If the owner just UPDATED their card to recover a failed payment, settle any
+    // overdue invoice on the spot with the new card, rather than leaving them in
+    // dunning until Stripe's next retry. No-op when nothing is open (the normal
+    // first-time save). A clean settle clears the dunning flags inline so the billing
+    // page unblocks immediately on refresh (idempotent with the invoice.paid webhook).
+    let arrears: "settled" | "retrying" | undefined;
+    try {
+      const { settleOpenBusinessInvoices } = await import("@/lib/progression/business-stripe");
+      const { paid, failed } = await settleOpenBusinessInvoices(owner.businessId);
+      if (paid + failed > 0) {
+        arrears = failed === 0 ? "settled" : "retrying";
+        if (arrears === "settled") {
+          const { clearBusinessDunning } = await import("@/lib/progression/business-dunning");
+          await clearBusinessDunning(owner.businessId);
+        }
+      }
+    } catch (e) {
+      // Arrears settlement is best-effort — a hiccup here must not fail the card save
+      // (the webhook + Stripe retries remain the backstop).
+      console.error("[business-billing] settle open invoices after card-add failed:", e);
+    }
+
     // Item 9: a card is now on file — release any sales held while there was none, so
     // they start progressing (reminders + the intro email). The accrued £5s collect on
     // the next invoice. Best-effort: a release hiccup must not fail the card setup.
@@ -402,7 +432,7 @@ export async function syncBusinessSubscriptionAction(): Promise<ActionResult> {
     const released = await releaseHeldSales(owner.businessId).catch((e) => { console.error("[card-nudge] release after card-add failed:", e); return 0; });
     if (released > 0) revalidatePath("/agent/hub");
     revalidatePath("/agent/settings/billing");
-    return { ok: true };
+    return { ok: true, arrears };
   } catch (err) {
     console.error("[business-billing] syncBusinessSubscription failed:", err);
     // Surface the real Stripe error during setup/testing so a failure is
