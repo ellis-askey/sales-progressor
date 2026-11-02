@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "note": "Founder's preferred UI treatments, captured from the dev-only /dev/system-compare visual library. Advisory supporting reference for future UI work (see CLAUDE.md 'UI preservation'). Selecting a preference here NEVER modifies production UI. Written only by the dev-only endpoint app/api/dev/ui-preferences.",
+  "updatedAt": null,
+  "decisions": {}
+}

@@ -3,7 +3,10 @@
 **This file is the persistent context for every Claude Code session in this repo.**
 **Always read this file before taking any action. Re-read at the start of any new task.**
 
-Last updated: 2026-06-26 (Phase 0 of the discipline migration — Laws 1-21 established. See [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) for the full migration roadmap.)
+> **Current product facts live in [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) — read it first.**
+> Pricing, roles, permissions, access scopes, business types, surfaces, tech stack, feature-flag state and launch stage are maintained there, each with a code anchor. Where any inline description in this file disagrees with PRODUCT_TRUTH or the code, **PRODUCT_TRUTH and the code win** — surface the contradiction (Law 6), don't rely on the older inline text. This file holds the durable Laws, process and conventions.
+
+Last updated: 2026-11-01 (product-facts authority moved to [docs/PRODUCT_TRUTH.md](docs/PRODUCT_TRUTH.md); inline facts corrected to point there. Laws unchanged. Phase 0 of the discipline migration is complete — see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md).)
 
 ---
 
@@ -11,28 +14,15 @@ Last updated: 2026-06-26 (Phase 0 of the discipline migration — Laws 1-21 esta
 
 Sales Progressor is a UK estate agency sales progression SaaS. The product manages residential property transactions from offer-accepted through exchange to completion — replacing manual chasing, spreadsheets, and fragmented communication with structured milestones, automated reminders, and live visibility for every party.
 
-The customer is an estate agency. Two service tiers:
+The primary customer is an estate agency, which can run sales itself (self-managed) or hand them to a progression team (outsourced). The platform has also been generalised so **independent external sales-progression businesses** can run bounded books on it, with TSP as the platform operator. There are three business types in play — estate agency, TSP internal, and external progression business.
 
-- **Self-managed (£59 per sale, charged on exchange)** — agency uses the platform themselves to manage their own files. **Fully functional today.**
-- **Outsourced (£250+ per sale, charged on exchange)** — Sales Progressor's internal team progresses the file on the agency's behalf. **Fully functional today** (Package D shipped 2026-05-03; access scope helper at `lib/security/access-scope.ts`).
-
-Current stage: pre-launch, ~5 test users, no paying customers. Phase 0 of the discipline migration in progress as of 2026-06-26.
+**For current pricing, the three business types, service tiers, and launch stage, see [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §1–2, §9.** (Note: self-managed is now free — the older "£59 per sale" figure is retired. Access-scope helper: `lib/security/access-scope.ts`.)
 
 ---
 
 ## Role architecture
 
-This codebase has **five user roles**. Verified against production DB on 2026-05-03.
-
-| Role | Who | Has agencyId? | Surface |
-|---|---|---|---|
-| `director` | Customer agency staff — top of agency hierarchy | Yes (customer agency) | `/agent/*` |
-| `negotiator` | Customer agency staff — day-to-day | Yes (customer agency) | `/agent/*` |
-| `sales_progressor` | **Sales Progressor's internal team** — handles outsourced files | **No (null)** | `/dashboard` |
-| `admin` | **Founder / senior internal** — sees all files across the platform | **No (null)** | `/dashboard` |
-| `superadmin` | **Founder** — Command Centre access | **No (null)** | `/command/*` |
-
-The `viewer` role exists in code but is not in production use as of this writing.
+**The current role and permission model lives in [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §3** (six `UserRole` values, the separate `ProgressionBusinessRole`, the hybrid-admin exception, and the five access scopes). The summary below covers only the durable multi-tenancy principle; do not rely on the previously-inline role table or surface map, which had drifted (e.g. internal staff now run inside `/agent/*`, not `/dashboard`, and `viewer` is live).
 
 ### Critical distinction
 
@@ -42,14 +32,11 @@ This is the core multi-tenancy model. Customer agency data is scoped by `agencyI
 
 ### Access scope helper
 
-Internal staff visibility is handled by `lib/security/access-scope.ts`. `getAccessScope(session)` returns one of three shapes:
-- `{ kind: "all" }` — admin / superadmin (no agency filter)
-- `{ kind: "assigned", userId }` — sales_progressor (sees their assigned files only)
-- `{ kind: "agency", agencyIds }` — director / negotiator / viewer (their agency)
+Internal staff visibility is handled by `lib/security/access-scope.ts`. `getAccessScope(session)` now returns **one of five shapes** — `agency`, `business`, `assigned`, `all`, `platform` (see [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §3 for what each means; the earlier "three shapes" description was stale, and `admin` (`all`) is no longer the same scope as `superadmin` (`platform`)).
 
-Use this helper for every multi-tenant read or write. `scopeTransactionWhere` for lists, `scopeOwnershipWhere` for single-tx guards, `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models. Do not introduce ad-hoc `agencyId: session.user.agencyId` patterns — they break for internal staff (whose agencyId is null).
+Use this helper for every multi-tenant read or write. `scopeTransactionWhere` for lists, `scopeOwnershipWhere` for single-tx guards, `scopeChaseTaskWhere` / `scopeReminderLogWhere` for related models, and `canReadTransaction` for in-memory checks. Do not introduce ad-hoc `agencyId: session.user.agencyId` patterns — they break for internal staff (whose agencyId is null).
 
-Shipped as Package D, 2026-05-03. Hub dashboard at `/agent/hub` routes internal staff through `resolveInternalVisibility()` in `lib/services/agent.ts`. Unassigned-files widget is at `components/hub/UnassignedFilesView.tsx`.
+Originally shipped as Package D (2026-05-03) and substantially evolved since (external-business `business` scope 2026-09-30; founder `platform` scope 2026-10-19). Hub dashboard at `/agent/hub` routes internal staff through `resolveInternalVisibility()` in `lib/services/agent.ts`.
 
 ---
 
@@ -61,7 +48,7 @@ Each role uses a distinct surface. Do not mix them:
 |---|---|---|---|
 | **Marketing site** | `thesalesprogressor.co.uk` | Public | Dark navy + coral hero, glass cards |
 | **Agent app** | `portal.thesalesprogressor.co.uk/agent/*` | `director`, `negotiator` | Warm cream + coral + glass |
-| **Internal dashboard** | `/dashboard` redirects to `/agent/hub` (internal staff land on the agent hub). The `AppShell` chrome is used on `/admin/*` and the internal `/transactions/[id]` file view. | `admin`, `sales_progressor`, `superadmin` | Dark + glass + property photography backdrop (`AppShell`) |
+| **Internal staff** | Internal staff (`admin`, `sales_progressor`, `superadmin`) run inside the **agent app** (`/agent/*`), differentiated by a per-session visibility mode. `/dashboard` and `/admin` redirect in. The file view is `/agent/transactions/[id]`. `AppShell` is now **legacy** (remaining use: `app/admin/migrate`); there is no `/transactions/[id]` route. See [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §4. | `admin`, `sales_progressor`, `superadmin` | Agent-app light look (`AgentShell`); legacy `AppShell` dark backdrop where still used |
 | **Command Centre** | `portal.thesalesprogressor.co.uk/command/*` | `superadmin` only | Utilitarian dark, hairline borders, no glass, no photography (layout inline in `app/command/(protected)/layout.tsx`) |
 | **Buyer/seller portal** | `portal.thesalesprogressor.co.uk/portal/[token]` | Token-authenticated visitors | Light, clean, mobile-first |
 | **Boardwalk suite** | `/boardwalk/*` (login + two products: Forms at `/boardwalk/forms`, To Do at `/boardwalk/todo`), `/f/[publicId]` (public forms, no auth) | `FormTenantUser` accounts — a separate session system (`lib/forms/auth.ts`, `forms_session` cookie), NOT NextAuth, NOT the roles above | Real Boardwalk brand (charcoal #404648 on stone #f3f0ee); scoped `.bw-scope` tokens in `app/boardwalk/boardwalk.css`. White-label platform; Boardwalk is the first `FormTenant` row. `/boardwalk/typeform` is a legacy redirect to `/boardwalk/forms`. |
@@ -74,14 +61,17 @@ The Command Centre has no separate shell component. Its layout is assembled inli
 
 ## Tech stack
 
-- **Framework**: Next.js (App Router)
+> **Current stack facts (versions, full model map, integrations) are in [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §7.** The list below is a quick orientation; where it lags (e.g. it predates Next.js 16, Stripe and OpenAI), PRODUCT_TRUTH wins.
+
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript (strict)
 - **Database**: Supabase (PostgreSQL) via Prisma ORM
   - Production project ID: `gmkfustgwipgihpmpjpr`
   - Staging project ID: `etidawkbqctarmsdjoxp` (eu-west-1)
 - **Auth**: NextAuth.js (Credentials provider, JWT strategy)
 - **Email**: SendGrid via `@sendgrid/mail`
-- **AI**: Anthropic Claude (Haiku 4.5 for chase + content drafting; Opus 4.7 for weekly insight reviews)
+- **AI**: Anthropic Claude (Haiku 4.5 for chase + content drafting; Opus 4.8 for weekly insight reviews; Sonnet 5 for prospect research) + OpenAI. Full model map in PRODUCT_TRUTH §7.
+- **Billing**: Stripe
 - **Hosting**: Vercel
 - **File storage**: Supabase Storage
 - **Image generation**: `next/og` (Edge runtime), Replicate FLUX (AI photography)
@@ -95,7 +85,7 @@ The Command Centre has no separate shell component. Its layout is assembled inli
 ```
 /app                     Next.js App Router routes and API handlers
   /agent/*               Agent app (director, negotiator)
-  /dashboard             Redirects to /agent/hub (AppShell chrome now lives on /admin/* + /transactions/[id])
+  /dashboard             Redirects to /agent/hub (internal staff run in /agent/*; AppShell is legacy — see docs/PRODUCT_TRUTH.md §4)
   /portal/[token]        Buyer/seller portal
   /boardwalk             Boardwalk suite: Forms (/forms) + To Do (/todo); own login, own tokens
   /f/[publicId]          Public published forms (no auth; respondent-facing)
@@ -156,6 +146,7 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 
 | Topic | Source of truth |
 |---|---|
+| **Current product facts** (pricing, roles, permissions, access scopes, business types, surfaces, tech stack, feature-flag state, launch stage) | [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) — **read first for any factual question** |
 | **The discipline migration roadmap** (what's being remediated next) | [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) |
 | **Deferred polish backlog** (decisions on what gets fixed, grandfathered, or deferred) | [`docs/POLISH_TBD.md`](docs/POLISH_TBD.md) |
 | **Component catalog** (closed list of canonical primitives + to-extract + grandfathered) | [`docs/reference/COMPONENT_LIBRARY_CATALOG.md`](docs/reference/COMPONENT_LIBRARY_CATALOG.md) |
@@ -169,7 +160,7 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | **Before committing or declaring done** | [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md) |
 | **How to add a new screen / primitive / modal / email / migration** | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) |
 | **Recurring decisions log** (z-index, terminology sweeps, env-var conventions) | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
-| Role architecture | This file (CLAUDE.md, the table above) — verified against prod DB 2026-05-03 |
+| Role architecture, access scopes, business types | [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §1, §3 + [`lib/security/access-scope.ts`](lib/security/access-scope.ts) (the older inline CLAUDE.md table was stale) |
 | Milestone engine state machine | `docs/MILESTONES_SPEC_v1.md` |
 | Milestone weights and gating | `docs/MILESTONES_WEIGHTS_v1.md` |
 | Command Centre product spec | `docs/admin/ADMIN_01_SPEC.md` (and ADMIN_02–10 for subsystems) |
@@ -372,13 +363,13 @@ After the work: re-capture the baseline. Diffs are reviewed. Any unexplained beh
 
 Three layers:
 
-1. **Visual regression** — Playwright `toHaveScreenshot()` covers every canonical primitive in `components/ui/` rendered in every state in `/dev/gallery`, at desktop 1280px and mobile 375px. Diff threshold tight (~0.1%). Runs on every PR.
-2. **Behavioural regression** — Playwright happy-path E2E test per Phase-3-completed surface. Login → navigate → click primary CTA → assert side-effect. Runs on every PR.
-3. **Multi-tenant safety regression** — automated test asserts every list endpoint goes through the access scope helper from Law 7. Runs on every PR.
+1. **Visual regression** — Playwright `toHaveScreenshot()` covers every canonical primitive in `components/ui/` rendered in every state in `/dev/gallery`, at desktop 1280px and mobile 375px. Diff threshold tight (~0.1%). Run via Playwright against a running app (specs exist in `e2e/gallery-*.spec.ts`).
+2. **Behavioural regression** — Playwright happy-path E2E test per surface. Login → navigate → click primary CTA → assert side-effect. Run via Playwright against a running app + database (specs exist in `e2e/surface-*.spec.ts`).
+3. **Multi-tenant safety regression** — automated test asserts every list endpoint goes through the access scope helper from Law 7. Runs on every PR (jest).
 
-Visual diff failures block the PR. No override.
+A visual change is not "done" until its visual diff has been reviewed and resolved, with the screenshot evidence Law 2 requires attached. This is verified by **running the visual suite**, not by an automatic CI gate.
 
-**Enforcement:** CI. Cannot merge to master if any of the three layers fails.
+**Enforcement:** The multi-tenant safety suite (layer 3) and `tsc` run in CI on every PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)). The Playwright visual + behavioural layers (1–2) need a running app + database and are **run manually** today; wiring them into CI is a tracked increment and is **not active yet**, so merges are **not** auto-blocked on a visual diff. Until then, visual changes are gated by Law 2 (screenshot evidence) plus a manual run of the relevant `e2e/` specs.
 
 ## Law 19 — Grandfather generously
 
@@ -434,6 +425,23 @@ Overrides for a single PR exist in genuine emergencies:
 - Reviewed at the next quarterly review. If overrides for a given law exceed 2 in a quarter, the law itself is reviewed.
 
 Pre-commit hooks ship in **warn-only mode for two weeks** after introduction. If zero false positives in that window, they flip to block mode.
+
+---
+
+# UI preservation — production UI is the primary visual reference
+
+The shipped production UI is the result of months of deliberate visual decisions and is the **primary visual reference** for all UI work. [components/ui/](components/ui/), [COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md), [DESIGN_TOKENS.md](docs/reference/DESIGN_TOKENS.md) and the other design docs are **supporting references** — patterns to reach for in new work. They are **not** permission to replace a working design, and a screen is never "wrong" merely because it predates them or uses a legacy class.
+
+This section sets the default stance — **preserve, don't standardise** — within which the Laws are applied. It amends no Law.
+
+1. **Preserve existing visual treatments** unless the founder explicitly requests a change. In doubt, match what ships.
+2. **Legacy or non-canonical is not a reason to migrate.** A bespoke modal, an `agent-glass` card, a hand-rolled button, or a treatment that differs from the documented canonical one stays as-is unless migration is explicitly approved. Laws 14 and 18 and the catalog's "to extract" lists govern *new* work and *approved* remediation — they are not a standing mandate to standardise shipped screens.
+3. **No global visual changes without explicit, specific approval** — no app-wide change to buttons, cards, modals, drawers, typography, spacing, colour, shadow, radius or motion, and no component migration or redesign, without the founder signing off on that specific change. (A sweep is also a Law 16 violation.)
+4. **New UI follows the nearest shipping pattern** — copy the most relevant existing production screen, not a doc or a canonical primitive the surrounding screens don't actually use.
+5. **Scoped changes stay scoped** — when improving an area, change only what was requested; don't re-token or "tidy" adjacent code as a side effect (reinforces Law 5).
+6. **Flag visual-regression risk before implementing** — for any change that could alter a shipped treatment, name what would change, first.
+7. **Impeccable is advisory** — its design hook and critiques are a quality check, not a redesign trigger. Findings on existing production UI are surfaced, not acted on; established visual decisions are preserved unless the founder instructs otherwise. A craft-floor rule that conflicts with a deliberate brand decision (e.g. the coral card accent) is an intentional exception, not a defect.
+8. **Preserve behaviour** — existing application logic and behaviour are not changed as part of visual work unless separately approved.
 
 ---
 
