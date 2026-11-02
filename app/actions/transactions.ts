@@ -1720,7 +1720,11 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
   // bound to their own business: the check below fails for any file outside it,
   // and for TSP files (progressionBusinessId = null) only the admin branch passes,
   // so nothing changes for TSP.
-  let allowed = scope.kind === "all";
+  // "all" = TSP admin; "platform" = founder/superadmin (a superset of admin —
+  // see getAccessScope, where the platform scope is split out and checked first).
+  // Both may assign any file. Omitting "platform" is what blocked the founder
+  // from assigning after the scope split (2026-10-19).
+  let allowed = scope.kind === "all" || scope.kind === "platform";
   if (!allowed && tx.progressionBusinessId && progressionBusinessesEnabled()) {
     const owner = await resolveBusinessOwner(session);
     allowed = !!owner && owner.businessId === tx.progressionBusinessId;

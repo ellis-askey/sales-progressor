@@ -30,7 +30,7 @@ export async function getSavedSurveyors(): Promise<SavedSurveyor[]> {
   // progressionBusinessId — never full-directory.
   const businessId = session.user.progressionBusinessId ?? null;
   const isTspInternal =
-    scope.kind === "all" || (scope.kind === "assigned" && !businessId);
+    scope.kind === "all" || scope.kind === "platform" || (scope.kind === "assigned" && !businessId);
   if (isTspInternal) {
     return prisma.providerFirm.findMany({
       where: { kind: "surveyor", active: true },

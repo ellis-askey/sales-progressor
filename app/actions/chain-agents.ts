@@ -33,7 +33,7 @@ export async function getSavedChainAgents(): Promise<SavedChainAgent[]> {
   // files) — the pool is team memory, like the surveyor directory.
   const businessId = session.user.progressionBusinessId ?? null;
   const isTspInternal =
-    scope.kind === "all" || (scope.kind === "assigned" && !businessId);
+    scope.kind === "all" || scope.kind === "platform" || (scope.kind === "assigned" && !businessId);
   const txWhere: Prisma.PropertyTransactionWhereInput = isTspInternal
     ? scopeTransactionWhere({ kind: "all" })
     : businessId
