@@ -8,14 +8,13 @@
 // send/retry here — those live on the pending row (PR 4) behind the atomic guard.
 
 import Link from "next/link";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import { resendQueuedEmailAction } from "@/app/actions/resend-queued-email";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
-import type { PillProps } from "@/components/ui/Pill";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
-import type { NeedsAttention, NeedsAttentionItem, IssueStatus } from "@/lib/services/automated-emails-overview";
+import type { NeedsAttention, NeedsAttentionItem } from "@/lib/services/automated-emails-overview";
 
 // Display cap for this compact panel — the Problems tab shows the full list.
 // Deliberately a LOCAL constant: importing a runtime value from the overview
@@ -23,22 +22,6 @@ import type { NeedsAttention, NeedsAttentionItem, IssueStatus } from "@/lib/serv
 // scope) into the client bundle and break the whole page. Type imports above
 // are erased at build time and safe.
 const NEEDS_ATTENTION_PANEL_CAP = 25;
-
-type Tone = NonNullable<PillProps["tone"]>;
-
-const STATUS_ORDER: IssueStatus[] = ["bounced", "blocked", "missing", "failed", "errored", "deferred"];
-
-// Issue-status vocabulary for this panel. Distinct from the delivery-status map
-// (deliveryStatus.ts) because it includes "missing" — a setup gap, not a
-// SendGrid delivery event.
-const ISSUE_META: Record<IssueStatus, { label: string; tone: Tone }> = {
-  bounced:  { label: "Bounced",  tone: "danger" },
-  blocked:  { label: "Blocked",  tone: "danger" },
-  missing:  { label: "Missing",  tone: "warning" },
-  failed:   { label: "Failed",   tone: "danger" },
-  errored:  { label: "Errored",  tone: "danger" },
-  deferred: { label: "Deferred", tone: "warning" },
-};
 
 const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" } as const;
 
@@ -64,15 +47,6 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
         <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
           Across {data.affectedFiles} {data.affectedFiles === 1 ? "file" : "files"}
         </span>
-      </div>
-
-      {/* Breakdown by status */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-        {STATUS_ORDER.filter((s) => data.byStatus[s] > 0).map((s) => (
-          <Pill key={s} tone={ISSUE_META[s].tone} size="sm" outline>
-            {data.byStatus[s]} {ISSUE_META[s].label}
-          </Pill>
-        ))}
       </div>
 
       {/* Highest-priority affected files, as typed cards. The list scrolls
@@ -104,10 +78,7 @@ function IssueCard({ item }: { item: NeedsAttentionItem }) {
       <ContactAvatar contact={{ name: item.recipientName || "?", roleType: item.recipientRole || undefined }} image={item.recipientImage} size={38} />
 
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)" }}>{headline(item)}</b>
-          {countChip(item)}
-        </div>
+        <b style={{ display: "block", fontSize: 13.5, fontWeight: 650, color: "var(--agent-text-primary)" }}>{headline(item)}</b>
         <Link
           href={fileHref}
           className="agent-link"
@@ -222,10 +193,3 @@ function ctaFor(item: NeedsAttentionItem): string | null {
   }
 }
 
-function countChip(item: NeedsAttentionItem): ReactNode {
-  if ((item.status === "bounced" || item.status === "blocked" || item.status === "failed") && item.count > 1) {
-    return <Pill tone="danger" size="sm" outline>{item.count} failed</Pill>;
-  }
-  if (item.status === "missing") return <Pill tone="warning" size="sm" outline>1 file</Pill>;
-  return null;
-}
