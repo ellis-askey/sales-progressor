@@ -2521,6 +2521,12 @@
     border-color: var(--agent-coral);
     box-shadow: 0 3px 10px rgba(var(--agent-coral-rgb), 0.20);
   }
+  /* Keep the coral hover border even when a Design Lab glass variant is applied.
+     glass.css loads after this file, so [data-glass-id].glass-vNN (attr+class)
+     would otherwise win on hover at equal specificity; attr+class+pseudo beats it. */
+  [data-glass-id].agent-newsale-cta:hover {
+    border-color: var(--agent-coral);
+  }
   .agent-newsale-cta:focus-visible {
     outline: 2px solid var(--agent-coral-deep);
     outline-offset: 2px;

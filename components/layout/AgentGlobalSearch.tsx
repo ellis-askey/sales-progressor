@@ -113,6 +113,8 @@ export function AgentGlobalSearch() {
   // Design Lab: the closed search trigger is a pickable surface (undefined for
   // everyone but Ellis, so the default look is unchanged).
   const searchPick = usePickForCard("nav-search");
+  // Coral (primary) border on hover for the closed trigger, both themes.
+  const [triggerHovered, setTriggerHovered] = useState(false);
   const [open, setOpen]         = useState(false);
   // Exit animation (critique, 2026-09-23): closing keeps the overlay mounted
   // while the backdrop + panel play their out animations, then unmounts on a
@@ -222,6 +224,8 @@ export function AgentGlobalSearch() {
   if (!open && !closing) return (
     <button
       onClick={() => { setClosing(false); setOpen(true); }}
+      onMouseEnter={() => setTriggerHovered(true)}
+      onMouseLeave={() => setTriggerHovered(false)}
       title="Search (⌘K)"
       data-glass-id="nav-search"
       data-glass-label="Nav · Search bar"
@@ -229,9 +233,18 @@ export function AgentGlobalSearch() {
       style={{
         width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
         padding: "0 10px", borderRadius: 8, cursor: "pointer",
-        background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)",
+        // When a Design Lab glass pick is active, drop the inline background +
+        // border so the glass class (background + blur + border) takes over; an
+        // inline value would otherwise beat the class and nothing would change.
+        background: searchPick ? undefined : "var(--agent-surface-elevated)",
+        // Primary-colour border on hover, both themes. Inline so it beats a
+        // glass-variant border; idle falls back to the glass border (when a pick
+        // is active) or the default hairline.
+        border: triggerHovered
+          ? "0.5px solid var(--agent-coral)"
+          : searchPick ? undefined : "0.5px solid var(--agent-border-default)",
         color: "var(--agent-text-muted)", fontSize: 12,
-        transition: "background 150ms, box-shadow 150ms",
+        transition: "background 150ms, box-shadow 150ms, border-color 150ms",
       }}
       className={`hover:shadow-sm${searchPick ? " " + classFor(searchPick) : ""}`}
     >
