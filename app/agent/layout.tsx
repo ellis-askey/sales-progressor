@@ -20,6 +20,8 @@ import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
+import { IconModeProvider } from "@/components/icons/shim-core";
+import { ICON_MIGRATION_ENABLED } from "@/components/icons/flag";
 import { appColourCss } from "@/lib/agent/brand-theme";
 import "./styles/themes.css";
 import "./styles/agent-system.css";
@@ -101,6 +103,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
+      {/* Solar Bold Duotone icon migration: the three dashboards render icons in
+          Solar via this provider. Excluded areas never mount it, so shared
+          components fall back to the original icon. Remove to revert instantly. */}
+      <IconModeProvider mode={ICON_MIGRATION_ENABLED ? "solar" : "current"}>
       {/* The user's App Colour config, derived into the full token set + button
           tokens at render (light + dark), overriding the neutral
           [data-theme="custom"] base. */}
@@ -119,7 +125,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       {/* Design Lab (Ellis-only) — provides per-card glass-variant picks
           via context. Empty for anyone who hasn't set picks, so their
           tagged cards render as their defaultVariant (v00 = today). */}
-      <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles}>
+      <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles} initialMode={themeMode}>
       <AgentToaster>
         <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)}>
           {session.user.viewAsOperatorId && (
@@ -193,6 +199,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
         <SpeedInsights />
       </AgentToaster>
       </GlassPicksProvider>
+      </IconModeProvider>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
 } from "./variants";
 import { DEFAULT_PICKS } from "./default-picks";
 import { DEFAULT_STYLES, glassStylesCss, isCustomStyleId, parseGlassStyles, recipeToCssBody, type GlassStyle, type GlassRecipe } from "./custom";
+import type { ThemeMode } from "@/lib/agent/theme-mode";
 
 type Preview = { glassId: string; mode: GlassMode; recipe: GlassRecipe } | null;
 
@@ -67,16 +68,24 @@ function readMode(): GlassMode {
 export function GlassPicksProvider({
   initialPicks,
   initialStyles = [],
+  initialMode,
   children,
 }: {
   initialPicks: GlassPicks;
   initialStyles?: GlassStyle[];
+  /** Server-known theme preference. Seeds the first render so SSR picks the
+   *  right per-mode variant and a dark user doesn't see a one-frame flash of
+   *  the light variant before hydration. "system" can't be resolved on the
+   *  server, so it falls back to light (same as before) for those users. */
+  initialMode?: ThemeMode;
   children: React.ReactNode;
 }) {
   const [picks, setPicks] = useState<GlassPicks>(() => sanitise(initialPicks));
   const [styles, setStyles] = useState<GlassStyle[]>(() => parseGlassStyles(initialStyles));
   const [preview, setPreviewState] = useState<Preview>(null);
-  const [mode, setModeState] = useState<GlassMode>(readMode);
+  const [mode, setModeState] = useState<GlassMode>(() =>
+    typeof document === "undefined" ? (initialMode === "dark" ? "dark" : "light") : readMode(),
+  );
   const setPreview = useCallback((p: Preview) => setPreviewState(p), []);
 
   // Track the active theme so usePickForCard resolves the right slot and
