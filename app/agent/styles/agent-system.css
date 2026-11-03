@@ -2610,19 +2610,25 @@
    * a tinted body gradient, an accent hairline border, and a backdrop blur
    * that pulls the aurora through. The .pipe-card inset top light acts as
    * the specular edge. */
+  /* Baked frost (2026-11-03): the tile's OWN live backdrop-filter is removed.
+   * The browser switches a child's backdrop-filter OFF while an ancestor is
+   * blurred, so the Hub's fade-up blur on the outer card made these tiles flash
+   * flat then snap to glass at the end of the entrance. The outer pipeline card
+   * is itself a 28px frosted surface (glass-v22), so the tiles still read as
+   * glass sitting on frost; the tint is nudged up a touch to recover the
+   * dropped saturate. No backdrop-filter here means nothing for the entrance
+   * blur to switch off, so there's no snap. */
   .pipe-card-reached {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0) 52%),
-      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.20) 0%, rgba(var(--pipe-rgb), 0.05) 58%, rgba(var(--pipe-rgb), 0.12) 100%);
-    border-color: rgba(var(--pipe-rgb), 0.22);
-    -webkit-backdrop-filter: blur(14px) saturate(1.35);
-    backdrop-filter: blur(14px) saturate(1.35);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 52%),
+      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.24) 0%, rgba(var(--pipe-rgb), 0.07) 58%, rgba(var(--pipe-rgb), 0.15) 100%);
+    border-color: rgba(var(--pipe-rgb), 0.24);
   }
   [data-theme="dark"] .pipe-card-reached {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 52%),
-      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.30) 0%, rgba(var(--pipe-rgb), 0.08) 58%, rgba(var(--pipe-rgb), 0.16) 100%);
-    border-color: rgba(var(--pipe-rgb), 0.35);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 52%),
+      linear-gradient(160deg, rgba(var(--pipe-rgb), 0.34) 0%, rgba(var(--pipe-rgb), 0.10) 58%, rgba(var(--pipe-rgb), 0.20) 100%);
+    border-color: rgba(var(--pipe-rgb), 0.38);
   }
   [data-theme="dark"] .pipe-card {
     box-shadow:
