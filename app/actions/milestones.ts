@@ -43,6 +43,7 @@ import {
   fireAutoCounterpartEmails,
   scheduleOrSendCompletionPack,
 } from "@/lib/services/portal";
+import { isExchangeCompletionStale } from "@/lib/services/exchange-completion-rules";
 import { getDisplayName } from "@/lib/contacts/displayName";
 import { maybeFireFirstExchangeEmail, maybeFireFirstOutsourcedFreeEmail } from "@/lib/services/retention";
 import { notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
@@ -572,6 +573,11 @@ export async function confirmMilestoneAction(input: {
   // (the actual sends are fire-and-forget elsewhere). Sentry still captures
   // the error for later triage.
   const notifications: NotificationStatus[] = [];
+  // When a completion/exchange is confirmed after the fact (recorded date already
+  // in the past), the celebratory client emails are suppressed — so the toast
+  // must NOT claim clients were notified. Days-since drives the honest message
+  // ("No client emails were sent, as completion took place N days ago").
+  let clientEmailsSuppressedDaysAgo: number | undefined;
   if (def) {
     try {
       const emailCopy = getMilestoneCopy(def.code).emailCopy ?? {};
@@ -579,6 +585,8 @@ export async function confirmMilestoneAction(input: {
         where: { id: input.transactionId },
         select: {
           serviceType:  true,
+          completionDate: true,
+          expectedExchangeDate: true,
           assignedUser: { select: { id: true, name: true, email: true } },
           agentUser:    { select: { id: true, name: true, email: true } },
           contacts: {
@@ -588,6 +596,20 @@ export async function confirmMilestoneAction(input: {
         },
       });
       if (notifTx) {
+        const stale = isExchangeCompletionStale(def.code, {
+          expectedExchangeDate: notifTx.expectedExchangeDate,
+          completionDate: notifTx.completionDate,
+        });
+        if (stale) {
+          const recorded = (def.code === "VM20" || def.code === "PM27")
+            ? notifTx.completionDate
+            : notifTx.expectedExchangeDate;
+          if (recorded) {
+            const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+            const rd = new Date(recorded); rd.setHours(0, 0, 0, 0);
+            clientEmailsSuppressedDaysAgo = Math.max(1, Math.round((startToday.getTime() - rd.getTime()) / 86_400_000));
+          }
+        }
         for (const c of notifTx.contacts) {
           const role = c.roleType as "vendor" | "purchaser";
           if (!emailCopy[role]) continue;
@@ -641,6 +663,9 @@ export async function confirmMilestoneAction(input: {
     triggeredCelebration: isExchangeCode,
     propertyAddress: isExchangeCode ? tx.propertyAddress : undefined,
     notifications,
+    // Set when the client emails were suppressed because this confirm was a
+    // backfill — drives the honest "no client emails were sent" toast.
+    clientEmailsSuppressedDaysAgo,
   };
 }
 

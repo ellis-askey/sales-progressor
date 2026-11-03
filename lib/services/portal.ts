@@ -2632,8 +2632,6 @@ async function sendRichMilestoneEmails(
   // assembles a digest (see lib/email/milestone-digest.ts). vendorAgent
   // + progressor sends below remain synchronous — those are internal-
   // audience and would change the working contract if deferred.
-  const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
-
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
     // Step-confirmation email toggles (Email settings drawer): the file-wide
@@ -2673,16 +2671,11 @@ async function sendRichMilestoneEmails(
     // of these big-deal moments. Staleness suppression preserved — if
     // suppressed, we skip enqueue entirely.
     if (customerSuppressedByStaleness) {
-      // Nothing to enqueue; sideLog + logAutomatedEmail still fire so
-      // the comms feed records the intent (matches prior behaviour).
-      if (isExchangeCompletion) {
-        const existing = sideLog.get(recipientKey);
-        if (existing) {
-          existing.ids.push(c.id);
-        } else {
-          sideLog.set(recipientKey, { ids: [c.id], subject, text });
-        }
-      }
+      // Backfill (the recorded date is already in the past): the celebratory
+      // client email is suppressed AND we no longer write a comms-log entry for
+      // it, so the activity feed never implies a send that didn't happen (Berwick
+      // Way, 2026-11-03). The MilestoneCompletion row still surfaces "{who}
+      // confirmed …" via getActivityTimeline — the honest record of the action.
     } else {
       // Enqueue path — used for every code now. Source key
       // (transactionId, milestoneCode) is unique per confirmation and
@@ -2720,12 +2713,6 @@ async function sendRichMilestoneEmails(
       // feed records the actual body that landed (single or digest)
       // rather than the per-event intent at confirm-time.
     }
-  }
-
-  // sideLog only contains the exchange/completion synchronous-send
-  // entries — the queue path logs at drain-time, not here.
-  for (const { ids, subject, text } of sideLog.values()) {
-    logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
   }
 
   // Agent notification — only on outsourced files; self-managed agents manage their own files.

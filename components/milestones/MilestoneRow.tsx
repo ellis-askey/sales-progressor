@@ -26,7 +26,7 @@ import { Pill } from "@/components/ui/Pill";
 import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { useSession } from "next-auth/react";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
-import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
+import { CaretDown, CalendarBlank } from "@/components/icons/ph";
 import { DateField } from "@/components/ui/DateField";
 import { SearchesExpectedBack } from "./SearchesExpectedBack";
 import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
@@ -393,6 +393,14 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           setCelebrationExchangeDate(eventDate || undefined);
           setCelebrationCompletionDate(undefined);
           setCelebrating(true);
+        } else if (result.clientEmailsSuppressedDaysAgo != null) {
+          // Backfilled completion/exchange: the client emails were deliberately
+          // not sent (it already happened), so say so rather than "clients notified".
+          const days = result.clientEmailsSuppressedDaysAgo;
+          const isCompletion = def.code === "VM20" || def.code === "PM27";
+          toast.success(`${isCompletion ? "Completion" : "Exchange"} confirmed`, {
+            description: `No client emails were sent, as ${isCompletion ? "completion" : "exchange"} took place ${days} ${days === 1 ? "day" : "days"} ago.`,
+          });
         } else {
           const notified = result.notifications
             .filter(n => (n.role === "seller" || n.role === "buyer") && n.status === "queued")
