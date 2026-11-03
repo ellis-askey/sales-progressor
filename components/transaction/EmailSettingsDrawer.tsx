@@ -35,7 +35,7 @@ import {
   Info,
   CaretDown,
   CalendarBlank,
-} from "@/components/icons/ph";
+} from "@phosphor-icons/react";
 import { Drawer } from "@/components/ui/Drawer";
 import { AccordionBody } from "@/components/ui/AccordionBody";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

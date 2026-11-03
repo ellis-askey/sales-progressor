@@ -26,7 +26,7 @@ import { Pill } from "@/components/ui/Pill";
 import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { useSession } from "next-auth/react";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
-import { CaretDown, CalendarBlank } from "@/components/icons/ph";
+import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
 import { SearchesExpectedBack } from "./SearchesExpectedBack";
 import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
