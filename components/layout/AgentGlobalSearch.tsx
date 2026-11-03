@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { AgentSearchResult } from "@/app/api/agent/search/route";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { usePickForCard } from "@/lib/glass/context";
+import { classFor } from "@/lib/glass/variants";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { phoneSearchVariants } from "@/lib/utils";
 
@@ -108,6 +110,9 @@ function contactHref(c: AgentSearchResult["contacts"][number]): string {
 
 export function AgentGlobalSearch() {
   const { theme, isNight } = usePortalTheme();
+  // Design Lab: the closed search trigger is a pickable surface (undefined for
+  // everyone but Ellis, so the default look is unchanged).
+  const searchPick = usePickForCard("nav-search");
   const [open, setOpen]         = useState(false);
   // Exit animation (critique, 2026-09-23): closing keeps the overlay mounted
   // while the backdrop + panel play their out animations, then unmounts on a
@@ -218,6 +223,9 @@ export function AgentGlobalSearch() {
     <button
       onClick={() => { setClosing(false); setOpen(true); }}
       title="Search (⌘K)"
+      data-glass-id="nav-search"
+      data-glass-label="Nav · Search bar"
+      data-glass-variant={searchPick ?? "v00"}
       style={{
         width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
         padding: "0 10px", borderRadius: 8, cursor: "pointer",
@@ -225,7 +233,7 @@ export function AgentGlobalSearch() {
         color: "var(--agent-text-muted)", fontSize: 12,
         transition: "background 150ms, box-shadow 150ms",
       }}
-      className="hover:shadow-sm"
+      className={`hover:shadow-sm${searchPick ? " " + classFor(searchPick) : ""}`}
     >
       <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
@@ -293,7 +301,11 @@ export function AgentGlobalSearch() {
             onClick={close}
             style={{
               fontSize: 11, color: "var(--agent-text-muted)", border: "0.5px solid var(--agent-border-subtle)",
-              borderRadius: 5, padding: "2px 6px", background: "rgba(255,255,255,0.60)", cursor: "pointer",
+              // Theme-aware: a white pill reads in light mode but becomes an
+              // invisible light-on-light chip in dark (the modal flips text to a
+              // light grey). Use a subtle translucent-light fill on dark so "Esc"
+              // stays legible on the dark surface.
+              borderRadius: 5, padding: "2px 6px", background: isNight ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.60)", cursor: "pointer",
             }}
           >
             Esc

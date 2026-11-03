@@ -335,6 +335,9 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   // (2026-08-10); overridable per-account in the Design Lab. Mirrors how the
   // hub cards default via GlassCard's defaultVariant (v27 / v22).
   const sidebarPick = usePickForCard("nav-sidebar") ?? "v19";
+  // Design Lab: the New-sale CTA is a pickable surface (undefined for everyone
+  // but Ellis, so the default coral look is unchanged).
+  const newSalePick = usePickForCard("nav-newsale");
   // One dark-mode source of truth (data-theme), shared with the desktop
   // top-bar toggle. Replaces the old data-night mobile-only system.
   const { isDark, setDark } = useDarkMode(themeMode);
@@ -543,8 +546,11 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
                 // new-sale form is already loaded when clicked.
                 prefetch={true}
                 onClick={() => setMobileOpen(false)}
-                className={`agent-newsale-cta${isNewSale ? " is-active" : ""}`}
+                className={`agent-newsale-cta${isNewSale ? " is-active" : ""}${newSalePick ? " " + classFor(newSalePick) : ""}`}
                 title="New sale"
+                data-glass-id="nav-newsale"
+                data-glass-label="Nav · New sale"
+                data-glass-variant={newSalePick ?? "v00"}
               >
                 <span className="agent-newsale-badge" aria-hidden>
                   <Plus size={14} weight="bold" color="#fff" />
