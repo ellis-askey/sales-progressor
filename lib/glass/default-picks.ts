@@ -16,6 +16,10 @@ export const DEFAULT_PICKS: GlassPicks = {
   "todo-main": { light: "v05", dark: "v05" },
   "nav-topbar": { light: "v19", dark: "v19" },
   "nav-sidebar": { light: "v19", dark: "v19" },
+  // Top-bar search trigger — Thin glass on dark for every agent-app user (light
+  // stays the default hairline look, per Ellis). Paired with the glass.css rule
+  // that re-asserts the v04 blur past the nested-glass strip. 2026-11-03.
+  "nav-search": { dark: "v04" },
   "updates-day": { light: "v05", dark: "v05" },
   "sidebar-fees": { light: "v06", dark: "v05" },
   "contacts-card": { light: "v05", dark: "v04" },
