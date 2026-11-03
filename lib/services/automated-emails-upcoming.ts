@@ -110,6 +110,14 @@ function addWorkingDays(from: Date, n: number): Date {
   }
   return d;
 }
+// Roll a date forward to the next London weekday (today included if it's
+// already a weekday). An open-but-overdue chase goes out on the next run, not on
+// its long-past computed date — this shows it on the day it will actually send.
+function nextSendDay(from: Date): Date {
+  const d = new Date(from.getTime());
+  while (!isLondonWeekday(d)) d.setTime(d.getTime() + DAY);
+  return d;
+}
 function sideLabel(side: string): string {
   return side === "vendor" ? "Seller's solicitor" : side === "purchaser" ? "Buyer's solicitor" : "Solicitor";
 }
@@ -191,13 +199,38 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
   const ruleByCode = new Map(solRules.map((r) => [r.milestoneCode, r]));
   const defRepeat = solSettings?.repeatDays ?? 7;
   const defMax = solSettings?.maxChases ?? 2;
+
+  // Honesty guards — match the real sender (findDueSolicitorChases): it only
+  // chases OPEN solicitor steps on LIVE files (status active, non-demo), and
+  // never touches the stale chase-counter rows left behind when a step
+  // completed or a sale finished. Without these the Outbox predicted a chase for
+  // every un-capped counter, so ~88% of items were phantoms — completed steps
+  // and finished/withdrawn sales shown with long-past dates (verified against
+  // prod, 2026-11-03). Re-check live state here before predicting anything.
+  const solTxIds = [...new Set(solStates.map((s) => s.transactionId))];
+  const liveTxIds = new Set(
+    (
+      await prisma.propertyTransaction.findMany({
+        where: { id: { in: solTxIds }, status: "active", isDemo: false },
+        select: { id: true },
+      })
+    ).map((t) => t.id),
+  );
+  const solAvailable = await availableMilestoneKeys(solTxIds, [...new Set(solStates.map((s) => s.milestoneCode))]);
+
   for (const s of solStates) {
     const rule = ruleByCode.get(s.milestoneCode);
     const max = rule?.maxChases ?? defMax;
     if (s.chaseCount >= max || !s.lastChasedAt) continue;
+    // Sale no longer live, or the step is already done → not a real send.
+    if (!liveTxIds.has(s.transactionId)) continue;
+    if (!solAvailable.has(`${s.transactionId}:${s.milestoneCode}`)) continue;
     const repeat = rule?.repeatWorkingDays ?? defRepeat;
-    const predictedFor = addWorkingDays(s.lastChasedAt, repeat);
+    let predictedFor = addWorkingDays(s.lastChasedAt, repeat);
     if (predictedFor > horizon) continue;
+    // Open but overdue: it's due on the next run, so show that day, not a stale
+    // past date ("Sends 28 Sept … 36 days ago").
+    if (predictedFor.getTime() < now.getTime()) predictedFor = nextSendDay(now);
     predicted.push({
       id: `sol-${s.id}`,
       kind: "solicitor",
