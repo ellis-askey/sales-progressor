@@ -1,7 +1,21 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import type { FilesAtRiskData } from "@/lib/services/analytics";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+
+// Solid, glossy status pill — a two-stop gradient off the success/danger token
+// (lighter top, darker base) with white text, an inset highlight and a soft
+// tinted shadow. Theme-aware via the token vars. Replaces the flat soft-bg pill.
+function solidPill(tone: "success" | "danger"): CSSProperties {
+  return {
+    color: "#fff",
+    background: `linear-gradient(180deg, color-mix(in srgb, var(--agent-${tone}) 86%, #ffffff), color-mix(in srgb, var(--agent-${tone}) 82%, #000000))`,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.32), 0 1px 2px rgba(var(--agent-${tone}-rgb), 0.40)`,
+    padding: "2px 9px",
+    borderRadius: 99,
+  };
+}
 
 interface RiskRowProps {
   label: string;
@@ -33,9 +47,8 @@ function RiskRow({ label, sublabel, count, href, first }: RiskRowProps) {
           <>
             <span style={{
               fontSize: 13, fontWeight: 700,
-              color: "var(--agent-danger)", background: "var(--agent-danger-bg)",
-              padding: "2px 9px", borderRadius: 99,
               fontVariantNumeric: "tabular-nums",
+              ...solidPill("danger"),
             }}>
               {count}
             </span>
@@ -52,10 +65,8 @@ function RiskRow({ label, sublabel, count, href, first }: RiskRowProps) {
           </>
         ) : (
           <span style={{
-            fontSize: 11, fontWeight: 600,
-            color: "var(--agent-success)",
-            background: "var(--agent-success-bg)",
-            padding: "2px 9px", borderRadius: 99,
+            fontSize: 11, fontWeight: 700,
+            ...solidPill("success"),
           }}>
             ✓ Clear
           </span>
@@ -81,8 +92,7 @@ export function FilesAtRiskPanel({ data }: { data: FilesAtRiskData }) {
           {totalAtRisk > 0 && (
             <span style={{
               fontSize: 11, fontWeight: 700,
-              color: "var(--agent-danger)", background: "var(--agent-danger-bg)",
-              padding: "2px 9px", borderRadius: 99,
+              ...solidPill("danger"),
             }}>
               {totalAtRisk} issue{totalAtRisk !== 1 ? "s" : ""}
             </span>

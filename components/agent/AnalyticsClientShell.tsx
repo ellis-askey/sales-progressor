@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import { TodoTabs, type TodoTab } from "@/components/agent/TodoTabs";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
@@ -170,7 +170,8 @@ export function AnalyticsClientShell({
   initialPeriod,
 }: AnalyticsClientShellProps) {
   const [period, setPeriod] = useState(initialPeriod);
-  const periodTabsTag = useGlassTag("analytics-period-tabs", "Analytics · period tabs");
+  // Periods reuse the To-Do segmented control (TodoTabs). No count → no count badge.
+  const periodTabs: TodoTab[] = PERIODS.map(({ key, label }) => ({ key, label }));
 
   function handlePeriodChange(newPeriod: string) {
     setPeriod(newPeriod);
@@ -332,35 +333,22 @@ export function AnalyticsClientShell({
   const noFeeTransactionCount = noFeeFiles.length;
 
   return (
-    <BloomStage className="px-4 py-5 sm:px-8 flex flex-col gap-[18px]">
+    <BloomStage className="px-4 py-5 sm:px-8">
 
-      {/* ── Period tabs ────────────────────────────────────────────────────── */}
-      <div data-bloom className={periodTabsTag.className} {...periodTabsTag.props} style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2, scrollbarWidth: "none" }}>
-        {PERIODS.map(({ key, label }) => {
-          const active = key === period;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => handlePeriodChange(key)}
-              style={{
-                flexShrink: 0,
-                fontSize: 12, fontWeight: 600, padding: "9px 14px", borderRadius: 999,
-                cursor: "pointer", transition: "all 0.15s", border: "none",
-                ...(active
-                  ? { background: "rgba(var(--agent-coral-base-rgb),0.15)", color: "var(--agent-coral-deep)", outline: "1px solid rgba(var(--agent-coral-base-rgb),0.30)" }
-                  : { background: "var(--agent-surface-glass)", color: "var(--agent-text-muted)", outline: "1px solid var(--agent-border-default)" }
-                ),
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-        <div className="md:hidden" style={{ marginLeft: "auto", flexShrink: 0 }}>
-          <AnalyticsNotifCta />
-        </div>
-      </div>
+      {/* ── Period tabs — the shared To-Do segmented control: sliding pill with
+          the spring overshoot, and the panel cross-fades on period change. The
+          mobile notif CTA rides the tab row as the right-aligned action. ── */}
+      <TodoTabs
+        tabs={periodTabs}
+        active={period}
+        onChange={handlePeriodChange}
+        action={<div className="md:hidden"><AnalyticsNotifCta /></div>}
+        glassId="analytics-period-tabs"
+        glassLabel="Analytics · period tabs"
+        glassBaseline={{ light: "v04", dark: "v04" }}
+        glassPillBaseline={{ light: "v03", dark: "v04" }}
+      >
+      <div className="flex flex-col gap-[18px]">
 
       {/* ── Partial empty state banner ─────────────────────────────────────── */}
       {periodTx.length === 0 && period !== "all" && (
@@ -714,6 +702,8 @@ export function AnalyticsClientShell({
         </GlassCard>
       )}
 
+      </div>
+      </TodoTabs>
     </BloomStage>
   );
 }

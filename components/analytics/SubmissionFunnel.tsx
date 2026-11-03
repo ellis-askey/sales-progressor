@@ -59,10 +59,8 @@ export function SubmissionFunnel({ data }: { data: SubmissionFunnelData }) {
               }}>
                 <span style={{ fontSize: 10, color: "var(--agent-text-muted)", lineHeight: 1 }}>↓</span>
                 <span style={{
-                  fontSize: 10, fontWeight: 600,
+                  fontSize: 10, fontWeight: 700,
                   color: conv.percent >= 50 ? "var(--agent-success)" : "var(--agent-warning)",
-                  background: conv.percent >= 50 ? "var(--agent-success-bg)" : "var(--agent-warning-bg)",
-                  padding: "1px 6px", borderRadius: 99,
                 }}>
                   {conv.percent}%
                 </span>
