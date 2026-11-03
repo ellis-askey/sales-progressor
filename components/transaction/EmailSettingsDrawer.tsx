@@ -35,7 +35,7 @@ import {
   Info,
   CaretDown,
   CalendarBlank,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import { Drawer } from "@/components/ui/Drawer";
 import { AccordionBody } from "@/components/ui/AccordionBody";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -131,7 +131,7 @@ function SectionCard({
 }: {
   icon: React.ReactNode;
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   control?: React.ReactNode;
   children?: React.ReactNode;
   tinted?: boolean;
@@ -439,6 +439,16 @@ function EmailSettingsDrawer({
   const hasClients = sellers.length > 0 || buyers.length > 0;
   const hasSolicitors = !!state?.vendorSolicitor || !!state?.purchaserSolicitor;
   const noOneToChase = !hasClients && !hasSolicitors;
+  // The "Automatic chasing" master and the per-recipient toggles are independent
+  // (see setContactEmailsPaused): the master can read ON while every client and
+  // solicitor is individually paused, in which case nobody is actually chased.
+  // Flag that honestly in the subtitle so the master doesn't lie (108 Wendover Rd).
+  const chaseRecipientsPaused = [
+    ...(state?.contacts ?? []).map((c) => c.paused),
+    ...(state?.vendorSolicitor ? [state.vendorSolicitor.paused] : []),
+    ...(state?.purchaserSolicitor ? [state.purchaserSolicitor.paused] : []),
+  ];
+  const everyoneChaseOff = !!state && !state.clientEmailsPaused && chaseRecipientsPaused.length > 0 && chaseRecipientsPaused.every(Boolean);
 
   const pauseSubtitle =
     state?.status === "on_hold"
@@ -525,7 +535,9 @@ function EmailSettingsDrawer({
             <SectionCard
               icon={<UsersThree size={20} weight="regular" />}
               title="Automatic chasing"
-              subtitle="Choose who we can chase when something is outstanding."
+              subtitle={everyoneChaseOff
+                ? <span style={{ color: "var(--agent-warning)", fontWeight: 600 }}>On, but every recipient is switched off, so no one is being chased.</span>
+                : "Choose who we can chase when something is outstanding."}
               collapsible
               expanded={chasingOpen}
               onToggleExpand={() => setChasingOpen((o) => !o)}
