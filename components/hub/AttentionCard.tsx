@@ -556,7 +556,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
   }
   if (relists.length) summaryParts.push(`${relists.length} new ${relists.length === 1 ? "buyer" : "buyers"}`);
   if (chainSetup.length) summaryParts.push(`${chainSetup.length} chain ${chainSetup.length === 1 ? "setup" : "setups"}`);
-  const summary = summaryParts.length > 0 ? summaryParts.join(" · ") : "Reminders, holds and anything waiting on you.";
+  const summary = summaryParts.length > 0 ? summaryParts.join(" · ") : "Reminders and anything waiting on you.";
 
   const allClear = rows.length === 0;
 
@@ -698,7 +698,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             <div style={{ padding: "20px 20px 24px", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
               <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                New reminders, holds and anything waiting on you will show up here.
+                New reminders and anything waiting on you will show up here.
               </p>
             </div>
           ) : (
