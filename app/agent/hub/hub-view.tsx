@@ -932,6 +932,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
             iconName="warning"
             headerTone="danger"
             title="Files at risk"
+            countWord={{ one: "file at risk", many: "files at risk" }}
             subtitle="Our overnight checks have flagged sales that may have stalled or need a follow-up."
             rows={buildFilesAtRiskRows(filesAtRisk, photoMap)}
             defaultCollapsed={collapsedAt(0)}
@@ -950,6 +951,7 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
             iconName="bank"
             headerTone="warning"
             title="Mortgage offers expiring"
+            countWord={{ one: "mortgage offer expiring", many: "mortgage offers expiring" }}
             subtitle="Client mortgage offers nearing their expiry."
             rows={buildMortgageRows(mortgage, photoMap)}
             defaultCollapsed={collapsedAt(2)}
@@ -977,6 +979,9 @@ async function TriageCardsSlot({ ctx, attentionTxIds, attentionHasReminders, has
             // Internal team + external progression businesses keep the work-queue
             // framing (critique 2026-10-05).
             title={vis.internalMode ? "Gone quiet" : "Worth a nudge"}
+            countWord={vis.internalMode
+              ? { one: "file gone quiet", many: "files gone quiet" }
+              : { one: "to nudge", many: "to nudge" }}
             subtitle={vis.internalMode
               ? "Quiet for a while and may need a personal nudge."
               : "A client who was previously engaged has gone quiet. A quick personal check-in can help re-engage them."}

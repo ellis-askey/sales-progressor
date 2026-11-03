@@ -229,7 +229,7 @@ function AgentArea({ decisions, save, openModal, openDrawer, openSurvey, openUnd
         <Boundary label="PipelineAtAGlance" file="components/hub/PipelineAtAGlance.tsx"><PipelineAtAGlance signedPhotos={{}} stages={PIPELINE as unknown as React.ComponentProps<typeof PipelineAtAGlance>["stages"]} /></Boundary>
         <div className="sc-grid2">
           <Boundary label="HubListCard (gone quiet)" file="components/hub/HubListCard.tsx">
-            <HubListCard cardKind="gone_quiet" iconName="clock" headerTone="warning" title="Gone quiet" subtitle="No movement in 14+ days" rows={[{ transactionId: "tx_1", href: "#", photoUrl: null, address: "4 Oak Lane, Leeds, LS1 4AB", pillLabel: null, pillTone: "warning", subtext: "No update since 3 Oct", meta: "14 days quiet", metaTone: "warning", dismissSignature: "sig1" }] as unknown as React.ComponentProps<typeof HubListCard>["rows"]} />
+            <HubListCard cardKind="gone_quiet" iconName="clock" headerTone="warning" title="Gone quiet" countWord={{ one: "file gone quiet", many: "files gone quiet" }} subtitle="No movement in 14+ days" rows={[{ transactionId: "tx_1", href: "#", photoUrl: null, address: "4 Oak Lane, Leeds, LS1 4AB", pillLabel: null, pillTone: "warning", subtext: "No update since 3 Oct", meta: "14 days quiet", metaTone: "warning", dismissSignature: "sig1" }] as unknown as React.ComponentProps<typeof HubListCard>["rows"]} />
           </Boundary>
           <Boundary label="AttentionCard (all clear)" file="components/hub/AttentionCard.tsx"><AttentionCard holds={[]} reminders={[]} unassigned={[]} relists={[]} chainSetup={[]} /></Boundary>
         </div>

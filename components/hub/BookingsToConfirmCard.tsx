@@ -21,7 +21,6 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
@@ -122,9 +121,15 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Surveys &amp; valuations to confirm</span>
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {rows.length}
+            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
+              {(() => {
+                const s = rows.filter((r) => r.kind === "survey").length;
+                const v = rows.length - s;
+                const num = (n: number) => <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700 }}>{n}</span>;
+                if (v === 0) return <>{num(s)} survey{s !== 1 ? "s" : ""} to confirm</>;
+                if (s === 0) return <>{num(v)} valuation{v !== 1 ? "s" : ""} to confirm</>;
+                return <>{num(s)} survey{s !== 1 ? "s" : ""} and {num(v)} valuation{v !== 1 ? "s" : ""} to confirm</>;
+              })()}
             </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
@@ -189,10 +194,13 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                             {a.location && <span className="hub-addr-loc">{a.location}</span>}
                           </>); })()}
                         </Link>
-                        <Pill glass tone="brand" size="md" style={{ flexShrink: 0 }}>
-                          {row.pillLabel}
-                        </Pill>
                       </div>
+                      {/* Survey / Valuation as a toned status word on its own line,
+                          matching the "Needs assigning" treatment on AttentionCard
+                          (critique #295 — the inline pill is gone). */}
+                      <p style={{ margin: "2px 0 0", fontSize: 10.5, fontWeight: 750, color: "var(--agent-coral-deep)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {row.pillLabel}
+                      </p>
                       <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {row.subtext}
                       </p>

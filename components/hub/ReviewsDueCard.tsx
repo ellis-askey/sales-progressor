@@ -156,15 +156,8 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Files to review</span>
-            <span
-              style={{
-                fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px",
-                borderRadius: 999, background: "rgba(var(--agent-info-rgb),0.12)",
-                color: "var(--agent-info)", display: "inline-flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              {items.length}
+            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
+              <span style={{ color: "var(--agent-info)", fontWeight: 700 }}>{items.length}</span> file{items.length !== 1 ? "s" : ""} to review
             </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>

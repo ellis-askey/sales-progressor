@@ -73,9 +73,8 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>Exchange dates passed</span>
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "rgba(var(--agent-warning-rgb),0.14)", color: "var(--agent-warning)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {items.length}
+            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
+              <span style={{ color: "var(--agent-warning)", fontWeight: 700 }}>{items.length}</span> exchange date{items.length !== 1 ? "s" : ""} passed
             </span>
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>

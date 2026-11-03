@@ -66,6 +66,7 @@ export function HubListCard({
   iconName,
   headerTone,
   title,
+  countWord,
   subtitle,
   rows: initialRows,
   defaultCollapsed = false,
@@ -73,7 +74,11 @@ export function HubListCard({
   cardKind: "gone_quiet" | "mortgage_expiry" | "files_at_risk";
   iconName: keyof typeof ICONS;
   headerTone: HubRowTone;
+  // Stable card name — used only for the Design Lab label. The visible header is
+  // the count-first countWord below.
   title: string;
+  // Count-first header: "<N> <one|many>" with N in the tone colour (no badge).
+  countWord: { one: string; many: string };
   subtitle: string;
   rows: HubRowData[];
   // Hub clutter rule (Ellis, 2026-09-18): triage cards below the top two
@@ -124,11 +129,8 @@ export function HubListCard({
           <HeaderIcon size={24} weight="bold" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>{title}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: ht.iconBg, color: ht.color, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {rows.length}
-            </span>
+          <span className="agent-card-title-emphasis" style={{ margin: 0, display: "block" }}>
+            <span style={{ color: ht.color, fontWeight: 700 }}>{rows.length}</span> {rows.length === 1 ? countWord.one : countWord.many}
           </span>
           <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{subtitle}</span>
         </span>
