@@ -224,8 +224,14 @@ export async function migrateBoardwalkSaleAction(input: MigrateSaleInput): Promi
     const tx = await createTransaction({
       propertyAddress: normaliseAddressString(address),
       agencyId,
-      assignedUserId: input.assignToUserId ?? undefined,
-      agentUserId: input.assignToUserId ?? null,
+      // Owning agent = the picked agency agent, else the importer (matches the
+      // normal add-sale default, transactions.ts effectiveAgentUserId). Without
+      // this the file is "ownerless" (agentUserId null) and drops out of every
+      // agent-scoped surface — the Reminders page, hub lanes, "managing this file".
+      agentUserId: input.assignToUserId ?? session.user.id,
+      // Self-managed agency import has no SP progressor; leave assignedUserId null
+      // (the "Assign to" pick sets the owning AGENT above, not an SP).
+      assignedUserId: undefined,
       progressedBy: input.progressedBy ?? "agent",
       createdAt: createdAtDate, // backdated start
       isMigrated: true,
