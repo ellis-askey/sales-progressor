@@ -57,7 +57,7 @@ import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Clock, Warning, CaretRight, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
+import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -1262,34 +1262,10 @@ async function PipelineHealthCard({
           </Link>
         </div>
 
-        {/* Stalled files row */}
-        <div style={{ borderTop: "1px solid var(--agent-border-subtle)", marginTop: 10 }}>
-          {pipelineStats.stalled.count === 0 ? (
-            <div style={{ paddingTop: 10, paddingBottom: 2, fontSize: 13, color: "var(--agent-text-muted)" }}>
-              All files have recent activity
-            </div>
-          ) : (
-            <Link
-              href="/agent/work-queue"
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "8px", marginTop: 8,
-                textDecoration: "none", borderRadius: 6, gap: 8,
-              }}
-              className="agent-press-cell"
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Warning size={14} color="var(--agent-warning)" weight="fill" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>
-                  <strong>{pipelineStats.stalled.count} files need chasing</strong>
-                  {", "}
-                  <span style={{ color: "var(--agent-text-secondary)" }}>nothing logged in 14+ days</span>
-                </span>
-              </div>
-              <CaretRight size={14} color="var(--agent-text-muted)" weight="bold" style={{ flexShrink: 0 }} />
-            </Link>
-          )}
-        </div>
+        {/* "N files need chasing / nothing logged in 14+ days" pointer removed
+            (critique #294): the count disagreed with the work queue it linked to,
+            so it read as a false alarm. A follow-up critique is logged to put
+            something trustworthy back in this slot. */}
       </GlassCard>
     </SectionReveal>
   );

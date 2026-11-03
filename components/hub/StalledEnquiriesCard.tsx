@@ -92,10 +92,11 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
             const label = isStalled ? "Gone quiet" : "Chase again";
             const labelColor = isStalled ? "var(--agent-danger)" : "var(--agent-coral-deep)";
             const rowAccent = isStalled ? "var(--agent-danger)" : ACCENT;
-            const timePart = isStalled || row.actionDays == null
-              ? `Quiet ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`
-              : `${row.actionVerb === "spoke" ? "Spoke" : "Chased"} ${row.actionDays} ${row.actionDays === 1 ? "day" : "days"} ago`;
-            const withText = `${withPrefix} · ${timePart}`;
+            // "With {solicitor} for N days" — no dot, no "Quiet"; the row label
+            // carries the status, so the line just says how long it's been with
+            // them (reads cleaner).
+            const forPart = `for ${row.quietDays} ${row.quietDays === 1 ? "day" : "days"}`;
+            const withText = `${withPrefix} ${forPart}`;
             const addr = splitAddress(row.address);
             return (
               <div key={row.transactionId} style={{ borderLeft: `3px solid ${rowAccent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
@@ -121,7 +122,7 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
                         button — "With …" line, then "Quiet N days". */}
                     <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }} data-sensitive="true">
                       <span>{withPrefix}</span>
-                      <span>{timePart}</span>
+                      <span>{forPart}</span>
                     </span>
                     <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                       <PaperPlaneTilt size={13} weight="bold" /> Chase
