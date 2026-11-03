@@ -31,7 +31,7 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
       : "Chases and follow-ups across your business's sales appear here as they progress.";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero — matches the Enquiries / Completions empty-state hero treatment. */}
       <div
         style={{

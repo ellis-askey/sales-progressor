@@ -17,7 +17,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
   const { launch, node } = useDemoExplore();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
