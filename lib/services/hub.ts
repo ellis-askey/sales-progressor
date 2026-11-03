@@ -17,7 +17,7 @@ import { calculateFileFeesPence, calculateProgressionFeePence, type FileFeesInpu
 import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
 import { COMPLETION_REMINDER_CODES } from "@/lib/reminders/completion-codes";
 import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
-import { enquiryNeedsAttention } from "@/lib/enquiries/tracker";
+import { enquiryNeedsAttention, enquiryStalled } from "@/lib/enquiries/tracker";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1308,6 +1308,14 @@ export type StalledEnquiryItem = {
   photoStoragePath: string | null;
   currentlyWith: "seller_solicitor" | "buyer_solicitor";
   quietDays: number;
+  // Which story this row tells (critique #289): "stalled" = gone dark, nobody
+  // chasing, silent past the threshold (red "Gone quiet"); "chase_again" = we've
+  // chased or spoken and the short leash lapsed, our move (orange "Chase again").
+  kind: "stalled" | "chase_again";
+  // chase_again only: the most recent outbound action and how long ago, so the
+  // row can read "Chased 2 days ago" / "Spoke 1 day ago" instead of "Quiet N".
+  actionVerb: "chased" | "spoke" | null;
+  actionDays: number | null;
   solicitorName: string | null;
   // For the send-a-chase drawer (opened straight from the card): the clients on
   // the court's side to CC by default, and how many times we've already chased
@@ -1372,6 +1380,19 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
     // elapsed or gone silent past the threshold.
     if (!enquiryNeedsAttention(r, now)) continue;
     const anchor = r.lastMovementAt ?? r.openedAt;
+    // Stalled = gone dark, nobody chasing. Otherwise it's a "chase again" loop:
+    // show the time since the most recent outbound action (chase or soft "spoke").
+    const stalled = enquiryStalled(r, now);
+    let actionVerb: "chased" | "spoke" | null = null;
+    let actionDays: number | null = null;
+    if (!stalled) {
+      const useChase = r.lastChasedAt && (!r.lastTouchAt || r.lastChasedAt >= r.lastTouchAt);
+      const actionAt = useChase ? r.lastChasedAt : (r.lastTouchAt ?? r.lastChasedAt);
+      if (actionAt) {
+        actionVerb = useChase ? "chased" : "spoke";
+        actionDays = Math.max(0, Math.floor((now.getTime() - actionAt.getTime()) / 86400000));
+      }
+    }
     const seller = r.currentlyWith === "seller_solicitor";
     // Active-round buyers only — a relisted file must not CC (or name in the chase
     // subject) the previous buyer (critique #5).
@@ -1384,13 +1405,23 @@ export async function getStalledEnquiries(vis: AgentVisibility): Promise<Stalled
       photoStoragePath: tx.photoStoragePath,
       currentlyWith: r.currentlyWith as "seller_solicitor" | "buyer_solicitor",
       quietDays: Math.max(0, Math.floor((now.getTime() - anchor.getTime()) / 86400000)),
+      kind: stalled ? "stalled" : "chase_again",
+      actionVerb,
+      actionDays,
       solicitorName: seller ? (tx.vendorSolicitorFirm?.name ?? null) : (tx.purchaserSolicitorFirm?.name ?? null),
       ccCandidates,
       solicitorEmail: seller ? (tx.vendorSolicitorContact?.email ?? null) : (tx.purchaserSolicitorContact?.email ?? null),
       chaseCount: r.chaseCount,
     });
   }
-  out.sort((a, b) => b.quietDays - a.quietDays); // longest-quiet first
+  // Gone-quiet (stalled, the urgent red ones) lead; within each group the
+  // longest-waiting first.
+  out.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === "stalled" ? -1 : 1;
+    const aDays = a.kind === "stalled" ? a.quietDays : (a.actionDays ?? 0);
+    const bDays = b.kind === "stalled" ? b.quietDays : (b.actionDays ?? 0);
+    return bDays - aDays;
+  });
   return out;
 }
 
