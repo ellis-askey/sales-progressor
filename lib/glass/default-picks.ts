@@ -20,6 +20,12 @@ export const DEFAULT_PICKS: GlassPicks = {
   // stays the default hairline look, per Ellis). Paired with the glass.css rule
   // that re-asserts the v04 blur past the nested-glass strip. 2026-11-03.
   "nav-search": { dark: "v04" },
+  // New sale CTA — Ellis's live pick, baked so every agent gets the same button
+  // (previously only Ellis had this, via a personal saved pick; everyone else saw
+  // the plain base button). Light uses the frosted main custom style, dark v04.
+  // Both are already app-wide (cs-b7c9ec28 is in DEFAULT_STYLES; v04 is built in).
+  // The per-mode split is why the SSR mode-seeding fix matters here. 2026-11-03.
+  "nav-newsale": { light: "cs-b7c9ec28", dark: "v04" },
   "updates-day": { light: "v05", dark: "v05" },
   "sidebar-fees": { light: "v06", dark: "v05" },
   "contacts-card": { light: "v05", dark: "v04" },
