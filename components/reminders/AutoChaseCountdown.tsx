@@ -25,16 +25,26 @@ export function sendMoment(iso: string): string {
   return `${day} at ${time}`;
 }
 
+// Returns the detail AFTER the "Auto-chase" label (the label is rendered
+// separately so it can be weighted). Over 48h out, the countdown switches to a
+// days breakdown ("5d 21h 15m 09s") rather than a huge hour count.
 function build(iso: string): string {
   const target = new Date(iso);
   const now = new Date();
   let s = Math.floor((target.getTime() - now.getTime()) / 1000);
   if (s < 0) s = 0;
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  const clock = h > 0
-    ? `${h}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`
-    : `${m}m ${String(sec).padStart(2, "0")}s`;
-  return `Auto-chase ${sendMoment(iso)} · ${clock}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const m = Math.floor((s % 3600) / 60), sec = s % 60;
+  let clock: string;
+  if (s > 48 * 3600) {
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    clock = `${d}d ${h}h ${pad(m)}m ${pad(sec)}s`;
+  } else {
+    const h = Math.floor(s / 3600);
+    clock = h > 0 ? `${h}h ${pad(m)}m ${pad(sec)}s` : `${m}m ${pad(sec)}s`;
+  }
+  return `${sendMoment(iso)} · ${clock}`;
 }
 
 export function AutoChaseCountdown({ iso, onView, pausedUntil }: { iso: string; onView?: () => void; pausedUntil?: string | null }) {
@@ -61,7 +71,13 @@ export function AutoChaseCountdown({ iso, onView, pausedUntil }: { iso: string; 
       fontSize: 11.5, color: "var(--agent-text-secondary)",
     }}>
       <Clock size={12} weight="bold" style={{ color: "var(--agent-success)", flexShrink: 0 }} />
-      <span style={{ fontVariantNumeric: "tabular-nums" }}>{text ?? "On autopilot"}</span>
+      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+        {text == null
+          ? "On autopilot"
+          : pausedUntil
+            ? text
+            : <><span style={{ fontWeight: 500 }}>Auto-chase</span> {text}</>}
+      </span>
       {onView && (
         <button
           type="button"

@@ -145,7 +145,23 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+    // The slot is first measured in the fallback font (before webfonts load), so
+    // without a re-measure the portalled pill keeps a stale width and tucks under
+    // the notification bell — worst on short names, where the slot is narrowest.
+    // A ResizeObserver catches the font swap + avatar-image load (both change the
+    // slot's box), and fonts.ready is a belt-and-braces for the initial swap.
+    const ro = typeof ResizeObserver !== "undefined" && slotRef.current
+      ? new ResizeObserver(() => measure())
+      : null;
+    if (ro && slotRef.current) ro.observe(slotRef.current);
+    if (typeof document !== "undefined" && "fonts" in document) {
+      document.fonts.ready.then(measure).catch(() => {});
+    }
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      ro?.disconnect();
+    };
   }, []);
 
   useEffect(() => {
