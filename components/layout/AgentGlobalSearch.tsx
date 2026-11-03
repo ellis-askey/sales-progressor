@@ -220,8 +220,11 @@ export function AgentGlobalSearch() {
 
   const hasResults = results && (results.transactions.length + results.contacts.length + results.solicitors.length) > 0;
 
-  // Closed state — input-like trigger with white background and hairline border
-  if (!open && !closing) return (
+  // The trigger stays mounted in the top bar at all times; the search modal
+  // opens ON TOP of it via a portal (never instead of it), so the search bar no
+  // longer vanishes while the modal is open and reappears when it closes.
+  return (
+    <>
     <button
       onClick={() => { setClosing(false); setOpen(true); }}
       onMouseEnter={() => setTriggerHovered(true)}
@@ -260,9 +263,7 @@ export function AgentGlobalSearch() {
         ⌘K
       </span>
     </button>
-  );
-
-  return createPortal(
+    {(open || closing) && createPortal(
     <div
       data-theme={theme}
       style={{ ...(isNight ? (DARK_SEARCH_TOKENS as CSSProperties) : null), position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "15vh", pointerEvents: closing ? "none" : undefined }}
@@ -439,6 +440,8 @@ export function AgentGlobalSearch() {
       </div>
     </div>,
     document.body
+    )}
+    </>
   );
 }
 

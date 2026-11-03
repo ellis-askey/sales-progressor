@@ -533,6 +533,16 @@
   backdrop-filter: none !important;
   box-shadow: none !important;
 }
+
+/* The top-bar search trigger is a glass surface nested inside the top bar, so the
+   strip above removes its blur — which is nearly all of "Thin glass" (v04). Re-
+   assert the v04 blur for the search bar only, so the Design Lab pick actually
+   shows. Same specificity as the strip but declared later, so it wins; scoped to
+   nav-search, nothing else changes. */
+[data-glass-id="nav-search"].glass-v04 {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
 /* v00 (agent current baseline) has no blur or shadow to begin with, so
    this rule is a no-op for it. When cards are all-v00, nothing changes. */
 
