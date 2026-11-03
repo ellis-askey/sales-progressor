@@ -543,14 +543,13 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
 
   return createPortal(
     <>
-      {/* Backdrop */}
+      {/* Click-catcher — closes on outside click, but renders nothing visible:
+          no tint, no blur. The popup simply appears over the page as-is. */}
       <div
         onClick={close}
         style={{
           position: "fixed", inset: 0, zIndex: 39,
-          background: "rgba(0,0,0,0.28)",
-          opacity: isOpen ? 1 : 0,
-          transition: "opacity 200ms ease",
+          background: "transparent",
           pointerEvents: isOpen ? "auto" : "none",
           visibility: capturing ? "hidden" : undefined,
         }}
