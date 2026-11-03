@@ -367,6 +367,7 @@ async function finalizeImport(
       data: { migrationFinalizedAt: new Date() },
     });
 
+    revalidatePath("/agent/hub"); // dismiss the zero-sale first-run hub (matches the normal add-sale path)
     revalidatePath("/agent/transactions");
     revalidatePath(`/agent/transactions/${transactionId}`, "layout");
     return { ok: true, id: transactionId, applied: input.completions.length };
