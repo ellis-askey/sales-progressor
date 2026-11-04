@@ -37,6 +37,24 @@ describe("titleCaseKeepAcronyms", () => {
     expect(titleCaseKeepAcronyms("william h brown")).toBe("William H Brown");
     expect(titleCaseKeepAcronyms("  sarah derry ")).toBe("Sarah Derry");
   });
+
+  it("capitalises the letter after a Mc prefix", () => {
+    expect(titleCaseKeepAcronyms("david mcclure")).toBe("David McClure");
+    expect(titleCaseKeepAcronyms("mcdonald")).toBe("McDonald");
+    expect(titleCaseKeepAcronyms("fiona mcintyre")).toBe("Fiona McIntyre");
+    // Idempotent: already-correct input stays correct.
+    expect(titleCaseKeepAcronyms("David McClure")).toBe("David McClure");
+    // Double-barrelled: the Mc half still gets its inner capital.
+    expect(titleCaseKeepAcronyms("smith-mcclure")).toBe("Smith-McClure");
+  });
+
+  it("leaves 'Mac' and ordinary 'mc'-free names untouched", () => {
+    // Mac is ambiguous (Macey, Machin, Mackenzie) so we don't auto-capitalise it.
+    expect(titleCaseKeepAcronyms("sarah macey")).toBe("Sarah Macey");
+    expect(titleCaseKeepAcronyms("paul machin")).toBe("Paul Machin");
+    // A typed all-caps acronym is still preserved (never lowered or re-cased).
+    expect(titleCaseKeepAcronyms("MCCLURE LTD")).toBe("MCCLURE LTD");
+  });
 });
 
 describe("titleCase (addresses — unchanged semantics)", () => {

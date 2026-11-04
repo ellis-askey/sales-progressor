@@ -83,7 +83,13 @@ export function titleCaseKeepAcronyms(str: string): string {
           // Longer stems before an apostrophe are possessives — leave as-is.
           if ((sep === "'" || sep === "’") && offset !== 1) return match;
           return match.toUpperCase();
-        }),
+        })
+        // Scottish/Irish "Mc" prefix: capitalise the letter after Mc so
+        // mcclure → McClure (not Mcclure), mcdonald → McDonald. Only at a word
+        // start or after a hyphen/apostrophe, and only when a letter follows.
+        // "Mac" is deliberately left alone — it would wrongly capitalise names
+        // like Macey / Machin / Mackenzie where the stem isn't a prefix.
+        .replace(/(^|[-'’])Mc(\p{L})/gu, (_m, sep, next) => `${sep}Mc${next.toUpperCase()}`),
   );
 }
 
