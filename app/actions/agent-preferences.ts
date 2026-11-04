@@ -12,6 +12,34 @@ import { isCustomStyleId, parseGlassStyles, type GlassStyle } from "@/lib/glass/
 import { isNotificationKey, isPushKey, type NotificationKey, type PushKey } from "@/lib/agent/notification-prefs";
 import { pushToUser } from "@/lib/services/push";
 
+// Personal "All files / Just mine" view toggle (persists on agentPreferences).
+// Only meaningful for a user allowed to see all (director / granted negotiator);
+// the UI hides the control otherwise, and resolveAgentVisibility ignores "mine"
+// for a member who isn't allowed all, so this can't widen anyone's access.
+export async function updateFileViewMode(mode: "all" | "mine") {
+  const session = await requireSession();
+  if (mode !== "all" && mode !== "mine") return { ok: false as const, error: "Invalid view mode" };
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { agentPreferences: { ...existingPrefs, fileViewMode: mode } },
+  });
+
+  // Every agency list narrows through resolveAgentVisibility, so revalidate the
+  // whole agent app — the next render re-scopes Hub, All Files, Chains, etc.
+  revalidatePath("/agent", "layout");
+  return { ok: true as const, mode };
+}
+
 export async function updateAgentTheme(theme: AgentTheme) {
   const session = await requireSession();
 

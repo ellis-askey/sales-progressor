@@ -25,19 +25,38 @@ export type AgentVisibility = {
   // whole business book (PropertyTransaction.progressionBusinessId), so every
   // member sees all the files their business progresses. Undefined for TSP staff.
   businessId?: string;
+  // Whether this user is ALLOWED to see all the agency's files (director, or a
+  // negotiator the director granted "All files"). When true the UI shows the
+  // personal All/Mine view toggle; when false there's nothing to toggle.
+  canToggleViewAll?: boolean;
+  // The user's own persisted view choice. Only narrows when they've chosen "mine"
+  // AND they're allowed to see all — see resolveAgentVisibility.
+  viewMode?: "all" | "mine";
 };
 
-/** Resolve how much of the agency a user can see based on role + canViewAllFiles. */
+/** Per-user file view choice, stored on agentPreferences.fileViewMode. Defaults
+ *  to "all" so an allowed member sees everything until they choose to focus. */
+export function readFileViewMode(prefs: unknown): "all" | "mine" {
+  if (prefs && typeof prefs === "object" && (prefs as Record<string, unknown>).fileViewMode === "mine") return "mine";
+  return "all";
+}
+
+/** Resolve how much of the agency a user can see: the director-set ceiling
+ *  (role / canViewAllFiles) narrowed by the user's own persisted view toggle. */
 export async function resolveAgentVisibility(
   userId: string,
   agencyId: string
 ): Promise<AgentVisibility> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, canViewAllFiles: true, firmName: true },
+    select: { role: true, canViewAllFiles: true, firmName: true, agentPreferences: true },
   });
-  const seeAll = user?.role === "director" || user?.canViewAllFiles === true;
-  return { userId, agencyId, seeAll, firmName: user?.firmName ?? null };
+  // Ceiling: allowed to see every agency file?
+  const canToggleViewAll = user?.role === "director" || user?.canViewAllFiles === true;
+  // Personal choice, persisted. "mine" narrows to own files even when allowed all.
+  const viewMode = readFileViewMode(user?.agentPreferences);
+  const seeAll = canToggleViewAll && viewMode !== "mine";
+  return { userId, agencyId, seeAll, firmName: user?.firmName ?? null, canToggleViewAll, viewMode };
 }
 
 /**

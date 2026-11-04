@@ -53,9 +53,16 @@ export const metadata: Metadata = {
 };
 
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
-  const { session, isInternalStaff, showWelcome, theme, brandColor, appColour, userName, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, glassStyles, chainDeclineNotif, agentBellClearedAt, agencyModeProfile, progressorName } =
+  const { session, isInternalStaff, showWelcome, theme, brandColor, appColour, userName, userImage, mobileTheme, nightModePref, themeMode, backgroundOpacity, glassPicks, glassStyles, chainDeclineNotif, agentBellClearedAt, agencyModeProfile, progressorName, fileViewMode } =
     await resolveAgentSession();
   void theme; void mobileTheme; void brandColor; // legacy preset/hex fields; the app now runs on the App Colour config
+
+  // Personal All/Mine view toggle shows only for an agency user ALLOWED to see all
+  // (director, or a negotiator the director granted "All files"). Everyone else has
+  // nothing to toggle, so the control is hidden.
+  const canToggleViewAll =
+    (session.user.role === "director") ||
+    (session.user.role === "negotiator" && session.user.canViewAllFiles === true);
 
 
   // Gates the Reminders + Auto-emails nav items (see helper docstring).
@@ -121,7 +128,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles} initialMode={themeMode}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)}>
+        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode}>
           {session.user.viewAsOperatorId && (
             <div style={{ padding: "12px 24px 0" }}>
               <div

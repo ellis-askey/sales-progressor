@@ -131,6 +131,8 @@ export type AgentSessionContext = {
   // Defaults to "self_progressed" if the user has no agency (shouldn't
   // happen for non-internal staff, but defensive).
   agencyModeProfile: "self_progressed" | "progressor_managed" | "mixed";
+  // Personal "All files / Just mine" view choice (agentPreferences.fileViewMode).
+  fileViewMode: "all" | "mine";
   // The progression business that invited this agent (the ProgressionBusinessClient
   // link, set the moment the progressor adds them) — null for self-signup. Powers
   // the welcome-modal copy variant. Only resolved when the welcome modal will show.
@@ -169,6 +171,12 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
   const nightModePref = getNightMode(userRecord?.agentPreferences);
   const themeMode = readThemeModeFromPrefs(userRecord?.agentPreferences);
   const backgroundOpacity = readAuroraOpacityFromPrefs(userRecord?.agentPreferences);
+  // Personal "All files / Just mine" view toggle (inlined to avoid a lib/services
+  // import cycle; mirrors readFileViewMode in lib/services/agent.ts).
+  const fileViewMode: "all" | "mine" =
+    userRecord?.agentPreferences && typeof userRecord.agentPreferences === "object"
+      && (userRecord.agentPreferences as Record<string, unknown>).fileViewMode === "mine"
+      ? "mine" : "all";
   const glassPicks = readGlassPicksFromPrefs(userRecord?.agentPreferences);
   const glassStyles = readGlassStylesFromPrefs(userRecord?.agentPreferences);
   const agentBellClearedAt =
@@ -205,6 +213,7 @@ export const resolveAgentSession = cache(async (): Promise<AgentSessionContext> 
     agentBellClearedAt,
     agencyModeProfile,
     progressorName,
+    fileViewMode,
   };
 });
 

@@ -19,9 +19,10 @@ import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { ViewModeToggle } from "@/components/layout/ViewModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { AppPathRecorder } from "@/components/agent/AppPathRecorder";
@@ -297,7 +298,7 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   );
 }
 
-export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false }: { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean }) {
+export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, fileViewMode = "all" }: { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; fileViewMode?: "all" | "mine" }) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -413,6 +414,14 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>
+          {/* Personal All/Mine view toggle — desktop only (won't fit the mobile top
+              bar; the same control lives in the mobile menu below). Shown only to
+              users allowed to see all files. */}
+          {canToggleViewAll && (
+            <div className="hidden md:block" style={{ marginRight: 2 }}>
+              <ViewModeToggle initialMode={fileViewMode} />
+            </div>
+          )}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -654,6 +663,12 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
               </p>
             </div>
           </div>
+          {canToggleViewAll && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>Files you see</p>
+              <ViewModeToggle initialMode={fileViewMode} />
+            </div>
+          )}
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <Link
               href={isBusinessMember ? "/agent/settings/profile" : "/agent/account/profile"}
