@@ -665,7 +665,6 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           </div>
           {canToggleViewAll && (
             <div style={{ marginTop: 12 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>Files you see</p>
               <ViewModeToggle initialMode={fileViewMode} />
             </div>
           )}
