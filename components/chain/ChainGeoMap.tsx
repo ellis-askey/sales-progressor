@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
-import { House, ShareNetwork, MapPin, Clock } from "@/components/icons/ph";
+import { House, ShareNetwork, MapPin, Clock } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";

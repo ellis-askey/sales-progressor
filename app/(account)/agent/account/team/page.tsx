@@ -27,7 +27,7 @@ import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain
 import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { UserPlus } from "@/components/icons/ph-ssr";
+import { UserPlus } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountTeamPage() {
   const session = await requireSession();

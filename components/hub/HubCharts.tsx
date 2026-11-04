@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise } from "@/components/icons/ph";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import { PieChart, Pie, Cell } from "recharts";
 import type { WeekBucket } from "@/lib/services/hub";
 import { fmtCurrencyPence } from "@/lib/utils";

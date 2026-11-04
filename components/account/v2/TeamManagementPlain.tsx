@@ -14,7 +14,7 @@
 // legacy /agent/settings page until Stage 4 retire.
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Info } from "@/components/icons/ph";
+import { Users, Info } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import {

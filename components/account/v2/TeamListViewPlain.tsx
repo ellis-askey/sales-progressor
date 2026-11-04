@@ -8,7 +8,7 @@
 // is a dropdown (All files / Own files); per-row actions live in a "…" menu
 // (Remove / Resend / Cancel). The add trigger moved to the card header.
 
-import { Crown, EnvelopeSimple, CaretDown } from "@/components/icons/ph";
+import { Crown, EnvelopeSimple, CaretDown } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 
