@@ -30,11 +30,15 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
     ? resolveInternalVisibility(session.user.id, role, isAdmin, session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
 
+  // Agency negotiator without see-all → count only their own files' chains, so
+  // the rail badge matches the (now per-member scoped) chains page.
+  const chainsOwnerUserId = isAgencyUser && !vis.seeAll ? session.user.id : undefined;
+
   const [todoBase, reviews, enquiries, chains, completions, reminders] = await Promise.all([
     role === "admin" ? Promise.resolve(0) : countAgentDueOrOverdue(session.user.id, session.user.agencyId, role, scope),
     role === "admin" ? Promise.resolve(0) : countReviewsDue(scope).catch(() => 0),
     showSelfPages ? countEscalatedEnquiries(scope).catch(() => 0) : Promise.resolve(0),
-    canSeeChains(role, session.user.email, hasSelfManagedFiles) ? countChainsNeedsSetup(scope).catch(() => 0) : Promise.resolve(0),
+    canSeeChains(role, session.user.email, hasSelfManagedFiles) ? countChainsNeedsSetup(scope, chainsOwnerUserId).catch(() => 0) : Promise.resolve(0),
     countCompletionsToday(vis).catch(() => 0),
     // The "Reminders" badge links to the Reminders page, which shows reminders
     // only. getHubAttentionItems also carries synthetic "exchange date passed"

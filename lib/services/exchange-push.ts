@@ -325,9 +325,9 @@ export type ExchangePushSummary = {
 // Every sale in the viewer's scope that's in push mode (ready on both sides, in a
 // chain, not exchanged), each with its full checklist. Powers the chains "Push to
 // exchange" tab. Sorted most-progressed-first (closest to exchange).
-export async function listExchangePushForScope(scope: AccessScope, viewer: ExchangeViewer): Promise<ExchangePushSummary[]> {
+export async function listExchangePushForScope(scope: AccessScope, viewer: ExchangeViewer, ownerUserId?: string | null): Promise<ExchangePushSummary[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: "active", exchangedAt: null, chainLinkId: { not: null } }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: "active", exchangedAt: null, chainLinkId: { not: null }, ...(ownerUserId ? { agentUserId: ownerUserId } : {}) }] },
     select: {
       id: true,
       propertyAddress: true,

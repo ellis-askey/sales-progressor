@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope, listCheckInsForScope } from "@/lib/services/chains";
 import { listExchangePushForScope } from "@/lib/services/exchange-push";
+import { resolveAgentVisibility } from "@/lib/services/agent";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { isExternalProgressorViewer, isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
@@ -37,11 +38,20 @@ export default async function AgentChainsPage() {
   const isProgressor = session.user.role === "sales_progressor";
   const isAllScope = scope.kind === "all";
 
+  // Agency negotiators without see-all should only see chains for their OWN files,
+  // matching the per-member "Own files / All files" narrowing the All Files + Hub
+  // lists apply via resolveAgentVisibility. Directors (and see-all negotiators) get
+  // undefined (no narrowing); internal staff / external progressors are governed by
+  // their scope kind and keep undefined here.
+  const ownerUserId = scope.kind === "agency"
+    ? ((await resolveAgentVisibility(session.user.id, session.user.agencyId)).seeAll ? undefined : session.user.id)
+    : undefined;
+
   const [chains, noChain, checkIns, exchangePush] = await Promise.all([
-    listChainsForScope(scope),
-    listNoChainSalesForScope(scope),
-    listCheckInsForScope(scope),
-    listExchangePushForScope(scope, { id: session.user.id, name: session.user.name ?? null }),
+    listChainsForScope(scope, ownerUserId),
+    listNoChainSalesForScope(scope, ownerUserId),
+    listCheckInsForScope(scope, ownerUserId),
+    listExchangePushForScope(scope, { id: session.user.id, name: session.user.name ?? null }, ownerUserId),
   ]);
 
   const subtitle = isAllScope
