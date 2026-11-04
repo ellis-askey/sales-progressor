@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise } from "@phosphor-icons/react";
+import { ArrowsClockwise } from "@/components/icons/ph";
 import { PieChart, Pie, Cell } from "recharts";
 import type { WeekBucket } from "@/lib/services/hub";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { useIsDarkTheme } from "./PipelineStageHover";
+import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 
 // ── Refresh button ─────────────────────────────────────────────────────────────
 
@@ -110,6 +111,7 @@ function weekPhrase(w: WeekBucket): string {
 export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
   const isDark = useIsDarkTheme();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const max = Math.max(...data.map((d) => d.count), 0);
   const open = openIdx !== null ? data[openIdx] : null;
 
@@ -137,9 +139,9 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
               key={w.label}
               type="button"
               aria-label={`${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.feesPence > 0 ? `, ${fmtCurrencyPence(w.feesPence)} in fees` : ""}`}
-              onMouseEnter={() => !zero && setOpenIdx(i)}
+              onMouseEnter={(e) => { if (!zero) { setOpenIdx(i); setAnchor(e.currentTarget.getBoundingClientRect()); } }}
               onMouseLeave={() => setOpenIdx((cur) => (cur === i ? null : cur))}
-              onFocus={() => !zero && setOpenIdx(i)}
+              onFocus={(e) => { if (!zero) { setOpenIdx(i); setAnchor(e.currentTarget.getBoundingClientRect()); } }}
               onBlur={() => setOpenIdx((cur) => (cur === i ? null : cur))}
               style={{
                 flex: 1, minWidth: 0, borderRadius: 10, padding: 0,
@@ -166,21 +168,16 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
         })}
       </div>
 
-      {open && openIdx !== null && (
-        <div
-          role="tooltip"
-          className="ui-chart-tip"
-          style={{
-            position: "absolute",
-            bottom: "calc(100% + 8px)",
-            ...(openIdx === 0
-              ? { left: 0 }
-              : openIdx === data.length - 1
-                ? { right: 0 }
-                : { left: `${((openIdx + 0.5) * 100) / data.length}%`, transform: "translateX(-50%)" }),
-            zIndex: 20, width: "max-content", maxWidth: 250, pointerEvents: "none",
-            padding: "8px 12px",
-          }}
+      {open && openIdx !== null && anchor && (
+        // Portalled to <body> so the frosted glass escapes the GlassCard backdrop
+        // context (which otherwise flattened it to see-through). Anchored above
+        // the hovered cell from its viewport rect.
+        <ChartTipPortal
+          x={anchor.left + anchor.width / 2}
+          y={anchor.top}
+          place="above"
+          maxWidth={250}
+          style={{ padding: "8px 12px" }}
         >
           <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
             {open.feesPence > 0
@@ -198,7 +195,7 @@ export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
               +{open.files.length - 3} more
             </p>
           )}
-        </div>
+        </ChartTipPortal>
       )}
     </div>
   );

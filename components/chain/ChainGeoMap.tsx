@@ -13,8 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Link from "next/link";
-import { House, ShareNetwork, MapPin, Clock } from "@phosphor-icons/react";
+import { House, ShareNetwork, MapPin, Clock } from "@/components/icons/ph";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 import { geocodePostcodes, type LatLng } from "@/lib/geo/geocode";
 import { extractPostcode } from "@/lib/geo/postcode";
 import {
@@ -651,7 +652,23 @@ export function ChainGeoMap({
       <div ref={containerRef} className="chn-map-canvas" />
 
       {/* Cursor-following route label */}
-      {hoverTip && <div className="chn-tip" style={{ left: hoverTip.x, top: hoverTip.y }}>{hoverTip.label}</div>}
+      {hoverTip && (() => {
+        // Portalled to <body> so the frosted glass escapes the map/card backdrop
+        // context. e.point is relative to the canvas; add its viewport offset.
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return null;
+        return (
+          <ChartTipPortal
+            x={rect.left + hoverTip.x}
+            y={rect.top + hoverTip.y}
+            place="above"
+            className="chn-tip"
+            maxWidth={260}
+          >
+            {hoverTip.label}
+          </ChartTipPortal>
+        );
+      })()}
 
       {/* Summary bar — metric cards + a contextual focus panel (the longest move
           by default; the selected property's place in the chain once one is

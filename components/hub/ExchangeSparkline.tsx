@@ -8,6 +8,7 @@
 // vibrate API). Parent stays a server component and just hands us the series.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 
 export function ExchangeSparkline({
   weeks,
@@ -127,29 +128,32 @@ export function ExchangeSparkline({
           </>
         )}
       </svg>
-      {active != null && (
-        <div
-          role="status"
-          className="ui-chart-tip"
-          style={{
-            position: "absolute",
-            left: Math.max(46, Math.min(w - 46, xAt(active))),
-            top: yAt(weeks[active]) - 10,
-            transform: "translate(-50%, -100%)",
-            pointerEvents: "none",
-            padding: "6px 10px",
-            fontSize: 11,
-            lineHeight: 1.3,
-            whiteSpace: "nowrap",
-            zIndex: 3,
-          }}
-        >
-          <strong style={{ fontWeight: 700 }}>{weekLabel(active)}</strong>
-          <br />
-          <span style={{ color: "var(--agent-coral-deep)" }}>{weeks[active]}</span> exchange
-          {weeks[active] === 1 ? "" : "s"}
-        </div>
-      )}
+      {active != null && (() => {
+        // Portal the bubble to <body> so its frosted glass escapes the
+        // GlassCard backdrop context (which flattened it to see-through). Map
+        // the active point from SVG space to viewport coordinates.
+        const rect = mountRef.current?.getBoundingClientRect();
+        if (!rect) return null;
+        const sx = w > 0 ? rect.width / w : 1;
+        const sy = height > 0 ? rect.height / height : 1;
+        const px = rect.left + xAt(active) * sx;
+        const py = rect.top + yAt(weeks[active]) * sy;
+        return (
+          <ChartTipPortal
+            x={px}
+            y={py}
+            place="above"
+            role="status"
+            maxWidth={160}
+            style={{ padding: "6px 10px", fontSize: 11, lineHeight: 1.3, whiteSpace: "nowrap" }}
+          >
+            <strong style={{ fontWeight: 700 }}>{weekLabel(active)}</strong>
+            <br />
+            <span style={{ color: "var(--agent-coral-deep)" }}>{weeks[active]}</span> exchange
+            {weeks[active] === 1 ? "" : "s"}
+          </ChartTipPortal>
+        );
+      })()}
     </div>
   );
 }

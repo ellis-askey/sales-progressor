@@ -26,6 +26,7 @@ import { riskLevelForRow } from "./TransactionRowView";
 import { MonthlyTargetMenu } from "./MonthlyTargetMenu";
 import { gbpCompact } from "./money";
 import type { DisplayStageKey } from "@/lib/milestones/display-stages";
+import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 
 function exchangeDateOf(r: PipelineRow): Date | null {
   const raw = (r as { overridePredictedDate?: Date | string | null }).overridePredictedDate ?? r.expectedExchangeDate;
@@ -227,8 +228,21 @@ export function ForecastView({
               </>
             )}
           </svg>
-          {hb && (
-            <div className="fc-tip" style={{ left: Math.max(78, Math.min(w - 78, xAt(hoverI as number))) }}>
+          {hb && hoverI != null && (() => {
+            // Portalled to <body> so the frosted glass escapes the card backdrop
+            // context (inline, it flattened to see-through). Anchored below the
+            // plot's top edge, centred on the hovered month, in viewport space.
+            const rect = plotRef.current?.getBoundingClientRect();
+            if (!rect) return null;
+            const sx = w > 0 ? rect.width / w : 1;
+            return (
+            <ChartTipPortal
+              x={rect.left + xAt(hoverI) * sx}
+              y={rect.top}
+              place="below"
+              className="fc-tip"
+              maxWidth={240}
+            >
               <div className="fc-tip-h">{hb.label}<span>{hb.count} {hb.count === 1 ? "file" : "files"}</span></div>
               {mode === "fees" ? (
                 <>
@@ -244,8 +258,9 @@ export function ForecastView({
               {hb.count > 0 && hb.earliest && hb.latest && (
                 <div className="fc-tip-d">likely {shortDate(hb.earliest)} – {shortDate(hb.latest)}</div>
               )}
-            </div>
-          )}
+            </ChartTipPortal>
+            );
+          })()}
         </div>
         <div className="fc-curve-cap">
           <span>
