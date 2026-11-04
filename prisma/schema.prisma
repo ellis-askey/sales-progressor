@@ -21,6 +21,12 @@ model Agency {
 
   isInternal Boolean @default(false)
 
+  // Director-edited welcome-call script (the numbered talking points on a file's
+  // intro-call drawer). JSON array of { title, body, note }. Null = the platform
+  // default (lib/intro-call/script.ts). A member's personal override lives on
+  // User.agentPreferences.introCallScript and takes precedence over this.
+  introCallScript Json?
+
   // Soft-archive: set when an emptied agency is retired — e.g. a solo user with
   // no sales was moved into another agency via invite-to-move. Reversible; the
   // row is never hard-deleted. See docs/active/invite-to-move/SPEC.md.

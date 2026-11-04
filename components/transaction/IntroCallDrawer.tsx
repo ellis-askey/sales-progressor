@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
+import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
@@ -11,6 +11,9 @@ import {
   completeIntroCallAction,
   type IntroCallData,
 } from "@/app/actions/intro-call";
+import { getWelcomeCallScriptAction, updatePersonalWelcomeCallScript } from "@/app/actions/welcome-call-script";
+import { WelcomeCallScriptEditor } from "@/components/welcome-call/WelcomeCallScriptEditor";
+import { DEFAULT_WELCOME_CALL_SCRIPT, type WelcomeCallPoint } from "@/lib/intro-call/script";
 import { formatUKPhone } from "@/lib/utils/address";
 import { savePurchaseTypeAction } from "@/app/actions/transactions";
 import { updateContactAction } from "@/app/actions/contacts";
@@ -33,15 +36,9 @@ type CostsPatch = {
   additionalProperty?: boolean | null;
 };
 
-// ── The script (talking points for the team to deliver) ──────────────────────
-// Copy is Ellis-approved (voice rules apply). Kept as data so it's easy to tune.
-const SCRIPT_POINTS: { title: string; body: string; note: string }[] = [
-  { title: "Keep in touch with your solicitor", body: "Try to speak to them at least once a fortnight, and follow up on anything they're waiting for from you.", note: "We'll do plenty of chasing too, but keeping that direct relationship going really helps." },
-  { title: "Keep us in the loop", body: "If anything changes, tell us. A survey issue, a change of plan, something your solicitor has mentioned, even something that seems minor.", note: "The more we know, the more useful we can be." },
-  { title: "We'll tell you when we need you", body: "You don't need to constantly wonder what you should be doing next. When something needs your attention, we'll let you know what it is and what you need to do.", note: "Until then, you can get on with everything else." },
-  { title: "Make the most of your portal", body: "Your portal is the easiest place to see where things stand, what's happened and what comes next.", note: "And if something doesn't make sense, just ask us. That's what we're here for." },
-  { title: "If something feels stuck, tell us", body: "Don't assume we already know. If you've been waiting too long, can't get an answer or something just doesn't feel right, let us know.", note: "We'd much rather you tell us early, so we can look into it and help move things forward." },
-];
+// The welcome-call script (talking points) now resolves per viewer — personal →
+// agency → platform default — via getWelcomeCallScriptAction. The default copy
+// lives in lib/intro-call/script.ts.
 
 // ── field primitives ─────────────────────────────────────────────────────────
 const labelStyle: CSSProperties = { display: "grid", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" };
@@ -270,6 +267,16 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
   const [data, setData] = useState<IntroCallData>(initialData);
   const { theme, isNight } = usePortalTheme();
   const [page, setPage] = useState<"script" | "questions">("script");
+  // Welcome-call script for THIS viewer (personal → agency → default). Starts on
+  // the platform default so the script shows instantly, then re-mounts (via the
+  // keyed editor below) with the resolved copy once it's fetched.
+  const [wcScript, setWcScript] = useState<{ points: WelcomeCallPoint[]; teamDefault: WelcomeCallPoint[] }>({ points: DEFAULT_WELCOME_CALL_SCRIPT, teamDefault: DEFAULT_WELCOME_CALL_SCRIPT });
+  const [wcLoaded, setWcLoaded] = useState(false);
+  useEffect(() => {
+    getWelcomeCallScriptAction()
+      .then((r) => { setWcScript({ points: r.points, teamDefault: r.teamDefault }); setWcLoaded(true); })
+      .catch(() => {});
+  }, []);
   const [closing, setClosing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -463,39 +470,16 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
           <div style={{ display: "flex", width: "200%", height: "100%", transform: page === "script" ? "translateX(0)" : "translateX(-50%)", transition: "transform 0.28s cubic-bezier(0.25,0,0,1)" }}>
             {/* Page 1 — script */}
             <div style={{ width: "50%", height: "100%", overflowY: "auto", padding: "22px 24px" }}>
-              <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>A few things that make a real difference</p>
-              <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-                We'll keep an eye on the bigger picture and help keep things moving. There are a few simple things you can do along the way that really help us get you to exchange.
-              </p>
-              <div>
-                {SCRIPT_POINTS.map((s, i) => {
-                  const last = i === SCRIPT_POINTS.length - 1;
-                  return (
-                    <div key={i} style={{ display: "flex", gap: 14 }}>
-                      {/* Number + connector — a timeline down the left edge */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                        <span style={{
-                          width: 30, height: 30, borderRadius: 99, flexShrink: 0,
-                          background: "radial-gradient(circle at 50% 32%, #ffffff 0%, var(--agent-coral-bg-tint) 100%)",
-                          border: "1px solid rgba(var(--agent-coral-rgb), 0.30)",
-                          boxShadow: "0 1px 3px rgba(var(--agent-coral-rgb), 0.22), inset 0 1px 0 rgba(255,255,255,0.85)",
-                          color: "var(--agent-coral-deep)", fontSize: 12.5, fontWeight: 800,
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        }}>{i + 1}</span>
-                        {!last && (
-                          <span aria-hidden style={{ flex: 1, width: 1.5, minHeight: 10, marginTop: 6, borderRadius: 2, background: "rgba(var(--agent-coral-rgb), 0.18)" }} />
-                        )}
-                      </div>
-                      {/* Text — hairline divider between items, no card behind it */}
-                      <div style={{ flex: 1, minWidth: 0, paddingTop: 4, paddingBottom: last ? 2 : 18, borderBottom: last ? "none" : "1px solid var(--agent-border-subtle)" }}>
-                        <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.title}</p>
-                        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{s.body}</p>
-                        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{s.note}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <WelcomeCallScriptEditor
+                key={wcLoaded ? "loaded" : "init"}
+                initialPoints={wcScript.points}
+                defaultPoints={wcScript.teamDefault}
+                resetLabel="Reset to team default"
+                headerTitle="A few things that make a real difference"
+                headerSubtitle="We'll keep an eye on the bigger picture and help keep things moving. There are a few simple things you can do along the way that really help us get you to exchange. This is your personal script, used on all your intro calls."
+                onSave={(pts) => updatePersonalWelcomeCallScript(pts)}
+                onReset={() => updatePersonalWelcomeCallScript(null)}
+              />
               <button type="button" onClick={() => setPage("questions")} className="agent-btn-color-primary"
                 style={{ marginTop: 20, padding: "9px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600 }}>
                 On to the questions <LinkArrow />
