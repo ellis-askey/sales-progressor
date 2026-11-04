@@ -22,7 +22,6 @@ import {
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
-import { BillingNegotiatorModal } from "@/components/billing/BillingNegotiatorModal";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { AppPathRecorder } from "@/components/agent/AppPathRecorder";
@@ -117,7 +116,6 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false, isBusinessMember = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean; isBusinessMember?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [billingModalOpen, setBillingModalOpen] = useState(false);
   const slotRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number; width: number } | null>(null);
@@ -126,10 +124,10 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   // card never blurred. usePortalTheme re-establishes the --agent-* tokens on the
   // portal (it sits outside .agent-shell-root).
   const { theme, isNight } = usePortalTheme();
-  // Billing is for agency users (director + negotiator). Internal staff
-  // and admins have no billing because they don't own an agency that's
-  // being charged. Show the entry only for those two roles.
-  const showBillingEntry = role === "director" || role === "negotiator";
+  // Billing is director-only — a director owns the agency that's billed.
+  // Negotiators don't manage billing, and internal staff / admins don't own a
+  // charged agency, so none of them see the entry.
+  const showBillingEntry = role === "director";
   // A progression-business member's Account points at their OWN settings area
   // (/agent/settings/*), not the agency account area (which has no agency for
   // them). Owner OR team member → their settings. The owner-only Billing quick-link
@@ -258,17 +256,10 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
               </Link>
             )}
             {showBillingEntry && (
-              role === "director" ? (
-                <Link href="/agent/account/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
-                  <CreditCard weight="regular" style={rowIcon} />
-                  Billing
-                </Link>
-              ) : (
-                <button onClick={() => { setOpen(false); setBillingModalOpen(true); }} style={rowStyle} className="agent-hover-row">
-                  <CreditCard weight="regular" style={rowIcon} />
-                  Billing
-                </button>
-              )
+              <Link href="/agent/account/billing" onClick={() => setOpen(false)} style={rowStyle} className="agent-hover-row">
+                <CreditCard weight="regular" style={rowIcon} />
+                Billing
+              </Link>
             )}
             <button onClick={() => signOut({ callbackUrl: "/login" })} style={{ ...rowStyle, color: "var(--agent-text-secondary)" }} className="agent-hover-row">
               Sign out
@@ -296,9 +287,6 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
       </div>
 
       {typeof document !== "undefined" && createPortal(card, document.body)}
-
-      {/* Negotiator-clicked Billing → modal explaining director-only + 3 paths. */}
-      <BillingNegotiatorModal open={billingModalOpen} onClose={() => setBillingModalOpen(false)} />
 
       <style>{`
         .uacc-card { --ui-ink: 45,24,16; background: rgba(255,255,255,0.30); backdrop-filter: blur(30px) saturate(200%); -webkit-backdrop-filter: blur(30px) saturate(200%); }
