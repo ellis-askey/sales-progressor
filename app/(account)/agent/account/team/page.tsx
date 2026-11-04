@@ -27,7 +27,7 @@ import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain
 import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { UserPlus } from "@/components/icons/ph-ssr";
 
 export default async function AccountTeamPage() {
   const session = await requireSession();
@@ -37,7 +37,7 @@ export default async function AccountTeamPage() {
 
   // ── Director branch ─────────────────────────────────────────────────
   if (role === "director") {
-    const [agency, pendingInvitations, joinRequests] = await Promise.all([
+    const [agency, negotiatorInvitations, directorInvitations, joinRequests] = await Promise.all([
       prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
       prisma.negotiatorInvitation.findMany({
         where: { agencyId, cancelledAt: null, acceptedAt: null },
@@ -50,8 +50,40 @@ export default async function AccountTeamPage() {
         },
         orderBy: { createdAt: "desc" },
       }),
+      prisma.directorInvitation.findMany({
+        where: { agencyId, cancelledAt: null, acceptedAt: null },
+        select: {
+          id: true,
+          directorName: true,
+          directorEmail: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
       listPendingJoinRequests(agencyId),
     ]);
+
+    // Both invitation types render in one pending list, tagged by role so the
+    // row can show the right badge and route resend/cancel to the right action.
+    const pendingInvitations = [
+      ...directorInvitations.map((inv) => ({
+        id: inv.id,
+        name: inv.directorName,
+        email: inv.directorEmail,
+        role: "director" as const,
+        expiresAt: inv.expiresAt.toISOString(),
+        createdAt: inv.createdAt.toISOString(),
+      })),
+      ...negotiatorInvitations.map((inv) => ({
+        id: inv.id,
+        name: inv.negotiatorName,
+        email: inv.negotiatorEmail,
+        role: "negotiator" as const,
+        expiresAt: inv.expiresAt.toISOString(),
+        createdAt: inv.createdAt.toISOString(),
+      })),
+    ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     return (
       <>
@@ -74,11 +106,7 @@ export default async function AccountTeamPage() {
           )}
           <TeamManagementPlain
             currentUserId={session.user.id}
-            pendingInvitations={pendingInvitations.map((inv) => ({
-              ...inv,
-              expiresAt: inv.expiresAt.toISOString(),
-              createdAt: inv.createdAt.toISOString(),
-            }))}
+            pendingInvitations={pendingInvitations}
           />
         </div>
       </>

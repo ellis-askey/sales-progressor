@@ -8,7 +8,7 @@
 // is a dropdown (All files / Own files); per-row actions live in a "…" menu
 // (Remove / Resend / Cancel). The add trigger moved to the card header.
 
-import { Crown, EnvelopeSimple, CaretDown } from "@phosphor-icons/react";
+import { Crown, EnvelopeSimple, CaretDown } from "@/components/icons/ph";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 
@@ -25,10 +25,11 @@ export type TeamMember = {
   directMobile?: string | null;
 };
 
-export type PendingNegotiatorInvitation = {
+export type PendingInvitation = {
   id: string;
-  negotiatorName: string;
-  negotiatorEmail: string;
+  name: string;
+  email: string;
+  role: "director" | "negotiator";
   expiresAt: string;
   createdAt: string;
 };
@@ -42,9 +43,9 @@ type Props = {
   onRemove?: (id: string, name: string) => void;
   onManage?: (member: TeamMember) => void;
   onAddClick?: () => void;
-  pendingInvitations?: PendingNegotiatorInvitation[];
-  onResendInvitation?: (id: string) => void;
-  onCancelInvitation?: (id: string, name: string) => void;
+  pendingInvitations?: PendingInvitation[];
+  onResendInvitation?: (id: string, role: "director" | "negotiator") => void;
+  onCancelInvitation?: (id: string, name: string, role: "director" | "negotiator") => void;
 };
 
 function daysUntil(isoDate: string): number {
@@ -196,8 +197,9 @@ export function TeamListViewPlain({
       {pendingInvitations.map((inv) => {
         const days = daysUntil(inv.expiresAt);
         const actions: RowAction[] = [];
-        if (onResendInvitation) actions.push({ label: "Resend invitation", onClick: () => onResendInvitation(inv.id) });
-        if (onCancelInvitation) actions.push({ label: "Cancel invitation", onClick: () => onCancelInvitation(inv.id, inv.negotiatorName), danger: true });
+        if (onResendInvitation) actions.push({ label: "Resend invitation", onClick: () => onResendInvitation(inv.id, inv.role) });
+        if (onCancelInvitation) actions.push({ label: "Cancel invitation", onClick: () => onCancelInvitation(inv.id, inv.name, inv.role), danger: true });
+        const roleLabel = inv.role === "director" ? "Director" : "Negotiator";
         return (
           <div key={inv.id} style={ROW_STYLE}>
             <div
@@ -216,17 +218,19 @@ export function TeamListViewPlain({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {inv.negotiatorName}
+                {inv.name}
               </p>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {inv.negotiatorEmail}
+                {inv.email}
+                {" · "}
+                <span>Invited as {roleLabel.toLowerCase()}</span>
                 {" · "}
                 <span style={{ color: days <= 0 ? "#dc2626" : "#9ca3af" }}>
                   {days <= 0 ? "Expired" : `Expires in ${days}d`}
                 </span>
               </p>
             </div>
-            <Badge label="Pending" tone="neutral" />
+            <Badge label={roleLabel} tone={inv.role === "director" ? "director" : "neutral"} />
             <RowActionsMenu items={actions} />
           </div>
         );

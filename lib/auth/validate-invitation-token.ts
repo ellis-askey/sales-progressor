@@ -26,6 +26,11 @@ export async function validateInvitationToken(token: string): Promise<Invitation
     return { valid: false, error: "not_found" };
   }
 
+  // A cancelled invitation's link must stop working — treat it as gone.
+  if (invitation.cancelledAt) {
+    return { valid: false, error: "not_found" };
+  }
+
   if (invitation.acceptedAt) {
     return { valid: false, error: "already_accepted" };
   }

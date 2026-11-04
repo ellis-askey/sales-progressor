@@ -1,6 +1,7 @@
 "use server";
 
 import { randomBytes } from "crypto";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { sendDirectorInvitationEmail } from "@/lib/email/director-invitation";
@@ -16,20 +17,27 @@ interface InviteDirectorResult {
 export async function inviteDirector(formData: FormData): Promise<InviteDirectorResult> {
   const session = await requireSession();
 
-  if (session.user.role !== "negotiator") {
-    return { ok: false, error: "Only negotiators can invite a director" };
+  // A director can add co-directors from the Team page; a negotiator can invite a
+  // director only to fill an empty director seat (their "bring your director on"
+  // flow). Anyone else can't.
+  if (session.user.role !== "director" && session.user.role !== "negotiator") {
+    return { ok: false, error: "Only directors or negotiators can invite a director" };
   }
 
   if (!session.user.agencyId) {
     return { ok: false, error: "You must be in an agency to invite a director" };
   }
 
-  const existingDirector = await prisma.user.findFirst({
-    where: { agencyId: session.user.agencyId, role: "director" },
-  });
-
-  if (existingDirector) {
-    return { ok: false, error: "Your agency already has a director" };
+  // The one-director block applies to negotiator callers only — it preserves the
+  // "fill the empty seat" semantics of the negotiator branch. A director is
+  // deliberately allowed to add further directors.
+  if (session.user.role === "negotiator") {
+    const existingDirector = await prisma.user.findFirst({
+      where: { agencyId: session.user.agencyId, role: "director" },
+    });
+    if (existingDirector) {
+      return { ok: false, error: "Your agency already has a director" };
+    }
   }
 
   const rawName = (formData.get("directorName") as string | null)?.trim() ?? "";
@@ -60,6 +68,7 @@ export async function inviteDirector(formData: FormData): Promise<InviteDirector
     where: {
       agencyId: session.user.agencyId,
       directorEmail,
+      cancelledAt: null,
       acceptedAt: null,
       expiresAt: { gt: new Date() },
     },
@@ -115,6 +124,7 @@ export async function inviteDirector(formData: FormData): Promise<InviteDirector
   }
 
   console.log(`[AUDIT] director_invitation_sent invitationId=${invitation.id} agencyId=${session.user.agencyId} invitedBy=${session.user.id}`);
+  revalidatePath("/agent/account/team");
   return { ok: true, invitationId: invitation.id };
 }
 
@@ -130,12 +140,20 @@ export async function resendInvitation(invitationId: string): Promise<InviteDire
     return { ok: false, error: "Invitation not found" };
   }
 
-  if (invitation.invitedByUserId !== session.user.id) {
+  // The inviter can always resend; any director in the same agency can also manage
+  // co-director invitations from the Team page.
+  const isInviter = invitation.invitedByUserId === session.user.id;
+  const isAgencyDirector = session.user.role === "director" && invitation.agencyId === session.user.agencyId;
+  if (!isInviter && !isAgencyDirector) {
     return { ok: false, error: "You can only resend your own invitations" };
   }
 
   if (invitation.acceptedAt) {
     return { ok: false, error: "This invitation has already been accepted" };
+  }
+
+  if (invitation.cancelledAt) {
+    return { ok: false, error: "This invitation was cancelled" };
   }
 
   // If expired, extend by 7 days; if still active, just resend
@@ -167,4 +185,37 @@ export async function resendInvitation(invitationId: string): Promise<InviteDire
 
   console.log(`[AUDIT] director_invitation_resent invitationId=${invitation.id} invitedBy=${session.user.id}`);
   return { ok: true, invitationId: invitation.id };
+}
+
+// Cancel a pending director invitation from the Team page. Director-only and
+// agency-scoped (mirrors cancelNegotiatorInvitation). Setting cancelledAt both
+// hides it from the roster and kills the accept link (validateInvitationToken
+// rejects a cancelled token).
+export async function cancelDirectorInvitation(invitationId: string): Promise<InviteDirectorResult> {
+  const session = await requireSession();
+
+  if (session.user.role !== "director") {
+    return { ok: false, error: "Only directors can cancel invitations" };
+  }
+
+  const invitation = await prisma.directorInvitation.findFirst({
+    where: {
+      id: invitationId,
+      agencyId: session.user.agencyId,
+      cancelledAt: null,
+      acceptedAt: null,
+    },
+  });
+  if (!invitation) {
+    return { ok: false, error: "Invitation not found" };
+  }
+
+  await prisma.directorInvitation.update({
+    where: { id: invitationId },
+    data: { cancelledAt: new Date() },
+  });
+
+  console.log(`[AUDIT] director_invitation_cancelled invitationId=${invitationId} cancelledBy=${session.user.id}`);
+  revalidatePath("/agent/account/team");
+  return { ok: true };
 }

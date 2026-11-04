@@ -14,12 +14,12 @@
 // legacy /agent/settings page until Stage 4 retire.
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Info } from "@phosphor-icons/react";
+import { Users, Info } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import {
   TeamListViewPlain,
-  type PendingNegotiatorInvitation,
+  type PendingInvitation,
 } from "@/components/account/v2/TeamListViewPlain";
 import { MemberManageDrawer } from "@/components/account/v2/MemberManageDrawer";
 import {
@@ -27,6 +27,11 @@ import {
   resendNegotiatorInvitation,
   cancelNegotiatorInvitation,
 } from "@/app/actions/invite-negotiator";
+import {
+  inviteDirector,
+  resendInvitation as resendDirectorInvitation,
+  cancelDirectorInvitation,
+} from "@/app/actions/invite-director";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 
 type TeamMember = {
@@ -55,16 +60,17 @@ export function TeamManagementPlain({
   pendingInvitations: initialPending = [],
 }: {
   currentUserId: string;
-  pendingInvitations?: PendingNegotiatorInvitation[];
+  pendingInvitations?: PendingInvitation[];
 }) {
   const { toast } = useAgentToast();
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [removed, setRemoved] = useState<RemovedMember[]>([]);
   const [reinstatingId, setReinstatingId] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingNegotiatorInvitation[]>(initialPending);
+  const [pending, setPending] = useState<PendingInvitation[]>(initialPending);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"director" | "negotiator">("negotiator");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [managing, setManaging] = useState<TeamMember | null>(null);
@@ -143,47 +149,64 @@ export function TeamManagementPlain({
     }
   }
 
+  function resetAddForm() {
+    setShowAdd(false);
+    setName("");
+    setEmail("");
+    setInviteRole("negotiator");
+    setAddError(null);
+  }
+
   async function sendInvite() {
     if (!name.trim() || !email.trim()) return;
     setAdding(true);
     setAddError(null);
 
     const fd = new FormData();
-    fd.set("name", name.trim());
-    fd.set("email", email.trim());
+    // The two actions read different field names.
+    if (inviteRole === "director") {
+      fd.set("directorName", name.trim());
+      fd.set("directorEmail", email.trim());
+    } else {
+      fd.set("name", name.trim());
+      fd.set("email", email.trim());
+    }
 
-    const result = await inviteNegotiator(fd);
+    const invitedName = name.trim();
+    const result = inviteRole === "director" ? await inviteDirector(fd) : await inviteNegotiator(fd);
     setAdding(false);
 
     if (!result.ok) {
-      setAddError(result.error);
+      setAddError(result.error ?? "Couldn't send the invitation. Try again.");
     } else {
-      setShowAdd(false);
-      setName("");
-      setEmail("");
-      toast.success("Invite sent", { description: name.trim() });
+      resetAddForm();
+      toast.success("Invite sent", { description: invitedName });
       await refreshPending();
     }
   }
 
-  async function handleResend(id: string) {
-    const result = await resendNegotiatorInvitation(id);
+  async function handleResend(id: string, role: "director" | "negotiator") {
+    const result = role === "director"
+      ? await resendDirectorInvitation(id)
+      : await resendNegotiatorInvitation(id);
     if (result.ok) {
       toast.success("Invite resent");
       await refreshPending();
     } else {
-      toast.error(result.error);
+      toast.error(result.error ?? "Couldn't resend the invitation.");
     }
   }
 
-  async function handleCancel(id: string, memberName: string) {
+  async function handleCancel(id: string, memberName: string, role: "director" | "negotiator") {
     if (!confirm(`Cancel the invitation for ${memberName}? The link will stop working.`)) return;
-    const result = await cancelNegotiatorInvitation(id);
+    const result = role === "director"
+      ? await cancelDirectorInvitation(id)
+      : await cancelNegotiatorInvitation(id);
     if (result.ok) {
       setPending((prev) => prev.filter((inv) => inv.id !== id));
       toast.info(`Invite for ${memberName} cancelled`);
     } else {
-      toast.error(result.error);
+      toast.error(result.error ?? "Couldn't cancel the invitation.");
     }
   }
 
@@ -301,8 +324,28 @@ export function TeamManagementPlain({
           }}
         >
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-            Invite a negotiator
+            Invite a team member
           </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="tmp-invite-role" style={{ fontSize: 11.5, fontWeight: 600, color: "#6b7280" }}>
+              Role
+            </label>
+            <select
+              id="tmp-invite-role"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as "director" | "negotiator")}
+              className="account-input"
+              style={{ ...fieldStyle, appearance: "auto" as React.CSSProperties["appearance"], cursor: "pointer" }}
+            >
+              <option value="negotiator">Negotiator</option>
+              <option value="director">Director</option>
+            </select>
+            <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af" }}>
+              {inviteRole === "director"
+                ? "Directors can manage the team, billing and settings, and see every sale."
+                : "Negotiators work their sales. You choose whether they see their own files or all of them."}
+            </p>
+          </div>
           <input
             type="text"
             value={name}
@@ -339,12 +382,7 @@ export function TeamManagementPlain({
               {adding ? "Sending…" : "Send invitation"}
             </button>
             <button
-              onClick={() => {
-                setShowAdd(false);
-                setAddError(null);
-                setName("");
-                setEmail("");
-              }}
+              onClick={resetAddForm}
               style={{
                 padding: "8px 14px",
                 fontSize: 13,

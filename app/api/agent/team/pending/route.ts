@@ -9,27 +9,39 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const pending = await prisma.negotiatorInvitation.findMany({
-    where: {
-      agencyId:    session.user.agencyId,
-      cancelledAt: null,
-      acceptedAt:  null,
-    },
-    select: {
-      id:              true,
-      negotiatorName:  true,
-      negotiatorEmail: true,
-      expiresAt:       true,
-      createdAt:       true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const [negotiators, directors] = await Promise.all([
+    prisma.negotiatorInvitation.findMany({
+      where: { agencyId: session.user.agencyId, cancelledAt: null, acceptedAt: null },
+      select: { id: true, negotiatorName: true, negotiatorEmail: true, expiresAt: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.directorInvitation.findMany({
+      where: { agencyId: session.user.agencyId, cancelledAt: null, acceptedAt: null },
+      select: { id: true, directorName: true, directorEmail: true, expiresAt: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
-  return NextResponse.json(
-    pending.map((inv) => ({
-      ...inv,
+  // One list, tagged by role so the Team roster can badge each pending invite and
+  // route resend/cancel to the matching action.
+  const pending = [
+    ...directors.map((inv) => ({
+      id: inv.id,
+      name: inv.directorName,
+      email: inv.directorEmail,
+      role: "director" as const,
       expiresAt: inv.expiresAt.toISOString(),
       createdAt: inv.createdAt.toISOString(),
-    }))
-  );
+    })),
+    ...negotiators.map((inv) => ({
+      id: inv.id,
+      name: inv.negotiatorName,
+      email: inv.negotiatorEmail,
+      role: "negotiator" as const,
+      expiresAt: inv.expiresAt.toISOString(),
+      createdAt: inv.createdAt.toISOString(),
+    })),
+  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return NextResponse.json(pending);
 }
