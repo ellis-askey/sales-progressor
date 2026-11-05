@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X, Plus, CheckCircle, CircleDashed } from "@phosphor-icons/react";
+import { setChainCompleteAction } from "@/app/actions/chain-intel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
@@ -395,11 +396,7 @@ export function ChainView({
     setCompleteBusy(true);
     setChain((c) => (c ? { ...c, complete: next } : c));
     try {
-      await fetch(`/api/chains/${chain.id}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ complete: next }),
-      });
+      await setChainCompleteAction(transactionId, next);
     } catch {
       // network failure — the refetch reconciles to the server's truth
     } finally {

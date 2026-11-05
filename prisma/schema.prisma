@@ -2940,16 +2940,6 @@ model PropertyChain {
   status            ChainStatus      @default(ACTIVE)
   holdStatus        ChainHoldStatus?
   celebrationSentAt DateTime?
-  // Chain completeness (2026-11-05). When an agent marks the chain "complete"
-  // (the top property really is the top, nothing above it), we stamp the current
-  // top spine link here. The drawer's Complete / Not-complete pill is derived at
-  // read time (getChainV2): complete = topConfirmedLinkId is still the top-most
-  // spine link AND no sale in the chain has withdrawn. So adding a sale above, or
-  // a fall-through, flips it back to Not complete with no extra bookkeeping.
-  // Internal only — never surfaced to the clients or other agencies.
-  topConfirmedLinkId String?
-  topConfirmedAt     DateTime?
-  topConfirmedById   String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -2957,6 +2947,34 @@ model PropertyChain {
   createdBy     User?                    @relation("ChainCreatedBy", fields: [createdByUserId], references: [id])
   links         ChainLink[]
   notifications ChainNotificationQueue[]
+  completions   ChainCompletion[]
+}
+
+// Chain completeness (2026-11-05) — PER SIDE and PRIVATE. Each side (an agency's
+// team + its progressor, keyed exactly like the private chain chase-log:
+// agency:<id> / business:<id> / tsp-internal) keeps its OWN "this chain is
+// complete" mark, for their own records. The other side never sees it. Marking
+// complete stamps the current top spine link; the Complete / Not-complete pill
+// is DERIVED on read (getChainV2) for the viewer's side only: complete = this
+// side's topConfirmedLinkId is still the top-most spine link AND no sale in the
+// chain has withdrawn. So adding a sale above, or a fall-through, flips that
+// side back to Not complete with no extra bookkeeping. Never shown to clients.
+model ChainCompletion {
+  id                 String   @id @default(cuid())
+  chainId            String
+  chain              PropertyChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  // Private team scope — same key space as ChainLinkEntry.authorSideKey.
+  sideKey            String
+  // The spine link this side confirmed as the top when they marked it complete.
+  topConfirmedLinkId String
+  confirmedAt        DateTime @default(now())
+  confirmedById      String? // who ticked it (audit; standalone id, no FK)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([chainId, sideKey])
+  @@index([chainId])
 }
 
 // Chain-node intel (2026-08-28): a seller's willingness to break the chain, the

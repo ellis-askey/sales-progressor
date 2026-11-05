@@ -457,3 +457,49 @@ export async function setChainExchangeReadyAction(
 
   return { steps: desired, entry };
 }
+
+// Chain completeness — the agent confirming "the top property is the top of this
+// chain" for THEIR OWN records (or undoing it). PER SIDE and PRIVATE: scoped by
+// the caller's own file's agency side key (the same team scope as the private
+// chain chase-log), so the other side never sees it and each side ticks its own.
+// The Complete / Not-complete state is DERIVED on read (getChainV2) for the
+// viewer's side; this only sets or clears this side's stamp of the current top
+// spine link. Internal only — never surfaced to clients.
+export async function setChainCompleteAction(
+  transactionId: string,
+  complete: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+
+  // Authorise via the caller's OWN file (Law 7) and read the chain + side from
+  // it. The file's agency is the side key — everyone on that file (agency staff +
+  // their progressor) shares one mark; another agency in the chain gets its own.
+  const file = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { agencyId: true, chainLink: { select: { chainId: true } } },
+  });
+  if (!file?.chainLink) return { ok: false, error: "This sale isn't in a chain." };
+
+  const chainId = file.chainLink.chainId;
+  const sideKey = agencySideKey(file.agencyId);
+
+  if (complete) {
+    // The top of the chain is the lowest-position link on the MAIN SPINE.
+    const topLink = await prisma.chainLink.findFirst({
+      where: { chainId, branchKey: "" },
+      orderBy: { position: "asc" },
+      select: { id: true },
+    });
+    if (!topLink) return { ok: false, error: "This chain has no sales yet." };
+    await prisma.chainCompletion.upsert({
+      where: { chainId_sideKey: { chainId, sideKey } },
+      create: { chainId, sideKey, topConfirmedLinkId: topLink.id, confirmedById: session.user.id },
+      update: { topConfirmedLinkId: topLink.id, confirmedAt: new Date(), confirmedById: session.user.id },
+    });
+  } else {
+    await prisma.chainCompletion.deleteMany({ where: { chainId, sideKey } });
+  }
+
+  return { ok: true };
+}

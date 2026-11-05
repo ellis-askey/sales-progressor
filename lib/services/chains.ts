@@ -245,11 +245,12 @@ export type ChainV2 = {
   createdByUserId: string | null;
   status: string;
   createdAt: Date;
-  // Chain completeness (internal, 2026-11-05). `complete` is derived, not stored:
-  // true when an agent has confirmed the top AND that confirmed link is still the
+  // Chain completeness (internal, 2026-11-05) — scoped to THIS VIEWER'S SIDE and
+  // private to it. Each side keeps its own "complete" mark; neither value here
+  // ever reflects, or is visible to, another side. `complete` is derived: true
+  // when this side has confirmed the top AND that confirmed link is still the
   // top-most spine link AND no sale in the chain has withdrawn. topConfirmedAt is
-  // when it was last confirmed (null if never / since cleared), for a "confirmed
-  // X ago" hint. Never shown outside the owning side.
+  // when this side last confirmed (null if never / since cleared).
   complete: boolean;
   topConfirmedAt: Date | null;
   links: ChainLinkV2[];
@@ -615,8 +616,10 @@ export async function getChainV2(
       createdByUserId: true,
       status: true,
       createdAt: true,
-      topConfirmedLinkId: true,
-      topConfirmedAt: true,
+      // Per-side completeness marks (private). Fetched for every side so the
+      // viewer's own can be picked in memory; only the viewer's derived boolean
+      // is ever put on the wire (other sides' marks never leave the server).
+      completions: { select: { sideKey: true, topConfirmedLinkId: true, confirmedAt: true } },
       links: {
         orderBy: { position: "asc" },
         select: LINK_V2_SELECT,
@@ -788,22 +791,27 @@ export async function getChainV2(
   // returned shape — only the derived fields are exposed publicly. The link's
   // transaction shape on the wire is { id, propertyAddress, status, agencyId,
   // purchasePrice, photoUrl } for consumers (LinkCard, ChainDrawer, etc.).
-  // Chain completeness (internal). Derived, so it self-corrects: the top is the
-  // top-most link on the MAIN SPINE (branchKey ""), i.e. the lowest position.
-  // complete only when the agent's confirmed-top link IS still that top link and
-  // nothing in the chain has withdrawn. Adding a sale above (new top) or a
-  // fall-through therefore flips it back to Not complete with no extra writes.
-  const { topConfirmedLinkId, ...chainRest } = chain;
+  // Chain completeness (internal, PER VIEWER-SIDE). Derived, so it self-corrects:
+  // the top is the top-most link on the MAIN SPINE (branchKey ""), i.e. the
+  // lowest position. We read only THIS viewer's side mark (viewerSideKey above) —
+  // never another side's — and complete only when that side's confirmed-top link
+  // IS still the top link and nothing in the chain has withdrawn. Adding a sale
+  // above (new top) or a fall-through flips this side back to Not complete with
+  // no extra writes. completions is stripped from the wire (other sides' marks
+  // stay server-side); only this viewer's `complete` + `topConfirmedAt` ship.
+  const { completions, ...chainRest } = chain;
   const spineLinks = chain.links.filter((l) => l.branchKey === "");
   const topSpineLinkId = spineLinks.length
     ? spineLinks.reduce((top, l) => (l.position < top.position ? l : top)).id
     : null;
   const anyWithdrawn = chain.links.some((l) => l.transaction?.status === "withdrawn");
-  const complete = !!topConfirmedLinkId && topConfirmedLinkId === topSpineLinkId && !anyWithdrawn;
+  const myCompletion = viewerSideKey ? completions.find((c) => c.sideKey === viewerSideKey) ?? null : null;
+  const complete = !!myCompletion && myCompletion.topConfirmedLinkId === topSpineLinkId && !anyWithdrawn;
 
   return {
     ...chainRest,
     complete,
+    topConfirmedAt: myCompletion?.confirmedAt ?? null,
     detachedSegment,
     valuePence,
     pricedCount,
