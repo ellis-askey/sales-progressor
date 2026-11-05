@@ -59,6 +59,9 @@ export async function acceptInvitationPassword(
             password: passwordHash,
             role: "director",
             agencyId: invitation.agencyId,
+            // Inherit the inviting director's firm so this co-director shows in
+            // the firm-scoped team roster (GET /api/agent/team filters by it).
+            firmName: invitation.invitedByFirmName,
           },
         });
         await tx.directorInvitation.update({
@@ -77,6 +80,9 @@ export async function acceptInvitationPassword(
             password: passwordHash,
             role: "director",
             agencyId: invitation.agencyId,
+            // Inherit the inviting director's firm so this co-director shows in
+            // the firm-scoped team roster (GET /api/agent/team filters by it).
+            firmName: invitation.invitedByFirmName,
           },
           select: { id: true },
         });

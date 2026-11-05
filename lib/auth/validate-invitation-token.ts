@@ -7,6 +7,10 @@ export interface ValidatedInvitation {
   directorName: string;
   directorEmail: string;
   invitedByName: string;
+  // The inviting director's firm, copied onto the accepting co-director so they
+  // land in the same firm-scoped team roster (which filters by firmName). Null
+  // when the inviter has no firm set.
+  invitedByFirmName: string | null;
 }
 
 export type InvitationValidationResult =
@@ -18,7 +22,7 @@ export async function validateInvitationToken(token: string): Promise<Invitation
     where: { token },
     include: {
       agency: { select: { name: true } },
-      invitedBy: { select: { name: true } },
+      invitedBy: { select: { name: true, firmName: true } },
     },
   });
 
@@ -48,6 +52,7 @@ export async function validateInvitationToken(token: string): Promise<Invitation
       directorName: invitation.directorName,
       directorEmail: invitation.directorEmail,
       invitedByName: invitation.invitedBy.name,
+      invitedByFirmName: invitation.invitedBy.firmName,
     },
   };
 }
