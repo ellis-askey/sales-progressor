@@ -245,6 +245,13 @@ export type ChainV2 = {
   createdByUserId: string | null;
   status: string;
   createdAt: Date;
+  // Chain completeness (internal, 2026-11-05). `complete` is derived, not stored:
+  // true when an agent has confirmed the top AND that confirmed link is still the
+  // top-most spine link AND no sale in the chain has withdrawn. topConfirmedAt is
+  // when it was last confirmed (null if never / since cleared), for a "confirmed
+  // X ago" hint. Never shown outside the owning side.
+  complete: boolean;
+  topConfirmedAt: Date | null;
   links: ChainLinkV2[];
   // Combined chain value (pence) summed server-side across EVERY priced link,
   // and how many links carry a price. Computed here because individual
@@ -608,6 +615,8 @@ export async function getChainV2(
       createdByUserId: true,
       status: true,
       createdAt: true,
+      topConfirmedLinkId: true,
+      topConfirmedAt: true,
       links: {
         orderBy: { position: "asc" },
         select: LINK_V2_SELECT,
@@ -779,8 +788,22 @@ export async function getChainV2(
   // returned shape — only the derived fields are exposed publicly. The link's
   // transaction shape on the wire is { id, propertyAddress, status, agencyId,
   // purchasePrice, photoUrl } for consumers (LinkCard, ChainDrawer, etc.).
+  // Chain completeness (internal). Derived, so it self-corrects: the top is the
+  // top-most link on the MAIN SPINE (branchKey ""), i.e. the lowest position.
+  // complete only when the agent's confirmed-top link IS still that top link and
+  // nothing in the chain has withdrawn. Adding a sale above (new top) or a
+  // fall-through therefore flips it back to Not complete with no extra writes.
+  const { topConfirmedLinkId, ...chainRest } = chain;
+  const spineLinks = chain.links.filter((l) => l.branchKey === "");
+  const topSpineLinkId = spineLinks.length
+    ? spineLinks.reduce((top, l) => (l.position < top.position ? l : top)).id
+    : null;
+  const anyWithdrawn = chain.links.some((l) => l.transaction?.status === "withdrawn");
+  const complete = !!topConfirmedLinkId && topConfirmedLinkId === topSpineLinkId && !anyWithdrawn;
+
   return {
-    ...chain,
+    ...chainRest,
+    complete,
     detachedSegment,
     valuePence,
     pricedCount,

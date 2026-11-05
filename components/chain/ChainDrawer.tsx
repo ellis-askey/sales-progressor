@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { X, Plus } from "@phosphor-icons/react";
+import { X, Plus, CheckCircle, CircleDashed } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
@@ -383,6 +383,30 @@ export function ChainView({
     await fetchChain();
     router.refresh();
   }, [fetchChain, router]);
+
+  // Chain completeness toggle — the agent confirming "the top property really is
+  // the top of this chain" (or undoing it). Internal only. The server derives the
+  // actual Complete / Not-complete state (getChainV2), so this just sets or clears
+  // the stamp and refetches; optimistic so the pill flips instantly.
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const toggleComplete = useCallback(async () => {
+    if (!chain || completeBusy) return;
+    const next = !chain.complete;
+    setCompleteBusy(true);
+    setChain((c) => (c ? { ...c, complete: next } : c));
+    try {
+      await fetch(`/api/chains/${chain.id}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complete: next }),
+      });
+    } catch {
+      // network failure — the refetch reconciles to the server's truth
+    } finally {
+      await fetchChainAndRefresh();
+      setCompleteBusy(false);
+    }
+  }, [chain, completeBusy, fetchChainAndRefresh]);
 
   useEffect(() => {
     fetchChain();
@@ -1142,13 +1166,29 @@ export function ChainView({
           exists (no point offering views of nothing), and it fades in smoothly
           the moment the chain first appears (critique #254). */}
       {!loading && chain && links.length > 0 && (
-        <div
-          className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""}`}
-          style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
-        >
-          <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => selectView("timeline")}>Timeline</button>
-          <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => selectView("map")}>Map</button>
-          <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
+        <div className="chain-headrow">
+          <div
+            className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""}`}
+            style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
+          >
+            <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => selectView("timeline")}>Timeline</button>
+            <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => selectView("map")}>Map</button>
+            <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
+          </div>
+          {/* Chain completeness — the top property is the top of the chain.
+              Internal only. Derived server-side; see getChainV2 + /complete. */}
+          <button
+            type="button"
+            className={`chain-complete-pill${chain.complete ? " on" : ""}`}
+            onClick={toggleComplete}
+            disabled={completeBusy}
+            title={chain.complete
+              ? "This chain is marked complete: the top property is the top. Click to undo."
+              : "Mark this chain complete: the top property is the top of the chain."}
+          >
+            {chain.complete ? <CheckCircle size={14} weight="fill" /> : <CircleDashed size={14} weight="bold" />}
+            {chain.complete ? "Complete" : "Not complete"}
+          </button>
         </div>
       )}
 

@@ -1420,6 +1420,23 @@ select {
 }
 .chain-vs-btn:hover:not(.on) { color: var(--agent-text-secondary); }
 .chain-vs-btn.on { color: var(--agent-text-primary); }
+
+/* Chain completeness pill — sits right-aligned on the same row as the view
+   switch. Internal-only "the top property is the top of the chain" signal.
+   The row keeps the view switch's own margins untouched (preservation) and just
+   insets the pill to match. */
+.chain-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.chain-complete-pill {
+  flex-shrink: 0; margin: 12px 24px 0 0; display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer;
+  padding: 5px 11px; border: none; border-radius: 999px;
+  background: color-mix(in srgb, var(--agent-warning) 13%, transparent); color: var(--agent-warning);
+  transition: background 0.15s, color 0.15s, filter 0.15s;
+}
+.chain-complete-pill.on { background: color-mix(in srgb, var(--agent-success) 14%, transparent); color: var(--agent-success); }
+.chain-complete-pill:hover:not(:disabled) { filter: brightness(0.97); }
+.chain-complete-pill:disabled { opacity: 0.6; cursor: default; }
+.chain-viewswitch--inline + .chain-complete-pill { margin-right: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .chain-viewswitch::before, .chain-viewswitch.travelling::before {
     transition: none; transform: translateX(calc(var(--vs-idx, 0) * 100%));

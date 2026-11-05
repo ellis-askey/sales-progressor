@@ -2940,6 +2940,16 @@ model PropertyChain {
   status            ChainStatus      @default(ACTIVE)
   holdStatus        ChainHoldStatus?
   celebrationSentAt DateTime?
+  // Chain completeness (2026-11-05). When an agent marks the chain "complete"
+  // (the top property really is the top, nothing above it), we stamp the current
+  // top spine link here. The drawer's Complete / Not-complete pill is derived at
+  // read time (getChainV2): complete = topConfirmedLinkId is still the top-most
+  // spine link AND no sale in the chain has withdrawn. So adding a sale above, or
+  // a fall-through, flips it back to Not complete with no extra bookkeeping.
+  // Internal only — never surfaced to the clients or other agencies.
+  topConfirmedLinkId String?
+  topConfirmedAt     DateTime?
+  topConfirmedById   String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
