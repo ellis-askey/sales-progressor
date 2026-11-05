@@ -545,13 +545,15 @@ function CadenceView({ grace, repeat, esc, view, onView }: { grace: number; repe
   }, [view, grace, repeat, esc]);
   return (
     <div className="ct-cadence-wrap">
-      <div className="ct-cadence-switch" role="group" aria-label="Cadence view">
-        <button type="button" className={`ct-cv-btn${view === "pulse" ? " on" : ""}`} aria-pressed={view === "pulse"} title="Rhythm view" onClick={() => onView("pulse")}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 7 4-14 3 7h4" /></svg>
-        </button>
-        <button type="button" className={`ct-cv-btn${view === "calendar" ? " on" : ""}`} aria-pressed={view === "calendar"} title="Calendar view" onClick={() => onView("calendar")}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
-        </button>
+      <div className="ct-cadence-head">
+        <div className="ct-cadence-switch" role="group" aria-label="Cadence view">
+          <button type="button" className={`ct-cv-btn${view === "pulse" ? " on" : ""}`} aria-pressed={view === "pulse"} title="Rhythm view" onClick={() => onView("pulse")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 7 4-14 3 7h4" /></svg>
+          </button>
+          <button type="button" className={`ct-cv-btn${view === "calendar" ? " on" : ""}`} aria-pressed={view === "calendar"} title="Calendar view" onClick={() => onView("calendar")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
+          </button>
+        </div>
       </div>
       <div className="ct-cadence-box" style={{ height: h }}>
         <div ref={pulseRef} className={`ct-cadence-layer${view === "pulse" ? " show" : ""}`} aria-hidden={view !== "pulse"}>
@@ -748,7 +750,8 @@ function Styles() {
     .ct-btn.primary:hover:not(:disabled){background:var(--agent-coral-darker);transform:translateY(-1px)}
     /* ── dated cadence preview: view switch + crossfade + calendar ── */
     .ct-cadence-wrap{position:relative}
-    .ct-cadence-switch{position:absolute;top:0;right:0;z-index:3;display:inline-flex;gap:2px;background:var(--agent-surface-elevated,#fff);border:0.5px solid var(--agent-border-default);border-radius:9px;padding:2px;box-shadow:0 1px 2px rgba(60,40,22,.06)}
+    .ct-cadence-head{display:flex;justify-content:flex-end;margin:0 0 6px}
+    .ct-cadence-switch{display:inline-flex;gap:2px;background:var(--agent-surface-elevated,#fff);border:0.5px solid var(--agent-border-default);border-radius:9px;padding:2px;box-shadow:0 1px 2px rgba(60,40,22,.06)}
     .ct-cv-btn{appearance:none;border:none;background:transparent;width:28px;height:24px;display:grid;place-items:center;border-radius:7px;cursor:pointer;color:var(--agent-text-muted);transition:color .15s,background .15s}
     .ct-cv-btn svg{width:15px;height:15px}
     .ct-cv-btn:hover{color:var(--agent-text-secondary);background:rgba(45,24,16,.05)}
