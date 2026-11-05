@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { X, Plus, CheckCircle, CircleDashed } from "@phosphor-icons/react";
+import { X, Plus, CheckCircle, Circle } from "@phosphor-icons/react";
 import { setChainCompleteAction } from "@/app/actions/chain-intel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
@@ -1183,8 +1183,17 @@ export function ChainView({
               ? "This chain is marked complete: the top property is the top. Click to undo."
               : "Mark this chain complete: the top property is the top of the chain."}
           >
-            {chain.complete ? <CheckCircle size={14} weight="fill" /> : <CircleDashed size={14} weight="bold" />}
-            {chain.complete ? "Complete" : "Not complete"}
+            {chain.complete ? (
+              <>
+                <span className="ccp-rest"><CheckCircle size={14} weight="fill" className="ccp-tick" />Complete</span>
+                <span className="ccp-hover"><Circle size={14} weight="bold" />Mark not complete</span>
+              </>
+            ) : (
+              <>
+                <span className="ccp-rest"><Circle size={14} weight="bold" />Not complete</span>
+                <span className="ccp-hover"><CheckCircle size={14} weight="fill" />Mark complete</span>
+              </>
+            )}
           </button>
         </div>
       )}
