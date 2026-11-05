@@ -196,7 +196,7 @@ export function ChainCard({
             below so the circle strip gets the full width (critique #299). */}
         <div className="chain-map-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div className="chain-map-strip" style={{ flex: 1, minWidth: 0 }}>
-            <ChainMiniMap spine={chain.spine} branches={chain.branches} />
+            <ChainMiniMap spine={chain.spine} branches={chain.branches} complete={chain.complete} />
           </div>
           <span className="chain-open-inline">
             <ViewChainButton transactionId={chain.openTransactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} />

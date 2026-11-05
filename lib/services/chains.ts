@@ -605,6 +605,11 @@ export async function getChainV2(
   chainId: string,
   viewerUserId?: string,
   viewer?: IntelViewer,
+  // Completeness side key. When the chain is opened from a specific file (the
+  // drawer), pass that file's agency side key so the derived `complete` is read
+  // for the SAME side the write (setChainCompleteAction) stamps — regardless of
+  // the viewer's role. Falls back to the viewer's own-link side when absent.
+  forSideKey?: string,
 ): Promise<ChainV2 | null> {
   // The viewer's private chase-log "side key" — their agency, else their business
   const chain = await prisma.propertyChain.findUnique({
@@ -805,7 +810,8 @@ export async function getChainV2(
     ? spineLinks.reduce((top, l) => (l.position < top.position ? l : top)).id
     : null;
   const anyWithdrawn = chain.links.some((l) => l.transaction?.status === "withdrawn");
-  const myCompletion = viewerSideKey ? completions.find((c) => c.sideKey === viewerSideKey) ?? null : null;
+  const sideForComplete = forSideKey ?? viewerSideKey;
+  const myCompletion = sideForComplete ? completions.find((c) => c.sideKey === sideForComplete) ?? null : null;
   const complete = !!myCompletion && myCompletion.topConfirmedLinkId === topSpineLinkId && !anyWithdrawn;
 
   return {
@@ -1005,15 +1011,15 @@ export async function getChainForTransactionV2(
   const txn = await prisma.propertyTransaction.findUnique({
     where: { id: transactionId },
     select: {
-      chainLink: {
-        select: {
-          chainId: true,
-        },
-      },
+      agencyId: true,
+      chainLink: { select: { chainId: true } },
     },
   });
   if (!txn?.chainLink) return null;
-  return getChainV2(txn.chainLink.chainId, viewerUserId, viewer);
+  // Key completeness to the viewed file's own side (the same key the write
+  // stamps), so the pill reads correctly for every viewer role — agency staff
+  // and internal/superadmin alike. See getChainV2's forSideKey.
+  return getChainV2(txn.chainLink.chainId, viewerUserId, viewer, agencySideKey(txn.agencyId));
 }
 
 // The full payload the Chain tab needs on first render: the chain, whether the
@@ -2042,6 +2048,7 @@ export type ChainsWorkspaceChain = {
   bouncedCount: number; // invites that bounced (dead neighbour email — needs fixing)
   declinedCount: number; // invites a neighbour declined
   ourFileCount: number; // in-scope files that sit in this chain (drives the "In chains" tile)
+  complete: boolean; // our side has marked this chain complete (top confirmed, nothing withdrawn) — lights the line green
   spine: ChainMiniNode[]; // the main ladder (level asc) — the dot chain
   branches: ChainMiniBranch[]; // onward splits forking off the spine
   // Our primary file within this chain — powers the card header. Null only in
@@ -2102,6 +2109,7 @@ export async function listChainsForScope(scope: AccessScope, ownerUserId?: strin
     where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope), ...(ownerUserId ? { agentUserId: ownerUserId } : {}) }] },
     select: {
       id: true,
+      agencyId: true,
       propertyAddress: true,
       createdAt: true,
       photoStoragePath: true,
@@ -2119,6 +2127,9 @@ export async function listChainsForScope(scope: AccessScope, ownerUserId?: strin
     select: {
       id: true,
       name: true,
+      // Per-side completeness marks (private). Used to light the card's chain
+      // line green for the viewer's own side only; see the complete compute below.
+      completions: { select: { sideKey: true, topConfirmedLinkId: true } },
       links: {
         orderBy: [{ branchKey: "asc" }, { position: "asc" }],
         select: {
@@ -2132,7 +2143,7 @@ export async function listChainsForScope(scope: AccessScope, ownerUserId?: strin
           stubAgencyName: true,
           stubAgentEmail: true,
           claimedBy: { select: { name: true, firmName: true } },
-          transaction: { select: { id: true, propertyAddress: true } },
+          transaction: { select: { id: true, propertyAddress: true, status: true } },
         },
       },
     },
@@ -2234,6 +2245,18 @@ export async function listChainsForScope(scope: AccessScope, ownerUserId?: strin
       const ours = anchorTxId ? ourTxById.get(anchorTxId) : undefined;
       const ourPhotoUrl = ours?.photoStoragePath ? photoMap.get(ours.photoStoragePath) ?? null : null;
 
+      // Completeness for OUR side only (the same per-side mark the pill/drawer
+      // use). Complete = our side has confirmed the current top spine link AND no
+      // sale in the chain has withdrawn. Lights this card's chain line green.
+      const topSpineLinkId = spine.length ? spine[0].l.id : null; // spine is position asc → [0] is the top
+      const anyWithdrawn = chain.links.some((l) => l.transaction?.status === "withdrawn");
+      const ourTxInChain = chain.links.map((l) => l.transactionId).find((id) => !!id && ourTxIds.has(id));
+      const ourAgencyId = ourTxInChain ? ourTxById.get(ourTxInChain)?.agencyId ?? null : null;
+      const ourSideKey = ourAgencyId ? agencySideKey(ourAgencyId) : null;
+      const complete =
+        !!ourSideKey && !!topSpineLinkId && !anyWithdrawn &&
+        chain.completions.some((c) => c.sideKey === ourSideKey && c.topConfirmedLinkId === topSpineLinkId);
+
       const searchParts: (string | null | undefined)[] = [
         ours?.propertyAddress,
         ours?.agency?.name,
@@ -2257,6 +2280,7 @@ export async function listChainsForScope(scope: AccessScope, ownerUserId?: strin
         bouncedCount,
         declinedCount,
         ourFileCount,
+        complete,
         spine: spineNodes,
         branches: branchNodes,
         ourAddress: ours?.propertyAddress ?? null,

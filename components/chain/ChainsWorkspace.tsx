@@ -41,6 +41,7 @@ import type { ExchangePushSummary } from "@/lib/services/exchange-push";
 type Tab = "chains" | "needs" | "nochain" | "checkins" | "pushexchange";
 type ChainSort = "attention" | "length" | "recent";
 type NeedsSort = "oldest" | "newest";
+type Completeness = "all" | "complete" | "incomplete";
 
 // A confirmed no-chain sale — unless the client has since said they're buying
 // onward, in which case it's resurfaced back into the setup queue.
@@ -118,6 +119,8 @@ function FilterPopover({
   setChainSort,
   onlyNeedsInvite,
   setOnlyNeedsInvite,
+  completeness,
+  setCompleteness,
   needsSort,
   setNeedsSort,
   active,
@@ -127,6 +130,8 @@ function FilterPopover({
   setChainSort: (s: ChainSort) => void;
   onlyNeedsInvite: boolean;
   setOnlyNeedsInvite: (v: boolean) => void;
+  completeness: Completeness;
+  setCompleteness: (c: Completeness) => void;
   needsSort: NeedsSort;
   setNeedsSort: (s: NeedsSort) => void;
   active: boolean;
@@ -157,6 +162,11 @@ function FilterPopover({
           <FilterRadio label="Recently agreed" checked={chainSort === "recent"} onClick={() => setChainSort("recent")} />
           <FilterDivider />
           <FilterCheck label="Only with agents to invite" checked={onlyNeedsInvite} onClick={() => setOnlyNeedsInvite(!onlyNeedsInvite)} />
+          <FilterDivider />
+          <FilterGroupLabel>Completeness</FilterGroupLabel>
+          <FilterRadio label="All" checked={completeness === "all"} onClick={() => setCompleteness("all")} />
+          <FilterRadio label="Complete" checked={completeness === "complete"} onClick={() => setCompleteness("complete")} />
+          <FilterRadio label="Not complete" checked={completeness === "incomplete"} onClick={() => setCompleteness("incomplete")} />
         </>
       ) : (
         <>
@@ -257,6 +267,7 @@ export function ChainsWorkspace({
   const searchTag = useGlassTag("chains-search", "Chains · search bar", { dark: "v03" });
   const [chainSort, setChainSort] = useState<ChainSort>("attention");
   const [onlyNeedsInvite, setOnlyNeedsInvite] = useState(false);
+  const [completeness, setCompleteness] = useState<Completeness>("all");
   const [needsSort, setNeedsSort] = useState<NeedsSort>("oldest");
 
   // Internal staff (admin / SP / superadmin) see files across agencies, so the
@@ -297,12 +308,14 @@ export function ChainsWorkspace({
     let list = chains;
     if (q) list = list.filter((c) => c.search.includes(q));
     if (onlyNeedsInvite) list = list.filter((c) => c.needsInviteCount > 0);
+    if (completeness === "complete") list = list.filter((c) => c.complete);
+    else if (completeness === "incomplete") list = list.filter((c) => !c.complete);
     const sorted = [...list];
     if (chainSort === "length") sorted.sort((a, b) => b.length - a.length);
     else if (chainSort === "recent") sorted.sort((a, b) => (b.saleAgreedAt ?? "").localeCompare(a.saleAgreedAt ?? ""));
     else sorted.sort((a, b) => b.needsInviteCount - a.needsInviteCount || b.length - a.length);
     return sorted;
-  }, [chains, q, onlyNeedsInvite, chainSort]);
+  }, [chains, q, onlyNeedsInvite, completeness, chainSort]);
 
   const visibleNeeds = useMemo(() => {
     let list = needsSetupAll;
@@ -344,7 +357,7 @@ export function ChainsWorkspace({
   const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const filtersActive =
-    tab === "chains" ? onlyNeedsInvite || chainSort !== "attention"
+    tab === "chains" ? onlyNeedsInvite || completeness !== "all" || chainSort !== "attention"
       : tab === "needs" ? needsSort !== "oldest"
         : false;
 
@@ -569,6 +582,8 @@ export function ChainsWorkspace({
               setChainSort={setChainSort}
               onlyNeedsInvite={onlyNeedsInvite}
               setOnlyNeedsInvite={setOnlyNeedsInvite}
+              completeness={completeness}
+              setCompleteness={setCompleteness}
               needsSort={needsSort}
               setNeedsSort={setNeedsSort}
               active={filtersActive}

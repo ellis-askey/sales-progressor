@@ -78,7 +78,7 @@ function windowLevels(maxLevel: number, youLevel: number | null, branches: Chain
   return [...keep].sort((a, b) => a - b);
 }
 
-export function ChainMiniMap({ spine, branches }: { spine: ChainMiniNode[]; branches: ChainMiniBranch[] }) {
+export function ChainMiniMap({ spine, branches, complete }: { spine: ChainMiniNode[]; branches: ChainMiniBranch[]; complete?: boolean }) {
   const spineSorted = [...spine].sort((a, b) => a.level - b.level);
   if (spineSorted.length === 0) return null;
 
@@ -189,7 +189,7 @@ export function ChainMiniMap({ spine, branches }: { spine: ChainMiniNode[]; bran
     <div style={{ overflowX: "auto", overflowY: "hidden", padding: "2px 0" }}>
       <div role="img" aria-label={label} style={{ position: "relative", width, height: mapH }}>
         <svg width={width} height={mapH} viewBox={`0 0 ${width} ${mapH}`} style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }} aria-hidden>
-          <g stroke="var(--agent-border-strong)" strokeWidth={2} strokeLinecap="round">
+          <g stroke={complete ? "var(--agent-success)" : "var(--agent-border-strong)"} strokeWidth={2} strokeLinecap="round" style={{ transition: "stroke 220ms ease" }}>
             {lines}
           </g>
         </svg>
