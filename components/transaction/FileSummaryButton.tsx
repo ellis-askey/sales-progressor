@@ -31,9 +31,26 @@ function timeAgo(d: Date): string {
   return `${months} month${months === 1 ? "" : "s"} ago`;
 }
 
-function paragraphs(body: string): string[] {
-  const parts = body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  return parts.length > 0 ? parts : [body.trim()];
+// Parse the summary body into its opening line and the labelled "Last two weeks"
+// / "Next" sections. The model returns blank-line-separated blocks; the two named
+// blocks lead with a label line we render as a small heading, their remaining
+// lines as individual rows (so the dated log keeps one fact per line). Anything
+// that isn't one of those labelled blocks renders as a plain lead line, so an
+// older prose summary (pre-v2) still shows readably until it regenerates.
+type SummaryBlock =
+  | { kind: "lead"; text: string }
+  | { kind: "section"; label: string; lines: string[] };
+
+function parseBody(body: string): SummaryBlock[] {
+  const blocks = body.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  const out = blocks.map((block): SummaryBlock => {
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length > 0 && /^(last two weeks|next)$/i.test(lines[0])) {
+      return { kind: "section", label: lines[0], lines: lines.slice(1) };
+    }
+    return { kind: "lead", text: lines.join(" ") };
+  });
+  return out.length > 0 ? out : [{ kind: "lead", text: body.trim() }];
 }
 
 export function FileSummaryButton({ transactionId }: { transactionId: string }) {
@@ -136,9 +153,18 @@ export function FileSummaryButton({ transactionId }: { transactionId: string }) 
               {generatedAt && <span className="fs-stamp">Updated {timeAgo(generatedAt)}</span>}
             </div>
             <div className="fs-body">
-              {paragraphs(body).map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
+              {parseBody(body).map((b, i) =>
+                b.kind === "lead" ? (
+                  <p key={i} className="fs-lead">{b.text}</p>
+                ) : (
+                  <div key={i} className="fs-block">
+                    <p className="fs-label">{b.label}</p>
+                    {b.lines.map((l, j) => (
+                      <p key={j} className="fs-line">{l}</p>
+                    ))}
+                  </div>
+                ),
+              )}
             </div>
             {stale && (
               <div className="fs-stale">
