@@ -13,6 +13,7 @@
 import { type ReactNode } from "react";
 import { DotsThreeVertical, Trash, Camera, Note } from "@phosphor-icons/react/dist/ssr";
 import { StickyAddButton, spawnStickyNote } from "@/components/sticky/StickyAddButton";
+import { FileSummaryButton } from "./FileSummaryButton";
 import { Popover } from "@/components/ui/Popover";
 
 export function HeroSmallControls({
@@ -56,6 +57,7 @@ export function HeroSmallControls({
   if (mobile) {
     return (
       <div className="hero-ctl-sm">
+        {transactionId && <FileSummaryButton transactionId={transactionId} />}
         <Popover
           preset="menu"
           placement="bottom-end"
@@ -97,6 +99,7 @@ export function HeroSmallControls({
   // Tablet: icon-only cluster. Sticky trigger sits left of Settings, as on desktop.
   return (
     <div className="hero-ctl-sm hero-ctl-icononly">
+      {transactionId && <FileSummaryButton transactionId={transactionId} />}
       {transactionId && <StickyAddButton transactionId={transactionId} />}
       {settingsSlot}
       {photoButton()}

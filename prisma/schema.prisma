@@ -1163,6 +1163,7 @@ model PropertyTransaction {
   milestoneProposals    MilestoneProposal[]
   agentRuns             AgentRun[]
   referrals             Referral[]
+  fileSummary           FileSummary?
 
   @@index([serviceType, createdAt])
   // Phase 4 perceived-performance (2026-09-18, PERF-11). Every list, hub
@@ -6314,6 +6315,33 @@ model VoiceProfile {
   dismissed       Json? // string[] of dismissed characteristic texts
   generatedAt     DateTime?
   sampleCount     Int       @default(0) // how many edits the current profile was built from
+}
+
+// File Summary: the cached AI-written "where this sale stands" prose shown in
+// the property-hero speech-bubble popover. One row per transaction (1:1). The
+// summary is generated from FACTS ONLY (step states, chase counts, dates,
+// activity counts) — no note or email wording is ever sent to the model, so a
+// single cached row is safe for every authorised viewer of the file. Written
+// on explicit refresh (or first open when none exists) and overwritten only on
+// success, so a failed generation never loses the last good summary. See
+// lib/services/file-summary.ts.
+model FileSummary {
+  id            String              @id @default(cuid())
+  transactionId String              @unique
+  transaction   PropertyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  body          String   @db.Text // the rendered prose summary shown in the popover
+  generatedAt   DateTime @default(now())
+  model         String // which model produced it (audit + future invalidation)
+  promptVersion Int      @default(1) // bump when the prompt changes so stale copy can be spotted
+  tokensIn      Int? // spend visibility; nullable so a row can exist without usage data
+  tokensOut     Int?
+  generatedById String? // staff user id that triggered the generation (audit, not shown)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([transactionId])
 }
 
 // Content & Personal Brand: platform adaptations (docs/active/content-brand/

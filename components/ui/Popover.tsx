@@ -51,9 +51,27 @@ function surfaceStyle(isNight: boolean): CSSProperties {
   };
 }
 
-function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, width, role, zIndex, children }: {
+// Opening/closing animation. "dropdown" is the shared default (translateY fade,
+// .agent-dropdown-in/out). "scale" is the macOS-style scale-from-origin used by
+// the File Summary popover — the panel grows out of the corner nearest its
+// trigger; transformOrigin is derived from placement by the caller.
+type PopAnim = "dropdown" | "scale";
+
+function animClass(anim: PopAnim, closing: boolean): string {
+  if (anim === "scale") return closing ? "fs-pop-out" : "fs-pop-in";
+  return closing ? "agent-dropdown-out" : "agent-dropdown-in";
+}
+
+// transform-origin pointing back at the trigger, from the panel's placement.
+function originFor(placement: Placement): string {
+  const vertical = placement.startsWith("top") ? "bottom" : "top";
+  const horizontal = placement.endsWith("end") ? "right" : placement.endsWith("start") ? "left" : "center";
+  return `${vertical} ${horizontal}`;
+}
+
+function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, width, role, zIndex, anim = "dropdown", transformOrigin, children }: {
   isNight: boolean; theme: string; preset: Preset; bare?: boolean; closing?: boolean; floatRef: Ref<HTMLDivElement>;
-  pos: { top: number; left: number } | null; width?: number; role?: string; zIndex?: number; children: ReactNode;
+  pos: { top: number; left: number } | null; width?: number; role?: string; zIndex?: number; anim?: PopAnim; transformOrigin?: string; children: ReactNode;
 }) {
   return createPortal(
     <div
@@ -61,7 +79,7 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       role={role}
-      className={`ui-pop ui-pop-${preset} ${closing ? "agent-dropdown-out" : "agent-dropdown-in"}${isNight ? " nv2-night" : ""}`}
+      className={`ui-pop ui-pop-${preset} ${animClass(anim, !!closing)}${isNight ? " nv2-night" : ""}`}
       style={{
         position: "fixed",
         top: pos?.top ?? 0,
@@ -69,6 +87,7 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
         width,
         visibility: pos ? "visible" : "hidden",
         zIndex: zIndex ?? 1400,
+        transformOrigin: anim === "scale" ? transformOrigin : undefined,
         // While exiting, don't let the fading layer swallow clicks.
         pointerEvents: closing ? "none" : undefined,
         ...surfaceStyle(isNight),
@@ -83,7 +102,7 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
   );
 }
 
-export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width, zIndex }: {
+export function Popover({ trigger, children, placement = "bottom-start", preset = "menu", bare, width, zIndex, anim = "dropdown" }: {
   // Pass a function to style the trigger by open state (e.g. rotate a caret /
   // tint when open). The anchor also carries data-open so CSS carets can target
   // `.ui-pop-anchor[data-open]`.
@@ -96,6 +115,9 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
   // Stacking context (default 1400). Raise it when the trigger lives inside an
   // escalated drawer/modal (z 1500) so the menu isn't hidden behind it.
   zIndex?: number;
+  // Entrance style. Defaults to the shared translateY dropdown; "scale" opts
+  // into the macOS scale-from-origin used by the File Summary popover.
+  anim?: PopAnim;
 }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
@@ -122,7 +144,7 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
     <>
       <span ref={anchorRef} className="ui-pop-anchor" data-open={open ? "" : undefined} onClick={() => setOpen((o) => !o)}>{typeof trigger === "function" ? trigger(open) : trigger}</span>
       {render && typeof document !== "undefined" && (
-        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} zIndex={zIndex} role={preset === "menu" ? "menu" : undefined}>
+        <FloatLayer isNight={isNight} theme={theme} preset={preset} bare={bare} closing={closing} floatRef={floatRef} pos={pos} width={width} zIndex={zIndex} anim={anim} transformOrigin={originFor(placement)} role={preset === "menu" ? "menu" : undefined}>
           {typeof children === "function" ? children(close) : children}
         </FloatLayer>
       )}

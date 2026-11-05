@@ -1,0 +1,45 @@
+/* File Summary — the property-hero "where this sale stands" popover.
+   The floating surface itself (glass, blur, border, radius) comes from the
+   canonical Popover; these styles cover the trigger, the panel interior, and
+   the macOS scale-from-origin entrance opted into via <Popover anim="scale">. */
+
+/* ── trigger ──
+   Bare speech-bubble icon, styled to match .sticky-add exactly so the two sit
+   flush beside each other in the hero. Lights coral and lifts on hover. */
+.fs-sum-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--agent-text-secondary); cursor: pointer; transition: color .14s, background .14s, box-shadow .14s, transform .14s; flex-shrink: 0; }
+.fs-sum-btn:hover { color: var(--agent-coral-deep); background: var(--agent-surface-glass); box-shadow: var(--agent-hover-lift); transform: translateY(-1px); }
+.fs-sum-btn:active { transform: translateY(0); }
+.ui-pop-anchor[data-open] .fs-sum-btn { color: var(--agent-coral-deep); background: var(--agent-surface-glass); }
+
+/* ── panel ── */
+.fs-panel { display: flex; flex-direction: column; max-height: min(74vh, 460px); }
+.fs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 14px 8px; }
+.fs-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .01em; color: var(--agent-text-primary); }
+.fs-stamp { font-size: 10.5px; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fs-body { padding: 0 14px 2px; overflow-y: auto; }
+.fs-body p { margin: 0 0 9px; font-size: 13px; line-height: 1.62; letter-spacing: -0.003em; color: var(--agent-text-primary); }
+.fs-body p:last-child { margin-bottom: 0; }
+
+.fs-stale { display: flex; align-items: center; gap: 6px; margin: 0 14px; padding: 8px 0 2px; font-size: 11px; color: var(--agent-coral-deep); }
+
+.fs-foot { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 9px 10px 10px; margin-top: 8px; border-top: 0.5px solid var(--agent-border-subtle); }
+.fs-act { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: var(--agent-text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: color .14s, background .14s; }
+.fs-act:hover { color: var(--agent-text-primary); background: var(--agent-surface-glass); }
+.fs-act:disabled { opacity: .5; cursor: default; }
+.fs-act[data-done] { color: var(--agent-coral-deep); }
+
+/* ── loading / empty / error ── */
+.fs-note { display: flex; align-items: center; gap: 9px; padding: 18px 14px; font-size: 12.5px; line-height: 1.5; color: var(--agent-text-secondary); }
+.fs-spin { width: 14px; height: 14px; flex-shrink: 0; border: 2px solid var(--agent-border-default); border-top-color: var(--agent-coral-deep); border-radius: 50%; animation: fs-spin .7s linear infinite; }
+@keyframes fs-spin { to { transform: rotate(360deg); } }
+
+/* ── macOS scale-from-origin entrance (Popover anim="scale") ── */
+@keyframes fs-pop-in  { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes fs-pop-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.97); } }
+.fs-pop-in  { animation: fs-pop-in  190ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+.fs-pop-out { animation: fs-pop-out 100ms ease-in both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-sum-btn { transition: none; }
+  .fs-pop-in, .fs-pop-out, .fs-spin { animation: none; }
+}
