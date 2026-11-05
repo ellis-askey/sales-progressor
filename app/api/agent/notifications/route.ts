@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   const session = await requireSession();
   const after = req.nextUrl.searchParams.get("after");
   const since = after ? new Date(after) : new Date(0);
+  const now = new Date();
 
   const role = session.user.role;
   const isInternalStaff = role === "admin" || role === "sales_progressor" || role === "viewer";
@@ -68,8 +69,15 @@ export async function GET(req: NextRequest) {
       m.completedById === session.user.id &&
       confirmer?.kind !== "client" &&
       confirmer?.kind !== "helper";
+    // Date-milestones (PM6 valuation / PM9 survey "booked") store the future
+    // EVENT date in completedAt; the real confirmation time is createdAt. When
+    // completedAt is in the future, date the feed by createdAt instead — otherwise
+    // a future date sits permanently newer than any "read" marker, so the unread
+    // badge can never clear (and the item wrongly reads "Just now").
+    const completedAt = m.completedAt ? new Date(m.completedAt) : null;
+    const occurredAt = completedAt && completedAt <= now ? completedAt : (m.createdAt ?? completedAt ?? new Date(0));
     return {
-      at: new Date(m.completedAt ?? 0),
+      at: occurredAt,
       countable: !mine,
       item: {
         id: m.id,
@@ -89,7 +97,7 @@ export async function GET(req: NextRequest) {
           : confirmer?.kind === "client" || confirmer?.kind === "helper" ? (confirmingContact?.name ?? "")
           : confirmer?.kind === "solicitor" ? (m.confirmedBySolicitorFirm?.name ?? "")
           : "",
-        at: (m.completedAt ?? new Date()).toISOString(),
+        at: occurredAt.toISOString(),
         updateLabel: null as string | null,
       },
     };
