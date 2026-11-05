@@ -8,6 +8,7 @@
 // sale from the queue so it can reach zero. Scoped upstream by the page.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CountBadge } from "@/components/ui/CountBadge";
 import { Popover } from "@/components/ui/Popover";
@@ -247,6 +248,7 @@ export function ChainsWorkspace({
   const needsSetupAll = useMemo(() => noChainLocal.filter((s) => !isConfirmedNoChain(s)), [noChainLocal]);
   const noChainAll = useMemo(() => noChainLocal.filter((s) => isConfirmedNoChain(s)), [noChainLocal]);
 
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>(chains.length === 0 && needsSetupAll.length > 0 ? "needs" : "chains");
   const [query, setQuery] = useState("");
   const tabsTag = useGlassTag("chains-tabs", "Chains · tabs");
@@ -511,7 +513,13 @@ export function ChainsWorkspace({
               <button
                 key={t.key}
                 ref={(el) => { btnRefs.current[i] = el; }}
-                onClick={() => setTab(t.key)}
+                onClick={() => {
+                  setTab(t.key);
+                  // Pull fresh server data when opening Check-ins so saved step
+                  // ticks survive the tab switch (the list re-seeds from props,
+                  // which would otherwise be the stale page-load snapshot).
+                  if (t.key === "checkins") router.refresh();
+                }}
                 role="tab"
                 aria-selected={isActive}
                 className="agent-tab flex-shrink-0"

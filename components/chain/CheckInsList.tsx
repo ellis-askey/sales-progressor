@@ -118,6 +118,12 @@ function groupRows(rows: CheckInRow[]): CheckInGroup[] {
 export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole }: { rows: CheckInRow[]; currentUserId: string; currentUserRole?: string | null }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<CheckInRow[]>(() => sortRows(initialRows));
+  // Re-seed when the server rows change — a search-filter change, or a
+  // router.refresh when the Check-ins tab is re-opened. Without this, switching
+  // tabs remounts this list from the page-load snapshot and in-session step ticks
+  // appear to vanish even though they were saved server-side. Plain ticking never
+  // changes initialRows, so an in-progress confirm isn't disturbed. (2026-11-05)
+  useEffect(() => { setRows(sortRows(initialRows)); }, [initialRows]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
