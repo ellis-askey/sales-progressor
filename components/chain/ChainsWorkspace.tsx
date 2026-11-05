@@ -528,10 +528,12 @@ export function ChainsWorkspace({
                 ref={(el) => { btnRefs.current[i] = el; }}
                 onClick={() => {
                   setTab(t.key);
-                  // Pull fresh server data when opening Check-ins so saved step
-                  // ticks survive the tab switch (the list re-seeds from props,
-                  // which would otherwise be the stale page-load snapshot).
-                  if (t.key === "checkins") router.refresh();
+                  // Pull fresh server data when opening Check-ins OR Push to
+                  // exchange: a step tick on one sets ChainLink.exchangeReadyConfirmedAt,
+                  // and the other tab reads it — without this refresh it would show
+                  // the stale page-load snapshot, so a just-completed node's ready
+                  // toggle wouldn't flip until a manual reload.
+                  if (t.key === "checkins" || t.key === "pushexchange") router.refresh();
                 }}
                 role="tab"
                 aria-selected={isActive}

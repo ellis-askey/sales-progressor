@@ -379,9 +379,9 @@ const CHECK_IN_ROWS: CheckInRow[] = [
     lastUpdateAuthorImage: null,
     lastUpdateAuthorRole: null,
     history: [
-      { at: "2026-08-20T10:00:00.000Z", body: "Spoke to their agent. Searches are back and replies to enquiries are being drafted." },
-      { at: "2026-08-06T09:30:00.000Z", body: "Left a voicemail chasing the mortgage offer." },
-      { at: "2026-07-28T16:10:00.000Z", body: "Their agent says the survey is booked for next week." },
+      { at: "2026-08-20T10:00:00.000Z", body: "Spoke to their agent. Searches are back and replies to enquiries are being drafted.", authorName: "Your team", authorImage: null, authorRole: null },
+      { at: "2026-08-06T09:30:00.000Z", body: "Left a voicemail chasing the mortgage offer.", authorName: "Your team", authorImage: null, authorRole: null },
+      { at: "2026-07-28T16:10:00.000Z", body: "Their agent says the survey is booked for next week.", authorName: "Your team", authorImage: null, authorRole: null },
     ],
     steps: CHECK_IN_STEPS.slice(0, 4).map((s) => s.key),
     chainId: "demo-chain-1",

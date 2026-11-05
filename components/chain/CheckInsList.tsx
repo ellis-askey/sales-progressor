@@ -14,7 +14,6 @@
 // the bottom and FLIP-animates there: nothing disappears, the cycle just turns.
 
 import { useState, useTransition, useRef, useLayoutEffect, useCallback, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { addChainEntryAction, toggleChainStepAction, setChainExchangeReadyAction } from "@/app/actions/chain-intel";
 import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
@@ -134,7 +133,16 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // "View chain" opens the shared ChainDrawer anchored on our own file in that
   // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
   const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
-  const [historyRow, setHistoryRow] = useState<CheckInRow | null>(null);
+  // Which rows have their update history expanded inline (replaces the old modal).
+  const [histOpen, setHistOpen] = useState<Set<string>>(new Set());
+  function toggleHist(linkId: string) {
+    setHistOpen((cur) => {
+      const next = new Set(cur);
+      if (next.has(linkId)) next.delete(linkId);
+      else next.add(linkId);
+      return next;
+    });
+  }
   const { addNode, openAddNode, closeAddNode, onNodeSaved, refreshKey } = useChainAddNode();
   const [, startTransition] = useTransition();
 
@@ -227,7 +235,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   ...r,
                   steps: res.steps,
                   ...(res.entry
-                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: row.lastUpdateAuthorName, history: [{ at: res.entry.at, body: res.entry.body }, ...r.history] }
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
                     : {}),
                 }
               : r,
@@ -252,12 +260,27 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     const snap = undoByLink.get(row.linkId);
     if (!snap) return;
     setBusy(row.linkId);
-    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? snap.row : r)));
+    // Revert the steps to the pre-confirm set, but KEEP the history — the server
+    // logs a reversal line (not a delete), which we prepend below so the trail
+    // reads confirmed → reverted.
+    setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: snap.row.steps } : r)));
     clearUndo(row.linkId);
     startTransition(async () => {
       try {
-        const res = await setChainExchangeReadyAction(row.linkId, false, snap.row.steps, row.ourTransactionId ?? undefined, snap.entryId);
-        setRows((cur) => cur.map((r) => (r.linkId === row.linkId ? { ...r, steps: res.steps } : r)));
+        const res = await setChainExchangeReadyAction(row.linkId, false, snap.row.steps, row.ourTransactionId ?? undefined);
+        setRows((cur) =>
+          cur.map((r) =>
+            r.linkId === row.linkId
+              ? {
+                  ...r,
+                  steps: res.steps,
+                  ...(res.entry
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
+                    : {}),
+                }
+              : r,
+          ),
+        );
         toast.success("Reverted to the previous progress");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't undo that.");
@@ -291,7 +314,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   ...r,
                   steps: res.steps,
                   ...(res.entry
-                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, history: [{ at: res.entry.at, body: res.entry.body }, ...r.history] }
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
                     : {}),
                 }
               : r,
@@ -329,7 +352,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
           sortRows(
             cur.map((r) =>
               r.linkId === row.linkId
-                ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body, history: [{ at: entry.createdAt, body: entry.body }, ...r.history] }
+                ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body, lastUpdateAuthorName: entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: entry.createdAt, body: entry.body, authorName: entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
                 : r,
             ),
           ),
@@ -358,7 +381,6 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     const who = row.agentName ? extractFirstName(row.agentName) : "agent";
     if (row.agentPhone) items.push({ label: `Call ${who}`, onClick: () => { window.location.href = `tel:${row.agentPhone}`; } });
     if (row.agentEmail) items.push({ label: `Email ${who}`, onClick: () => { window.location.href = `mailto:${row.agentEmail}`; } });
-    if (row.history.length > 0) items.push({ label: "Update history", onClick: () => setHistoryRow(row) });
     return items;
   }
 
@@ -466,6 +488,23 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       .ciq-logbtn:hover { background: var(--agent-hover-shade, rgba(45,24,16,0.04)); border-color: rgba(var(--agent-coral-rgb), 0.55); }
       .ciq-logbtn:active { transform: scale(0.97); }
       @media (prefers-reduced-motion: reduce) { .ciq-logbtn { transition: none; } .ciq-logbtn:active { transform: none; } }
+      /* Last-update line → expandable history (retires the modal). The collapsed
+         line shows the latest entry; clicking reveals the rest, each laid out the
+         same way (avatar + sentence + date) with a thin divider between. */
+      .ciq-upd { display: flex; gap: 8px; align-items: flex-start; width: 100%; text-align: left; background: none; border: 0; font-family: inherit; cursor: pointer; padding: 0; margin-top: 10px; }
+      .ciq-upd:disabled { cursor: default; }
+      .ciq-upd:not(:disabled):hover .ciq-upd-chev { color: var(--agent-text-muted); }
+      .ciq-upd:focus-visible { outline: none; }
+      .ciq-upd:focus-visible .ciq-upd-chev { box-shadow: 0 0 0 2px rgba(var(--agent-coral-rgb), 0.4); border-radius: 6px; }
+      .ciq-upd-chev { flex-shrink: 0; align-self: center; color: var(--agent-text-faint, #b8b0a4); display: grid; place-items: center; }
+      .ciq-upd-chev svg { transition: transform 200ms ease; display: block; }
+      .ciq-upd[aria-expanded="true"] .ciq-upd-chev svg { transform: rotate(180deg); }
+      .ciq-hist { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms cubic-bezier(0.22,1,0.36,1); }
+      .ciq-hist > div { overflow: hidden; min-height: 0; }
+      .ciq-hist.open { grid-template-rows: 1fr; }
+      .ciq-hist-row { display: flex; gap: 8px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--agent-border-subtle); }
+      .ciq-hist-row:first-child { margin-top: 8px; }
+      @media (prefers-reduced-motion: reduce) { .ciq-upd-chev svg, .ciq-hist { transition: none; } }
       @media (prefers-reduced-motion: reduce) {
         .ciq-bar, .ciq-md, .ciq-chev svg, .ciq-body, .ciq-track, .ciq-node { transition: none; }
         .ciq-step.done .ciq-node { animation: none; }
@@ -577,22 +616,54 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
             {/* Last update line (critique #286, #297): confirmer photo + name in
                 the sentence, small/grey, spanning the full width, with the date
                 dropped onto its own line underneath, bottom-right aligned. */}
-            {row.lastUpdateBody ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
-                <span style={{ flexShrink: 0 }}>
-                  <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: row.lastUpdateAuthorRole ?? "agent" }} size={22} image={row.lastUpdateAuthorImage} />
-                </span>
-                {/* Text + date share a row: the date sits at the right, bottom-
-                    aligned so it lands on the last line when the text wraps, with
-                    a guaranteed gap (its column is reserved, so they never touch). */}
-                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "flex-end", gap: 10 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
-                  <span className="ciq-date-inline" style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
-                    {shortDate(row.lastUpdateAt as string)}
-                  </span>
-                </div>
-              </div>
-            ) : (
+            {row.lastUpdateBody ? (() => {
+              const hasMore = row.history.length > 1;
+              const open = histOpen.has(row.linkId);
+              return (
+                <>
+                  {/* Collapsed: the latest entry. Click (when there's more) to
+                      reveal the full trail inline. */}
+                  <button
+                    type="button"
+                    className="ciq-upd"
+                    onClick={() => hasMore && toggleHist(row.linkId)}
+                    disabled={!hasMore}
+                    aria-expanded={hasMore ? open : undefined}
+                    aria-label={hasMore ? "Show full update history" : undefined}
+                  >
+                    <span style={{ flexShrink: 0 }}>
+                      <ContactAvatar contact={{ name: row.lastUpdateAuthorName ?? "Your team", roleType: row.lastUpdateAuthorRole ?? "agent" }} size={22} image={row.lastUpdateAuthorImage} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{row.lastUpdateBody}</span>
+                    <span className="ciq-date-inline" style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
+                      {shortDate(row.lastUpdateAt as string)}
+                    </span>
+                    {hasMore && (
+                      <span className="ciq-upd-chev" aria-hidden>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                      </span>
+                    )}
+                  </button>
+                  {hasMore && (
+                    <div className={`ciq-hist${open ? " open" : ""}`}>
+                      <div>
+                        {row.history.slice(1).map((h, i) => (
+                          <div key={`${h.at}-${i}`} className="ciq-hist-row">
+                            <span style={{ flexShrink: 0 }}>
+                              <ContactAvatar contact={{ name: h.authorName ?? "Your team", roleType: h.authorRole ?? "agent" }} size={22} image={h.authorImage} />
+                            </span>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>{h.body}</span>
+                            <span style={{ flexShrink: 0, fontSize: 11, lineHeight: 1.45, color: "var(--agent-text-faint, #b8b0a4)", whiteSpace: "nowrap" }}>
+                              {shortDate(h.at)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", lineHeight: 1.5 }}>
                 No updates logged yet — check in and note what you hear.
               </p>
@@ -611,7 +682,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) logUpdate(row);
                   }}
-                  style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.5, minHeight: 72 }}
+                  style={{ width: "100%", resize: "vertical", fontSize: 13, lineHeight: 1.5, minHeight: 72, padding: "10px 12px" }}
                 />
                 {/* Proper Cancel (ghost) + primary Log update (critique #279) */}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -726,51 +797,6 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         onSaved={onNodeSaved}
       />
     )}
-    {historyRow && createPortal(
-      <HistoryModal row={historyRow} onClose={() => setHistoryRow(null)} />,
-      document.body,
-    )}
     </>
-  );
-}
-
-// Private update-history popover for a check-in node: our team's own notes on
-// that node, newest first. Never shows the neighbour's notes (the service only
-// hands us our-side entries).
-function HistoryModal({ row, onClose }: { row: CheckInRow; onClose: () => void }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, zIndex: 2147483000, background: "rgba(20,12,8,0.42)", backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 440, maxHeight: "80vh", overflowY: "auto", background: "var(--agent-surface-elevated, #fff)", border: "1px solid var(--agent-border-subtle)", borderRadius: 16, boxShadow: "0 20px 50px rgba(20,12,8,0.25)", padding: 18 }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 750, color: "var(--agent-text-primary)" }}>Your updates</p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.address}</p>
-          </div>
-          <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--agent-text-muted)", padding: 4, fontSize: 20, lineHeight: 1 }}>×</button>
-        </div>
-        <p style={{ margin: "10px 0 14px", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-          Private to your side. Never shown to the other agent.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {row.history.map((h, i) => (
-            <div key={`${h.at}-${i}`} style={{ paddingBottom: 11, borderBottom: i < row.history.length - 1 ? "1px solid var(--agent-border-subtle)" : "none" }}>
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--agent-text-secondary)" }}>{shortDate(h.at)}</p>
-              <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--agent-text-primary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{h.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

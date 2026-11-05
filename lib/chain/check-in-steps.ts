@@ -76,3 +76,20 @@ export function checkInReadyConfirmationLine(
   const from = agencyName ? ` from ${agencyName}` : "";
   return `${confirmerName} received confirmation${from} that their sale is ready to exchange.`;
 }
+
+// The dated line logged when a confirmed step is UN-ticked (undo of a single
+// step, 2026-11-05). Uses the step's label as a short noun phrase, lower-cased
+// except for acronym labels like "DCP": "{who} marked {step} as no longer
+// confirmed."
+export function checkInUnconfirmationLine(stepKey: string, confirmerName: string): string {
+  const label = checkInStepLabel(stepKey) ?? stepKey;
+  const noun = /^[A-Z]{2,}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+  return `${confirmerName} marked ${noun} as no longer confirmed.`;
+}
+
+// The dated line logged when a bulk "Confirm ready" is undone (2026-11-05).
+// Parallel to checkInReadyConfirmationLine; logged (not deleted) so the undo
+// leaves a trail: "{who} marked their sale as no longer ready to exchange."
+export function checkInRevertReadyLine(confirmerName: string): string {
+  return `${confirmerName} marked their sale as no longer ready to exchange.`;
+}

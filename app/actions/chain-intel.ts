@@ -11,7 +11,7 @@ import {
   type ChainNodeOwnership,
   type ChainNodeIntelInput,
 } from "@/lib/chain/intel";
-import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel, checkInConfirmationLine, checkInReadyConfirmationLine } from "@/lib/chain/check-in-steps";
+import { CHECK_IN_STEPS, CHECK_IN_STEP_KEYS, checkInStepLabel, checkInConfirmationLine, checkInReadyConfirmationLine, checkInUnconfirmationLine, checkInRevertReadyLine } from "@/lib/chain/check-in-steps";
 
 // Shared guard: load the link's ownership facts and assert the caller may edit
 // this node (canEditNodeIntel). Own-side only — never another agency, never the
@@ -216,7 +216,7 @@ export async function toggleChainStepAction(
   contextTransactionId?: string,
 ): Promise<{
   steps: string[]; // our side's marked step keys after the toggle
-  entry: { at: string; body: string } | null; // the logged line (mark only)
+  entry: { at: string; body: string; authorName: string | null } | null; // the logged line (mark OR unmark)
 }> {
   const session = await requireSession();
   if (!CHECK_IN_STEP_KEYS.has(stepKey)) throw new Error("Unknown step.");
@@ -271,7 +271,8 @@ export async function toggleChainStepAction(
       ? agencySideKey(link.transaction.agencyId)
       : noteSideKey(viewer);
 
-  let entry: { at: string; body: string } | null = null;
+  let entry: { at: string; body: string; authorName: string | null } | null = null;
+  const authorName = session.user.name ?? null;
   if (done) {
     await prisma.chainNodeStepMark.upsert({
       where: { chainLinkId_sideKey_stepKey: { chainLinkId: linkId, sideKey, stepKey } },
@@ -288,18 +289,33 @@ export async function toggleChainStepAction(
         chainLinkId: linkId,
         body: checkInConfirmationLine(stepKey, session.user.name ?? "Your team", agencyName),
         authorId: session.user.id,
-        authorName: session.user.name ?? null,
+        authorName,
         authorSideKey: sideKey,
         authorAgencyId: session.user.agencyId ?? null,
         authorBusinessId: session.user.progressionBusinessId ?? null,
       },
       select: { body: true, createdAt: true },
     });
-    entry = { at: created.createdAt.toISOString(), body: created.body };
+    entry = { at: created.createdAt.toISOString(), body: created.body, authorName };
   } else {
     await prisma.chainNodeStepMark.deleteMany({
       where: { chainLinkId: linkId, sideKey, stepKey },
     });
+    // Unticking a confirmed step leaves a trail too (Q4): log the reversal line
+    // so the history records who undid what, and when.
+    const created = await prisma.chainLinkEntry.create({
+      data: {
+        chainLinkId: linkId,
+        body: checkInUnconfirmationLine(stepKey, session.user.name ?? "Your team"),
+        authorId: session.user.id,
+        authorName,
+        authorSideKey: sideKey,
+        authorAgencyId: session.user.agencyId ?? null,
+        authorBusinessId: session.user.progressionBusinessId ?? null,
+      },
+      select: { body: true, createdAt: true },
+    });
+    entry = { at: created.createdAt.toISOString(), body: created.body, authorName };
   }
 
   const marks = await prisma.chainNodeStepMark.findMany({
@@ -332,21 +348,19 @@ export async function toggleChainStepAction(
 
 // Bulk "Confirm ready" / "Undo" for the check-in 3-dot menu (critique #297).
 // `ready: true` marks every step for our side in one go (the agent has heard the
-// node is ready to exchange) and stamps exchangeReadyConfirmedAt — the same flag
-// the push-to-exchange surface reads. `ready: false` is the undo: it reconciles
-// our side's marks back to exactly `priorSteps` (what was completed before the
-// confirm) and, because the node is no longer all-in, retracts the readiness
-// stamp this confirm set. Unlike the per-pill toggle, confirm-all logs no entry:
-// the readiness stamp (who/when) is the record, and keeping it entry-free means
-// the undo is a clean reversal with nothing to delete. Same own-side / in-chain
-// access + side-key model as toggleChainStepAction.
+// node is ready to exchange), stamps exchangeReadyConfirmedAt — the same flag the
+// push-to-exchange surface reads — and logs one "ready to exchange" line.
+// `ready: false` is the undo: it reconciles our side's marks back to exactly
+// `priorSteps` (what was completed before the confirm), retracts the readiness
+// stamp, and logs a reversal line (Q4) so the trail reads confirmed → reverted
+// rather than silently erasing the confirm line. Same own-side / in-chain access
+// + side-key model as toggleChainStepAction.
 export async function setChainExchangeReadyAction(
   linkId: string,
   ready: boolean,
   priorSteps: string[] | null,
   contextTransactionId?: string,
-  undoEntryId?: string | null,
-): Promise<{ steps: string[]; entry: { id: string; at: string; body: string } | null }> {
+): Promise<{ steps: string[]; entry: { id: string; at: string; body: string; authorName: string | null } | null }> {
   const session = await requireSession();
   if (priorSteps) {
     for (const k of priorSteps) if (!CHECK_IN_STEP_KEYS.has(k)) throw new Error("Unknown step.");
@@ -432,28 +446,26 @@ export async function setChainExchangeReadyAction(
     });
   }
 
-  // Confirm logs ONE summary line (the readiness confirmation); undo removes it,
-  // so the check-in reverts cleanly to its pre-confirm "Last update" (#297).
-  let entry: { id: string; at: string; body: string } | null = null;
-  if (ready) {
-    const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? null;
-    const created = await prisma.chainLinkEntry.create({
-      data: {
-        chainLinkId: linkId,
-        body: checkInReadyConfirmationLine(session.user.name ?? "Your team", agencyName),
-        authorId: session.user.id,
-        authorName: session.user.name ?? null,
-        authorSideKey: sideKey,
-        authorAgencyId: session.user.agencyId ?? null,
-        authorBusinessId: session.user.progressionBusinessId ?? null,
-      },
-      select: { id: true, body: true, createdAt: true },
-    });
-    entry = { id: created.id, at: created.createdAt.toISOString(), body: created.body };
-  } else if (undoEntryId) {
-    // Scoped delete — only our own side's confirm line on this link.
-    await prisma.chainLinkEntry.deleteMany({ where: { id: undoEntryId, chainLinkId: linkId, authorSideKey: sideKey } });
-  }
+  // Confirm logs ONE readiness line; undo logs a reversal line (both kept), so
+  // the history reads confirmed → reverted (Q4). (#297)
+  const authorName = session.user.name ?? null;
+  let entry: { id: string; at: string; body: string; authorName: string | null } | null = null;
+  const agencyName = link.claimedBy?.firmName ?? link.stubAgencyName ?? null;
+  const created = await prisma.chainLinkEntry.create({
+    data: {
+      chainLinkId: linkId,
+      body: ready
+        ? checkInReadyConfirmationLine(session.user.name ?? "Your team", agencyName)
+        : checkInRevertReadyLine(session.user.name ?? "Your team"),
+      authorId: session.user.id,
+      authorName,
+      authorSideKey: sideKey,
+      authorAgencyId: session.user.agencyId ?? null,
+      authorBusinessId: session.user.progressionBusinessId ?? null,
+    },
+    select: { id: true, body: true, createdAt: true },
+  });
+  entry = { id: created.id, at: created.createdAt.toISOString(), body: created.body, authorName };
 
   return { steps: desired, entry };
 }

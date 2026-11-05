@@ -2320,8 +2320,10 @@ export type CheckInRow = {
   // onward/related step — drives the side-tinted avatar. Null for agent lines.
   lastUpdateAuthorRole: string | null;
   // Our full private update trail on this node (our team side only), newest first.
-  // Powers the ⋯ menu "Update history". Capped at the 30 most recent entries loaded.
-  history: Array<{ at: string; body: string }>;
+  // Powers the inline "last update" reveal. Each entry carries its own author so
+  // the expanded list matches the collapsed line (avatar + sentence + date).
+  // Capped at the 30 most recent entries loaded.
+  history: Array<{ at: string; body: string; authorName: string | null; authorImage: string | null; authorRole: string | null }>;
   // Our side's "Confirm progress" marks on this node (critique #235) — step keys
   // from lib/chain/check-in-steps.ts. Private to us, like the entries.
   steps: string[];
@@ -2447,7 +2449,13 @@ export async function listCheckInsForScope(scope: AccessScope, ownerUserId?: str
         lastUpdateAuthorName: latest?.authorName ?? null,
         lastUpdateAuthorImage: latest?.authorId ? authorImageById.get(latest.authorId) ?? null : null,
         lastUpdateAuthorRole: latest?.authorRole ?? null,
-        history: ourEntries.map((e) => ({ at: e.createdAt.toISOString(), body: e.body })),
+        history: ourEntries.map((e) => ({
+          at: e.createdAt.toISOString(),
+          body: e.body,
+          authorName: e.authorName ?? null,
+          authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null,
+          authorRole: e.authorRole ?? null,
+        })),
         steps: sideKey ? l.stepMarks.filter((m) => m.sideKey === sideKey).map((m) => m.stepKey) : [],
         chainId: chain.id,
         chainName: chain.name,
