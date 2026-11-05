@@ -14,9 +14,9 @@ import { useRouter } from "next/navigation";
 import type { EmailSignatureMode } from "@prisma/client";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction } from "@/app/actions/signature";
+import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
-import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle } from "@phosphor-icons/react";
+import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 
 export interface SignatureInitial {
   mode: EmailSignatureMode;
@@ -57,6 +57,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [urlValue, setUrlValue] = useState("");
+  const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refreshPreview = useCallback(async (m: EmailSignatureMode, html: string | null) => {
@@ -144,7 +145,37 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     }
   }
 
+  async function sendTest() {
+    setSending(true);
+    setError("");
+    try {
+      const res = await sendSignatureTestAction();
+      if (res.ok) toast.success("Test email sent. Check your inbox.");
+      else setError(res.error);
+    } catch {
+      setError("Couldn't send the test email just now.");
+    } finally {
+      setSending(false);
+    }
+  }
+
   const statusLabel = status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "";
+
+  // Primary "Send test" action — sends the signed-in user a real email built from
+  // their current signature so they can see how it lands before trusting it live.
+  // Lives on the right of the actions/header row in every mode.
+  const testBtn = (
+    <button
+      type="button"
+      onClick={sendTest}
+      disabled={sending || busy}
+      className="sig-test-btn"
+      style={{ ...primaryBtn, opacity: sending ? 0.75 : 1 }}
+      title="Send yourself a test email to see how your signature looks"
+    >
+      <PaperPlaneTilt size={15} weight="bold" /> {sending ? "Sending…" : "Send test"}
+    </button>
+  );
 
   return (
     <AccountCard
@@ -170,6 +201,11 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
         .sig-danger-btn{transition:background 140ms,border-color 140ms,color 140ms,transform 90ms;}
         .sig-danger-btn:hover:not(:disabled){background:#fef2f2 !important;border-color:#dc2626 !important;color:#dc2626 !important;}
         .sig-danger-btn:active:not(:disabled){transform:scale(0.97);}
+        .sig-test-btn{transition:filter 140ms,transform 120ms,box-shadow 180ms;}
+        .sig-test-btn:hover:not(:disabled){filter:brightness(1.04);transform:translateY(-1px);}
+        .sig-test-btn:active:not(:disabled){transform:scale(0.98);}
+        .sig-test-btn:focus-visible{outline:2px solid var(--agent-coral,#FF6B4A);outline-offset:2px;}
+        .sig-test-btn:disabled{cursor:default;}
       `}</style>
 
       {/* Mode selector — standard option-select treatment: brand-fill + tick on
@@ -210,7 +246,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
 
       {mode === "IMAGE" && (
         <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input
               ref={fileRef}
               type="file"
@@ -230,6 +266,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
                 <Trash size={15} weight="bold" /> Remove
               </button>
             )}
+            <span style={{ marginLeft: "auto" }}>{testBtn}</span>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <LinkIcon size={15} weight="bold" style={{ color: "#6b7280", flexShrink: 0 }} />
@@ -252,6 +289,8 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
 
       {/* Preview / editor */}
       {mode === "CUSTOM" ? (
+        <>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>{testBtn}</div>
         <CustomSignatureEditor
           initialHtml={customHtml ?? ""}
           initialSource={initial.source}
@@ -262,11 +301,15 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
           onSaving={() => setStatus("saving")}
           onError={(msg) => { setError(msg); if (msg) setStatus("idle"); }}
         />
+        </>
       ) : (
         <div>
-          <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", marginBottom: 8 }}>
-            How your emails will sign off
-          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", margin: 0 }}>
+              How your emails will sign off
+            </p>
+            {mode === "BASIC" && testBtn}
+          </div>
           <div
             className="sig-signature-preview"
             style={{ borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "#fff", padding: 16, overflowX: "auto" }}
@@ -413,4 +456,14 @@ const secondaryBtn: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600,
   padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.16)",
   background: "#fff", color: "#374151", cursor: "pointer",
+};
+
+// Primary action — coral fill following the agency colour, matching the chosen
+// mode card. Used by "Send test".
+const primaryBtn: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700,
+  padding: "8px 16px", borderRadius: 8, border: "1.5px solid transparent",
+  background: "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))",
+  color: "var(--agent-text-on-coral, #fff)", cursor: "pointer", whiteSpace: "nowrap",
+  boxShadow: "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)",
 };

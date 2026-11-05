@@ -13,6 +13,9 @@ import { sanitizeSignatureHtml, MAX_SIGNATURE_HTML } from "@/lib/email/sanitize-
 import { processSignatureImages } from "@/lib/email/signature-images";
 import { detectSignatureSource, normalizeBySource, type SignatureSource } from "@/lib/email/signature-source";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { resolveAgencySender } from "@/lib/email/agency-sender";
+import { sendEmail } from "@/lib/email";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 const AGENCY_SIG_SELECT = {
   name: true,
@@ -120,4 +123,60 @@ export async function previewSignatureAction(input: {
     override: { mode: input.mode, customHtml: cleanCustom },
   });
   return { html: sig.html, missing: sig.missing, mode: sig.mode };
+}
+
+function londonGreeting(): string {
+  const h = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false }).format(new Date()),
+  );
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+// Send the signed-in user a real email built from their CURRENT saved signature,
+// so they can see exactly how it lands in an inbox before trusting it on live
+// chases. Resolves the signature the same way the live send path does (logo band
+// included), and sends from their own agency sender identity.
+export async function sendSignatureTestAction(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireSession();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, name: true, agencyId: true },
+  });
+  if (!user?.email) return { ok: false, error: "There's no email address on your account to send the test to." };
+
+  const agency = await senderAgency(session.user.id);
+  const sig = await resolveEmailSignature({ userId: session.user.id, agency, fallbackName: user.name });
+
+  const greeting = londonGreeting();
+  const firstName = user.name ? extractFirstName(user.name) : undefined;
+  const sender = await resolveAgencySender(user.agencyId ?? null, firstName ? { personFirstName: firstName } : undefined);
+
+  const bodyHtml =
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1a1a1a">` +
+    `<p>${greeting},</p>` +
+    `<p>I hope you're well. This is a quick test so you can see exactly how your signature appears to the people you email.</p>` +
+    `<p>If the sign-off below looks the way you want, you're all set.</p>` +
+    sig.html +
+    `</div>`;
+  const text =
+    `${greeting},\n\n` +
+    `I hope you're well. This is a quick test so you can see exactly how your signature appears to the people you email.\n\n` +
+    `If the sign-off below looks the way you want, you're all set.`;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      from: sender.from,
+      replyTo: sender.replyTo,
+      subject: "Your email signature (test)",
+      text,
+      html: bodyHtml,
+      emailType: "signature_test",
+    });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't send the test email just now. Try again in a moment." };
+  }
 }
