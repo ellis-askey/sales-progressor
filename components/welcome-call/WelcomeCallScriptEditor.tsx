@@ -8,7 +8,7 @@
 
 import { useState, useTransition, type CSSProperties } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { PencilSimple, Plus, X, CaretUp, CaretDown, Check, ArrowCounterClockwise } from "@/components/icons/ph";
+import { PencilSimple, Plus, X, CaretUp, CaretDown, Check, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { type WelcomeCallPoint, MAX_WELCOME_CALL_POINTS } from "@/lib/intro-call/script";
 
 type SaveResult = { ok: true } | { ok: false; error: string };

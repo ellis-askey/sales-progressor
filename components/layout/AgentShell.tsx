@@ -19,7 +19,7 @@ import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
   ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake,
-} from "@/components/icons/ph";
+} from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
 import { ViewModeToggle } from "@/components/layout/ViewModeToggle";

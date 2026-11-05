@@ -8,7 +8,7 @@ import { getAgencyWelcomeCallScriptAction } from "@/app/actions/welcome-call-scr
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AgencyWelcomeCallEditor } from "@/components/welcome-call/AgencyWelcomeCallEditor";
-import { Phone } from "@/components/icons/ph-ssr";
+import { Phone } from "@phosphor-icons/react/dist/ssr";
 
 export default async function WelcomeCallSettingsPage() {
   const session = await requireSession();

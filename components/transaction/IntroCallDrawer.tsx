@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@/components/icons/ph";
+import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {

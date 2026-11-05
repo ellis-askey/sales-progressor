@@ -14,7 +14,7 @@
 
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User, UsersThree, Bell, EnvelopeSimple, Lock, DeviceMobile, Gauge, PlugsConnected, Phone } from "@/components/icons/ph";
+import { CreditCard, User, UsersThree, Bell, EnvelopeSimple, Lock, DeviceMobile, Gauge, PlugsConnected, Phone } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 
 type Tab = NavRailItem & { roles: UserRole[] };
