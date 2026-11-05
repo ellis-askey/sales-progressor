@@ -156,10 +156,10 @@ function buildSlides(wins: HubWins, tier: Tier): Slide[] {
 // exact same string as the slide's own label), so each story now names itself
 // once and the header stays a stable "Wins this month". (critique #283)
 const TIER_META: Record<Tier, { icon: React.ReactNode }> = {
-  exchanges:   { icon: <Trophy size={24} weight="bold" /> },
-  completions: { icon: <Flag size={24} weight="bold" /> },
-  progress:    { icon: <Sparkle size={24} weight="bold" /> },
-  fresh:       { icon: <Rocket size={24} weight="bold" /> },
+  exchanges:   { icon: <Trophy size={24} weight="regular" /> },
+  completions: { icon: <Flag size={24} weight="regular" /> },
+  progress:    { icon: <Sparkle size={24} weight="regular" /> },
+  fresh:       { icon: <Rocket size={24} weight="regular" /> },
 };
 
 const ROTATE_MS = 6000;

@@ -126,7 +126,7 @@ export function HubListCard({
         style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
         <span aria-hidden style={{ color: ht.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <HeaderIcon size={24} weight="bold" />
+          <HeaderIcon size={24} weight="regular" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span className="agent-card-title-emphasis" style={{ margin: 0, display: "block" }}>

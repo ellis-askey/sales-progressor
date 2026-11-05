@@ -152,7 +152,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
         style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
       >
         <span aria-hidden style={{ color: "var(--agent-info)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Eye size={24} weight="bold" />
+          <Eye size={24} weight="regular" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>

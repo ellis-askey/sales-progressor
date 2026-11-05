@@ -635,7 +635,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
             flexShrink: 0,
           }}
         >
-          {allClear ? <Check size={24} weight="bold" /> : <Warning size={24} weight="bold" />}
+          {allClear ? <Check size={24} weight="regular" /> : <Warning size={24} weight="regular" />}
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>

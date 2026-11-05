@@ -180,7 +180,7 @@ export function ExpiredHoldsCard({ initialItems }: { initialItems: ExpiredHoldIt
             color: DANGER,
           }}
         >
-          <Warning size={17} weight="bold" />
+          <Warning size={17} weight="regular" />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
