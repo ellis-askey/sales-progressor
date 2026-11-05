@@ -77,19 +77,32 @@ export function checkInReadyConfirmationLine(
   return `${confirmerName} received confirmation${from} that their sale is ready to exchange.`;
 }
 
+// Per-step noun phrase for the UN-tick line (one per step, mirrors
+// CONFIRMATION_CLAUSE): "{who} marked {clause} as no longer confirmed." Kept as a
+// dedicated map so each of the nine reads cleanly rather than deriving terse
+// labels (2026-11-05).
+const UNCONFIRMATION_CLAUSE: Record<string, string> = {
+  dcp_issued: "DCP issued",
+  searches_ordered: "searches ordered",
+  finances_arranged: "finances arranged",
+  searches_received: "searches received",
+  enquiries_raised: "enquiries raised",
+  enquiries_satisfied: "all enquiries satisfied",
+  contracts_issued: "contracts issued",
+  seller_signed_returned: "the seller's signed contract",
+  buyer_signed_returned: "the buyer's signed contract",
+};
+
 // The dated line logged when a confirmed step is UN-ticked (undo of a single
-// step, 2026-11-05). Uses the step's label as a short noun phrase, lower-cased
-// except for acronym labels like "DCP": "{who} marked {step} as no longer
-// confirmed."
+// step, 2026-11-05): "{who} marked {clause} as no longer confirmed."
 export function checkInUnconfirmationLine(stepKey: string, confirmerName: string): string {
-  const label = checkInStepLabel(stepKey) ?? stepKey;
-  const noun = /^[A-Z]{2,}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
-  return `${confirmerName} marked ${noun} as no longer confirmed.`;
+  const clause = UNCONFIRMATION_CLAUSE[stepKey] ?? checkInStepLabel(stepKey)?.toLowerCase() ?? stepKey;
+  return `${confirmerName} marked ${clause} as no longer confirmed.`;
 }
 
 // The dated line logged when a bulk "Confirm ready" is undone (2026-11-05).
-// Parallel to checkInReadyConfirmationLine; logged (not deleted) so the undo
-// leaves a trail: "{who} marked their sale as no longer ready to exchange."
+// Logged (not deleted) so the undo leaves a trail: "{who} marked this sale as no
+// longer ready to exchange."
 export function checkInRevertReadyLine(confirmerName: string): string {
-  return `${confirmerName} marked their sale as no longer ready to exchange.`;
+  return `${confirmerName} marked this sale as no longer ready to exchange.`;
 }
