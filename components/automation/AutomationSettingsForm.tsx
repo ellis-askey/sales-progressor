@@ -14,7 +14,7 @@
 // files pick up these timings via buildChaseRuleSnapshot. Self-managed files use
 // the agency's timings; outsourced files use the progression business's.
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "react";
 import { updateAgencyChasePolicy, updateBusinessChasePolicy } from "@/app/actions/automation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 
@@ -89,6 +89,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
 
   const [rows, setRows] = useState<EditRow[]>(() => toEdit(initialRules));
   const [globalEsc, setGlobalEsc] = useState(initialEscalateAfter);
+  // Cadence preview: "pulse" (the heartbeat) or "calendar" (weeks laid out).
+  // Shared across every step so flipping it once sticks while you browse.
+  const [cadenceView, setCadenceView] = useState<"pulse" | "calendar">("pulse");
   const [chaseEmailsEnabled, setChaseEmailsEnabled] = useState(initialChaseEmailsEnabled);
   const [profile, setProfile] = useState<PresetKey>("steady");
   const [sideFilter, setSideFilter] = useState<Side>("vendor");
@@ -297,7 +300,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                             <div className="ct-ed-card">
                               {s.enabled ? (
                                 <>
-                                  <PulseSchedule grace={s.grace} repeat={s.repeat} esc={escOf(s)} />
+                                  <CadenceView grace={s.grace} repeat={s.repeat} esc={escOf(s)} view={cadenceView} onView={setCadenceView} />
                                   <div className="ct-ctrls">
                                     <Ctrl label="First nudge" unit="working days after it's due">
                                       <Stepper value={s.grace} onChange={(n) => patch(s.code, { grace: n })} min={MIN_GRACE} max={30} />
@@ -377,6 +380,19 @@ function MiniPulse({ dots }: { dots: number }) {
 }
 
 /* ── heartbeat pulse schedule (per-step) ─────────────────────────────────── */
+// ── Working-day date helpers for the dated cadence preview ────────────────────
+// Weekday only (Sat/Sun skipped). Bank holidays aren't reflected in this
+// illustrative "as if this step became due today" preview. Pulse + calendar both
+// anchor on the next working day from now, so they always agree.
+const CAD_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const CAD_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function cadIsWD(d: Date) { const g = d.getDay(); return g !== 0 && g !== 6; }
+function cadRollWD(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); while (!cadIsWD(x)) x.setDate(x.getDate() + 1); return x; }
+function cadAddWD(from: Date, n: number) { const x = new Date(from); let a = 0; const t = Math.max(0, Math.round(n)); while (a < t) { x.setDate(x.getDate() + 1); if (cadIsWD(x)) a++; } return x; }
+function cadFmtShort(d: Date) { return CAD_DOW[d.getDay()] + " " + d.getDate(); }                       // "Thu 7"
+function cadFmtLong(d: Date) { return CAD_DOW[d.getDay()] + " " + d.getDate() + " " + CAD_MON[d.getMonth()]; } // "Thu 7 Nov"
+const cadOrdinal = (i: number) => (i === 1 ? "1st" : i === 2 ? "2nd" : i === 3 ? "3rd" : i + "th");
+
 function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const propsRef = useRef({ grace, repeat, esc });
@@ -400,6 +416,10 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
     };
     const font = '"Segoe UI",system-ui,sans-serif';
     let raf = 0;
+    // Real weekday+date for each working-day offset (anchored on the next working
+    // day from now), so labels read "Thu 7" instead of an abstract "Day 8".
+    const anchor = cadRollWD(new Date());
+    const dateLbl = (n: number) => cadFmtShort(cadAddWD(anchor, n));
 
     function draw(t: number) {
       const r = cv!.getBoundingClientRect();
@@ -449,12 +469,12 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
       marks.forEach((m, i) => {
         const x = X(m.day), y = base - m.amp, lx = Math.max(26, Math.min(w - 26, x));
         ctx!.fillStyle = pal.coralDeep; ctx!.beginPath(); ctx!.arc(x, y, 3, 0, 7); ctx!.fill();
-        ctx!.fillStyle = pal.ink; ctx!.font = "700 12px " + font; ctx!.fillText("Day " + m.day, lx, y - 9);
+        ctx!.fillStyle = pal.ink; ctx!.font = "700 12px " + font; ctx!.fillText(dateLbl(m.day), lx, y - 9);
         ctx!.fillStyle = pal.faint; ctx!.font = "600 10px " + font; ctx!.fillText(i === 0 ? "1st nudge" : ordinal(i + 1) + " nudge", lx, base + 16);
       });
       const ex = X(escDay);
       ctx!.fillStyle = pal.amber; ctx!.font = "700 12px " + font; ctx!.textAlign = "center";
-      ctx!.fillText("Day " + escDay, ex, base - emark.amp - 9);
+      ctx!.fillText(dateLbl(escDay), ex, base - emark.amp - 9);
       const px = Math.min(rightX + 28, w - 16), ay = base - 2, ar = 12;
       const ag = ctx!.createLinearGradient(px - ar, ay - ar, px + ar, ay + ar);
       ag.addColorStop(0, pal.coral); ag.addColorStop(1, pal.coralDeep);
@@ -471,6 +491,78 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
   }, []);
 
   return <canvas ref={canvasRef} className="ct-pulse" aria-hidden />;
+}
+
+// Calendar-strip view of the same cadence — the weeks laid out with each nudge on
+// the day it actually sends, weekends hidden. Same working-day maths as the pulse.
+function CadenceCalendar({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
+  const anchor = cadRollWD(new Date());
+  type Ev = { d: Date; kind: "start" | "chase" | "hand"; tag: string };
+  const events: Ev[] = [{ d: anchor, kind: "start", tag: "Waiting" }];
+  for (let i = 1; i <= esc; i++) events.push({ d: cadAddWD(anchor, grace + repeat * (i - 1)), kind: "chase", tag: cadOrdinal(i) + " nudge" });
+  events.push({ d: cadAddWD(anchor, grace + repeat * esc), kind: "hand", tag: "Back to you" });
+  const kk = (d: Date) => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+  const byKey: Record<string, Ev> = {};
+  events.forEach((e) => { byKey[kk(e.d)] = e; });
+  const end = events[events.length - 1].d;
+  const mon = new Date(anchor); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); // Monday of start week
+  const weeks: Date[] = []; const cur = new Date(mon); let guard = 0;
+  while (cur <= end && guard < 10) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); guard++; }
+  return (
+    <div className="ct-cal">
+      {weeks.map((wkMon, wi) => (
+        <div className="ct-cal-wk" key={wi}>
+          <span className="ct-cal-wklab">Wk {wi + 1}</span>
+          {[0, 1, 2, 3, 4].map((i) => {
+            const d = new Date(wkMon); d.setDate(wkMon.getDate() + i);
+            const e = byKey[kk(d)];
+            return (
+              <div key={i} className={`ct-cal-cell${e ? " " + e.kind : ""}`}>
+                <span className="ct-cal-dow">{CAD_DOW[d.getDay()]}</span>
+                <span className="ct-cal-date">{d.getDate()} {CAD_MON[d.getMonth()]}</span>
+                {e && e.kind !== "start" && <span className="ct-cal-tag">{e.tag}</span>}
+                {e && e.kind === "start" && <span className="ct-cal-tag start">With client</span>}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      <p className="ct-cal-note">Sat &amp; Sun hidden — chasing only runs on working days.</p>
+    </div>
+  );
+}
+
+// Wraps the pulse + calendar with a discreet view switch and a crossfade (the
+// inactive view fades out while the active fades in; the box height animates so
+// nothing jumps). View choice is lifted to the form so it's shared across steps.
+function CadenceView({ grace, repeat, esc, view, onView }: { grace: number; repeat: number; esc: number; view: "pulse" | "calendar"; onView: (v: "pulse" | "calendar") => void }) {
+  const pulseRef = useRef<HTMLDivElement | null>(null);
+  const calRef = useRef<HTMLDivElement | null>(null);
+  const [h, setH] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const el = view === "pulse" ? pulseRef.current : calRef.current;
+    if (el) setH(el.offsetHeight);
+  }, [view, grace, repeat, esc]);
+  return (
+    <div className="ct-cadence-wrap">
+      <div className="ct-cadence-switch" role="group" aria-label="Cadence view">
+        <button type="button" className={`ct-cv-btn${view === "pulse" ? " on" : ""}`} aria-pressed={view === "pulse"} title="Rhythm view" onClick={() => onView("pulse")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 7 4-14 3 7h4" /></svg>
+        </button>
+        <button type="button" className={`ct-cv-btn${view === "calendar" ? " on" : ""}`} aria-pressed={view === "calendar"} title="Calendar view" onClick={() => onView("calendar")}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
+        </button>
+      </div>
+      <div className="ct-cadence-box" style={{ height: h }}>
+        <div ref={pulseRef} className={`ct-cadence-layer${view === "pulse" ? " show" : ""}`} aria-hidden={view !== "pulse"}>
+          <PulseSchedule grace={grace} repeat={repeat} esc={esc} />
+        </div>
+        <div ref={calRef} className={`ct-cadence-layer${view === "calendar" ? " show" : ""}`} aria-hidden={view !== "calendar"}>
+          <CadenceCalendar grace={grace} repeat={repeat} esc={esc} />
+        </div>
+      </div>
+    </div>
+  );
 }
 function ordinal(n: number) { return ["", "1st", "2nd", "3rd", "4th", "5th", "6th"][n] || `${n}th`; }
 
@@ -654,12 +746,39 @@ function Styles() {
     .ct-btn.ghost:hover:not(:disabled){color:var(--agent-text-primary);border-color:var(--agent-text-muted)}
     .ct-btn.primary{background:var(--agent-coral-deep);color:#fff;box-shadow:0 7px 18px -7px rgba(255,107,74,.6)}
     .ct-btn.primary:hover:not(:disabled){background:var(--agent-coral-darker);transform:translateY(-1px)}
+    /* ── dated cadence preview: view switch + crossfade + calendar ── */
+    .ct-cadence-wrap{position:relative}
+    .ct-cadence-switch{position:absolute;top:0;right:0;z-index:3;display:inline-flex;gap:2px;background:var(--agent-surface-elevated,#fff);border:0.5px solid var(--agent-border-default);border-radius:9px;padding:2px;box-shadow:0 1px 2px rgba(60,40,22,.06)}
+    .ct-cv-btn{appearance:none;border:none;background:transparent;width:28px;height:24px;display:grid;place-items:center;border-radius:7px;cursor:pointer;color:var(--agent-text-muted);transition:color .15s,background .15s}
+    .ct-cv-btn svg{width:15px;height:15px}
+    .ct-cv-btn:hover{color:var(--agent-text-secondary);background:rgba(45,24,16,.05)}
+    .ct-cv-btn.on{color:var(--agent-coral-deep);background:var(--agent-coral-bg-tint)}
+    .ct-cv-btn:focus-visible{outline:2px solid var(--agent-coral-deep);outline-offset:1px}
+    .ct-cadence-box{position:relative;min-height:120px;transition:height .26s cubic-bezier(.4,0,.2,1)}
+    .ct-cadence-layer{position:absolute;top:0;left:0;width:100%;opacity:0;pointer-events:none;transition:opacity .22s ease}
+    .ct-cadence-layer.show{opacity:1;pointer-events:auto}
+    .ct-cal{display:flex;flex-direction:column;gap:9px;padding:2px 0 0}
+    .ct-cal-wk{display:grid;grid-template-columns:38px repeat(5,1fr);gap:6px;align-items:stretch}
+    .ct-cal-wklab{font-size:10px;font-weight:700;color:var(--agent-text-muted);align-self:center;letter-spacing:.03em}
+    .ct-cal-cell{position:relative;background:rgba(45,24,16,.025);border:1px solid var(--agent-border-subtle);border-radius:9px;min-height:56px;padding:6px 7px;display:flex;flex-direction:column;gap:2px}
+    .ct-cal-dow{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--agent-text-muted)}
+    .ct-cal-date{font-size:12px;font-weight:700;color:var(--agent-text-secondary);font-variant-numeric:tabular-nums}
+    .ct-cal-tag{margin-top:auto;font-size:10px;font-weight:700;line-height:1.2}
+    .ct-cal-cell.chase{background:var(--agent-coral-bg-tint);box-shadow:inset 0 0 0 1px var(--agent-coral-pale);border-color:transparent}
+    .ct-cal-cell.chase .ct-cal-tag{color:var(--agent-coral-deep)}
+    .ct-cal-cell.hand{background:rgba(201,125,26,.12);box-shadow:inset 0 0 0 1px rgba(201,125,26,.35);border-color:transparent}
+    .ct-cal-cell.hand .ct-cal-tag{color:var(--agent-warning,#C97D1A)}
+    .ct-cal-cell.start{box-shadow:inset 0 0 0 1.5px var(--agent-border-default)}
+    .ct-cal-tag.start{color:var(--agent-text-muted)}
+    .ct-cal-note{margin:4px 0 0;font-size:11px;color:var(--agent-text-muted)}
     @media (max-width:720px){
       .ct-profiles{grid-template-columns:1fr}
       .ct-ctrls{flex-direction:column;align-items:stretch}
       .ct-step-sum{display:none}
+      .ct-cal-wk{grid-template-columns:28px repeat(5,1fr);gap:4px}
+      .ct-cal-cell{min-height:52px;padding:5px}
     }
-    @media (prefers-reduced-motion:reduce){.ct-collapse,.ct-seg-pill,.ct-savebar{transition:none}}
+    @media (prefers-reduced-motion:reduce){.ct-collapse,.ct-seg-pill,.ct-savebar,.ct-cadence-box,.ct-cadence-layer{transition:none}}
     `}</style>
   );
 }
