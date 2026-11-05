@@ -45,7 +45,7 @@ function parseBody(body: string): SummaryBlock[] {
   const blocks = body.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
   const out = blocks.map((block): SummaryBlock => {
     const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-    if (lines.length > 0 && /^(last two weeks|next)$/i.test(lines[0])) {
+    if (lines.length > 0 && /^(last two weeks|waiting on|next)$/i.test(lines[0])) {
       return { kind: "section", label: lines[0], lines: lines.slice(1) };
     }
     return { kind: "lead", text: lines.join(" ") };
