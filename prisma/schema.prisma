@@ -21,6 +21,14 @@ model Agency {
 
   isInternal Boolean @default(false)
 
+  // In-house progression workflow (Boardwalk, 2026-11): when true, the agency's
+  // self-managed sales carry a second owner, an in-house progressor
+  // (User.assignedUserId), alongside the originating client manager
+  // (User.agentUserId), plus the new-sale flow, change-progressor control and
+  // "needs a progressor" pile. Off = the standard single-owner self-managed
+  // flow, unchanged. See docs/active/in-house-progression/00-spec.md.
+  inHouseProgressionEnabled Boolean @default(false)
+
   // Director-edited welcome-call script (the numbered talking points on a file's
   // intro-call drawer). JSON array of { title, body, note }. Null = the platform
   // default (lib/intro-call/script.ts). A member's personal override lives on
@@ -486,6 +494,11 @@ model User {
   emailSignatureImagePath  String?
   emailSignatureHtml       String?
   canViewAllFiles          Boolean                  @default(false)
+  // In-house progressor pool (Boardwalk, 2026-11): when true, this agency user can
+  // be picked as the progressor on a self-managed sale (written to its
+  // assignedUserId). Only shown/used when the agency has inHouseProgressionEnabled.
+  // See docs/active/in-house-progression/00-spec.md.
+  isInHouseProgressor      Boolean                  @default(false)
   // Last successful sign-in, stamped in the auth signIn callback (fire-and-forget).
   // Null = hasn't signed in since this was added, or invite not yet accepted.
   lastLoginAt              DateTime?
