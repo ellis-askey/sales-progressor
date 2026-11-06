@@ -28,7 +28,7 @@ export function ThemeModeToggle({ initialMode }: { initialMode: ThemeMode }) {
         width: 32,
         height: 32,
         borderRadius: 8,
-        border: "1px solid var(--c-border, rgba(15,23,42,0.10))",
+        border: "1px solid transparent",
         background: "transparent",
         color: "currentColor",
         cursor: "pointer",

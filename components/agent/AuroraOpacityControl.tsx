@@ -55,7 +55,7 @@ export function AuroraOpacityControl({ initialOpacity = 100 }: { initialOpacity?
             width: 32,
             height: 32,
             borderRadius: 8,
-            border: "1px solid var(--agent-border-default)",
+            border: "1px solid transparent",
             background: open ? "rgba(var(--agent-coral-rgb), 0.10)" : "transparent",
             color: "var(--agent-text-secondary)",
             cursor: "pointer",
