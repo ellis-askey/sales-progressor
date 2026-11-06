@@ -29,11 +29,13 @@ export type AutopilotStatus =
   //   blocker_client_email → offer an inline "add email" affordance
   //   blocker_solicitor    → offer an inline "add solicitor" affordance
   //   info                 → show the reason as plain text (paused / off / etc.)
-  //   autochase_off        → client auto-chase is off/paused; a file-level fact,
+  //   autochase_off            → CLIENT auto-chase is off/paused; a file-level fact,
   //                          so the card shows it once per file, not per row
+  //   solicitor_autochase_off  → SOLICITOR auto-chase is off; likewise a file-level
+  //                          fact shown once per file (parallel to autochase_off)
   | { kind: "manual"; reason: string | null; category: ManualCategory };
 
-export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info" | "autochase_off" | "solicitor_handover";
+export type ManualCategory = "exhausted" | "blocker_client_email" | "blocker_solicitor" | "info" | "autochase_off" | "solicitor_autochase_off" | "solicitor_handover";
 
 export interface AutopilotFlags {
   clientChaseEnabled: boolean; // CLIENT_CHASE_ENABLED env
@@ -223,7 +225,7 @@ export function resolveAutopilot(logs: LogShape[], flags: AutopilotFlags): Map<s
       reason = tx.clientEmailsPaused ? "Client auto-chase is paused for this file" : "Client auto-chase is off";
       category = "autochase_off";
     }
-    else if (solCode && !solOn) { reason = "Solicitor auto-chase is off for this file"; category = "info"; }
+    else if (solCode && !solOn) { reason = "Solicitor auto-chase is off for this file"; category = "solicitor_autochase_off"; }
     else { reason = null; category = "info"; } // not an automated step
     out.set(log.id, { kind: "manual", reason, category });
   }

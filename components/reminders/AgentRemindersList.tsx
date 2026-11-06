@@ -628,6 +628,13 @@ function SplitFileCard({
     }
     return null;
   })();
+  // Solicitor auto-chase off is the same KIND of thing as the client switch above
+  // (a whole-file fact), so it's stated once in the same footer rather than
+  // stamped on every solicitor row (Ellis, 2026-11-06).
+  const solicitorOffReason = (() => {
+    const s = openTasks.map(({ log }) => autopilot?.get(log.id)).find((a) => a?.kind === "manual" && a.category === "solicitor_autochase_off");
+    return s?.kind === "manual" ? s.reason : null;
+  })();
   // Single open task on this file+group → side-scope the footer chase like the file tab.
   const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
   const soleIsBuyer = soleOpen ? isBuyerLog(soleOpen.log) : false;
@@ -1075,11 +1082,13 @@ function SplitFileCard({
             </div>
           );
         })}
-        {/* File-level footer: client auto-chase off/paused, shown once (a divider
-            line then centred text) rather than repeated on every chase row. */}
-        {clientOffReason && (
+        {/* File-level footer: client and/or solicitor auto-chase off/paused —
+            whole-file facts, each shown once here (a divider then centred lines)
+            rather than repeated on every chase row. */}
+        {(clientOffReason || solicitorOffReason) && (
           <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", margin: "6px 12px 0", paddingTop: 8, textAlign: "center" }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{clientOffReason}</p>
+            {clientOffReason && <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{clientOffReason}</p>}
+            {solicitorOffReason && <p style={{ margin: clientOffReason ? "2px 0 0" : 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>{solicitorOffReason}</p>}
           </div>
         )}
       </div>
