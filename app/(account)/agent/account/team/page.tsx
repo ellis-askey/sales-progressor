@@ -28,6 +28,7 @@ import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { TeamListViewPlain } from "@/components/account/v2/TeamListViewPlain";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { UserPlus, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountTeamPage() {
@@ -39,7 +40,7 @@ export default async function AccountTeamPage() {
   // ── Director branch ─────────────────────────────────────────────────
   if (role === "director") {
     const [agency, negotiatorInvitations, directorInvitations, joinRequests] = await Promise.all([
-      prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
+      prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true, logoPath: true, logoTileColor: true } }),
       prisma.negotiatorInvitation.findMany({
         where: { agencyId, cancelledAt: null, acceptedAt: null },
         select: {
@@ -93,7 +94,11 @@ export default async function AccountTeamPage() {
           subtitle="Manage your agency details, team members and access."
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <AgencyNameForm initialName={agency?.name ?? ""} />
+          <AgencyNameForm
+            initialName={agency?.name ?? ""}
+            initialLogoUrl={getAgencyLogoUrl(agency?.logoPath)}
+            initialTileColor={agency?.logoTileColor ?? null}
+          />
           {joinRequests.length > 0 && (
             <JoinRequestsPlain
               requests={joinRequests.map((r) => ({
