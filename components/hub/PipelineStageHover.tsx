@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties, ReactNode } from "react";
 import type {
@@ -59,7 +59,11 @@ function formatPercent(fraction: number | null): string {
 const BUBBLE_WIDTH = 224;
 const BUBBLE_GAP = 12;
 
-function positionFor(anchor: DOMRect): { style: CSSProperties; placement: "above" | "below" } {
+// `height` is the measured bubble height. We position with plain top/left and
+// NO transform: a persistent transform on a backdrop-filter element kills the
+// blur (own composite layer, empty backdrop → see-through). For "above" we
+// subtract the measured height instead of translateY(-100%).
+function positionFor(anchor: DOMRect, height: number): { style: CSSProperties; placement: "above" | "below" } {
   const centreX = anchor.left + anchor.width / 2;
   // Clamp the bubble horizontally so it stays inside the viewport with an
   // 8px margin — small screens with a stage near the edge don't lose it.
@@ -74,7 +78,7 @@ function positionFor(anchor: DOMRect): { style: CSSProperties; placement: "above
   const placement: "above" | "below" = roomAbove > 140 ? "above" : "below";
 
   const top = placement === "above"
-    ? anchor.top - BUBBLE_GAP
+    ? anchor.top - BUBBLE_GAP - height
     : anchor.bottom + BUBBLE_GAP;
 
   return {
@@ -82,7 +86,7 @@ function positionFor(anchor: DOMRect): { style: CSSProperties; placement: "above
       position: "fixed",
       top,
       left,
-      transform: placement === "above" ? "translateY(-100%)" : "none",
+      transform: "none",
       width: BUBBLE_WIDTH,
     },
     placement,
@@ -181,18 +185,33 @@ export function useIsDarkTheme(): boolean {
 export function PipelineStageHover(props: StageHoverProps) {
   const [mounted, setMounted] = useState(false);
   const isDark = useIsDarkTheme();
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Measure the bubble height so "above" can be placed with top/left and no
+  // transform (see positionFor). Re-measures when the anchored circle moves.
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const h = ref.current.getBoundingClientRect().height;
+    setHeight((prev) => (prev === h ? prev : h));
+  }, [mounted, props.anchor?.top, props.anchor?.left]);
+
   if (!mounted || !props.anchor) return null;
 
-  const { style: posStyle, placement } = positionFor(props.anchor);
+  const { style: posStyle, placement } = positionFor(props.anchor, height ?? 0);
   const bubbleLeft = typeof posStyle.left === "number" ? posStyle.left : 0;
   const tokens = (isDark ? HOVER_TOKENS_DARK : HOVER_TOKENS_LIGHT) as CSSProperties;
 
   const bubble = (
-    <div className="ui-chart-tip" style={{ ...tokens, ...bubbleBaseStyle, ...posStyle }} role="tooltip">
+    <div
+      ref={ref}
+      className="ui-chart-tip"
+      style={{ ...tokens, ...bubbleBaseStyle, ...posStyle, visibility: height != null ? "visible" : "hidden" }}
+      role="tooltip"
+    >
       <div style={arrowStyleFor(placement, props.anchor, bubbleLeft)} />
       {renderBody(props)}
     </div>
