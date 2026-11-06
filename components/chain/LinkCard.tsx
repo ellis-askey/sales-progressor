@@ -16,6 +16,8 @@ import type { ChainLinkV2, ChainNodeIntel, ChainSideSummary } from "@/lib/servic
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { ChainNodeSteps } from "@/components/chain/ChainNodeSteps";
+import { ChainStepTicks } from "@/components/chain/ChainStepTicks";
+import { chainStepsPercent } from "@/lib/chain/check-in-steps";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 function relativeTime(date: Date | string | null): string {
@@ -67,17 +69,24 @@ function ChainStatusBadge({
   );
 }
 
-function ProgressBar({ percent }: { percent: number }) {
+// The neighbour's real progress is the green fill. When the viewer has confirmed
+// MORE via their check-in ticks than the neighbour's system shows (overshoot >
+// green), the gap fills with the primary accent at 35% — "you've heard more than
+// their file reflects". Behind or level → no overshoot layer.
+function ProgressBar({ percent, overshoot }: { percent: number; overshoot?: number }) {
   const clamped = Math.min(100, Math.max(0, percent));
+  const over = overshoot != null ? Math.min(100, Math.max(0, overshoot)) : null;
+  const showOver = over != null && over > clamped;
   return (
     <span
       className="chain-bar"
-      aria-label={`${clamped}% complete`}
+      aria-label={showOver ? `${clamped}% on their file, ${over}% you've confirmed` : `${clamped}% complete`}
       role="progressbar"
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
     >
+      {showOver && <b className="chain-bar-over" style={{ width: `${over}%` }} aria-hidden />}
       <i style={{ width: `${clamped}%` }} />
     </span>
   );
@@ -127,6 +136,14 @@ type LinkCardProps = {
   /** Add a dated chase-log entry to this node (b1ey9l). Present only where the
    *  viewer may edit; the card also gates on link.canEditIntel. */
   onAddEntry?: (linkId: string, body: string) => Promise<void>;
+  /** Toggle one of the nine check-in steps on this NEIGHBOUR straight off the
+   *  card — the same ChainNodeStepMark the Chains check-ins tab sets. The card
+   *  renders the tick track only for a neighbour (never your own file) when this
+   *  is passed. ChainDrawer owns the optimistic state + server call. */
+  onToggleCheckInStep?: (linkId: string, stepKey: string, next: boolean) => void;
+  /** In-flight check-in toggles, keyed `${linkId}:${stepKey}`, so the ticked
+   *  node can show busy. Shared across all cards; the card picks out its own. */
+  checkInStepBusy?: Set<string>;
   /** When this node is our onward purchase (above) or related sale (below), its
    *  reported-steps tracker can be ticked inline (gqu39v). Keyed to OUR file. */
   stepsDirection?: "onward" | "related";
@@ -768,6 +785,8 @@ export function LinkCard({
   onRevokeShareLink,
   onSaveIntel,
   onAddEntry,
+  onToggleCheckInStep,
+  checkInStepBusy,
   stepsDirection,
   stepsTransactionId,
   onMoveUp,
@@ -796,6 +815,24 @@ export function LinkCard({
   const label = chainLinkStatusLabel(status);
   const isOriginator = link.createdByUserId === currentUserId;
   const isUnclaimed = link.transactionId === null;
+
+  // Check-in step ticks on the card (same ChainNodeStepMark as the check-ins tab).
+  // Only for a NEIGHBOUR — never your own file, which has real milestones. The
+  // weighted % of what you've confirmed drives the bar's overshoot fill.
+  const confirmedSteps = link.steps ?? [];
+  const showStepTicks = !!onToggleCheckInStep && !isYourFile;
+  const confirmedPct = chainStepsPercent(confirmedSteps);
+  // The one in-flight step on THIS link (toggles happen one at a time).
+  const busyStepKey = checkInStepBusy
+    ? ([...checkInStepBusy].find((k) => k.startsWith(`${link.id}:`))?.slice(link.id.length + 1) ?? null)
+    : null;
+  const stepTicks = showStepTicks ? (
+    <ChainStepTicks
+      steps={confirmedSteps}
+      onToggle={(key) => onToggleCheckInStep?.(link.id, key, !confirmedSteps.includes(key))}
+      busyKey={busyStepKey}
+    />
+  ) : null;
 
   // The card's expand: onward summary + stub contact + notes + own-side chain
   // intel. Only offered when there's something to show. The body itself is the
@@ -885,7 +922,7 @@ export function LinkCard({
   return (
     <div
       {...cardTag.props}
-      className={`chain-card${isYourFile ? " chain-card-you" : ""} ${cardTag.className}`}
+      className={`chain-card${isYourFile ? " chain-card-you" : ""}${expanded ? " steps-open" : ""} ${cardTag.className}`}
       onClick={expandable ? handleCardToggle : undefined}
       style={expandable ? { cursor: "pointer" } : undefined}
     >
@@ -961,7 +998,17 @@ export function LinkCard({
             {link.transaction && (
               <div className="chain-cprog">
                 <span className="chain-pct">{progressPercent}%</span>
-                <ProgressBar percent={progressPercent} />
+                <ProgressBar percent={progressPercent} overshoot={showStepTicks ? confirmedPct : undefined} />
+              </div>
+            )}
+
+            {/* Claimed neighbour: the check-in ticks live in a reveal strip under
+             *  the bar. Peeks open on card hover; latched open once the card is
+             *  expanded (so ticking and the intel panel coexist). On touch (no
+             *  hover) they stay shown. Scrolls with a fade when they overflow. */}
+            {link.transaction && stepTicks && (
+              <div className="chain-steps-reveal">
+                <div className="cst-scroll">{stepTicks}</div>
               </div>
             )}
 
@@ -1056,6 +1103,12 @@ export function LinkCard({
         {/* Bottom action bar — meta on the left, action links on the right.
          *  Every action + its gating condition is carried over unchanged. */}
         <div className="chain-acts">
+          {/* Unclaimed slot: the check-in ticks ride the left of the action row,
+           *  the invite/email action stays on the right. Scrolls with a fade when
+           *  they overflow a narrow card. (Claimed slots show them under the bar.) */}
+          {isUnclaimed && stepTicks && (
+            <div className="chain-acts-ticks cst-scroll">{stepTicks}</div>
+          )}
           {meta && <span className="chain-acts-meta">{meta}</span>}
 
           {(onMoveUp || onMoveDown) && (

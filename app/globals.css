@@ -2033,10 +2033,14 @@ select {
 .chain-pct { font-size: 11px; font-weight: 700; color: var(--agent-text-secondary);
   min-width: 30px; font-variant-numeric: tabular-nums; }
 .chain-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--agent-border-subtle);
-  overflow: hidden; display: block; }
-.chain-bar > i { display: block; height: 100%; border-radius: 99px;
+  overflow: hidden; display: block; position: relative; }
+.chain-bar > i { display: block; height: 100%; border-radius: 99px; position: relative; z-index: 1;
   background: linear-gradient(90deg, rgba(var(--agent-success-rgb), 0.55), var(--agent-success));
   transition: width .3s var(--agent-ease); }
+/* Overshoot: the viewer has heard more confirmed than the neighbour's file shows.
+   Primary accent at 35%, sitting behind the green real-progress fill. */
+.chain-bar > .chain-bar-over { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px;
+  background: rgba(var(--agent-coral-rgb), 0.35); transition: width .3s var(--agent-ease); z-index: 0; }
 
 .chain-cright { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .chain-price { font-size: 14px; font-weight: 800; color: var(--agent-text-primary);
@@ -2048,6 +2052,36 @@ select {
 .chain-acts { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--agent-border-subtle); }
 .chain-acts-meta { font-size: 11px; color: var(--agent-text-muted); margin-right: auto; }
+/* Unclaimed slot: the check-in ticks take the left of the action row (flex-shrink
+   so a narrow card scrolls them rather than wrapping the invite action under). The
+   ticks' own margin-right:auto pushes meta + action to the right; neutralise the
+   meta's auto so the two don't fight. */
+.chain-acts-ticks { margin-right: auto; min-width: 0; flex: 0 1 auto; }
+.chain-acts-ticks ~ .chain-acts-meta { margin-right: 0; }
+
+/* Claimed neighbour: the ticks sit in a strip under the progress bar, collapsed
+   until the card is hovered (peek) or expanded (latched open). Touch devices have
+   no hover, so they stay shown there. */
+.chain-steps-reveal { max-height: 0; opacity: 0; overflow: hidden; margin-top: 0;
+  transition: max-height .28s var(--agent-ease), opacity .2s var(--agent-ease), margin-top .28s var(--agent-ease); }
+.chain-card:hover .chain-steps-reveal,
+.chain-card.steps-open .chain-steps-reveal { max-height: 96px; opacity: 1; margin-top: 10px; }
+@media (hover: none) {
+  .chain-steps-reveal { max-height: 96px; opacity: 1; margin-top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chain-steps-reveal { transition: none; }
+}
+
+/* Scroll-with-fade: when the nine ticks overflow a narrow card, scroll sideways
+   rather than wrap, and fade the scrollable edge(s) so it never ends in a hard cut. */
+.cst-scroll { overflow-x: auto; overflow-y: hidden; max-width: 100%; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%); }
+.cst-scroll::-webkit-scrollbar { display: none; }
+/* On a wide card the ticks don't overflow, so drop the left fade (nothing is
+   clipped) — only fade when actually scrollable. */
+.cst-scroll { scroll-padding: 0 14px; }
 .chain-act-link { font-size: 11.5px; font-weight: 600; color: var(--agent-text-secondary);
   background: none; border: none; padding: 0; cursor: pointer; text-decoration: none;
   transition: color .15s var(--agent-ease), opacity .15s var(--agent-ease); }

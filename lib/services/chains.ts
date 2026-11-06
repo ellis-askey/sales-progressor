@@ -214,6 +214,12 @@ export type ChainLinkV2 = {
   // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel:
   // populated only for viewers allowed to see the node; [] otherwise.
   entries?: ChainLinkEntryView[];
+  // The viewer's own confirmed check-in step keys for this neighbour
+  // (ChainNodeStepMark on viewerSideKey) — the same set the Chains check-ins tab
+  // ticks. Drives the step ticks on the chain card. [] when nothing confirmed or
+  // no viewer side. Never another side's marks. Optional so hand-built demo/dev
+  // link literals compile; getChainV2 always sets it.
+  steps?: string[];
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
@@ -372,6 +378,10 @@ const LINK_V2_SELECT = {
   expectedTimescale: true,
   chainNotes: true,
   lastChainCheckAt: true,
+  // Per-side confirmed check-in steps (ChainNodeStepMark). Fetched for every side
+  // so the viewer's own set can be filtered in memory; only the viewer-side keys
+  // reach the wire (as `steps`), the raw marks are stripped in getChainV2.
+  stepMarks: { select: { stepKey: true, sideKey: true } },
   // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel;
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
@@ -833,6 +843,7 @@ export async function getChainV2(
         chainNotes,
         lastChainCheckAt,
         entries: rawEntries,
+        stepMarks: rawStepMarks,
         stubPhotoStoragePath,
         shareToken,
         // Private stub fields (contact + notes) — pulled off here so they never
@@ -893,6 +904,11 @@ export async function getChainV2(
           return key != null ? key === viewerSideKey : intelVisible;
         })
         .map((e) => ({ id: e.id, body: e.body, authorName: e.authorName, authorImage: e.authorId ? authorImageById.get(e.authorId) ?? null : null, createdAt: e.createdAt }));
+      // The viewer's own confirmed check-in steps for this link — only their side
+      // key, same rule as the check-ins tab (never another side's marks on the wire).
+      const steps: string[] = viewerSideKey
+        ? (rawStepMarks ?? []).filter((m) => m.sideKey === viewerSideKey).map((m) => m.stepKey)
+        : [];
       // Private stub contact + notes: same trust tier as intel (owning agency +
       // internal staff only). Re-added to the wire only when visible; null for
       // every other agency. Nulling has no visible status effect — an uninvited
@@ -919,6 +935,7 @@ export async function getChainV2(
           stuckMilestoneLabel: null,
           intel,
           entries,
+          steps,
           canEditIntel,
           canEditStub,
           hasShareLink,
@@ -989,6 +1006,7 @@ export async function getChainV2(
         stuckMilestoneLabel,
         intel,
         entries,
+        steps,
         canEditIntel,
         canEditStub,
         hasShareLink,

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
-import { saveChainIntelAction, addChainEntryAction } from "@/app/actions/chain-intel";
+import { saveChainIntelAction, addChainEntryAction, toggleChainStepAction } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2, ChainTabPayload } from "@/lib/services/chains";
@@ -414,6 +414,41 @@ export function ChainView({
       setCompleteBusy(false);
     }
   }, [chain, completeBusy, fetchChainAndRefresh]);
+
+  // Check-in step tick straight off a chain card — the same mark the Chains
+  // check-ins tab sets (toggleChainStepAction, keyed to OUR file as the context).
+  // Optimistic + reconciled to the server's returned set; reverted on failure.
+  // Lightweight (no router.refresh) so ticking feels instant; the tab count
+  // doesn't change from a step mark.
+  const [stepBusy, setStepBusy] = useState<Set<string>>(new Set());
+  const handleToggleStep = useCallback(async (linkId: string, stepKey: string, next: boolean) => {
+    const busyKey = `${linkId}:${stepKey}`;
+    if (stepBusy.has(busyKey)) return;
+    setStepBusy((s) => new Set(s).add(busyKey));
+    setChain((c) => (c ? {
+      ...c,
+      links: c.links.map((l) => (l.id === linkId
+        ? { ...l, steps: next ? [...(l.steps ?? []), stepKey] : (l.steps ?? []).filter((k) => k !== stepKey) }
+        : l)),
+    } : c));
+    try {
+      const res = await toggleChainStepAction(linkId, stepKey, next, transactionId);
+      setChain((c) => (c ? {
+        ...c,
+        links: c.links.map((l) => (l.id === linkId ? { ...l, steps: res.steps } : l)),
+      } : c));
+    } catch {
+      // Revert the optimistic flip; the next refetch reconciles either way.
+      setChain((c) => (c ? {
+        ...c,
+        links: c.links.map((l) => (l.id === linkId
+          ? { ...l, steps: next ? (l.steps ?? []).filter((k) => k !== stepKey) : [...(l.steps ?? []), stepKey] }
+          : l)),
+      } : c));
+    } finally {
+      setStepBusy((s) => { const n = new Set(s); n.delete(busyKey); return n; });
+    }
+  }, [stepBusy, transactionId]);
 
   useEffect(() => {
     fetchChain();
@@ -943,6 +978,8 @@ export function ChainView({
         }
         onSaveIntel={handleSaveIntel}
         onAddEntry={handleAddEntry}
+        onToggleCheckInStep={handleToggleStep}
+        checkInStepBusy={stepBusy}
         stepsDirection={stepsDirForLink(link) ?? undefined}
         stepsTransactionId={transactionId}
         onMoveUp={opts.onMoveUp}
