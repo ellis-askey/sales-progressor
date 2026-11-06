@@ -53,6 +53,9 @@ export async function applyMigratedMilestoneCompletions(input: {
 
   let applied = 0;
   let latestEventTime = 0;
+  // When this import runs — the honest "recorded" time for event-date milestones
+  // whose supplied date is a real-world EVENT date (see completedAtValue below).
+  const importedAt = new Date();
 
   for (let i = 0; i < input.completions.length; i++) {
     const c = input.completions[i]!;
@@ -68,6 +71,12 @@ export async function applyMigratedMilestoneCompletions(input: {
     // valuation, mortgage offer, exchange, completion target). For other
     // milestones the user-supplied date is the historical completedAt only.
     const eventDateForCompletion = def.eventDateRequired ? eventDateObj : null;
+    // For an eventDateRequired milestone the supplied date is the real-world
+    // EVENT date (e.g. the survey/valuation visit), which can be in the future.
+    // That belongs in eventDate, NOT completedAt — "Confirmed by your team" must
+    // reflect when we recorded it (the import), never a future event date. For
+    // every other milestone the supplied date IS the historical completion.
+    const completedAtValue = def.eventDateRequired ? importedAt : eventDateObj;
 
     try {
       await prisma.$transaction(async (ptx) => {
@@ -84,7 +93,7 @@ export async function applyMigratedMilestoneCompletions(input: {
             where: { id: existing.id },
             data: {
               state: "complete",
-              completedAt: eventDateObj,
+              completedAt: completedAtValue,
               eventDate: eventDateForCompletion,
               completedById: completerId,
               notRequiredReason: null,
@@ -102,7 +111,7 @@ export async function applyMigratedMilestoneCompletions(input: {
             transactionId: input.transactionId,
             milestoneDefinitionId: c.milestoneDefinitionId,
             state: "complete",
-            completedAt: eventDateObj,
+            completedAt: completedAtValue,
             eventDate: eventDateForCompletion,
             completedById: completerId,
             summaryText: null,
