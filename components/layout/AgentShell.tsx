@@ -310,6 +310,11 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const isDirector      = role === "director";
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
   const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
+  // Migrate sale is hidden from the left nav per founder (2026-11-06). The
+  // feature + the /agent/transactions/migrate page stay gated by the
+  // MIGRATE_SALE_AGENCY_IDS allowlist and remain reachable; this flag only
+  // controls the sidebar shortcut. Set to true to restore the button.
+  const SHOW_MIGRATE_SALE_NAV = false;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
@@ -504,8 +509,9 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         {/* Nav */}
         <nav className="agent-sidebar-nav" style={{ flex: 1, padding: "12px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
           {/* Migrate sale — allowlisted agencies only (ships dark). Sits directly
-              above the New sale CTA and reuses its styling + hover states. */}
-          {canMigrateSale && (() => {
+              above the New sale CTA and reuses its styling + hover states.
+              Hidden from the nav via SHOW_MIGRATE_SALE_NAV (founder, 2026-11-06). */}
+          {SHOW_MIGRATE_SALE_NAV && canMigrateSale && (() => {
             const isMigrate = pathname.startsWith("/agent/transactions/migrate");
             return (
               <Link
