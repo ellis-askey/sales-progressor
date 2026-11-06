@@ -601,30 +601,39 @@ export function AgentFileSidebar({
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
               </div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{agentUser.name}</p>
-              {agentUser.firmName && (
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
-              )}
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
+              {/* Firm, email + Message agent only when the agent is a DIFFERENT
+                  company — i.e. an outsourced file, where a progressor (TSP or an
+                  external progression business) is viewing the estate agency's
+                  contact. On a self-managed file the "agent" is a colleague in the
+                  viewer's own agency, so those are redundant: show the name alone. */}
+              {transaction.serviceType === "outsourced" && (
+                <>
+                  {agentUser.firmName && (
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
+                  )}
+                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
 
-              {showMessageAgent && (
-                <a
-                  href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    marginTop: 12,
-                    padding: "7px 12px",
-                    fontSize: 12, fontWeight: 600,
-                    color: "var(--agent-text-primary)",
-                    background: "var(--agent-surface-elevated)",
-                    border: "0.5px solid var(--agent-border-default)",
-                    borderRadius: 8,
-                    textDecoration: "none",
-                  }}
-                  className="agent-hover-row"
-                >
-                  <EnvelopeSimple size={13} weight="regular" />
-                  Message agent
-                </a>
+                  {showMessageAgent && (
+                    <a
+                      href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        marginTop: 12,
+                        padding: "7px 12px",
+                        fontSize: 12, fontWeight: 600,
+                        color: "var(--agent-text-primary)",
+                        background: "var(--agent-surface-elevated)",
+                        border: "0.5px solid var(--agent-border-default)",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                      }}
+                      className="agent-hover-row"
+                    >
+                      <EnvelopeSimple size={13} weight="regular" />
+                      Message agent
+                    </a>
+                  )}
+                </>
               )}
 
               {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
