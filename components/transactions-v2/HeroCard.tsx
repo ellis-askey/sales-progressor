@@ -85,6 +85,98 @@ function DraftRow({ draft, onLoad, onDelete }: {
   );
 }
 
+// ── Compact "Resume" row (most-recent draft shortcut) ─────────────────────────
+// The quick-resume affordance shown above the dropzone when drafts exist. Mirrors
+// the centred Resume / address / time look, now with the same remove X + collapse
+// as DraftRow so a single draft can be cleared here (not only from the 2+ "All
+// drafts" list).
+
+function ResumeRow({ draft, onLoad, onDelete }: {
+  draft: DraftEntry;
+  onLoad: () => void;
+  onDelete: () => void;
+}) {
+  const [removing, setRemoving] = useState(false);
+
+  function handleDelete() {
+    setRemoving(true);
+    setTimeout(onDelete, 220);
+  }
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateRows: removing ? "0fr" : "1fr",
+      transition: "grid-template-rows 220ms cubic-bezier(0.4,0,0.2,1)",
+    }}>
+      <div style={{ overflow: "hidden" }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          borderRadius: 10,
+          opacity: removing ? 0 : 1,
+          transition: "opacity 160ms",
+        }}>
+          <button
+            type="button"
+            onClick={onLoad}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              flex: 1,
+              minWidth: 0,
+              padding: "10px 16px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              color: "var(--agent-text-secondary)",
+              textAlign: "center",
+              borderRadius: 10,
+              transition: "background 150ms, color 150ms",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(var(--agent-coral-base-rgb), 0.06)";
+              e.currentTarget.style.color = "var(--agent-text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "none";
+              e.currentTarget.style.color = "var(--agent-text-secondary)";
+            }}
+          >
+            <span style={{ opacity: 0.5, flexShrink: 0 }}>Resume</span>
+            <span style={{ fontWeight: 500 }}>
+              <span className="hidden sm:inline">
+                {draft.propertyAddress.length > 40
+                  ? draft.propertyAddress.slice(0, 40) + "…"
+                  : draft.propertyAddress}
+              </span>
+              <span className="sm:hidden">
+                {draft.propertyAddress.length > 20
+                  ? draft.propertyAddress.slice(0, 20) + "…"
+                  : draft.propertyAddress}
+              </span>
+            </span>
+            <span style={{ opacity: 0.5, flexShrink: 0 }}>{relativeTime(draft.createdAt)}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            aria-label="Remove draft"
+            className="agent-icon-btn agent-icon-btn-sm"
+            style={{ flexShrink: 0 }}
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -281,49 +373,11 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         </button>
 
         {mostRecentDraft && (
-          <button
-            type="button"
-            onClick={() => onLoadDraft(mostRecentDraft)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              width: "100%",
-              padding: "10px 16px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              color: "var(--agent-text-secondary)",
-              textAlign: "center",
-              borderRadius: 10,
-              transition: "background 150ms, color 150ms",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(var(--agent-coral-base-rgb), 0.06)";
-              e.currentTarget.style.color = "var(--agent-text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "none";
-              e.currentTarget.style.color = "var(--agent-text-secondary)";
-            }}
-          >
-            <span style={{ opacity: 0.5, flexShrink: 0 }}>Resume</span>
-            <span style={{ fontWeight: 500 }}>
-              <span className="hidden sm:inline">
-                {mostRecentDraft.propertyAddress.length > 40
-                  ? mostRecentDraft.propertyAddress.slice(0, 40) + "…"
-                  : mostRecentDraft.propertyAddress}
-              </span>
-              <span className="sm:hidden">
-                {mostRecentDraft.propertyAddress.length > 20
-                  ? mostRecentDraft.propertyAddress.slice(0, 20) + "…"
-                  : mostRecentDraft.propertyAddress}
-              </span>
-            </span>
-            <span style={{ opacity: 0.5, flexShrink: 0 }}>{relativeTime(mostRecentDraft.createdAt)}</span>
-          </button>
+          <ResumeRow
+            draft={mostRecentDraft}
+            onLoad={() => onLoadDraft(mostRecentDraft)}
+            onDelete={() => onDeleteDraft(mostRecentDraft.id)}
+          />
         )}
       </div>
 
