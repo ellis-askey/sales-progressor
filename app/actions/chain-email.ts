@@ -18,6 +18,16 @@ import { canManageStub, ownershipFromLinkRow, loadChainEditContext } from "@/lib
 import { chainEmailSubject } from "@/lib/chain/chain-email";
 import { splitComposeAddress } from "@/lib/services/compose-recipients";
 
+export type ChainEmailStubEdit = {
+  id: string;
+  stubPropertyAddress: string | null;
+  stubAgencyName: string | null;
+  stubAgentName: string | null;
+  stubAgentEmail: string | null;
+  stubAgentPhone: string | null;
+  stubNotes: string | null;
+};
+
 export type ChainEmailAgent = {
   linkId: string;
   name: string;
@@ -26,10 +36,14 @@ export type ChainEmailAgent = {
   // Account photo — only for a claimed (connected) agency's agent; null for a
   // stub agent (shows the grey agent avatar instead).
   image: string | null;
+  // The stub's current details, so the no-email flow can open the edit drawer.
+  // Null for claimed agencies and the anchor estate agent (they have emails).
+  editing: ChainEmailStubEdit | null;
 };
 
 export type ChainEmailDraft = {
   anchorTransactionId: string;
+  chainId: string;
   subject: string;
   agents: ChainEmailAgent[];
 };
@@ -59,6 +73,7 @@ export async function buildChainEmailDraft(
     select: {
       id: true, position: true, transactionId: true,
       stubPropertyAddress: true, stubAgencyName: true, stubAgentName: true, stubAgentEmail: true,
+      stubAgentPhone: true, stubNotes: true,
       claimedByUserId: true, createdByUserId: true,
       createdBy: { select: { agencyId: true } },
       transaction: { select: { propertyAddress: true, agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
@@ -99,6 +114,7 @@ export async function buildChainEmailDraft(
         email: u?.email ?? null,
         address,
         image: u?.image ?? null,
+        editing: null,
       };
     }
     // Stub: show the email only when the viewer may manage this stub (the same
@@ -110,6 +126,17 @@ export async function buildChainEmailDraft(
       email: canManage ? (l.stubAgentEmail ?? null) : null,
       address,
       image: null,
+      editing: canManage
+        ? {
+            id: l.id,
+            stubPropertyAddress: l.stubPropertyAddress,
+            stubAgencyName: l.stubAgencyName,
+            stubAgentName: l.stubAgentName,
+            stubAgentEmail: l.stubAgentEmail,
+            stubAgentPhone: l.stubAgentPhone,
+            stubNotes: l.stubNotes,
+          }
+        : null,
     };
   });
 
@@ -124,8 +151,9 @@ export async function buildChainEmailDraft(
       email: u.email ?? null,
       address: splitComposeAddress(owned.propertyAddress).line1,
       image: u.image ?? null,
+      editing: null,
     });
   }
 
-  return { ok: true, draft: { anchorTransactionId: transactionId, subject: chainEmailSubject(firstLines), agents } };
+  return { ok: true, draft: { anchorTransactionId: transactionId, chainId, subject: chainEmailSubject(firstLines), agents } };
 }

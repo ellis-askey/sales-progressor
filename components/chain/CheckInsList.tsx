@@ -19,6 +19,7 @@ import { addChainEntryAction, toggleChainStepAction, setChainExchangeReadyAction
 import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
 import { ChainDrawer } from "@/components/chain/ChainDrawer";
+import { ChainEmailModal } from "@/components/chain/ChainEmailModal";
 import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -133,6 +134,8 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
   // "View chain" opens the shared ChainDrawer anchored on our own file in that
   // chain (ourTransactionId — guaranteed access), falling back to the neighbour's.
   const [openChainTxId, setOpenChainTxId] = useState<string | null>(null);
+  // "Email {agent}" row action → the in-app chain composer, pre-addressed to them.
+  const [chainEmailFor, setChainEmailFor] = useState<{ txId: string; email: string } | null>(null);
   // Which rows have their update history expanded inline (replaces the old modal).
   const [histOpen, setHistOpen] = useState<Set<string>>(new Set());
   function toggleHist(linkId: string) {
@@ -380,7 +383,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
     else if (!allIn) items.push({ label: "Confirm ready", onClick: () => confirmReady(row) });
     const who = row.agentName ? extractFirstName(row.agentName) : "agent";
     if (row.agentPhone) items.push({ label: `Call ${who}`, onClick: () => { window.location.href = `tel:${row.agentPhone}`; } });
-    if (row.agentEmail) items.push({ label: `Email ${who}`, onClick: () => { window.location.href = `mailto:${row.agentEmail}`; } });
+    if (row.agentEmail && chainTxId) items.push({ label: `Email ${who}`, onClick: () => setChainEmailFor({ txId: chainTxId, email: row.agentEmail! }) });
     return items;
   }
 
@@ -783,10 +786,10 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         refreshKey={refreshKey}
       />
     )}
-    {addNode && openChainTxId && (
+    {addNode && (openChainTxId || chainEmailFor) && (
       <AddNodeDrawer
         chainId={addNode.chainId}
-        transactionId={openChainTxId}
+        transactionId={openChainTxId ?? chainEmailFor?.txId ?? ""}
         direction={addNode.direction}
         editingLink={addNode.editingLink}
         forkFromLinkId={addNode.forkFromLinkId}
@@ -795,6 +798,16 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         focusField={addNode.focusField}
         onClose={closeAddNode}
         onSaved={onNodeSaved}
+      />
+    )}
+    {chainEmailFor && (
+      <ChainEmailModal
+        open
+        transactionId={chainEmailFor.txId}
+        initialToEmail={chainEmailFor.email}
+        onClose={() => setChainEmailFor(null)}
+        onOpenAddNode={openAddNode}
+        refreshKey={refreshKey}
       />
     )}
     </>
