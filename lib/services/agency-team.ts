@@ -32,3 +32,21 @@ export async function listAssignableAgentsForAgency(agencyId: string): Promise<A
     role: u.role as "director" | "negotiator",
   }));
 }
+
+// The agency's in-house progressor pool — the users who can be set as the
+// progressor (assignedUserId) on a self-managed sale. See
+// docs/active/in-house-progression/00-spec.md.
+export async function listInHouseProgressors(agencyId: string): Promise<AssignableAgent[]> {
+  if (!agencyId) return [];
+  const users = await prisma.user.findMany({
+    where: { agencyId, isInHouseProgressor: true, isDemo: false, deactivatedAt: null },
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: { name: "asc" },
+  });
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name ?? u.email,
+    email: u.email,
+    role: u.role as "director" | "negotiator",
+  }));
+}

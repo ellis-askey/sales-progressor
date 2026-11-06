@@ -56,7 +56,8 @@ import { ReconcileLaterAsync } from "@/components/transaction/ReconcileLaterAsyn
 import { SidebarPanelSkeleton, FilePageSkeleton } from "@/components/transaction/PanelSkeletons";
 import { TabBadgeCounts } from "@/components/transaction/TabBadgeCounts";
 import { ReassignOwnerControl } from "@/components/transaction/ReassignOwnerControl";
-import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { AssignProgressorControl } from "@/components/transaction/AssignProgressorControl";
+import { listAssignableAgentsForAgency, listInHouseProgressors } from "@/lib/services/agency-team";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { ConfirmReviewTray } from "@/components/confirm-review/ConfirmReviewTray";
 import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount";
@@ -149,6 +150,20 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     _timed("sticky", getStickyNotesForFile(id, getAccessScope(session)).catch(() => [])),
   ]);
   const _barrierMs = Date.now() - _tBarrier;
+
+  // In-house progression: the agency's progressor pool + gate, for the file-page
+  // "set/change progressor" control. Only for a self-managed agency file.
+  const showProgressor = !isInternalStaff && transaction.serviceType === "self_managed" && !!session.user.agencyId;
+  const [inHouseAgency, inHouseProgressors] = showProgressor
+    ? await Promise.all([
+        prisma.agency.findUnique({ where: { id: session.user.agencyId! }, select: { inHouseProgressionEnabled: true } }),
+        listInHouseProgressors(session.user.agencyId!),
+      ])
+    : [null, [] as Awaited<ReturnType<typeof listInHouseProgressors>>];
+  const inHouseEnabled = !!inHouseAgency?.inHouseProgressionEnabled;
+  const currentProgressorName = transaction.assignedUserId
+    ? (inHouseProgressors.find((p) => p.id === transaction.assignedUserId)?.name ?? null)
+    : null;
 
   // ── Hero-level progress (derived from the critical-path milestones) ───
   const allMilestones = [
@@ -345,14 +360,26 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         isAgentRole={isAgentRole}
         agencyId={session.user.agencyId}
         agentSlot={
-          showReassign && assignableAgents.length > 1 ? (
-            <ReassignOwnerControl
-              transactionId={transaction.id}
-              currentAgentUserId={transaction.agentUserId ?? null}
-              currentAgentName={assignedDisplayName}
-              currentUserId={session.user.id}
-              assignableAgents={assignableAgents}
-            />
+          (showReassign && assignableAgents.length > 1) || inHouseEnabled ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {showReassign && assignableAgents.length > 1 && (
+                <ReassignOwnerControl
+                  transactionId={transaction.id}
+                  currentAgentUserId={transaction.agentUserId ?? null}
+                  currentAgentName={assignedDisplayName}
+                  currentUserId={session.user.id}
+                  assignableAgents={assignableAgents}
+                />
+              )}
+              {inHouseEnabled && (
+                <AssignProgressorControl
+                  transactionId={transaction.id}
+                  currentAssignedUserId={transaction.assignedUserId ?? null}
+                  currentAssignedName={currentProgressorName}
+                  progressors={inHouseProgressors}
+                />
+              )}
+            </span>
           ) : undefined
         }
       />
