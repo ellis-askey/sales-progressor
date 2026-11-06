@@ -275,8 +275,9 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       clientOtherFundsSentGBP: true,
       clientCompletionFundsSent: true,
       clientMoveInfos: { where: { side: "purchaser" }, select: { mortgageOfferExpiry: true, sellingRelated: true, fundsInPlace: true } },
-      agency:       { select: { name: true, feeTier: true, legacyOutsourcedFeePence: true } },
+      agency:       { select: { name: true, feeTier: true, legacyOutsourcedFeePence: true, inHouseProgressionEnabled: true } },
       assignedUser: { select: { name: true, clientType: true, legacyFee: true } },
+      agentUser:    { select: { name: true } },
       // Active-round contacts only — a relisted-then-completed file must not
       // list the previous buyer alongside the new one (2026-09-28).
       contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
@@ -364,6 +365,9 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         photoStoragePath: tx.photoStoragePath,
         agencyName:       tx.agency?.name ?? null,
         assignedUserName: tx.assignedUser?.name ?? null,
+        agentUserName:    tx.agentUser?.name ?? null,
+        serviceType:      tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
+        inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,
         purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
         vendors:    tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name),
         exchangedAt:           exchangeCompletion?.completedAt ?? null,
@@ -481,8 +485,10 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
       onwardBrokerReferralFee: true,
       onwardBrokerReferralFeeVat: true,
       photoStoragePath: true,
-      agency:       { select: { name: true } },
+      serviceType: true,
+      agency:       { select: { name: true, inHouseProgressionEnabled: true } },
       assignedUser: { select: { name: true } },
+      agentUser:    { select: { name: true } },
       contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
     },
     orderBy: { completionDate: "desc" },
@@ -499,6 +505,9 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     photoStoragePath: tx.photoStoragePath,
     agencyName:       tx.agency?.name ?? null,
     assignedUserName: tx.assignedUser?.name ?? null,
+    agentUserName:    tx.agentUser?.name ?? null,
+    serviceType:      tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
+    inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,
     purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
   }));
 }

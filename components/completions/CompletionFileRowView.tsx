@@ -55,6 +55,11 @@ export type CompletionFileRow = {
   agentFeeIsVatInclusive: boolean | null;
   purchasers: string[];
   assignedUserName: string | null;
+  // In-house progression: the client manager (agentUser) alongside the progressor
+  // (assignedUserName) for a self-managed in-house file.
+  agentUserName?: string | null;
+  serviceType?: "self_managed" | "outsourced" | null;
+  inHouseProgressionEnabled?: boolean;
   exchangedAtIso: string | null;
   completionDateIso: string | null;
   vendorSolicitorName: string | null;
@@ -321,7 +326,14 @@ export function CompletionFileRowView({
               {file.purchasers.length > 0 && <>{file.purchasers.join(", ")}</>}
               {file.purchasers.length > 0 && exchangeLine && " · "}
               {exchangeLine}
-              {file.assignedUserName && <> · {file.assignedUserName}</>}
+              {file.serviceType === "self_managed" && file.inHouseProgressionEnabled ? (
+                <>
+                  {file.agentUserName && <> · {file.agentUserName}</>}
+                  {file.assignedUserName && <> · {file.assignedUserName}</>}
+                </>
+              ) : (
+                file.assignedUserName && <> · {file.assignedUserName}</>
+              )}
               {file.agencyName && <> · {file.agencyName}</>}
             </p>
             <p className="text-xs truncate" style={{ color: "var(--agent-text-muted)", marginTop: 1 }}>{solLine}</p>
