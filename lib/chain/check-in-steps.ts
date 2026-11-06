@@ -15,24 +15,35 @@ export type CheckInStep = {
   shortLabel?: string;
   // The grand-finale pair: the exchange-readiness signal, visually distinct.
   finale: boolean;
+  // Impact weight for the chain-card progress bar: near-equal, nudged toward the
+  // later steps that actually move a sale. Sums to 100 across the nine steps.
+  weight: number;
 };
 
 export const CHECK_IN_STEPS: readonly CheckInStep[] = [
-  { key: "dcp_issued", label: "DCP issued", finale: false },
-  { key: "searches_ordered", label: "Searches ordered", finale: false },
+  { key: "dcp_issued", label: "DCP issued", finale: false, weight: 9 },
+  { key: "searches_ordered", label: "Searches ordered", finale: false, weight: 9 },
   // Buyer's finance in place (mortgage offer / proof of funds) — slots between
   // searches ordered and received (critique #283). New key, so existing marks are
   // untouched; it simply reads unmarked until confirmed.
-  { key: "finances_arranged", label: "Finances arranged", finale: false },
-  { key: "searches_received", label: "Searches received", finale: false },
-  { key: "enquiries_raised", label: "Enquiries raised", finale: false },
-  { key: "enquiries_satisfied", label: "Enquiries satisfied", finale: false },
-  { key: "contracts_issued", label: "Contracts issued", finale: false },
-  { key: "seller_signed_returned", label: "Seller signed & returned", shortLabel: "Seller signed", finale: true },
-  { key: "buyer_signed_returned", label: "Buyer signed & returned", shortLabel: "Buyer signed", finale: true },
+  { key: "finances_arranged", label: "Finances arranged", finale: false, weight: 10 },
+  { key: "searches_received", label: "Searches received", finale: false, weight: 10 },
+  { key: "enquiries_raised", label: "Enquiries raised", finale: false, weight: 11 },
+  { key: "enquiries_satisfied", label: "Enquiries satisfied", finale: false, weight: 13 },
+  { key: "contracts_issued", label: "Contracts issued", finale: false, weight: 12 },
+  { key: "seller_signed_returned", label: "Seller signed & returned", shortLabel: "Seller signed", finale: true, weight: 13 },
+  { key: "buyer_signed_returned", label: "Buyer signed & returned", shortLabel: "Buyer signed", finale: true, weight: 13 },
 ] as const;
 
 export const CHECK_IN_STEP_KEYS = new Set(CHECK_IN_STEPS.map((s) => s.key));
+
+// Weighted 0–100 progress for a set of confirmed step keys — the chain card's
+// "what you've confirmed" bar. Matches the weights above (sum = 100).
+export function chainStepsPercent(confirmedKeys: readonly string[]): number {
+  const set = new Set(confirmedKeys);
+  const total = CHECK_IN_STEPS.reduce((sum, s) => sum + (set.has(s.key) ? s.weight : 0), 0);
+  return Math.round(total);
+}
 
 export function checkInStepLabel(key: string): string | null {
   return CHECK_IN_STEPS.find((s) => s.key === key)?.label ?? null;
