@@ -167,6 +167,9 @@ export async function createTransactionAction(input: {
   // own name. Ignored entirely on non-self-managed flows (the field has
   // no meaning when an internal progressor will own the file).
   assignToUserId?: string;
+  // In-house progression: the chosen progressor (assignedUserId) for a self-managed
+  // sale at an agency that runs the CM->progressor workflow. Validated to the pool.
+  inHouseProgressorId?: string | null;
   // Progression-business create-for-client: the client agency this sale belongs
   // to. When set (and the actor is a business owner whose client it is), the
   // file is owned by that agency, attributed to its director, tagged to the
@@ -351,12 +354,24 @@ export async function createTransactionAction(input: {
   }
   let effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
 
-  // Director-only assignment: validate the picked user is a director or
-  // negotiator in the SAME agency and override the file owner. Negotiators
-  // can't use this — silently ignore if a negotiator submits the field
-  // (defence-in-depth; the form shouldn't render the picker for them).
+  // In-house progression: does the effective agency run the CM -> progressor
+  // workflow? If so, the owner picker is open to any agency user (not just a
+  // director) and a progressor can be chosen at creation.
+  let inHouseEnabled = false;
+  if (isAgent && effectiveAgencyId) {
+    const ag = await prisma.agency.findUnique({
+      where: { id: effectiveAgencyId },
+      select: { inHouseProgressionEnabled: true },
+    });
+    inHouseEnabled = !!ag?.inHouseProgressionEnabled;
+  }
+
+  // Owner (client manager) override: directors anywhere, OR any agency user when
+  // the agency runs the in-house workflow. Validate the picked user is a director
+  // or negotiator in the SAME agency. Silently ignored otherwise (the form won't
+  // render the picker).
   let effectiveAgentUserId: string | null = clientCreate?.agentUserId ?? input.migrationAgentUserId ?? (isAgent ? session.user.id : null);
-  if (input.assignToUserId && session.user.role === "director") {
+  if (input.assignToUserId && (session.user.role === "director" || inHouseEnabled)) {
     const target = await prisma.user.findUnique({
       where: { id: input.assignToUserId },
       select: { id: true, agencyId: true, role: true },
@@ -368,6 +383,19 @@ export async function createTransactionAction(input: {
       throw new Error("Cannot assign to a non-agent user");
     }
     effectiveAgentUserId = target.id;
+  }
+
+  // In-house progression: the chosen progressor becomes the file's assignedUserId,
+  // validated to this agency's isInHouseProgressor pool. Empty = decide later.
+  if (inHouseEnabled && input.inHouseProgressorId) {
+    const prog = await prisma.user.findUnique({
+      where: { id: input.inHouseProgressorId },
+      select: { id: true, agencyId: true, isInHouseProgressor: true },
+    });
+    if (!prog || prog.agencyId !== effectiveAgencyId || !prog.isInHouseProgressor) {
+      throw new Error("Cannot assign: that user is not an in-house progressor in your agency");
+    }
+    effectiveAssignedUserId = prog.id;
   }
 
   // Progression-business assignment: a progressor creating a sale for a client may

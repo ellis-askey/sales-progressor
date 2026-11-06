@@ -188,6 +188,8 @@ function populateFormFromDraft(draft: DraftEntry): FormFields {
     // current director if rendered, otherwise the field stays empty
     // and the server falls back to the caller.
     assignToUserId: "",
+    // In-house progression: the chosen progressor (assignedUserId). Empty = none.
+    inHouseProgressorId: "",
   };
 }
 
@@ -337,6 +339,12 @@ type Props = {
   isDirector: boolean;
   currentUserId: string;
   assignableAgents: import("@/lib/services/agency-team").AssignableAgent[];
+  // In-house progression (Boardwalk): when the agency has it enabled, the new-sale
+  // flow shows two pickers — "Who agreed this sale?" (the client manager, agentUserId,
+  // reusing assignToUserId) and "Who's progressing it?" (the progressor, assignedUserId,
+  // from inHouseProgressors, optional). See docs/active/in-house-progression/00-spec.md.
+  inHouseProgressionEnabled: boolean;
+  inHouseProgressors: import("@/lib/services/agency-team").AssignableAgent[];
   showDemoHero: boolean;
   // Fee config for the earnings builder — the agency's outsourced-fee tier and
   // whether they're still inside the 14-day free-outsourcing trial.
@@ -377,7 +385,7 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, progressors = [], isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, inHouseProgressionEnabled, inHouseProgressors, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, progressors = [], isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -1121,6 +1129,10 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         // empty or when the caller isn't a director. Negotiators never
         // populate this field because the picker isn't rendered for them.
         assignToUserId: formFields.assignToUserId || undefined,
+        // In-house progression: the chosen progressor (assignedUserId). Only sent
+        // when the agency has the workflow enabled; server validates it's a pooled
+        // in-house progressor. Empty = decide later (no progressor yet).
+        inHouseProgressorId: inHouseProgressionEnabled ? (formFields.inHouseProgressorId || null) : undefined,
         // Progression-business create-for-client. Server validates it's one of
         // the actor's clients; ignored (undefined) on the normal agency flow.
         clientAgencyId: effectiveClientAgencyId || undefined,
@@ -1441,7 +1453,32 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             )}
           </div>
         )}
-        {isDirector && !isOutsourced && assignableAgents.length > 1 && (
+        {inHouseProgressionEnabled && !isOutsourced ? (
+          <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            {assignableAgents.length > 1 && (
+              <AgentPicker
+                value={formFields.assignToUserId || currentUserId}
+                onChange={(v) => updateFormFields({ assignToUserId: v })}
+                agents={assignableAgents}
+                currentUserId={currentUserId}
+                label="Who agreed this sale?"
+              />
+            )}
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
+              <select
+                className="agent-input"
+                value={formFields.inHouseProgressorId}
+                onChange={(e) => updateFormFields({ inHouseProgressorId: e.target.value })}
+              >
+                <option value="">Decide later</option>
+                {inHouseProgressors.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : isDirector && !isOutsourced && assignableAgents.length > 1 ? (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
             <AgentPicker
               value={formFields.assignToUserId || currentUserId}
@@ -1451,7 +1488,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               label="Assign this file to"
             />
           </div>
-        )}
+        ) : null}
         {isOutsourced && !outsourcedReady && !isSubmitting && (
           <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
         )}

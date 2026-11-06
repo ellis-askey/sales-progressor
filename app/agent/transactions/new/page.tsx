@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NewSaleFlow } from "@/components/transactions-v2/NewSaleFlow";
 import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
-import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { listAssignableAgentsForAgency, listInHouseProgressors } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
 import { getProgressorsForAgency } from "@/lib/progression/inviting";
 import { getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
@@ -83,7 +83,7 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   const agencyRow = session.user.agencyId
     ? await prisma.agency.findUnique({
         where: { id: session.user.agencyId },
-        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true },
+        select: { name: true, modeProfile: true, feeTier: true, legacyOutsourcedFeePence: true, inHouseProgressionEnabled: true },
       })
     : null;
   // Invited-agent routing: if this agency was set up by a progression business,
@@ -149,8 +149,14 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
     : false;
 
   const isDirector = session.user.role === "director";
-  const assignableAgents = isDirector && session.user.agencyId
+  const inHouseProgressionEnabled = !!agencyRow?.inHouseProgressionEnabled;
+  // The owner picker needs the agent list for directors, and also for any agency
+  // user at an in-house-progression agency (the "who agreed this?" picker).
+  const assignableAgents = (isDirector || inHouseProgressionEnabled) && session.user.agencyId
     ? await listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+    : [];
+  const inHouseProgressors = inHouseProgressionEnabled && session.user.agencyId
+    ? await listInHouseProgressors(session.user.agencyId).catch(() => [])
     : [];
 
   const [recommendedFirms, preferredBrokerRow, drafts, allMilestoneDefinitions] = await Promise.all([
@@ -303,6 +309,8 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           isDirector={isDirector}
           currentUserId={session.user.id}
           assignableAgents={assignableAgents}
+          inHouseProgressionEnabled={inHouseProgressionEnabled}
+          inHouseProgressors={inHouseProgressors}
           showDemoHero={showDemoHero}
           feeTier={feeTier}
           legacyOutsourcedFeePence={legacyOutsourcedFeePence}
