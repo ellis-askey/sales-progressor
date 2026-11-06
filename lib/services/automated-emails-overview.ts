@@ -331,7 +331,7 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
         id: true, bouncedAt: true, bouncedReason: true, blockedAt: true, blockedReason: true,
         errorAt: true, errorMessage: true, deferredAt: true, deferredCount: true, deliveredAt: true,
         recipientEmail: true,
-        recipientContact: { select: { name: true, roleType: true, propertyTransactionId: true, image: true } },
+        recipientContact: { select: { name: true, roleType: true, propertyTransactionId: true, image: true, email: true } },
       },
       orderBy: [{ bouncedAt: "desc" }, { blockedAt: "desc" }, { errorAt: "desc" }],
       take: 200,
@@ -378,6 +378,18 @@ export async function getNeedsAttention(input: OverviewInput): Promise<NeedsAtte
     else if (r.blockedAt) { status = "blocked"; reason = r.blockedReason; }
     else if (r.errorAt) { status = "errored"; reason = r.errorMessage; }
     else { status = "deferred"; reason = "Repeatedly deferred by the recipient's mail server"; }
+    // A bounce/block to an address the agent has SINCE corrected is already
+    // resolved: the contact now holds a different, deliverable email (the same
+    // edit cleared the live bounce flag and resumed chasing). Suppress it so the
+    // warning clears the moment the address is fixed, instead of lingering until
+    // the historical send ages out of the window (Annalise, 2026-11-06). A fresh
+    // bounce to the NEW address keeps recipientEmail == current, so a genuinely
+    // still-failing address is untouched.
+    if (status === "bounced" || status === "blocked") {
+      const current = r.recipientContact?.email?.trim().toLowerCase() ?? "";
+      const bounced = (r.recipientEmail ?? "").trim().toLowerCase();
+      if (current && bounced && current !== bounced) continue;
+    }
     const txId = r.recipientContact?.propertyTransactionId ?? "";
     if (txId) files.add(txId);
     const key = `${status}|${r.recipientEmail}`;
