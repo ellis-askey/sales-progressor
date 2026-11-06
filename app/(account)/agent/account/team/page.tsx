@@ -27,7 +27,8 @@ import { InviteDirectorPlain } from "@/components/account/v2/InviteDirectorPlain
 import { AgencyNameForm } from "@/components/account/v2/AgencyNameForm";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { TeamListViewPlain } from "@/components/account/v2/TeamListViewPlain";
+import { UserPlus, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountTeamPage() {
   const session = await requireSession();
@@ -116,7 +117,38 @@ export default async function AccountTeamPage() {
   // ── Negotiator branch ───────────────────────────────────────────────
   if (role === "negotiator") {
     const directorStatus = await getAgencyDirectorStatus(agencyId);
-    if (directorStatus.hasDirector) notFound();
+
+    // Agency already has a director → read-only team roster. The negotiator sees
+    // everyone on their team (photos, emails, job title, mobile) but gets none of
+    // the management controls — that stays with directors.
+    if (directorStatus.hasDirector) {
+      const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { firmName: true } });
+      const members = await prisma.user.findMany({
+        where: { agencyId, role: { in: ["director", "negotiator"] }, ...(me?.firmName ? { firmName: me.firmName } : {}) },
+        select: {
+          id: true, name: true, email: true, role: true, canViewAllFiles: true,
+          image: true, imageFocusX: true, imageFocusY: true, jobTitle: true, directMobile: true,
+        },
+        orderBy: [{ role: "asc" }, { name: "asc" }],
+      });
+      const directors = members.filter((m) => m.role === "director");
+      const negotiators = members.filter((m) => m.role === "negotiator");
+
+      return (
+        <>
+          <AccountPageHeader title="Your team" subtitle="Everyone you work with at your agency." />
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <AccountCard
+              icon={<UsersThree size={18} weight="bold" />}
+              title="Your team"
+              subtitle="View only. Your director manages who's on the team and what they can see."
+            >
+              <TeamListViewPlain directors={directors} negotiators={negotiators} currentUserId={session.user.id} readOnly />
+            </AccountCard>
+          </div>
+        </>
+      );
+    }
 
     const rawLatestInvitation = await prisma.directorInvitation.findFirst({
       where: { agencyId, invitedByUserId: session.user.id },

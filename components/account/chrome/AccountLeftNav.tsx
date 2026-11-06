@@ -38,20 +38,19 @@ const TABS: Tab[] = [
 
 export function AccountLeftNav({
   role,
-  agencyHasDirector,
   onNavigate,
 }: {
   role: UserRole;
-  /** When false AND the viewer is a negotiator, the Team tab shows so they can
-   *  invite a director. Otherwise negotiators don't see Team. */
-  agencyHasDirector: boolean;
+  /** Retained for callers. The Team tab now shows for every negotiator: a
+   *  read-only roster when a director exists, or the "invite your director"
+   *  screen when one doesn't (both resolved by the Team page itself). */
+  agencyHasDirector?: boolean;
   /** Fired when a tab is clicked — used to close the mobile drawer. */
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const items: NavRailItem[] = TABS.filter((t) => {
     if (!t.roles.includes(role)) return false;
-    if (t.href === "/agent/account/team" && role === "negotiator" && agencyHasDirector) return false;
     return true;
   }).map(({ href, label, Icon }) => ({ href, label, Icon }));
 

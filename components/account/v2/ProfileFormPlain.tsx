@@ -248,8 +248,11 @@ export function ProfileFormPlain({
               {name.trim() || "Your name"}
             </span>
             <span style={{ fontSize: 13, color: "#6b7280" }}>
-              {roleLabel ?? (isDirector ? "Director" : "Negotiator")}
-              {jobTitle.trim() ? ` · ${jobTitle.trim()}` : ""}
+              {/* One label only: their job title if they've set one, else their
+                  role. The role is already shown on the Team page and under their
+                  name in the sidebar, so repeating it here ("Director · Director")
+                  was redundant. */}
+              {jobTitle.trim() || (roleLabel ?? (isDirector ? "Director" : "Negotiator"))}
             </span>
             <div style={{ marginTop: 8 }}>
               <button

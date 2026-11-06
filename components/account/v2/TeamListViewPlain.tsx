@@ -38,6 +38,10 @@ type Props = {
   directors: TeamMember[];
   negotiators: TeamMember[];
   currentUserId?: string;
+  // Read-only roster (a negotiator viewing their own team): shows everyone with
+  // their details, but none of the management controls (no file-access dropdown,
+  // no row menu, no pending invitations).
+  readOnly?: boolean;
   onToggleViewAll?: (member: TeamMember) => void;
   savingAccessId?: string | null;
   onRemove?: (id: string, name: string) => void;
@@ -119,10 +123,18 @@ function FileAccessSelect({ member, onToggle, saving }: { member: TeamMember; on
   );
 }
 
+// Second line under a member's name: email, plus job title and mobile when set.
+// The management branch doesn't pass those extra fields, so it's unchanged there;
+// the read-only roster passes them so a negotiator sees full team details.
+function memberDetail(m: TeamMember): string {
+  return [m.email, m.jobTitle?.trim() || null, m.directMobile?.trim() || null].filter(Boolean).join(" · ");
+}
+
 export function TeamListViewPlain({
   directors,
   negotiators,
   currentUserId,
+  readOnly,
   onToggleViewAll,
   savingAccessId,
   onRemove,
@@ -154,7 +166,7 @@ export function TeamListViewPlain({
               {m.name}
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {m.email}
+              {memberDetail(m)}
             </p>
           </div>
           <Badge label="Director" tone="director" />
@@ -164,9 +176,11 @@ export function TeamListViewPlain({
       {negotiators.length === 0 && pendingInvitations.length === 0 && (
         <div style={{ padding: "22px 4px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>No negotiators yet.</p>
-          <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
-            Add a team member to give them access to Sales Progressor.
-          </p>
+          {!readOnly && (
+            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
+              Add a team member to give them access to Sales Progressor.
+            </p>
+          )}
         </div>
       )}
 
@@ -188,13 +202,13 @@ export function TeamListViewPlain({
               </p>
             </div>
             <Badge label="Negotiator" tone="neutral" />
-            <FileAccessSelect member={m} onToggle={onToggleViewAll} saving={savingAccessId === m.id} />
-            <RowActionsMenu items={actions} />
+            {!readOnly && <FileAccessSelect member={m} onToggle={onToggleViewAll} saving={savingAccessId === m.id} />}
+            {!readOnly && <RowActionsMenu items={actions} />}
           </div>
         );
       })}
 
-      {pendingInvitations.map((inv) => {
+      {!readOnly && pendingInvitations.map((inv) => {
         const days = daysUntil(inv.expiresAt);
         const actions: RowAction[] = [];
         if (onResendInvitation) actions.push({ label: "Resend invitation", onClick: () => onResendInvitation(inv.id, inv.role) });
