@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { X, Plus, CheckCircle, Circle } from "@phosphor-icons/react";
+import { X, Plus, CheckCircle, Circle, PaperPlaneTilt } from "@phosphor-icons/react";
 import { setChainCompleteAction } from "@/app/actions/chain-intel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
@@ -20,6 +20,8 @@ import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
+import { buildChainEmailDraft } from "@/app/actions/chain-email";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
@@ -326,6 +328,32 @@ export function ChainView({
   }
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const { toast } = useAgentToast();
+
+  // "Email the chain" — fetch the chain's agents + subject, then open the normal
+  // composer pre-addressed to them. Agents with an email on file go straight into
+  // To; the composer logs the send to THIS file (the anchor sale).
+  const [chainEmailOpen, setChainEmailOpen] = useState(false);
+  const [chainEmailPrefill, setChainEmailPrefill] = useState<ComposePrefill | null>(null);
+  const [chainEmailBusy, setChainEmailBusy] = useState(false);
+  async function openChainEmail() {
+    if (chainEmailBusy) return;
+    setChainEmailBusy(true);
+    try {
+      const res = await buildChainEmailDraft(transactionId);
+      if (!res.ok) { toast.error(res.error); return; }
+      const withEmail = res.draft.agents.filter((a) => a.email);
+      if (withEmail.length === 0) { toast.error("No chain agents have an email on file yet."); return; }
+      setChainEmailPrefill({
+        transactionId: res.draft.anchorTransactionId,
+        to: withEmail.map((a) => ({ email: a.email as string, name: a.name })),
+        subject: res.draft.subject,
+        bodyHtml: "<p>Hi all,</p><p><br></p>",
+      });
+      setChainEmailOpen(true);
+    } finally {
+      setChainEmailBusy(false);
+    }
+  }
 
   // Seeded server-side (inline tab): pre-fill the seen-link set + mark past the
   // first load so the background reconcile fetch neither shows a skeleton nor
@@ -1179,29 +1207,45 @@ export function ChainView({
               <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
             )}
           </div>
-          {/* Chain completeness — the top property is the top of the chain.
-              Internal only. Derived server-side; see getChainV2 + /complete. */}
-          <button
-            type="button"
-            className={`chain-complete-pill${chain.complete ? " on" : ""}`}
-            onClick={toggleComplete}
-            disabled={completeBusy}
-            title={chain.complete
-              ? "This chain is marked complete: the top property is the top. Click to undo."
-              : "Mark this chain complete: the top property is the top of the chain."}
-          >
-            {chain.complete ? (
-              <>
-                <span className="ccp-rest"><CheckCircle size={14} weight="fill" className="ccp-tick" />Complete</span>
-                <span className="ccp-hover"><Circle size={14} weight="bold" />Mark not complete</span>
-              </>
-            ) : (
-              <>
-                <span className="ccp-rest"><Circle size={14} weight="bold" />Not complete</span>
-                <span className="ccp-hover"><CheckCircle size={14} weight="fill" />Mark complete</span>
-              </>
-            )}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Email the chain — opens the composer pre-addressed to the chain's
+                agents (Hub "New email" style). */}
+            <button
+              type="button"
+              onClick={openChainEmail}
+              disabled={chainEmailBusy}
+              className="agent-btn agent-btn-sm agent-btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+            >
+              <PaperPlaneTilt size={14} weight="fill" />
+              Email the chain
+            </button>
+            {/* Chain completeness — the top property is the top of the chain.
+                Internal only. Derived server-side; see getChainV2 + /complete. */}
+            <button
+              type="button"
+              className={`chain-complete-pill${chain.complete ? " on" : ""}`}
+              onClick={toggleComplete}
+              disabled={completeBusy}
+              title={chain.complete
+                ? "This chain is marked complete: the top property is the top. Click to undo."
+                : "Mark this chain complete: the top property is the top of the chain."}
+            >
+              {chain.complete ? (
+                <>
+                  <span className="ccp-rest"><CheckCircle size={14} weight="fill" className="ccp-tick" />Complete</span>
+                  <span className="ccp-hover"><Circle size={14} weight="bold" />Mark not complete</span>
+                </>
+              ) : (
+                <>
+                  <span className="ccp-rest"><Circle size={14} weight="bold" />Not complete</span>
+                  <span className="ccp-hover"><CheckCircle size={14} weight="fill" />Mark complete</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <ComposeEmailModal open={chainEmailOpen} onClose={() => setChainEmailOpen(false)} prefill={chainEmailPrefill} />
         </div>
       )}
 

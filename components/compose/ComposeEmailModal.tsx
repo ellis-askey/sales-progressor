@@ -35,7 +35,9 @@ const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
 // avatar. The signature is appended to bodyHtml unless it already carries one.
 export type ComposePrefill = {
   transactionId: string;
-  to: string[];
+  // Either a plain email (name shows as the address) or {email, name} so a
+  // pre-addressed recipient (e.g. a chain agent) shows by name.
+  to: (string | { email: string; name?: string })[];
   cc?: { email: string; name?: string }[];
   subject: string;
   bodyHtml: string;
@@ -256,7 +258,11 @@ export function ComposeEmailModal({
       // the supplied body already carries one.
       if (pf) {
         autoGreetRef.current = false; // prefilled body carries its own greeting
-        const toTokens: Token[] = pf.to.map((email) => ({ email, name: email, rec: null }));
+        const toTokens: Token[] = pf.to.map((t) => {
+          const email = typeof t === "string" ? t : t.email;
+          const name = typeof t === "string" ? t : (t.name ?? t.email);
+          return { email, name, rec: null };
+        });
         const ccTokens: Token[] = (pf.cc ?? []).map((r) => {
           const match = c.recipients.find((x) => x.email.toLowerCase() === r.email.toLowerCase());
           return match ? { email: match.email, name: match.name, rec: match } : { email: r.email, name: r.name ?? r.email, rec: null };
