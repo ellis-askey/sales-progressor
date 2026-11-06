@@ -16,6 +16,7 @@ import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
 import { getSignedUrl, getSignedUrlMap } from "@/lib/supabase-storage";
 import { enqueueComposedEmail, listScheduledComposeEmails, cancelScheduledComposeEmail, type ScheduledComposeRow, type ComposeQueuePayload } from "@/lib/email/compose-queue";
+import { agencySideKey } from "@/lib/chain/intel";
 
 export type ComposeSaleResult = { id: string; line1: string; location: string; photoUrl: string | null };
 export type ComposeContextWithPhoto = ComposeContext & { photoUrl: string | null };
@@ -99,6 +100,13 @@ export async function sendComposedEmail(input: {
   // ISO timestamp — when set and in the future, the email is queued and sent at
   // that time by the hourly drain instead of now (phase 2).
   scheduledFor?: string | null;
+  // Chain-email mode: per-To-recipient logging. A recipient with a real chain
+  // linkId logs a check-in entry on YOUR side of that neighbour (not your file,
+  // never theirs). Recipients without a linkId (a free-typed address, or the
+  // estate agent on an outsourced file) fall back to a sent-email entry on your
+  // own file so nothing is lost. When present, the single default file log is
+  // skipped. Cc/Bcc are never logged (visibility only).
+  chainRecipients?: { email: string; linkId: string | null }[];
 }): Promise<SendResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -106,7 +114,7 @@ export async function sendComposedEmail(input: {
   // Tenant guard: the sale must be in the caller's scope.
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, input.transactionId),
-    select: { id: true },
+    select: { id: true, agencyId: true },
   });
   if (!tx) return { ok: false, error: "Sale not found" };
 
@@ -176,27 +184,64 @@ export async function sendComposedEmail(input: {
     return { ok: false, error: "Couldn't send the email. Please try again." };
   }
 
-  await prisma.outboundMessage.create({
-    data: {
-      transactionId: input.transactionId,
-      type: "outbound",
-      method: "email",
-      channel: "email",
-      purpose: "other",
-      contactIds,
-      content: `Email sent to ${to.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}\n\nSubject: ${subject}\n\n${text}`,
-      subject,
-      bodyFormat: "html",
-      sentEmailHtml: html,
-      sentFromEmail: from, // real From at send time (critique #298B)
-      recipientEmail: to[0],
-      recipientName,
-      ccEmails,
-      createdById: session.user.id,
-      createdByRole: session.user.role,
-      visibleToClient: false,
-    },
-  });
+  if (input.chainRecipients && input.chainRecipients.length) {
+    // ── Chain-email logging: per To recipient, by the rounded-system rules. ──
+    const sideKey = agencySideKey(tx.agencyId);
+    // Neighbour recipients (real link) → a check-in entry on YOUR side of their
+    // link. Not your file, never theirs. This also freshens their check-in.
+    for (const r of input.chainRecipients) {
+      if (!r.linkId) continue;
+      await prisma.chainLinkEntry.create({
+        data: {
+          chainLinkId: r.linkId,
+          body: `Emailed ${r.email}\n\n${text}`,
+          authorId: session.user.id,
+          authorName: session.user.name ?? null,
+          authorSideKey: sideKey,
+          authorAgencyId: session.user.agencyId ?? null,
+          authorBusinessId: session.user.progressionBusinessId ?? null,
+        },
+      }).catch((e) => console.error("[compose] chain check-in log failed", e));
+    }
+    // Non-neighbour To recipients still need a home: a sent-email entry on YOUR
+    // own file (free-typed addresses / the outsourced estate agent).
+    const nonNeighbour = input.chainRecipients.filter((r) => !r.linkId).map((r) => r.email);
+    if (nonNeighbour.length) {
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: input.transactionId,
+          type: "outbound", method: "email", channel: "email", purpose: "other",
+          contactIds,
+          content: `Email sent to ${nonNeighbour.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}\n\nSubject: ${subject}\n\n${text}`,
+          subject, bodyFormat: "html", sentEmailHtml: html, sentFromEmail: from,
+          recipientEmail: nonNeighbour[0], recipientName, ccEmails,
+          createdById: session.user.id, createdByRole: session.user.role, visibleToClient: false,
+        },
+      }).catch((e) => console.error("[compose] anchor log failed", e));
+    }
+  } else {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "outbound",
+        method: "email",
+        channel: "email",
+        purpose: "other",
+        contactIds,
+        content: `Email sent to ${to.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}\n\nSubject: ${subject}\n\n${text}`,
+        subject,
+        bodyFormat: "html",
+        sentEmailHtml: html,
+        sentFromEmail: from, // real From at send time (critique #298B)
+        recipientEmail: to[0],
+        recipientName,
+        ccEmails,
+        createdById: session.user.id,
+        createdByRole: session.user.role,
+        visibleToClient: false,
+      },
+    });
+  }
 
   revalidatePath(`/agent/transactions/${input.transactionId}`);
   return { ok: true };

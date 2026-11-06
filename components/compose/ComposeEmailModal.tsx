@@ -427,6 +427,15 @@ export function ComposeEmailModal({
         bodyHtml,
         attachments: attachments.map(({ filename, contentBase64, type }) => ({ filename, contentBase64, type })),
         scheduledFor: when ? when.toISOString() : null,
+        // Chain mode: map each To recipient to its chain link (neighbour) so the
+        // body logs on their check-in; non-neighbours (incl. the outsourced
+        // anchor agent, whose linkId is a sentinel) fall back to your file.
+        chainRecipients: chainAgents
+          ? tokens.to.map((t) => {
+              const a = chainAgents.find((x) => x.email && x.email.toLowerCase() === t.email.toLowerCase());
+              return { email: t.email, linkId: a && !a.linkId.startsWith("anchor-") ? a.linkId : null };
+            })
+          : undefined,
       });
       if (res.ok) { toast.success(when ? `Scheduled for ${fmtWhen(when)}` : "Email sent"); requestClose(); }
       else setError(res.error);
