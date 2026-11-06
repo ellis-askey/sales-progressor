@@ -38,6 +38,7 @@ import { Heartbeat, CalendarBlank, Storefront, CurrencyGbp, EnvelopeSimple, Wren
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyFlagsCard } from "@/components/transaction/PropertyFlagsCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { UserAvatar } from "@/components/ui/Avatar";
 import type { ProgressResult } from "@/lib/services/fees";
 import type { ClientType, Tenure, PurchaseType, FeeVatTreatment } from "@prisma/client";
 
@@ -88,9 +89,16 @@ type Props = {
   assignedUser: {
     clientType: ClientType;
     legacyFee: number | null;
+    name?: string | null;
+    image?: string | null;
   } | null;
   agencyFeeOverride?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
-  agentUser?: { id: string; name: string; email: string; firmName: string | null } | null;
+  agentUser?: { id: string; name: string; email: string; firmName: string | null; image?: string | null } | null;
+  // In-house progression: show the Client manager + Progressor as two entries
+  // (Option B — the Progressor entry shows even when empty, as "Not assigned yet").
+  inHouseProgressor?: boolean;
+  inHouseProgressorName?: string | null;
+  inHouseProgressorImage?: string | null;
   progress: ProgressResult;
   keyDates?: KeyDate[];
   exchangeConfirmed?: boolean;
@@ -208,6 +216,9 @@ export function AgentFileSidebar({
   assignedUser,
   agencyFeeOverride,
   agentUser,
+  inHouseProgressor,
+  inHouseProgressorName,
+  inHouseProgressorImage,
   progress,
   keyDates = [],
   exchangeConfirmed = false,
@@ -544,44 +555,105 @@ export function AgentFileSidebar({
       {/* ─── 3. Agent ─────────────────────────────────────────────────── */}
       {agentUser && (
         <GlassCard glassId="sidebar-agent" label="Sidebar · Agent" defaultVariant="v06" style={{ padding: "14px 16px", borderRadius: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: 26, height: 26,
-              color: "var(--agent-text-secondary)",
-            }}>
-              <Storefront size={20} weight="regular" />
-            </span>
-            <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
-          </div>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{agentUser.name}</p>
-          {agentUser.firmName && (
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
-          )}
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
+          {inHouseProgressor ? (
+            <>
+              {/* Client manager (the agency person who agreed the sale). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ flexShrink: 0 }}>
+                  <UserAvatar user={{ name: agentUser.name, image: agentUser.image ?? null }} size={32} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>Client manager</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{agentUser.name}</p>
+                  {agentUser.firmName && (
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{agentUser.firmName}</p>
+                  )}
+                </div>
+              </div>
 
-          {showMessageAgent && (
-            <a
-              href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                marginTop: 12,
-                padding: "7px 12px",
-                fontSize: 12, fontWeight: 600,
-                color: "var(--agent-text-primary)",
-                background: "var(--agent-surface-elevated)",
-                border: "0.5px solid var(--agent-border-default)",
-                borderRadius: 8,
-                textDecoration: "none",
-              }}
-              className="agent-hover-row"
-            >
-              <EnvelopeSimple size={13} weight="regular" />
-              Message agent
-            </a>
-          )}
+              {showMessageAgent && (
+                <a
+                  href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    marginTop: 10,
+                    padding: "7px 12px",
+                    fontSize: 12, fontWeight: 600,
+                    color: "var(--agent-text-primary)",
+                    background: "var(--agent-surface-elevated)",
+                    border: "0.5px solid var(--agent-border-default)",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                  }}
+                  className="agent-hover-row"
+                >
+                  <EnvelopeSimple size={13} weight="regular" />
+                  Message agent
+                </a>
+              )}
 
-          {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
+              {/* Progressor (the in-house progressor running the file). Shows even
+                  when none is set yet, so the gap is visible. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, paddingTop: 14, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+                <span style={{ flexShrink: 0 }}>
+                  {inHouseProgressorName ? (
+                    <UserAvatar user={{ name: inHouseProgressorName, image: inHouseProgressorImage ?? null }} size={32} />
+                  ) : (
+                    <span style={{ width: 32, height: 32, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: "0.5px dashed var(--agent-border-default)", color: "var(--agent-text-muted)", fontSize: 14, fontWeight: 600 }}>?</span>
+                  )}
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>Progressor</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 13, fontWeight: 600, color: inHouseProgressorName ? "var(--agent-text-primary)" : "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {inHouseProgressorName ?? "Not assigned yet"}
+                  </p>
+                </div>
+              </div>
+
+              {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  width: 26, height: 26,
+                  color: "var(--agent-text-secondary)",
+                }}>
+                  <Storefront size={20} weight="regular" />
+                </span>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{agentUser.name}</p>
+              {agentUser.firmName && (
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
+              )}
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
+
+              {showMessageAgent && (
+                <a
+                  href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    marginTop: 12,
+                    padding: "7px 12px",
+                    fontSize: 12, fontWeight: 600,
+                    color: "var(--agent-text-primary)",
+                    background: "var(--agent-surface-elevated)",
+                    border: "0.5px solid var(--agent-border-default)",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                  }}
+                  className="agent-hover-row"
+                >
+                  <EnvelopeSimple size={13} weight="regular" />
+                  Message agent
+                </a>
+              )}
+
+              {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
+            </>
+          )}
         </GlassCard>
       )}
 

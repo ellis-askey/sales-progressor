@@ -164,14 +164,14 @@ export async function SidebarPanel({
     transaction.assignedUserId
       ? prisma.user.findUnique({
           where: { id: transaction.assignedUserId },
-          select: { clientType: true, legacyFee: true },
+          select: { clientType: true, legacyFee: true, name: true, image: true },
         }).catch(() => null)
       : Promise.resolve(null),
 
     transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
-          select: { id: true, name: true, email: true, firmName: true },
+          select: { id: true, name: true, email: true, firmName: true, image: true },
         }).catch(() => null)
       : Promise.resolve(null),
 
@@ -351,6 +351,15 @@ export async function SidebarPanel({
     progressorRateCardFeePence = calculateClientFee(parseFeeModel(link?.feeModel), transaction.purchasePrice ?? null, transaction.tenure);
   }
 
+  // In-house progression: show a second "Progressor" entry on the Agent card for a
+  // self-managed file at an enabled agency (even when empty, per Option B).
+  const inHouseAgency = agencyId
+    ? await prisma.agency.findUnique({ where: { id: agencyId }, select: { inHouseProgressionEnabled: true } }).catch(() => null)
+    : null;
+  // Agency users only — internal staff (TSP / us) keep the unchanged single-agent
+  // card. Gated to the agency's own self-managed in-house files.
+  const showInHouseProgressor = !isInternalStaff && !!inHouseAgency?.inHouseProgressionEnabled && transaction.serviceType === "self_managed";
+
   return (
     <AgentFileSidebar
       transaction={{
@@ -401,6 +410,9 @@ export async function SidebarPanel({
       assignedUser={assignedUser}
       agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
       agentUser={agentUser}
+      inHouseProgressor={showInHouseProgressor}
+      inHouseProgressorName={assignedUser?.name ?? null}
+      inHouseProgressorImage={assignedUser?.image ?? null}
       progress={progress}
       keyDates={keyDates}
       exchangeConfirmed={exchangeConfirmed}
