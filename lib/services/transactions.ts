@@ -95,7 +95,7 @@ export async function listTransactions(
     where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
-      agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true } },
+      agency: { select: { id: true, name: true, feeTier: true, legacyOutsourcedFeePence: true, inHouseProgressionEnabled: true } },
       assignedUser: { select: { id: true, name: true, image: true, clientType: true, legacyFee: true } },
       agentUser: { select: { id: true, name: true, role: true, image: true } },
       // Which company progresses the file, so an agency using several external
@@ -419,6 +419,10 @@ export async function listTransactions(
         + (referralFeeNum ?? 0) + Number(tx.brokerReferralFee ?? 0) + Number(tx.onwardBrokerReferralFee ?? 0);
     return {
       ...rest,
+      // Drives the in-house Client manager + Progressor split in the row's
+      // "Handled by" cell. Boardwalk-style agencies only — a regular agency can
+      // also have an assignedUser on a self-managed file and must NOT show it.
+      inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,
       agentFeeAmount: agentFeeAmountNum,
       agentFeePercent: agentFeePercentNum,
       referralFee: referralFeeNum,

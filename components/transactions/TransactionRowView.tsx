@@ -179,6 +179,10 @@ export type TransactionRow = {
   // progressors can tell its sales apart. Null / isTsp = unchanged (generic
   // "Progressor" for TSP-managed, nothing for self-managed).
   progressionBusiness?: { id: string; shortName: string | null; name: string; isTsp: boolean } | null;
+  // Boardwalk-style in-house progression: gates the Client manager + Progressor
+  // split in "Handled by". Off (default) everywhere else, so a regular agency's
+  // self-managed file shows the single current handler, as it did pre-feature.
+  inHouseProgressionEnabled?: boolean;
   // The file's current pipeline stage, decorated by FilesWorkspace from the
   // stage map. Drives the journey bar; absent on non-active rows (no bar).
   boardStage?: DisplayStageKey;
@@ -412,10 +416,12 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
       </div>
     );
   }
-  // In-house progression: a self-managed file with a progressor set shows BOTH the
-  // client manager (who agreed it) and the progressor. Only Boardwalk-style agencies
-  // ever set a progressor on a self-managed file, so this is a no-op everywhere else.
-  if (tx.assignedUser) {
+  // In-house progression (Boardwalk-style agencies ONLY): a self-managed file
+  // shows BOTH the client manager (who agreed it) and the progressor. Gated on the
+  // agency flag — a regular agency can also have an assignedUser on a self-managed
+  // file, and must NOT see the CM/Progressor split (this previously leaked onto
+  // every agency because it keyed off assignedUser presence alone).
+  if (tx.inHouseProgressionEnabled && tx.assignedUser) {
     return (
       <div className="handled">
         {tx.agentUser && <Person user={tx.agentUser} role="Client manager" />}
@@ -423,7 +429,9 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
       </div>
     );
   }
-  const handler = tx.agentUser;
+  // Everywhere else, self-managed = the current handler: whoever it's assigned to
+  // now, else the person who added it (reassignments win).
+  const handler = tx.assignedUser ?? tx.agentUser;
   return handler
     ? <Person user={handler} />
     : <span className="handled-none">Unassigned</span>;
