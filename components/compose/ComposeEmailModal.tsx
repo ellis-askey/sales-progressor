@@ -474,7 +474,7 @@ export function ComposeEmailModal({
                 });
                 const showFreeC = q0.includes("@") && !chainAgents.some((a) => (a.email ?? "").toLowerCase() === q0);
                 if (!avail.length && !showFreeC) {
-                  return <div className="cem-mgroup" style={{ padding: "12px 10px" }}>{chainAgents.length === 0 ? "No other agents in this chain yet." : "All chain agents added."}</div>;
+                  return <div style={{ padding: "14px 12px", fontSize: 12.5, color: "var(--agent-text-muted)", textAlign: "center" }}>{chainAgents.length === 0 ? "No other agents in this chain yet." : "All chain agents added."}</div>;
                 }
                 return (
                   <>
