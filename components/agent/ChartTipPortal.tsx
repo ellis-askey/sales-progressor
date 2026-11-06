@@ -18,7 +18,7 @@
 // its existing surface class (.ui-chart-tip / .fc-tip / .chn-tip) and content;
 // only where the bubble lives in the DOM changes.
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -81,6 +81,8 @@ export function ChartTipPortal({
 }) {
   const [mounted, setMounted] = useState(false);
   const [tokens, setTokens] = useState<CSSProperties>({});
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -94,30 +96,49 @@ export function ChartTipPortal({
     return () => obs.disconnect();
   }, []);
 
+  // Measure the bubble so it can be placed with top/left and NO transform. A
+  // persistent `transform` on a backdrop-filter element kills the blur (the
+  // element gets its own composite layer and samples an empty backdrop, so it
+  // reads see-through). The canonical Popover avoids this by positioning via
+  // top/left after measuring — this does the same. Re-measures when the anchor
+  // moves; the equality guard stops it looping on re-renders.
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setSize((prev) => (prev && prev.w === r.width && prev.h === r.height ? prev : { w: r.width, h: r.height }));
+  }, [mounted, x, y, maxWidth]);
+
   if (!mounted) return null;
 
   const vw = window.innerWidth;
-  const half = maxWidth / 2;
-  // Centre on the anchor via translateX(-50%) so it's exact whatever the content
-  // width is; clamp the centre by half the max width so a full-width bubble can't
-  // spill past the viewport edge.
-  const cx = Math.max(half + 8, Math.min(vw - half - 8, x));
   const above = place === "above";
+  const w = size?.w ?? 0;
+  const h = size?.h ?? 0;
+  // Centre horizontally on the anchor via computed left (no transform), clamped
+  // to an 8px viewport gutter. Vertically, sit the measured height above the
+  // anchor, or drop below it.
+  const left = Math.max(8, Math.min(vw - w - 8, x - w / 2));
+  const top = above ? y - GAP - h : y + GAP;
 
   const pos: CSSProperties = {
     position: "fixed",
-    left: cx,
-    top: above ? y - GAP : y + GAP,
-    transform: above ? "translate(-50%, -100%)" : "translateX(-50%)",
+    left,
+    top,
+    // Explicitly none: the .fc-tip / .chn-tip surface classes set their own
+    // transform, which would re-break the backdrop-filter blur if it applied.
+    transform: "none",
     maxWidth,
     width: "max-content",
     zIndex: 300,
     pointerEvents: "none",
+    // Hidden for the first (pre-measure) paint so it never flashes at the wrong
+    // spot; shown once measured.
+    visibility: size ? "visible" : "hidden",
     animation: "enter-fade 140ms cubic-bezier(0.4,0,0.2,1)",
   };
 
   return createPortal(
-    <div className={className} role={role} style={{ ...tokens, ...pos, ...style }}>
+    <div ref={ref} className={className} role={role} style={{ ...tokens, ...pos, ...style }}>
       {children}
     </div>,
     document.body,
