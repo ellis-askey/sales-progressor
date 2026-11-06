@@ -188,6 +188,27 @@ export async function buildIndex(emails: string[], scope: AccessScope): Promise<
 
 export type AddressEntry = { txId: string; firstLine: string; postcodes: Set<string> };
 
+// Reduce a full address to the house-number + street line we match an email on.
+// Two traps this guards against:
+//   - A bare house number with no street. "5, Oakhill Drive, Bristol" splits at
+//     the first comma to just "5" — which then word-boundary-matches ANY email
+//     containing a stray "5" (a date, a count, a reference), hoovering an inbox
+//     onto that one file (the 2026-11 Oakhill incident). When the first segment
+//     is only a number, fold the next segment (the street) in so the line is a
+//     real street, not a lone digit.
+//   - A street-name-only file ("The Copse") with no number — too loose to match
+//     safely, so it returns null and the caller skips address-matching it.
+// Result: the line must carry BOTH a digit (house number) and a letter (street).
+export function addressFirstLine(address: string): string | null {
+  const parts = (address ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  let line = parts[0];
+  if (/^\d+[a-z]?$/i.test(line) && parts[1]) line = `${line} ${parts[1]}`;
+  const lc = line.toLowerCase();
+  if (!/\d/.test(lc) || !/[a-z]/i.test(lc)) return null;
+  return lc;
+}
+
 // Every live file in scope, reduced to its first address line (house number +
 // street) and postcode(s) — the two things an email reliably repeats.
 export async function buildAddressIndex(scope: AccessScope): Promise<AddressEntry[]> {
@@ -200,10 +221,10 @@ export async function buildAddressIndex(scope: AccessScope): Promise<AddressEntr
   for (const r of rows) {
     const addr = (r.propertyAddress ?? "").trim();
     if (!addr) continue;
-    const firstLine = addr.split(",")[0]!.trim().toLowerCase();
-    // Require a house number in the first line — a street-name-only file
-    // ("The Copse") is too loose to match on safely.
-    if (!firstLine || !/\d/.test(firstLine)) continue;
+    // House-number + street line (a bare number or street-only line → null, so
+    // it's skipped rather than matching on a lone digit). See addressFirstLine.
+    const firstLine = addressFirstLine(addr);
+    if (!firstLine) continue;
     out.push({ txId: r.id, firstLine, postcodes: extractPostcodes(addr) });
   }
   return out;
@@ -305,8 +326,8 @@ export function mentionsFile(text: string, address: string | undefined | null): 
   const addr = (address ?? "").trim();
   if (!addr) return false;
   const lc = text.toLowerCase();
-  const firstLine = addr.split(",")[0]!.trim().toLowerCase();
-  if (firstLine && /\d/.test(firstLine) && firstLineAppears(lc, firstLine)) return true;
+  const firstLine = addressFirstLine(addr);
+  if (firstLine && firstLineAppears(lc, firstLine)) return true;
   const filePcs = extractPostcodes(addr);
   const textPcs = extractPostcodes(text);
   for (const pc of filePcs) if (textPcs.has(pc)) return true;

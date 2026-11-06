@@ -7,7 +7,7 @@ import "server-only";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/security/token-crypto";
-import { getAccessScope } from "@/lib/security/access-scope";
+import { getMailboxFilingScope } from "@/lib/security/access-scope";
 import { runMailboxSync } from "@/lib/integrations/mail/ingest";
 import type { SyncSummary } from "@/lib/integrations/mail/types";
 import { fetchImapMessages } from "./client";
@@ -32,7 +32,7 @@ export type ImapConnRow = {
 };
 
 export async function syncImapMailbox(conn: ImapConnRow, session: Session): Promise<SyncSummary> {
-  const scope = getAccessScope(session);
+  const scope = getMailboxFilingScope(session);
   const pass = decryptSecret(conn.encryptedPassword);
 
   const sentEnabled = process.env.SENT_ITEMS_ENABLED === "true";

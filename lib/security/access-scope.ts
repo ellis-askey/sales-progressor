@@ -87,6 +87,26 @@ export function getAccessScope(session: Session): AccessScope {
   return { kind: "agency", agencyIds: [agencyId] };
 }
 
+// Scope for MAILBOX AUTO-FILING (connected-inbox email capture), which is a
+// different question from read-visibility. getAccessScope answers "which files
+// may this user SEE"; this answers "onto which files may this user's personal
+// inbox be filed". They must NOT be the same for a founder/admin: a hybrid
+// superadmin can SEE every agency's files, but their own inbox must only ever
+// land on files they themselves work — otherwise unrelated personal/dev mail
+// (and spam) auto-files onto other agencies' customer files (the 2026-11 Oakhill
+// incident: ellis's Vercel/Sentry inbox landed on a Boardwalk sale because the
+// sync matched his inbox against the WHOLE platform). So "all"/"platform" is
+// downgraded to the owner's OWN assigned files; every other scope (an agency
+// director filing their agency's mail, an external business its own book) is
+// already correctly bounded and passes through unchanged.
+export function getMailboxFilingScope(session: Session): AccessScope {
+  const scope = getAccessScope(session);
+  if (scope.kind === "all" || scope.kind === "platform") {
+    return { kind: "assigned", userId: session.user.id };
+  }
+  return scope;
+}
+
 // ─── Query helpers ────────────────────────────────────────────────────────────
 
 /**

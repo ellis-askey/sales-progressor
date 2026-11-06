@@ -16,7 +16,7 @@ import "server-only";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret, encryptSecret } from "@/lib/security/token-crypto";
-import { getAccessScope } from "@/lib/security/access-scope";
+import { getMailboxFilingScope } from "@/lib/security/access-scope";
 import { buildFolderHints, looksLikePropertyFolder } from "@/lib/integrations/mail/match";
 import { runMailboxSync, logSingleIngestMessage } from "@/lib/integrations/mail/ingest";
 import type { IngestMessage, SyncSummary, LoggedItem } from "@/lib/integrations/mail/types";
@@ -105,7 +105,7 @@ export async function syncOutlookMailbox(conn: ConnRow, session: Session): Promi
 
 async function runSync(conn: ConnRow, session: Session): Promise<SyncSummary> {
   const accessToken = await getValidAccessToken(conn);
-  const scope = getAccessScope(session);
+  const scope = getMailboxFilingScope(session);
 
   const allFolders = await listMailFolders(accessToken);
   const folderHints = await buildFolderHints(
