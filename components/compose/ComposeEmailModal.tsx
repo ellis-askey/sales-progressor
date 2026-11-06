@@ -466,14 +466,16 @@ export function ComposeEmailModal({
               // Chain mode: the dropdown IS the chain's agents (not the sale's
               // buyers / sellers / solicitors). A no-email agent opens the chain
               // edit drawer on the agent-email field; once saved they're auto-added.
-              if (chainAgents && chainAgents.length > 0) {
+              if (chainAgents) {
                 const avail = chainAgents.filter((a) => {
                   if (a.email && agentFieldOf(a.email) !== null) return false;
                   if (!q0) return true;
                   return a.name.toLowerCase().includes(q0) || (a.email ?? "").toLowerCase().includes(q0) || a.address.toLowerCase().includes(q0);
                 });
                 const showFreeC = q0.includes("@") && !chainAgents.some((a) => (a.email ?? "").toLowerCase() === q0);
-                if (!avail.length && !showFreeC) return <div className="cem-mgroup" style={{ padding: "12px 10px" }}>All chain agents added.</div>;
+                if (!avail.length && !showFreeC) {
+                  return <div className="cem-mgroup" style={{ padding: "12px 10px" }}>{chainAgents.length === 0 ? "No other agents in this chain yet." : "All chain agents added."}</div>;
+                }
                 return (
                   <>
                     {avail.length > 0 && <div className="cem-mgroup">Chain agents</div>}

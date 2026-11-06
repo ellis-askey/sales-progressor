@@ -1251,7 +1251,7 @@ export function ChainView({
               <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
             )}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="chain-headrow-right">
             {/* Email the chain — opens the composer pre-addressed to the chain's
                 agents (Hub "New email" style). */}
             <button

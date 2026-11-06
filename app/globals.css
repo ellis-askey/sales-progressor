@@ -1426,6 +1426,11 @@ select {
    The row keeps the view switch's own margins untouched (preservation) and just
    insets the pill to match. */
 .chain-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+/* Right cluster: "Email the chain" + the complete pill, vertically centred and
+   top-aligned with the view switch (same 12px top as the viewswitch / pill). The
+   pill's own margin is neutralised here since the cluster owns the spacing. */
+.chain-headrow-right { display: inline-flex; align-items: center; gap: 8px; margin: 12px 24px 0 0; flex-shrink: 0; }
+.chain-headrow-right .chain-complete-pill { margin: 0; }
 /* Option A: a clean (no fill) pill. Neutral when not complete; on hover it
    previews the result — label + icon morph to the action ("Mark complete"),
    text/border go green. Complete shows a green tick that pops in via the shared
