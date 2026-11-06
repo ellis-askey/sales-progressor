@@ -603,7 +603,7 @@ export function ComposeEmailModal({
                         <div key={a.linkId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 9, border: "0.5px solid var(--agent-border-subtle)", background: a.email ? "transparent" : "var(--agent-surface-subtle)" }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{a.name}</span>
-                            <span style={{ fontSize: 11.5, color: a.email ? "var(--agent-text-muted)" : "var(--agent-coral-deep)", marginLeft: 6 }}>{a.email ?? "No email — click a field to add"}</span>
+                            <span style={{ fontSize: 11.5, color: a.email ? "var(--agent-text-muted)" : "var(--agent-coral-deep)", marginLeft: 6 }}>{a.email ?? "No email yet. Click a field to add one"}</span>
                           </div>
                           {(["to", "cc", "bcc"] as Field[]).map((fld) => {
                             const on = f === fld;
