@@ -215,6 +215,11 @@ function defaultWaitDateStr(): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Activity tab is hidden for now (not useful yet; brought back later). Flip to
+// true to restore the Activity view switch button — the view + render code are
+// all still here, this only hides the button. See `--vs-count` in globals.css.
+const SHOW_CHAIN_ACTIVITY = false;
+
 export function ChainView({
   transactionId,
   currentUserId,
@@ -1166,11 +1171,13 @@ export function ChainView({
         <div className="chain-headrow">
           <div
             className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""}`}
-            style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2 } as React.CSSProperties}
+            style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2, "--vs-count": SHOW_CHAIN_ACTIVITY ? 3 : 2 } as React.CSSProperties}
           >
             <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => selectView("timeline")}>Timeline</button>
             <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => selectView("map")}>Map</button>
-            <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
+            {SHOW_CHAIN_ACTIVITY && (
+              <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
+            )}
           </div>
           {/* Chain completeness — the top property is the top of the chain.
               Internal only. Derived server-side; see getChainV2 + /complete. */}
