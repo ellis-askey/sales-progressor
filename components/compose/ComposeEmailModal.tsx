@@ -102,7 +102,17 @@ export type ComposeSaleHint = { line1: string; location: string; photoUrl?: stri
 
 export function ComposeEmailModal({
   open, onClose, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
-}: { open: boolean; onClose: () => void; initialTransactionId?: string | null; initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null }) {
+  chainAgents, onNeedAgentEmail, autoPlace,
+}: {
+  open: boolean; onClose: () => void; initialTransactionId?: string | null;
+  initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null;
+  // "Email the chain" mode (optional, additive): the chain's agents shown as a
+  // placement checklist. No-email agents call onNeedAgentEmail to open the chain
+  // edit drawer; autoPlace drops a just-added agent into the field they chose.
+  chainAgents?: { linkId: string; name: string; email: string | null }[] | null;
+  onNeedAgentEmail?: (linkId: string, field: "to" | "cc" | "bcc") => void;
+  autoPlace?: { email: string; name: string; field: "to" | "cc" | "bcc" } | null;
+}) {
   const { theme } = usePortalTheme();
   const { toast } = useAgentToast();
   const [mounted, setMounted] = useState(false);
@@ -331,6 +341,46 @@ export function ComposeEmailModal({
     setTokens((prev) => ({ ...prev, [field]: prev[field].filter((t) => t.email !== email) }));
   }
 
+  // ── Chain-agents placement (only used in "Email the chain" mode) ──
+  function agentFieldOf(email: string): Field | null {
+    const e = email.toLowerCase();
+    if (tokens.to.some((t) => t.email.toLowerCase() === e)) return "to";
+    if (tokens.cc.some((t) => t.email.toLowerCase() === e)) return "cc";
+    if (tokens.bcc.some((t) => t.email.toLowerCase() === e)) return "bcc";
+    return null;
+  }
+  function placeChainAgent(email: string, name: string, field: Field) {
+    const e = email.toLowerCase();
+    setTokens((prev) => {
+      const next: Record<Field, Token[]> = {
+        to: prev.to.filter((t) => t.email.toLowerCase() !== e),
+        cc: prev.cc.filter((t) => t.email.toLowerCase() !== e),
+        bcc: prev.bcc.filter((t) => t.email.toLowerCase() !== e),
+      };
+      next[field] = [...next[field], { email, name, rec: null }];
+      return next;
+    });
+    if (field === "cc") setShowCc(true);
+    if (field === "bcc") setShowBcc(true);
+  }
+  function removeChainAgent(email: string) {
+    const e = email.toLowerCase();
+    setTokens((prev) => ({
+      to: prev.to.filter((t) => t.email.toLowerCase() !== e),
+      cc: prev.cc.filter((t) => t.email.toLowerCase() !== e),
+      bcc: prev.bcc.filter((t) => t.email.toLowerCase() !== e),
+    }));
+  }
+  // After an agent's email is saved via the chain edit drawer, drop them into the
+  // field the user originally clicked (unless they've since been placed/removed).
+  useEffect(() => {
+    if (!autoPlace || !ctx) return;
+    const e = autoPlace.email.toLowerCase();
+    const already = [...tokens.to, ...tokens.cc, ...tokens.bcc].some((t) => t.email.toLowerCase() === e);
+    if (!already) placeChainAgent(autoPlace.email, autoPlace.name, autoPlace.field);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlace, ctx]);
+
   function updateCount() { setCharCount((editorRef.current?.innerText ?? "").replace(/\s+$/, "").length); }
   function onEditorInput() { updateCount(); if (showRefined) setShowRefined(false); }
 
@@ -539,6 +589,44 @@ export function ComposeEmailModal({
                 {showCc && <div style={{ marginTop: 9 }}>{field("cc", "Cc", "Add people…")}</div>}
                 {showBcc && <div style={{ marginTop: 9 }}>{field("bcc", "Bcc", "Add people…")}</div>}
               </div>
+
+              {/* Chain agents — one row each, To/Cc/Bcc toggles reflect the fields
+                  above (single source of truth). No-email agents open the chain
+                  edit drawer on the agent-email field. */}
+              {chainAgents && chainAgents.length > 0 && (
+                <div className="cem-row">
+                  <p className="cem-eyebrow">Chain agents</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {chainAgents.map((a) => {
+                      const f = a.email ? agentFieldOf(a.email) : null;
+                      return (
+                        <div key={a.linkId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 9, border: "0.5px solid var(--agent-border-subtle)", background: a.email ? "transparent" : "var(--agent-surface-subtle)" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{a.name}</span>
+                            <span style={{ fontSize: 11.5, color: a.email ? "var(--agent-text-muted)" : "var(--agent-coral-deep)", marginLeft: 6 }}>{a.email ?? "No email — click a field to add"}</span>
+                          </div>
+                          {(["to", "cc", "bcc"] as Field[]).map((fld) => {
+                            const on = f === fld;
+                            return (
+                              <button
+                                key={fld}
+                                type="button"
+                                onClick={() => {
+                                  if (!a.email) { onNeedAgentEmail?.(a.linkId, fld); return; }
+                                  if (on) removeChainAgent(a.email); else placeChainAgent(a.email, a.name, fld);
+                                }}
+                                style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, padding: "3px 8px", borderRadius: 6, cursor: "pointer", border: on ? "none" : "0.5px solid var(--agent-border-default)", background: on ? "var(--agent-coral)" : "transparent", color: on ? "#fff" : "var(--agent-text-muted)" }}
+                              >
+                                {fld}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="cem-row">
                 <p className="cem-eyebrow">Subject</p>

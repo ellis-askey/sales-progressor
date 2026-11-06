@@ -21,7 +21,7 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
-import { buildChainEmailDraft } from "@/app/actions/chain-email";
+import { buildChainEmailDraft, type ChainEmailAgent } from "@/app/actions/chain-email";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
@@ -334,15 +334,19 @@ export function ChainView({
   // To; the composer logs the send to THIS file (the anchor sale).
   const [chainEmailOpen, setChainEmailOpen] = useState(false);
   const [chainEmailPrefill, setChainEmailPrefill] = useState<ComposePrefill | null>(null);
+  const [chainEmailAgents, setChainEmailAgents] = useState<ChainEmailAgent[]>([]);
   const [chainEmailBusy, setChainEmailBusy] = useState(false);
+  const [pendingAgentPlacement, setPendingAgentPlacement] = useState<{ linkId: string; field: "to" | "cc" | "bcc" } | null>(null);
+  const [agentAutoPlace, setAgentAutoPlace] = useState<{ email: string; name: string; field: "to" | "cc" | "bcc" } | null>(null);
+
   async function openChainEmail() {
     if (chainEmailBusy) return;
     setChainEmailBusy(true);
     try {
       const res = await buildChainEmailDraft(transactionId);
       if (!res.ok) { toast.error(res.error); return; }
+      setChainEmailAgents(res.draft.agents);
       const withEmail = res.draft.agents.filter((a) => a.email);
-      if (withEmail.length === 0) { toast.error("No chain agents have an email on file yet."); return; }
       setChainEmailPrefill({
         transactionId: res.draft.anchorTransactionId,
         to: withEmail.map((a) => ({ email: a.email as string, name: a.name })),
@@ -354,6 +358,45 @@ export function ChainView({
       setChainEmailBusy(false);
     }
   }
+
+  // A no-email agent in the composer → open the chain edit drawer on the
+  // agent-email field (the existing "Add email" path), remembering which field
+  // to drop them into once the email is saved.
+  function handleNeedAgentEmail(linkId: string, field: "to" | "cc" | "bcc") {
+    const link = chain?.links.find((l) => l.id === linkId);
+    if (!link || !onOpenAddNode || !chain) return;
+    const editing: EditingLinkData = {
+      id: link.id,
+      stubPropertyAddress: link.stubPropertyAddress,
+      stubAgencyName: link.stubAgencyName,
+      stubAgentName: link.stubAgentName,
+      stubAgentEmail: link.stubAgentEmail,
+      stubAgentPhone: link.stubAgentPhone,
+      stubNotes: link.stubNotes,
+    };
+    setPendingAgentPlacement({ linkId, field });
+    onOpenAddNode("above", chain.id, editing, undefined, undefined, undefined, "agentEmail");
+  }
+
+  // When the chain refreshes (e.g. an agent's email was just saved in the drawer)
+  // and the composer is open, refetch the agent list so it picks up the new email
+  // and auto-places the agent the user was adding.
+  useEffect(() => {
+    if (!chainEmailOpen) return;
+    let cancelled = false;
+    void buildChainEmailDraft(transactionId).then((res) => {
+      if (cancelled || !res.ok) return;
+      setChainEmailAgents(res.draft.agents);
+      setPendingAgentPlacement((pending) => {
+        if (!pending) return null;
+        const a = res.draft.agents.find((x) => x.linkId === pending.linkId);
+        if (a?.email) { setAgentAutoPlace({ email: a.email, name: a.name, field: pending.field }); return null; }
+        return pending;
+      });
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Seeded server-side (inline tab): pre-fill the seen-link set + mark past the
   // first load so the background reconcile fetch neither shows a skeleton nor
@@ -1245,7 +1288,14 @@ export function ChainView({
             </button>
           </div>
 
-          <ComposeEmailModal open={chainEmailOpen} onClose={() => setChainEmailOpen(false)} prefill={chainEmailPrefill} />
+          <ComposeEmailModal
+            open={chainEmailOpen}
+            onClose={() => setChainEmailOpen(false)}
+            prefill={chainEmailPrefill}
+            chainAgents={chainEmailAgents}
+            onNeedAgentEmail={handleNeedAgentEmail}
+            autoPlace={agentAutoPlace}
+          />
         </div>
       )}
 
