@@ -43,6 +43,8 @@ export type FormFields = {
   // in their agency. Negotiators don't see the picker and the field stays
   // at the default. Empty string means "use the caller" on the server.
   assignToUserId: string;
+  // In-house progression: the chosen progressor (assignedUserId). Empty = none.
+  inHouseProgressorId: string;
 };
 
 export function defaultFormFields(
@@ -79,6 +81,7 @@ export function defaultFormFields(
     chainStubs: [],
     chainExpanded: false,
     assignToUserId: "",
+    inHouseProgressorId: "",
   };
 }
 
