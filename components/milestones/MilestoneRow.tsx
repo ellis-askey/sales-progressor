@@ -780,7 +780,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", margin: "13px 0 0", paddingTop: 12, borderTop: "0.5px solid var(--agent-border-default)" }}>
                   {def.completion.eventDate && formatDate(def.completion.eventDate) !== formatDate(def.completion.completedAt) && (
                     <>
-                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{isPM9 ? "Survey date" : isPM6 ? "Valuation date" : "Event date"}</dt>
+                      {/* Survey/valuation/exchange/completion keep their event-date
+                          label; ordinary steps show the plainer "Happened on" for
+                          the back-dated "date this happened" they captured. */}
+                      <dt style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{isPM9 ? "Survey date" : isPM6 ? "Valuation date" : (def.code === "VM19" || def.code === "VM20" || def.code === "PM26" || def.code === "PM27") ? "Event date" : "Happened on"}</dt>
                       <dd style={{ margin: 0, fontSize: 12.5, fontWeight: 550, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{formatDate(def.completion.eventDate)}</dd>
                     </>
                   )}
