@@ -555,7 +555,12 @@ export async function resolveSenderForTransaction(
   // agency has none. This keeps manual sends on the agent's own address when
   // they've set one, but agency-branded otherwise — never a bare SP send for a
   // file that belongs to an agency with an approved address.
-  const fallback = () => resolveAgencySenderForTransaction(transactionId);
+  // This is the MANUAL-send resolver (compose box / "New email"), so the fallback
+  // is the PERSONAL sender — the agent's own address on their verified domain
+  // (e.g. nick@theirdomain), not the automated updates@ mailbox. A person typing
+  // an email should send as themselves. (Outsourced files ignore the persona and
+  // keep the agency/business sender, as before.)
+  const fallback = () => resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
 
   const isInternalStaff =
     sessionUser.role === "sales_progressor" || sessionUser.role === "admin";

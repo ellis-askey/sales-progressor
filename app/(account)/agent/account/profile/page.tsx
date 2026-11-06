@@ -77,6 +77,19 @@ export default async function AccountProfilePage({
     source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
   };
 
+  // Is the user's own email domain authenticated? If so, they ALREADY send from
+  // their own address (chases, portal invites, manual emails all resolve off the
+  // verified domain), so the Sending-addresses section shouldn't push the
+  // per-address code step — that only matters for someone WITHOUT domain auth.
+  const userDomain = session.user.email?.split("@")[1]?.toLowerCase() ?? null;
+  const domainVerified = !!(
+    session.user.agencyId && userDomain &&
+    (await prisma.verifiedDomain.findFirst({
+      where: { agencyId: session.user.agencyId, domain: userDomain, status: "verified" },
+      select: { id: true },
+    }))
+  );
+
   const colourCard = (
     <AccountCard
       icon={<Palette size={18} weight="bold" />}
@@ -93,7 +106,7 @@ export default async function AccountProfilePage({
       title="Sending addresses"
       subtitle="Send emails to clients directly from your own work email address."
     >
-      <SendingAddressesSection initialVerified={verified === "1"} />
+      <SendingAddressesSection initialVerified={verified === "1"} domainVerified={domainVerified} ownAddress={session.user.email ?? undefined} />
     </AccountCard>
   );
 

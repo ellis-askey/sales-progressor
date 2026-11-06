@@ -108,6 +108,7 @@ export function DomainAuthFlow({ domain, onVerified, checkBase = "/api/agent/ver
             <p className="text-xs text-amber-700">
               Add these {records.length} CNAME records to <strong>{domain.domain}</strong>&apos;s DNS.
               You or whoever manages the domain can do this. Changes usually take around 30 minutes to take effect, but can sometimes take longer.
+              Until it&apos;s verified, your emails still send from updates@thesalesprogressor.co.uk, with replies coming straight back to you.
             </p>
           </div>
 

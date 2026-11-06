@@ -32,7 +32,7 @@ type Step =
   | { type: "inbox-verify"; email: string }
   | { type: "success"; email: string };
 
-export function SendingAddressesSection({ initialVerified }: { initialVerified?: boolean }) {
+export function SendingAddressesSection({ initialVerified, domainVerified, ownAddress }: { initialVerified?: boolean; domainVerified?: boolean; ownAddress?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ type: "list" });
   const [emails, setEmails] = useState<VerifiedEmail[]>([]);
@@ -131,6 +131,21 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
         </div>
       )}
 
+      {/* Domain already authenticated → they already send from their own address,
+          so reassure rather than pushing the per-address code step (which only
+          matters for someone who hasn't done DNS). */}
+      {domainVerified && step.type === "list" && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
+          <span className="text-emerald-600 text-sm font-bold leading-none mt-0.5">✓</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-emerald-700">You&rsquo;re all set</p>
+            <p className="text-xs text-emerald-700/80 mt-0.5">
+              Your emails already send from your own address{ownAddress ? ` (${ownAddress})` : ""}, with replies coming straight back to you. There&rsquo;s nothing to set up here.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Success */}
       {step.type === "success" && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
@@ -143,7 +158,7 @@ export function SendingAddressesSection({ initialVerified }: { initialVerified?:
       {/* Email list */}
       {step.type !== "domain-auth" && step.type !== "inbox-verify" && (
         <div className="space-y-2">
-          {emails.length === 0 && step.type !== "add-email" && (
+          {emails.length === 0 && step.type !== "add-email" && !domainVerified && (
             <div
               className="px-5 py-7 text-center"
               style={{ border: "1px dashed rgba(0,0,0,0.14)", borderRadius: 11, background: "#fcfbfa" }}

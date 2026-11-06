@@ -114,8 +114,9 @@ export function AccountConnectionsCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Microsoft Outlook</p>
               <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Connect the inbox solicitors and clients use to contact you, so their replies are saved to the
-                right sale.
+                Connect your work inbox to automatically save replies from solicitors and clients to the
+                correct sale. Emails you send will come directly from your Outlook account and appear in
+                your Sent Items.
               </p>
             </div>
             {!loading && status && (
