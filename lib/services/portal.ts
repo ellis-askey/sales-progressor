@@ -1450,6 +1450,27 @@ export async function releaseProvisionalBooking(input: {
     }
   }
 
+  // Past-date guard: the appointment is already behind us, so a "booked for
+  // {date}" email would announce a visit that's gone. Record the step (the
+  // desktop/date handling above still applies) but send NO client comms. Checked
+  // on the booking's intended date, so a desktop confirm (which clears the visit
+  // date) is still caught. The Hub card routes a past booking to a silent "Log
+  // it" flow; this is the belt-and-braces so the standard Confirm panel is safe
+  // too (2026-11-06).
+  const bookingDate = input.eventDate ? new Date(input.eventDate) : row.eventDate;
+  if (bookingDate && bookingDate.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "internal_note",
+        contactIds: [],
+        content: `${input.actingUserName || "Someone"} logged the ${getMilestoneCopy(def.code).label.toLowerCase()}. The date had already passed, so clients weren't emailed.`,
+        createdById: input.actingUserId ?? null,
+      },
+    }).catch(() => {});
+    return { ok: true };
+  }
+
   // Attribution for the released client emails — the client who logged it.
   let contactName = "your client";
   if (row.confirmedByContactId) {

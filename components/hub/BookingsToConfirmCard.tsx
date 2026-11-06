@@ -106,8 +106,46 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
     });
   }
 
+  // Past-date "Log it" flow: the appointment has already happened, so we only
+  // record it — no client emails go out (the server enforces this too). Yes =
+  // desktop valuation (no visit date); No / Not sure = log it as-is.
+  function logPast(row: BookingConfirmRow, outcome: "desktop" | "silent") {
+    setBusyId(row.transactionId);
+    startTransition(async () => {
+      try {
+        const res = await confirmProvisionalBookingAction({
+          transactionId: row.transactionId,
+          milestoneDefinitionId: row.milestoneDefinitionId,
+          keyCollectionRequired: false,
+          eventDate: null,
+          outcome,
+        });
+        setRows((prev) => prev.filter((r) => r.transactionId !== row.transactionId));
+        if (res.ok) {
+          const title = outcome === "desktop" ? "Logged as a desktop valuation" : "Logged on the file";
+          toast.success(title, { description: `Clients weren't emailed, as the ${row.kind} has already taken place.` });
+        } else {
+          toast.error("This booking was already handled.");
+        }
+      } catch {
+        toast.error("Couldn't do that. Try again.");
+      } finally {
+        setBusyId((cur) => (cur === row.transactionId ? null : cur));
+      }
+    });
+  }
+
   return (
     <GlassCard glassId="hub-attention" label="Hub · Surveys & valuations to confirm" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+      {/* Past-date "Log it" pills: solid by default, coral border on hover, coral
+          gradient on press (never a faded background). */}
+      <style>{`
+        .bk-pill { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px; font-weight:650; padding:9px 16px; border-radius:10px; border:1.5px solid var(--agent-border-default, rgba(0,0,0,0.14)); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-primary); cursor:pointer; font-family:inherit; transition:border-color 130ms ease, background 130ms ease, color 130ms ease, transform 90ms ease; }
+        .bk-pill:hover:not(:disabled) { border-color:var(--agent-coral); }
+        .bk-pill:active:not(:disabled) { background:linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border-color:transparent; color:var(--agent-text-on-coral,#fff); transform:scale(0.98); box-shadow:inset 0 1px 0 rgba(255,255,255,0.25); }
+        .bk-pill:focus-visible { outline:none; box-shadow:0 0 0 2px rgba(var(--agent-coral-rgb),0.4); }
+        .bk-pill:disabled { opacity:0.6; cursor:default; }
+      `}</style>
       {/* Header */}
       <button
         type="button"
@@ -148,6 +186,10 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
             {shown.map((row, i) => {
               const isOpen = openId === row.transactionId;
               const busy = busyId === row.transactionId;
+              // A booking whose date has already passed: confirming would email
+              // clients about a visit that's gone, so the primary action becomes a
+              // silent "Log it" (see PastLogPanel) instead of "Confirm".
+              const isPast = !!row.eventDateISO && row.eventDateISO < todayISO();
               const menuItems: RowMenuItem[] = [
                 ...(row.kind === "valuation"
                   ? [{
@@ -219,20 +261,22 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                           className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
                           style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
                         >
-                          {isOpen ? "Close" : "Confirm"}
+                          {isOpen ? "Close" : isPast ? "Log it" : "Confirm"}
                         </button>
                         <RowActionMenu joined disabled={busy} items={menuItems} />
                       </div>
                     </div>
                   </div>
 
-                  {isOpen && (
+                  {isOpen && (isPast ? (
+                    <PastLogPanel row={row} busy={busy} onLog={(outcome) => logPast(row, outcome)} />
+                  ) : (
                     <ConfirmPanel
                       row={row}
                       busy={busy}
                       onConfirm={(keys, date) => resolve(row, "confirm", { keys, date })}
                     />
-                  )}
+                  ))}
                 </div>
               );
             })}
@@ -307,6 +351,49 @@ function ConfirmPanel({
           {busy ? "Confirming…" : "Confirm booking"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Past-date flow: the appointment has already happened, so we only log it — no
+// client emails. For a valuation we ask whether it was a desktop (no-visit)
+// valuation, since that changes how it's recorded; a survey has no such concept.
+function PastLogPanel({
+  row,
+  busy,
+  onLog,
+}: {
+  row: BookingConfirmRow;
+  busy: boolean;
+  onLog: (outcome: "desktop" | "silent") => void;
+}) {
+  if (row.kind === "survey") {
+    return (
+      <div className="agent-reveal-in" style={{ padding: "16px 20px 14px" }}>
+        <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
+          This survey has already taken place. Log it on the file? No emails go to clients.
+        </p>
+        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ width: "100%" }}>
+          {busy ? "Logging…" : "Log it"}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="agent-reveal-in" style={{ padding: "16px 20px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>Was this a desktop valuation?</p>
+        <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
+          It&apos;s already taken place, so we&apos;ll just log it. No emails go to clients.
+        </p>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("desktop")} style={{ flex: 1 }}>Yes</button>
+        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ flex: 1 }}>No</button>
+      </div>
+      <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ width: "100%" }}>
+        Not sure
+      </button>
     </div>
   );
 }
