@@ -280,7 +280,7 @@ export function ComposeEmailModal({
         .filter((r): r is ComposeRecipient => !!r)
         .map((r) => ({ email: r.email, name: r.name, rec: r }));
       setTokens({ to: toTokens, cc: [], bcc: [] });
-      setSubject(`Update on your sale of ${c.sale.line1}`);
+      setSubject(`Update on ${c.sale.address}`);
       setCtx(c);
     } finally { setLoadingSale(false); }
   }
