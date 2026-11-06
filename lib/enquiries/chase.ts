@@ -24,7 +24,7 @@ import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
-import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
@@ -262,10 +262,14 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
       agency: tx.agency,
     });
     const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
-      ? buildInHouseSignoff({
-          name: senderName,
-          agency: tx.agency?.name ?? "",
-          phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+      ? await resolveClientSignoff({
+          businessId: tx.progressionBusinessId,
+          agencyId: tx.agencyId,
+          identity: {
+            name: senderName,
+            company: tx.agency?.name ?? "",
+            phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+          },
         })
       : null;
     const mail = buildEnquiryChaseEmail({

@@ -391,6 +391,17 @@ model ProgressionBusinessClient {
   senderVerified   Boolean   @default(false)
   senderVerifiedAt DateTime?
 
+  // The sign-off on THIS progression business's own correspondence for THIS
+  // client's sales — the solicitor + enquiry chases and emails sent from a file.
+  // BASIC = the standard auto block (sender name / client agency name / phone);
+  // IMAGE / CUSTOM override it, exactly like the per-user signature. Buyer/seller
+  // emails are untouched (they stay agency-branded). Resolved by
+  // lib/email/client-signoff.ts, which falls back to the auto block when unset —
+  // so a null-business (TSP) file or an unset client is never left blank.
+  signatureMode      EmailSignatureMode @default(BASIC)
+  signatureImagePath String?
+  signatureHtml      String?
+
   // Archive (soft-remove) instead of deleting the link. A removed client drops off
   // the active Clients list and the new-sale picker, but the link row survives so
   // the rate card + history are intact and the owner can reinstate (removedAt back

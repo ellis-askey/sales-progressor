@@ -7,6 +7,7 @@ import { sendChainEmail, buildOutboundMessageId } from "@/lib/email";
 import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { addWorkingDays } from "@/lib/emails/working-hours";
 import { toUKDateStr } from "@/lib/utils";
@@ -424,6 +425,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     select: {
       id: true,
       agencyId: true,
+      progressionBusinessId: true,
       propertyAddress: true,
       purchasePrice: true,
       agentUserId: true,
@@ -492,6 +494,17 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     agentName: tx.agentUser?.name,
     agency: tx.agency,
   });
+  // Outsourced file: if THIS client has a per-client IMAGE/CUSTOM sign-off set,
+  // it replaces the digest's default person block. A BASIC/unset client keeps the
+  // person block (name / phone / avatar) exactly as before, and a TSP file
+  // (no progressionBusinessId) never matches, so TSP is unchanged.
+  const clientSig = !agentSig
+    ? await resolveClientSignoff({
+        businessId: tx.progressionBusinessId,
+        agencyId: tx.agencyId,
+        identity: { name: person?.name ?? brand, company: tx.agency?.name ?? "", phone: person?.phone ?? null },
+      })
+    : null;
   const { subject, html, text } = buildSolicitorDigestEmail({
     brand,
     address: tx.propertyAddress,
@@ -508,8 +521,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
     personName: person?.name ?? brand,
     personPhone: person?.phone ?? null,
     avatarUrl: getAvatarPublicUrl(person?.image),
-    agentSignatureHtml: agentSig?.html ?? null,
-    agentSignatureText: agentSig?.text ?? null,
+    agentSignatureHtml: agentSig?.html ?? (clientSig?.custom ? clientSig.html : null),
+    agentSignatureText: agentSig?.text ?? (clientSig?.custom ? clientSig.text : null),
   });
 
   // Sender = the agency's authenticated sending address (Agency.quoteSenderEmail),

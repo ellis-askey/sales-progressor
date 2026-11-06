@@ -21,6 +21,7 @@ import { ClientPeople } from "./ClientPeople";
 import { SenderDomainSection } from "./SenderDomainSection";
 import { EmailBrandingStudio } from "@/components/account/v2/EmailBrandingStudio";
 import { EmailStudio } from "@/components/account/v2/EmailStudio";
+import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 import { BusinessSalesActions } from "./BusinessSalesActions";
 import type { CardGatePreview, GateNotice } from "./AddCardGateModal";
@@ -56,7 +57,7 @@ type SalesActionsData = {
   cardGatePreview: CardGatePreview | null;
 };
 
-export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: { detail: ClientAgencyDetail; salesActions: SalesActionsData; emailStudio?: boolean }) {
+export function AgencyWorkspace({ detail, signature, salesActions, emailStudio = false }: { detail: ClientAgencyDetail; signature: SignatureInitial; salesActions: SalesActionsData; emailStudio?: boolean }) {
   const { toast } = useAgentToast();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -241,6 +242,12 @@ export function AgencyWorkspace({ detail, salesActions, emailStudio = false }: {
                 />
               )}
               <SenderDomainSection base={`/api/agent/clients/${detail.agencyId}/sender`} scope="client" subjectName={detail.name} />
+              <EmailSignatureCard
+                initial={signature}
+                target={{ kind: "client", agencyId: detail.agencyId }}
+                title={`Your sign-off for ${detail.name}`}
+                subtitle={`How your own emails for ${detail.name}'s sales sign off — the solicitor and enquiry chases, and emails you send from a file. Their buyers and sellers still get ${detail.name}'s branded emails above.`}
+              />
             </div>
           )}
 

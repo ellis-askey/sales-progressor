@@ -15,10 +15,6 @@ import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZon
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
-import { resolveEmailSignature } from "@/lib/email/signature";
-import { getSignatureImageUrl } from "@/lib/supabase-storage";
-import { detectSignatureSource } from "@/lib/email/signature-source";
 import { Palette, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function BusinessProfilePage() {
@@ -32,27 +28,14 @@ export default async function BusinessProfilePage() {
     select: {
       phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true,
       chaseVoiceProfile: true, chaseVoiceProfileBuiltAt: true,
-      emailSignatureMode: true, emailSignatureImagePath: true, emailSignatureHtml: true,
     },
   });
   const currentAppColour = getAppColour(userRecord?.agentPreferences);
 
-  // Email signature for the progression company user — per-user, applied to the
-  // emails they send (chases etc.), NOT the agency's client-facing sale emails.
-  // No agency logo band (business users aren't agency-bound).
-  const sigPreview = await resolveEmailSignature({
-    userId: session.user.id,
-    agency: null,
-    fallbackName: session.user.name,
-  });
-  const signatureInitial: SignatureInitial = {
-    mode: userRecord?.emailSignatureMode ?? "BASIC",
-    imageUrl: getSignatureImageUrl(userRecord?.emailSignatureImagePath),
-    customHtml: userRecord?.emailSignatureHtml ?? null,
-    previewHtml: sigPreview.html,
-    missing: sigPreview.missing,
-    source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
-  };
+  // Note: a progression-business user's email sign-off is set PER CLIENT on the
+  // Clients page (each client agency's Branding tab), not here — their
+  // correspondence always goes out on a client's behalf. See
+  // lib/email/client-signoff.ts.
 
   return (
     <>
@@ -78,8 +61,6 @@ export default async function BusinessProfilePage() {
           profile={userRecord?.chaseVoiceProfile ?? null}
           builtAt={userRecord?.chaseVoiceProfileBuiltAt?.toISOString() ?? null}
         />
-
-        <EmailSignatureCard initial={signatureInitial} />
 
         <AccountCard
           icon={<Palette size={18} weight="bold" />}

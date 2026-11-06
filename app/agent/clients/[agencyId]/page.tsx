@@ -16,6 +16,10 @@ import { resolveBusinessSaleGate } from "@/lib/progression/business-sale-gate";
 import { getMigrationWindow } from "@/lib/progression/business-migration";
 import { AgencyWorkspace } from "@/components/progression/AgencyWorkspace";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
+import { renderClientSignoff } from "@/lib/email/client-signoff";
+import { getSignatureImageUrl } from "@/lib/supabase-storage";
+import { detectSignatureSource } from "@/lib/email/signature-source";
+import type { SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
 
 export default async function ClientAgencyPage({ params }: { params: Promise<{ agencyId: string }> }) {
   if (!progressionBusinessesEnabled()) notFound();
@@ -40,10 +44,41 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
   // Pro-rata preview for the add-a-card modal — only when a card is actually needed.
   const cardGatePreview = saleGate.needsCard ? await getBusinessFirstChargePreview(owner.businessId) : null;
 
+  // The per-client sign-off (Branding tab). Previewed server-side against the
+  // owner's own name/phone signing on this agency's behalf, so what the owner
+  // sees matches the live chase send. BASIC = the standard auto block.
+  const [sigLink, ownerUser] = await Promise.all([
+    prisma.progressionBusinessClient.findUnique({
+      where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
+      select: { signatureMode: true, signatureImagePath: true, signatureHtml: true },
+    }),
+    prisma.user.findUnique({ where: { id: owner.userId }, select: { name: true, phone: true, directMobile: true } }),
+  ]);
+  const sigImageUrl = getSignatureImageUrl(sigLink?.signatureImagePath);
+  const sigRendered = renderClientSignoff({
+    mode: sigLink?.signatureMode ?? "BASIC",
+    imageUrl: sigImageUrl,
+    customHtml: sigLink?.signatureHtml ?? null,
+    identity: {
+      name: ownerUser?.name ?? "",
+      company: detail.name,
+      phone: ownerUser?.directMobile ?? ownerUser?.phone ?? null,
+    },
+  });
+  const signature: SignatureInitial = {
+    mode: sigLink?.signatureMode ?? "BASIC",
+    imageUrl: sigImageUrl,
+    customHtml: sigLink?.signatureHtml ?? null,
+    previewHtml: sigRendered.html,
+    missing: [],
+    source: detectSignatureSource(sigLink?.signatureHtml ?? ""),
+  };
+
   return (
     <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
       <AgencyWorkspace
         detail={detail}
+        signature={signature}
         emailStudio={emailStudioEnabled(session.user.email)}
         salesActions={{
           needsCard: saleGate.needsCard,

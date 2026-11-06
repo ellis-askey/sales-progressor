@@ -9,6 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } } },
+    select: { agencyId: true, progressionBusinessId: true, agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } } },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
@@ -29,6 +30,26 @@ export async function GET(req: NextRequest) {
   // isn't a param here.
   const styleParam = req.nextUrl.searchParams.get("style");
   const signatureStyle = styleParam === "basic" || styleParam === "logo" ? styleParam : "default";
+
+  // External progression business's file: mirror chase/send-email — the sender's
+  // per-client sign-off for this client agency (falling back to the generic
+  // in-house block).
+  if (tx.progressionBusinessId) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, phone: true, directMobile: true },
+    });
+    const cs = await resolveClientSignoff({
+      businessId: tx.progressionBusinessId,
+      agencyId: tx.agencyId,
+      identity: {
+        name: me?.name ?? session.user.name ?? "",
+        company: tx.agency?.name ?? "",
+        phone: me?.directMobile ?? me?.phone ?? null,
+      },
+    });
+    return NextResponse.json({ html: cs.html, missing: [], mode: null, name: session.user.name ?? null });
+  }
 
   // Same resolver the real send uses, so the drawer preview matches the send
   // exactly (BASIC / IMAGE / CUSTOM).

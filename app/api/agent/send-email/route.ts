@@ -5,6 +5,7 @@ import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
 import { resolveSenderForTransaction } from "@/lib/email";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 
@@ -95,30 +96,57 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let txForSig: { progressionBusinessId: string | null; agencyId: string | null; agency: { name: string | null } | null } | null = null;
   if (transactionId) {
     const scope = getAccessScope(session);
-    const txExists = await prisma.propertyTransaction.findFirst({
+    txForSig = await prisma.propertyTransaction.findFirst({
       where: scopeOwnershipWhere(scope, transactionId),
-      select: { id: true },
+      select: { progressionBusinessId: true, agencyId: true, agency: { select: { name: true } } },
     });
-    if (!txExists) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    if (!txForSig) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
   }
 
-  const senderAgency = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { agency: { select: AGENCY_SIG_SELECT } },
-  });
-  const sig = await resolveEmailSignature({
-    userId: session.user.id,
-    agency: senderAgency?.agency ?? null,
-    fallbackName: session.user.name,
-  });
+  // On an external progression business's file, the sign-off follows the sender's
+  // PER-CLIENT setting for that client agency (Clients page), falling back to the
+  // generic in-house block. On an agency's own file (no progressionBusinessId),
+  // the sender's own per-user signature is used, exactly as before.
+  let sigHtml: string;
+  let sigText: string;
+  if (txForSig?.progressionBusinessId) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, phone: true, directMobile: true },
+    });
+    const cs = await resolveClientSignoff({
+      businessId: txForSig.progressionBusinessId,
+      agencyId: txForSig.agencyId,
+      identity: {
+        name: me?.name ?? session.user.name ?? "",
+        company: txForSig.agency?.name ?? "",
+        phone: me?.directMobile ?? me?.phone ?? null,
+      },
+    });
+    sigHtml = cs.html;
+    sigText = cs.text;
+  } else {
+    const senderAgency = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { agency: { select: AGENCY_SIG_SELECT } },
+    });
+    const sig = await resolveEmailSignature({
+      userId: session.user.id,
+      agency: senderAgency?.agency ?? null,
+      fallbackName: session.user.name,
+    });
+    sigHtml = sig.html;
+    sigText = sig.text;
+  }
   await sendFromVerifiedAddress({
     from: `${session.user.name} <${fromEmail}>`,
     to,
     subject,
-    text: body + sig.text,
-    html: composeHtml(body, sig.html),
+    text: body + sigText,
+    html: composeHtml(body, sigHtml),
     replyTo: fromEmail,
   });
 

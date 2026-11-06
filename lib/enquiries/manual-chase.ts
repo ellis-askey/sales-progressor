@@ -10,7 +10,7 @@ import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { buildEnquiryChaseEmail } from "@/lib/enquiries/chase-email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
-import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import type { EnquiryCourt } from "@/lib/enquiries/tracker";
@@ -52,6 +52,7 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
           id: true,
           propertyAddress: true,
           agencyId: true,
+          progressionBusinessId: true,
           assignedUserId: true,
           agentUserId: true,
           serviceType: true,
@@ -104,7 +105,11 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
     agency: tx.agency,
   });
   const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
-    ? buildInHouseSignoff({ name: senderName, agency: tx.agency?.name ?? "", phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null })
+    ? await resolveClientSignoff({
+        businessId: tx.progressionBusinessId,
+        agencyId: tx.agencyId,
+        identity: { name: senderName, company: tx.agency?.name ?? "", phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null },
+      })
     : null;
   const signatureHtml = agentSig?.html ?? inHouseSig?.html ?? null;
   const signatureText = agentSig?.text ?? (inHouseSig ? inHouseSig.text.trim() : null);

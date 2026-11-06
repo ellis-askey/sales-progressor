@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 
 const AGENCY_SIG_SELECT = { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } as const;
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, agency: { select: AGENCY_SIG_SELECT } },
+    select: { id: true, agencyId: true, progressionBusinessId: true, agency: { select: AGENCY_SIG_SELECT } },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
@@ -57,6 +58,26 @@ export async function GET(req: NextRequest) {
       phone: me?.directMobile ?? me?.phone ?? null,
     });
     return NextResponse.json({ kind: "inhouse", html: sig.html, mode: null, missing: [] });
+  }
+
+  // External progression business's file: mirror send-email's per-client branch —
+  // the sender's per-client sign-off for this client agency (falling back to the
+  // generic in-house block).
+  if (tx.progressionBusinessId) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, phone: true, directMobile: true },
+    });
+    const cs = await resolveClientSignoff({
+      businessId: tx.progressionBusinessId,
+      agencyId: tx.agencyId,
+      identity: {
+        name: me?.name ?? session.user.name ?? "",
+        company: tx.agency?.name ?? "",
+        phone: me?.directMobile ?? me?.phone ?? null,
+      },
+    });
+    return NextResponse.json({ kind: "inhouse", html: cs.html, mode: null, missing: [] });
   }
 
   // Agent path: the personal signature resolved against the agent's OWN agency,

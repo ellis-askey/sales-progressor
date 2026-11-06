@@ -8,6 +8,7 @@ import { checkEmailLimit, rateLimitJson } from "@/lib/ratelimit";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { deriveChaseTargetSide } from "@/lib/services/comms";
 import { resolveEmailSignature } from "@/lib/email/signature";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { shouldAddSignOff } from "@/lib/email/sign-off";
 import type { EmailAttachment } from "@/lib/email";
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest) {
     select: {
       propertyAddress: true,
       activeBuyerRoundId: true,
+      agencyId: true,
+      progressionBusinessId: true,
       agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
     },
   });
@@ -76,12 +79,32 @@ export async function POST(req: NextRequest) {
   // own), then the signature. The preview (/api/chase/signature-preview) mirrors
   // this so what the agent sees is what goes out.
   const resolvedStyle = signatureStyle === "basic" || signatureStyle === "logo" ? signatureStyle : "default";
-  const sig = await resolveEmailSignature({
-    userId: session.user.id,
-    agency: tx.agency,
-    fallbackName: session.user.name,
-    signatureStyle: resolvedStyle,
-  });
+  // On an external progression business's file, follow the sender's PER-CLIENT
+  // sign-off for this client agency (falling back to the generic in-house block);
+  // otherwise the sender's own per-user signature, exactly as before.
+  let sig: { html: string; text: string };
+  if (tx.progressionBusinessId) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, phone: true, directMobile: true },
+    });
+    sig = await resolveClientSignoff({
+      businessId: tx.progressionBusinessId,
+      agencyId: tx.agencyId,
+      identity: {
+        name: me?.name ?? session.user.name ?? "",
+        company: tx.agency?.name ?? "",
+        phone: me?.directMobile ?? me?.phone ?? null,
+      },
+    });
+  } else {
+    sig = await resolveEmailSignature({
+      userId: session.user.id,
+      agency: tx.agency,
+      fallbackName: session.user.name,
+      signatureStyle: resolvedStyle,
+    });
+  }
   // Rich-text body from the composer (sanitised) when provided; otherwise the
   // legacy plain-text-to-HTML path. The plain-text part is always the plain body.
   const renderedBody = typeof bodyHtml === "string" && bodyHtml.trim()

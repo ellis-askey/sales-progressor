@@ -17,7 +17,7 @@ import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
-import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { baseUrl } from "./chase";
 import { buildRaiseSolicitorEmail } from "./raise-chase-email";
@@ -28,6 +28,7 @@ const TX_SELECT = {
   id: true,
   propertyAddress: true,
   agencyId: true,
+  progressionBusinessId: true,
   assignedUserId: true,
   agentUserId: true,
   serviceType: true,
@@ -63,10 +64,14 @@ async function assemble(transactionId: string) {
     agency: tx.agency,
   });
   const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
-    ? buildInHouseSignoff({
-        name: senderName,
-        agency: tx.agency?.name ?? "",
-        phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+    ? await resolveClientSignoff({
+        businessId: tx.progressionBusinessId,
+        agencyId: tx.agencyId,
+        identity: {
+          name: senderName,
+          company: tx.agency?.name ?? "",
+          phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+        },
       })
     : null;
 

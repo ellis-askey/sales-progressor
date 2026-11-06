@@ -17,7 +17,7 @@ import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
-import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
+import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
@@ -201,10 +201,14 @@ export async function runRaiseChaseCron(now: Date): Promise<{
       agency: tx.agency,
     });
     const inHouseSig = !agentSig && ownerAgent && !ownerAgent.agencyId
-      ? buildInHouseSignoff({
-          name: senderName,
-          agency: tx.agency?.name ?? "",
-          phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+      ? await resolveClientSignoff({
+          businessId: tx.progressionBusinessId,
+          agencyId: tx.agencyId,
+          identity: {
+            name: senderName,
+            company: tx.agency?.name ?? "",
+            phone: ownerAgent.directMobile ?? ownerAgent.phone ?? null,
+          },
         })
       : null;
     const sigHtml = agentSig?.html ?? inHouseSig?.html ?? null;

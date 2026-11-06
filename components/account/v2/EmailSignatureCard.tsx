@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import type { EmailSignatureMode } from "@prisma/client";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction } from "@/app/actions/signature";
+import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, type SignatureTarget } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
 import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 
@@ -43,9 +43,23 @@ const MODES: Array<{ value: EmailSignatureMode; label: string; blurb: string }> 
 
 type Status = "idle" | "saving" | "saved";
 
-export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
+export function EmailSignatureCard({
+  initial,
+  target,
+  title = "Email signature",
+  subtitle = "How your emails sign off. This applies to chases and any email you send from Sales Progressor.",
+}: {
+  initial: SignatureInitial;
+  // Present => this card edits a client agency's per-client sign-off (Clients
+  // page) instead of the signed-in user's own signature. Absent => per-user.
+  target?: SignatureTarget;
+  title?: string;
+  subtitle?: string;
+}) {
   const router = useRouter();
   const { toast } = useAgentToast();
+  // The image route targets the client link when an agencyId is present.
+  const imgQuery = target?.kind === "client" ? `?agencyId=${encodeURIComponent(target.agencyId)}` : "";
 
   const [mode, setMode] = useState<EmailSignatureMode>(initial.mode);
   const [imageUrl, setImageUrl] = useState<string | null>(initial.imageUrl);
@@ -62,19 +76,19 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
 
   const refreshPreview = useCallback(async (m: EmailSignatureMode, html: string | null) => {
     try {
-      const res = await previewSignatureAction({ mode: m, customHtml: html });
+      const res = await previewSignatureAction({ mode: m, customHtml: html, target });
       setPreviewHtml(res.html);
       setMissing(res.missing);
     } catch {
       /* keep last good preview */
     }
-  }, []);
+  }, [target]);
 
   async function selectMode(m: EmailSignatureMode) {
     setMode(m);
     setError("");
     setStatus("saving");
-    const res = await saveSignatureAction({ mode: m, customHtml });
+    const res = await saveSignatureAction({ mode: m, customHtml, target });
     setStatus(res.ok ? "saved" : "idle");
     if (!res.ok) setError(res.error);
     if (m !== "CUSTOM") await refreshPreview(m, customHtml);
@@ -87,6 +101,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     try {
       const body = new FormData();
       body.append("file", file);
+      if (target?.kind === "client") body.append("agencyId", target.agencyId);
       const res = await fetch("/api/agent/signature-image", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
@@ -110,7 +125,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
       const res = await fetch("/api/agent/signature-image", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: urlValue.trim() }),
+        body: JSON.stringify({ url: urlValue.trim(), ...(target?.kind === "client" ? { agencyId: target.agencyId } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Import failed");
@@ -131,7 +146,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/agent/signature-image", { method: "DELETE" });
+      const res = await fetch(`/api/agent/signature-image${imgQuery}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Couldn't remove the image.");
       setImageUrl(null);
       setMode("BASIC");
@@ -149,7 +164,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
     setSending(true);
     setError("");
     try {
-      const res = await sendSignatureTestAction();
+      const res = await sendSignatureTestAction(target);
       if (res.ok) toast.success("Test email sent. Check your inbox.");
       else setError(res.error);
     } catch {
@@ -180,8 +195,8 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
   return (
     <AccountCard
       icon={<PenNib size={18} weight="bold" />}
-      title="Email signature"
-      subtitle="How your emails sign off. This applies to chases and any email you send from Sales Progressor."
+      title={title}
+      subtitle={subtitle}
       headerAction={
         statusLabel ? (
           <span style={{ fontSize: 12, fontWeight: 600, color: status === "saving" ? "#9ca3af" : "#059669" }}>
@@ -292,6 +307,7 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
         <>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>{testBtn}</div>
         <CustomSignatureEditor
+          target={target}
           initialHtml={customHtml ?? ""}
           initialSource={initial.source}
           onSaved={(html) => {
@@ -326,12 +342,14 @@ export function EmailSignatureCard({ initial }: { initial: SignatureInitial }) {
 // returns clean HTML, which we re-inject after a paste so the editor shows the
 // real result. Plain typing auto-saves without re-injecting (keeps the cursor).
 function CustomSignatureEditor({
+  target,
   initialHtml,
   initialSource,
   onSaved,
   onSaving,
   onError,
 }: {
+  target?: SignatureTarget;
   initialHtml: string;
   initialSource: SignatureSource;
   onSaved: (html: string) => void;
@@ -356,7 +374,7 @@ function CustomSignatureEditor({
     reinjectNext.current = false;
     onSaving();
     onError("");
-    const res = await saveSignatureAction({ mode: "CUSTOM", customHtml: html });
+    const res = await saveSignatureAction({ mode: "CUSTOM", customHtml: html, target });
     if (!res.ok) {
       onError(res.error);
       return;
@@ -372,7 +390,7 @@ function CustomSignatureEditor({
     }
     setEmpty(!(res.html ?? html).replace(/<[^>]*>/g, "").trim());
     onSaved(res.html ?? html);
-  }, [onSaved, onSaving, onError]);
+  }, [onSaved, onSaving, onError, target]);
 
   function schedule(delay: number) {
     if (timer.current) clearTimeout(timer.current);
@@ -391,7 +409,7 @@ function CustomSignatureEditor({
     setSource(next);
     onSaving();
     onError("");
-    const res = await applySignatureSourceAction(next);
+    const res = await applySignatureSourceAction(next, target);
     if (!res.ok) {
       setSource(prev);
       onError(res.error);
