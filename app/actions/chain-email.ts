@@ -39,7 +39,10 @@ export async function buildChainEmailDraft(
   // Law 7: you can only build a chain email from a sale you can access.
   const owned = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true },
+    select: {
+      id: true, serviceType: true, propertyAddress: true,
+      agentUser: { select: { id: true, name: true, email: true, image: true, firmName: true } },
+    },
   });
   if (!owned) return { ok: false, error: "You don't have access to this sale." };
 
@@ -96,6 +99,22 @@ export async function buildChainEmailDraft(
       image: null,
     };
   });
+
+  // Outsourced files: the progressor (TSP / external business) isn't the estate
+  // agent, so include the anchor sale's own agent — "the agent that added it" —
+  // as a recipient too. (On a self-managed file that agent is the viewer, so we
+  // leave them out.) linkId is a sentinel; they already have an email, so the
+  // no-email edit-drawer flow never targets them.
+  if (owned.serviceType === "outsourced" && owned.agentUser) {
+    const u = owned.agentUser;
+    agents.unshift({
+      linkId: `anchor-${transactionId}`,
+      name: u.name?.trim() || u.firmName?.trim() || "Agent",
+      email: u.email ?? null,
+      address: splitComposeAddress(owned.propertyAddress).line1,
+      image: u.image ?? null,
+    });
+  }
 
   return { ok: true, draft: { anchorTransactionId: transactionId, subject: chainEmailSubject(firstLines), agents } };
 }
