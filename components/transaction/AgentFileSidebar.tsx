@@ -565,32 +565,8 @@ export function AgentFileSidebar({
                 <div style={{ minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>Client manager</p>
                   <p style={{ margin: "1px 0 0", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{agentUser.name}</p>
-                  {agentUser.firmName && (
-                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{agentUser.firmName}</p>
-                  )}
                 </div>
               </div>
-
-              {showMessageAgent && (
-                <a
-                  href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    marginTop: 10,
-                    padding: "7px 12px",
-                    fontSize: 12, fontWeight: 600,
-                    color: "var(--agent-text-primary)",
-                    background: "var(--agent-surface-elevated)",
-                    border: "0.5px solid var(--agent-border-default)",
-                    borderRadius: 8,
-                    textDecoration: "none",
-                  }}
-                  className="agent-hover-row"
-                >
-                  <EnvelopeSimple size={13} weight="regular" />
-                  Message agent
-                </a>
-              )}
 
               {/* Progressor (the in-house progressor running the file). Shows even
                   when none is set yet, so the gap is visible. */}
