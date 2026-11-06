@@ -135,6 +135,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
           progressionBusinessId: true, // business can switch enquiry chases off (escalation still fires)
           assignedUserId: true,
           agentUserId: true,
+          serviceType: true,
           agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true, enquiryReplyChaseEnabled: true } },
           vendorSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
@@ -255,7 +256,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
     // the standardised in-house block (bold name, agency, phone), matching
     // manual internal sends. Never "The Sales Progressor" — we're white label.
     const agentSig = await resolveAgentSignatureForFile({
-      assignedUserId: tx.assignedUserId,
+      serviceType: tx.serviceType,
       agentUserId: tx.agentUserId,
       agentName: senderName,
       agency: tx.agency,

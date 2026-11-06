@@ -54,6 +54,7 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
           agencyId: true,
           assignedUserId: true,
           agentUserId: true,
+          serviceType: true,
           agency: { select: { name: true } },
           vendorSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
           vendorSolicitorFirm: { select: { name: true } },
@@ -97,7 +98,7 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
     if (ownerAgent?.name) senderName = ownerAgent.name;
   }
   const agentSig = await resolveAgentSignatureForFile({
-    assignedUserId: tx.assignedUserId,
+    serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
     agentName: senderName,
     agency: tx.agency,

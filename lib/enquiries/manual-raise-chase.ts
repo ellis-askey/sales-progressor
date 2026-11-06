@@ -30,6 +30,7 @@ const TX_SELECT = {
   agencyId: true,
   assignedUserId: true,
   agentUserId: true,
+  serviceType: true,
   activeBuyerRoundId: true,
   agency: { select: { name: true, logoPath: true } },
   purchaserSolicitorContact: { select: { id: true, email: true, name: true, secondaryEmail: true } },
@@ -56,7 +57,7 @@ async function assemble(transactionId: string) {
     if (ownerAgent?.name) senderName = ownerAgent.name;
   }
   const agentSig = await resolveAgentSignatureForFile({
-    assignedUserId: tx.assignedUserId,
+    serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
     agentName: senderName,
     agency: tx.agency,

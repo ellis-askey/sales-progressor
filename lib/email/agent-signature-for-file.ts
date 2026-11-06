@@ -9,19 +9,20 @@
 //   - Outsourced file (we progress it): returns null. The caller keeps its own
 //     in-house sign-off (our team member's name / phone / avatar), unchanged.
 //
-// "Outsourced" is signalled by assignedUserId being set (the file is assigned to
-// an internal Sales Progressor / admin user). Self-managed files have no assignee
-// and are owned by the agency's agentUser.
+// "Outsourced" is read from serviceType, NOT from assignedUserId. This matters:
+// an in-house-progression agency (Boardwalk) sets assignedUserId on its OWN
+// self-managed files (the in-house progressor), so assignedUserId is no longer a
+// reliable "outsourced" signal. serviceType === "outsourced" is the real flag.
 
 import { resolveEmailSignature, type SignatureAgencyContext } from "@/lib/email/signature";
 
 export async function resolveAgentSignatureForFile(opts: {
-  assignedUserId: string | null; // set => outsourced => no agent signature
+  serviceType: "self_managed" | "outsourced" | null; // "outsourced" => no agent signature
   agentUserId: string | null; // the agency's own agent (self-managed signer)
   agentName?: string | null;
   agency: SignatureAgencyContext | null;
 }): Promise<{ html: string; text: string } | null> {
-  if (opts.assignedUserId) return null; // outsourced — caller keeps its own sign-off
+  if (opts.serviceType === "outsourced") return null; // outsourced — caller keeps its own sign-off
   if (!opts.agentUserId) return null; // no agency agent to sign as
   const sig = await resolveEmailSignature({
     userId: opts.agentUserId,

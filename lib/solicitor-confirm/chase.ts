@@ -428,6 +428,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
       purchasePrice: true,
       agentUserId: true,
       assignedUserId: true,
+      serviceType: true,
       agentUser: { select: { name: true, phone: true, image: true } },
       assignedUser: { select: { name: true, phone: true, image: true } },
       agency: { select: { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } },
@@ -486,7 +487,7 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   // Self-managed file → sign off with the agent's own signature (standard,
   // image, or custom). Outsourced → null, so the in-house person block is used.
   const agentSig = await resolveAgentSignatureForFile({
-    assignedUserId: tx.assignedUserId,
+    serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
     agentName: tx.agentUser?.name,
     agency: tx.agency,
