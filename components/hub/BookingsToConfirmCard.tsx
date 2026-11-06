@@ -25,6 +25,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
+import { Popover } from "@/components/ui/Popover";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -254,29 +255,77 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                         <span>{row.subtext}</span>
                       </span>
                       <div className="hub-r-actions" style={{ display: "inline-flex", flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => setOpenId(isOpen ? null : row.transactionId)}
-                          disabled={busy}
-                          className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                          style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                        >
-                          {isOpen ? "Close" : isPast ? "Log it" : "Confirm"}
-                        </button>
-                        <RowActionMenu joined disabled={busy} items={menuItems} />
+                        {isPast ? (
+                          // Past date: a single "Log it" (no chevron). A survey just
+                          // logs; a valuation opens a small popup to ask if it was a
+                          // desktop valuation. Both log silently (no client emails).
+                          row.kind === "survey" ? (
+                            <button
+                              type="button"
+                              onClick={() => logPast(row, "silent")}
+                              disabled={busy}
+                              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                            >
+                              {busy ? "Logging…" : "Log it"}
+                            </button>
+                          ) : (
+                            <Popover
+                              preset="menu"
+                              placement="bottom-end"
+                              width={288}
+                              trigger={(open) => (
+                                <button
+                                  type="button"
+                                  aria-expanded={open}
+                                  disabled={busy}
+                                  className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                                >
+                                  {busy ? "Logging…" : "Log it"}
+                                </button>
+                              )}
+                            >
+                              {(close) => (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                  <div>
+                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>Was this a desktop valuation?</p>
+                                    <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                                      It&apos;s already taken place, so we&apos;ll just log it. No emails go to clients.
+                                    </p>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button type="button" className="bk-pill" onClick={() => { logPast(row, "desktop"); close(); }} style={{ flex: 1 }}>Yes</button>
+                                    <button type="button" className="bk-pill" onClick={() => { logPast(row, "silent"); close(); }} style={{ flex: 1 }}>No</button>
+                                  </div>
+                                  <button type="button" className="bk-pill" onClick={() => { logPast(row, "silent"); close(); }} style={{ width: "100%" }}>Not sure</button>
+                                </div>
+                              )}
+                            </Popover>
+                          )
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setOpenId(isOpen ? null : row.transactionId)}
+                              disabled={busy}
+                              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                            >
+                              {isOpen ? "Close" : "Confirm"}
+                            </button>
+                            <RowActionMenu joined disabled={busy} items={menuItems} />
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {isOpen && (isPast ? (
-                    <PastLogPanel row={row} busy={busy} onLog={(outcome) => logPast(row, outcome)} />
-                  ) : (
+                  {isOpen && !isPast && (
                     <ConfirmPanel
                       row={row}
                       busy={busy}
                       onConfirm={(keys, date) => resolve(row, "confirm", { keys, date })}
                     />
-                  ))}
+                  )}
                 </div>
               );
             })}
@@ -355,45 +404,3 @@ function ConfirmPanel({
   );
 }
 
-// Past-date flow: the appointment has already happened, so we only log it — no
-// client emails. For a valuation we ask whether it was a desktop (no-visit)
-// valuation, since that changes how it's recorded; a survey has no such concept.
-function PastLogPanel({
-  row,
-  busy,
-  onLog,
-}: {
-  row: BookingConfirmRow;
-  busy: boolean;
-  onLog: (outcome: "desktop" | "silent") => void;
-}) {
-  if (row.kind === "survey") {
-    return (
-      <div className="agent-reveal-in" style={{ padding: "16px 20px 14px" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>
-          This survey has already taken place. Log it on the file? No emails go to clients.
-        </p>
-        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ width: "100%" }}>
-          {busy ? "Logging…" : "Log it"}
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="agent-reveal-in" style={{ padding: "16px 20px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>Was this a desktop valuation?</p>
-        <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>
-          It&apos;s already taken place, so we&apos;ll just log it. No emails go to clients.
-        </p>
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("desktop")} style={{ flex: 1 }}>Yes</button>
-        <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ flex: 1 }}>No</button>
-      </div>
-      <button type="button" className="bk-pill" disabled={busy} onClick={() => onLog("silent")} style={{ width: "100%" }}>
-        Not sure
-      </button>
-    </div>
-  );
-}
