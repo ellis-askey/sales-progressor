@@ -1660,11 +1660,21 @@ export async function saveAgentFeeAction(input: {
 // Writes an activity-feed note so the change is visible on the file timeline.
 export async function reassignAgentAction(transactionId: string, newAgentUserId: string) {
   const session = await requireSession();
-  if (session.user.role !== "director") {
-    throw new Error("Forbidden: only a director can reassign a file");
-  }
   if (!session.user.agencyId) {
     throw new Error("Forbidden: caller has no agency");
+  }
+  if (session.user.role !== "director") {
+    // In-house progression agencies let any CM/progressor change the owner (the
+    // originating client manager), per the "anyone can, if it's logged" rule.
+    // Elsewhere this stays director-only.
+    const agency = await prisma.agency.findUnique({
+      where: { id: session.user.agencyId },
+      select: { inHouseProgressionEnabled: true },
+    });
+    const mayReassign = agency?.inHouseProgressionEnabled && session.user.role === "negotiator";
+    if (!mayReassign) {
+      throw new Error("Forbidden: only a director can reassign a file");
+    }
   }
 
   const tx = await prisma.propertyTransaction.findFirst({
@@ -1709,7 +1719,7 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
-    select: { id: true, assignedUserId: true, progressionBusinessId: true },
+    select: { id: true, assignedUserId: true, progressionBusinessId: true, agencyId: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
@@ -1729,6 +1739,25 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
     const owner = await resolveBusinessOwner(session);
     allowed = !!owner && owner.businessId === tx.progressionBusinessId;
   }
+  // In-house progression: any agency user (CM or progressor) may set the
+  // progressor on their own agency's self-managed sale, when the agency has the
+  // workflow enabled. The change is logged below, per the rule that anyone can
+  // assign as long as it's recorded. See docs/active/in-house-progression.
+  let inHouseAgencyAssign = false;
+  if (
+    !allowed && !tx.progressionBusinessId && tx.agencyId &&
+    session.user.agencyId === tx.agencyId &&
+    (session.user.role === "director" || session.user.role === "negotiator")
+  ) {
+    const agency = await prisma.agency.findUnique({
+      where: { id: tx.agencyId },
+      select: { inHouseProgressionEnabled: true },
+    });
+    if (agency?.inHouseProgressionEnabled) {
+      allowed = true;
+      inHouseAgencyAssign = true;
+    }
+  }
   if (!allowed) throw new Error("Forbidden: only an admin or the file's progression-business owner can assign it");
 
   // Keep the business boundary intact against a mis-assign (even an admin's):
@@ -1737,7 +1766,16 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
   //     (no business, or the seeded TSP business) — NEVER an external business's
   //     member. Without this a TSP admin could assign a TSP file to an external
   //     progressor (the dropdown leak's server-side twin).
-  if (assignedUserId) {
+  if (assignedUserId && inHouseAgencyAssign) {
+    // The in-house progressor must belong to this agency and be in its pool.
+    const prog = await prisma.user.findUnique({
+      where: { id: assignedUserId },
+      select: { agencyId: true, isInHouseProgressor: true },
+    });
+    if (!prog || prog.agencyId !== tx.agencyId || !prog.isInHouseProgressor) {
+      throw new Error("Cannot assign: that user is not an in-house progressor in your agency");
+    }
+  } else if (assignedUserId) {
     const assignee = await prisma.user.findUnique({
       where: { id: assignedUserId },
       select: { progressionBusinessId: true, progressionBusiness: { select: { isTsp: true } } },
