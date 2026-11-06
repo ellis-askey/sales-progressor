@@ -412,7 +412,18 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
       </div>
     );
   }
-  const handler = tx.assignedUser ?? tx.agentUser;
+  // In-house progression: a self-managed file with a progressor set shows BOTH the
+  // client manager (who agreed it) and the progressor. Only Boardwalk-style agencies
+  // ever set a progressor on a self-managed file, so this is a no-op everywhere else.
+  if (tx.assignedUser) {
+    return (
+      <div className="handled">
+        {tx.agentUser && <Person user={tx.agentUser} role="Client manager" />}
+        <Person user={tx.assignedUser} role="Progressor" />
+      </div>
+    );
+  }
+  const handler = tx.agentUser;
   return handler
     ? <Person user={handler} />
     : <span className="handled-none">Unassigned</span>;

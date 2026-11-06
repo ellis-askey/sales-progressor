@@ -496,6 +496,9 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
             backHref="/agent/transactions"
             assignedUserName={assignedDisplayName}
             assignedUserImage={assignedDisplayImage}
+            inHouseProgressor={showProgressor && inHouseEnabled}
+            inHouseProgressorName={(transaction.assignedUser as { name?: string | null } | null)?.name ?? null}
+            inHouseProgressorImage={(transaction.assignedUser as { image?: string | null } | null)?.image ?? null}
             createdAt={transaction.createdAt}
             transactionId={transaction.id}
             inChain={!!transaction.chainLinkId}

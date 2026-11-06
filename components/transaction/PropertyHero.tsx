@@ -52,6 +52,11 @@ type Props = {
   roundChipSlot?: React.ReactNode;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
+  // In-house progression: render the Client manager (assignedUserName here) + a
+  // second Progressor entry. Self-managed + enabled-agency only.
+  inHouseProgressor?: boolean;
+  inHouseProgressorName?: string | null;
+  inHouseProgressorImage?: string | null;
   // Who is progressing an outsourced file, agent-facing. Null = TSP (the badge
   // keeps "Managed by TSP"). Set to an external progression business's short
   // display name to render "Managed by {name}" instead; managedByFullName is the
@@ -278,7 +283,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canProgressorHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, inHouseProgressor = false, inHouseProgressorName = null, inHouseProgressorImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canProgressorHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -709,7 +714,34 @@ export function PropertyHero({
                   the subtitle so the layout stays consistent.
                 Selection logic lives in the page (service-type-aware) —
                 the hero just renders whatever it's given. */}
-            {assignedUserName ? (
+            {inHouseProgressor ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 16, minWidth: 0, flexWrap: "wrap" }}>
+                {assignedUserName && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    <span style={{ flexShrink: 0 }}>
+                      <UserAvatar user={{ name: assignedUserName, image: assignedUserImage }} size={32} />
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>{assignedUserName}</span>
+                      <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>Client manager</span>
+                    </span>
+                  </span>
+                )}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                  <span style={{ flexShrink: 0 }}>
+                    {inHouseProgressorName ? (
+                      <UserAvatar user={{ name: inHouseProgressorName, image: inHouseProgressorImage }} size={32} />
+                    ) : (
+                      <span aria-hidden style={{ width: 32, height: 32, borderRadius: 999, background: "var(--agent-surface-overlay)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontStyle: "italic", flexShrink: 0 }}>?</span>
+                    )}
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: inHouseProgressorName ? "var(--agent-text-primary)" : "var(--agent-text-muted)", lineHeight: 1.25 }}>{inHouseProgressorName ?? "Not assigned yet"}</span>
+                    <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>Progressor</span>
+                  </span>
+                </span>
+              </span>
+            ) : assignedUserName ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                 {/* Polished branded avatar (coral person when no photo), matching
                     the header user avatar — not bespoke initials. */}
