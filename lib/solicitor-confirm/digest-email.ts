@@ -73,6 +73,19 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
   const itemsWord = single ? "item" : "items";
   const theseItems = single ? "this item" : `these ${steps.length} items`;
 
+  // Side-aware opening: each solicitor hears about THEIR OWN client. To the
+  // seller's solicitor we name the seller(s) + "this sale"; to the buyer's
+  // solicitor we name the buyer(s) + "their purchase". Originally the opening
+  // named the sellers for both recipients, which jarred when the digest reached
+  // the buyer's solicitor (Annalise, 2026-11-06). The matter table below still
+  // lists both parties regardless.
+  const openingHtml = side === "vendor"
+    ? `I hope you&rsquo;re well. I&rsquo;m looking after <strong style="color:${NAVY};">${esc(sellerNames || "our client")}</strong> and helping keep things moving on this sale.`
+    : `I hope you&rsquo;re well. I&rsquo;m looking after <strong style="color:${NAVY};">${esc(input.buyerNames || "our client")}</strong> and helping keep things moving on their purchase.`;
+  const openingText = side === "vendor"
+    ? `I'm looking after ${sellerNames || "our client"} and helping keep things moving on ${address}.`
+    : `I'm looking after ${input.buyerNames || "our client"} and helping keep things moving on their purchase.`;
+
   // Hosted PNG badge icons (render in every client, unlike inline SVG). Base is
   // derived from the confirm URL so it points at the same deployment.
   const assetBase = confirmUrl.split("/s/")[0];
@@ -152,7 +165,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
   </table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-left:1px solid #dfe5ec;border-right:1px solid #dfe5ec;">
     <tr><td style="padding:30px 28px 6px;">
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${INK};">I hope you&rsquo;re well. I&rsquo;m looking after <strong style="color:${NAVY};">${esc(sellerNames || "our client")}</strong> and helping keep things moving on this sale.</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${INK};">${openingHtml}</p>
       <p style="margin:0;font-size:15px;line-height:1.6;color:${INK};">When you get a moment, could you let me know where things stand with the ${itemsWord} below?</p>
     </td></tr>
     <tr><td style="padding:18px 28px 6px;">
@@ -185,7 +198,7 @@ export function buildSolicitorDigestEmail(input: SolicitorDigestInput): {
 </td></tr></table></body></html>`;
 
   const text =
-    `I'm looking after ${sellerNames || "our client"} and helping keep things moving on ${address}. Could you let me know where things stand with ${theseItems}:\n\n` +
+    `${openingText} Could you let me know where things stand with ${theseItems}:\n\n` +
     steps.map((s) => `- ${s.label}`).join("\n") +
     `\n\nUpdate them here: ${confirmUrl}` +
     `\nRather reply by email? Just reply to this message with an update. Thank you!` +
