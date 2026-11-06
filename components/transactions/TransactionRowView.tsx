@@ -166,10 +166,10 @@ export type TransactionRow = {
   fallThroughReason?: string | null;
   withdrawalReason?: string | null;
   createdAt: Date;
-  assignedUser: { id: string; name: string; image?: string | null } | null;
+  assignedUser: { id: string; name: string; image?: string | null; jobTitle?: string | null } | null;
   health?: HealthRaw;
   serviceType?: "self_managed" | "outsourced" | null;
-  agentUser?: { id: string; name: string; role?: UserRole; image?: string | null } | null;
+  agentUser?: { id: string; name: string; role?: UserRole; image?: string | null; jobTitle?: string | null } | null;
   contacts?: { id: string; name: string; roleType: string }[];
   // Agency name shown for internal staff (admin / sales_progressor). Optional —
   // only present when listTransactions is called with a scope param.
@@ -179,10 +179,6 @@ export type TransactionRow = {
   // progressors can tell its sales apart. Null / isTsp = unchanged (generic
   // "Progressor" for TSP-managed, nothing for self-managed).
   progressionBusiness?: { id: string; shortName: string | null; name: string; isTsp: boolean } | null;
-  // Boardwalk-style in-house progression: gates the Client manager + Progressor
-  // split in "Handled by". Off (default) everywhere else, so a regular agency's
-  // self-managed file shows the single current handler, as it did pre-feature.
-  inHouseProgressionEnabled?: boolean;
   // The file's current pipeline stage, decorated by FilesWorkspace from the
   // stage map. Drives the journey bar; absent on non-active rows (no bar).
   boardStage?: DisplayStageKey;
@@ -416,25 +412,37 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
       </div>
     );
   }
-  // In-house progression (Boardwalk-style agencies ONLY): a self-managed file
-  // shows BOTH the client manager (who agreed it) and the progressor. Gated on the
-  // agency flag — a regular agency can also have an assignedUser on a self-managed
-  // file, and must NOT see the CM/Progressor split (this previously leaked onto
-  // every agency because it keyed off assignedUser presence alone).
-  if (tx.inHouseProgressionEnabled && tx.assignedUser) {
+  // Self-managed: whoever added it, plus the current handler when that's someone
+  // else (a reassignment, or Boardwalk's client-manager -> progressor hand-off).
+  // Each is labelled by their JOB TITLE — so "Client manager" / "Progressor" are
+  // just job titles now, not bespoke code. A blank title, or a bare "Director" /
+  // "Negotiator", shows no label (just name + face), which keeps a normal agency's
+  // reassignment clean. Same person on both slots shows once.
+  const adder = tx.agentUser ?? null;
+  const handler = tx.assignedUser ?? null;
+  if (adder && handler && adder.id !== handler.id) {
     return (
       <div className="handled">
-        {tx.agentUser && <Person user={tx.agentUser} role="Client manager" />}
-        <Person user={tx.assignedUser} role="Progressor" />
+        <Person user={adder} role={jobTitleLabel(adder.jobTitle)} />
+        <Person user={handler} role={jobTitleLabel(handler.jobTitle)} />
       </div>
     );
   }
-  // Everywhere else, self-managed = the current handler: whoever it's assigned to
-  // now, else the person who added it (reassignments win).
-  const handler = tx.assignedUser ?? tx.agentUser;
-  return handler
-    ? <Person user={handler} />
+  const who = handler ?? adder;
+  return who
+    ? <Person user={who} role={jobTitleLabel(who.jobTitle)} />
     : <span className="handled-none">Unassigned</span>;
+}
+
+// A person's "Handled by" role line is their job title, but only when it carries
+// meaning: a blank title, or a bare "Director" / "Negotiator" (the generic agency
+// roles), shows nothing rather than a redundant label. Real titles — "Client
+// manager", "Progressor", "Sales Progressor", "Service Director" — show as set.
+function jobTitleLabel(jobTitle?: string | null): string | undefined {
+  const t = jobTitle?.trim();
+  if (!t) return undefined;
+  if (/^(director|negotiator)$/i.test(t)) return undefined;
+  return t;
 }
 
 // ── Per-tab cells (files-table redesign) ─────────────────────────────────────
