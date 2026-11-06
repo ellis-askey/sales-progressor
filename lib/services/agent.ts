@@ -105,7 +105,13 @@ function txWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
     }
     return { agencyId: vis.agencyId };
   }
-  return { agentUserId: vis.userId };
+  // "Mine": files I agreed/own (agentUserId) OR files assigned to me to progress
+  // (assignedUserId). The second arm powers the in-house progression workflow so
+  // a progressor's "Mine" view shows their assigned sales. Harmless elsewhere:
+  // a normal agency's self-managed files have assignedUserId = null, and
+  // outsourced files point assignedUserId at a TSP/business progressor, never an
+  // agency user. See docs/active/in-house-progression/00-spec.md.
+  return { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
 }
 
 export async function getAgentTransactions(vis: AgentVisibility) {
