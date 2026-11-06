@@ -617,7 +617,16 @@ function SplitFileCard({
   // Surface it once as a card footer instead of repeating it on each chase.
   const clientOffReason = (() => {
     const s = openTasks.map(({ log }) => autopilot?.get(log.id)).find((a) => a?.kind === "manual" && a.category === "autochase_off");
-    return s?.kind === "manual" ? s.reason : null;
+    if (s?.kind === "manual" && s.reason) return s.reason;
+    // The same "client chasing is paused" fact also reaches us as a per-reminder
+    // cron handback (fallbackKind "client_emails_paused") on reminders the daily
+    // auto-chaser has already tried. Surface it in the ONE file-level footer too,
+    // so the paused state is stated once here and the per-row notes (suppressed
+    // below) don't repeat it (Annalise/Ellis, 2026-11-06).
+    if (openTasks.some(({ task }) => task.fallbackKind === "client_emails_paused")) {
+      return "Client auto-chase is paused for this file";
+    }
+    return null;
   })();
   // Single open task on this file+group → side-scope the footer chase like the file tab.
   const soleOpen = openTasks.length === 1 ? openTasks[0] : null;
@@ -991,7 +1000,12 @@ function SplitFileCard({
                         <CalendarBlank size={13} weight="regular" aria-hidden /> {formatDate(log.nextDueDate)}
                       </span>
                     </div>
-                    {autoState?.kind === "manual" && (autoState.category === "info" || autoState.category === "solicitor_handover") && autoState.reason && (
+                    {autoState?.kind === "manual" && (autoState.category === "info" || autoState.category === "solicitor_handover") && autoState.reason &&
+                      // The per-reminder "Client emails paused" handback duplicates the
+                      // file-level footer when that's shown — drop it here so the paused
+                      // state is stated once, at the bottom. Other info reasons (opted
+                      // out, no portal, escalated, solicitor hand-over) still show.
+                      !(clientOffReason && task.fallbackKind === "client_emails_paused") && (
                       <p className="rem-row-info" style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)", textAlign: "center", maxWidth: 160 }}>{autoState.reason}</p>
                     )}
                   </div>
