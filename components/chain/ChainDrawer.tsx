@@ -346,10 +346,11 @@ export function ChainView({
       const res = await buildChainEmailDraft(transactionId);
       if (!res.ok) { toast.error(res.error); return; }
       setChainEmailAgents(res.draft.agents);
-      const withEmail = res.draft.agents.filter((a) => a.email);
+      // No pre-fill: the chain agents live in the To/Cc/Bcc dropdown, so you pick
+      // who to include (the composer's chainAgents prop drives that).
       setChainEmailPrefill({
         transactionId: res.draft.anchorTransactionId,
-        to: withEmail.map((a) => ({ email: a.email as string, name: a.name })),
+        to: [],
         subject: res.draft.subject,
         bodyHtml: "<p>Hi all,</p><p><br></p>",
       });

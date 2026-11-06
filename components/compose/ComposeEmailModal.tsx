@@ -109,7 +109,7 @@ export function ComposeEmailModal({
   // "Email the chain" mode (optional, additive): the chain's agents shown as a
   // placement checklist. No-email agents call onNeedAgentEmail to open the chain
   // edit drawer; autoPlace drops a just-added agent into the field they chose.
-  chainAgents?: { linkId: string; name: string; email: string | null }[] | null;
+  chainAgents?: { linkId: string; name: string; email: string | null; image: string | null; address: string }[] | null;
   onNeedAgentEmail?: (linkId: string, field: "to" | "cc" | "bcc") => void;
   autoPlace?: { email: string; name: string; field: "to" | "cc" | "bcc" } | null;
 }) {
@@ -363,14 +363,6 @@ export function ComposeEmailModal({
     if (field === "cc") setShowCc(true);
     if (field === "bcc") setShowBcc(true);
   }
-  function removeChainAgent(email: string) {
-    const e = email.toLowerCase();
-    setTokens((prev) => ({
-      to: prev.to.filter((t) => t.email.toLowerCase() !== e),
-      cc: prev.cc.filter((t) => t.email.toLowerCase() !== e),
-      bcc: prev.bcc.filter((t) => t.email.toLowerCase() !== e),
-    }));
-  }
   // After an agent's email is saved via the chain edit drawer, drop them into the
   // field the user originally clicked (unless they've since been placed/removed).
   useEffect(() => {
@@ -470,6 +462,39 @@ export function ComposeEmailModal({
         {openField === name && (
           <div className="cem-menu" onMouseDown={(e) => e.preventDefault()}>
             {(() => {
+              const q0 = fieldQuery.trim().toLowerCase();
+              // Chain mode: the dropdown IS the chain's agents (not the sale's
+              // buyers / sellers / solicitors). A no-email agent opens the chain
+              // edit drawer on the agent-email field; once saved they're auto-added.
+              if (chainAgents && chainAgents.length > 0) {
+                const avail = chainAgents.filter((a) => {
+                  if (a.email && agentFieldOf(a.email) !== null) return false;
+                  if (!q0) return true;
+                  return a.name.toLowerCase().includes(q0) || (a.email ?? "").toLowerCase().includes(q0) || a.address.toLowerCase().includes(q0);
+                });
+                const showFreeC = q0.includes("@") && !chainAgents.some((a) => (a.email ?? "").toLowerCase() === q0);
+                if (!avail.length && !showFreeC) return <div className="cem-mgroup" style={{ padding: "12px 10px" }}>All chain agents added.</div>;
+                return (
+                  <>
+                    {avail.length > 0 && <div className="cem-mgroup">Chain agents</div>}
+                    {avail.map((a) => (
+                      <button key={a.linkId} type="button" className="cem-mi" onClick={() => {
+                        if (!a.email) { onNeedAgentEmail?.(a.linkId, name); setOpenField(null); return; }
+                        placeChainAgent(a.email, a.name, name); setFieldQuery(""); setOpenField(null);
+                      }}>
+                        <ContactAvatar contact={{ name: a.name, roleType: "agent" }} size={26} image={a.image ?? undefined} />
+                        <span className="cem-nm"><span className="cem-n">{a.name}</span><span className="cem-r" style={a.email ? undefined : { color: "var(--agent-coral-deep)", fontWeight: 600 }}>{a.email ?? "Add email →"}</span></span>
+                      </button>
+                    ))}
+                    {showFreeC && (
+                      <button className="cem-mi" onClick={() => addFree(name, fieldQuery.trim())}>
+                        <RecAvatar rec={null} size={26} />
+                        <span className="cem-nm"><span className="cem-n" style={{ color: "var(--agent-coral-deep)" }}>Add “{fieldQuery.trim()}”</span><span className="cem-r">Send to this address</span></span>
+                      </button>
+                    )}
+                  </>
+                );
+              }
               const list = candidates();
               const sale = list.filter((r) => r.group === "sale");
               const team = list.filter((r) => r.group === "team");
@@ -590,43 +615,6 @@ export function ComposeEmailModal({
                 {showBcc && <div style={{ marginTop: 9 }}>{field("bcc", "Bcc", "Add people…")}</div>}
               </div>
 
-              {/* Chain agents — one row each, To/Cc/Bcc toggles reflect the fields
-                  above (single source of truth). No-email agents open the chain
-                  edit drawer on the agent-email field. */}
-              {chainAgents && chainAgents.length > 0 && (
-                <div className="cem-row">
-                  <p className="cem-eyebrow">Chain agents</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {chainAgents.map((a) => {
-                      const f = a.email ? agentFieldOf(a.email) : null;
-                      return (
-                        <div key={a.linkId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 9, border: "0.5px solid var(--agent-border-subtle)", background: a.email ? "transparent" : "var(--agent-surface-subtle)" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{a.name}</span>
-                            <span style={{ fontSize: 11.5, color: a.email ? "var(--agent-text-muted)" : "var(--agent-coral-deep)", marginLeft: 6 }}>{a.email ?? "No email yet. Click a field to add one"}</span>
-                          </div>
-                          {(["to", "cc", "bcc"] as Field[]).map((fld) => {
-                            const on = f === fld;
-                            return (
-                              <button
-                                key={fld}
-                                type="button"
-                                onClick={() => {
-                                  if (!a.email) { onNeedAgentEmail?.(a.linkId, fld); return; }
-                                  if (on) removeChainAgent(a.email); else placeChainAgent(a.email, a.name, fld);
-                                }}
-                                style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, padding: "3px 8px", borderRadius: 6, cursor: "pointer", border: on ? "none" : "0.5px solid var(--agent-border-default)", background: on ? "var(--agent-coral)" : "transparent", color: on ? "#fff" : "var(--agent-text-muted)" }}
-                              >
-                                {fld}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="cem-row">
                 <p className="cem-eyebrow">Subject</p>

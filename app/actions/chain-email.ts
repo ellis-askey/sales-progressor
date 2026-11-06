@@ -19,6 +19,9 @@ export type ChainEmailAgent = {
   name: string;
   email: string | null;
   address: string; // street line, for display in the picker
+  // Account photo — only for a claimed (connected) agency's agent; null for a
+  // stub agent (shows the grey agent avatar instead).
+  image: string | null;
 };
 
 export type ChainEmailDraft = {
@@ -68,7 +71,7 @@ export async function buildChainEmailDraft(
   const claimers = claimerIds.length
     ? await prisma.user.findMany({
         where: { id: { in: claimerIds } },
-        select: { id: true, name: true, email: true, firmName: true },
+        select: { id: true, name: true, email: true, firmName: true, image: true },
       })
     : [];
   const claimerById = new Map(claimers.map((u) => [u.id, u]));
@@ -82,6 +85,7 @@ export async function buildChainEmailDraft(
         name: u?.name?.trim() || u?.firmName?.trim() || l.stubAgencyName?.trim() || "Agent",
         email: u?.email ?? null,
         address,
+        image: u?.image ?? null,
       };
     }
     return {
@@ -89,6 +93,7 @@ export async function buildChainEmailDraft(
       name: l.stubAgentName?.trim() || l.stubAgencyName?.trim() || "Agent",
       email: l.stubAgentEmail ?? null,
       address,
+      image: null,
     };
   });
 
