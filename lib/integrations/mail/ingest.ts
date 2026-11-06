@@ -398,6 +398,7 @@ export async function runMailboxSync(opts: {
               userId: mailboxUserId,
               agencyId: mailboxAgencyId ?? null,
               providerMessageId: msg.id,
+              internetMessageId: msg.internetMessageId,
               source,
               folder: msg.folder,
               direction: msg.outbound ? "outbound" : "inbound",
@@ -423,6 +424,25 @@ export async function runMailboxSync(opts: {
     const item: LoggedItem = { ...info, transactionId: txId, address };
     if (status === "logged") summary.logged.push(item);
     else summary.alreadyLogged.push(item);
+
+    // Auto-resolve a stale "Needs filing" card: this email is now filed onto a
+    // property, but an EARLIER sync (when it was an address-less Inbox message)
+    // may have left an open tray card for it. Folder-moving the message gives the
+    // foldered copy a NEW provider id, so the card (keyed on the old Inbox id)
+    // can't match it — but the RFC Message-ID is the same across the move, so we
+    // close the card on that. Owner-scoped, Message-ID-keyed, best-effort.
+    if (mailboxUserId && msg.internetMessageId) {
+      await prisma.pendingInboundEmail
+        .updateMany({
+          where: {
+            userId: mailboxUserId,
+            internetMessageId: msg.internetMessageId,
+            status: "open",
+          },
+          data: { status: "filed", resolvedTransactionId: txId, resolvedAt: new Date() },
+        })
+        .catch(() => {});
+    }
   }
 
   return summary;

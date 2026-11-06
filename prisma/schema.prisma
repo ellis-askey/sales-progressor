@@ -3736,6 +3736,12 @@ model PendingInboundEmail {
   agencyId String? // mailbox owner's agency (null for internal staff)
 
   providerMessageId String // dedup key: Graph id / Message-ID / imap uid
+  // RFC Message-ID — unlike providerMessageId (a Graph id / IMAP uid that CHANGES
+  // when the message is moved between folders), this is invariant across folder
+  // moves. Lets a later sync auto-resolve this tray card once the SAME email has
+  // been filed onto a property (e.g. the agent tucked it into a property folder,
+  // so the foldered copy — a different provider id — folder-matches and files).
+  internetMessageId String?
   source            String // "outlook" | "imap" | provider name
   folder            String @default("")
   // "inbound" (received) | "outbound" (sent). Drives From:/To: in the tray.
@@ -3765,6 +3771,8 @@ model PendingInboundEmail {
   @@unique([userId, providerMessageId])
   @@index([userId, status])
   @@index([agencyId, status])
+  // Auto-resolve lookup: open cards for this owner carrying a given Message-ID.
+  @@index([userId, internetMessageId])
 }
 
 // ── WhatsApp integration ─────────────────────────────────────────────────────
