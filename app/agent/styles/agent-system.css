@@ -3762,6 +3762,15 @@
   }
   .agent-chip-hover:hover:not(:disabled) svg { color: var(--agent-coral-deep) !important; }
   .agent-chip-hover:active:not(:disabled) { transform: scale(0.95); }
+  /* Top-nav icon controls (theme / contrast / lab / bell): no outline box in ANY
+     state, including hover/active (founder request). The shared coral hover border
+     is suppressed inside the topbar only; icon colour + press-scale are kept. The
+     broker/contact/solicitor/comms chips elsewhere keep their hover border. */
+  .agent-topbar .agent-chip-hover,
+  .agent-topbar .agent-chip-hover:hover:not(:disabled),
+  .agent-topbar .agent-chip-hover:active:not(:disabled) {
+    border-color: transparent !important;
+  }
 
   /* ── Inline reveal / dismiss ─────────────────────────────────────────────── */
   /* Use for validation errors, inline edit forms, delta previews, any element
