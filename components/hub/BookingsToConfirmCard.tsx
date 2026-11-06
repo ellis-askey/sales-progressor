@@ -18,14 +18,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit } from "@phosphor-icons/react";
+import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit, Question } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
-import { Popover } from "@/components/ui/Popover";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -138,15 +137,6 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
 
   return (
     <GlassCard glassId="hub-attention" label="Hub · Surveys & valuations to confirm" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Past-date "Log it" pills: solid by default, coral border on hover, coral
-          gradient on press (never a faded background). */}
-      <style>{`
-        .bk-pill { display:inline-flex; align-items:center; justify-content:center; gap:6px; font-size:13px; font-weight:650; padding:9px 16px; border-radius:10px; border:1.5px solid var(--agent-border-default, rgba(0,0,0,0.14)); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-primary); cursor:pointer; font-family:inherit; transition:border-color 130ms ease, background 130ms ease, color 130ms ease, transform 90ms ease; }
-        .bk-pill:hover:not(:disabled) { border-color:var(--agent-coral); }
-        .bk-pill:active:not(:disabled) { background:linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border-color:transparent; color:var(--agent-text-on-coral,#fff); transform:scale(0.98); box-shadow:inset 0 1px 0 rgba(255,255,255,0.25); }
-        .bk-pill:focus-visible { outline:none; box-shadow:0 0 0 2px rgba(var(--agent-coral-rgb),0.4); }
-        .bk-pill:disabled { opacity:0.6; cursor:default; }
-      `}</style>
       {/* Header */}
       <button
         type="button"
@@ -269,10 +259,9 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                               {busy ? "Logging…" : "Log it"}
                             </button>
                           ) : (
-                            <Popover
-                              preset="menu"
-                              placement="bottom-end"
-                              width={288}
+                            <RowActionMenu
+                              ariaLabel="Log this valuation"
+                              header="Was this a desktop valuation?"
                               trigger={(open) => (
                                 <button
                                   type="button"
@@ -283,23 +272,12 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                                   {busy ? "Logging…" : "Log it"}
                                 </button>
                               )}
-                            >
-                              {(close) => (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                  <div>
-                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>Was this a desktop valuation?</p>
-                                    <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-                                      It&apos;s already taken place, so we&apos;ll just log it. No emails go to clients.
-                                    </p>
-                                  </div>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button type="button" className="bk-pill" onClick={() => { logPast(row, "desktop"); close(); }} style={{ flex: 1 }}>Yes</button>
-                                    <button type="button" className="bk-pill" onClick={() => { logPast(row, "silent"); close(); }} style={{ flex: 1 }}>No</button>
-                                  </div>
-                                  <button type="button" className="bk-pill" onClick={() => { logPast(row, "silent"); close(); }} style={{ width: "100%" }}>Not sure</button>
-                                </div>
-                              )}
-                            </Popover>
+                              items={[
+                                { key: "desktop", icon: <DesktopTower size={16} weight="bold" />, title: "Yes", sub: "Remote valuation, no visit. Logged on the file, no emails.", onClick: () => logPast(row, "desktop") },
+                                { key: "visit", icon: <CalendarCheck size={16} weight="bold" />, title: "No", sub: "A standard visit. Logged on the file, no emails.", onClick: () => logPast(row, "silent") },
+                                { key: "notsure", icon: <Question size={16} weight="bold" />, title: "Not sure", sub: "Just log it on the file. No emails.", onClick: () => logPast(row, "silent") },
+                              ]}
+                            />
                           )
                         ) : (
                           <>

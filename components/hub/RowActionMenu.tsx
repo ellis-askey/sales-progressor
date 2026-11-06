@@ -32,49 +32,53 @@ export function RowActionMenu({
   joined,
   disabled,
   ariaLabel = "More options",
+  trigger,
+  header,
 }: {
   items: RowMenuItem[];
   label?: string;
   joined?: boolean;
   disabled?: boolean;
   ariaLabel?: string;
+  // Custom trigger (e.g. a plain "Log it" button, no caret). Gets the open state
+  // so it can reflect it. Defaults to the "[label] ▾" split button.
+  trigger?: (open: boolean) => React.ReactNode;
+  // Optional question/label shown above the items (e.g. "Was this a desktop
+  // valuation?"). Omitted on a plain action menu.
+  header?: string;
 }) {
   const joinedStyle: React.CSSProperties = joined
     ? { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none", padding: "0 7px" }
     : {};
 
-  const triggerBtn = (
+  const defaultTrigger = (open: boolean) => (
     <button
       type="button"
       disabled={disabled}
       aria-label={label ?? ariaLabel}
+      aria-expanded={open}
       className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: label ? 5 : 0, ...joinedStyle }}
     >
       {label}
-      <CaretDown size={13} weight="bold" />
+      <CaretDown size={13} weight="bold" style={{ transition: "transform 160ms", transform: open ? "rotate(180deg)" : "none" }} />
     </button>
   );
+  const renderTrigger = trigger ?? defaultTrigger;
 
   // A disabled control must not open — render the trigger bare (the Popover
   // anchor would otherwise still toggle on click).
-  if (disabled) return triggerBtn;
+  if (disabled) return <>{renderTrigger(false)}</>;
 
   return (
-    <Popover preset="menu" placement="bottom-end" width={262} trigger={(open) => (
-      <button
-        type="button"
-        aria-label={label ?? ariaLabel}
-        aria-expanded={open}
-        className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: label ? 5 : 0, ...joinedStyle }}
-      >
-        {label}
-        <CaretDown size={13} weight="bold" style={{ transition: "transform 160ms", transform: open ? "rotate(180deg)" : "none" }} />
-      </button>
-    )}>
+    <Popover preset="menu" placement="bottom-end" width={262} trigger={renderTrigger}>
       {(close) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {header && (
+            <p style={{ margin: "2px 4px 7px", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
+              {header}
+            </p>
+          )}
           {items.map((item) => {
             const inner = (
               <>
