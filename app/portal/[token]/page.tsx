@@ -205,7 +205,37 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
     : (side === "purchaser" && hasExchanged && !hasCompleted && priceKnown && !costsFilled && transaction.portalDisplay.costs) ? "costs"
     : null;
 
-  const keyDates     = milestones.filter((m) => m.eventDate && m.isComplete);
+  // "Important dates" — a curated timeline of the genuinely significant dates,
+  // NOT every completed step. Two kinds:
+  //  • Shared physical/legal events (same date on both sides): the lender
+  //    valuation and survey carry a real EVENT date (the day the valuer/surveyor
+  //    attends). Both live on the buyer's milestones (PM6/PM9) and are visits to
+  //    the seller's property, so the seller borrows the buyer's event date.
+  //    Exchange and completion are likewise real captured dates.
+  //  • Own-side process dates (each side its own): solicitor instructed and the
+  //    draft contract pack.
+  // Dated from the milestone's eventDate (the real date) falling back to when it
+  // was marked complete. Each row shows only once that step has happened (or, for
+  // valuation/survey, once booked, so an upcoming date can surface).
+  const ownInstruction = side === "vendor" ? "VM1" : "PM1";
+  const ownDraftPack   = side === "vendor" ? "VM7" : "PM7";
+  const ownExchange    = side === "vendor" ? "VM19" : "PM26";
+  const ownCompletion  = side === "vendor" ? "VM20" : "PM27";
+  const pickDate = (list: typeof rawMilestones, code: string): Date | null => {
+    const m = list.find((x) => x.code === code && x.isComplete);
+    const d = m?.eventDate ?? m?.completedAt ?? null;
+    return d ? new Date(d) : null;
+  };
+  const keyDates = ([
+    { key: "instruct",   label: "Solicitor instructed",                                                                date: pickDate(rawMilestones, ownInstruction) },
+    { key: "draft-pack", label: side === "vendor" ? "Draft contract pack issued" : "Draft contract pack received",     date: pickDate(rawMilestones, ownDraftPack) },
+    { key: "valuation",  label: side === "vendor" ? "Buyer's mortgage valuation" : "Mortgage valuation",               date: pickDate(purchaserRaw, "PM6") },
+    { key: "survey",     label: side === "vendor" ? "Buyer's survey" : "Survey",                                       date: pickDate(purchaserRaw, "PM9") },
+    { key: "exchange",   label: "Contracts exchanged",                                                                 date: pickDate(rawMilestones, ownExchange) },
+    { key: "completion", label: "Completion",                                                                          date: pickDate(rawMilestones, ownCompletion) },
+  ] as Array<{ key: string; label: string; date: Date | null }>)
+    .filter((d): d is { key: string; label: string; date: Date } => d.date != null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
   const recentActivity = timeline.slice(0, 3);
   const updateOverrides = await getUpdateOverrideMap();
 
@@ -1039,15 +1069,15 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${P.border}` }}>
             <p className="text-[13px] font-bold" style={{ color: P.textPrimary }}>Important dates</p>
           </div>
-          {keyDates.map((m, i) => (
+          {keyDates.map((d, i) => (
             <div
-              key={m.id}
+              key={d.key}
               className="flex items-center justify-between px-5 py-3.5"
               style={{ borderBottom: i < keyDates.length - 1 ? `1px solid ${P.border}` : undefined }}
             >
-              <p className="text-[14px]" style={{ color: P.textPrimary }}>{m.label}</p>
+              <p className="text-[14px]" style={{ color: P.textPrimary }}>{d.label}</p>
               <p className="text-[13px] font-semibold" style={{ color: P.primary }}>
-                {fmtDate(m.eventDate!)}
+                {fmtDate(d.date)}
               </p>
             </div>
           ))}
