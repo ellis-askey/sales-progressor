@@ -369,7 +369,11 @@ export async function getAgentReminderLogs(vis: AgentVisibility, opts?: { transa
       ? vis.firmName
         ? { ...baseTxWhere, agentUser: { firmName: vis.firmName } }
         : baseTxWhere
-      : { ...baseTxWhere, agentUserId: vis.userId };
+      // "Just mine" = files I own as the agency agent OR the assigned progressor,
+      // matching the Hub's "Mine" (lib/services/agent.ts). Was agentUserId-only,
+      // so in-house-progression files owned via the progressor slot never showed
+      // here (Ellis, 2026-11-06).
+      : { ...baseTxWhere, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
   }
 
   // File-scoped (the Reminders TAB on a property file): one already-authorised
