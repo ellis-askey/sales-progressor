@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound } from "next/navigation";
 import {
   PaperPlaneTilt, PhoneCall, MagnifyingGlass, XCircle, Check, CaretRight,
-  Moon, Warning, Clock, ChatCircleDots, Sparkle, ArrowRight,
+  Moon, Warning, Clock, ChatCircleDots, Sparkle, ArrowRight, Sun, MoonStars,
 } from "@/components/icons/ph";
 import { FOCUS_CSS } from "./styles";
 import {
@@ -37,6 +37,13 @@ export default function FocusNextPage() {
 
 function Briefing() {
   const [sales, setSales] = useState<Sale[]>(() => JSON.parse(JSON.stringify(SALES)));
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // follow the OS preference on first paint, the Apple way; the toggle overrides it
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      setTheme(window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    }
+  }, []);
   const [scope, setScope] = useState<Scope>("all");
   const [query, setQuery] = useState("");
   const [hi, setHi] = useState(0);
@@ -146,13 +153,16 @@ function Briefing() {
   const toReach = cov.total - cov.done;
 
   return (
-    <div className="fb-root">
+    <div className="fb-root" data-theme={theme}>
       <style dangerouslySetInnerHTML={{ __html: FOCUS_CSS }} />
       <div className="fb-shell">
         <header className="fb-mast">
           <div className="fb-brandrow">
             <span className="fb-brand">Focus<span>.</span></span>
             <span className="fb-chip">Prototype</span>
+            <button className="fb-theme-btn" aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun weight="fill" /> : <MoonStars weight="fill" />}
+            </button>
           </div>
           <div className="fb-mast-main">
             <h1 className="fb-thesis">
