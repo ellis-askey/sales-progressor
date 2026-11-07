@@ -616,7 +616,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   return (
     <>
       <div
-        className={`flex gap-3 px-4 border-b last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}
+        className={`flex flex-wrap gap-3 px-4 border-b last:border-0 transition-colors duration-[150ms] ${rowBg} ${justUnlocked ? "ms-unlock-enter" : ""}`}
         style={{ paddingTop: 10, paddingBottom: 10, borderColor: "var(--agent-border-default)", alignItems: isExpanded ? "flex-start" : "center" }}
       >
         {/* State dot — turns into a filled blue "selected" radio while this row
@@ -872,7 +872,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   max={def.code === "PM6" || def.code === "PM9" ? undefined : new Date().toISOString().split("T")[0]}
                   disabled={isPM6 && desktopValuation}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="glass-input w-full px-2 py-1.5 text-sm disabled:opacity-40"
+                  className="glass-input w-full px-2 py-1.5 text-sm disabled:opacity-40 max-sm:text-center"
                   wrapperStyle={{ display: "block" }}
                 />
               </div>
@@ -972,7 +972,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 </div>
               )}
               {!def.eventDateRequired && (
-                <p className="text-[10px] text-slate-900/50">
+                <p className="text-[10px] text-slate-900/50 max-sm:text-center">
                   Defaults to today. Change it only if this step happened earlier.
                 </p>
               )}
@@ -1045,19 +1045,20 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
             so an in-time confirm is a same-spot double-tap that can't land on
             Cancel. Completed rows show only the disclosure chevron — Undo lives
             inside the drop-down. */}
-        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        <div className={`flex flex-col items-end gap-1.5 flex-shrink-0 ${showEventDate ? "max-sm:w-full max-sm:items-stretch" : "max-[425px]:w-full max-[425px]:items-stretch"}`}>
           {!isDone && (
-            <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 ${showEventDate ? "max-sm:w-full" : "max-[425px]:w-full"}`}>
               {/* Cancel sits to the LEFT of Confirm on the same line (mock),
                   instead of dropping below it. Same handler. */}
               {showEventDate && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => { setShowEventDate(false); setDesktopValuation(false); setEventDate(""); setKeyCollection(false); setSurveyorName(""); }}
-                  className="agent-link agent-link-muted"
-                  style={{ fontSize: 12 }}
+                  className="max-sm:flex-1"
                 >
                   Cancel
-                </button>
+                </Button>
               )}
               {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
                 <button
@@ -1075,10 +1076,21 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   size="sm"
                   onClick={showEventDate ? () => doComplete() : handleConfirmClick}
                   disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading}
-                  className="ms-appear"
+                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : "max-[425px]:w-full max-[425px]:flex-1"}`}
                   style={{ minWidth: 76 }}
                 >
-                  {loading ? <><span className="agent-btn-spinner" />Confirming…</> : "Confirm"}
+                  {loading ? (
+                    <><span className="agent-btn-spinner" />Confirming…</>
+                  ) : showEventDate ? (
+                    "Confirm"
+                  ) : (
+                    <>
+                      {/* "Confirm step" on the full-width phone button (<=425px);
+                          plain "Confirm" everywhere else. */}
+                      <span className="max-[425px]:hidden">Confirm</span>
+                      <span className="hidden max-[425px]:inline">Confirm step</span>
+                    </>
+                  )}
                 </Button>
               )}
             </div>

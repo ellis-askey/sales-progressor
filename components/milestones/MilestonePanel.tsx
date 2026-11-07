@@ -350,63 +350,81 @@ export function MilestonePanel({
   const completedWeight = applicableMs.filter(isDoneNow).reduce((s, m) => s + Number(m.weight), 0);
   const progressPct = applicableWeight > 0 ? Math.round((completedWeight / applicableWeight) * 100) : 100;
 
+  // Side toggle (Vendor / Purchaser). Lifted out so it can live inside the
+  // Exchange-progress card (stacked, left) in the normal case, while the
+  // late-stage banner case still keeps it as a row below the banner.
+  const sideToggleButtons = (["vendor", "purchaser"] as const).map((side) => {
+    const mils = side === "vendor" ? vendor : purchaser;
+    const applicable = mils.filter((m) => !m.isNotRequired);
+    const done = applicable.filter((m) => m.isComplete).length;
+    const total = applicable.length;
+    // Side avatars (critique #287): the real people — one figure for one
+    // seller/buyer, two overlapping for two, their photo when uploaded.
+    // Falls back to an anonymous side-tinted figure when no client is on
+    // the file yet.
+    const people = side === "vendor" ? vendorPeople : purchaserPeople;
+    const stack = people?.length ? people : [{ name: "", roleType: side, image: null }];
+    // Pluralise the label when there's genuinely more than one person on the
+    // side (joint sellers / buyers), so "Vendors" / "Purchasers" stays accurate.
+    const sideLabel = (people?.length ?? 0) > 1 ? `${side}s` : side;
+    return (
+      <button
+        key={side}
+        onClick={() => handleTabChange(side)}
+        className={`agent-segment-pill agent-segment-pill-sm ms-side-pill${activeTab === side ? " on" : ""}`}
+        style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+      >
+        <AvatarStack people={stack} size={20} />
+        <span className="capitalize">{sideLabel}</span>
+        <span className="agent-segment-pill-note">{done}/{total}</span>
+      </button>
+    );
+  });
+
   return (
     <section>
       {/* ── Late-stage banner: ready → exchanged → completed (critique #293) ───── */}
       {completedBothSides || exchangedBothSides || exchangeReady ? (
-        <ExchangeStageBanner
-          stage={completedBothSides ? "completed" : exchangedBothSides ? "exchanged" : "ready"}
-          completionDateLabel={completionDateLabel}
-          className="mb-5"
-        />
+        <>
+          <ExchangeStageBanner
+            stage={completedBothSides ? "completed" : exchangedBothSides ? "exchanged" : "ready"}
+            completionDateLabel={completionDateLabel}
+            className="mb-5"
+          />
+          {/* Progress bar is replaced by the banner at this stage, so the side
+              toggle sits on its own row below it. */}
+          <div data-bloom className="flex items-center gap-2 mb-4">
+            {sideToggleButtons}
+          </div>
+        </>
       ) : (
-        /* ── Progress bar card ───────────────────────────────────────────────── */
+        /* ── Progress bar card — side toggle stacked on the left, progress read
+           on the right (the bar shortens to make room) ───────────────────── */
         <Card glassId="steps-progress" glassLabel="Steps · Exchange progress" glassDefault="v05" padding="none" data-bloom className="mb-4" style={{ padding: "14px 16px", borderRadius: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Exchange progress</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div className="flex flex-col gap-2" style={{ flexShrink: 0 }}>
+              {sideToggleButtons}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--agent-text-primary)" }}>Exchange progress</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{progressPct}%</span>
+              </div>
+              <div className="ms-progress-track" style={{ height: 6, borderRadius: 3, overflow: "hidden" }}>
+                {progressPct >= 100 ? (
+                  <div style={{ width: "100%", height: "100%", borderRadius: 3, background: "#10b981" }} />
+                ) : (
+                  <div
+                    className="ms-bar-shimmer"
+                    style={{ width: `${Math.max(progressPct, 2)}%`, height: "100%", borderRadius: 3, transition: "width 700ms ease-out" }}
+                  />
+                )}
+              </div>
+              <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 5 }}>{doneAll} of {totalAll} steps complete</p>
+            </div>
           </div>
-          <div style={{ height: 6, background: "rgba(30,45,74,.08)", borderRadius: 3, overflow: "hidden" }}>
-            {progressPct >= 100 ? (
-              <div style={{ width: "100%", height: "100%", borderRadius: 3, background: "#10b981" }} />
-            ) : (
-              <div
-                className="ms-bar-shimmer"
-                style={{ width: `${Math.max(progressPct, 2)}%`, height: "100%", borderRadius: 3, transition: "width 700ms ease-out" }}
-              />
-            )}
-          </div>
-          <p style={{ fontSize: 10, color: "var(--agent-text-muted)", marginTop: 4 }}>{doneAll} of {totalAll} steps complete</p>
         </Card>
       )}
-
-      {/* ── Side tabs ─────────────────────────────────────────────────────────── */}
-      <div data-bloom className="flex items-center gap-2 mb-4">
-        {(["vendor", "purchaser"] as const).map((side) => {
-          const mils = side === "vendor" ? vendor : purchaser;
-          const applicable = mils.filter((m) => !m.isNotRequired);
-          const done = applicable.filter((m) => m.isComplete).length;
-          const total = applicable.length;
-          // Side avatars (critique #287): the real people — one figure for one
-          // seller/buyer, two overlapping for two, their photo when uploaded.
-          // Falls back to an anonymous side-tinted figure when no client is on
-          // the file yet.
-          const people = side === "vendor" ? vendorPeople : purchaserPeople;
-          const stack = people?.length ? people : [{ name: "", roleType: side, image: null }];
-          return (
-            <button
-              key={side}
-              onClick={() => handleTabChange(side)}
-              className={`agent-segment-pill agent-segment-pill-sm${activeTab === side ? " on" : ""}`}
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <AvatarStack people={stack} size={20} />
-              <span className="capitalize">{side}</span>
-              <span className="agent-segment-pill-note">{done}/{total}</span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* ── Milestone list ─────────────────────────────────────────────────────── */}
       {milestones.length === 0 ? (
