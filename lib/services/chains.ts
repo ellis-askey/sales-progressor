@@ -913,7 +913,11 @@ export async function getChainV2(
       // internal staff only). Re-added to the wire only when visible; null for
       // every other agency. Nulling has no visible status effect — an uninvited
       // stub reads "Unclaimed" whether or not the email is present.
-      const stubPrivate = intelVisible
+      // Visible to anyone who can view the node's intel OR who may edit the stub —
+      // you cannot edit an email you can't see, and the edit form pre-fills from
+      // here; stripping it for an editor (e.g. an outsourced progressor who can edit
+      // but isn't in the stricter view-intel set) made "Save" wipe the real email.
+      const stubPrivate = (intelVisible || canEditStub)
         ? { stubAgentEmail, stubAgentName, stubAgentPhone, stubNotes }
         : { stubAgentEmail: null, stubAgentName: null, stubAgentPhone: null, stubNotes: null };
       // Own-side gate for price / onward / stuck-step: the SAME rule as intel, so
