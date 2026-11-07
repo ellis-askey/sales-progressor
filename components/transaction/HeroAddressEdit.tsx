@@ -6,7 +6,7 @@
 // the drawer used (historical records keep the old address for the audit trail),
 // then saveAddressAction (logged server-side).
 
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { getAddressConsequencesAction, saveAddressAction } from "@/app/actions/transactions";
@@ -21,12 +21,12 @@ function parseAddress(addr: string) {
 }
 
 const H1_STYLE: CSSProperties = {
-  fontSize: "clamp(26px, 3.2vw, 40px)", fontWeight: 700, color: "var(--agent-text-primary)",
-  margin: "14px 0 0", letterSpacing: "-0.02em", lineHeight: 1.12,
+  fontSize: "clamp(28px, 3.4vw, 44px)", fontWeight: 440, color: "var(--agent-text-primary)",
+  margin: "14px 0 0", letterSpacing: "-0.032em", lineHeight: 1.06,
 };
 const LINE2_STYLE: CSSProperties = { margin: "6px 0 0", fontSize: 15, color: "var(--agent-text-muted)", lineHeight: 1.35 };
 
-export function HeroAddressEdit({ transactionId, address }: { transactionId: string; address: string }) {
+export function HeroAddressEdit({ transactionId, address, trailing }: { transactionId: string; address: string; trailing?: ReactNode }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,19 +93,26 @@ export function HeroAddressEdit({ transactionId, address }: { transactionId: str
 
   if (!editing) {
     return (
-      <button
-        type="button"
-        onClick={open}
-        className="group"
-        aria-label="Edit address"
-        style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}
-      >
-        <span style={{ display: "inline-flex", alignItems: "flex-start", gap: 6 }}>
-          <h1 data-sensitive="true" style={H1_STYLE}>{line1}</h1>
-          <PencilSimple size={16} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 18 }} />
-        </span>
-        {line2 && <p data-sensitive="true" style={LINE2_STYLE}>{line2}</p>}
-      </button>
+      <div>
+        <button
+          type="button"
+          onClick={open}
+          className="group"
+          aria-label="Edit address"
+          style={{ display: "block", textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "flex-start", gap: 6 }}>
+            <h1 data-sensitive="true" style={H1_STYLE}>{line1}</h1>
+            <PencilSimple size={16} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0, marginTop: 18 }} />
+          </span>
+        </button>
+        {(line2 || trailing) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 6, flexWrap: "wrap" }}>
+            {line2 && <p data-sensitive="true" style={{ ...LINE2_STYLE, margin: 0 }}>{line2}</p>}
+            {trailing}
+          </div>
+        )}
+      </div>
     );
   }
 

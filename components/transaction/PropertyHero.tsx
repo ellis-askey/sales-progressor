@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { resolveBackTarget } from "@/lib/agent/back-nav";
@@ -193,43 +193,74 @@ function formatElapsed(from: Date): string {
 // Inline progress bar for the hero — replaces the old ring (2026-08-08
 // redesign). Animated fill on mount (900ms, matches the ring's sweep),
 // honours prefers-reduced-motion.
-function HeroProgressBar({ percent }: { percent: number }) {
+// Mobile / tablet (< md): the status sits top-left and "X% complete" top-right,
+// both above a full-width bar. Bar + number count up together on mount.
+function HeroProgressMobile({ percent, status }: { percent: number; status: ReactNode }) {
   const clamped = Math.min(100, Math.max(0, percent));
-  const [width, setWidth] = useState(0);
-  const [reduced, setReduced] = useState(false);
-
+  const [n, setN] = useState(0);
   useEffect(() => {
-    const prefersRM = typeof window !== "undefined"
-      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setReduced(prefersRM);
-    if (prefersRM) {
-      setWidth(clamped);
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setN(clamped);
       return;
     }
-    const t = setTimeout(() => setWidth(clamped), 60);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+    let raf = 0;
+    const start = performance.now();
+    const dur = 850;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(eased * clamped));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [clamped]);
   return (
-    <div style={{ width: "100%" }}>
-      <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--agent-text-muted)", textAlign: "right" }}>
-        <span style={{
-          fontWeight: 700,
-          color: "var(--agent-text-primary)",
-          fontVariantNumeric: "tabular-nums",
-        }}>{clamped}%</span>{" "}
-        complete
-      </p>
-      <div style={{ height: 5, borderRadius: 999, background: "var(--agent-hero-track)", overflow: "hidden" }}>
-        <div style={{
-          height: "100%",
-          borderRadius: 999,
-          background: "var(--agent-coral)",
-          width: `${Math.max(width, clamped > 0 ? 2 : 0)}%`,
-          transition: reduced ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1)",
-        }} />
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+        {status}
+        <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
+          <span style={{ fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{n}%</span> complete
+        </p>
       </div>
+      <div style={{ marginTop: 10, height: 5, borderRadius: 999, background: "var(--agent-hero-track)", overflow: "hidden" }}>
+        <div style={{ height: "100%", borderRadius: 999, background: "var(--agent-coral)", width: `${Math.max(n, n > 0 ? 2 : 0)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// Desktop variant: bar on its own line under the address, with the "X% complete"
+// label to the right of the bar rather than stacked above it.
+function HeroProgressInline({ percent }: { percent: number }) {
+  const clamped = Math.min(100, Math.max(0, percent));
+  // Count the bar + number up together on mount (easeOutCubic). Honours reduced motion.
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setN(clamped);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const dur = 850;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(eased * clamped));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [clamped]);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ width: 200, height: 5, borderRadius: 999, background: "var(--agent-hero-track)", overflow: "hidden" }}>
+        <div style={{ height: "100%", borderRadius: 999, background: "var(--agent-coral)", width: `${Math.max(n, n > 0 ? 2 : 0)}%` }} />
+      </div>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>
+        <span style={{ fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{n}%</span> complete
+      </p>
     </div>
   );
 }
@@ -598,36 +629,43 @@ export function PropertyHero({
           }}>
           {/* Status + progress row. Top padding on desktop clears the
               floating top-right controls. */}
-          <div className="md:pt-8" style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-          }}>
-            {transactionId
-              ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
-              : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
-            }
-            <div style={{ flex: "1 1 180px", maxWidth: 280, minWidth: 150 }}>
-              <HeroProgressBar percent={shownPercent} />
+          <div className="md:pt-8">
+            {/* Desktop: status only — the bar sits beside the postcode below. */}
+            <div className="hidden md:flex" style={{ alignItems: "center" }}>
+              {transactionId
+                ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+                : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>
+              }
+            </div>
+            {/* Mobile / tablet: status (left) + % (right) over a full-width bar. */}
+            <div className="md:hidden">
+              <HeroProgressMobile
+                percent={shownPercent}
+                status={transactionId
+                  ? <StatusControl transactionId={transactionId} currentStatus={status} inChain={inChain} />
+                  : <span className={`agent-pill ${STATUS_PILL[status]}`}>{STATUS_LABEL[status]}</span>}
+              />
             </div>
           </div>
 
-          {/* Address — inline-editable when we have a transaction id */}
+          {/* Address — inline-editable; on desktop the progress bar sits beside the postcode */}
           {transactionId ? (
-            <HeroAddressEdit transactionId={transactionId} address={address} />
+            <HeroAddressEdit
+              transactionId={transactionId}
+              address={address}
+              trailing={<div className="hidden md:block"><HeroProgressInline percent={shownPercent} /></div>}
+            />
           ) : (
             <>
               <h1
                 data-sensitive="true"
                 style={{
-                  fontSize: "clamp(26px, 3.2vw, 40px)",
-                  fontWeight: 700,
+                  fontSize: "clamp(28px, 3.4vw, 44px)",
+                  fontWeight: 440,
                   color: "var(--agent-text-primary)",
                   margin: "14px 0 0",
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1.12,
+                  letterSpacing: "-0.032em",
+                  lineHeight: 1.06,
                 }}
               >
                 {line1}

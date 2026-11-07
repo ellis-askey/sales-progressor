@@ -281,14 +281,14 @@ function StageNode({ stage, index }: { stage: MilestoneStage; index: number }): 
         {stage.status === "complete" ? (
           <AnimatedTick size={20} color={glyphColor} strokeWidth={3} delayMs={index * 60} />
         ) : stage.status === "skipped" ? (
-          <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1 }} aria-hidden>–</span>
+          <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1 }} aria-hidden>–</span>
         ) : (
-          <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+          <span className="md:hidden" style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
             {index}
           </span>
         )}
       </div>
-      <div style={{ textAlign: "center", minWidth: 0, maxWidth: 92, overflow: "hidden" }}>
+      <div className="hidden md:block" style={{ textAlign: "center", minWidth: 0, maxWidth: 92, overflow: "hidden" }}>
         <p style={{
           margin: 0,
           fontSize: 12,

@@ -29,7 +29,7 @@
 // the medium breakpoint (~720px). The Portal card stays inside the row
 // on both breakpoints so the visual grouping is preserved.
 
-import { useState, useTransition, useCallback, useEffect } from "react";
+import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -414,6 +414,34 @@ function AnimatedCheckbox({
       </span>
     </span>
   );
+}
+
+// Count that eases up/down when the value changes (a contact added or removed).
+function AnimatedCount({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const from = prev.current;
+    const to = value;
+    prev.current = value;
+    if (from === to) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(to);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const dur = 420;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{display}</>;
 }
 
 export function ContactsSection({
@@ -804,12 +832,9 @@ export function ContactsSection({
               circular upload lives there now. */}
           <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Contacts</h3>
-              {contacts.length > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
-                  {contacts.length}
-                </span>
-              )}
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}><AnimatedCount value={contacts.length} /></span> Contacts
+              </h3>
             </div>
             <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</span>
           </div>

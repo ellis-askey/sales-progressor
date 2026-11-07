@@ -582,11 +582,6 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", margin: 0 }}>Solicitors</h3>
-            {assignedCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", padding: "1px 7px", borderRadius: 10, background: "rgba(15,23,42,0.06)" }}>
-                {assignedCount}
-              </span>
-            )}
             {(saving || isPending) && <SavingPulse />}
           </div>
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Solicitors acting on this transaction</span>

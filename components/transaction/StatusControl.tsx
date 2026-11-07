@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { changeStatusAction } from "@/app/actions/transactions";
 import { pauseClientEmails } from "@/app/actions/automation";
@@ -20,6 +19,16 @@ const STATUSES: { value: TransactionStatus; label: string }[] = [
   { value: "completed", label: "Completed" },
   { value: "withdrawn", label: "Withdrawn" },
 ];
+
+// Colour-coded status. The dot carries the colour (theme-safe on light + night);
+// the label stays in the themed primary ink.
+const STATUS_META: Record<TransactionStatus, { label: string; color: string }> = {
+  draft:     { label: "Draft",     color: "#94a3b8" },
+  active:    { label: "Active",    color: "#10b981" },
+  on_hold:   { label: "On hold",   color: "#f59e0b" },
+  completed: { label: "Completed", color: "#3b82f6" },
+  withdrawn: { label: "Withdrawn", color: "#9ca3af" },
+};
 
 // Structured withdrawal reasons + the withdraw modal now live in
 // components/transaction/WithdrawFileModal.tsx (extracted 2026-09-18 so the
@@ -181,7 +190,10 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
               title="Change status"
               aria-expanded={open}
             >
-              <StatusBadge status={optimisticStatus} />
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 999, flexShrink: 0, background: STATUS_META[optimisticStatus].color, boxShadow: `0 0 0 3px ${STATUS_META[optimisticStatus].color}24` }} />
+                <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", color: "var(--agent-text-primary)" }}>{STATUS_META[optimisticStatus].label}</span>
+              </span>
               <svg
                 className="w-3 h-3 text-slate-900/30 group-hover:text-slate-900/60 flex-shrink-0"
                 style={{ transition: "transform 180ms ease, color 150ms", transform: open ? "rotate(180deg)" : undefined }}
@@ -199,7 +211,7 @@ export function StatusControl({ transactionId, currentStatus, inChain = false }:
                 key={value}
                 icon={sel
                   ? <svg style={{ width: 14, height: 14, color: "#3b82f6" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  : <span style={{ display: "inline-block", width: 14 }} />}
+                  : <span style={{ display: "inline-flex", width: 14, justifyContent: "center" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: STATUS_META[value].color }} /></span>}
                 onClick={() => { close(); selectStatus(value); }}
               >
                 <span style={{ fontWeight: sel ? 600 : 500 }}>{label}</span>
