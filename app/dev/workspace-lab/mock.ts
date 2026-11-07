@@ -212,4 +212,7 @@ export const WORK: WorkItem[] = [
     detail: "Bernard is working through the TA10 this weekend. A gentle nudge on Friday will keep the contract pack on track.", actions: ["Remind Bernard", "Snooze"] },
 ];
 
-export const TODAY = { greeting: "Good morning, Ellis", date: "Friday, 7 November", summary: "a calm day with one thing worth your attention first" };
+export const TODAY = { date: "Friday 7 November", lede: "Six to get through. Start with the FENSA chase, it won't keep." };
+
+// canonical conveyancing stages, for the transaction timeline
+export const STAGES = ["Instructed", "Searches", "Enquiries", "Survey", "Exchange", "Completion"];
