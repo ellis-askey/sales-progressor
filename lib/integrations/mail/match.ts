@@ -15,6 +15,7 @@ import {
   type AccessScope,
 } from "@/lib/security/access-scope";
 import { extractInnerEmails } from "./forwarded";
+import { isMachineSender } from "./sender";
 import type { IngestMessage } from "./types";
 
 // ─── Folder inclusion ─────────────────────────────────────────────────────────
@@ -279,6 +280,10 @@ function isOwnSender(from: string, mailboxLc: string): boolean {
   return f.endsWith("@thesalesprogressor.co.uk");
 }
 
+// isMachineSender (alerts / notifications / no-reply mailers) is imported from
+// ./sender at the top — a machine that merely name-drops a property is not
+// correspondence, so it can't place mail on the weak address-only signal below.
+
 // ─── Folder name → transaction (a property folder points at its file) ─────────
 
 export async function buildFolderHints(
@@ -418,7 +423,7 @@ export function matchMessage(
   // file). This now runs EVEN when a known party is on the email, so an email
   // that plainly names its property is matched to THAT file instead of the
   // party's other files. One confident match → file it; several → offer for review.
-  if (!isOwnSender(msg.from, mailboxLc) && addressIndex.length) {
+  if (!isOwnSender(msg.from, mailboxLc) && !isMachineSender(msg.from) && addressIndex.length) {
     const hits = matchByAddress(text, addressIndex);
     if (hits.length === 1) return { txId: hits[0], candidates: hits };
     if (hits.length > 1) return { txId: null, candidates: hits };

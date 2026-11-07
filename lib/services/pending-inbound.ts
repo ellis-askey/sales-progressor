@@ -58,7 +58,7 @@ export async function getPendingInboundEmails(): Promise<PendingInboundRow[]> {
   const txMeta = candidateIds.length
     ? await prisma.propertyTransaction.findMany({
         where: { id: { in: candidateIds } },
-        select: { id: true, status: true, purchasePrice: true },
+        select: { id: true, status: true, purchasePrice: true, propertyAddress: true },
       })
     : [];
   const metaById = new Map(txMeta.map((t) => [t.id, t]));
@@ -71,7 +71,10 @@ export async function getPendingInboundEmails(): Promise<PendingInboundRow[]> {
       const meta = metaById.get(c.transactionId);
       return {
         transactionId: c.transactionId,
-        address: c.address,
+        // Prefer the file's LIVE address over whatever was stored on the card.
+        // Address-reader matches saved an empty address, which rendered the tray
+        // button as a cryptic "File to this file (£525k)" with no property named.
+        address: meta?.propertyAddress || c.address,
         status: meta?.status,
         priceLabel: priceLabel(meta?.purchasePrice ?? null),
       };
