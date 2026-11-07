@@ -82,7 +82,11 @@ const VALUE_STYLE: CSSProperties = {
 };
 const LABEL_STYLE: CSSProperties = { display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 1 };
 
-function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: ReactNode }) {
+function CellFrame({ Icon, narrow, children }: { Icon: typeof CurrencyGbp; narrow?: boolean; children: ReactNode }) {
+  // Narrow (≤542px): no icon, centred — the cell is a single "Label: value" line.
+  if (narrow) {
+    return <div style={{ display: "flex", justifyContent: "center", minWidth: 0, position: "relative", width: "100%" }}>{children}</div>;
+  }
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, position: "relative" }}>
       <span style={ICON_CHIP}><Icon size={22} weight="regular" /></span>
@@ -91,11 +95,37 @@ function CellFrame({ Icon, children }: { Icon: typeof CurrencyGbp; children: Rea
   );
 }
 
+// Narrow "Label: value" styles (the compact ≤542px form).
+const NARROW_LABEL: CSSProperties = { fontSize: 12.5, fontWeight: 500, color: "var(--agent-text-muted)" };
+const NARROW_VALUE: CSSProperties = { fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" };
+
 // A value line that looks exactly like the static cell but is a button with a
 // hover pencil. Used for both the price and the option triggers.
-function EditTrigger({ value, label, ariaLabel, sensitive, onClick }: {
-  value: string; label: string; ariaLabel: string; sensitive?: boolean; onClick: () => void;
+function EditTrigger({ value, label, ariaLabel, sensitive, narrow, onClick }: {
+  value: string; label: string; ariaLabel: string; sensitive?: boolean; narrow?: boolean; onClick: () => void;
 }) {
+  if (narrow) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        className="group agent-hero-edit"
+        style={{ display: "block", textAlign: "center", background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer", font: "inherit" }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, flexWrap: "wrap" }}>
+          <span style={NARROW_LABEL}>{label}:</span>
+          <span data-sensitive={sensitive ? "true" : undefined} style={NARROW_VALUE}>{value}</span>
+          <PencilSimple
+            size={12}
+            weight="regular"
+            className="hero-edit-pencil opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ color: "var(--agent-text-muted)", flexShrink: 0 }}
+          />
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -118,7 +148,15 @@ function EditTrigger({ value, label, ariaLabel, sensitive, onClick }: {
   );
 }
 
-function StaticValue({ value, label, sensitive }: { value: string; label: string; sensitive?: boolean }) {
+function StaticValue({ value, label, sensitive, narrow }: { value: string; label: string; sensitive?: boolean; narrow?: boolean }) {
+  if (narrow) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, flexWrap: "wrap" }}>
+        <span style={NARROW_LABEL}>{label}:</span>
+        <span data-sensitive={sensitive ? "true" : undefined} style={NARROW_VALUE}>{value}</span>
+      </span>
+    );
+  }
   return (
     <>
       <span data-sensitive={sensitive ? "true" : undefined} style={VALUE_STYLE}>{value}</span>
@@ -215,6 +253,16 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
 }) {
   const { toast } = useAgentToast();
 
+  // Under 542px the three cells stack + centre, lose their icons, and read as a
+  // compact "Label: value" line (file-setup card redesign, 2026-11-07).
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 542px)");
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
   // ── Price inline edit ──
   const [editingPrice, setEditingPrice] = useState(false);
@@ -366,7 +414,7 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
   return (
     <>
       {/* Sale price */}
-      <CellFrame Icon={CurrencyGbp}>
+      <CellFrame Icon={CurrencyGbp} narrow={narrow}>
         {editingPrice ? (
           <div
             ref={priceWrapRef}
@@ -379,30 +427,30 @@ export function HeroSaleFields({ transactionId, purchasePrice, purchaseType, ten
             <span style={LABEL_STYLE}>Sale price</span>
           </div>
         ) : (
-          <EditTrigger value={formatPrice(purchasePrice)} label="Sale price" ariaLabel="Edit sale price" sensitive onClick={openPriceEdit} />
+          <EditTrigger value={formatPrice(purchasePrice)} label="Sale price" ariaLabel="Edit sale price" sensitive narrow={narrow} onClick={openPriceEdit} />
         )}
       </CellFrame>
 
       {/* Purchase type */}
-      <CellFrame Icon={Coins}>
+      <CellFrame Icon={Coins} narrow={narrow}>
         <div ref={typeBtnRef}>
           {typeTenureLocked ? (
-            <StaticValue value={purchaseTypeLabel(purchaseType)} label="Purchase type" />
+            <StaticValue value={purchaseTypeLabel(purchaseType)} label="Purchase type" narrow={narrow} />
           ) : (
-            <EditTrigger value={purchaseTypeLabel(purchaseType)} label="Purchase type" ariaLabel="Change purchase type" onClick={() => openPopover("type")} />
+            <EditTrigger value={purchaseTypeLabel(purchaseType)} label="Purchase type" ariaLabel="Change purchase type" narrow={narrow} onClick={() => openPopover("type")} />
           )}
         </div>
       </CellFrame>
 
       {/* Tenure */}
-      <CellFrame Icon={Scroll}>
+      <CellFrame Icon={Scroll} narrow={narrow}>
         <div ref={tenureBtnRef}>
           {(() => {
             const tenureText = tenure === "leasehold" && isShareOfFreehold ? "Share of freehold" : tenureLabel(tenure);
             return typeTenureLocked ? (
-              <StaticValue value={tenureText} label="Tenure" />
+              <StaticValue value={tenureText} label="Tenure" narrow={narrow} />
             ) : (
-              <EditTrigger value={tenureText} label="Tenure" ariaLabel="Change tenure" onClick={() => openPopover("tenure")} />
+              <EditTrigger value={tenureText} label="Tenure" ariaLabel="Change tenure" narrow={narrow} onClick={() => openPopover("tenure")} />
             );
           })()}
         </div>

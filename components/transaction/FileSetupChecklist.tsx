@@ -10,8 +10,9 @@
 // progressed — the copy leans on that distinction on purpose. The "why" line on
 // each item is the nudge: the more of this that's done, the smoother the sale.
 
-import { useState } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Check, ArrowRight, CaretDown } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useTabContext } from "@/components/transaction/TabContext";
@@ -47,7 +48,7 @@ function InlineEditor({ itemKey, values }: { itemKey: string; values: FileSetupV
   }
   if (itemKey === "details") {
     return (
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="flex items-center gap-x-6 gap-y-2 max-[542px]:flex-col max-[542px]:items-center max-[542px]:gap-y-2.5 max-[542px]:w-full">
         <HeroSaleFields
           transactionId={values.transactionId}
           purchasePrice={values.purchasePrice}
@@ -72,12 +73,58 @@ function InlineEditor({ itemKey, values }: { itemKey: string; values: FileSetupV
   return null;
 }
 
+// Asymmetric collapse: open snaps instantly (no animation), close animates the
+// height down (grid-rows 0fr/1fr, the app's canonical slide). Children stay
+// mounted through the closing transition, then unmount. Matches the feedback
+// "no animation on open but animate the collapse".
+function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
+  const [mounted, setMounted] = useState(open);
+  const [rows, setRows] = useState(open ? "1fr" : "0fr");
+  const [anim, setAnim] = useState(false);
+  const prev = useRef(open);
+
+  useEffect(() => {
+    if (open === prev.current) return;
+    prev.current = open;
+    if (open) {
+      // Instant open — no transition.
+      setAnim(false);
+      setMounted(true);
+      setRows("1fr");
+    } else {
+      // Animated close — keep children mounted, ease the rows to 0 two frames
+      // later so the transition reliably fires from the open height.
+      setAnim(true);
+      setRows("1fr");
+      requestAnimationFrame(() => requestAnimationFrame(() => setRows("0fr")));
+    }
+  }, [open]);
+
+  if (!mounted && !open) return null;
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateRows: rows,
+        transition: anim ? "grid-template-rows 220ms cubic-bezier(0.4, 0, 0.2, 1)" : "none",
+      }}
+      onTransitionEnd={() => { if (!open) setMounted(false); }}
+    >
+      <div style={{ overflow: "hidden", minHeight: 0 }}>{children}</div>
+    </div>
+  );
+}
+
 export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | null }) {
   const { setActiveTab } = useTabContext();
   const [openKey, setOpenKey] = useState<string | null>(null);
   // One Design Lab row drives every section row (shared glassId). When a variant
   // is picked, drop the base surface utilities so the glass owns the surface.
   const rowTag = useGlassTag("file-setup-row", "File setup · section row", { light: "cs-b7c9ec28", dark: "v04" });
+  // The inline-editor container (sale details / target date / photo). Pickable
+  // in the Design Lab; keeps its current subtle surface until a variant is set.
+  const inlineTag = useGlassTag("file-setup-inline", "File setup · sale details box");
 
   function jump(tab: string | null, anchor: string | null) {
     if (tab) setActiveTab(tab);
@@ -121,7 +168,7 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
         <div className="text-right shrink-0">
           <div className="text-[13px] font-semibold text-[var(--agent-text-primary)] tabular-nums">{doneCount} of {totalCount}</div>
           {remaining > 0 ? (
-            <div className="text-[12px] text-[var(--agent-text-secondary)] mt-0.5">about {remaining} min left</div>
+            <div className="text-[12px] text-[var(--agent-text-secondary)] mt-0.5">est. {remaining} min{remaining === 1 ? "" : "s"} left</div>
           ) : (
             <div className="text-[12px] font-medium text-[var(--agent-success)] mt-0.5">All done</div>
           )}
@@ -156,7 +203,13 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
               >
                 {item.done ? (
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/15 text-[var(--agent-success)]">
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white"
+                    style={{
+                      background: "linear-gradient(180deg, #10b981 0%, #059669 100%)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(16,185,129,0.30)",
+                    }}
+                  >
                     <Check size={15} weight="bold" aria-hidden />
                   </span>
                 ) : (
@@ -183,25 +236,57 @@ export function FileSetupChecklist({ summary }: { summary: FileSetupSummary | nu
                 />
               </button>
 
-              {open && (
-                <div className="px-3 pb-3.5 pt-1">
-                  <p className="text-[12.5px] text-[var(--agent-text-secondary)] mb-1">{item.description}</p>
-                  <p className="text-[12px] text-[var(--agent-text-muted)] mb-3 italic">{item.why}</p>
-                  {item.inline ? (
-                    <div className="rounded-lg bg-[var(--agent-surface-subtle)] px-3 py-3">
-                      <InlineEditor itemKey={item.key} values={values} />
+              <Collapse open={open}>
+                <div className={`px-3 pt-1 ${item.inline && item.key === "details" ? "pb-2.5" : "pb-3.5"}`}>
+                  {item.inline && item.key === "details" ? (
+                    // Sale details: the three cells sit right-aligned on the
+                    // description row, vertically centred (like the "Take me there"
+                    // rows), with no container box. Under 542px they stack + centre
+                    // (HeroSaleFields switches each cell to a compact "Label: value").
+                    <div className="flex flex-col gap-2.5 min-[543px]:flex-row min-[543px]:items-center min-[543px]:gap-5">
+                      <div className="flex-1 min-w-0 max-[542px]:text-center">
+                        <p className="text-[12.5px] text-[var(--agent-text-secondary)] mb-1">{item.description}</p>
+                        <p className="text-[12px] text-[var(--agent-text-muted)] italic">{item.why}</p>
+                      </div>
+                      <div className="shrink-0 max-[542px]:w-full">
+                        <InlineEditor itemKey={item.key} values={values} />
+                      </div>
                     </div>
+                  ) : item.inline ? (
+                    <>
+                      <p className="text-[12.5px] text-[var(--agent-text-secondary)] mb-1">{item.description}</p>
+                      <p className="text-[12px] text-[var(--agent-text-muted)] mb-3 italic">{item.why}</p>
+                      <div
+                        {...inlineTag.props}
+                        className={`rounded-lg px-3 py-3 ${inlineTag.className} ${inlineTag.picked ? "" : "bg-[var(--agent-surface-subtle)]"}`}
+                      >
+                        <InlineEditor itemKey={item.key} values={values} />
+                      </div>
+                    </>
                   ) : (
-                    <button
-                      onClick={() => jump(item.tab, item.anchor)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--agent-coral)] text-[var(--agent-text-on-coral)] text-[13px] font-semibold px-3.5 py-2 hover:brightness-95 transition"
-                    >
-                      {item.done ? "View on file" : "Take me there"}
-                      <ArrowRight size={14} weight="bold" aria-hidden />
-                    </button>
+                    // Text left, action right, vertically centred on one row;
+                    // under 600px the button drops to its own bottom row, right-
+                    // aligned (was bottom-left).
+                    <div className="flex flex-col gap-3 min-[600px]:flex-row min-[600px]:items-center">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12.5px] text-[var(--agent-text-secondary)] mb-1">{item.description}</p>
+                        <p className="text-[12px] text-[var(--agent-text-muted)] italic">{item.why}</p>
+                      </div>
+                      <div className="flex justify-end shrink-0">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => jump(item.tab, item.anchor)}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                        >
+                          {item.done ? "View on file" : "Take me there"}
+                          <ArrowRight size={14} weight="bold" aria-hidden />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
+              </Collapse>
             </div>
           );
         })}
