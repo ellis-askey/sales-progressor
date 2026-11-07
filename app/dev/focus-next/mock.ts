@@ -79,7 +79,7 @@ export const SALES: Sale[] = [
       c("whatsapp", "in", "replied", 19, { preview: "Thanks, will chase them today" }),
     ]),
     [
-      { kind: "enquiry", tone: "danger", title: "Enquiries stalled", detail: "No movement for 15 days — nobody chasing", days: 15 },
+      { kind: "enquiry", tone: "danger", title: "Enquiries stalled", detail: "No movement for 15 days, nobody chasing it", days: 15 },
       { kind: "search", tone: "warn", title: "Searches outstanding 23 days", detail: "Ordered 23 Sep · results not back", days: 23 },
     ]),
 
@@ -93,23 +93,23 @@ export const SALES: Sale[] = [
       c("whatsapp", "out", "messaged", 2.0, { preview: "Survey booked for Thursday" }),
       c("whatsapp", "in", "replied", 1.8, { preview: "Perfect, thank you" }),
     ], { touchedThisWeek: true }),
-    [{ kind: "enquiry", tone: "danger", title: "Enquiries escalating", detail: "Second chase overdue — needs a push", days: 13 }]),
+    [{ kind: "enquiry", tone: "danger", title: "Enquiries escalating", detail: "Second chase overdue, needs a push", days: 13 }]),
 
   // Bounced email on the buyer — needs a fix, obvious failure.
   sale("Flat 2, 88 Verulam Road", "Watford", "WD17 1EP", 31_5000_00, "Searches",
     side("vendor", "Grace Adeyemi", [
-      c("email", "out", "opened", 5.0, { subject: "Searches are in — here's where we are" }),
+      c("email", "out", "opened", 5.0, { subject: "Searches are in: here's where we are" }),
     ], { touchedThisWeek: true }),
     side("purchaser", "Callum Fraser", [
       c("email", "out", "bounced", 1.2, { subject: "Your mortgage valuation is booked" }),
       c("call", "out", "called", 9, { preview: "Discussed timeline, all happy" }),
     ]),
-    [{ kind: "search", tone: "warn", title: "Searches outstanding 16 days", detail: "Local authority slow — worth a chase", days: 16 }]),
+    [{ kind: "search", tone: "warn", title: "Searches outstanding 16 days", detail: "Local authority slow, worth a chase", days: 16 }]),
 
   // Pure awaiting-reply: both sides messaged, no reply, a few days old.
   sale("23 Cowper Road", "Berkhamsted", "HP4 3DT", 74_0000_00, "Exchange",
     side("vendor", "Eleanor Whitcombe", [
-      c("email", "out", "delivered", 4.0, { subject: "Ready to exchange — can you confirm?" }),
+      c("email", "out", "delivered", 4.0, { subject: "Ready to exchange: can you confirm?" }),
     ]),
     side("purchaser", "Mohammed & Layla Rahman", [
       c("whatsapp", "out", "messaged", 3.3, { preview: "Just need your deposit confirmation" }),
@@ -132,7 +132,7 @@ export const SALES: Sale[] = [
   sale("41 Sandridge Road", "St Albans", "AL1 4AG", 45_5000_00, "Searches",
     side("vendor", "Imogen Blythe", [c("call", "out", "called", 2.0, { preview: "Reassured on the delay" })], { touchedThisWeek: true }),
     side("purchaser", "George Nkemelu", [c("email", "out", "opened", 2.3, { subject: "Quick update on searches" })], { touchedThisWeek: true }),
-    [{ kind: "search", tone: "danger", title: "Searches outstanding 27 days", detail: "Well over the usual window — chase today", days: 27 }]),
+    [{ kind: "search", tone: "danger", title: "Searches outstanding 27 days", detail: "Well over the usual window, chase today", days: 27 }]),
 
   // Parked vendor (not required), purchaser awaiting reply.
   sale("12 Lattimore Road", "St Albans", "AL1 3XY", 61_0000_00, "Enquiries",
@@ -161,7 +161,7 @@ export const SALES: Sale[] = [
     ]),
     side("purchaser", "Ryan Doyle", [
       c("email", "out", "bounced", 3.0, { subject: "We need your ID documents" }),
-      c("email", "out", "sent", 20, { subject: "Welcome — next steps" }),
+      c("email", "out", "sent", 20, { subject: "Welcome, and your next steps" }),
     ]),
     [{ kind: "enquiry", tone: "danger", title: "Enquiries stalled", detail: "11 days silent, buyer's ID still outstanding", days: 11 }]),
 
@@ -190,7 +190,7 @@ export const SALES: Sale[] = [
   sale("57 Camp Road", "St Albans", "AL1 5HL", 43_0000_00, "Enquiries",
     side("vendor", "Harriet Vale", [c("whatsapp", "out", "failed", 2.1, { preview: "Draft replies attached" })]),
     side("purchaser", "Dev & Anita Sharma", [c("email", "in", "replied", 6, { preview: "Chasing our solicitor now" })]),
-    [{ kind: "enquiry", tone: "warn", title: "Enquiries need you", detail: "Replies drafted but not sent — WhatsApp failed", days: 8 }]),
+    [{ kind: "enquiry", tone: "warn", title: "Enquiries need you", detail: "Replies drafted but not sent, WhatsApp failed", days: 8 }]),
 
   // Quiet both sides ~16 days, no concern — pure coverage case.
   sale("9 Beaconsfield Road", "Hatfield", "AL10 8XR", 33_5000_00, "Searches",

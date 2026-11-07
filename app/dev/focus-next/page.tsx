@@ -1,385 +1,445 @@
 "use client";
-// Focus Next — isolated prototype (/dev only). A reading-pane workspace: a source
-// list of sales, a detail pane where the client conversation is the substance,
-// seller/buyer side-by-side under one header. All state local; no DB, no sends.
+// Focus Next — "The Briefing" (isolated /dev prototype).
+//
+// A sales progressor's day, written as an editorial brief rather than assembled as
+// a dashboard. Two zones: the FEED (left) is the urgent work, in priority order,
+// each sale a short "story" carrying both its seller and buyer with their last
+// exchange and the one next action; the RAIL (right) is this week's coverage
+// ledger, where routine contact lives so it never buries the urgent feed.
+//
+// All state is local. No DB, no server, no real sends. Everything coral-marked as
+// INVENTED below is demonstration prioritisation, not current TSP behaviour.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound } from "next/navigation";
 import {
-  GLASS_CSS, ThemeCtx, type Theme, Segmented, Dialog, Drawer, DropdownMenu,
-  ToastProvider, useToast, Input, Textarea, Field, Button,
-} from "@/components/liquid/ui";
-import "@/app/styles/liquid-glass.css";
-import {
-  EnvelopeSimple, WhatsappLogo, Phone, MagnifyingGlass, Clock, MoonStars, Sun,
-  PaperPlaneTilt, Check, ArrowUpRight, Warning, ChatCircleDots, DotsThree,
-  PhoneCall, FolderOpen, Sparkle, Moon, ClipboardText,
+  PaperPlaneTilt, PhoneCall, MagnifyingGlass, XCircle, Check, CaretRight,
+  Moon, Warning, Clock, ChatCircleDots, Sparkle, ArrowRight,
 } from "@/components/icons/ph";
-import { extractFirstName } from "@/lib/contacts/displayName";
 import { FOCUS_CSS } from "./styles";
 import {
-  SALES, type Sale, type Side, type SideKind, type Comm, type CommState,
-  rel, price, sideSignal, sideCovered, reasons, attentionScore, type Tone,
+  SALES, type Sale, type Side, type SideKind, type Comm,
+  rel, sideSignal, sideCovered, attentionScore,
 } from "./mock";
+import { CH, STATE_LABEL, who, first, sideStatus, headline, isBad, dirWord } from "./common";
 
-type Lens = "attention" | "awaiting" | "coverage";
-const CH: Record<Comm["channel"], typeof EnvelopeSimple> = { email: EnvelopeSimple, whatsapp: WhatsappLogo, call: Phone };
-const STATE_LABEL: Record<CommState, string> = {
-  replied: "Replied", opened: "Opened", delivered: "Delivered", sent: "Sent",
-  messaged: "Message sent", called: "Call", logged: "Logged", bounced: "Bounced", failed: "Failed to send",
-};
-const who = (s: Side) => (s.kind === "vendor" ? "Seller" : "Buyer");
-const dirWord = (m: Comm) => (m.dir === "in" ? "They" : m.automated ? "Automatic" : "You");
-const isBad = (st: CommState) => st === "bounced" || st === "failed";
-
-// one-line status per side (the single quiet line above the thread)
-function sideStatus(s: Side): { t: Tone | "ok"; text: string } {
-  if (s.parked) return { t: "ok", text: "Set aside this week" };
-  if (s.touchedThisWeek) return { t: "ok", text: "Contacted this week" };
-  const sig = sideSignal(s);
-  if (sig.bounced) return { t: "danger", text: "Last message didn't get through" };
-  if (sig.lastHumanDays == null) return { t: "danger", text: "Not yet contacted" };
-  if (sig.quiet) return { t: sig.quietDays! >= 21 ? "danger" : "warn", text: `Quiet for ${sig.quietDays} days` };
-  if (sig.awaitingReply) return { t: "warn", text: `Waiting on a reply · ${sig.awaitingDays}d` };
-  return { t: "ok", text: `In touch · last spoke ${rel(sig.lastHumanDays)} ago` };
-}
-// compact brief for the source-list summary
-function sideBrief(s: Side): string {
-  const r = who(s);
-  if (s.parked) return `${r} set aside`;
-  if (s.touchedThisWeek) return `${r} done`;
-  const sig = sideSignal(s);
-  if (sig.bounced) return `${r} bounced`;
-  if (sig.lastHumanDays == null) return `${r} not contacted`;
-  if (sig.quiet) return `${r} quiet ${sig.quietDays}d`;
-  if (sig.awaitingReply) return `${r} awaiting reply`;
-  return `${r} in touch ${rel(sig.lastHumanDays)}`;
-}
+type Scope = "all" | "vendor" | "purchaser";
+type Modal =
+  | { kind: "email"; saleId: string; side: Side }
+  | { kind: "call"; saleId: string; side: Side }
+  | null;
+type ToastState = { title: string; undo?: () => void } | null;
 
 export default function FocusNextPage() {
   if (process.env.NODE_ENV === "production") notFound();
-  const [theme, setTheme] = useState<Theme>("dark");
-  return (
-    <ThemeCtx.Provider value={theme}>
-      <ToastProvider>
-        <div className="lg-ds fx-root" data-theme={theme}>
-          <style dangerouslySetInnerHTML={{ __html: GLASS_CSS + FOCUS_CSS }} />
-          <div className="fx-scene" aria-hidden />
-          <Workspace theme={theme} setTheme={setTheme} />
-        </div>
-      </ToastProvider>
-    </ThemeCtx.Provider>
-  );
+  return <Briefing />;
 }
 
-function Workspace({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
-  const toast = useToast();
+function Briefing() {
   const [sales, setSales] = useState<Sale[]>(() => JSON.parse(JSON.stringify(SALES)));
-  const [lens, setLens] = useState<Lens>("attention");
-  const [sideF, setSideF] = useState<"all" | "vendor" | "purchaser">("all");
+  const [scope, setScope] = useState<Scope>("all");
   const [query, setQuery] = useState("");
-  const [selId, setSelId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [narrow, setNarrow] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [compose, setCompose] = useState<{ sale: Sale; side: Side } | null>(null);
-  const [callLog, setCallLog] = useState<{ sale: Sale; side: Side } | null>(null);
+  const [hi, setHi] = useState(0);
+  const [modal, setModal] = useState<Modal>(null);
+  const [toast, setToast] = useState<ToastState>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { const t = setTimeout(() => setLoading(false), 460); return () => clearTimeout(t); }, []);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1000px)");
-    const on = () => setNarrow(mq.matches); on(); mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
+  const showToast = useCallback((title: string, undo?: () => void) => {
+    setToast({ title, undo });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4600);
   }, []);
 
-  const matchSide = useCallback((s: Side | null) => !!s && (sideF === "all" || s.kind === sideF), [sideF]);
-  const inQuery = useCallback((sale: Sale) => {
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return `${sale.line1} ${sale.town} ${sale.vendor?.names ?? ""} ${sale.purchaser?.names ?? ""}`.toLowerCase().includes(q);
+  // ── filtering + priority ordering ──────────────────────────────────────────
+  const matchSide = useCallback((s: Side | null) => !!s && (scope === "all" || s.kind === scope), [scope]);
+  const inQuery = useCallback((s: Sale) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return `${s.line1} ${s.town} ${s.vendor?.names ?? ""} ${s.purchaser?.names ?? ""}`.toLowerCase().includes(q);
   }, [query]);
 
-  const groups = useMemo(() => {
-    const pool = sales.filter(inQuery).filter((s) => matchSide(s.vendor) || matchSide(s.purchaser));
-    const allCovered = (s: Sale) => [s.vendor, s.purchaser].filter(Boolean).every((p) => sideCovered(p!));
-    const anyAwaiting = (s: Sale) => [s.vendor, s.purchaser].some((p) => matchSide(p) && sideSignal(p).awaitingReply && !sideCovered(p!));
-    const byScore = (a: Sale, b: Sale) => attentionScore(b) - attentionScore(a);
-    if (lens === "awaiting") {
-      return [{ key: "await", label: "Awaiting a reply", sales: pool.filter(anyAwaiting).sort(byScore) }].filter((g) => g.sales.length);
-    }
-    if (lens === "coverage") {
-      return [
-        { key: "todo", label: "Still to contact", sales: pool.filter((s) => !allCovered(s)).sort(byScore) },
-        { key: "done", label: "Covered this week", sales: pool.filter(allCovered).sort(byScore) },
-      ].filter((g) => g.sales.length);
-    }
-    return [
-      { key: "hot", label: "Needs attention", sales: pool.filter((s) => attentionScore(s) > 0).sort(byScore) },
-      { key: "calm", label: "On track", sales: pool.filter((s) => attentionScore(s) === 0).sort(byScore) },
-    ].filter((g) => g.sales.length);
-  }, [sales, lens, inQuery, matchSide]);
+  const pool = useMemo(
+    () => sales.filter(inQuery).filter((s) => matchSide(s.vendor) || matchSide(s.purchaser)),
+    [sales, inQuery, matchSide],
+  );
+  const ranked = useMemo(
+    () => pool.map((s) => ({ s, score: attentionScore(s) })).sort((a, b) => b.score - a.score),
+    [pool],
+  );
+  const hot = useMemo(() => ranked.filter((x) => x.score > 0).map((x) => x.s), [ranked]);
+  const calm = useMemo(() => ranked.filter((x) => x.score === 0).map((x) => x.s), [ranked]);
 
-  const flat = useMemo(() => groups.flatMap((g) => g.sales), [groups]);
-  useEffect(() => {
-    if (narrow) return;
-    if (!selId || !flat.some((s) => s.id === selId)) setSelId(flat[0]?.id ?? null);
-  }, [flat, selId, narrow]);
-  const selected = useMemo(() => sales.find((s) => s.id === selId) ?? null, [sales, selId]);
-
-  const coverage = useMemo(() => {
+  // coverage reflects the current view (side scope + any search), so the stat, the
+  // feed and the ledger always agree
+  const cov = useMemo(() => {
     let total = 0, done = 0;
-    for (const s of sales) for (const p of [s.vendor, s.purchaser]) { if (!p) continue; total++; if (sideCovered(p)) done++; }
+    for (const s of pool) for (const p of [s.vendor, s.purchaser]) {
+      if (!p || (scope !== "all" && p.kind !== scope)) continue;
+      total++; if (sideCovered(p)) done++;
+    }
     return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
-  }, [sales]);
+  }, [pool, scope]);
 
+  // the weekly coverage worklist: every uncovered side, grouped by sale, by priority
+  const stillToReach = useMemo(
+    () => ranked
+      .map(({ s }) => ({ sale: s, sides: [s.vendor, s.purchaser].filter((p): p is Side => matchSide(p) && !sideCovered(p)) }))
+      .filter((x) => x.sides.length > 0),
+    [ranked, matchSide],
+  );
+  const awaitingCount = useMemo(
+    () => pool.reduce((n, s) => n + [s.vendor, s.purchaser].filter((p) => matchSide(p) && !sideCovered(p!) && sideSignal(p).awaitingReply).length, 0),
+    [pool, matchSide],
+  );
+  const parked = useMemo(() => pool.flatMap((s) => [s.vendor, s.purchaser].filter((p): p is Side => matchSide(p) && !!p?.parked).map((p) => ({ sale: s, side: p }))), [pool, matchSide]);
+  const reachedCount = cov.done - parked.length;
+
+  // keep the keyboard highlight inside the current feed
+  useEffect(() => { setHi((h) => Math.max(0, Math.min(h, hot.length - 1))); }, [hot.length]);
   useEffect(() => {
-    if (narrow) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || compose || callLog) return;
-      const i = flat.findIndex((s) => s.id === selId);
-      if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); setSelId(flat[Math.min(flat.length - 1, i + 1)]?.id ?? selId); }
-      else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); setSelId(flat[Math.max(0, i - 1)]?.id ?? selId); }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || modal) return;
+      if (!hot.length) return;
+      if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); setHi((h) => Math.min(hot.length - 1, h + 1)); }
+      else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); setHi((h) => Math.max(0, h - 1)); }
+      else if (e.key === "Enter") {
+        const sale = hot[hi]; if (!sale) return;
+        const side = [sale.vendor, sale.purchaser].find((p) => matchSide(p) && !sideCovered(p!));
+        if (side) { e.preventDefault(); setModal({ kind: "email", saleId: sale.id, side }); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flat, selId, narrow, compose, callLog]);
+  }, [hot, hi, modal, matchSide]);
 
-  // mutations (optimistic + undo)
-  const mutateSide = useCallback((saleId: string, kind: SideKind, fn: (s: Side) => Side, title: string) => {
+  useEffect(() => {
+    const el = feedRef.current?.querySelector<HTMLElement>(`[data-i="${hi}"]`);
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [hi]);
+
+  // ── mutations (optimistic, each with its own undo) ─────────────────────────
+  const mutateSide = useCallback((saleId: string, kind: SideKind, fn: (s: Side) => Side, toastTitle: string) => {
     let prev: Side | null = null;
     setSales((cur) => cur.map((s) => {
       if (s.id !== saleId) return s;
       const key = kind === "vendor" ? "vendor" : "purchaser";
       if (!s[key]) return s;
       prev = JSON.parse(JSON.stringify(s[key]));
-      return { ...s, [key]: fn(JSON.parse(JSON.stringify(s[key]))) };
+      return { ...s, [key]: fn(JSON.parse(JSON.stringify(s[key])) as Side) };
     }));
-    toast({ title, tone: "ok", action: { label: "Undo", onClick: () => setSales((cur) => cur.map((s) => s.id === saleId && prev ? { ...s, [kind === "vendor" ? "vendor" : "purchaser"]: prev } : s)) } });
-  }, [toast]);
+    showToast(toastTitle, () => setSales((cur) => cur.map((s) => s.id === saleId && prev ? { ...s, [kind === "vendor" ? "vendor" : "purchaser"]: prev } : s)));
+  }, [showToast]);
 
-  const addComm = (comm: Comm) => (s: Side): Side => ({ ...s, touchedThisWeek: true, parked: false, comms: [comm, ...s.comms] });
-  const doEmailSent = (id: string, side: Side, subject: string) => mutateSide(id, side.kind, addComm({ channel: "email", dir: "out", state: "sent", daysAgo: 0, subject: subject || "Update on your sale" }), `${who(side)} · email sent`);
-  const doMarkEmailed = (id: string, side: Side) => mutateSide(id, side.kind, addComm({ channel: "email", dir: "out", state: "logged", daysAgo: 0, subject: "Emailed (logged)" }), `${who(side)} · marked contacted`);
-  const doCallLogged = (id: string, side: Side, note: string) => mutateSide(id, side.kind, addComm({ channel: "call", dir: "out", state: "called", daysAgo: 0, preview: note || "Spoke with them" }), `${who(side)} · call logged`);
-  const doContacted = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, touchedThisWeek: true, parked: false }), `${who(side)} · marked contacted`);
-  const doPark = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, parked: true }), `${who(side)} · set aside this week`);
-  const doReopen = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, parked: false, touchedThisWeek: false }), `${who(side)} · back on your list`);
+  const prepend = (comm: Comm) => (s: Side): Side => ({ ...s, touchedThisWeek: true, parked: false, comms: [comm, ...s.comms] });
+  const emailSent = (id: string, side: Side, subject: string) => mutateSide(id, side.kind, prepend({ channel: "email", dir: "out", state: "sent", daysAgo: 0, subject: subject || "Update on your sale" }), `Email sent to ${first(side.names)}`);
+  const callLogged = (id: string, side: Side, note: string) => mutateSide(id, side.kind, prepend({ channel: "call", dir: "out", state: "called", daysAgo: 0, preview: note || "Spoke with them" }), `Call logged with ${first(side.names)}`);
+  const markDone = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, touchedThisWeek: true, parked: false }), `${who(side)} marked contacted`);
+  const park = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, parked: true, touchedThisWeek: false }), `${who(side)} set aside this week`);
+  const reopen = (id: string, side: Side) => mutateSide(id, side.kind, (s) => ({ ...s, parked: false, touchedThisWeek: false }), `${who(side)} back on your list`);
 
-  const openDetail = (id: string) => { setSelId(id); if (narrow) setDrawerOpen(true); };
+  const jumpTo = (saleId: string) => {
+    const i = hot.findIndex((s) => s.id === saleId);
+    if (i >= 0) { setHi(i); feedRef.current?.querySelector<HTMLElement>(`[data-i="${i}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  };
 
-  const detail = selected && (
-    <DetailPane
-      key={selected.id}
-      sale={selected}
-      onOpenFile={() => toast({ text: "Prototype — would open the file", tone: "info" })}
-      onCompose={(s) => setCompose({ sale: selected, side: s })}
-      onCall={(s) => setCallLog({ sale: selected, side: s })}
-      onMarkEmailed={(s) => doMarkEmailed(selected.id, s)}
-      onContacted={(s) => doContacted(selected.id, s)}
-      onPark={(s) => doPark(selected.id, s)}
-      onReopen={(s) => doReopen(selected.id, s)}
-    />
-  );
+  const toReach = cov.total - cov.done;
 
   return (
-    <div className="fx-window">
-      <header className="fx-tb">
-        <div className="fx-tb-id">
-          <div className="fx-tb-title"><b>Focus</b><span className="fx-num">{coverage.done} of {coverage.total}<span className="fx-tb-cap"> contacted this week</span></span></div>
-          <div className="fx-tb-cov" role="progressbar" aria-valuenow={coverage.pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${coverage.pct}%` }} /></div>
-        </div>
-        <div className="fx-tb-sp" />
-        <Input className="fx-tb-search" leading={<MagnifyingGlass weight="regular" />} clearable placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} onClear={() => setQuery("")} />
-        <button className="fx-theme" aria-label="Toggle light and dark" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? <MoonStars weight="fill" /> : <Sun weight="fill" />}</button>
-      </header>
-
-      <div className="fx-main">
-        <section className="fx-listcol">
-          <div className="fx-lhead">
-            <Segmented value={lens} onChange={(v) => setLens(v)} ariaLabel="View" size="sm"
-              options={[{ value: "attention", label: "Attention" }, { value: "awaiting", label: "Awaiting" }, { value: "coverage", label: "Coverage" }]} />
-            <div className="fx-scope" role="group" aria-label="Client side">
-              {(["all", "vendor", "purchaser"] as const).map((k) => (
-                <button key={k} data-on={sideF === k || undefined} onClick={() => setSideF(k)}>{k === "all" ? "Everyone" : k === "vendor" ? "Sellers" : "Buyers"}</button>
-              ))}
+    <div className="fb-root">
+      <style dangerouslySetInnerHTML={{ __html: FOCUS_CSS }} />
+      <div className="fb-shell">
+        <header className="fb-mast">
+          <div className="fb-brandrow">
+            <span className="fb-brand">Focus<span>.</span></span>
+            <span className="fb-chip">Prototype</span>
+          </div>
+          <div className="fb-mast-main">
+            <h1 className="fb-thesis">
+              {hot.length === 0
+                ? <>Nothing urgent in your book <span className="fb-quiet">right now.</span></>
+                : <><b>{hot.length}</b> {hot.length === 1 ? "sale needs" : "sales need"} you,{" "}<span className="fb-quiet">{toReach} {toReach === 1 ? "client" : "clients"} still to reach this week.</span></>}
+            </h1>
+            <div className="fb-mast-tools">
+              <div className="fb-scope" role="group" aria-label="Which side to show">
+                {(["all", "vendor", "purchaser"] as const).map((k) => (
+                  <button key={k} data-on={scope === k || undefined} onClick={() => setScope(k)}>
+                    {k === "all" ? "Everyone" : k === "vendor" ? "Sellers" : "Buyers"}
+                  </button>
+                ))}
+              </div>
+              <label className="fb-search" data-filled={query ? "" : undefined}>
+                <MagnifyingGlass weight="regular" />
+                <input placeholder="Search address or name" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search" />
+                <button className="fb-clear" aria-label="Clear search" onClick={() => setQuery("")}><XCircle weight="fill" /></button>
+              </label>
             </div>
           </div>
+        </header>
 
-          {loading ? (
-            Array.from({ length: 8 }).map((_, i) => <div key={i} className="fx-skel"><span className="fx-skelbar" style={{ width: `${68 - i * 4}%` }} /><span className="fx-skelbar" style={{ width: `${46 - i * 3}%`, height: 9 }} /></div>)
-          ) : flat.length === 0 ? (
-            <CaughtUp lens={lens} />
-          ) : (
-            groups.map((g) => (
-              <div key={g.key} role="listbox" aria-label={g.label}>
-                <div className="fx-sec"><b>{g.label}</b><span className="fx-num">{g.sales.length}</span></div>
-                {g.sales.map((sale) => <Row key={sale.id} sale={sale} selected={sale.id === selId && !narrow} sideF={sideF} onClick={() => openDetail(sale.id)} />)}
-              </div>
-            ))
-          )}
-        </section>
-
-        {!narrow && (
-          <section className="fx-detailcol fx-detail-inline">
-            {detail ?? (
-              <div className="fx-nodetail"><FolderOpen weight="regular" /><p>Select a sale to work through its two sides.</p><p><span className="fx-kbd">↑</span> <span className="fx-kbd">↓</span> to move</p></div>
+        <div className="fb-grid">
+          <main className="fb-feed" ref={feedRef}>
+            {hot.length === 0 && calm.length === 0 ? (
+              <div className="fb-empty">No sales match &ldquo;{query}&rdquo;.</div>
+            ) : hot.length === 0 ? (
+              <CaughtUp scope={scope} />
+            ) : (
+              hot.map((sale, i) => (
+                <Story
+                  key={sale.id} sale={sale} i={i} hi={hi === i} scope={scope}
+                  onFocusStory={() => setHi(i)}
+                  onEmail={(side) => setModal({ kind: "email", saleId: sale.id, side })}
+                  onCall={(side) => setModal({ kind: "call", saleId: sale.id, side })}
+                  onPark={(side) => park(sale.id, side)}
+                  onReopen={(side) => reopen(sale.id, side)}
+                />
+              ))
             )}
-          </section>
-        )}
+
+            {calm.length > 0 && (
+              <>
+                <div className="fb-rule"><span>In good shape</span></div>
+                {calm.map((sale) => <CalmLine key={sale.id} sale={sale} />)}
+              </>
+            )}
+          </main>
+
+          <aside className="fb-rail" aria-label="This week's coverage">
+            <div className="fb-cov">
+              <div className="fb-cov-top">
+                <span className="fb-cov-num fb-num">{cov.done}<em>/{cov.total}</em></span>
+                <span className="fb-cov-cap">sides contacted<br />this week</span>
+              </div>
+              <div className="fb-cov-bar" role="progressbar" aria-valuenow={cov.pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${cov.pct}%` }} /></div>
+              <div className="fb-cov-sub"><b>{toReach}</b> still to reach{awaitingCount > 0 && <> · <b>{awaitingCount}</b> awaiting a reply</>}</div>
+            </div>
+
+            <div className="fb-ledger">
+              <div className="fb-ledger-h"><span>Still to reach</span><span className="fb-num">{stillToReach.reduce((n, x) => n + x.sides.length, 0)}</span></div>
+              {stillToReach.length === 0 ? (
+                <p className="fb-ledger-clear">Every side reached this week.</p>
+              ) : (
+                <div className="fb-still">
+                  {stillToReach.map(({ sale, sides }) => (
+                    <div key={sale.id} className="fb-still-s">
+                      <div className="fb-still-addr" onClick={() => jumpTo(sale.id)}>{sale.line1}<em>, {sale.town}</em></div>
+                      {sides.map((s) => {
+                        const st = sideStatus(s);
+                        return (
+                          <div key={s.kind} className="fb-still-side">
+                            <span className="fb-still-l"><i className={`fb-dot fb-dot-${st.tone}`} />{who(s)} <em>· {st.short}</em></span>
+                            <button className="fb-done-btn" onClick={() => markDone(sale.id, s)}>Done</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {parked.length > 0 && (
+                <details className="fb-disc">
+                  <summary><CaretRight weight="bold" />Set aside this week ({parked.length})</summary>
+                  {parked.map(({ sale, side }) => (
+                    <div key={sale.id + side.kind} className="fb-disc-row">
+                      <span>{sale.line1} <em>· {who(side)}</em></span>
+                      <button className="fb-reopen" onClick={() => reopen(sale.id, side)}>Reopen</button>
+                    </div>
+                  ))}
+                </details>
+              )}
+              {reachedCount > 0 && (
+                <details className="fb-disc">
+                  <summary><CaretRight weight="bold" />Reached this week ({reachedCount})</summary>
+                  <div className="fb-disc-row"><span>Already contacted. These drop off the worklist until next week.</span></div>
+                </details>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
 
-      {narrow && (
-        <Drawer open={drawerOpen && !!selected} onClose={() => setDrawerOpen(false)} title={selected?.line1 ?? "Sale"} eyebrow={selected ? `${selected.town} · ${selected.stage}` : undefined}>
-          {detail}
-        </Drawer>
+      {modal?.kind === "email" && (
+        <EmailModal
+          side={modal.side} sale={sales.find((s) => s.id === modal.saleId)!}
+          onClose={() => setModal(null)}
+          onSend={(subject) => { emailSent(modal.saleId, modal.side, subject); setModal(null); }}
+        />
+      )}
+      {modal?.kind === "call" && (
+        <CallModal
+          side={modal.side} sale={sales.find((s) => s.id === modal.saleId)!}
+          onClose={() => setModal(null)}
+          onSave={(note) => { callLogged(modal.saleId, modal.side, note); setModal(null); }}
+        />
       )}
 
-      <Dialog open={!!compose} onClose={() => setCompose(null)} title="New email" eyebrow={compose ? `${who(compose.side)} · ${compose.sale.line1}` : undefined}
-        footer={compose && (<><Button variant="ghost" size="sm" onClick={() => setCompose(null)}>Cancel</Button><Button variant="primary" size="sm" onClick={() => { const el = document.getElementById("fx-subj") as HTMLInputElement | null; doEmailSent(compose.sale.id, compose.side, el?.value ?? ""); setCompose(null); }}><PaperPlaneTilt weight="fill" /> Send</Button></>)}>
-        {compose && (
-          <div className="fx-form">
-            <div className="fx-form-to">To <b>{compose.side.names}</b></div>
-            <Field label="Subject"><Input id="fx-subj" defaultValue="Update on your sale" /></Field>
-            <Field label="Message"><Textarea rows={5} defaultValue={`Hi ${extractFirstName(compose.side.names)},\n\nA quick update on ${compose.sale.line1} — `} /></Field>
-          </div>
-        )}
-      </Dialog>
-
-      <Dialog open={!!callLog} onClose={() => setCallLog(null)} title="Log a call" eyebrow={callLog ? `${who(callLog.side)} · ${callLog.sale.line1}` : undefined}
-        footer={callLog && (<><Button variant="ghost" size="sm" onClick={() => setCallLog(null)}>Cancel</Button><Button variant="primary" size="sm" onClick={() => { const el = document.getElementById("fx-note") as HTMLTextAreaElement | null; doCallLogged(callLog.sale.id, callLog.side, el?.value ?? ""); setCallLog(null); }}><Check weight="bold" /> Save call</Button></>)}>
-        {callLog && (
-          <div className="fx-form">
-            <div className="fx-form-to">Call with <b>{callLog.side.names}</b></div>
-            <Field label="What was said?" hint="Internal note only — the client never sees this."><Textarea id="fx-note" rows={4} placeholder="e.g. Reassured them on the search delay; chasing the local authority." /></Field>
-          </div>
-        )}
-      </Dialog>
+      {toast && (
+        <div className="fb-toast" role="status">
+          <Check weight="bold" />{toast.title}
+          {toast.undo && <button className="fb-toast-undo" onClick={() => { toast.undo!(); setToast(null); }}>Undo</button>}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── source-list row ──────────────────────────────────────────────────────────
-function Row({ sale, selected, sideF, onClick }: { sale: Sale; selected: boolean; sideF: string; onClick: () => void }) {
-  const rs = reasons(sale);
-  const sides = [sale.vendor, sale.purchaser].filter((s): s is Side => !!s && (sideF === "all" || s.kind === sideF));
-  const dotU = rs[0]?.tone === "danger" ? "danger" : rs[0]?.tone === "warn" ? "warn" : rs[0]?.tone === "info" ? "info" : "none";
-  const lead = rs[0] ?? null;
-  const rest = rs.length ? rs.slice(1, 3).map((r) => r.text).join(" · ") : sides.map(sideBrief).join(" · ");
-  const worst = sides.map((s) => sideSignal(s).lastHumanDays).filter((d): d is number => d != null);
-  const when = sides.some((s) => sideSignal(s).lastHumanDays == null) && rs.length ? "" : worst.length ? rel(Math.max(...worst)) : "";
-  return (
-    <button className="fx-row" data-sel={selected || undefined} onClick={onClick} role="option" aria-selected={selected}>
-      <span className="fx-row-dot" data-u={dotU} />
-      <span className="fx-row-m">
-        <span className="fx-row-addr">{sale.line1} <span>{sale.town}</span></span>
-        <span className="fx-row-sum">{lead ? <><em>{lead.text}</em>{rest && <> · {rest}</>}</> : rest}</span>
-      </span>
-      {when && <span className="fx-row-when fx-num">{when}</span>}
-    </button>
-  );
-}
-
-// ── detail (reading pane) ─────────────────────────────────────────────────────
-function DetailPane({ sale, onOpenFile, onCompose, onCall, onMarkEmailed, onContacted, onPark, onReopen }: {
-  sale: Sale; onOpenFile: () => void;
-  onCompose: (s: Side) => void; onCall: (s: Side) => void; onMarkEmailed: (s: Side) => void;
-  onContacted: (s: Side) => void; onPark: (s: Side) => void; onReopen: (s: Side) => void;
+// ── a single sale, told as a story ───────────────────────────────────────────
+function Story({ sale, i, hi, scope, onFocusStory, onEmail, onCall, onPark, onReopen }: {
+  sale: Sale; i: number; hi: boolean; scope: Scope;
+  onFocusStory: () => void;
+  onEmail: (s: Side) => void; onCall: (s: Side) => void; onPark: (s: Side) => void; onReopen: (s: Side) => void;
 }) {
-  const sides = [sale.vendor, sale.purchaser].filter((s): s is Side => !!s);
+  const h = headline(sale);
+  const sides = [sale.vendor, sale.purchaser].filter((s): s is Side => !!s && (scope === "all" || s.kind === scope));
+  const lastHuman = sides.map((s) => sideSignal(s).lastHumanDays).filter((d): d is number => d != null);
   return (
-    <div className="fx-detail">
-      <div className="fx-dhead">
-        <div style={{ minWidth: 0 }}>
-          <h2 className="fx-daddr">{sale.line1}</h2>
-          <div className="fx-dmeta"><span>{sale.town} {sale.postcode}</span><i /><b className="fx-num">{price(sale.pricePence)}</b><i /><span>{sale.stage}</span></div>
-        </div>
-        <button className="fx-openfile" onClick={onOpenFile}>Open file <ArrowUpRight weight="bold" /></button>
-      </div>
-
-      {sale.concerns.map((con, i) => (
-        <div key={i} className="fx-concern" data-t={con.tone === "warn" ? "warn" : undefined}>
-          {con.kind === "enquiry" ? <ChatCircleDots weight="fill" /> : <MagnifyingGlass weight="bold" />}
-          <b>{con.title}</b><span>— {con.detail}</span>
-          <button className="fx-concern-open" onClick={onOpenFile}>Open</button>
-        </div>
-      ))}
-      {attentionScore(sale) === 0 && <div className="fx-allclear"><Check weight="bold" />Nothing needs you here — both sides are in good shape.</div>}
-
-      <div className="fx-cols" data-single={sides.length === 1 || undefined}>
+    <article className="fb-story" data-hi={hi || undefined} data-i={i} onMouseEnter={onFocusStory}>
+      {h && <p className={`fb-kicker fb-k-${h.tone}`}>{h.tone === "danger" ? <Warning weight="fill" /> : h.tone === "warn" ? <Clock weight="fill" /> : <ChatCircleDots weight="fill" />}{h.text}</p>}
+      <h2 className="fb-addr" onClick={() => onFocusStory()}>{sale.line1}<span className="fb-town">, {sale.town}</span></h2>
+      <p className="fb-dateline">
+        <b>{sale.stage}</b>
+        {lastHuman.length > 0 ? <> · last spoke {rel(Math.max(...lastHuman))} ago</> : <> · no contact on record</>}
+      </p>
+      <div className="fb-sides" data-single={sides.length === 1 || undefined}>
         {sides.map((s) => (
-          <SideColumn key={s.kind} side={s}
-            onCompose={() => onCompose(s)} onCall={() => onCall(s)} onMarkEmailed={() => onMarkEmailed(s)}
-            onContacted={() => onContacted(s)} onPark={() => onPark(s)} onReopen={() => onReopen(s)} />
+          <SideBlock key={s.kind} side={s}
+            onEmail={() => onEmail(s)} onCall={() => onCall(s)} onPark={() => onPark(s)} onReopen={() => onReopen(s)} />
         ))}
       </div>
-    </div>
+    </article>
   );
 }
 
-function SideColumn({ side, onCompose, onCall, onMarkEmailed, onContacted, onPark, onReopen }: {
-  side: Side; onCompose: () => void; onCall: () => void; onMarkEmailed: () => void; onContacted: () => void; onPark: () => void; onReopen: () => void;
+function SideBlock({ side, onEmail, onCall, onPark, onReopen }: {
+  side: Side; onEmail: () => void; onCall: () => void; onPark: () => void; onReopen: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const st = sideStatus(side);
   const covered = sideCovered(side);
-  const circleState = side.parked ? "parked" : side.touchedThisWeek ? "done" : "todo";
   const comms = [...side.comms].sort((a, b) => a.daysAgo - b.daysAgo);
-  const shown = showAll ? comms : comms.slice(0, 3);
+  const shown = showAll ? comms : comms.slice(0, 2);
+
   return (
-    <div className="fx-col">
-      <div className="fx-ch">
-        <button className="fx-circle" data-s={circleState}
-          aria-label={covered ? `Mark ${who(side)} as not contacted` : `Mark ${who(side)} contacted this week`}
-          onClick={() => (covered ? onReopen() : onContacted())}>
-          {side.parked ? <Moon weight="fill" /> : <Check weight="bold" />}
-        </button>
-        <div className="fx-ch-id">
-          <div className="fx-ch-role">{who(side)}</div>
-          <div className="fx-ch-name">{side.names}</div>
-        </div>
+    <div className="fb-side">
+      <div className="fb-side-h">
+        <span className="fb-role">{who(side)}</span>
+        <span className="fb-name">{side.names}</span>
       </div>
-      <p className="fx-status" data-t={st.t === "ok" ? undefined : st.t}>
-        {st.t === "danger" ? <Warning weight="fill" /> : st.t === "warn" ? <Clock weight="fill" /> : null}{st.text}
+      <p className={`fb-st fb-s-${st.tone}`}>
+        {st.tone === "danger" ? <Warning weight="fill" /> : st.tone === "warn" ? <Clock weight="fill" /> : null}{st.text}
       </p>
 
-      <div className="fx-thread">
-        {comms.length === 0 ? <p className="fx-te-empty">No contact on record yet.</p> : shown.map((m, i) => {
+      <div className="fb-thread">
+        {comms.length === 0 ? (
+          <p className="fb-ex-none">No contact on record yet.</p>
+        ) : shown.map((m, k) => {
           const Icon = CH[m.channel];
           return (
-            <div key={i} className="fx-te" data-recent={i === 0 || undefined}>
-              <span className="fx-te-g"><Icon weight="regular" /></span>
-              <div className="fx-te-b">
-                <div className="fx-te-t">{m.subject ?? m.preview ?? STATE_LABEL[m.state]}</div>
-                <div className="fx-te-s" data-bad={isBad(m.state) || undefined}>{m.automated ? <span className="fx-te-auto">Sent automatically · doesn&rsquo;t count</span> : <>{dirWord(m)} · {STATE_LABEL[m.state]}</>}</div>
+            <div key={k} className="fb-ex" data-bad={isBad(m.state) || undefined}>
+              <Icon weight="regular" className="fb-ex-i" />
+              <div>
+                <div className="fb-ex-t">{m.subject ?? m.preview ?? STATE_LABEL[m.state]}</div>
+                <div className="fb-ex-m" data-bad={isBad(m.state) || undefined}>
+                  {m.automated ? <span className="fb-ex-auto">Sent automatically, does not count as contact</span> : <>{dirWord(m)} · {STATE_LABEL[m.state]}</>}
+                </div>
               </div>
-              <span className="fx-te-w fx-num">{rel(m.daysAgo)}</span>
+              <span className="fb-ex-w fb-num">{rel(m.daysAgo)}</span>
             </div>
           );
         })}
-        {comms.length > 3 && <button className="fx-more" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : `Show ${comms.length - 3} earlier`}</button>}
+        {comms.length > 2 && (
+          <button className="fb-more" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Show less" : `${comms.length - 2} earlier`}
+          </button>
+        )}
       </div>
 
       {covered ? (
-        <div className="fx-done-line"><Check weight="bold" />{side.parked ? "Set aside this week" : "Contacted this week"}<button onClick={onReopen}>Reopen</button></div>
+        <span className={`fb-done-line${side.parked ? " is-parked" : ""}`}>
+          {side.parked ? <Moon weight="fill" /> : <Check weight="bold" />}
+          {side.parked ? "Set aside this week" : "Contacted this week"}
+          <button className="fb-reopen" onClick={onReopen}>Reopen</button>
+        </span>
       ) : (
-        <div className="fx-acts">
-          <button className="fx-prim" onClick={onCompose}><PaperPlaneTilt weight="fill" />Email {extractFirstName(side.names)}</button>
-          <button className="fx-sec-act" onClick={onCall}><PhoneCall weight="regular" />Log call</button>
-          <span className="fx-kebabwrap">
-            <DropdownMenu align="end" label={<DotsThree weight="bold" />} items={[
-              { label: "Mark as emailed", icon: <ClipboardText weight="regular" />, onSelect: onMarkEmailed },
-              { label: "Set aside this week", icon: <Moon weight="regular" />, onSelect: onPark },
-            ]} />
-          </span>
+        <div className="fb-acts">
+          <button className="fb-act fb-act-primary" onClick={onEmail}>
+            <PaperPlaneTilt weight="fill" />Email {first(side.names)}<ArrowRight weight="bold" className="fb-arr" />
+          </button>
+          <button className="fb-act fb-act-muted" onClick={onCall}><PhoneCall weight="regular" />Log call</button>
+          <button className="fb-act fb-act-muted" onClick={onPark}><Moon weight="regular" />Set aside</button>
         </div>
       )}
     </div>
   );
 }
 
-function CaughtUp({ lens }: { lens: Lens }) {
-  const c = lens === "awaiting" ? { t: "Nobody's left hanging", b: "Every message you've sent has had a reply." }
-    : lens === "coverage" ? { t: "Every side covered", b: "You've reached both clients on every active sale this week." }
-    : { t: "All caught up", b: "Nothing urgent across your book right now." };
-  return <div className="fx-caught">{lens === "awaiting" ? <ChatCircleDots weight="fill" /> : <Sparkle weight="fill" />}<h3>{c.t}</h3><p>{c.b}</p></div>;
+function CalmLine({ sale }: { sale: Sale }) {
+  const sides = [sale.vendor, sale.purchaser].filter((s): s is Side => !!s);
+  const lastHuman = sides.map((s) => sideSignal(s).lastHumanDays).filter((d): d is number => d != null);
+  const allParked = sides.length > 0 && sides.every((s) => s.parked);
+  return (
+    <div className="fb-calm" title={sale.postcode}>
+      <span className="fb-calm-addr">{sale.line1}<em>, {sale.town}</em></span>
+      <span className="fb-calm-meta">
+        {allParked ? "Set aside this week" : sides.every((s) => s.touchedThisWeek) ? "Both contacted this week" : lastHuman.length ? `Both in touch · last spoke ${rel(Math.max(...lastHuman))} ago` : "On track"}
+      </span>
+    </div>
+  );
+}
+
+function CaughtUp({ scope }: { scope: Scope }) {
+  const noun = scope === "vendor" ? "seller" : scope === "purchaser" ? "buyer" : "client";
+  return (
+    <div className="fb-caught">
+      <Sparkle weight="fill" />
+      <h3>All caught up</h3>
+      <p>Nothing urgent across your {scope === "all" ? "book" : `${noun}s`} right now. Anything still to reach for weekly coverage is on the right, in your own time.</p>
+    </div>
+  );
+}
+
+// ── bespoke modals (prototype-local; Escape + backdrop to close) ─────────────
+function Modal({ title, eyebrow, children, footer, onClose }: {
+  title: string; eyebrow: string; children: React.ReactNode; footer: React.ReactNode; onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    const t = setTimeout(() => ref.current?.querySelector<HTMLElement>("input, textarea")?.focus(), 40);
+    return () => { window.removeEventListener("keydown", onKey); clearTimeout(t); };
+  }, [onClose]);
+  return (
+    <div className="fb-scrim" onMouseDown={onClose}>
+      <div className="fb-modal" ref={ref} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="fb-modal-h"><span className="fb-modal-eyebrow">{eyebrow}</span><h3>{title}</h3></div>
+        <div className="fb-modal-b">{children}</div>
+        <div className="fb-modal-f">{footer}</div>
+      </div>
+    </div>
+  );
+}
+
+function EmailModal({ side, sale, onClose, onSend }: { side: Side; sale: Sale; onClose: () => void; onSend: (subject: string) => void }) {
+  const [subject, setSubject] = useState("Update on your sale");
+  return (
+    <Modal title="New email" eyebrow={`${who(side)} · ${sale.line1}`} onClose={onClose}
+      footer={<><button className="fb-btn fb-btn-ghost" onClick={onClose}>Cancel</button><button className="fb-btn fb-btn-primary" onClick={() => onSend(subject)}><PaperPlaneTilt weight="fill" />Send</button></>}>
+      <div className="fb-to">To <b>{side.names}</b></div>
+      <div className="fb-field"><label>Subject</label><input className="fb-input" value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
+      <div className="fb-field"><label>Message</label><textarea className="fb-textarea" defaultValue={`Hi ${first(side.names)},\n\nA quick update on ${sale.line1}. `} /></div>
+    </Modal>
+  );
+}
+
+function CallModal({ side, sale, onClose, onSave }: { side: Side; sale: Sale; onClose: () => void; onSave: (note: string) => void }) {
+  const [note, setNote] = useState("");
+  return (
+    <Modal title="Log a call" eyebrow={`${who(side)} · ${sale.line1}`} onClose={onClose}
+      footer={<><button className="fb-btn fb-btn-ghost" onClick={onClose}>Cancel</button><button className="fb-btn fb-btn-primary" onClick={() => onSave(note)}><Check weight="bold" />Save call</button></>}>
+      <div className="fb-to">Call with <b>{side.names}</b></div>
+      <div className="fb-field"><label>What was said? <span className="fb-hint">Internal note, the client never sees this.</span></label><textarea className="fb-textarea" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Reassured them on the search delay, chasing the local authority." /></div>
+    </Modal>
+  );
 }
