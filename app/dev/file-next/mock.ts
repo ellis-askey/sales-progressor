@@ -1,51 +1,84 @@
-// File Next — isolated /dev prototype of the agent file/transaction page in the
-// "bench + glass" language. Mock data shaped to the real page (hero, milestone
-// strip, tabs, overview with enquiry tracker + mortgage, a rich sidebar of
-// people/dates/chain/mortgage, and an activity feed). No DB, no production code.
+// File Next — isolated /dev prototype of the agent file/transaction page, levelled
+// up to carry the REAL page's density (app nav, top bar, full hero meta, 7-step
+// milestone strip, contacts with actions, sale-health scoring, chain cards, key
+// dates, agent, fees, enquiries, activity). The point is to show the new STYLING
+// over the real amount of information, losing nothing. Mock only; no DB, no prod.
 
 export type Tone = "coral" | "amber" | "blue" | "green" | "slate";
 
-export type Stage = { key: string; label: string; state: "done" | "current" | "todo"; when?: string };
-
-export type Party = {
-  name: string; role: string; firm?: string; initials: string; hue: number;
-  recency: string; state: "ok" | "waiting" | "overdue";
-};
-
+export type Stage = { n: number; key: string; label: string; state: "done" | "current" | "todo"; when?: string };
 export type EnquiryState = "raised" | "replied" | "resolved";
 export type Enquiry = {
-  id: string; title: string; detail: string; raisedBy: string; waiting: string;
-  state: EnquiryState; tone: Tone;
+  id: string; title: string; detail: string; raisedBy: string; waiting: string; state: EnquiryState; tone: Tone;
   thread: { from: string; side: "solicitor" | "you" | "seller"; when: string; body: string }[];
 };
-
+export type Contact = { name: string; role: "Vendor" | "Purchaser"; phone?: string; initials: string; hue: number; state: "ok" | "waiting" | "overdue" };
 export type Activity = { id: string; icon: "note" | "reply" | "doc" | "step" | "alert" | "call"; text: string; sub?: string; when: string; who: string };
+
+export const NAV = [
+  { key: "new", label: "New sale", icon: "plus", primary: true },
+  { key: "hub", label: "Hub", icon: "house" },
+  { key: "focus", label: "Focus", icon: "target" },
+  { key: "reminders", label: "Reminders", icon: "bell" },
+  { key: "enquiries", label: "Enquiries", icon: "chat", count: 6 },
+  { key: "completions", label: "Completions", icon: "check" },
+  { key: "todo", label: "To-Do", icon: "list", count: 22 },
+  { key: "updates", label: "Updates", icon: "refresh" },
+  { key: "emails", label: "Auto emails", icon: "mail" },
+  { key: "files", label: "My Files", icon: "folder", active: true },
+  { key: "chains", label: "Chains", icon: "link" },
+  { key: "analytics", label: "Analytics", icon: "chart" },
+  { key: "admin", label: "Admin", icon: "gear" },
+  { key: "partners", label: "Partners", icon: "handshake" },
+] as const;
 
 export const FILE = {
   address: "14 Pennington Grove",
   town: "Harpenden",
   postcode: "AL5 2RD",
   photo: "/dev/workspace-lab/house-d.jpg",
-  price: "£685,000",
-  tenure: "Freehold" as const,
-  service: "Managed sale",
+  status: "Active",
+  pct: 52,
   ref: "TSP-10482",
   stage: "Enquiries",
-  progress: 0.52,
   daysToExchange: "about 3 weeks to exchange",
 
+  meta: [
+    { icon: "coins", label: "Sale price", value: "£685,000" },
+    { icon: "key", label: "Purchase type", value: "Cash buyer" },
+    { icon: "house", label: "Tenure", value: "Freehold" },
+    { icon: "calendar", label: "Expected exchange", value: "28 Nov 2026" },
+  ],
+  managing: { name: "Ellis Askey", sub: "Managing this file" },
+  onFile: { weeks: "19 weeks 4 days", added: "Added 23 Jun 2026" },
+  managedBy: "Managed by TSP",
+
   stages: [
-    { key: "instructed", label: "Instructed", state: "done", when: "12 Sep" },
-    { key: "searches", label: "Searches", state: "done", when: "28 Sep" },
-    { key: "enquiries", label: "Enquiries", state: "current", when: "in progress" },
-    { key: "survey", label: "Survey", state: "todo" },
-    { key: "exchange", label: "Exchange", state: "todo", when: "target 28 Nov" },
-    { key: "completion", label: "Completion", state: "todo" },
+    { n: 1, key: "instructed", label: "Instructed", state: "done", when: "24 Jun" },
+    { n: 2, key: "draft", label: "Draft pack", state: "done", when: "10 Jul" },
+    { n: 3, key: "finances", label: "Finances", state: "done", when: "In place" },
+    { n: 4, key: "searches", label: "Searches", state: "done", when: "11 Aug" },
+    { n: 5, key: "enquiries", label: "Enquiries", state: "current", when: "In progress" },
+    { n: 6, key: "exchange", label: "Exchange", state: "todo", when: "~28 Nov" },
+    { n: 7, key: "completion", label: "Completion", state: "todo", when: "Pending" },
   ] as Stage[],
 
-  // the overview headline + the one next action
-  summary: "Everything is moving, but the contract pack is held up by one enquiry. Clearing it is the single thing that keeps exchange on track.",
+  banner: { title: "Exchange is running behind target", body: "Now expected around 28 November 2026, over two weeks late. Waiting on all enquiries to be satisfied." },
+
+  summary: "Everything is moving, but the contract pack is held up by one enquiry.",
   nextAction: { label: "Reply to the solicitor", context: "The FENSA certificate is the only open item blocking the pack." },
+
+  contacts: [
+    { name: "Margaret Ellison", role: "Vendor", phone: "+44 7788 533503", initials: "ME", hue: 18, state: "ok" },
+    { name: "Roy Ellison", role: "Vendor", phone: "+44 7773 058448", initials: "RE", hue: 18, state: "ok" },
+    { name: "Daniel Osei", role: "Purchaser", phone: "+44 7484 196603", initials: "DO", hue: 205, state: "waiting" },
+    { name: "Priya Osei", role: "Purchaser", initials: "PO", hue: 205, state: "ok" },
+  ] as Contact[],
+
+  professionals: [
+    { name: "Priya Shah", role: "Seller's solicitor", firm: "Dawson Hart", initials: "PS", hue: 150, state: "ok", recency: "Emailed yesterday" },
+    { name: "James Hartley", role: "Buyer's solicitor", firm: "Hartley & Co", initials: "JH", hue: 265, state: "waiting", recency: "Raised 3 enquiries" },
+  ],
 
   enquiries: [
     {
@@ -70,45 +103,52 @@ export const FILE = {
       raisedBy: "Buyer's solicitor", waiting: "3 days", state: "replied", tone: "blue",
       thread: [
         { from: "Hartley & Co", side: "solicitor", when: "8 days ago", body: "Is the drainage to the rear shared with the neighbouring property?" },
-        { from: "You", side: "you", when: "3 days ago", body: "Shared with number 12 under a maintenance arrangement. Details and the search entry sent over." },
+        { from: "You", side: "you", when: "3 days ago", body: "Shared with number 12 under a maintenance arrangement. The search entry is enclosed." },
       ],
     },
   ] as Enquiry[],
 
-  mortgage: { lender: "Halifax", amount: "£479,500", status: "Offer issued", note: "Offer valid to 14 Feb", tone: "green" as Tone },
-
-  people: [
-    { name: "Margaret & Roy Ellison", role: "Seller", initials: "ME", hue: 18, recency: "Spoke 3 days ago", state: "ok" },
-    { name: "Daniel Osei", role: "Buyer", initials: "DO", hue: 205, recency: "Awaiting your reply", state: "waiting" },
-    { name: "Priya Shah", role: "Seller's solicitor", firm: "Dawson Hart", initials: "PS", hue: 150, recency: "Emailed yesterday", state: "ok" },
-    { name: "James Hartley", role: "Buyer's solicitor", firm: "Hartley & Co", initials: "JH", hue: 265, recency: "Raised 3 enquiries", state: "waiting" },
-    { name: "Rebecca Nolan", role: "Estate agent", firm: "Preston & Vale", initials: "RN", hue: 32, recency: "Agreed the sale", state: "ok" },
-  ] as Party[],
-
-  progressor: { name: "Ellis Askey", role: "Your file", initials: "EA" },
+  saleHealth: {
+    status: "Off track",
+    metrics: [
+      { label: "Time on file", value: "2h 42m" },
+      { label: "Agent", value: "6 mins" },
+      { label: "Our team", value: "2h 36m" },
+      { label: "Stage", value: "Conveyancing" },
+      { label: "Risk level", value: "Medium" },
+      { label: "Last activity", value: "Yesterday, 12:44" },
+    ],
+    score: [
+      { label: "Progress vs pace", sub: "Significantly behind the 12-week exchange target", points: "+40", tone: "coral" as Tone },
+      { label: "No recent step completed", sub: "No step completed in 36 days", points: "+10", tone: "amber" as Tone },
+    ],
+  },
 
   keyDates: [
-    { label: "Offer accepted", value: "22 August", tone: "slate" as Tone },
-    { label: "Target exchange", value: "28 November", tone: "coral" as Tone, emphasis: true },
-    { label: "Target completion", value: "12 December", tone: "slate" as Tone },
+    { label: "12-week target", value: "15 September 2026", emph: false },
+    { label: "Completion", value: "Awaiting exchange", emph: false },
+    { label: "Est. time to exchange", value: "6 weeks, 2 days", emph: true },
+  ],
+  keyDatesNote: "Chain not factored. This prediction is for this sale alone.",
+
+  agent: { name: "Taylor Kay", firm: "Akeman Residential", email: "taylor@akeman-residential.co.uk" },
+
+  fees: [
+    { label: "Purchase price", value: "£685,000" },
+    { label: "Agent fee", value: "£10,275" },
+    { label: "Our fee", value: "£1,200" },
   ],
 
   chain: {
     position: "Middle of a chain of three",
-    links: [
-      { address: "Flat 9, Alma Road", town: "Luton", role: "Buyer's sale", state: "ok", stage: "Exchange ready" },
-      { address: "14 Pennington Grove", town: "Harpenden", role: "This sale", state: "current", stage: "Enquiries" },
-      { address: "3 Oakfield Close", town: "Wheathampstead", role: "Onward purchase", state: "waiting", stage: "Searches" },
+    cards: [
+      { tag: "Related sale", address: "67a Blackberry Lane", town: "Luton", sub: "Exchange ready", pct: 86, state: "ok", photo: "/dev/workspace-lab/house-b.jpg" },
+      { tag: "This sale", address: "14 Pennington Grove", town: "Harpenden", sub: "Enquiries in progress", pct: 52, state: "current", photo: "/dev/workspace-lab/house-d.jpg" },
+      { tag: "Onward purchase", address: "3 Oakfield Close", town: "Wheathampstead", sub: "Searches", pct: 20, state: "waiting", photo: "/dev/workspace-lab/house-e.jpg" },
     ],
   },
 
-  documents: [
-    { name: "Local-Authority-Search.pdf", kind: "Search", when: "yesterday" },
-    { name: "Draft-Contract.pdf", kind: "Contract", when: "4 days ago" },
-    { name: "Property-Information-Form.pdf", kind: "TA6", when: "1 week ago" },
-    { name: "Mortgage-Offer.pdf", kind: "Mortgage", when: "1 week ago" },
-    { name: "Title-Register.pdf", kind: "Title", when: "2 weeks ago" },
-  ],
+  property: { floorArea: "174 m²", localAuthority: "St Albans", councilTax: "Band F", sources: "GOV.UK EPC Register, HM Land Registry, postcodes.io" },
 
   activity: [
     { id: "a1", icon: "reply", text: "A solicitor replied to our chase", sub: "The boundary runs along the eastern fence line; the deed plan is enclosed.", when: "52m ago", who: "Hartley & Co" },
@@ -124,8 +164,8 @@ export type FileData = typeof FILE;
 
 export const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "activity", label: "Activity" },
   { key: "chain", label: "Chain" },
-  { key: "documents", label: "Documents" },
+  { key: "activity", label: "Activity" },
+  { key: "property", label: "Property" },
 ] as const;
 export type TabKey = (typeof TABS)[number]["key"];
