@@ -93,7 +93,10 @@ type Props = {
     image?: string | null;
   } | null;
   agencyFeeOverride?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
-  agentUser?: { id: string; name: string; email: string; firmName: string | null; image?: string | null } | null;
+  agentUser?: { id: string; name: string; email: string; firmName: string | null; image?: string | null; role?: string | null } | null;
+  // The ORIGINAL adder, present only when the file's been reassigned (differs from
+  // agentUser). Shows as "Added by" above the current "Assigned to" owner.
+  originalAgentUser?: { id: string; name: string; image?: string | null; role?: string | null } | null;
   // In-house progression: show the Client manager + Progressor as two entries
   // (Option B — the Progressor entry shows even when empty, as "Not assigned yet").
   inHouseProgressor?: boolean;
@@ -211,11 +214,49 @@ function fmtTime(seconds: number): string {
   return mo <= 1 ? "over a month" : `${mo} months`;
 }
 
+// The agent's job title for the self-managed Agent card. Agency agents are
+// directors or negotiators; internal/other roles fall back to "Agent".
+function agentRoleLabel(role: string | null | undefined): string {
+  switch (role) {
+    case "director": return "Director";
+    case "negotiator": return "Negotiator";
+    case "sales_progressor": return "Progressor";
+    case "admin":
+    case "superadmin": return "Admin";
+    default: return "Agent";
+  }
+}
+
+// One person on the self-managed Agent card: job title + avatar + name, with an
+// optional light "(Added)" / "(Assigned)" marker once the file's changed hands.
+function AgentPersonRow({ role, name, image, marker }: {
+  role: string | null | undefined;
+  name: string;
+  image: string | null | undefined;
+  marker?: "Added" | "Assigned";
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ flexShrink: 0 }}>
+        <UserAvatar user={{ name, image: image ?? null }} size={32} />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}>{agentRoleLabel(role)}</p>
+        <p style={{ margin: "1px 0 0", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {name}
+          {marker && <span style={{ fontWeight: 400, color: "var(--agent-text-muted)", marginLeft: 6 }}>({marker})</span>}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AgentFileSidebar({
   transaction,
   assignedUser,
   agencyFeeOverride,
   agentUser,
+  originalAgentUser,
   inHouseProgressor,
   inHouseProgressorName,
   inHouseProgressorImage,
@@ -588,8 +629,10 @@ export function AgentFileSidebar({
 
               {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
             </>
-          ) : (
+          ) : transaction.serviceType === "outsourced" ? (
             <>
+              {/* Outsourced: the agent is an EXTERNAL estate-agency contact, so the
+                  storefront + firm + email + Message agent all earn their place. */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <span style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -601,39 +644,49 @@ export function AgentFileSidebar({
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Agent</p>
               </div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{agentUser.name}</p>
-              {/* Firm, email + Message agent only when the agent is a DIFFERENT
-                  company — i.e. an outsourced file, where a progressor (TSP or an
-                  external progression business) is viewing the estate agency's
-                  contact. On a self-managed file the "agent" is a colleague in the
-                  viewer's own agency, so those are redundant: show the name alone. */}
-              {transaction.serviceType === "outsourced" && (
-                <>
-                  {agentUser.firmName && (
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
-                  )}
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
+              {agentUser.firmName && (
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>{agentUser.firmName}</p>
+              )}
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{agentUser.email}</p>
 
-                  {showMessageAgent && (
-                    <a
-                      href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        marginTop: 12,
-                        padding: "7px 12px",
-                        fontSize: 12, fontWeight: 600,
-                        color: "var(--agent-text-primary)",
-                        background: "var(--agent-surface-elevated)",
-                        border: "0.5px solid var(--agent-border-default)",
-                        borderRadius: 8,
-                        textDecoration: "none",
-                      }}
-                      className="agent-hover-row"
-                    >
-                      <EnvelopeSimple size={13} weight="regular" />
-                      Message agent
-                    </a>
-                  )}
+              {showMessageAgent && (
+                <a
+                  href={`mailto:${agentUser.email}?subject=${encodeURIComponent(`Update on ${transaction.propertyAddress}`)}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    marginTop: 12,
+                    padding: "7px 12px",
+                    fontSize: 12, fontWeight: 600,
+                    color: "var(--agent-text-primary)",
+                    background: "var(--agent-surface-elevated)",
+                    border: "0.5px solid var(--agent-border-default)",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                  }}
+                  className="agent-hover-row"
+                >
+                  <EnvelopeSimple size={13} weight="regular" />
+                  Message agent
+                </a>
+              )}
+
+              {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}
+            </>
+          ) : (
+            <>
+              {/* Self-managed: colleague(s) in the viewer's own agency. Once a file
+                  has changed hands, the ORIGINAL adder stays on top ("Added") and
+                  the current owner sits underneath ("Assigned"); a fresh file shows
+                  just the one person. */}
+              {originalAgentUser ? (
+                <>
+                  <AgentPersonRow role={originalAgentUser.role} name={originalAgentUser.name} image={originalAgentUser.image} marker="Added" />
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "0.5px solid var(--agent-border-subtle)" }}>
+                    <AgentPersonRow role={agentUser.role} name={agentUser.name} image={agentUser.image} marker="Assigned" />
+                  </div>
                 </>
+              ) : (
+                <AgentPersonRow role={agentUser.role} name={agentUser.name} image={agentUser.image} />
               )}
 
               {agentSlot && <div style={{ marginTop: 12 }}>{agentSlot}</div>}

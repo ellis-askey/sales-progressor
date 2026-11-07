@@ -54,6 +54,7 @@ type SidebarTransaction = {
   referredFirmId?: string | null;
   referredFirm?: { name: string } | null;
   agentUserId?: string | null;
+  originalAgentUserId?: string | null;
   assignedUserId?: string | null;
   agencyId: string;
   agency?: { feeTier: ClientType; legacyOutsourcedFeePence: number | null } | null;
@@ -114,6 +115,7 @@ export async function SidebarPanel({
     fileTimeSessions,
     assignedUser,
     agentUser,
+    originalAgentUser,
     recommendedFirms,
     reminderLogs,
     activityEntries,
@@ -171,7 +173,16 @@ export async function SidebarPanel({
     transaction.agentUserId
       ? prisma.user.findUnique({
           where: { id: transaction.agentUserId },
-          select: { id: true, name: true, email: true, firmName: true, image: true },
+          select: { id: true, name: true, email: true, firmName: true, image: true, role: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
+
+    // Original adder — only when the file has been reassigned (original differs
+    // from the current owner). Lets the Agent card show "Added by" + "Assigned to".
+    transaction.originalAgentUserId && transaction.originalAgentUserId !== transaction.agentUserId
+      ? prisma.user.findUnique({
+          where: { id: transaction.originalAgentUserId },
+          select: { id: true, name: true, image: true, role: true },
         }).catch(() => null)
       : Promise.resolve(null),
 
@@ -410,6 +421,7 @@ export async function SidebarPanel({
       assignedUser={assignedUser}
       agencyFeeOverride={transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null}
       agentUser={agentUser}
+      originalAgentUser={originalAgentUser}
       inHouseProgressor={showInHouseProgressor}
       inHouseProgressorName={assignedUser?.name ?? null}
       inHouseProgressorImage={assignedUser?.image ?? null}

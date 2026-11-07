@@ -1208,6 +1208,8 @@ export async function createTransaction(input: CreateTransactionInput) {
       // backdated files report "assigned 3 weeks ago" correctly.
       assignedAt: input.assignedUserId ? (input.createdAt ?? new Date()) : null,
       agentUserId: input.agentUserId ?? null,
+      // Stamp the original adder once, at creation — never changed by a reassign.
+      originalAgentUserId: input.agentUserId ?? null,
       progressionBusinessId: input.progressionBusinessId ?? null,
       // TSP's £5 per-sale charge to an EXTERNAL progression business is billed when
       // the sale is ADDED (here), not at exchange — a non-null progressionBusinessId

@@ -346,6 +346,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           referredFirmId: transaction.referredFirmId ?? null,
           referredFirm: transaction.referredFirm ?? null,
           agentUserId: transaction.agentUserId ?? null,
+          originalAgentUserId: transaction.originalAgentUserId ?? null,
           assignedUserId: transaction.assignedUserId ?? null,
           agencyId: transaction.agencyId,
           agency: transaction.agency ? { feeTier: transaction.agency.feeTier, legacyOutsourcedFeePence: transaction.agency.legacyOutsourcedFeePence } : null,

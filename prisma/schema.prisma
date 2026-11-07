@@ -541,6 +541,7 @@ model User {
   managedAgents        User[]                @relation("ProgressorAgents")
   assignedTransactions PropertyTransaction[] @relation("AssignedUser")
   agentFiles           PropertyTransaction[] @relation("AgentFiles")
+  originalAgentFiles   PropertyTransaction[] @relation("OriginalAgentFiles")
   pausedTransactions   PropertyTransaction[] @relation("PausedTransactions")
   milestoneCompletions MilestoneCompletion[] @relation("CompletedBy")
   markedNotRequired    MilestoneCompletion[] @relation("NotRequiredBy")
@@ -720,6 +721,11 @@ model PropertyTransaction {
   assignedUserId                  String?
   assignedAt                      DateTime?
   agentUserId                     String?
+  // The agent who ORIGINALLY added this sale. Set once at creation and never
+  // changed by a reassign (unlike agentUserId, which becomes the current owner).
+  // Lets the file show "Added by {original}" + "Assigned to {current}" once the
+  // owner has changed hands. Null only for legacy rows created before this field.
+  originalAgentUserId             String?
   // Unguessable token for reply-capture (lib/email/reply-capture.ts). When an
   // agent sends via a connected mailbox (e.g. eXp UK, whose domain can't be
   // SendGrid-verified and whose inbox we can't reliably read over IMAP), our
@@ -1124,6 +1130,7 @@ model PropertyTransaction {
   progressionBusiness              ProgressionBusiness?              @relation(fields: [progressionBusinessId], references: [id], onDelete: Restrict)
   assignedUser                     User?                             @relation("AssignedUser", fields: [assignedUserId], references: [id])
   agentUser                        User?                             @relation("AgentFiles", fields: [agentUserId], references: [id])
+  originalAgentUser                User?                             @relation("OriginalAgentFiles", fields: [originalAgentUserId], references: [id])
   pausedBy                         User?                             @relation("PausedTransactions", fields: [pausedById], references: [id])
   contacts                         Contact[]
   checkpoints                      Checkpoint[]

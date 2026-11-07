@@ -1707,7 +1707,7 @@ export async function reassignAgentAction(transactionId: string, newAgentUserId:
 
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId, agencyId: session.user.agencyId },
-    select: { id: true, agentUserId: true, agencyId: true },
+    select: { id: true, agentUserId: true, agencyId: true, originalAgentUserId: true },
   });
   if (!tx) throw new Error("File not found in your agency");
 
@@ -1728,7 +1728,12 @@ export async function reassignAgentAction(transactionId: string, newAgentUserId:
 
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { agentUserId: newAgentUserId },
+    data: {
+      agentUserId: newAgentUserId,
+      // Preserve the original adder. If a legacy row never captured one, pin it to
+      // the owner being replaced now (the closest we have to "who added it").
+      originalAgentUserId: tx.originalAgentUserId ?? tx.agentUserId ?? newAgentUserId,
+    },
   });
 
   await logActivity(
