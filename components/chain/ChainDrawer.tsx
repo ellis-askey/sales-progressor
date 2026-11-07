@@ -979,14 +979,13 @@ export function ChainView({
         onSaveIntel={handleSaveIntel}
         onAddEntry={handleAddEntry}
         onToggleCheckInStep={
-          // Check-in ticks are for NEIGHBOURS only — the links we hear about, not
-          // run. Exclude our own anchor file (real milestones) and our own
-          // onward/related branch (which carries the reported-steps tracker). NOT
-          // gated on isYourFile: a neighbour whose stub we created still reads as
-          // createdBy-us, so that check wrongly hid claimed neighbours.
-          link.transactionId === transactionId || stepsDirForLink(link)
-            ? undefined
-            : handleToggleStep
+          // Check-in ticks are for every NEIGHBOUR — the links we hear about, not
+          // run. The only exclusion is our own anchor file (it has real
+          // milestones). The two immediate neighbours ALSO carry the richer
+          // onward/related tracker in their "Their steps" tab; they keep both.
+          // NOT gated on isYourFile: a neighbour whose stub we created still reads
+          // as createdBy-us, so that check wrongly hid claimed neighbours.
+          link.transactionId === transactionId ? undefined : handleToggleStep
         }
         checkInStepBusy={stepBusy}
         stepsDirection={stepsDirForLink(link) ?? undefined}
