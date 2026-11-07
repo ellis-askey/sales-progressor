@@ -20,8 +20,11 @@ export type AccessScope =
   | { kind: "agency";   agencyIds: string[] }  // director, negotiator, viewer
   | { kind: "business"; businessId: string }    // external progression-business member — own business's book
   | { kind: "assigned"; userId: string }        // TSP sales_progressor — own assigned files
-  | { kind: "all" }                             // admin — TSP + self-progressed files, no external business
-  | { kind: "platform" };                       // superadmin (founder) — EVERY file incl. external-business books
+  | { kind: "all"; userId?: string }            // admin — TSP's book, no external business
+  | { kind: "platform"; userId?: string };      // superadmin (founder) — EVERY file (single-file reach)
+// userId on all/platform identifies the internal user, so their everyday LISTS can
+// be limited to files they actually work (outsourced-to-TSP, or assigned to them).
+// Optional: internal see-all lookups construct { kind:"all" } without it (broad).
 
 // A TSP-only transaction filter. TSP's own files have progressionBusinessId null
 // (schema: null = TSP, no backfill) or, defensively, the seeded TSP business row
@@ -49,7 +52,7 @@ export function getAccessScope(session: Session): AccessScope {
   // Checked FIRST so it always wins. Read access here; write-side ghosting +
   // the private god-log live in the actions (see lib/security/god-mode.ts).
   if (hasSuperAdminPowers(session)) {
-    return { kind: "platform" };
+    return { kind: "platform", userId: id };
   }
 
   // hasAdminPowers covers admin, superadmin, and the hybrid sales_progressor
@@ -58,7 +61,7 @@ export function getAccessScope(session: Session): AccessScope {
   // checks) stays intact. This is checked FIRST so the platform operator always
   // wins regardless of any progression-business membership.
   if (hasAdminPowers(session)) {
-    return { kind: "all" };
+    return { kind: "all", userId: id };
   }
 
   // External progression-business member: bounded to the book of transactions
@@ -125,13 +128,25 @@ export function scopeTransactionWhere(
   // explore the product, and that data must not pollute our cross-platform lists,
   // partner directories, or analytics. Agency users keep seeing their OWN demo
   // (they created it to look through), so the "agency" branch stays unfiltered.
-  if (scope.kind === "all")      return { isDemo: false, ...TSP_ONLY_TX_WHERE };
-  // Founder LISTS behave exactly like "all" (TSP's own files only). God mode must
-  // NOT flood his personal dashboard / chains / search / reminders with every
-  // agency's files — his everyday agent app looks like it always did. Platform's
-  // extra reach is SINGLE-FILE only (scopeOwnershipWhere), used when he opens a
-  // specific file from the Command Centre. (Regression fix 2026-10-20.)
-  if (scope.kind === "platform") return { isDemo: false, ...TSP_ONLY_TX_WHERE };
+  // Internal staff everyday LISTS (admin "all" / founder "platform"): TSP's book
+  // only (never an external business's), AND limited to files they actually work
+  // — outsourced-to-TSP, or assigned to them. Self-managed AGENCY sales also carry
+  // progressionBusinessId null, so without this they'd flood internal search / hub
+  // / lists with other agencies' own sales (the 2026-11 "why is Oakhill in my
+  // search" report). Full-platform reach stays SINGLE-FILE via scopeOwnershipWhere
+  // (opening a specific file from the Command Centre). When the scope carries no
+  // userId — internal see-all lookups / tests construct { kind:"all" } directly —
+  // the narrowing is skipped; those are deliberate broad reads.
+  if (scope.kind === "all" || scope.kind === "platform") {
+    if (!scope.userId) return { isDemo: false, ...TSP_ONLY_TX_WHERE };
+    return {
+      isDemo: false,
+      AND: [
+        { OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }] },
+        { OR: [{ serviceType: "outsourced" }, { assignedUserId: scope.userId }] },
+      ],
+    };
+  }
   if (scope.kind === "assigned") return { assignedUserId: scope.userId, isDemo: false };
   // External progression business — its own book only, keyed on the transaction
   // tag. Demo files are excluded like the other non-agency scopes.

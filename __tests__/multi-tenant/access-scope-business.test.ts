@@ -57,10 +57,11 @@ function makeSession(u: {
 
 describe("getAccessScope - derivation per user type", () => {
   it("admin gets {kind:'all'}; superadmin gets {kind:'platform'} (founder god scope)", () => {
-    expect(getAccessScope(makeSession({ role: "admin" }))).toEqual({ kind: "all" });
+    expect(getAccessScope(makeSession({ role: "admin" }))).toEqual({ kind: "all", userId: "u_1" });
     // Superadmin is the platform operator — sees EVERY file, incl. external
-    // progression businesses walled off from "all" (god mode, 2026-10-19).
-    expect(getAccessScope(makeSession({ role: "superadmin" }))).toEqual({ kind: "platform" });
+    // progression businesses walled off from "all" (god mode, 2026-10-19). userId
+    // rides along so their everyday lists can be limited to files they work.
+    expect(getAccessScope(makeSession({ role: "superadmin" }))).toEqual({ kind: "platform", userId: "u_1" });
   });
 
   it("a TSP progressor (sales_progressor, no business) gets {kind:'assigned'} - UNCHANGED", () => {
@@ -114,7 +115,7 @@ describe("getAccessScope - derivation per user type", () => {
         progressionBusinessId: "biz_sarah",
       }),
     );
-    expect(scope).toEqual({ kind: "platform" });
+    expect(scope).toEqual({ kind: "platform", userId: "u_1" });
   });
 });
 
@@ -140,6 +141,29 @@ describe("scope -> where helpers", () => {
     expect(scopeTransactionWhere({ kind: "agency", agencyIds: ["ag_x"] })).toEqual({
       agencyId: { in: ["ag_x"] },
     });
+  });
+
+  it("scopeTransactionWhere: an internal LIST (userId set) is limited to outsourced-to-TSP or assigned, so self-managed agency sales don't leak in", () => {
+    // With a real session's userId, admin/founder lists drop self-managed agency
+    // files (which also carry progressionBusinessId null) unless assigned to them.
+    const where = scopeTransactionWhere({ kind: "all", userId: "u_admin" });
+    expect(where).toEqual({
+      isDemo: false,
+      AND: [
+        { OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }] },
+        { OR: [{ serviceType: "outsourced" }, { assignedUserId: "u_admin" }] },
+      ],
+    });
+    // platform (founder) narrows identically.
+    expect(scopeTransactionWhere({ kind: "platform", userId: "u_founder" })).toEqual({
+      isDemo: false,
+      AND: [
+        { OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }] },
+        { OR: [{ serviceType: "outsourced" }, { assignedUserId: "u_founder" }] },
+      ],
+    });
+    // A bare { kind:"all" } (internal see-all lookup, no userId) stays broad.
+    expect(scopeTransactionWhere({ kind: "all" })).toEqual({ isDemo: false, ...TSP_ONLY_TX_WHERE });
   });
 
   it("scopeOwnershipWhere binds a business scope to the tx tag", () => {
