@@ -978,7 +978,16 @@ export function ChainView({
         }
         onSaveIntel={handleSaveIntel}
         onAddEntry={handleAddEntry}
-        onToggleCheckInStep={handleToggleStep}
+        onToggleCheckInStep={
+          // Check-in ticks are for NEIGHBOURS only — the links we hear about, not
+          // run. Exclude our own anchor file (real milestones) and our own
+          // onward/related branch (which carries the reported-steps tracker). NOT
+          // gated on isYourFile: a neighbour whose stub we created still reads as
+          // createdBy-us, so that check wrongly hid claimed neighbours.
+          link.transactionId === transactionId || stepsDirForLink(link)
+            ? undefined
+            : handleToggleStep
+        }
         checkInStepBusy={stepBusy}
         stepsDirection={stepsDirForLink(link) ?? undefined}
         stepsTransactionId={transactionId}

@@ -820,7 +820,11 @@ export function LinkCard({
   // Only for a NEIGHBOUR — never your own file, which has real milestones. The
   // weighted % of what you've confirmed drives the bar's overshoot fill.
   const confirmedSteps = link.steps ?? [];
-  const showStepTicks = !!onToggleCheckInStep && !isYourFile;
+  // The caller (ChainView) already restricts onToggleCheckInStep to confirmable
+  // neighbours, so its presence is the gate. Do NOT re-gate on isYourFile — a
+  // neighbour whose stub we created reads as createdBy-us and would be wrongly
+  // excluded (the claim flow never resets createdByUserId).
+  const showStepTicks = !!onToggleCheckInStep;
   const confirmedPct = chainStepsPercent(confirmedSteps);
   // The one in-flight step on THIS link (toggles happen one at a time).
   const busyStepKey = checkInStepBusy
