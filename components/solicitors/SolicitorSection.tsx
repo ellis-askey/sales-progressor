@@ -255,7 +255,6 @@ function SolicitorTile({
 
   // Vendor = seller-blue, purchaser = buyer-green, matching the side-tinted
   // avatars and the Contacts card pills.
-  const roleTone: "info" | "success" = side === "vendor" ? "info" : "success";
   const roleLabel = side === "vendor" ? "Vendor" : "Purchaser";
   // Side colour for the role eyebrow above the firm name — seller blue, buyer green.
   const sideTint = side === "vendor" ? "var(--agent-info)" : "var(--agent-success)";
@@ -440,9 +439,9 @@ function SolicitorTile({
           style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}
         >
           {!hideSidePill && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Pill glass tone={roleTone} size="sm">{roleLabel} solicitor</Pill>
-            </div>
+            <p style={{ fontSize: 11.5, color: "var(--agent-text-muted)", margin: "0 0 -5px", lineHeight: 1.45 }}>
+              {info.firm ? `${roleLabel} solicitor` : `Add the ${side}'s solicitor.`}
+            </p>
           )}
           <SolicitorPicker
             label=""
