@@ -84,6 +84,79 @@ export function normaliseAddressString(raw: string): string {
   return raw.replace(POSTCODE_TOKEN_REGEX, canonical);
 }
 
+// Known UK counties (lower-cased), used to decide whether the piece before the
+// postcode is a COUNTY (which groups with the town as "Town, County") rather than
+// the town itself. Deliberately EXCLUDES city names that function as the town in
+// an address (London, Bristol, Manchester, …) so they stay in the town slot, not
+// a "suburb, city" grouping. England + Wales + common Scottish counties.
+export const UK_COUNTIES = new Set<string>([
+  "bedfordshire", "berkshire", "buckinghamshire", "cambridgeshire", "cheshire",
+  "cornwall", "cumbria", "derbyshire", "devon", "dorset", "durham", "county durham",
+  "east sussex", "east riding of yorkshire", "essex", "gloucestershire",
+  "hampshire", "herefordshire", "hertfordshire", "isle of wight", "kent",
+  "lancashire", "leicestershire", "lincolnshire", "merseyside", "norfolk",
+  "northamptonshire", "northumberland", "north yorkshire", "nottinghamshire",
+  "oxfordshire", "rutland", "shropshire", "somerset", "south yorkshire",
+  "staffordshire", "suffolk", "surrey", "tyne and wear", "warwickshire",
+  "west midlands", "west sussex", "west yorkshire", "wiltshire", "worcestershire",
+  "greater manchester", "greater london", "middlesex", "avon", "cleveland",
+  "humberside",
+  // Wales
+  "anglesey", "blaenau gwent", "caerphilly", "carmarthenshire", "ceredigion",
+  "conwy", "denbighshire", "flintshire", "gwynedd", "merthyr tydfil",
+  "monmouthshire", "neath port talbot", "pembrokeshire", "powys",
+  "rhondda cynon taf", "torfaen", "vale of glamorgan", "wrexham",
+  "clwyd", "dyfed", "gwent", "mid glamorgan", "south glamorgan", "west glamorgan",
+  // Scotland (common)
+  "aberdeenshire", "angus", "ayrshire", "dumfries and galloway", "dunbartonshire",
+  "east lothian", "fife", "lanarkshire", "midlothian", "moray", "perthshire",
+  "renfrewshire", "stirlingshire", "west lothian", "borders",
+]);
+
+// Split a free-text UK address string into the three fields the file hero shows:
+// line 1 (street + building/flat), town (grouped as "Town, County" when a county
+// is present), and postcode. A comma string has only two reliable anchors — the
+// postcode (always last) and a KNOWN county — so everything above the town is
+// treated as line 1. Where there's no county, the town is the single piece before
+// the postcode; the rare "village, town" case (no county) can't be told apart
+// from "street, town" by commas alone, so the last piece is taken as the town.
+//
+//   "16 Deans Furlong, Tring, HP23 4AR"
+//      → { street: "16 Deans Furlong", town: "Tring", postcode: "HP23 4AR" }
+//   "Flat 2, Hafod, Church Road, Hythe, Kent, CT21 5DP"
+//      → { street: "Flat 2, Hafod, Church Road", town: "Hythe, Kent", postcode: "CT21 5DP" }
+export function parseAddressParts(address: string): { street: string; town: string; postcode: string } {
+  const parts = (address ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return { street: "", town: "", postcode: "" };
+
+  let postcode = "";
+  const last = parts[parts.length - 1];
+  const full = formatPostcode(last);
+  if (isValidUKPostcode(full)) {
+    postcode = full;
+    parts.pop();
+  } else if (/^[A-Z]{1,2}[0-9][0-9A-Z]?$/i.test(last)) {
+    // A bare outward code ("E4", "CO10") — slot it as the postcode rather than
+    // letting it fall into the town box, but keep it as-is (it's incomplete).
+    postcode = last.toUpperCase();
+    parts.pop();
+  }
+
+  let town = "";
+  if (parts.length > 1) {
+    const maybeCounty = parts[parts.length - 1].toLowerCase();
+    if (UK_COUNTIES.has(maybeCounty) && parts.length > 2) {
+      const county = parts.pop()!;
+      const townPart = parts.pop()!;
+      town = `${townPart}, ${county}`;
+    } else {
+      town = parts.pop()!;
+    }
+  }
+
+  return { street: parts.join(", "), town, postcode };
+}
+
 // Extract the outward code (area + district) from a UK postcode. The outward
 // code is everything before the inward code (the last 3 chars). Examples:
 //   "SW1A 1AA" -> "SW1A"

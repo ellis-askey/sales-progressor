@@ -10,16 +10,14 @@ import { useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { getAddressConsequencesAction, saveAddressAction } from "@/app/actions/transactions";
+import { parseAddressParts } from "@/lib/utils/address";
 
+// County-aware split into { street, city, postcode } — line 1 holds the full
+// street/building, the town groups with its county, and the postcode is slotted
+// even when lower-cased or a bare outward code. See lib/utils/address.ts.
 function parseAddress(addr: string) {
-  const parts = addr.split(", ");
-  const re = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s[0-9][A-Z]{2}$/;
-  const remaining = [...parts];
-  let postcode = "";
-  let city = "";
-  if (remaining.length > 0 && re.test(remaining[remaining.length - 1])) postcode = remaining.pop()!;
-  if (remaining.length > 1) city = remaining.pop()!;
-  return { street: remaining.join(", "), city, postcode };
+  const { street, town, postcode } = parseAddressParts(addr);
+  return { street, city: town, postcode };
 }
 
 const H1_STYLE: CSSProperties = {
@@ -42,8 +40,18 @@ export function HeroAddressEdit({ transactionId, address }: { transactionId: str
   const joined = [street.trim(), city.trim(), postcode.trim()].filter(Boolean).join(", ");
   const changed = joined !== address && !!street.trim();
 
-  const [line1, ...rest] = address.split(",");
-  const line2 = rest.join(",").trim();
+  // Heading + subtitle use the same county-aware parse as the edit boxes, so the
+  // H1 is the full clean first line (not just the text before the first comma —
+  // which truncated "Flat 2, Hafod, Church Road" down to "Flat 2"). The subtitle
+  // carries whatever the heading didn't: town (+ county) then postcode.
+  const line1 = parsed.street || parsed.city || parsed.postcode || address;
+  const line2 = (
+    parsed.street
+      ? [parsed.city, parsed.postcode]
+      : parsed.city
+        ? [parsed.postcode]
+        : []
+  ).filter(Boolean).join(", ");
 
   function open() {
     const p = parseAddress(address);
