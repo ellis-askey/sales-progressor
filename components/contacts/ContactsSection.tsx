@@ -1230,7 +1230,7 @@ export function ContactsSection({
           </Modal.Header>
           <Modal.Body>
             <p style={{ margin: 0, fontSize: 14, color: "var(--agent-text-primary)", lineHeight: 1.5 }}>
-              Remove <strong>{confirmDelete.name}</strong> from this file? Their portal access will be revoked and they'll no longer receive updates.
+              Remove <strong>{confirmDelete.name}</strong> from this file? Their portal access will be revoked and they&rsquo;ll no longer receive updates.
             </p>
           </Modal.Body>
           <Modal.Footer>
