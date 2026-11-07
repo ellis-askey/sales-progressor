@@ -55,6 +55,7 @@ function Lab() {
   return (
     <div className="wl-root">
       <style dangerouslySetInnerHTML={{ __html: LAB_CSS }} />
+      <div className="wl-bg" aria-hidden><img src={selected.photo} alt="" key={selected.id} /></div>
 
       <div className="wl-shell">
         <Rail selectedId={selectedId} onPick={pick} onMe={() => say("Prototype: your account menu would open here")} />
@@ -127,8 +128,8 @@ function Workspace({ property, enquiryOpen, onToggleEnquiry, say }: {
           <p className="wl-addr-sub">{p.town} · {p.postcode}</p>
         </div>
         <div className="wl-meta">
-          <span className="wl-meta-chip"><b>{p.price}</b></span>
-          <span className="wl-meta-chip">{p.tenure}</span>
+          <span className="wl-price">{p.price}</span>
+          <span className="wl-ten">{p.tenure}</span>
         </div>
       </div>
 
