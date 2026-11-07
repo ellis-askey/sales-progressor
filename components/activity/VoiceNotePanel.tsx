@@ -180,7 +180,14 @@ export function VoiceNotePanel({
   }
 
   const sendCount = (sellerOn && sellerRecips.length && sellerText.trim() ? 1 : 0) + (buyerOn && buyerRecips.length && buyerText.trim() ? 1 : 0);
-  const fileChanges = (plan?.milestones.filter((m) => msOn[m.code]).length ?? 0) + (enqOn && plan?.enquiry ? 1 : 0) + todoOn.filter(Boolean).length;
+  // The file note IS a change to the file, so count it. A note-only recording
+  // used to leave the button on a disabled "Apply 0 changes", stranding the note
+  // with no way to save it.
+  const fileChanges =
+    (plan?.milestones.filter((m) => msOn[m.code]).length ?? 0) +
+    (enqOn && plan?.enquiry ? 1 : 0) +
+    todoOn.filter(Boolean).length +
+    (noteOn && noteText.trim() ? 1 : 0);
 
   async function approve() {
     if (!plan) return;

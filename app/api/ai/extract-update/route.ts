@@ -23,12 +23,20 @@ Return ONLY strict JSON, no prose, with this exact shape:
   "milestones": string[],   // codes from the provided list that the note says have now HAPPENED/are done. [] if none.
   "enquiry": "to_seller" | "to_buyer" | null,  // set if the note says enquiries were sent to a side. to_seller = questions raised to the seller's solicitor; to_buyer = replies sent back to the buyer's solicitor. null otherwise.
   "todos": [{ "title": string, "dueDate": string | null }],  // follow-ups the agent should be reminded of. dueDate as YYYY-MM-DD using the provided today's date, or null. [] if none.
-  "sellerMessage": string,  // a short portal update for the seller, in the agent's voice. "" if there is a seller and nothing to say, or if there is no seller.
-  "buyerMessage": string,   // same for the buyer. "" if nothing to say / no buyer.
-  "internalNote": string    // one blunt factual line for the file. "" if nothing.
+  "sellerMessage": string,  // a warm, plain-English portal update for the seller about this development, written from their side. Expand a terse note into a proper update. "" ONLY when there is no seller on the file, or the note is purely internal (a reminder to yourself, a private observation) with nothing the seller would want to hear.
+  "buyerMessage": string,   // same, for the buyer about their purchase.
+  "internalNote": string    // one blunt, factual line for the file. "" if nothing.
 }
 
-Rules for the client messages: do not open with a greeting or a name; no exclamation marks; no em-dashes; say "we'll" not "the system"; never reveal the other side's private business; only state what the note supports. Only use milestone codes from the list given. Never invent a step that isn't listed.`;
+Rules for the client messages (sellerMessage / buyerMessage):
+- Do NOT open with a greeting or a name. Start straight into the update.
+- Warm, reassuring, plain English. No jargon, no property-industry codes.
+- Write from that side's point of view. You MAY state factual progress on the other side where it is relevant and reassuring (for example telling the seller the buyer's solicitor now has what they need), but never the other side's private business, solicitor names, prices, or anything not in the note.
+- You write for the estate agent progressing the sale, not a solicitor. The legal paperwork passes between the solicitors, never "to us".
+- Only state what the note supports. Never invent progress, dates or promises. Do not mention exchange or completion unless the note does.
+- If a development happened but nothing is needed from that client, say so briefly. Do NOT leave the message empty just because the update is routine or the note is terse. Leave it empty only for a genuinely internal note (a reminder or private observation), or when that side is not on the file.
+Voice: no exclamation marks; no dashes as punctuation (no em dash, no spaced hyphen used as a dash), use commas or full stops instead; say "we'll", never "the system", "the platform" or "automatically"; no titles (Mr/Mrs/Dr); use "remove", not "delete".
+Only use milestone codes from the list given. Never invent a step that isn't listed.`;
 
 function strip(raw: string): string {
   return raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
