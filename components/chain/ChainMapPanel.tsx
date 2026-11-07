@@ -17,6 +17,8 @@ import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { ChainCardBadge } from "@/components/chain/LinkCard";
+import { ChainStepTicks } from "@/components/chain/ChainStepTicks";
+import { chainStepsPercent } from "@/lib/chain/check-in-steps";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
 // buttons. `kind` tells the panel which handler to call: "invite" → onInvite
@@ -46,6 +48,14 @@ export type ChainMapPanelItem = {
   progressPercent: number | null;
   href: string | null; // open the file (your own sales)
   cta: ChainMapCta | null;
+  // Check-in step ticks (same ChainNodeStepMark as the Chains check-ins tab).
+  // Present only for a confirmable NEIGHBOUR (ChainView decides). `steps` is the
+  // viewer's confirmed step keys; onToggleStep marks/unmarks one; stepBusyKey is
+  // the one in-flight step on this link. When onToggleStep is set the card shows
+  // an always-visible tick row (claimed: under the bar + dual-tone overshoot).
+  steps?: string[];
+  onToggleStep?: (stepKey: string, next: boolean) => void;
+  stepBusyKey?: string | null;
   // ⋮ menu capabilities
   canEdit: boolean;
   hasShareLink: boolean;
@@ -200,6 +210,23 @@ function PanelRow({
     else (actions.onEditEmail ?? actions.onEdit)?.(item.id);
   };
   const acts = !!item.href || !!item.cta;
+  // Check-in ticks: always visible for a confirmable neighbour. The weighted % of
+  // what you've confirmed drives the bar's overshoot (coral past the green real %).
+  const confirmedSteps = item.steps ?? [];
+  const showTicks = !!item.onToggleStep;
+  const confirmedPct = chainStepsPercent(confirmedSteps);
+  const realPct = item.progressPercent != null ? Math.min(100, Math.max(0, item.progressPercent)) : 0;
+  const showOvershoot = showTicks && confirmedPct > realPct;
+  // Claimed/own cards carry a bar, so their ticks sit under it (ruled off). An
+  // unclaimed stub has no bar, so its ticks ride the invite-action row instead.
+  const inlineTicks = showTicks && item.progressPercent == null;
+  const ticksEl = showTicks ? (
+    <ChainStepTicks
+      steps={confirmedSteps}
+      onToggle={(k) => item.onToggleStep?.(k, !confirmedSteps.includes(k))}
+      busyKey={item.stepBusyKey ?? null}
+    />
+  ) : null;
   return (
     <div ref={innerRef} className={`cmp-rowwrap${item.depth > 0 ? " cmp-rowwrap--branch" : ""}${selected ? " on" : ""}`}>
       <div className="cmp-rowline">
@@ -248,13 +275,23 @@ function PanelRow({
       {item.progressPercent != null && (
         <div className="cmp-progress">
           <span className="cmp-pct">{Math.round(item.progressPercent)}%</span>
-          <span className="cmp-bar"><i style={{ width: `${Math.min(100, Math.max(0, item.progressPercent))}%` }} /></span>
+          <span className="cmp-bar">
+            {showOvershoot && <b className="cmp-bar-over" style={{ width: `${confirmedPct}%` }} aria-hidden />}
+            <i style={{ width: `${realPct}%` }} />
+          </span>
           {item.priceLabel && <span className="cmp-price">{item.priceLabel}</span>}
         </div>
       )}
 
-      {acts && (
+      {/* Claimed / own card: ticks under the bar, ruled off from it. */}
+      {ticksEl && !inlineTicks && (
+        <div className="cmp-steps cmp-steps--ruled">{ticksEl}</div>
+      )}
+
+      {(acts || inlineTicks) && (
         <div className="cmp-acts">
+          {/* Unclaimed stub: ticks ride the left of the invite-action row. */}
+          {inlineTicks && <div className="cmp-steps cmp-steps--inline">{ticksEl}</div>}
           {item.href && <Link href={item.href} className="cmp-act cmp-act--primary">Open file →</Link>}
           {item.cta && (
             <button

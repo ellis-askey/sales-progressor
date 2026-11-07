@@ -849,6 +849,11 @@ export function ChainView({
       metaLine: [chainStatusMeta(l, currentUserId), chainChasedMeta(l)].filter(Boolean).join(" · ") || null,
       badges: chainWithdrawalBadges(l, directional[l.id]),
       progressPercent: l.progressPercent,
+      // Check-in ticks for every NEIGHBOUR (not our own file — it has real
+      // milestones). Same ChainNodeStepMark + toggle as the check-ins tab.
+      steps: l.steps,
+      onToggleStep: mine ? undefined : (stepKey: string, next: boolean) => handleToggleStep(l.id, stepKey, next),
+      stepBusyKey: ([...stepBusy].find((k) => k.startsWith(`${l.id}:`))?.slice(l.id.length + 1) ?? null),
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
       cta,
       canEdit,
@@ -1229,42 +1234,40 @@ export function ChainView({
               <button type="button" className={`chain-vs-btn${view === "activity" ? " on" : ""}`} onClick={() => selectView("activity")}>Activity</button>
             )}
           </div>
-          <div className="chain-headrow-right">
-            {/* Email the chain — opens the composer pre-addressed to the chain's
-                agents (Hub "New email" style). */}
-            <button
-              type="button"
-              onClick={() => setChainEmailOpen(true)}
-              className="agent-btn agent-btn-sm agent-btn-secondary"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
-            >
-              <PaperPlaneTilt size={14} weight="fill" />
-              Email the chain
-            </button>
-            {/* Chain completeness — the top property is the top of the chain.
-                Internal only. Derived server-side; see getChainV2 + /complete. */}
-            <button
-              type="button"
-              className={`chain-complete-pill${chain.complete ? " on" : ""}`}
-              onClick={toggleComplete}
-              disabled={completeBusy}
-              title={chain.complete
-                ? "This chain is marked complete: the top property is the top. Click to undo."
-                : "Mark this chain complete: the top property is the top of the chain."}
-            >
-              {chain.complete ? (
-                <>
-                  <span className="ccp-rest"><CheckCircle size={14} weight="fill" className="ccp-tick" />Complete</span>
-                  <span className="ccp-hover"><Circle size={14} weight="bold" />Mark not complete</span>
-                </>
-              ) : (
-                <>
-                  <span className="ccp-rest"><Circle size={14} weight="bold" />Not complete</span>
-                  <span className="ccp-hover"><CheckCircle size={14} weight="fill" />Mark complete</span>
-                </>
-              )}
-            </button>
-          </div>
+          {/* Chain completeness — centred above the chain. The top property is the
+              top of the chain. Internal only; derived server-side (getChainV2). */}
+          <button
+            type="button"
+            className={`chain-complete-pill chain-complete-pill--center${chain.complete ? " on" : ""}`}
+            onClick={toggleComplete}
+            disabled={completeBusy}
+            title={chain.complete
+              ? "This chain is marked complete: the top property is the top. Click to undo."
+              : "Mark this chain complete: the top property is the top of the chain."}
+          >
+            {chain.complete ? (
+              <>
+                <span className="ccp-rest"><CheckCircle size={14} weight="fill" className="ccp-tick" />Complete</span>
+                <span className="ccp-hover"><Circle size={14} weight="bold" />Mark not complete</span>
+              </>
+            ) : (
+              <>
+                <span className="ccp-rest"><Circle size={14} weight="bold" />Not complete</span>
+                <span className="ccp-hover"><CheckCircle size={14} weight="fill" />Mark complete</span>
+              </>
+            )}
+          </button>
+          {/* Email the chain — right-aligned; opens the composer pre-addressed to
+              the chain's agents (Hub "New email" style). */}
+          <button
+            type="button"
+            onClick={() => setChainEmailOpen(true)}
+            className="agent-btn agent-btn-sm agent-btn-secondary chain-email-btn"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+          >
+            <PaperPlaneTilt size={14} weight="fill" />
+            <span className="chain-email-label">Email the chain</span>
+          </button>
 
           <ChainEmailModal
             open={chainEmailOpen}
