@@ -4,9 +4,9 @@
 // hold-up, the conversation, your move) beside the day's work. Local state only;
 // would-be side effects surface as prototype toasts. No DB, no production code.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound } from "next/navigation";
-import { PaperPlaneTilt, Check, ChatCircleDots, SealCheck } from "@/components/icons/ph";
+import { PaperPlaneTilt, Check, ChatCircleDots, SealCheck, Sun, MoonStars } from "@/components/icons/ph";
 import { LAB_CSS } from "./styles";
 import { PROPERTIES, WORK, TODAY, STAGES, type Property, type WorkItem, type Tone } from "./mock";
 
@@ -21,6 +21,12 @@ export default function WorkspaceLabPage() {
 
 function Lab() {
   const [selectedId, setSelectedId] = useState(PROPERTIES[0].id);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    }
+  }, []);
   const [threadOpen, setThreadOpen] = useState(false);
   const [work, setWork] = useState<WorkItem[]>(() => JSON.parse(JSON.stringify(WORK)));
   const [openItem, setOpenItem] = useState<string | null>(null);
@@ -46,11 +52,13 @@ function Lab() {
   };
 
   return (
-    <div className="wl-root">
+    <div className="wl-root" data-theme={theme}>
       <style dangerouslySetInnerHTML={{ __html: LAB_CSS }} />
 
       <div className="wl-shell">
-        <Dock selectedId={selectedId} onPick={pick} onMe={() => say("Prototype. Your account would open here")} />
+        <Dock selectedId={selectedId} onPick={pick} theme={theme}
+          onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          onMe={() => say("Prototype. Your account would open here")} />
 
         <div className="wl-bench">
           <Story key={selected.id} p={selected} threadOpen={threadOpen} onThread={() => setThreadOpen((v) => !v)} say={say} />
@@ -71,7 +79,9 @@ function Lab() {
 }
 
 // ── dock ─────────────────────────────────────────────────────────────────────
-function Dock({ selectedId, onPick, onMe }: { selectedId: string; onPick: (id: string) => void; onMe: () => void }) {
+function Dock({ selectedId, onPick, onMe, theme, onToggleTheme }: {
+  selectedId: string; onPick: (id: string) => void; onMe: () => void; theme: "light" | "dark"; onToggleTheme: () => void;
+}) {
   return (
     <nav className="wl-dock" aria-label="Your sales">
       <div className="wl-mark" aria-hidden>s</div>
@@ -87,7 +97,12 @@ function Dock({ selectedId, onPick, onMe }: { selectedId: string; onPick: (id: s
           </button>
         ))}
       </div>
-      <div className="wl-dock-foot"><button className="wl-me" onClick={onMe} aria-label="Your account">EA</button></div>
+      <div className="wl-dock-foot">
+        <button className="wl-theme-btn" onClick={onToggleTheme} aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}>
+          {theme === "dark" ? <Sun weight="fill" /> : <MoonStars weight="fill" />}
+        </button>
+        <button className="wl-me" onClick={onMe} aria-label="Your account">EA</button>
+      </div>
     </nav>
   );
 }

@@ -81,7 +81,7 @@ export const LAB_CSS = String.raw`
 .wl-thumb-label b { font-weight: 650; } .wl-thumb-label span { color: #9aa2ad; margin-left: 2px; }
 .wl-thumb-label::before { content: ""; position: absolute; left: -4px; top: 50%; transform: translateY(-50%) rotate(45deg); width: 9px; height: 9px; background: rgba(27,32,40,0.94); border-radius: 2px; }
 .wl-thumb:hover .wl-thumb-label { opacity: 1; transform: translateY(-50%) translateX(0); }
-.wl-dock-foot { margin-top: auto; padding-top: 10px; }
+.wl-dock-foot { margin-top: auto; padding-top: 10px; display: flex; flex-direction: column; align-items: center; }
 .wl-me { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.8); background: linear-gradient(150deg, #cdd6e2, #aab6c6); color: #3a434f; display: grid; place-items: center; font-weight: 650; font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(36,46,66,0.2), inset 0 1px 0 rgba(255,255,255,0.6); transition: transform 0.2s; }
 .wl-me:hover { transform: scale(1.07); }
 
@@ -234,6 +234,43 @@ export const LAB_CSS = String.raw`
 .wl-toast svg { width: 15px; height: 15px; color: #64d396; }
 .wl-toast button { font: inherit; font-size: 12.5px; font-weight: 700; color: #ff957a; background: none; border: none; cursor: pointer; padding: 0; }
 .wl-toast button:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── dark theme: "the bench at night" (the dramatic peer) ─────────────────── */
+.wl-root[data-theme="dark"] {
+  --ink: #eef0f3; --ink-2: #a2a9b3; --ink-3: #727a85; --ink-4: #555c66;
+  --line: rgba(255,255,255,0.1); --line-soft: rgba(255,255,255,0.05); --line-strong: rgba(255,255,255,0.18);
+  --hi: rgba(255,255,255,0.08);
+  --co: #ff6a45; --co-deep: #f1572f; --co-tint: rgba(255,106,69,0.16);
+  --t-amber: #e2a441; --t-blue: #5e9bea; --t-green: #46b586; --t-slate: #8891a0; --t-coral: #ff6a45;
+  background:
+    radial-gradient(900px 620px at 90% -10%, rgba(255,120,80,0.12) 0%, transparent 42%),
+    radial-gradient(1000px 780px at 2% 106%, rgba(64,158,122,0.14) 0%, transparent 50%),
+    radial-gradient(860px 620px at 66% 46%, rgba(72,112,206,0.1) 0%, transparent 56%),
+    linear-gradient(166deg, #16181d 0%, #111318 58%, #0d0f13 100%);
+}
+.wl-root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); background-clip: padding-box; }
+.wl-root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); background-clip: padding-box; }
+.wl-root[data-theme="dark"] .wl-dock { background: linear-gradient(160deg, rgba(44,49,59,0.66), rgba(30,34,41,0.48)); border-color: rgba(255,255,255,0.1); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.4), 0 22px 50px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12); }
+.wl-root[data-theme="dark"] .wl-mark { background: linear-gradient(150deg, #3b4252, #242a33); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.4); }
+.wl-root[data-theme="dark"] .wl-nav-ico:hover { background: rgba(255,255,255,0.08); }
+.wl-root[data-theme="dark"] .wl-nav-ico[data-on] { background: rgba(255,255,255,0.1); color: var(--co); box-shadow: inset 0 0 0 0.5px var(--line), 0 2px 6px rgba(0,0,0,0.4); }
+.wl-root[data-theme="dark"] .wl-bench { background: linear-gradient(176deg, rgba(42,47,57,0.72), rgba(30,34,42,0.56)); border-color: rgba(255,255,255,0.09); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 2px 5px rgba(0,0,0,0.3), 0 30px 70px -36px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.1); }
+.wl-root[data-theme="dark"] .wl-day { background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.006)); }
+.wl-root[data-theme="dark"] .wl-well { background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.16)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.42), inset 0 0 0 0.5px rgba(255,255,255,0.04); }
+.wl-root[data-theme="dark"] .wl-item:hover { background: rgba(255,255,255,0.045); }
+.wl-root[data-theme="dark"] .wl-item[data-open] { background: linear-gradient(180deg, rgba(0,0,0,0.26), rgba(0,0,0,0.14)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.42), inset 0 0 0 0.5px rgba(255,255,255,0.04); }
+.wl-root[data-theme="dark"] .wl-tick-btn { background: rgba(255,255,255,0.06); }
+.wl-root[data-theme="dark"] .wl-note[data-side="solicitor"] .wl-note-av { background: rgba(94,155,234,0.2); color: #a3c8f3; }
+.wl-root[data-theme="dark"] .wl-note[data-side="seller"] .wl-note-av { background: rgba(94,150,74,0.2); color: #aad88e; }
+.wl-root[data-theme="dark"] .wl-client-av { filter: brightness(0.82) saturate(1.1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.35); }
+.wl-root[data-theme="dark"] .wl-step .wl-node { background: #22262e; }
+.wl-root[data-theme="dark"] .wl-me { background: linear-gradient(150deg, #3b424d, #2a2f38); color: #c9ced6; border-color: rgba(255,255,255,0.12); }
+.wl-root[data-theme="dark"] .wl-thumb { box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.1); }
+.wl-root[data-theme="dark"] .wl-theme-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: var(--ink-2); }
+
+.wl-theme-btn { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.6); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; margin-bottom: 8px; transition: color 0.18s, background 0.18s, transform 0.18s; }
+.wl-theme-btn:hover { color: var(--co-deep); transform: scale(1.06); }
+.wl-theme-btn svg { width: 16px; height: 16px; }
 
 @keyframes wl-rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes wl-kenburns { from { transform: scale(1.07); } to { transform: scale(1); } }
