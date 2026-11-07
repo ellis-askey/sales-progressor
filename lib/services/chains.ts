@@ -1872,6 +1872,11 @@ export async function updateChainLinkStub(
     stubNotes?: string | null;
   },
 ) {
+  // Clearing the email voids any pending invite: an invite can only have gone to
+  // an address that's now gone. Reset the invite state so the card falls back to
+  // "Add email to invite" instead of a "Resend invite" that would reach nobody.
+  const clearingEmail = data.stubAgentEmail !== undefined && !data.stubAgentEmail?.trim();
+
   return prisma.chainLink.update({
     where: { id: linkId },
     data: {
@@ -1881,6 +1886,7 @@ export async function updateChainLinkStub(
       stubAgencyName: data.stubAgencyName
         ? titleCaseKeepAcronyms(data.stubAgencyName)
         : undefined,
+      ...(clearingEmail ? { inviteStatus: "NOT_SENT" as const, inviteSentAt: null } : {}),
       stubAgentEmail: data.stubAgentEmail !== undefined
         ? data.stubAgentEmail?.toLowerCase().trim() ?? null
         : undefined,
