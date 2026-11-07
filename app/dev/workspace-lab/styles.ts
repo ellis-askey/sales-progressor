@@ -237,26 +237,26 @@ export const LAB_CSS = String.raw`
 
 /* ── dark theme: "the bench at night" (the dramatic peer) ─────────────────── */
 .wl-root[data-theme="dark"] {
-  --ink: #eef0f3; --ink-2: #a2a9b3; --ink-3: #727a85; --ink-4: #555c66;
-  --line: rgba(255,255,255,0.1); --line-soft: rgba(255,255,255,0.05); --line-strong: rgba(255,255,255,0.18);
+  --ink: #f3f4f8; --ink-2: rgba(243,244,248,0.64); --ink-3: rgba(243,244,248,0.42); --ink-4: rgba(243,244,248,0.28);
+  --line: rgba(255,255,255,0.1); --line-soft: rgba(255,255,255,0.055); --line-strong: rgba(255,255,255,0.2);
   --hi: rgba(255,255,255,0.08);
-  --co: #ff6a45; --co-deep: #f1572f; --co-tint: rgba(255,106,69,0.16);
-  --t-amber: #e2a441; --t-blue: #5e9bea; --t-green: #46b586; --t-slate: #8891a0; --t-coral: #ff6a45;
+  --co: #ff7a52; --co-deep: #ff6b4a; --co-tint: rgba(255,138,101,0.18);
+  --t-amber: #e4a94a; --t-blue: #5e9bea; --t-green: #46b586; --t-slate: #8891a0; --t-coral: #ff7a52;
   background:
-    radial-gradient(900px 620px at 90% -10%, rgba(255,120,80,0.12) 0%, transparent 42%),
-    radial-gradient(1000px 780px at 2% 106%, rgba(64,158,122,0.14) 0%, transparent 50%),
-    radial-gradient(860px 620px at 66% 46%, rgba(72,112,206,0.1) 0%, transparent 56%),
-    linear-gradient(166deg, #16181d 0%, #111318 58%, #0d0f13 100%);
+    radial-gradient(780px 540px at 86% -6%, rgba(56,225,255,0.12) 0%, transparent 60%),
+    radial-gradient(840px 640px at 3% 104%, rgba(168,255,96,0.08) 0%, transparent 58%),
+    radial-gradient(720px 540px at 72% 56%, rgba(255,107,74,0.1) 0%, transparent 60%),
+    linear-gradient(170deg, #0b0f19 0%, #0a0e17 58%, #080b12 100%);
 }
 .wl-root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); background-clip: padding-box; }
 .wl-root[data-theme="dark"] *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); background-clip: padding-box; }
-.wl-root[data-theme="dark"] .wl-dock { background: linear-gradient(160deg, rgba(44,49,59,0.66), rgba(30,34,41,0.48)); border-color: rgba(255,255,255,0.1); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.4), 0 22px 50px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12); }
+.wl-root[data-theme="dark"] .wl-dock { background: linear-gradient(160deg, rgba(46,50,66,0.62), rgba(32,35,49,0.48)); border-color: rgba(255,255,255,0.12); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.4), 0 22px 50px -24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14); }
 .wl-root[data-theme="dark"] .wl-mark { background: linear-gradient(150deg, #3b4252, #242a33); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 3px 8px rgba(0,0,0,0.4); }
 .wl-root[data-theme="dark"] .wl-nav-ico:hover { background: rgba(255,255,255,0.08); }
 .wl-root[data-theme="dark"] .wl-nav-ico[data-on] { background: rgba(255,255,255,0.1); color: var(--co); box-shadow: inset 0 0 0 0.5px var(--line), 0 2px 6px rgba(0,0,0,0.4); }
-.wl-root[data-theme="dark"] .wl-bench { background: linear-gradient(176deg, rgba(42,47,57,0.72), rgba(30,34,42,0.56)); border-color: rgba(255,255,255,0.09); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 2px 5px rgba(0,0,0,0.3), 0 30px 70px -36px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.1); }
+.wl-root[data-theme="dark"] .wl-bench { background: linear-gradient(176deg, rgba(34,38,52,0.58), rgba(24,27,40,0.5)); backdrop-filter: blur(28px) saturate(1.7); -webkit-backdrop-filter: blur(28px) saturate(1.7); border-color: rgba(255,255,255,0.1); box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4), 0 2px 5px rgba(0,0,0,0.3), 0 30px 70px -36px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.11); }
 .wl-root[data-theme="dark"] .wl-day { background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.006)); }
-.wl-root[data-theme="dark"] .wl-well { background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.16)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.42), inset 0 0 0 0.5px rgba(255,255,255,0.04); }
+.wl-root[data-theme="dark"] .wl-well { background: linear-gradient(180deg, rgba(10,13,22,0.5), rgba(14,17,27,0.34)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.045); }
 .wl-root[data-theme="dark"] .wl-item:hover { background: rgba(255,255,255,0.045); }
 .wl-root[data-theme="dark"] .wl-item[data-open] { background: linear-gradient(180deg, rgba(0,0,0,0.26), rgba(0,0,0,0.14)); box-shadow: inset 0 1px 3px rgba(0,0,0,0.42), inset 0 0 0 0.5px rgba(255,255,255,0.04); }
 .wl-root[data-theme="dark"] .wl-tick-btn { background: rgba(255,255,255,0.06); }
