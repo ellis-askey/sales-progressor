@@ -25,11 +25,27 @@ export type IntroCallSolicitor = {
   contact: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail: string | null } | null;
 };
 
+// Who marked a side's introduction complete + when — for the drawer's "View
+// intro" done state (avatar / name / role / timestamp).
+export type IntroActor = { name: string; image: string | null; roleLabel: string; at: string };
+
+const INTRO_ROLE_LABEL: Record<string, string> = {
+  director: "Director",
+  negotiator: "Negotiator",
+  admin: "Admin",
+  sales_progressor: "Sales Progressor",
+  superadmin: "Platform",
+  viewer: "Viewer",
+};
+
 export type IntroCallData = {
   transactionId: string;
   introDone: boolean;            // legacy aggregate — either side done
   introDoneVendor: boolean;      // seller intro complete
   introDonePurchaser: boolean;   // buyer intro complete
+  // Who completed each side's intro (null until that side is introduced).
+  introVendorBy: IntroActor | null;
+  introPurchaserBy: IntroActor | null;
   hasVendor: boolean;
   hasPurchaser: boolean;
   vendor: IntroCallContact | null;
@@ -119,6 +135,8 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       introCallCompletedAt: true,
       introCallVendorCompletedAt: true,
       introCallPurchaserCompletedAt: true,
+      introCallVendorCompletedById: true,
+      introCallPurchaserCompletedById: true,
       clientDepositGBP: true,
       clientMortgageGBP: true,
       clientOtherFundsSentGBP: true,
@@ -166,11 +184,27 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
 
   const tracker = await getOnwardTrackerView(transactionId).catch(() => null);
 
+  // Resolve who marked each side introduced (name / photo / role) for the done
+  // state. One small query for the (up to two) completers.
+  const introByIds = [tx.introCallVendorCompletedById, tx.introCallPurchaserCompletedById].filter((v): v is string => !!v);
+  const introUsers = introByIds.length
+    ? await prisma.user.findMany({ where: { id: { in: introByIds } }, select: { id: true, name: true, image: true, role: true } })
+    : [];
+  const introUserById = new Map(introUsers.map((u) => [u.id, u]));
+  const introActor = (id: string | null, at: Date | null): IntroActor | null => {
+    if (!id || !at) return null;
+    const u = introUserById.get(id);
+    if (!u) return null;
+    return { name: u.name, image: u.image ?? null, roleLabel: INTRO_ROLE_LABEL[u.role] ?? "Team", at: at.toISOString() };
+  };
+
   return {
     transactionId: tx.id,
     introDone: tx.introCallCompletedAt != null,
     introDoneVendor: tx.introCallVendorCompletedAt != null,
     introDonePurchaser: tx.introCallPurchaserCompletedAt != null,
+    introVendorBy: introActor(tx.introCallVendorCompletedById, tx.introCallVendorCompletedAt),
+    introPurchaserBy: introActor(tx.introCallPurchaserCompletedById, tx.introCallPurchaserCompletedAt),
     hasVendor: !!vendor,
     hasPurchaser: !!purchaser,
     vendor: vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone, email: vendor.email } : null,

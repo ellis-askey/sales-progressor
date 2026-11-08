@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X, CheckCircle, Plus, CaretLeft, Phone, EnvelopeSimple } from "@phosphor-icons/react";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
@@ -674,23 +675,49 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
         {/* Footer */}
         <div style={{ flexShrink: 0, padding: "14px 20px", borderTop: "1px solid rgba(0,0,0,0.08)", background: "var(--agent-surface)" }}>
           {err && <p role="alert" style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)" }}>{err}</p>}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>
-              Answers save as you go.
-            </p>
-            {sideDone ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, color: "var(--agent-success)", background: "rgba(var(--agent-success-rgb), 0.12)", border: "0.5px solid rgba(var(--agent-success-rgb), 0.35)" }}>
-                <CheckCircle size={16} weight="fill" />
-                Introduction complete
-              </span>
-            ) : (
+          {sideDone ? (() => {
+            // Who did it — avatar, bold name, role + date/time. Answers still
+            // save as you go while viewing.
+            const by = side === "vendor" ? data.introVendorBy : data.introPurchaserBy;
+            return (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+                  {by ? (
+                    <UserAvatar user={{ name: by.name, image: by.image }} size={34} />
+                  ) : (
+                    <span style={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: "rgba(var(--agent-success-rgb), 0.14)" }}>
+                      <CheckCircle size={19} weight="fill" color="var(--agent-success)" />
+                    </span>
+                  )}
+                  <div style={{ lineHeight: 1.32, minWidth: 0 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--agent-success)" }}>
+                      <CheckCircle size={12} weight="fill" /> Introduction complete
+                    </span>
+                    {by && (
+                      <>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>{by.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--agent-text-secondary)" }}>
+                          {by.roleLabel} · {new Date(by.at).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)" }}>Answers save as you go.</p>
+              </div>
+            );
+          })() : (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>
+                Answers save as you go.
+              </p>
               <button type="button" onClick={() => void complete()} disabled={completing} className="agent-btn-color-primary"
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer", transition: "transform 140ms ease, filter 180ms ease, box-shadow 180ms ease" }}>
                 <CheckCircle size={16} weight="fill" />
                 {completing ? "Saving…" : "Mark introduction complete"}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

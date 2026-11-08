@@ -31,7 +31,7 @@
 
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
-import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
+import { Popover, PopoverMenuItem, Tooltip } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction, reissuePortalTokenAction } from "@/app/actions/contacts";
 import { looksLikeBusiness } from "@/lib/contacts/business";
@@ -41,7 +41,7 @@ import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, PhoneCall, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, Sparkle, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
@@ -309,11 +309,24 @@ function PortalStatusCard({
 // flip + tooltip + theme handling live in .intro-call-chip (agent-system.css).
 function IntroCallButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="intro-call-chip" aria-label="Start intro call">
-      <span className="ic-tip" aria-hidden>Start intro call</span>
-      <span className="ic-face ic-front"><Phone size={15} weight="regular" /></span>
-      <span className="ic-face ic-back"><PhoneCall size={15} weight="fill" /></span>
-    </button>
+    // Styled, animated "Start intro call" bubble via the shared Tooltip, which
+    // portals to a float layer so it can never be clipped by the row/card.
+    <Tooltip content="Start intro call" placement="top-start">
+      <button
+        type="button"
+        // Stop the click reaching the Tooltip anchor (which would pin it open);
+        // clicking just opens the drawer.
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        className="intro-call-chip"
+        aria-label="Start intro call"
+      >
+        <span className="icc-face icc-front"><Phone size={15} weight="regular" /></span>
+        <span className="icc-face icc-back">
+          <Phone size={15} weight="regular" />
+          <Sparkle size={9} weight="fill" className="icc-spark" />
+        </span>
+      </button>
+    </Tooltip>
   );
 }
 

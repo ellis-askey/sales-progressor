@@ -3791,48 +3791,54 @@
    * button that stands out from the grey comms icons and flips from a plain
    * phone to an active PhoneCall glyph on hover (glyph-swap, feedback
    * 2026-11-08). Theme-token based, so it reads in light + dark. */
+  /* Fixed box matched to the other comms buttons (rounded square, NOT a circle);
+   * both faces are absolute so the 3D flip has a box to fill. NB: classes are
+   * icc-* on purpose — a global .ic-back (back-nav button, far below) would
+   * otherwise recolour and animate this glyph. */
   .intro-call-chip {
     position: relative;
-    width: 33px; height: 33px;
-    border-radius: 999px;
-    display: inline-grid; place-items: center;
-    border: 1px solid rgba(var(--agent-coral-rgb), 0.45);
-    background: rgba(var(--agent-coral-rgb), 0.10);
-    color: var(--agent-coral-deep);
+    width: 34px; height: 30px;
+    border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0.5px solid var(--agent-border-default);
+    background: var(--agent-surface-elevated);
+    color: var(--agent-text-secondary);
     cursor: pointer;
     perspective: 320px;
     flex-shrink: 0;
-    transition: background 180ms ease, border-color 180ms ease, transform 120ms ease, box-shadow 180ms ease;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
   }
-  .intro-call-chip:hover {
-    background: rgba(var(--agent-coral-rgb), 0.16);
+  /* The whole row is the hover target — hovering anywhere on the contact row
+   * flips the Call icon to the intro glyph and lifts it to coral. (Clicking the
+   * button opens the intro drawer.) Native title carries the tooltip so it is
+   * never clipped by the row/card overflow. */
+  .people-item:hover .intro-call-chip,
+  .intro-call-chip:hover,
+  .intro-call-chip:focus-visible {
     border-color: var(--agent-coral);
-    box-shadow: 0 2px 10px rgba(var(--agent-coral-rgb), 0.28);
+    color: var(--agent-coral-deep);
   }
   .intro-call-chip:active { transform: scale(0.95); }
   .intro-call-chip:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
-  .intro-call-chip .ic-face {
+  /* Glyph flip: the plain Phone flips to a sparkle-phone "intro" glyph (Option 4
+   * from the affordance explorations). Restrained — a single clean flip. */
+  .intro-call-chip .icc-face {
     position: absolute; inset: 0; display: grid; place-items: center;
     backface-visibility: hidden; -webkit-backface-visibility: hidden;
     transition: transform 420ms cubic-bezier(0.5, 0.05, 0.2, 1);
   }
-  .intro-call-chip .ic-front { transform: rotateY(0deg); }
-  .intro-call-chip .ic-back  { transform: rotateY(180deg); }
-  .intro-call-chip:hover .ic-front, .intro-call-chip:focus-visible .ic-front { transform: rotateY(-180deg); }
-  .intro-call-chip:hover .ic-back,  .intro-call-chip:focus-visible .ic-back  { transform: rotateY(0deg); }
-  .intro-call-chip .ic-tip {
-    position: absolute; bottom: calc(100% + 8px); left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    background: var(--agent-text-primary); color: var(--agent-surface-elevated);
-    font-size: 11px; font-weight: 600; white-space: nowrap;
-    padding: 4px 9px; border-radius: 7px; opacity: 0; pointer-events: none;
-    transition: opacity 180ms ease, transform 180ms ease; z-index: 20;
-  }
-  .intro-call-chip:hover .ic-tip, .intro-call-chip:focus-visible .ic-tip {
-    opacity: 1; transform: translateX(-50%) translateY(0);
-  }
+  .intro-call-chip .icc-front { transform: rotateY(0deg); }
+  .intro-call-chip .icc-back  { transform: rotateY(180deg); }
+  .people-item:hover .intro-call-chip .icc-front,
+  .intro-call-chip:hover .icc-front,
+  .intro-call-chip:focus-visible .icc-front { transform: rotateY(-180deg); }
+  .people-item:hover .intro-call-chip .icc-back,
+  .intro-call-chip:hover .icc-back,
+  .intro-call-chip:focus-visible .icc-back { transform: rotateY(0deg); }
+  /* The sparkle that makes it the "intro" phone, pinned to the handset's top-right. */
+  .intro-call-chip .icc-spark { position: absolute; top: 4px; right: 5px; color: var(--agent-coral); }
   @media (prefers-reduced-motion: reduce) {
-    .intro-call-chip, .intro-call-chip .ic-face, .intro-call-chip .ic-tip { transition: none; }
+    .intro-call-chip .icc-face { transition: none; }
   }
 
   /* Top-nav icon controls (theme / contrast / lab / bell): no outline box in ANY

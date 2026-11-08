@@ -99,6 +99,8 @@ const INTRO_DATA: IntroCallData = {
   introDone: false,
   introDoneVendor: false,
   introDonePurchaser: false,
+  introVendorBy: null,
+  introPurchaserBy: null,
   hasVendor: true,
   hasPurchaser: true,
   vendor: { id: "demo-vendor", name: NAME, phone: "07700 900111", email: "priya.c@gmail.com" },
