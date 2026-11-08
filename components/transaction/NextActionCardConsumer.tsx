@@ -31,6 +31,10 @@ export type NextActionInput = {
     // Set when the hero is a snoozed reminder (nothing live) — the status line
     // reads "Snoozed until <date>" instead of a due label.
     snoozedUntil?: Date | string | null;
+    // State flags that pick the lead glyph (siren / link-break) ahead of the
+    // due-date icons. Computed in OverviewPanel where the data lives.
+    escalated?: boolean;
+    waitingOnChain?: boolean;
   } | null;
   fallbackMilestone: { name: string; code: string } | null;
   otherReminders: MiniReminder[];
@@ -46,9 +50,12 @@ function relativeDueLabel(due: Date | string): { label: string; tone: "coral" | 
   return { label: `Due ${new Date(due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, tone: "muted" };
 }
 
-// Which state glyph leads the hero (Ellis's 2026-11-08 picks).
-function iconForReminder(r: { nextDueDate: Date | string; snoozedUntil?: Date | string | null }): NextActionIcon {
+// Which state glyph leads the hero (Ellis's 2026-11-08 picks). Precedence:
+// escalated (siren) → snoozed (zzz) → waiting-on-chain (link-break) → due date.
+function iconForReminder(r: { nextDueDate: Date | string; snoozedUntil?: Date | string | null; escalated?: boolean; waitingOnChain?: boolean }): NextActionIcon {
+  if (r.escalated) return "escalated";
   if (r.snoozedUntil && new Date(r.snoozedUntil) > new Date()) return "snoozed";
+  if (r.waitingOnChain) return "chain";
   const days = daysUntil(r.nextDueDate);
   if (days < 0) return "overdue";
   if (days <= 7) return "due";

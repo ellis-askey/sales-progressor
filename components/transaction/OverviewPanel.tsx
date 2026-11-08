@@ -354,6 +354,19 @@ export async function OverviewPanel({
   const topPendingTaskId = heroReminderLog
     ? heroReminderLog.chaseTasks.find((t: { status: string }) => t.status === "pending")?.id ?? null
     : null;
+  // Escalated: the hero's pending chase task has been bumped to escalated
+  // priority (same test as escalatedCount below). Free — no extra query.
+  const heroEscalated = heroReminderLog
+    ? heroReminderLog.chaseTasks.some((t: { status: string; priority: string }) => t.status === "pending" && t.priority === "escalated")
+    : false;
+  // Waiting on the chain: our side is ready (both solicitors confirmed) and the
+  // chain link isn't confirmed ready yet. One indexed lookup for the last part.
+  const chainLink = transaction.chainLinkId
+    ? await prisma.chainLink.findUnique({ where: { id: transaction.chainLinkId }, select: { exchangeReadyConfirmedAt: true } })
+    : null;
+  const waitingOnChain = transaction.chainLinkId != null
+    && completedMilestoneCodes.includes("VM18") && completedMilestoneCodes.includes("PM25")
+    && !chainLink?.exchangeReadyConfirmedAt;
   const nextActionReminder = heroReminderLog
     ? {
         ruleName: heroReminderLog.reminderRule.name,
@@ -361,6 +374,8 @@ export async function OverviewPanel({
         nextDueDate: heroReminderLog.nextDueDate,
         targetMilestoneCode: heroReminderLog.reminderRule.targetMilestoneCode ?? null,
         snoozedUntil: topSnoozedReminder ? topSnoozedReminder.snoozedUntil : null,
+        escalated: heroEscalated,
+        waitingOnChain,
       }
     : null;
 
