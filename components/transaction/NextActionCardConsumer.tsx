@@ -50,6 +50,14 @@ function relativeDueLabel(due: Date | string): { label: string; tone: "coral" | 
   return { label: `Due ${new Date(due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, tone: "muted" };
 }
 
+// Reminder rule names are all phrased "Chase: <milestone>". Everything in this
+// card is a chase today, so the prefix is noise that just eats room before the
+// step truncates. Strip it for display. (When the card grows to hold non-chase
+// actions, a per-row type indicator replaces this — see the critique note.)
+function stripChasePrefix(name: string): string {
+  return name.replace(/^chase:\s*/i, "");
+}
+
 // Which state glyph leads the hero (Ellis's 2026-11-08 picks). Precedence:
 // escalated (siren) → snoozed (zzz) → waiting-on-chain (link-break) → due date.
 function iconForReminder(r: { nextDueDate: Date | string; snoozedUntil?: Date | string | null; escalated?: boolean; waitingOnChain?: boolean }): NextActionIcon {
@@ -79,18 +87,20 @@ function ReminderRow({ r, onNavigate }: { r: MiniReminder; onNavigate: () => voi
       aria-label={`${r.ruleName} — ${statusText}. Open reminders.`}
       // Extra horizontal padding so the hover highlight breathes past the text,
       // pulled back with a matching negative margin so the text stays aligned.
+      // Status tucks UNDER the step (indented past the dot) rather than sharing
+      // the row, so the step name gets the full column width before truncating.
       style={{
         boxSizing: "border-box", width: "calc(100% + 20px)", marginLeft: -10,
-        padding: "7px 10px", borderRadius: 8,
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        padding: "5px 10px", borderRadius: 8,
+        display: "flex", flexDirection: "column", gap: 1,
         background: "none", border: "none", font: "inherit", textAlign: "left", cursor: "pointer",
       }}
     >
-      <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: dotColor }} />
-        <span style={{ fontSize: 12, color: isSnoozed ? "var(--agent-text-muted)" : "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
+        <span style={{ fontSize: 12, color: isSnoozed ? "var(--agent-text-muted)" : "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{stripChasePrefix(r.ruleName)}</span>
       </span>
-      <span style={{ fontSize: 10, color: isOverdue ? "#ef4444" : "var(--agent-text-muted)", flexShrink: 0, fontWeight: isOverdue ? 600 : 400 }}>{statusText}</span>
+      <span style={{ paddingLeft: 15, fontSize: 10, color: isOverdue ? "#ef4444" : "var(--agent-text-muted)", fontWeight: isOverdue ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{statusText}</span>
     </button>
   );
 }
@@ -207,7 +217,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
         : undefined;
       card = (
         <NextActionCard
-          title={reminder.ruleName}
+          title={stripChasePrefix(reminder.ruleName)}
           description=""
           dueLabel={pending ? "Snoozing…" : due.label}
           dueTone={due.tone}
@@ -226,7 +236,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       const due = relativeDueLabel(ghost.nextDueDate);
       card = (
         <NextActionCard
-          title={ghost.ruleName}
+          title={stripChasePrefix(ghost.ruleName)}
           description="Follow up when you're ready."
           dueLabel={due.label}
           dueTone={due.tone}
