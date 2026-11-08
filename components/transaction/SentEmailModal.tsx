@@ -71,20 +71,28 @@ export function SentEmailModal({ email, onClose }: { email: OpenEmail | null; on
 
         {data && (
           <div className="sev-meta">
-            <span className="sev-sent"><span className="sev-mk">Sent:</span> {fmtDateTime(data.sentAt)}</span>
-            {data.fromEmail && <span className="sev-to" title={data.fromEmail}><span className="sev-mk">From:</span> {data.fromEmail}</span>}
-            {data.recipientEmail && <span className="sev-to" title={data.recipientEmail}><span className="sev-mk">To:</span> {data.recipientEmail}</span>}
-            <div className="sev-steps" aria-label={`Delivery: ${STEPS[reached]}`}>
-              {STEPS.map((s, i) => (
-                <span key={s} className="sev-stepwrap">
-                  {i > 0 && <span className={`sev-sep${i <= reached ? " on" : ""}`} aria-hidden />}
-                  <span className={`sev-step${i <= reached ? " on" : ""}${i === reached ? " now" : ""}`}>
-                    <span className="sev-step-dot" aria-hidden />
-                    <span className="sev-step-label">{s}</span>
+            {/* Top row: sent date left, delivery stepper right-aligned */}
+            <div className="sev-meta-row sev-meta-top">
+              <span className="sev-sent"><span className="sev-mk">Sent:</span> {fmtDateTime(data.sentAt)}</span>
+              <div className="sev-steps" aria-label={`Delivery: ${STEPS[reached]}`}>
+                {STEPS.map((s, i) => (
+                  <span key={s} className="sev-stepwrap">
+                    {i > 0 && <span className={`sev-sep${i <= reached ? " on" : ""}`} aria-hidden />}
+                    <span className={`sev-step${i <= reached ? " on" : ""}${i === reached ? " now" : ""}`}>
+                      <span className="sev-step-dot" aria-hidden />
+                      <span className="sev-step-label">{s}</span>
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))}
+              </div>
             </div>
+            {/* Bottom row: addresses get the full width so they're legible */}
+            {(data.fromEmail || data.recipientEmail) && (
+              <div className="sev-meta-row sev-meta-addr">
+                {data.fromEmail && <span className="sev-to" title={data.fromEmail}><span className="sev-mk">From:</span> {data.fromEmail}</span>}
+                {data.recipientEmail && <span className="sev-to" title={data.recipientEmail}><span className="sev-mk">To:</span> {data.recipientEmail}</span>}
+              </div>
+            )}
           </div>
         )}
 
@@ -116,8 +124,8 @@ export function SentEmailModal({ email, onClose }: { email: OpenEmail | null; on
       </div>
 
       <style>{`
-        .sev-ov { position: fixed; inset: 0; z-index: 80; font-family: var(--font-geist-sans, -apple-system, system-ui, sans-serif); }
-        .sev-bg { position: absolute; inset: 0; background: rgba(45,24,16,.42); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: sev-bgf .26s ease both; }
+        .sev-ov { position: fixed; inset: 0; z-index: 210; font-family: var(--font-geist-sans, -apple-system, system-ui, sans-serif); }
+        .sev-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); animation: sev-bgf .26s ease both; }
         @keyframes sev-bgf { from { opacity: 0 } to { opacity: 1 } }
         .sev-sheet { position: absolute; display: flex; flex-direction: column; overflow: hidden;
           background: var(--agent-bg-paper, #FFFBF5); border: 1px solid rgba(255,255,255,.5);
@@ -140,14 +148,17 @@ export function SentEmailModal({ email, onClose }: { email: OpenEmail | null; on
         .sev-eyebrow { font-size: 11px; font-weight: 600; color: var(--agent-text-muted, #857d6e); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .sev-subject { font-size: 16px; font-weight: 700; letter-spacing: -.01em; margin: 0; color: var(--agent-text-primary, #2D1810); line-height: 1.3;
           display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .sev-ic { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--agent-border-default, rgba(45,24,16,.1)); background: rgba(255,255,255,.6);
+        /* Close: a tint of the text colour so it adapts to light + dark */
+        .sev-ic { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--agent-border-default, rgba(45,24,16,.1)); background: color-mix(in srgb, var(--agent-text-primary, #2D1810) 7%, transparent);
           display: grid; place-items: center; cursor: pointer; color: var(--agent-text-secondary, #5A3A28); flex: 0 0 auto; transition: background .14s, color .14s; }
-        .sev-ic:hover { background: #fff; color: var(--agent-text-primary, #2D1810); }
-        /* Meta: Sent + recipient on the left, delivery stepper pinned right */
-        .sev-meta { display: flex; align-items: center; gap: 7px 16px; flex-wrap: wrap; padding: 0 18px 12px; font-size: 12px; color: var(--agent-text-secondary, #5A3A28);
+        .sev-ic:hover { background: color-mix(in srgb, var(--agent-text-primary, #2D1810) 14%, transparent); color: var(--agent-text-primary, #2D1810); }
+        /* Meta: two rows — sent + stepper, then the addresses full-width below */
+        .sev-meta { display: flex; flex-direction: column; gap: 7px; padding: 0 18px 12px; font-size: 12px; color: var(--agent-text-secondary, #5A3A28);
           border-bottom: 0.5px solid var(--agent-border-subtle, rgba(45,24,16,.08)); }
+        .sev-meta-row { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; }
+        .sev-meta-addr { gap: 4px 16px; }
         .sev-mk { color: var(--agent-text-muted, #857d6e); font-weight: 600; }
-        .sev-to { color: var(--agent-text-muted, #857d6e); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+        .sev-to { color: var(--agent-text-muted, #857d6e); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
         .sev-steps { display: inline-flex; align-items: center; margin-left: auto; }
         .sev-stepwrap { display: inline-flex; align-items: center; }
         .sev-step { display: inline-flex; align-items: center; gap: 5px; padding: 0 2px; }
@@ -158,14 +169,14 @@ export function SentEmailModal({ email, onClose }: { email: OpenEmail | null; on
         .sev-step.now .sev-step-label { font-weight: 700; }
         .sev-sep { width: 14px; height: 1px; background: var(--agent-border-strong, rgba(45,24,16,.16)); margin: 0 5px; }
         .sev-sep.on { background: var(--agent-success, #15803d); opacity: .5; }
-        @media (max-width: 440px) { .sev-steps { margin-left: 0; } }
         /* Reconstructed note (legacy sends only) */
         .sev-recon { font-size: 11.5px; line-height: 1.45; color: var(--agent-text-muted, #857d6e); background: var(--agent-surface-sunken, #f6f1e9);
           padding: 8px 18px; border-bottom: 0.5px solid var(--agent-border-subtle, rgba(45,24,16,.08)); }
-        .sev-body { flex: 1; min-height: 0; overflow: hidden; background: #f4f2ee; display: flex; }
-        .sev-frame { width: 100%; height: 100%; min-height: 420px; border: 0; display: block; }
+        .sev-body { flex: 1; min-height: 0; overflow: hidden; background: var(--agent-surface-sunken, #f4f2ee); display: flex; padding: 14px 16px; }
+        .sev-frame { width: 100%; height: 100%; min-height: 420px; border: 0; display: block; border-radius: 10px; }
+        @media (max-width: 1024px) { .sev-body { padding: 10px 12px; } }
         .sev-note { margin: auto; padding: 48px 20px; font-size: 13px; color: var(--agent-text-muted, #857d6e); }
-        .sev-textwrap { width: 100%; overflow-y: auto; padding: 20px; }
+        .sev-textwrap { width: 100%; overflow-y: auto; }
         .sev-text { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.6; color: var(--agent-text-primary, #2D1810); white-space: pre-wrap; word-break: break-word;
           background: #fff; border: 1px solid var(--agent-border-subtle, rgba(45,24,16,.08)); border-radius: 10px; padding: 16px; margin: 0; }
         /* Loading skeleton — mimics the email card so the swap doesn't jump */

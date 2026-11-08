@@ -959,7 +959,7 @@ function OnwardMatchOverlay({
       role="dialog"
       aria-modal="true"
       onClick={onDone}
-      style={{ position: "fixed", inset: 0, zIndex: 2200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(10,15,25,0.55)", backdropFilter: "blur(2px)" }}
+      style={{ position: "fixed", inset: 0, zIndex: 2200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
     >
       <div
         onClick={(e) => e.stopPropagation()}

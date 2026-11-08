@@ -91,7 +91,7 @@ export function WithdrawFileModal({
       style={{ zIndex: 1500 }}
       onClick={onCancel}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/[0.35] backdrop-blur-[3px]" />
       <div
         className="relative bg-white rounded-2xl w-full max-w-sm"
         // maxHeight + internal scroll (audit E3): the 4 reason cards +

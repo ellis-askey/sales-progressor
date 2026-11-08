@@ -138,8 +138,8 @@ export function BringInSaleDrawer({
       </div>
 
       <style>{`
-        .bis-wrap { position: fixed; inset: 0; z-index: 200; display: flex; justify-content: flex-end; }
-        .bis-scrim { position: absolute; inset: 0; background: rgba(36,24,16,0.42); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+        .bis-wrap { position: fixed; inset: 0; z-index: 210; display: flex; justify-content: flex-end; }
+        .bis-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
         .bis { position: relative; z-index: 1; height: 100%; width: 480px; max-width: 100vw; background: var(--agent-surface-elevated, #fff); border-left: 1px solid var(--agent-border-default, rgba(0,0,0,0.1)); box-shadow: -8px 0 40px -12px rgba(40,24,16,0.4); display: flex; flex-direction: column; overflow: hidden; animation: bis-in 260ms cubic-bezier(0.25,0,0,1) both; }
         @keyframes bis-in { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .bis { animation: none; } }

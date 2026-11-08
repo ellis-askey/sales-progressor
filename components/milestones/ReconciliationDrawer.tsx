@@ -205,7 +205,7 @@ export function ReconciliationDrawer({
       style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", justifyContent: asModal ? "center" : "flex-end", alignItems: asModal ? "center" : "stretch", padding: asModal ? 20 : 0 }} /* escalated layer — clears the agent topbar (200), critique #292 */
     >
       {/* Backdrop — does not dismiss on click; the agent has entered data */}
-      <div className="fixed inset-0 agent-backdrop-overlay" />
+      <div className={`fixed inset-0 agent-backdrop-overlay${closing ? " agent-backdrop-closing" : ""}`} onClick={doClose} />
 
       {/* Panel — a centred modal when there's nothing to reconcile, otherwise
           the right-hand drawer (460 on desktop/tablet, full width on mobile). */}

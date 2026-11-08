@@ -71,11 +71,11 @@ function AccountDrawerPanel({
       aria-modal="true"
       aria-label={title}
       data-theme={theme} data-night={isNight ? "" : undefined}
-      style={{ position: "fixed", inset: 0, zIndex: 120, display: "flex", justifyContent: "flex-end" }}
+      style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex", justifyContent: "flex-end" }}
     >
       <div
         onClick={onClose}
-        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", animation: "account-drawer-fade 180ms ease both" }}
+        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", animation: "account-drawer-fade 180ms ease both" }}
       />
       <div
         ref={panelRef}

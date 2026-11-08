@@ -828,7 +828,7 @@ export function ChaseDrawer({
       {/* Backdrop */}
       <div
         className="absolute inset-0"
-        style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)", animation: "agent-backdrop-in 200ms ease both" }}
+        style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", animation: closing ? "agent-backdrop-out 200ms ease both" : "agent-backdrop-in 200ms ease both" }}
         onClick={() => (sentCtx ? onSent() : doClose())}
       />
 

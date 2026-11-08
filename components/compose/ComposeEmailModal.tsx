@@ -166,6 +166,20 @@ export function ComposeEmailModal({
   function onShellAnimEnd(e: ReactAnimationEvent) {
     if (closing && e.target === e.currentTarget) { setClosing(false); onClose(); }
   }
+  // Escape closes (overlay standard) — an open field dropdown first, else the
+  // whole modal. This drawer previously had no Escape handler at all.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (openField) setOpenField(null);
+      else requestClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, openField, closing]);
 
   // refine (phase 3)
   const [refining, setRefining] = useState(false);
@@ -540,7 +554,7 @@ export function ComposeEmailModal({
   );
 
   return createPortal(
-    <div className="cem-backdrop" data-theme={theme} data-closing={closing ? "1" : undefined} onClick={() => setOpenField(null)}>
+    <div className="cem-backdrop" data-theme={theme} data-closing={closing ? "1" : undefined} onClick={() => { if (openField) setOpenField(null); else requestClose(); }}>
       <style>{CEM_CSS}</style>
       <div className="cem-modal" role="dialog" aria-label="New email" data-closing={closing ? "1" : undefined} onAnimationEnd={onShellAnimEnd} onClick={(e) => e.stopPropagation()}>
         <div className="cem-hdr">
@@ -750,7 +764,7 @@ function RecRow({ rec, onPick }: { rec: ComposeRecipient; onPick: () => void }) 
 }
 
 const CEM_CSS = `
-.cem-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(45,24,16,0.34);backdrop-filter:blur(3px);animation:cemFadein .2s ease both}
+.cem-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.35);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:cemFadein .2s ease both}
 .cem-backdrop[data-closing="1"]{animation:cemFadeout .24s ease both}
 .cem-modal{width:min(640px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;background:var(--agent-surface-elevated,#fff);border:1px solid rgba(255,255,255,0.5);border-top:2px solid var(--agent-coral-deep,#FF6B4A);border-radius:16px;box-shadow:0 24px 70px rgba(45,24,16,0.28);animation:cemModalin .34s cubic-bezier(.34,1.56,.64,1) both}
 .cem-modal[data-closing="1"]{animation:cemModalout .24s ease both}
