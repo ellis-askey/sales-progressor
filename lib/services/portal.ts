@@ -231,10 +231,15 @@ export async function logAutomatedEmail(
   // buyerRoundId, stamp the OutboundMessage with that buyerRoundId. Any
   // mixed set (or vendor / solicitor / broker contacts) → file-level NULL.
   let stampRoundId: string | null = null;
+  // Representative recipient (the contact whose subject/text/html is logged —
+  // contactIds[0]) so "view email" shows a real "To". Stored alongside the HTML
+  // for the same true-to-inbox reason; null if the contact can't be resolved.
+  let recipientEmail: string | null = null;
+  let recipientName: string | null = null;
   if (contactIds.length > 0) {
     const contacts = await prisma.contact.findMany({
       where: { id: { in: contactIds } },
-      select: { roleType: true, buyerRoundId: true },
+      select: { id: true, roleType: true, buyerRoundId: true, email: true, name: true },
     });
     if (
       contacts.length === contactIds.length &&
@@ -244,6 +249,9 @@ export async function logAutomatedEmail(
     ) {
       stampRoundId = contacts[0].buyerRoundId;
     }
+    const rep = contacts.find((c) => c.id === contactIds[0]) ?? contacts[0];
+    recipientEmail = rep?.email ?? null;
+    recipientName = rep?.name ?? null;
   }
 
   await prisma.outboundMessage.create({
@@ -257,6 +265,8 @@ export async function logAutomatedEmail(
       subject,
       sentEmailHtml: sentHtml ?? null,
       sentFromEmail: fromEmail ?? null,
+      recipientEmail,
+      recipientName,
       createdById: null,
       buyerRoundId: stampRoundId,
     },
