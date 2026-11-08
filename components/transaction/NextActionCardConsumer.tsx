@@ -28,6 +28,9 @@ export type NextActionInput = {
     // The milestone the top task confirms, when it targets one. Drives the
     // exchange/completion date prompt on "Mark complete".
     targetMilestoneCode?: string | null;
+    // Set when the hero is a snoozed reminder (nothing live) — the status line
+    // reads "Snoozed until <date>" instead of a due label.
+    snoozedUntil?: Date | string | null;
   } | null;
   fallbackMilestone: { name: string; code: string } | null;
   otherReminders: MiniReminder[];
@@ -162,7 +165,11 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
 
     let card: ReactNode = null;
     if (!heroSnoozed) {
-      const due = relativeDueLabel(reminder.nextDueDate);
+      // A snoozed hero (nothing live) reads "Snoozed until <date>", muted;
+      // otherwise the normal relative due label.
+      const due = reminder.snoozedUntil && new Date(reminder.snoozedUntil) > new Date()
+        ? { label: `Snoozed until ${formatDate(reminder.snoozedUntil)}`, tone: "muted" as const }
+        : relativeDueLabel(reminder.nextDueDate);
       const body = fallbackMilestone ? `Waiting on: ${fallbackMilestone.name.replace(/\.$/, "")}.` : "Follow up when you're ready.";
       const taskId = reminder.topTaskId;
       const onMarkComplete = taskId

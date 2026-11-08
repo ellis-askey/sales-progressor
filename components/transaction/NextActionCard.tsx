@@ -18,7 +18,6 @@
 import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
 
 export type NextActionKind = "chase" | "milestone" | "reminder";
 
@@ -39,10 +38,10 @@ export type NextActionCardProps = {
   belowActions?: ReactNode;         // e.g. the "up next" reminder list, in-card
 };
 
-const DUE_PILL_TONE: Record<Required<NextActionCardProps>["dueTone"], "brand" | "warning" | "muted"> = {
-  coral: "brand",
-  warn:  "warning",
-  muted: "muted",
+const DUE_TEXT_COLOR: Record<Required<NextActionCardProps>["dueTone"], string> = {
+  coral: "var(--agent-coral-deep)",
+  warn:  "var(--agent-warning)",
+  muted: "var(--agent-text-muted)",
 };
 
 export function NextActionCard({
@@ -60,7 +59,7 @@ export function NextActionCard({
   snoozeSlot,
   belowActions,
 }: NextActionCardProps) {
-  const duePillTone = DUE_PILL_TONE[dueTone];
+  const dueColor = DUE_TEXT_COLOR[dueTone];
 
   return (
     // Design Lab: `overview-next-action`. Default v15 (Gradient hairline)
@@ -83,57 +82,59 @@ export function NextActionCard({
           out in two columns. */}
       <div className={belowActions ? "na-wrap na-two" : "na-wrap"}>
         <div className="na-hero">
-          {/* Top row: eyebrow (with flame) + top-right calendar icon */}
+          {/* Eyebrow + top-right snooze control */}
           <div style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 8,
+            marginBottom: 10,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 26,
-                height: 26,
-                color: "var(--agent-coral-deep)",
-              }}>
-                <Fire size={17} weight="fill" />
-              </span>
-              <span className="agent-eyebrow" style={{ margin: 0 }}>
-                Next action
-              </span>
-            </div>
+            <span className="agent-eyebrow" style={{ margin: 0 }}>
+              Next action
+            </span>
             {snoozeSlot}
           </div>
 
-          {/* Title, with the due pill to its right on wide screens */}
-          <div className="na-titlerow">
-            <p className="na-title" style={{
-              margin: 0,
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--agent-text-primary)",
-              lineHeight: 1.35,
-            }}>{title}</p>
-            <span className="na-due-inline">
-              <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
+          {/* Flame to the left of a stacked [title / status] block. The status
+              (overdue / snoozed-until / no-reminder) is a plain coloured line
+              here, not a pill. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+            <span style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--agent-coral-deep)",
+            }}>
+              <Fire size={24} weight="fill" />
             </span>
+            <div style={{ minWidth: 0 }}>
+              <p className="na-title" style={{
+                margin: 0,
+                fontSize: 15,
+                fontWeight: 600,
+                color: "var(--agent-text-primary)",
+                lineHeight: 1.3,
+              }}>{title}</p>
+              <div style={{
+                marginTop: 2,
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: dueColor,
+                lineHeight: 1.3,
+              }}>{dueLabel}</div>
+            </div>
           </div>
+
           {description && (
             <p style={{
-              margin: "4px 0 0",
+              margin: "9px 0 0",
+              paddingLeft: 35,
               fontSize: 13,
               color: "var(--agent-text-secondary)",
               lineHeight: 1.5,
             }}>{description}</p>
           )}
-
-          {/* Due badge — drops below on the tablet/mobile breakpoint */}
-          <div className="na-due-block" style={{ marginTop: 10 }}>
-            <Pill glass tone={duePillTone} size="md">{dueLabel}</Pill>
-          </div>
 
           {/* Action row */}
           <div style={{
@@ -183,15 +184,7 @@ export function NextActionCard({
       </div>
 
       <style>{`
-        .na-titlerow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-        .na-title{flex:1;min-width:0}
-        .na-due-inline{flex-shrink:0;margin-top:1px}
-        .na-due-block{display:none}
         .na-queue{margin-top:14px;border-top:0.5px solid var(--agent-border-default);padding-top:12px}
-        @media (max-width:767px){
-          .na-due-inline{display:none}
-          .na-due-block{display:block}
-        }
         @media (min-width:768px){
           .na-two{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start}
           .na-two .na-queue{margin-top:0;border-top:none;border-left:0.5px solid var(--agent-border-default);padding-top:0;padding-left:18px}

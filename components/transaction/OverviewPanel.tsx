@@ -341,21 +341,32 @@ export async function OverviewPanel({
   const topActiveReminder = activeReminders
     .filter((l) => !l.snoozedUntil || new Date(l.snoozedUntil) <= now)
     .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0] ?? null;
-  const topPendingTaskId = topActiveReminder
-    ? topActiveReminder.chaseTasks.find((t: { status: string }) => t.status === "pending")?.id ?? null
+  // When nothing is live, fall back to the soonest-waking SNOOZED reminder so the
+  // hero reads "Snoozed until <date>" rather than wrongly claiming "No reminder
+  // yet" — the step does have a reminder, it's just paused (and it's already
+  // listed in Up-next right below).
+  const topSnoozedReminder = topActiveReminder
+    ? null
+    : activeReminders
+        .filter((l) => l.snoozedUntil && new Date(l.snoozedUntil) > now)
+        .sort((a, b) => new Date(a.snoozedUntil!).getTime() - new Date(b.snoozedUntil!).getTime())[0] ?? null;
+  const heroReminderLog = topActiveReminder ?? topSnoozedReminder;
+  const topPendingTaskId = heroReminderLog
+    ? heroReminderLog.chaseTasks.find((t: { status: string }) => t.status === "pending")?.id ?? null
     : null;
-  const nextActionReminder = topActiveReminder
+  const nextActionReminder = heroReminderLog
     ? {
-        ruleName: topActiveReminder.reminderRule.name,
+        ruleName: heroReminderLog.reminderRule.name,
         topTaskId: topPendingTaskId,
-        nextDueDate: topActiveReminder.nextDueDate,
-        targetMilestoneCode: topActiveReminder.reminderRule.targetMilestoneCode ?? null,
+        nextDueDate: heroReminderLog.nextDueDate,
+        targetMilestoneCode: heroReminderLog.reminderRule.targetMilestoneCode ?? null,
+        snoozedUntil: topSnoozedReminder ? topSnoozedReminder.snoozedUntil : null,
       }
     : null;
 
   // "Up next" list for the merged card: the remaining active reminders (soonest
   // first), excluding the one already shown as the hero, so nothing repeats.
-  const heroReminderId = topActiveReminder?.id ?? null;
+  const heroReminderId = heroReminderLog?.id ?? null;
   const otherReminders = [...activeReminders]
     .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())
     .filter((l) => l.id !== heroReminderId)
