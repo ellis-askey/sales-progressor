@@ -489,6 +489,8 @@ export async function sendOnwardNudgeAction(input: NudgeInput & { copy?: Partial
       content: text,
       contactIds: [ctx.contact.id],
       recipientEmail: ctx.contact.email,
+      sentEmailHtml: html,
+      sentFromEmail: ctx.from,
       isAutomated: false,
       visibleToClient: true,
       sentAt: new Date(),

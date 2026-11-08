@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
       agency: tx.agency?.name ?? "",
       phone: me?.directMobile ?? me?.phone ?? null,
     });
-    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: composeHtml(body, sig.html), replyTo });
+    const sentHtml = composeHtml(body, sig.html);
+    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: sentHtml, replyTo });
 
     await prisma.outboundMessage.create({
       data: {
@@ -64,7 +65,11 @@ export async function POST(req: NextRequest) {
         type: "outbound",
         method: "email",
         contactIds: [],
+        subject,
         content: `Email sent to ${to}\n\nSubject: ${subject}\n\n${body}`,
+        sentEmailHtml: sentHtml,
+        sentFromEmail: resolvedFrom,
+        recipientEmail: typeof to === "string" ? to : null,
         createdById: session.user.id,
         visibleToClient: false,
       },
@@ -141,12 +146,14 @@ export async function POST(req: NextRequest) {
     sigHtml = sig.html;
     sigText = sig.text;
   }
+  const sentHtml = composeHtml(body, sigHtml);
+  const sentFrom = `${session.user.name} <${fromEmail}>`;
   await sendFromVerifiedAddress({
-    from: `${session.user.name} <${fromEmail}>`,
+    from: sentFrom,
     to,
     subject,
     text: body + sigText,
-    html: composeHtml(body, sigHtml),
+    html: sentHtml,
     replyTo: fromEmail,
   });
 
@@ -162,7 +169,11 @@ export async function POST(req: NextRequest) {
         type: "outbound",
         method: "email",
         contactIds: [],
+        subject,
         content: `Email sent to ${to}\n\nSubject: ${subject}\n\n${body}`,
+        sentEmailHtml: sentHtml,
+        sentFromEmail: sentFrom,
+        recipientEmail: typeof to === "string" ? to : null,
         createdById: session.user.id,
         visibleToClient: false,
       },

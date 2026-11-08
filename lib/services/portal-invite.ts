@@ -88,6 +88,8 @@ export async function sendPortalInviteByToken(
       contactIds: [contact.id],
       recipientName: contact.name,
       recipientEmail: contact.email,
+      sentEmailHtml: invite.html,
+      sentFromEmail: fromAddr,
       createdById: opts.actingUserId,
       createdByRole: opts.actingUserRole,
       sentAt: new Date(),

@@ -233,6 +233,8 @@ export async function maybeSendBookingDiaryEmail(input: {
     recipientEmail: tx.agentUser.email,
     subject,
     bodyPlain: text,
+    sentHtml: html,
+    fromEmail: sender.from,
   });
   return true;
 }
@@ -353,6 +355,8 @@ export async function sendBookingMorningReminders(): Promise<number> {
         recipientEmail: recipient.email,
         subject,
         bodyPlain: text,
+        sentHtml: html,
+        fromEmail: sender.from,
       });
       sent++;
     } catch {

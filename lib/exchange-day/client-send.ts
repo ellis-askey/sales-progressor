@@ -158,6 +158,7 @@ export async function sendDueExchangeDayClientEmails(now: Date = new Date()): Pr
               transactionId: tx.id, type: "outbound", channel: "email", method: "email",
               purpose: s.purpose, status: "sent", isAutomated: true,
               recipientName: c.name, recipientEmail: c.email, subject: built.subject, content: built.text,
+              sentEmailHtml: built.html, sentFromEmail: from,
               contactIds: [c.id], createdById, createdByRole: "director",
             },
           }).catch(() => {});

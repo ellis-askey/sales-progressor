@@ -195,6 +195,8 @@ ${portalSection}
           content: text,
           contactIds: [contact.id],
           recipientEmail: contact.email,
+          sentEmailHtml: html,
+          sentFromEmail: fromAddr,
           isAutomated: true,
           visibleToClient: true,
           sentAt: new Date(),

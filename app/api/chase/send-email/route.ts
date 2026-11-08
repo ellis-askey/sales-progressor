@@ -152,6 +152,8 @@ export async function POST(req: NextRequest) {
         content: `Email to ${toName ? `${toName} (${toEmail})` : toEmail}${ccSuffix}: ${messageText}`,
         subject: fullSubject,
         recipientEmail: toEmail,
+        sentEmailHtml: html,
+        sentFromEmail: from,
         sentAt,
         internetMessageId: outboundMessageId,
         createdById: session.user.id,

@@ -1243,6 +1243,10 @@ export async function logAgentSystemEmailToActivity(input: {
   recipientEmail: string | null;
   subject: string;
   bodyPlain: string;
+  // Exact rendered HTML + From we sent, so "view email" is true-to-inbox
+  // rather than reconstructed. Optional + forward-only.
+  sentHtml?: string | null;
+  fromEmail?: string | null;
 }): Promise<void> {
   try {
     await prisma.outboundMessage.create({
@@ -1254,7 +1258,10 @@ export async function logAgentSystemEmailToActivity(input: {
         contactIds: [],
         recipientName: input.recipientName,
         recipientEmail: input.recipientEmail,
+        subject: input.subject,
         content: `Subject: ${input.subject}\n\n${input.bodyPlain}`,
+        sentEmailHtml: input.sentHtml ?? null,
+        sentFromEmail: input.fromEmail ?? null,
         createdById: null,
       },
     });

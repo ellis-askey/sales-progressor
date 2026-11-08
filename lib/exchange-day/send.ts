@@ -138,6 +138,7 @@ export async function sendDueExchangeDayEmails(now: Date = new Date()): Promise<
               transactionId: tx.id, type: "outbound", channel: "email", method: "email",
               purpose: "chase", status: "sent", isAutomated: true,
               recipientName: sol.name, recipientEmail: sol.email, subject, content: text,
+              sentEmailHtml: html, sentFromEmail: from,
               contactIds: [], createdById, createdByRole: "director",
             },
           }).catch(() => {});
