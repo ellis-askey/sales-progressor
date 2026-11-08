@@ -13,8 +13,6 @@ import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milest
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder, countActionable } from "@/lib/reminders/classify";
-import { StatPill } from "@/components/layout/StatPill";
-import type { PillColor } from "@/components/layout/StatPill";
 import { TabBadgeReporter } from "@/components/transaction/TabBadgeReporter";
 import { TabEnter } from "@/components/transaction/TabEnter";
 import { ExchangeToCompletionCard } from "@/components/transaction/ExchangeToCompletionCard";
@@ -109,11 +107,6 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
     else if (bucket === "upcoming" && toUKDateStr(l.nextDueDate) <= upcomingCutoffStr) comingUpCount++;
   }
 
-  const statSegments: { label: string; anchor: string; colorKey: PillColor }[] = [];
-  if (needsYouCount > 0)  statSegments.push({ label: `${needsYouCount} need${needsYouCount === 1 ? "s" : ""} you`, anchor: "#section-needs-you", colorKey: "danger" });
-  if (comingUpCount > 0)  statSegments.push({ label: `${comingUpCount} coming up`, anchor: "#section-coming-up", colorKey: "warning" });
-  if (autopilotCount > 0) statSegments.push({ label: `${autopilotCount} on autopilot`, anchor: "#section-autopilot", colorKey: "muted" });
-
   // On-hold files pause everywhere, so the tab badge reads 0 (as before).
   const actionable = transaction.status === "on_hold" ? 0 : countActionable(reminderLogs, now);
   const hideChase = session.user.role === "admin";
@@ -127,13 +120,8 @@ export default async function RemindersTabPage({ params }: { params: Promise<{ i
           <ExchangeToCompletionCard exchangedAt={postExchange.exchangedAt} completionDate={postExchange.completionDate} />
         </div>
       )}
-      {statSegments.length > 0 && (
-        <div className="agent-bloom" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {statSegments.map((seg) => (
-            <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
-          ))}
-        </div>
-      )}
+      {/* Top summary pills moved INTO each section-header row (the sections are
+          expand/collapse, so the pill carries the count + label there now). */}
       <AgentRemindersList
         logs={reminderLogs}
         photoByTx={photoByTx}

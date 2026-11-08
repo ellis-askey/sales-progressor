@@ -15,8 +15,8 @@ import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milest
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StatPill } from "@/components/layout/StatPill";
-import type { PillColor } from "@/components/layout/StatPill";
+import { AddNoteButton } from "@/components/activity/AddNoteButton";
+import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
@@ -169,11 +169,6 @@ export default async function WorkQueuePage() {
     else if (bucket === "coming_up") comingUpCount++;
   }
 
-  const statSegments: { label: string; anchor: string; colorKey: PillColor }[] = [];
-  if (needsYouCount > 0)   statSegments.push({ label: `${needsYouCount} need${needsYouCount === 1 ? "s" : ""} you`, anchor: "#section-needs-you", colorKey: "danger"  });
-  if (comingUpCount > 0)   statSegments.push({ label: `${comingUpCount} coming up`,                                anchor: "#section-coming-up", colorKey: "warning" });
-  if (autopilotCount > 0)  statSegments.push({ label: `${autopilotCount} on autopilot`,                            anchor: "#section-autopilot", colorKey: "muted"   });
-
   return (
     <>
       <PageHeader
@@ -182,9 +177,8 @@ export default async function WorkQueuePage() {
           ? "What needs chasing across your files."
           : "What needs chasing, today and ahead."}
       >
-        {statSegments.map(seg => (
-          <StatPill key={seg.anchor} href={seg.anchor} label={seg.label} color={seg.colorKey} />
-        ))}
+        <AddNoteButton />
+        <ComposeEmailButton variant="ghost" />
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">

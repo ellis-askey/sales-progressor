@@ -1603,10 +1603,19 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCollapse(grp.key); } }}
                 style={{ cursor: "pointer" }}
               >
-                <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "-0.01em", color: grp.you ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)" }}>{grp.label}</span>
-                  <span className={`agent-wq-count ${grp.you ? "agent-wq-count--coral" : "agent-wq-count--muted"}`}>{grp.logs.length + enquiryCards.length}</span>
-                  <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{grp.sub}</span>
+                <div className="flex items-center gap-2.5" style={{ minWidth: 0 }}>
+                  {/* The summary pill now lives IN the row. The section is already
+                      expand/collapse, so a separate title + circled count just
+                      repeated it — so the pill (count + label) replaces both, with
+                      the subtitle to its right. */}
+                  <span
+                    className={`agent-stat-glass ${grp.key === "needs-you" ? "agent-stat-glass--danger" : grp.you ? "agent-stat-glass--warning" : "agent-stat-glass--muted"}`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, flexShrink: 0 }}
+                  >
+                    <span className="agent-stat-dot" aria-hidden />
+                    {grp.logs.length + enquiryCards.length} {grp.label.toLowerCase()}
+                  </span>
+                  <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{grp.sub}</span>
                 </div>
                 <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />
               </div>

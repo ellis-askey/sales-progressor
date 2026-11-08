@@ -261,15 +261,14 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
       <style>{CSS}</style>
       <section className="fc">
         <header className="fc-hd" data-bloom>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <h1 className="fc-h1">Keep every client in the loop</h1>
-            {/* Same composer, same top-right header slot as the hub (founder ask, 2026-10-21). */}
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <AddNoteButton />
-              <ComposeEmailButton variant="ghost" />
-            </span>
-          </div>
+          <h1 className="fc-h1">Keep every client in the loop</h1>
           <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
+          {/* Same composer as the hub. Top-right on desktop; on small screens it
+              drops below the title + subtext and right-aligns (right-handed reach). */}
+          <div className="fc-hd-actions">
+            <AddNoteButton />
+            <ComposeEmailButton variant="ghost" />
+          </div>
 
           <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
           <div className="fc-barlbl">
@@ -753,7 +752,11 @@ const CSS = `
    below it (page stacks to one column) these take their natural flow order so
    the grid-area names — which only exist on the wide grid — can't mis-place them. */
 .fc { display:contents; }
-.fc-hd { margin-bottom:16px; }
+.fc-hd { margin-bottom:16px; position:relative; }
+/* Composer actions: in flow (below title + subtext), right-aligned on small
+   screens; lifted to the top-right corner on the wide layout. */
+.fc-hd-actions { display:flex; justify-content:flex-end; gap:8px; margin:0 0 12px; }
+@media (min-width:1000px){ .fc-hd-actions{ position:absolute; top:0; right:0; margin:0; } }
 .fc-h1 { font-size:var(--agent-text-h2); font-weight:600; letter-spacing:-0.02em; line-height:1.2; margin:0 0 4px; color:var(--agent-text-primary); }
 .fcl-sub { margin:0 0 16px; font-size:13px; color:var(--agent-text-muted); max-width:78ch; animation:fcl-sub-fade .26s ease; }
 @keyframes fcl-sub-fade { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }

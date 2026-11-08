@@ -1075,6 +1075,11 @@ select {
   }
   .agent-page-header-actions {
     padding-top: 0;
+    /* Stacked below the title/subtitle (the column above) but right-aligned —
+       most people are right-handed, so keep the actions under the thumb on
+       small screens instead of wrapping to the left. */
+    align-self: flex-end;
+    justify-content: flex-end;
   }
 
   .agent-topbar-hamburger {
