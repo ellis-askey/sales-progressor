@@ -291,6 +291,8 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
             [contactId],
             decision.payload.subject,
             decision.payload.text,
+            decision.payload.html,
+            sender?.from ?? null,
           ).catch(() => {});
         }
         singleSends++;
@@ -321,6 +323,8 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
             [contactId],
             decision.assembled.subject,
             decision.assembled.text,
+            decision.assembled.html,
+            sender?.from ?? null,
           ).catch(() => {});
         }
         digestSends++;

@@ -544,6 +544,11 @@ export async function drainOutboundQueue(): Promise<{
               recipientEmail: record.recipientEmail,
               subject: payload.subject as string,
               content: payload.text as string,
+              // Capture the exact bytes + From we just sent, so "view email"
+              // shows this chase true-to-inbox instead of reconstructing it
+              // from the text through today's brand. Forward-only.
+              sentEmailHtml: typeof payload.html === "string" ? payload.html : null,
+              sentFromEmail: typeof payload.from === "string" ? payload.from : null,
               sentAt: sentAtNow,
               isAutomated: true,
               visibleToClient: true,

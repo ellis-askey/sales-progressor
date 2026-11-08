@@ -203,6 +203,14 @@ export async function logAutomatedEmail(
   contactIds: string[],
   subject: string,
   bodyPlain: string,
+  // The exact rendered HTML + From we handed to SendGrid, captured so "view
+  // email" shows this automated send true-to-inbox instead of reconstructing
+  // it from the plain text through today's brand. Optional + forward-only:
+  // callers that have the rendered body pass it; older rows stay reconstructed.
+  // Where a row covers several contacts, pass the representative body (same
+  // contact whose subject/text is logged).
+  sentHtml?: string | null,
+  fromEmail?: string | null,
 ): Promise<void> {
   const stripped = bodyPlain
     .split("\n")
@@ -246,6 +254,9 @@ export async function logAutomatedEmail(
       isAutomated: true,
       contactIds,
       content: `Subject: ${subject}\n\n${stripped}`,
+      subject,
+      sentEmailHtml: sentHtml ?? null,
+      sentFromEmail: fromEmail ?? null,
       createdById: null,
       buyerRoundId: stampRoundId,
     },
@@ -1779,7 +1790,7 @@ export async function logPortalMilestoneConfirm(
     // menu — "Thanks — your solicitor's…", "You've just confirmed…",
     // etc.) is ONLY reachable via this path, so without this swap, that
     // entire route variant set is unreachable in production.
-    const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string }>();
+    const sideLog = new Map<"vendor" | "purchaser", { ids: string[]; subject: string; text: string; html: string }>();
     for (const c of tx.contacts) {
       if (!c.email || !c.portalToken) continue;
       // Superseded (fallen-through) buyer after a relist — never email them
@@ -1804,10 +1815,10 @@ export async function logPortalMilestoneConfirm(
       const sent = await trySendClientEmail({ to: c.email, subject, html, text, from: agencyEmailFrom, replyTo }, { transactionId, subject });
       if (!sent) continue; // don't record a "sent" row for a failed send
       const existing = sideLog.get(recipientKey);
-      if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text }); }
+      if (existing) { existing.ids.push(c.id); } else { sideLog.set(recipientKey, { ids: [c.id], subject, text, html }); }
     }
-    for (const { ids, subject, text } of sideLog.values()) {
-      logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
+    for (const { ids, subject, text, html } of sideLog.values()) {
+      logAutomatedEmail(transactionId, ids, subject, text, html, agencyEmailFrom).catch(() => {});
     }
 
     // Agent notification for portal-confirmed milestones — exchange + completion
@@ -1837,25 +1848,26 @@ export async function logPortalMilestoneConfirm(
         ``,
         `View your portal: ${portalUrl}`,
       ].join("\n");
+      const confirmHtml = portalStepConfirmedHtml({
+        firstName: greetingFirstName(confirmingContact.name),
+        address,
+        saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
+        stepLabel: portalLabel,
+        portalUrl,
+        logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
+        theme: agencyTheme,
+        studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
+      });
       const confirmSent = await trySendClientEmail({
         to: confirmingContact.email,
         subject: confirmSubject,
         text: confirmText,
         from: agencyEmailFrom,
         replyTo,
-        html: portalStepConfirmedHtml({
-          firstName: greetingFirstName(confirmingContact.name),
-          address,
-          saleWord: confirmingRole === "vendor" ? "sale" : "purchase",
-          stepLabel: portalLabel,
-          portalUrl,
-          logoBand: agencyLogoHeaderHtml({ logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign }),
-          theme: agencyTheme,
-          studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
-        }),
+        html: confirmHtml,
       }, { transactionId, subject: confirmSubject });
       if (confirmSent) {
-        logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText).catch(() => {});
+        logAutomatedEmail(transactionId, [confirmingContact.id], confirmSubject, confirmText, confirmHtml, agencyEmailFrom).catch(() => {});
       }
     }
 
@@ -1878,6 +1890,7 @@ export async function logPortalMilestoneConfirm(
       (c) => c.id !== contactId && c.roleType === otherSideRole && c.email && c.portalToken && c.portalEligible && !isDeadRoundRecipient(c)
     );
     const otherIds: string[] = [];
+    let otherHtmlForLog = ""; // representative body (first contact) for the log row
     for (const other of otherContacts) {
       const portalUrl = `${base}/portal/${other.portalToken!}`;
       const otherText = [
@@ -1887,26 +1900,27 @@ export async function logPortalMilestoneConfirm(
         ``,
         `View your portal: ${portalUrl}`,
       ].join("\n");
+      const otherHtml = portalEmailHtml({
+        greeting: buildGreeting(other.name),
+        body: otherUpdateHtml,
+        ctaText: "View your portal",
+        ctaUrl: portalUrl,
+        theme: agencyTheme,
+        eyebrow: address, headline: "Progress update",
+        studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
+      });
       const otherSent = await trySendClientEmail({
         to: other.email!,
         subject: `Progress update: ${address}`,
         text: otherText,
         from: agencyEmailFrom,
         replyTo,
-        html: portalEmailHtml({
-          greeting: buildGreeting(other.name),
-          body: otherUpdateHtml,
-          ctaText: "View your portal",
-          ctaUrl: portalUrl,
-          theme: agencyTheme,
-          eyebrow: address, headline: "Progress update",
-          studioTheme: agencyStudioTheme, identityName: agencyBrandName ?? undefined, logoUrl: agencyLogoUrl, tileColor: agencyTileColor,
-        }),
+        html: otherHtml,
       }, { transactionId, subject: `Progress update: ${address}` });
-      if (otherSent) otherIds.push(other.id);
+      if (otherSent) { otherIds.push(other.id); if (!otherHtmlForLog) otherHtmlForLog = otherHtml; }
     }
     if (otherIds.length > 0) {
-      logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, otherUpdateText).catch(() => {});
+      logAutomatedEmail(transactionId, otherIds, `Progress update: ${address}`, otherUpdateText, otherHtmlForLog, agencyEmailFrom).catch(() => {});
     }
   }
 
@@ -2049,7 +2063,7 @@ export async function sendAdminMilestoneNotificationToPortal(
       })
     : null;
 
-  const sideLog = new Map<string, { ids: string[]; subject: string; text: string }>();
+  const sideLog = new Map<string, { ids: string[]; subject: string; text: string; html: string }>();
 
   for (const c of tx.contacts) {
     if (!c.email || !c.portalToken) continue;
@@ -2104,12 +2118,12 @@ export async function sendAdminMilestoneNotificationToPortal(
     if (existing) {
       existing.ids.push(c.id);
     } else {
-      sideLog.set(roleKey, { ids: [c.id], subject, text: lines.join("\n") });
+      sideLog.set(roleKey, { ids: [c.id], subject, text: lines.join("\n"), html });
     }
   }
 
-  for (const { ids, subject, text } of sideLog.values()) {
-    logAutomatedEmail(transactionId, ids, subject, text).catch(() => {});
+  for (const { ids, subject, text, html } of sideLog.values()) {
+    logAutomatedEmail(transactionId, ids, subject, text, html, agencyEmailFrom).catch(() => {});
   }
 }
 
@@ -2929,28 +2943,30 @@ async function sendCustomerCompletionPackNow(transactionId: string): Promise<voi
 
   const vendorIds: string[] = [];
   let vendorPlainForLog = "";
+  let vendorHtmlForLog = "";
   for (const c of ctx.vendors) {
     const body = renderCompletionPackBody({ side: "vendor", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.vendorContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
     if (!sent) continue; // don't record a "sent" row for a failed send
     vendorIds.push(c.id);
-    if (!vendorPlainForLog) vendorPlainForLog = body.text;
+    if (!vendorPlainForLog) { vendorPlainForLog = body.text; vendorHtmlForLog = body.html; }
   }
   if (vendorIds.length > 0) {
-    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged: what happens next for your sale`, vendorPlainForLog).catch(() => {});
+    logAutomatedEmail(transactionId, vendorIds, `Contracts exchanged: what happens next for your sale`, vendorPlainForLog, vendorHtmlForLog, agencyEmailFrom).catch(() => {});
   }
 
   const purchaserIds: string[] = [];
   let purchaserPlainForLog = "";
+  let purchaserHtmlForLog = "";
   for (const c of ctx.purchasers) {
     const body = renderCompletionPackBody({ side: "purchaser", contact: c, address: ctx.address, completionDate: ctx.completionDate, agentName: ctx.agentName, content: ctx.purchaserContent, theme, studioTheme, identityName: brandName ?? undefined, logoUrl, tileColor });
     const sent = await trySendClientEmail({ to: body.recipientEmail, subject: body.subject, text: body.text, html: body.html, from: agencyEmailFrom, replyTo }, { transactionId, subject: body.subject });
     if (!sent) continue; // don't record a "sent" row for a failed send
     purchaserIds.push(c.id);
-    if (!purchaserPlainForLog) purchaserPlainForLog = body.text;
+    if (!purchaserPlainForLog) { purchaserPlainForLog = body.text; purchaserHtmlForLog = body.html; }
   }
   if (purchaserIds.length > 0) {
-    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged: what happens next for your purchase`, purchaserPlainForLog).catch(() => {});
+    logAutomatedEmail(transactionId, purchaserIds, `Contracts exchanged: what happens next for your purchase`, purchaserPlainForLog, purchaserHtmlForLog, agencyEmailFrom).catch(() => {});
   }
 }
 
