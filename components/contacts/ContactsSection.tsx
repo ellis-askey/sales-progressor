@@ -41,7 +41,7 @@ import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, PhoneCall, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
@@ -302,16 +302,35 @@ function PortalStatusCard({
   );
 }
 
+// ── Intro-call affordance ──────────────────────────────────────────────
+// On a new file, a client row's Call icon becomes this round, coral-tinted
+// button (stands out from the grey comms icons) that flips from a plain phone
+// to an active PhoneCall glyph on hover, and opens the intro-call drawer. The
+// flip + tooltip + theme handling live in .intro-call-chip (agent-system.css).
+function IntroCallButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="intro-call-chip" aria-label="Start intro call">
+      <span className="ic-tip" aria-hidden>Start intro call</span>
+      <span className="ic-face ic-front"><Phone size={15} weight="regular" /></span>
+      <span className="ic-face ic-back"><PhoneCall size={15} weight="fill" /></span>
+    </button>
+  );
+}
+
 // ── Kebab overflow menu ────────────────────────────────────────────────
 function RowKebab({
   onEdit,
   onDelete,
   onIntroCall,
+  introDone = false,
   contactName,
 }: {
   onEdit: () => void;
   onDelete: () => void;
   onIntroCall?: () => void;
+  // Once the side is introduced the item flips to "View intro" (re-open to read
+  // or keep editing the captured answers) instead of hiding.
+  introDone?: boolean;
   contactName: string;
 }) {
   return (
@@ -346,7 +365,7 @@ function RowKebab({
           <>
             {onIntroCall && (
               <PopoverMenuItem icon={<ClipboardText size={14} weight="regular" />} onClick={() => { close(); onIntroCall(); }}>
-                Intro call
+                {introDone ? "View intro" : "Intro call"}
               </PopoverMenuItem>
             )}
             <PopoverMenuItem icon={<PencilSimple size={14} weight="regular" />} onClick={() => { close(); onEdit(); }}>
@@ -1052,7 +1071,16 @@ export function ContactsSection({
                       </div>
                       {/* Comms + kebab stay on the row (never hidden) */}
                       <div className="people-row-actions">
-                        <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
+                        {/* On a new file (intro not yet done for this side) the Call
+                            icon becomes the intro-call affordance; once the side is
+                            introduced it reverts to a normal Call. Intro is per-side,
+                            so doing it with one contact clears it for the whole side. */}
+                        {allowIntroCall && (role === "vendor" || role === "purchaser") &&
+                         !(role === "vendor" ? introData?.introDoneVendor : introData?.introDonePurchaser) ? (
+                          <IntroCallButton onClick={() => void openIntro(role as "vendor" | "purchaser")} />
+                        ) : (
+                          <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
+                        )}
                         <CommsButton compact href={contact.phone ? whatsappHref(contact.phone) : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "WhatsApp" : "No phone number on file"} />
                         <CommsButton compact href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"} />
                         <RowKebab
@@ -1060,11 +1088,11 @@ export function ContactsSection({
                           onEdit={() => startEdit(contact)}
                           onDelete={() => requestDelete(contact)}
                           onIntroCall={
-                            allowIntroCall && (role === "vendor" || role === "purchaser") &&
-                            !(role === "vendor" ? introData?.introDoneVendor : introData?.introDonePurchaser)
+                            allowIntroCall && (role === "vendor" || role === "purchaser")
                               ? () => void openIntro(role as "vendor" | "purchaser")
                               : undefined
                           }
+                          introDone={!!(role === "vendor" ? introData?.introDoneVendor : introData?.introDonePurchaser)}
                         />
                       </div>
                     </div>
@@ -1260,9 +1288,10 @@ export function ContactsSection({
       )}
 
       {/* Intro call drawer (internal team). The launching side is a separate
-          intro; completing it marks only that side done. */}
-      {introSide && introData &&
-        !(introSide === "vendor" ? introData.introDoneVendor : introData.introDonePurchaser) && (
+          intro; completing it marks only that side done. Opens whether or not
+          the side is already done — once done it's "View intro" (read / edit the
+          captured answers), the drawer footer shows the completed state. */}
+      {introSide && introData && (
         <IntroCallDrawer
           data={introData}
           focusSide={introSide}

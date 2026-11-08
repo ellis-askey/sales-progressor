@@ -373,6 +373,10 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
   // drawer shows only that side; there is no in-drawer buyer/seller toggle.
   const side: "vendor" | "purchaser" = focusSide ?? (data.hasPurchaser ? "purchaser" : "vendor");
   const isBuyerSide = side === "purchaser";
+  // Already introduced on this side — the drawer is being viewed, not run, so the
+  // footer shows a done state instead of the "Mark introduction complete" action.
+  // Answers still save as you go.
+  const sideDone = side === "vendor" ? data.introDoneVendor : data.introDonePurchaser;
   const isCashBuyer = data.purchaseType === "cash_buyer";
   const prog = computeSideProgress(data, side);
   const filledDisplay = useCountUp(prog.filled);
@@ -674,11 +678,18 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
             <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-muted)", flex: 1 }}>
               Answers save as you go.
             </p>
-            <button type="button" onClick={() => void complete()} disabled={completing} className="agent-btn-color-primary"
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer", transition: "transform 140ms ease, filter 180ms ease, box-shadow 180ms ease" }}>
-              <CheckCircle size={16} weight="fill" />
-              {completing ? "Saving…" : "Mark introduction complete"}
-            </button>
+            {sideDone ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, color: "var(--agent-success)", background: "rgba(var(--agent-success-rgb), 0.12)", border: "0.5px solid rgba(var(--agent-success-rgb), 0.35)" }}>
+                <CheckCircle size={16} weight="fill" />
+                Introduction complete
+              </span>
+            ) : (
+              <button type="button" onClick={() => void complete()} disabled={completing} className="agent-btn-color-primary"
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, opacity: completing ? 0.6 : 1, cursor: completing ? "wait" : "pointer", transition: "transform 140ms ease, filter 180ms ease, box-shadow 180ms ease" }}>
+                <CheckCircle size={16} weight="fill" />
+                {completing ? "Saving…" : "Mark introduction complete"}
+              </button>
+            )}
           </div>
         </div>
       </div>

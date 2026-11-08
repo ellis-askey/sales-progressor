@@ -3785,6 +3785,56 @@
   }
   .agent-chip-hover:hover:not(:disabled) svg { color: var(--agent-coral-deep) !important; }
   .agent-chip-hover:active:not(:disabled) { transform: scale(0.95); }
+
+  /* ── Intro-call affordance ───────────────────────────────────────────────
+   * On a new file, a client row's Call icon becomes this round, coral-tinted
+   * button that stands out from the grey comms icons and flips from a plain
+   * phone to an active PhoneCall glyph on hover (glyph-swap, feedback
+   * 2026-11-08). Theme-token based, so it reads in light + dark. */
+  .intro-call-chip {
+    position: relative;
+    width: 33px; height: 33px;
+    border-radius: 999px;
+    display: inline-grid; place-items: center;
+    border: 1px solid rgba(var(--agent-coral-rgb), 0.45);
+    background: rgba(var(--agent-coral-rgb), 0.10);
+    color: var(--agent-coral-deep);
+    cursor: pointer;
+    perspective: 320px;
+    flex-shrink: 0;
+    transition: background 180ms ease, border-color 180ms ease, transform 120ms ease, box-shadow 180ms ease;
+  }
+  .intro-call-chip:hover {
+    background: rgba(var(--agent-coral-rgb), 0.16);
+    border-color: var(--agent-coral);
+    box-shadow: 0 2px 10px rgba(var(--agent-coral-rgb), 0.28);
+  }
+  .intro-call-chip:active { transform: scale(0.95); }
+  .intro-call-chip:focus-visible { outline: 2px solid var(--agent-coral); outline-offset: 2px; }
+  .intro-call-chip .ic-face {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    transition: transform 420ms cubic-bezier(0.5, 0.05, 0.2, 1);
+  }
+  .intro-call-chip .ic-front { transform: rotateY(0deg); }
+  .intro-call-chip .ic-back  { transform: rotateY(180deg); }
+  .intro-call-chip:hover .ic-front, .intro-call-chip:focus-visible .ic-front { transform: rotateY(-180deg); }
+  .intro-call-chip:hover .ic-back,  .intro-call-chip:focus-visible .ic-back  { transform: rotateY(0deg); }
+  .intro-call-chip .ic-tip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--agent-text-primary); color: var(--agent-surface-elevated);
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+    padding: 4px 9px; border-radius: 7px; opacity: 0; pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease; z-index: 20;
+  }
+  .intro-call-chip:hover .ic-tip, .intro-call-chip:focus-visible .ic-tip {
+    opacity: 1; transform: translateX(-50%) translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .intro-call-chip, .intro-call-chip .ic-face, .intro-call-chip .ic-tip { transition: none; }
+  }
+
   /* Top-nav icon controls (theme / contrast / lab / bell): no outline box in ANY
      state, including hover/active (founder request). The shared coral hover border
      is suppressed inside the topbar only; icon colour + press-scale are kept. The
