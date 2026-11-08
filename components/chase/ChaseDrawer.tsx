@@ -14,6 +14,7 @@ import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import { defaultRecipient, recipientRoleLabel, isSolicitorRecipient } from "@/lib/services/chase-recipients";
 import { createContactAction } from "@/app/actions/contacts";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
+import { sendEnquiryChaseAction } from "@/app/actions/enquiries";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -94,6 +95,14 @@ interface ChaseDrawerProps {
   // so the caller can clear the item from its list immediately rather than
   // waiting for the drawer to be dismissed. onSent then only handles dismissal.
   onChaseSent?: () => void;
+  // ENQUIRY MODE (Hub "enquiries need a nudge"). The recipient (court solicitor) +
+  // CC (the side's clients) come through the normal `contacts` + preferRole path —
+  // identical to how the enquiry REMINDER renders, so the UI matches exactly. This
+  // flag only swaps the LOGIC: the enquiry-aware Generate
+  // (/api/ai/generate-enquiry-chase) and Send (sendEnquiryChaseAction, which adds
+  // the /s/ update link + resets the loop's quiet clock). Absent => byte-identical
+  // to before (zero blast radius for every existing chase).
+  enquiry?: boolean;
 }
 
 type SendResult = { ok: boolean; emailSent?: boolean; error?: string };
@@ -185,6 +194,7 @@ export function ChaseDrawer({
   onClose,
   onSent,
   onChaseSent,
+  enquiry,
 }: ChaseDrawerProps) {
   const isMulti = Array.isArray(milestones) && milestones.length > 1;
   const effectiveChaseCount = isMulti
@@ -502,7 +512,75 @@ export function ChaseDrawer({
   // Open the agent's own mail app with the chase ready to send, and log it as a
   // chase on faith (same trust model as the WhatsApp handoff). For agents who
   // don't want us sending on their behalf, or haven't set up a sending address.
+  // ── Enquiry-mode handlers (used only when `enquiry` is set) ─────────────────
+  // The loop-aware draft writer — same tone + composer target as a normal chase.
+  async function handleEnquiryGenerate() {
+    const genId = ++generationIdRef.current;
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/ai/generate-enquiry-chase", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId, tone }),
+      });
+      const d = await r.json();
+      if (generationIdRef.current !== genId) return;
+      if (r.status === 429) { setError(d.message ?? "Too many requests. Wait a few minutes and try again."); return; }
+      if (!r.ok) { setError(d.error ?? "Couldn't generate a draft. Try again."); return; }
+      if (d.generated) { const html = textToHtml(d.generated); setMessage(html); setGeneratedText(html); }
+    } catch {
+      if (generationIdRef.current !== genId) return;
+      setError("Something went wrong. Try again.");
+    } finally {
+      if (generationIdRef.current === genId) setIsGenerating(false);
+    }
+  }
+  // Enquiry send: sendEnquiryChaseAction re-resolves the solicitor + /s/ token
+  // server-side, appends the sender's signature, logs it, and resets the loop's
+  // quiet clock. No comms-log / keep-others-posted (that's the normal-chase path).
+  async function handleEnquirySend() {
+    if (isHtmlEmpty(message) || isSending) return;
+    setIsSending(true);
+    setError(null);
+    try {
+      const emailAttachments = attachments.length ? await Promise.all(attachments.map((a) => fileToAttachment(a.file))) : undefined;
+      const res = await sendEnquiryChaseAction({
+        transactionId, subject, bodyHtml: message, bodyText: htmlToText(message), ccContactIds: ccdContacts.map((c) => c.id),
+        ...(emailAttachments ? { attachments: emailAttachments } : {}),
+      });
+      if (res.ok) { toast.success("Chase sent"); onChaseSent?.(); onSent(); onClose(); }
+      else setError(res.error ?? "Couldn't send. Try again.");
+    } catch {
+      setError("Couldn't send. Try again.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+  async function handleEnquiryOpenInEmail() {
+    if (isHtmlEmpty(message) || isSending || attachments.length > 0) return;
+    setIsSending(true);
+    setError(null);
+    try {
+      const res = await sendEnquiryChaseAction({ transactionId, subject, bodyHtml: message, bodyText: htmlToText(message), ccContactIds: ccdContacts.map((c) => c.id), logOnly: true });
+      if (res.ok && res.mailto) {
+        const params = new URLSearchParams();
+        if (res.mailto.cc.length) params.set("cc", res.mailto.cc.join(","));
+        params.set("subject", res.mailto.subject);
+        params.set("body", res.mailto.body);
+        window.location.href = `mailto:${res.mailto.to}?${params.toString().replace(/\+/g, "%20")}`;
+        toast.success("Opened in your email"); onChaseSent?.(); onSent(); onClose();
+      } else {
+        setError(res.error ?? "Couldn't open your email. Try again.");
+      }
+    } catch {
+      setError("Couldn't open your email. Try again.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   async function handleOpenInMyEmail(): Promise<void> {
+    if (enquiry) return handleEnquiryOpenInEmail();
     const bodyText = htmlToText(message);
     if (!bodyText.trim() || !selectedRecipient?.email) return;
     setIsSending(true);
@@ -564,6 +642,7 @@ export function ChaseDrawer({
   }
 
   async function handleGenerate() {
+    if (enquiry) return handleEnquiryGenerate();
     const genId = ++generationIdRef.current;
     setIsGenerating(true);
     setError(null);
@@ -633,6 +712,7 @@ export function ChaseDrawer({
   }
 
   async function handleSend(): Promise<void> {
+    if (enquiry) return handleEnquirySend();
     const bodyText = htmlToText(message);
     if (!bodyText.trim()) return;
     if (channel === "email" && !selectedRecipient?.email) {
@@ -841,7 +921,9 @@ export function ChaseDrawer({
               <button
                 type="button"
                 onClick={() => {
-                  if (recipientCandidates.length <= 1) return;
+                  // Enquiry mode: the recipient is fixed to the court solicitor
+                  // (the send is hardwired to them server-side), so no picking.
+                  if (enquiry || recipientCandidates.length <= 1) return;
                   setToMenuOpen((o) => !o);
                 }}
                 style={{
@@ -850,7 +932,7 @@ export function ChaseDrawer({
                   borderRadius: 14, padding: "10px 14px",
                   display: "flex", alignItems: "center", gap: 12,
                   boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
-                  cursor: recipientCandidates.length > 1 ? "pointer" : "default",
+                  cursor: (!enquiry && recipientCandidates.length > 1) ? "pointer" : "default",
                   transition: "border-color 140ms",
                 }}
               >

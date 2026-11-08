@@ -12,7 +12,7 @@ import Link from "next/link";
 import { ChatCircleDots, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
+import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import type { StalledEnquiryItem } from "@/lib/services/hub";
 
 const INITIAL_VISIBLE = 6;
@@ -140,18 +140,33 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
         </div>
       </div>
     </GlassCard>
-    <EnquiryChaseDrawer
-      open={chaseOpen}
-      transactionId={chase?.transactionId ?? ""}
-      address={chase?.address ?? ""}
-      court={chase?.currentlyWith ?? "seller_solicitor"}
-      solicitorName={chase?.solicitorName ?? null}
-      solicitorEmail={chase?.solicitorEmail ?? null}
-      ccCandidates={chase?.ccCandidates ?? []}
-      chaseCount={chase?.chaseCount ?? 0}
-      onClose={() => setChaseOpen(false)}
-      onSent={() => { if (chase) setSentIds((s) => new Set(s).add(chase.transactionId)); }}
-    />
+    {chaseOpen && chase && (() => {
+      // Feed the SAME drawer the reminder enquiry chase uses (ChaseDrawer) in
+      // enquiry mode: the court solicitor as the fixed recipient + the side's
+      // clients as CC, built from the hub's loop data. `enquiry` swaps only the
+      // Generate/Send logic (enquiry-aware); the UI is the shared one.
+      const side: "vendor" | "purchaser" = chase.currentlyWith === "buyer_solicitor" ? "purchaser" : "vendor";
+      const contacts = [
+        { id: "enq-solicitor", name: chase.solicitorName ?? "The solicitor", roleType: "solicitor", email: chase.solicitorEmail ?? null, side, firmName: chase.solicitorName },
+        ...chase.ccCandidates.map((c) => ({ id: c.contactId, name: c.name, roleType: side, email: c.email })),
+      ];
+      return (
+        <ChaseDrawer
+          chaseTaskId=""
+          transactionId={chase.transactionId}
+          propertyAddress={chase.address}
+          propertyPhotoUrl={chase.photoStoragePath ? signedPhotos[chase.photoStoragePath] ?? null : null}
+          milestoneName="Enquiries"
+          chaseCount={chase.chaseCount}
+          contacts={contacts}
+          preferRole="solicitor"
+          defaultAddRole={side}
+          enquiry
+          onClose={() => setChaseOpen(false)}
+          onSent={() => { setSentIds((s) => new Set(s).add(chase.transactionId)); }}
+        />
+      );
+    })()}
     </>
   );
 }
