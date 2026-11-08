@@ -6,10 +6,11 @@
 // ONCE, not duplicated across two cards. When there's no hero but reminders
 // exist (e.g. all snoozed) it falls back to a plain reminders card.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { NextActionCard } from "./NextActionCard";
 import { useTabContext } from "./TabContext";
-import { completeTaskAction } from "@/app/actions/tasks";
+import { completeTaskAction, snoozeTaskAction } from "@/app/actions/tasks";
+import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import { daysUntil, formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -94,6 +95,11 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
   // Exchange/completion date prompt — open when the top reminder targets a
   // VM19/PM26/VM20/PM27 step, so the real event date is captured first.
   const [datePrompt, setDatePrompt] = useState<{ taskId: string; code: string | null } | null>(null);
+  // Optimistic snooze advance: the just-snoozed task id, kept locally so the
+  // hero flips to the next reminder immediately (before the server refetch
+  // lands). `heroOut` drives the fade-out that plays just before the flip.
+  const [snoozedId, setSnoozedId] = useState<string | null>(null);
+  const [heroOut, setHeroOut] = useState(false);
 
   const goReminders = () => setActiveTab("reminders");
 
@@ -115,41 +121,104 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       setPending(false);
     }
   }
+  async function handleSnooze(taskId: string, choice: SnoozeChoice) {
+    if (pending) return;
+    setError(null);
+    setHeroOut(true);          // hero fades + lifts out
+    setPending(true);
+    // Let the exit play, then flip to the next reminder (fades in) and shift
+    // the Up-next list up. The server revalidation replaces the optimistic
+    // promotion with the real next hero moments later.
+    await new Promise((r) => setTimeout(r, 170));
+    setSnoozedId(taskId);
+    setHeroOut(false);
+    try {
+      await snoozeTaskAction(taskId, choice, pathname);
+    } catch {
+      setSnoozedId(null); // revert the optimistic advance so the hero returns
+      setError("Couldn't snooze this. Try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   const list = otherReminders.length > 0
     ? <UpNext reminders={otherReminders} totalActive={totalActive} onViewAll={goReminders} />
     : undefined;
 
   // Case 1 — reminder-driven hero
   if (reminder) {
-    const due = relativeDueLabel(reminder.nextDueDate);
-    const body = fallbackMilestone ? `Waiting on: ${fallbackMilestone.name.replace(/\.$/, "")}.` : "Follow up when you're ready.";
-    const onMarkComplete = reminder.topTaskId
-      ? () => {
-          const taskId = reminder.topTaskId!;
-          // Exchange/completion steps capture the real event date first
-          // (mirrors the Steps tab).
-          if (milestoneNeedsDatePrompt(reminder.targetMilestoneCode)) {
-            setDatePrompt({ taskId, code: reminder.targetMilestoneCode ?? null });
-            return;
-          }
-          runComplete(taskId);
-        }
+    // Optimistic advance: if the top reminder was just snoozed, promote the
+    // first up-next item into the hero slot while the server refetch lands.
+    const heroSnoozed = !!reminder.topTaskId && snoozedId === reminder.topTaskId;
+    const ghost = heroSnoozed ? otherReminders[0] ?? null : null;
+    const restList = heroSnoozed ? otherReminders.slice(1) : otherReminders;
+    const belowList = restList.length > 0
+      ? <UpNext reminders={restList} totalActive={Math.max(0, totalActive - (heroSnoozed ? 1 : 0))} onViewAll={goReminders} />
       : undefined;
 
-    return (
-      <div>
+    // The hero's identity — drives the keyed enter animation when it changes.
+    const heroKey = heroSnoozed ? (ghost?.id ?? "none") : (reminder.topTaskId ?? reminder.ruleName);
+
+    let card: ReactNode = null;
+    if (!heroSnoozed) {
+      const due = relativeDueLabel(reminder.nextDueDate);
+      const body = fallbackMilestone ? `Waiting on: ${fallbackMilestone.name.replace(/\.$/, "")}.` : "Follow up when you're ready.";
+      const taskId = reminder.topTaskId;
+      const onMarkComplete = taskId
+        ? () => {
+            // Exchange/completion steps capture the real event date first.
+            if (milestoneNeedsDatePrompt(reminder.targetMilestoneCode)) {
+              setDatePrompt({ taskId, code: reminder.targetMilestoneCode ?? null });
+              return;
+            }
+            runComplete(taskId);
+          }
+        : undefined;
+      card = (
         <NextActionCard
           title={reminder.ruleName}
           description={body}
-          dueLabel={pending ? "Marking..." : due.label}
+          dueLabel={pending ? "Snoozing…" : due.label}
           dueTone={due.tone}
           primaryLabel="Mark complete"
           onPrimary={onMarkComplete}
           secondaryLabel="View reminders"
           onSecondary={goReminders}
-          onCalendar={goReminders}
-          belowActions={list}
+          snoozeSlot={taskId ? <SnoozeMenu variant="icon" subtextVerb="Comes back" disabled={pending} onConfirm={(c) => handleSnooze(taskId, c)} /> : undefined}
+          belowActions={belowList}
         />
+      );
+    } else if (ghost) {
+      // Promoted next reminder — actions light up once the server refetch
+      // replaces this with the real hero (which carries its task id).
+      const due = relativeDueLabel(ghost.nextDueDate);
+      card = (
+        <NextActionCard
+          title={ghost.ruleName}
+          description="Follow up when you're ready."
+          dueLabel={due.label}
+          dueTone={due.tone}
+          secondaryLabel="View reminders"
+          onSecondary={goReminders}
+          snoozeSlot={<SnoozeMenu variant="icon" subtextVerb="Comes back" disabled onConfirm={() => {}} />}
+          belowActions={belowList}
+        />
+      );
+    }
+
+    return (
+      <div>
+        {card && (
+          <div key={heroKey} className={`na-hero${heroOut ? " na-hero-out" : ""}`}>
+            {card}
+          </div>
+        )}
+        {!card && (
+          <p style={{ margin: "4px 4px", fontSize: 13, color: "var(--agent-text-muted)" }}>
+            Snoozed. Nothing else waiting right now.
+          </p>
+        )}
         {error && <p style={{ margin: "8px 4px 0", fontSize: 12, color: "var(--agent-warning)", lineHeight: 1.4 }}>{error}</p>}
         <ConfirmMilestoneDateModal
           open={!!datePrompt}
@@ -161,6 +230,11 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
           }}
           onClose={() => setDatePrompt(null)}
         />
+        <style>{`
+          .na-hero{animation:naHeroIn 220ms cubic-bezier(0.22,1,0.36,1)}
+          .na-hero-out{animation:none;transition:opacity 160ms ease,transform 160ms ease;opacity:0;transform:translateY(-6px)}
+          @keyframes naHeroIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        `}</style>
       </div>
     );
   }

@@ -15,7 +15,7 @@
 // container decides what "Mark complete" means (advance the reminder,
 // tick the milestone, whatever).
 
-import { Fire, CalendarBlank, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
@@ -35,7 +35,7 @@ export type NextActionCardProps = {
   onSecondary?: () => void;
   onTertiary?: () => void;
   onMore?: () => void;
-  onCalendar?: () => void;          // top-right calendar icon
+  snoozeSlot?: ReactNode;           // top-right control (the snooze popover trigger)
   belowActions?: ReactNode;         // e.g. the "up next" reminder list, in-card
 };
 
@@ -57,7 +57,7 @@ export function NextActionCard({
   onSecondary,
   onTertiary,
   onMore,
-  onCalendar,
+  snoozeSlot,
   belowActions,
 }: NextActionCardProps) {
   const duePillTone = DUE_PILL_TONE[dueTone];
@@ -105,11 +105,7 @@ export function NextActionCard({
                 Next action
               </span>
             </div>
-            {onCalendar && (
-              <IconButton onClick={onCalendar} title="Reschedule">
-                <CalendarBlank size={16} weight="regular" />
-              </IconButton>
-            )}
+            {snoozeSlot}
           </div>
 
           {/* Title, with the due pill to its right on wide screens */}

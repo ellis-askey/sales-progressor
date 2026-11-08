@@ -15,6 +15,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
 import { Popover } from "@/components/ui/Popover";
+import { BellSimpleZ } from "@phosphor-icons/react";
+// Pure date helpers (client-safe) — mirror the server's wake maths so the
+// subtext can preview the exact morning the reminder resurfaces.
+import { addWorkingDays, rollToWorkingDay } from "@/lib/emails/working-hours";
 
 export interface SnoozeChoice {
   hours?: number;
@@ -39,12 +43,16 @@ export function SnoozeMenu({
   variant = "row",
   label = "Snooze all",
   count,
+  subtextVerb = "Comes back",
 }: {
   onConfirm: (choice: SnoozeChoice) => void;
   disabled?: boolean;
-  variant?: "row" | "all";
+  variant?: "row" | "all" | "icon";
   label?: string;
   count?: number;
+  // "icon" variant: the verb for the subtext ("Comes back" for a reminder,
+  // "Sends" for a chase). Default reads as a reminder resurfacing.
+  subtextVerb?: string;
 }) {
   const [hours, setHours] = useState<number | null>(null);
   const [dateVal, setDateVal] = useState("");
@@ -56,7 +64,20 @@ export function SnoozeMenu({
   // Clear the fields each time the popover opens (fires on the trigger click).
   function reset() { setHours(null); setDateVal(""); setReason(""); }
 
-  const triggerBtn = (
+  const triggerBtn = variant === "icon" ? (
+    // Compact icon trigger (the file's Next-action card): a snooze bell.
+    <button
+      type="button"
+      onClick={reset}
+      disabled={disabled}
+      title="Snooze"
+      aria-label="Snooze"
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, cursor: "pointer", color: "var(--agent-text-secondary)", background: "transparent", border: "none", transition: "background 140ms ease" }}
+      className="agent-hover-row"
+    >
+      <BellSimpleZ size={16} weight="regular" />
+    </button>
+  ) : (
     <Button
       onClick={reset}
       disabled={disabled}
@@ -87,6 +108,14 @@ export function SnoozeMenu({
           onConfirm(dateVal ? { untilISO: dateVal, reason: reason.trim() || null } : { hours: hours ?? 24, reason: reason.trim() || null });
           close();
         }
+        // Preview the exact morning it resurfaces — same working-day maths the
+        // snooze action runs server-side (quick gaps count working days; a
+        // weekend/bank-holiday pick rolls to the next working morning).
+        const quickDays = hours != null ? (hours >= 168 ? 5 : Math.max(1, Math.round(hours / 24))) : 1;
+        const wakeBase = dateVal ? new Date(`${dateVal}T12:00:00Z`) : addWorkingDays(new Date(), quickDays);
+        const wakeLabel = (hours || dateVal)
+          ? rollToWorkingDay(wakeBase).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })
+          : null;
         return (
           <>
             <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--agent-text-muted)", textTransform: "uppercase" }}>
@@ -116,11 +145,8 @@ export function SnoozeMenu({
               onChange={(e) => { setDateVal(e.target.value); setHours(null); }}
               className="agent-input agent-input-sm"
               style={{ width: "100%", fontSize: 12 }}
-              wrapperStyle={{ marginBottom: 6 }}
+              wrapperStyle={{ marginBottom: 10 }}
             />
-            <p style={{ margin: "0 0 8px", fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-              Comes back at 6am on a working day.
-            </p>
 
             {/* Optional reason */}
             <textarea
@@ -135,6 +161,11 @@ export function SnoozeMenu({
             <Button onClick={confirm} disabled={!canConfirm} size="sm" style={{ width: "100%" }}>
               Snooze{count && count > 1 ? ` all ${count}` : ""}
             </Button>
+
+            {/* Wake preview — below the button, naming the real morning. */}
+            <p style={{ margin: "8px 0 0", fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.4, textAlign: "center" }}>
+              {wakeLabel ? `${subtextVerb} ${wakeLabel} at 6am` : `${subtextVerb} at 6am on a working day`}
+            </p>
           </>
         );
       }}
