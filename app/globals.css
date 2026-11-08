@@ -1945,6 +1945,17 @@ select {
 .chain-card-you { border-color: rgba(var(--agent-coral-base-rgb), 0.45);
   box-shadow: 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.16), var(--agent-glass-shadow); }
 .chain-card-you:hover { box-shadow: 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.26), var(--agent-glass-shadow-lifted); }
+/* Your-own-file coral accent must survive the baked frosted glass. The glass
+   rule ([data-glass-id].glass-cs-…, 0,2,0, border + box-shadow !important) would
+   otherwise paint over the coral ring; this (0,3,0) + !important keeps it on top
+   of the frosted surface. Background stays frosted (not set here). */
+[data-glass-id].chain-card.chain-card-you {
+  border-color: rgba(var(--agent-coral-base-rgb), 0.45) !important;
+  box-shadow: 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.16), var(--agent-glass-shadow) !important;
+}
+[data-glass-id].chain-card.chain-card-you:hover {
+  box-shadow: 0 0 0 1px rgba(var(--agent-coral-base-rgb), 0.26), var(--agent-glass-shadow-lifted) !important;
+}
 @media (prefers-reduced-motion: reduce) { .chain-card:hover { transform: none; } }
 
 .chain-photo { width: 82px; height: 82px; border-radius: 11px; flex-shrink: 0;

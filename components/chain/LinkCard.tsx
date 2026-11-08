@@ -797,7 +797,11 @@ export function LinkCard({
   directional,
   positionLabelOverride,
 }: LinkCardProps) {
-  const cardTag = useGlassTag("chain-node-card", "Chain · property card");
+  // Baked default (Ellis, 2026-11-08): the frosted main card everywhere — Light
+  // Main Card on light, Dark Frosted Main on dark. The glass rule out-specifies
+  // .chain-card's own bg/border, so the frosted surface owns the card. Users can
+  // still re-pick in the Design Lab.
+  const cardTag = useGlassTag("chain-node-card", "Chain · property card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const status = getChainLinkStatus(
     {
       transactionId: link.transactionId,
