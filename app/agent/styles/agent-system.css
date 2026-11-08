@@ -133,6 +133,16 @@
   to   { opacity: 1; }
 }
 
+@keyframes agent-backdrop-out {
+  from { opacity: 1; }
+  to   { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
+}
+
+@keyframes agent-modal-out {
+  from { opacity: 1; transform: scale(1)    translateY(0);   }
+  to   { opacity: 0; transform: scale(0.97) translateY(6px); }
+}
+
 @keyframes agent-pulse-dot {
   0%, 100% { opacity: 1;   transform: scale(1);    }
   50%      { opacity: 0.5; transform: scale(0.80); }
@@ -2399,11 +2409,21 @@
 
   /* Standard backdrop — visual properties only; position/inset set by the element
    * itself (absolute or fixed depending on context) */
+  /* The app-wide overlay standard (Ellis, 2026-11-08, /dev/overlay-align): a
+   * pure 3px blur with NO dim tint — the page frosts rather than darkens behind
+   * a dialog. A consumer can still set --agent-backdrop-bg for a deliberate dim
+   * (e.g. the welcome hero). */
   .agent-backdrop-overlay {
-    background: var(--agent-backdrop-bg, rgba(0, 0, 0, 0.35));
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
+    background: var(--agent-backdrop-bg, transparent);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
     animation: agent-backdrop-in 200ms ease both;
+  }
+  /* Fade-out — the blur + any dim clear smoothly instead of popping off when the
+   * dialog closes. Applied by the primitives (and bespoke drawers) during the
+   * brief mount-hold on close. */
+  .agent-backdrop-overlay.agent-backdrop-closing {
+    animation: agent-backdrop-out 200ms ease both;
   }
 
   /* Entrance for the canonical Modal + Drawer PRIMITIVES. The @keyframes existed
@@ -2416,6 +2436,9 @@
   /* Exit — the canonical Drawer primitive plays this while it holds mount for
    * ~200ms on close, so it slides out like the bespoke drawers. */
   .agent-drawer-out { animation: agent-drawer-out 200ms cubic-bezier(0.25, 0, 0, 1) both; }
+  /* Exit for the canonical Modal card — fades/scales out while the primitive
+   * holds mount on close, paired with the backdrop fade. */
+  .agent-modal-out { animation: agent-modal-out 180ms cubic-bezier(0.4, 0, 1, 1) both; }
 
   /* ── Toast ───────────────────────────────────────────────────────────────── */
 

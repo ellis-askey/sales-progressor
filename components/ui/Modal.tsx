@@ -34,7 +34,7 @@
 "use client";
 
 import type { ReactNode, HTMLAttributes } from "react";
-import { useEffect, useRef, useCallback, createContext, useContext } from "react";
+import { useEffect, useRef, useCallback, useState, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { X } from "@phosphor-icons/react";
@@ -124,6 +124,26 @@ export function Modal({
   // theme (+ dark mode) on the portal root so every var(--agent-*) resolves.
   const { theme, isNight } = usePortalTheme();
 
+  // Keep the modal mounted for its exit animation when `open` flips to false, so
+  // the backdrop + card fade out (agent-backdrop-closing / agent-modal-out)
+  // instead of popping off. ~200ms matches the keyframes. Mirrors the Drawer.
+  const [rendered, setRendered] = useState(open);
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      setExiting(false);
+      return;
+    }
+    if (!rendered) return;
+    setExiting(true);
+    const t = setTimeout(() => {
+      setRendered(false);
+      setExiting(false);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [open, rendered]);
+
   // Capture the element that had focus when the modal opens, then restore it
   // on close. Matches OS-modal behaviour — closing returns the user to
   // exactly where they were.
@@ -180,7 +200,7 @@ export function Modal({
     [dismissOnBackdrop, onClose],
   );
 
-  if (!open) return null;
+  if (!rendered) return null;
   if (typeof window === "undefined") return null;
 
   // Dark-aware: modals portal to <body>, so the card fill can't come from a
@@ -195,7 +215,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="agent-backdrop-overlay nv2-night"
+      className={`agent-backdrop-overlay nv2-night${exiting ? " agent-backdrop-closing" : ""}`}
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       onClick={handleBackdropClick}
@@ -218,7 +238,7 @@ export function Modal({
         // When a surfaceVariant is set, the glass-vNN class owns the
         // background; otherwise cardBackground (solid white / frost) is today's
         // exact look.
-        className={`agent-modal-in${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
+        className={`${exiting ? "agent-modal-out" : "agent-modal-in"}${surfaceVariant ? " " + classFor(surfaceVariant) : ""}`}
         style={{
           ...(surfaceVariant ? {} : cardBackground),
           width: "100%",

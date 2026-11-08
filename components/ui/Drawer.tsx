@@ -88,9 +88,11 @@ const sizeWidth: Record<Size, string> = {
   xl: "560px",
 };
 
-// z-index per DESIGN_TOKENS.md "Z-index — modal escalation rule"
+// z-index per DESIGN_TOKENS.md "Z-index — modal escalation rule".
+// default sits ABOVE the sticky nav (z 200) so the backdrop frosts the sidebar +
+// top bar too — the app-wide overlay standard (2026-11-08, /dev/overlay-align).
 const zIndex: Record<ZLayer, number> = {
-  default: 50,
+  default: 210,
   escalated: 1500,
   deep: 2000,
 };
@@ -228,7 +230,7 @@ export function Drawer({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
-      className="agent-backdrop-overlay nv2-night"
+      className={`agent-backdrop-overlay nv2-night${exiting ? " agent-backdrop-closing" : ""}`}
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       onClick={handleBackdropClick}
