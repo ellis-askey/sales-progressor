@@ -457,12 +457,16 @@ export async function OverviewPanel({
     chainStages.find((s) => s.status === "in_progress") ??
     chainStages.find((s) => s.status === "up_next");
   let chainCurrentStatus: { label: string; tone: "active" | "hold" | "done" | "off" } = { label: "In progress", tone: "active" };
+  // The subtext only earns its place when it ADDS to the status label: the next
+  // step ("Finances up next") or the live stage name ("Finances"). It's dropped
+  // for on-hold / completed / withdrawn, where it would just restate the label
+  // ("Completed · Sale complete" etc.) — duplication critique, 2026-11-08.
   let chainCurrentSubtext = activeStage
-    ? `${activeStage.name} ${activeStage.status === "in_progress" ? "in progress" : "up next"}`
+    ? (activeStage.status === "in_progress" ? activeStage.name : `${activeStage.name} up next`)
     : "Getting started";
-  if (transaction.status === "on_hold") { chainCurrentStatus = { label: "On hold", tone: "hold" }; chainCurrentSubtext = "Paused"; }
-  else if (transaction.status === "completed") { chainCurrentStatus = { label: "Completed", tone: "done" }; chainCurrentSubtext = "Sale complete"; }
-  else if (transaction.status === "withdrawn") { chainCurrentStatus = { label: "Withdrawn", tone: "off" }; chainCurrentSubtext = "Sale withdrawn"; }
+  if (transaction.status === "on_hold") { chainCurrentStatus = { label: "On hold", tone: "hold" }; chainCurrentSubtext = ""; }
+  else if (transaction.status === "completed") { chainCurrentStatus = { label: "Completed", tone: "done" }; chainCurrentSubtext = ""; }
+  else if (transaction.status === "withdrawn") { chainCurrentStatus = { label: "Withdrawn", tone: "off" }; chainCurrentSubtext = ""; }
 
   // Client's own broker (portal-entered), shown in the Professionals tab beside
   // the solicitors. Both sides: purchaser for buyers, vendor for a seller's onward.

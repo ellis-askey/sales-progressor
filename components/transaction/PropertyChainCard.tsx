@@ -163,7 +163,9 @@ export function PropertyChainCard({
     let linkTitle = addr.title || (isOnward ? "Onward purchase" : "Related sale");
     if (isCurrent) {
       visual = <Ring pct={currentPercent ?? 0} tone="coral" />;
-      statusText = currentSubtext;
+      // Subtext is dropped for terminal/hold states (it would echo the label), so
+      // fall back to the status label itself for the compact node's one line.
+      statusText = currentSubtext || currentStatus.label;
     } else if (side!.view.exists) {
       const pct = side!.view.applicableCount > 0
         ? Math.round((side!.view.completeCount / side!.view.applicableCount) * 100) : 0;
@@ -226,7 +228,7 @@ export function PropertyChainCard({
           <div className="cx2-fstatus">
             <span className="cx2-dot" data-tone={currentStatus.tone} />
             <span>{currentStatus.label}</span>
-            <span className="cx2-fsub">· {currentSubtext}</span>
+            {currentSubtext && <span className="cx2-fsub">· {currentSubtext}</span>}
           </div>
         </div>
       );
