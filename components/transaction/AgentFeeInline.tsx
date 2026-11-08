@@ -9,23 +9,10 @@
 import { useState } from "react";
 import { PencilSimple } from "@phosphor-icons/react";
 import { PriceInput } from "@/components/ui/PriceInput";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import { Button } from "@/components/ui/Button";
 import { formatFee } from "@/lib/services/fees";
 import { saveAgentFeeAction } from "@/app/actions/transactions";
-
-function pill(active: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: "5px 10px",
-    borderRadius: 8,
-    border: active ? "1.5px solid var(--agent-coral-deep)" : "0.5px solid var(--agent-border-default)",
-    background: active ? "rgba(var(--agent-coral-rgb), 0.10)" : "var(--agent-surface-overlay)",
-    color: active ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)",
-    fontSize: 12,
-    fontWeight: active ? 600 : 400,
-    cursor: "pointer",
-    transition: "all 150ms",
-  };
-}
 
 export function AgentFeeInline({
   transactionId,
@@ -117,9 +104,15 @@ export function AgentFeeInline({
   return (
     <div style={{ padding: "6px 0" }}>
       <p style={{ fontSize: 12, color: "var(--agent-text-muted)", marginBottom: 6 }}>Agent fee</p>
-      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <button onClick={() => setFeeType("amount")} style={pill(feeType === "amount")} disabled={saving}>Fixed £</button>
-        <button onClick={() => setFeeType("percent")} style={pill(feeType === "percent")} disabled={saving}>Percentage %</button>
+      <div style={{ marginBottom: 6 }}>
+        <SegmentedSwitch
+          size="sm"
+          fullWidth
+          ariaLabel="Fee type"
+          value={feeType}
+          onChange={setFeeType}
+          options={[{ id: "amount", label: "Fixed £" }, { id: "percent", label: "Percentage %" }]}
+        />
       </div>
       {feeType === "amount" ? (
         <PriceInput value={amount} onChange={setAmount} size="sm" className="w-full agent-focus" placeholder="1,500" disabled={saving} />
@@ -133,16 +126,27 @@ export function AgentFeeInline({
           <span className="text-xs text-slate-900/50">%</span>
         </div>
       )}
-      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <button onClick={() => setVat("exclusive")} style={pill(vat === "exclusive")} disabled={saving}>+ VAT</button>
-        <button onClick={() => setVat("inclusive")} style={pill(vat === "inclusive")} disabled={saving}>Inc. VAT</button>
+      <div style={{ marginTop: 6 }}>
+        <SegmentedSwitch
+          size="sm"
+          fullWidth
+          ariaLabel="VAT treatment"
+          value={vat}
+          onChange={setVat}
+          options={[{ id: "exclusive", label: "+ VAT" }, { id: "inclusive", label: "Inc. VAT" }]}
+        />
       </div>
+      {/* Cancel left, Save right — matches the step-confirm button order.
+          Cancel is the canonical secondary Button; Save keeps the
+          agent-btn-color-primary escape hatch (this editor is also hosted in
+          the Completions "Add fee" modal, where that class defeats cascade
+          pollution). */}
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <Button variant="secondary" size="sm" onClick={() => { setEditing(false); onDone?.(); }} disabled={saving} className="flex-1">
+          Cancel
+        </Button>
         <button onClick={save} disabled={saving} className="flex-1 py-2 rounded-xl agent-btn-color-primary text-xs font-semibold transition-colors disabled:opacity-40">
           {saving ? "Saving…" : "Save"}
-        </button>
-        <button onClick={() => { setEditing(false); onDone?.(); }} disabled={saving} className="flex-1 py-2 rounded-xl text-xs text-slate-900/60 glass-subtle transition-colors disabled:opacity-40" style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
-          Cancel
         </button>
       </div>
       {error && <p className="text-xs text-red-500 mt-2">{error}</p>}

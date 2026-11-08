@@ -15,12 +15,16 @@ export function SegmentedSwitch<T extends string>({
   onChange,
   size = "md",
   ariaLabel,
+  fullWidth = false,
 }: {
   options: { id: T; label: string }[];
   value: T;
   onChange: (id: T) => void;
   size?: "sm" | "md";
   ariaLabel?: string;
+  // Stretch the rail to its container and split the options evenly — e.g. the
+  // Fees card's Fixed/Percentage and +VAT/Inc toggles, which fill the card.
+  fullWidth?: boolean;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -59,7 +63,7 @@ export function SegmentedSwitch<T extends string>({
       ref={railRef}
       role="tablist"
       aria-label={ariaLabel}
-      style={{ position: "relative", display: "inline-flex", padding: inset, borderRadius: radius, gap: 2, background: "rgba(15,23,42,0.05)", border: "0.5px solid var(--agent-border-default)" }}
+      style={{ position: "relative", display: fullWidth ? "flex" : "inline-flex", width: fullWidth ? "100%" : undefined, padding: inset, borderRadius: radius, gap: 2, background: "rgba(15,23,42,0.05)", border: "0.5px solid var(--agent-border-default)" }}
     >
       <span
         aria-hidden
@@ -84,6 +88,7 @@ export function SegmentedSwitch<T extends string>({
             onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
             style={{
               position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center",
+              flex: fullWidth ? "1 1 0" : undefined, justifyContent: fullWidth ? "center" : undefined,
               padding: sm ? "4px 12px" : "6px 16px", borderRadius: btnRadius, border: "none", cursor: "pointer",
               fontSize: sm ? 12 : 13, fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap",
               background: "transparent",
