@@ -640,7 +640,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           role={isDone ? "button" : undefined}
           tabIndex={isDone ? 0 : undefined}
           aria-expanded={isDone ? detailsOpen : undefined}
-          style={isDone ? { cursor: "pointer" } : undefined}
+          // Reserve room on the right for the (small) disclosure chevron so the
+          // name wraps a touch earlier instead of pushing the chevron onto its
+          // own line — keeps the card tight at narrow breakpoints.
+          style={isDone ? { cursor: "pointer", position: "relative", paddingRight: 24 } : undefined}
         >
           <p style={{ fontSize: 12, fontWeight: isBlocked ? 400 : 600, color: isDone || isBlocked ? "var(--agent-text-muted)" : "var(--agent-text-primary)" }}>
             {displayName}
@@ -1101,7 +1104,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               aria-expanded={detailsOpen}
               aria-label={detailsOpen ? "Hide details" : "Show details"}
               className="agent-icon-btn agent-icon-btn-sm"
-              style={{ color: "var(--agent-text-muted)" }}
+              style={{ color: "var(--agent-text-muted)", position: "absolute", top: 0, right: 0, flexShrink: 0 }}
             >
               <CaretDown
                 size={14}
