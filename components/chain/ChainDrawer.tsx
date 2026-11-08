@@ -243,6 +243,9 @@ export function ChainView({
   // pill v03/v04) so the two read identically. Tunable per-id in the Lab.
   const vsTag = useGlassTag("chain-viewswitch", "Chain · view switch", { light: "v04", dark: "v04" });
   const vsPillTag = useGlassTag("chain-viewswitch-pill", "Chain · view switch · active pill", { light: "v03", dark: "v04" });
+  // Bulk-invite footer bar — registered in the Design Lab (no baseline, so it's
+  // unchanged until a variant is picked).
+  const inviteBarTag = useGlassTag("chain-invite-bar", "Chain · invite bar");
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -1681,7 +1684,8 @@ export function ChainView({
             drawer edges rather than a flush square bar. */}
         {invitablePending.length > 0 && (
           <div
-            className="flex-shrink-0 mx-4 mb-4 px-4 py-3 flex items-center justify-between rounded-[14px]"
+            className={`flex-shrink-0 mx-4 mb-4 px-4 py-3 flex items-center justify-between rounded-[14px] ${inviteBarTag.className}`}
+            {...inviteBarTag.props}
             style={{ border: "1px solid var(--agent-border-default)", background: "var(--agent-glass-bg-subtle)", boxShadow: "var(--agent-glass-shadow)" }}
           >
             <p className="text-xs" style={{ color: "var(--agent-text-secondary)" }}>
