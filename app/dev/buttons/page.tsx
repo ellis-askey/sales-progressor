@@ -78,7 +78,7 @@ const PRIMARIES: Family = {
   title: "Do now — every primary → the canonical gloss",
   blurb: "Context-free: a Send / Save / Confirm button should look identical everywhere. Each keeps its exact current width, height and radius — only the fill, highlight, underledge and text colour change.",
   rows: [
-    { name: "Drawer inline gradient (135°)", ex: "Send chase", css: { ...baseBtn, ...pD("12px 18px", 12), fontSize: 14, fontWeight: 700, background: GRAD135, boxShadow: "0 4px 20px rgba(255,107,74,0.32)", minWidth: 200 }, where: "ChaseDrawer:1228, ChaseNeighbourDrawer:567, EnquiryChaseDrawer:355 (also Generate message, Save & continue)", decision: "migrate", note: "Should BE <Button>. Keeps its leading icon + width." },
+    { name: "Drawer inline gradient (135°)", ex: "Send chase", css: { ...baseBtn, ...pD("12px 18px", 12), fontSize: 14, fontWeight: 700, background: GRAD135, boxShadow: "0 4px 20px rgba(255,107,74,0.32)", minWidth: 200 }, where: "ChaseDrawer:1228, ChaseNeighbourDrawer:567 (also Generate message, Save & continue)", decision: "migrate", note: "Should BE <Button>. Keeps its leading icon + width." },
     { name: "Drawer inline gradient small", ex: "Add", css: { ...baseBtn, ...pD("7px 14px", 8), background: GRAD135 }, where: "ChaseDrawer:1067", decision: "migrate" },
     { name: "ChaseButton pill", ex: "Chase", css: { ...baseBtn, ...pD("6px 12px", 8), background: FLAT }, where: "ChaseButton.tsx:45", decision: "migrate" },
     { name: "ChaseComposer link-add", ex: "Add", css: { ...baseBtn, ...pD("8px 14px", 10), background: "var(--agent-coral-deep,#E8542F)" }, where: "ChaseComposer.tsx:303", decision: "migrate" },

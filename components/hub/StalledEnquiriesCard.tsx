@@ -4,8 +4,9 @@
 // (13 working days of silence). The safety net for the enquiries stage — it
 // surfaces stalled loops whether or not auto-chasing is on for the agency, so a
 // file can never sit silent for weeks unseen. Each row's "Chase" button opens the
-// EnquiryChaseDrawer — a real send to the court's solicitor — right here on the
-// hub; a sent loop drops off the list immediately. Empty list → renders nothing.
+// shared ChaseDrawer in enquiry mode — a real send to the court's solicitor —
+// right here on the hub; a sent loop drops off the list immediately. Empty list →
+// renders nothing.
 
 import { useState } from "react";
 import Link from "next/link";

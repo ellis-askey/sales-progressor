@@ -43,7 +43,6 @@ import { EmailDetailDrawer, type PreviewData } from "@/components/automated-emai
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { MemberManageDrawer, type ManageableMember } from "@/components/account/v2/MemberManageDrawer";
 // Completeness sweep additions (2026-09-19)
-import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 // 2026-10-20 gap sweep additions (docs/audits/sheets-catalogue-gaps-2026-10-20.md)
 import { BringInSaleDrawer } from "@/components/progression/BringInSaleDrawer";
@@ -920,32 +919,40 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     type: "drawer",
     area: "Enquiries",
     usedIn: "Enquiries triage · Send a chase",
-    file: "components/enquiries/EnquiryChaseDrawer.tsx",
-    componentName: "EnquiryChaseDrawer",
-    note: "Send targets a demo file and no-ops. Missing-solicitor state shows the add-first path.",
+    file: "components/chase/ChaseDrawer.tsx",
+    componentName: "ChaseDrawer (enquiry mode)",
+    note: "The shared chase drawer in enquiry mode — the court solicitor is the fixed recipient, the side's clients CC. Send targets a demo file and no-ops.",
     preview: "overlay",
     states: [
       { id: "seller", label: "Seller's solicitor" },
       { id: "buyer", label: "Buyer's solicitor" },
       { id: "no-solicitor", label: "No solicitor on file" },
     ],
-    render: (ctx) => (
-      <EnquiryChaseDrawer
-        open={ctx.open}
-        transactionId={DEMO_TX_ID}
-        address={ADDRESS}
-        court={ctx.stateId === "buyer" ? "buyer_solicitor" : "seller_solicitor"}
-        solicitorName={ctx.stateId === "no-solicitor" ? null : FIRM}
-        solicitorEmail={ctx.stateId === "no-solicitor" ? null : EMAIL}
-        ccCandidates={[
-          { contactId: "demo-c1", name: NAME, email: "priya.c@gmail.com" },
-          { contactId: "demo-c2", name: "Tom Whitfield", email: null },
-        ]}
-        chaseCount={ctx.stateId === "buyer" ? 2 : 0}
-        onClose={ctx.onClose}
-        onSent={ctx.onClose}
-      />
-    ),
+    render: (ctx) => {
+      const side: "vendor" | "purchaser" = ctx.stateId === "buyer" ? "purchaser" : "vendor";
+      const noSol = ctx.stateId === "no-solicitor";
+      const contacts = [
+        { id: "enq-solicitor", name: noSol ? "The solicitor" : FIRM, roleType: "solicitor", email: noSol ? null : EMAIL, side, firmName: noSol ? null : FIRM },
+        { id: "demo-c1", name: NAME, roleType: side, email: "priya.c@gmail.com" },
+        { id: "demo-c2", name: "Tom Whitfield", roleType: side, email: null },
+      ];
+      return (
+        <ChaseDrawer
+          chaseTaskId=""
+          transactionId={DEMO_TX_ID}
+          propertyAddress={ADDRESS}
+          propertyPhotoUrl={null}
+          milestoneName="Enquiries"
+          chaseCount={ctx.stateId === "buyer" ? 2 : 0}
+          contacts={contacts}
+          preferRole="solicitor"
+          defaultAddRole={side}
+          enquiry
+          onClose={ctx.onClose}
+          onSent={ctx.onClose}
+        />
+      );
+    },
   },
   {
     id: "drawer-chase-neighbour",

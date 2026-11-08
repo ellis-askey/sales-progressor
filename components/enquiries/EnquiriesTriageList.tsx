@@ -27,7 +27,7 @@ import type { EnquiryCourt, EnquiryMovementMode, EnquiryMovementKind } from "@/l
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
-import { EnquiryChaseDrawer } from "@/components/enquiries/EnquiryChaseDrawer";
+import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
@@ -471,21 +471,37 @@ export function EnquiriesTriageList({
         />
       )}
 
-      <EnquiryChaseDrawer
-        open={chaseOpen}
-        transactionId={chaseRow?.transactionId ?? ""}
-        address={chaseRow?.address ?? ""}
-        court={chaseRow?.currentlyWith ?? "seller_solicitor"}
-        solicitorName={chaseRow ? (chaseRow.currentlyWith === "seller_solicitor" ? chaseRow.vendorSolicitor : chaseRow.purchaserSolicitor) : null}
-        solicitorEmail={chaseRow ? (chaseRow.currentlyWith === "seller_solicitor" ? chaseRow.vendorSolicitorEmail : chaseRow.purchaserSolicitorEmail) : null}
-        ccCandidates={chaseRow
-          ? chaseRow.parties
-              .filter((p) => p.kind === "client" && p.side === (chaseRow.currentlyWith === "seller_solicitor" ? "vendor" : "purchaser") && !!p.contactId)
-              .map((p) => ({ contactId: p.contactId as string, name: p.label, email: p.email ?? null }))
-          : []}
-        chaseCount={chaseRow?.chaseCount ?? 0}
-        onClose={() => setChaseOpen(false)}
-      />
+      {chaseOpen && chaseRow && (() => {
+        // Same drawer (ChaseDrawer) in enquiry mode as the hub + reminder enquiry
+        // chases: the court solicitor as the fixed recipient + the side's clients
+        // as CC, built from the triage row. `enquiry` swaps only the Generate/Send
+        // logic; the UI is the shared one.
+        const court = chaseRow.currentlyWith;
+        const side: "vendor" | "purchaser" = court === "seller_solicitor" ? "vendor" : "purchaser";
+        const solName = court === "seller_solicitor" ? chaseRow.vendorSolicitor : chaseRow.purchaserSolicitor;
+        const solEmail = court === "seller_solicitor" ? chaseRow.vendorSolicitorEmail : chaseRow.purchaserSolicitorEmail;
+        const clients = chaseRow.parties.filter((p) => p.kind === "client" && p.side === side && !!p.contactId);
+        const contacts = [
+          { id: "enq-solicitor", name: solName ?? "The solicitor", roleType: "solicitor", email: solEmail ?? null, side, firmName: solName },
+          ...clients.map((p) => ({ id: p.contactId as string, name: p.label, roleType: side, email: p.email ?? null })),
+        ];
+        return (
+          <ChaseDrawer
+            chaseTaskId=""
+            transactionId={chaseRow.transactionId}
+            propertyAddress={chaseRow.address}
+            propertyPhotoUrl={chaseRow.photoStoragePath ? signedPhotos[chaseRow.photoStoragePath] ?? null : null}
+            milestoneName="Enquiries"
+            chaseCount={chaseRow.chaseCount}
+            contacts={contacts}
+            preferRole="solicitor"
+            defaultAddRole={side}
+            enquiry
+            onClose={() => setChaseOpen(false)}
+            onSent={() => {}}
+          />
+        );
+      })()}
     </div>
   );
 }
