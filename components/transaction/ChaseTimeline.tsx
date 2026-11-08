@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarBlank, PaperPlaneTilt, Robot, User, WarningCircle, CheckCircle,
   PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight, CaretLeft, CaretRight,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import type {
   ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
 } from "@/lib/services/chase-timeline";
@@ -86,12 +86,6 @@ function StateChip({ state, held }: { state: ChaseThreadState; held?: boolean })
   return <Pill glass dot size="sm" tone={STATE_TONE[state]}>{STATE_META[state].label}</Pill>;
 }
 
-function ChaseCountBadge({ auto, you }: { auto: number; you: number }) {
-  if (auto <= 0 && you <= 0) return null;
-  const label = auto > 0 && you > 0 ? `Auto ${auto}× · you ${you}×` : auto > 0 ? `Auto ${auto}×` : `You ${you}×`;
-  return <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontWeight: 500 }}>{label}</span>;
-}
-
 // ── pause pill (re-homed from the Reminders auto-emails card, D4) ─────────────
 function PauseBanner({ pause }: { pause: NonNullable<ChasePauseState> }) {
   const msg =
@@ -147,7 +141,7 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
     <button
       {...tag.props}
       onClick={onSelect}
-      className={`w-full text-left transition-colors ${tag.className}`}
+      className={`w-full text-left chase-thread-card ${tag.className}`}
       style={{
         padding: "10px 12px", borderRadius: 12, display: "block",
         ...(tag.picked ? {} : {
@@ -157,16 +151,20 @@ function ThreadCard({ thread, selected, onSelect }: { thread: ChaseThread; selec
         }),
       }}
     >
+      {/* Title takes the full row width now the pill has moved down — it
+          truncates with an ellipsis when long. */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
         <span style={{ width: 6, height: 6, borderRadius: 999, background: sideColor, flexShrink: 0 }} />
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {thread.title}
         </span>
-        <StateChip state={thread.state} held={isHeldFarOut(thread.nextDueAt)} />
       </div>
+      {/* Pill sits on the meta row, right of the side label. The "Auto N×" badge
+          is gone (the pill already says "Auto-chasing"), and the next-chase date
+          drops its "Auto/Chase" prefix for the same reason. */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 14 }}>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{thread.trackLabel}</span>
-        <ChaseCountBadge auto={thread.autoChases} you={thread.manualChases} />
+        <StateChip state={thread.state} held={isHeldFarOut(thread.nextDueAt)} />
         <span style={{ marginLeft: "auto", fontSize: 11, color: m.color, fontWeight: 600 }}>{nextLabel(thread)}</span>
       </div>
     </button>
@@ -180,7 +178,7 @@ function nextLabel(t: ChaseThread): string {
   if (isHeldFarOut(t.nextDueAt)) return "On hold";
   // A hold (reschedule / date given) is already folded into nextDueAt — the row
   // shows the day the chase actually resumes, not a separate "Paused" concept.
-  if (t.nextDueAt) return `${t.nextIsAutomated ? "Auto" : "Chase"} ${fmtDate(t.nextDueAt)}`;
+  if (t.nextDueAt) return fmtDate(t.nextDueAt);
   if (t.snoozedUntil) return `Quiet to ${fmtDate(t.snoozedUntil)}`;
   return "";
 }
@@ -360,7 +358,7 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
       ? send.handedToTeam ? "Escalated to you" : "Next chase"
       : send.handedToTeam
         ? "Auto-chase done"
-        : send.isAutomated ? `Auto · chase ${send.chaseNumber} of ${send.capOf}` : `Reminder · chase ${send.chaseNumber} of ${send.capOf}`;
+        : send.isAutomated ? `Auto-chasing · ${send.chaseNumber} of ${send.capOf} nudges` : `Reminder · ${send.chaseNumber} of ${send.capOf} nudges`;
   const kicker = showsPreview ? kickerBase : `${kickerBase} · ${send.recipientLabel}`;
   // The date itself is the reschedule control — on every lane, whenever an
   // automated send is genuinely scheduled (each lane has its own hold field the
@@ -437,12 +435,14 @@ function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThr
   });
   const subtitle = isExchange
     ? `${thread.autoChases} email${thread.autoChases === 1 ? "" : "s"} today · started ${fmtDate(thread.startedAt)}`
-    : `Waiting on ${thread.waitingOn} · ${thread.autoChases} chase${thread.autoChases === 1 ? "" : "s"} sent${thread.manualChases ? ` (${thread.manualChases} by you)` : ""} · since ${fmtDate(thread.startedAt)}`;
+    : `Waiting on ${thread.waitingOn} · ${thread.autoChases} chase${thread.autoChases === 1 ? "" : "s"} sent${thread.manualChases ? ` (${thread.manualChases} by you)` : ""} since ${fmtDate(thread.startedAt)}`;
 
   return (
     <div>
       <style>{`.chase-upnext-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease}
         .chase-upnext-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,23,42,0.06)}
+        .chase-thread-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease,background .14s ease}
+        .chase-thread-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(15,23,42,0.05)}
         .chase-pager-btn{transition:background .14s ease,border-color .14s ease,color .14s ease}
         .chase-pager-btn:not(:disabled):hover{background:var(--agent-surface-nested,var(--agent-surface-elevated));border-color:var(--agent-border-default);color:var(--agent-text-primary)}
         .chase-pager-btn:not(:disabled):active{transform:translateY(0.5px)}
@@ -456,9 +456,11 @@ function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThr
         .chase-ev-open:focus-visible{outline:2px solid var(--agent-primary);outline-offset:2px;border-radius:6px}
         @media (prefers-reduced-motion:reduce){.chase-upnext-card,.chase-pager-btn{transition:none}}`}</style>
 
+      {/* State pill removed here — the "Up next" card above the email now carries
+          the state as its "Auto-chasing · N of M nudges" line, so a header pill
+          would duplicate it. The thread list keeps one pill for scanning. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)", margin: 0 }}>{thread.title}</h3>
-        <StateChip state={thread.state} held={isHeldFarOut(thread.nextDueAt)} />
       </div>
       <p style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", margin: "0 0 18px" }}>{subtitle}</p>
 
@@ -517,7 +519,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", padding: "6px 8px 8px" }}>
             Chase threads
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {active.map((t) => (
               <div data-bloom key={t.id}>
                 <ThreadCard thread={t} selected={t.id === selected?.id} onSelect={() => setSelectedId(t.id)} />
@@ -539,7 +541,7 @@ export function ChaseTimeline({ stats, threads, transactionId, pause }: { stats:
                 Resolved &amp; stopped ({done.length})
               </button>
               {showDone && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {done.map((t) => (
                     <ThreadCard key={t.id} thread={t} selected={t.id === selected?.id} onSelect={() => setSelectedId(t.id)} />
                   ))}
