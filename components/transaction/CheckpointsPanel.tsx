@@ -7,6 +7,7 @@ import { DateField } from "@/components/ui/DateField";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { Popover, PopoverMenuItem, PopoverDivider } from "@/components/ui/Popover";
 import { DotsThreeVertical, Bell, Trash, Plus } from "@phosphor-icons/react";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import type { CheckpointView } from "@/lib/services/checkpoints";
 import {
   createCheckpointAction,
@@ -17,6 +18,7 @@ import {
 
 type Audience = "none" | "vendor" | "purchaser" | "both";
 type Party = "vendor" | "purchaser" | "agent";
+type Person = { name: string; image: string | null };
 
 const PICKLIST = [
   "Probate granted",
@@ -59,15 +61,18 @@ function joinNames(names: string[]): string {
 }
 
 export function CheckpointsPanel({
-  transactionId, vendorNames, purchaserNames, items,
+  transactionId, vendorPeople, purchaserPeople, items,
 }: {
   transactionId: string;
-  // Every principal client per side, full names (critique #294). Empty array =
-  // no client of that side on the file yet.
-  vendorNames: string[];
-  purchaserNames: string[];
+  // Every principal client per side (critique #294): full name + profile photo
+  // (null when none — the pill falls back to initials). Empty array = no client
+  // of that side on the file yet.
+  vendorPeople: Person[];
+  purchaserPeople: Person[];
   items: CheckpointView[];
 }) {
+  const vendorNames = vendorPeople.map((p) => p.name);
+  const purchaserNames = purchaserPeople.map((p) => p.name);
   const hasVendor = vendorNames.length > 0;
   const hasPurchaser = purchaserNames.length > 0;
   const vendorName = hasVendor ? joinNames(vendorNames) : "the seller";
@@ -175,16 +180,16 @@ export function CheckpointsPanel({
                     <span style={{ fontSize: 14, fontWeight: 500, color: cp.isComplete ? "var(--agent-text-muted)" : "var(--agent-text-primary)", textDecoration: cp.isComplete ? "line-through" : "none" }}>{cp.label}</span>
                     {cp.showTo !== "none" && (() => {
                       // One chip per person, full name, side-coloured dot (critique #294).
-                      const people: { name: string; side: "vendor" | "purchaser" }[] = [
-                        ...(cp.showTo === "vendor" || cp.showTo === "both" ? vendorNames.map((n) => ({ name: n, side: "vendor" as const })) : []),
-                        ...(cp.showTo === "purchaser" || cp.showTo === "both" ? purchaserNames.map((n) => ({ name: n, side: "purchaser" as const })) : []),
+                      const people: { name: string; side: "vendor" | "purchaser"; image: string | null }[] = [
+                        ...(cp.showTo === "vendor" || cp.showTo === "both" ? vendorPeople.map((p) => ({ name: p.name, side: "vendor" as const, image: p.image })) : []),
+                        ...(cp.showTo === "purchaser" || cp.showTo === "both" ? purchaserPeople.map((p) => ({ name: p.name, side: "purchaser" as const, image: p.image })) : []),
                       ];
                       return (
                         <>
                           <span style={{ fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>Shown to</span>
-                          {(people.length ? people : [{ name: pName(cp.showTo === "both" ? "vendor" : cp.showTo), side: (cp.showTo === "both" ? "vendor" : cp.showTo) as "vendor" | "purchaser" }]).map((p, i) => (
-                            <span key={`${p.side}-${i}`} style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)", borderRadius: 999, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.side === "purchaser" ? "#BE185D" : "#4F46E5" }} />
+                          {(people.length ? people : [{ name: pName(cp.showTo === "both" ? "vendor" : cp.showTo), side: (cp.showTo === "both" ? "vendor" : cp.showTo) as "vendor" | "purchaser", image: null }]).map((p, i) => (
+                            <span key={`${p.side}-${i}`} style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)", background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)", borderRadius: 999, padding: "2px 9px 2px 3px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <ContactAvatar contact={{ name: p.name, roleType: p.side }} image={p.image} size={17} art={false} />
                               {p.name}
                             </span>
                           ))}
@@ -266,8 +271,10 @@ export function CheckpointsPanel({
           })}
         </div>
 
-        {/* composer */}
-        {adding && (
+        {/* composer — animates open/close via grid-template-rows (0fr↔1fr) +
+            fade, kept mounted so it eases out too. */}
+        <div style={{ display: "grid", gridTemplateRows: adding ? "1fr" : "0fr", opacity: adding ? 1 : 0, transition: "grid-template-rows 300ms cubic-bezier(0.22,1,0.36,1), opacity 240ms ease" }} aria-hidden={!adding}>
+          <div style={{ overflow: "hidden", minHeight: 0 }}>
           <div style={{ borderTop: "1px solid var(--agent-border-subtle)", marginTop: items.length ? 8 : 4, paddingTop: 14 }}>
             {/* Desktop/tablet: preset pills (click a selected one again to clear
                 it). Mobile: one full-width dropdown instead, so they don't wrap.
@@ -316,7 +323,8 @@ export function CheckpointsPanel({
               <button className="enq-btn enq-btn-flip" onClick={() => { setAdding(false); setLabel(""); setTarget(""); setShowTo("none"); setBlocks(false); }}>Cancel</button>
             </div>
           </div>
-        )}
+          </div>
+        </div>
       </div>
     </GlassCard>
   );

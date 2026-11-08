@@ -15,7 +15,7 @@ export async function CheckpointsCard({ transactionId }: { transactionId: string
     listCheckpoints(transactionId),
     prisma.contact.findMany({
       where: { propertyTransactionId: transactionId, roleType: { in: ["vendor", "purchaser"] }, isPrincipal: true },
-      select: { roleType: true, name: true, buyerRoundId: true },
+      select: { roleType: true, name: true, buyerRoundId: true, image: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.propertyTransaction.findUnique({
@@ -23,17 +23,17 @@ export async function CheckpointsCard({ transactionId }: { transactionId: string
       select: { activeBuyerRoundId: true },
     }),
   ]);
-  const vendorNames = contacts
+  const vendorPeople = contacts
     .filter((c) => c.roleType === "vendor")
-    .map((c) => nameWithoutTitle(c.name));
-  const purchaserNames = contacts
+    .map((c) => ({ name: nameWithoutTitle(c.name), image: c.image }));
+  const purchaserPeople = contacts
     .filter((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx?.activeBuyerRoundId ?? null))
-    .map((c) => nameWithoutTitle(c.name));
+    .map((c) => ({ name: nameWithoutTitle(c.name), image: c.image }));
   return (
     <CheckpointsPanel
       transactionId={transactionId}
-      vendorNames={vendorNames}
-      purchaserNames={purchaserNames}
+      vendorPeople={vendorPeople}
+      purchaserPeople={purchaserPeople}
       items={items}
     />
   );
