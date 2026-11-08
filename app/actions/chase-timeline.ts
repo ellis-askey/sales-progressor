@@ -13,7 +13,8 @@ import { prisma } from "@/lib/prisma";
 import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { rollToWorkingDay } from "@/lib/emails/working-hours";
 import { setChaseOverride, clearChaseOverride, targetKeyFor } from "@/lib/services/chase-overrides";
-import { assembleDigestPayload } from "@/lib/email/client-chase-digest";
+import { assembleDigestPayload, renderEditedChaseEmailHtml } from "@/lib/email/client-chase-digest";
+import { buildContactPauseUrl } from "@/lib/email/unsubscribe";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { buildSolicitorDigestEmail } from "@/lib/solicitor-confirm/digest-email";
@@ -321,11 +322,32 @@ export async function previewChaseEmailAction(input: {
       supportEmail: sender.canReply ? sender.replyTo : undefined,
     });
     const bodyOverride = existing?.bodyOverride?.trim() || null;
+    const editedSubject = existing?.subjectOverride ?? payload.subject;
     return {
       ok: true,
-      subject: existing?.subjectOverride ?? payload.subject,
+      subject: editedSubject,
       text: bodyOverride ?? payload.text,
-      html: bodyOverride ? wrapEditedBody(bodyOverride) : payload.html,
+      // An EDITED client chase sends through the branded shell
+      // (renderEditedChaseEmailHtml), NOT the plain wrapEditedBody frame — so
+      // the preview must render the same way to stay byte-faithful to what goes
+      // out. Mirror the cron's exact args (enqueueClientChaseDigest). The plain
+      // frame is correct only for solicitor/enquiry chases, which send plain.
+      html: bodyOverride
+        ? renderEditedChaseEmailHtml({
+            agencyName: tx.agency?.name ?? "Your agent",
+            subject: editedSubject,
+            text: bodyOverride,
+            respondUrl: payload.respondUrl,
+            pauseUrl: buildContactPauseUrl(c.id),
+            unsubscribeUrl: payload.unsubscribeUrl,
+            theme: sender.theme ?? resolveEmailTheme(null),
+            supportEmail: sender.visibleEmail ?? (sender.canReply ? sender.replyTo : undefined),
+            studioTheme: sender.studioTheme,
+            identityName: sender.brandName ?? tx.agency?.name ?? undefined,
+            logoUrl: sender.logoUrl,
+            tileColor: sender.tileColor,
+          })
+        : payload.html,
       recipientName: c.name,
       recipientRole: c.roleType === "purchaser" ? "Buyer" : "Seller",
     };
