@@ -15,9 +15,36 @@
 // container decides what "Mark complete" means (advance the reminder,
 // tick the milestone, whatever).
 
-import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle, Bell, BellRinging, Clock, Siren, ArrowsClockwise, LinkBreak } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
+
+// Icon state picked per Ellis's selections (2026-11-08 state-icon artifact):
+// snoozed=Zzz, overdue=BellRinging, due=Bell, upcoming=Clock, escalated=Siren,
+// auto=ArrowsClockwise (loop), chain=LinkBreak. Default keeps the flame.
+export type NextActionIcon = "overdue" | "due" | "snoozed" | "upcoming" | "escalated" | "auto" | "chain" | "default";
+
+// Three "z" sleeping glyph — phosphor has no Zzz, so this is the artifact's.
+function Zzz({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 8h6l-6 7h6M13 5h5l-5 6h5M18 14h4l-4 4h4" />
+    </svg>
+  );
+}
+
+function stateIcon(icon: NextActionIcon): ReactNode {
+  switch (icon) {
+    case "overdue":   return <BellRinging size={24} weight="fill" />;
+    case "due":       return <Bell size={24} weight="fill" />;
+    case "snoozed":   return <Zzz size={24} />;
+    case "upcoming":  return <Clock size={24} weight="fill" />;
+    case "escalated": return <Siren size={24} weight="fill" />;
+    case "auto":      return <ArrowsClockwise size={24} weight="bold" />;
+    case "chain":     return <LinkBreak size={24} weight="bold" />;
+    default:          return <Fire size={24} weight="fill" />;
+  }
+}
 
 export type NextActionKind = "chase" | "milestone" | "reminder";
 
@@ -26,6 +53,8 @@ export type NextActionCardProps = {
   description: string;
   dueLabel: string;                 // e.g. "Due today", "Due in 2 days", "Overdue"
   dueTone?: "coral" | "warn" | "muted";
+  // Which glyph leads the card. Defaults to the flame; swaps with the state.
+  icon?: NextActionIcon;
   kind?: NextActionKind;
   primaryLabel?: string;            // default "Call progressor"
   secondaryLabel?: string;          // default "Send email"
@@ -49,6 +78,7 @@ export function NextActionCard({
   description,
   dueLabel,
   dueTone = "coral",
+  icon = "default",
   primaryLabel = "Call progressor",
   secondaryLabel = "Send email",
   tertiaryLabel = "Mark complete",
@@ -60,6 +90,9 @@ export function NextActionCard({
   belowActions,
 }: NextActionCardProps) {
   const dueColor = DUE_TEXT_COLOR[dueTone];
+  // State icons take the status colour so glyph + line read as one; the default
+  // flame keeps its brand coral.
+  const iconColor = icon === "default" ? "var(--agent-coral-deep)" : dueColor;
 
   return (
     // Design Lab: `overview-next-action`. Default v15 (Gradient hairline)
@@ -104,9 +137,9 @@ export function NextActionCard({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "var(--agent-coral-deep)",
+              color: iconColor,
             }}>
-              <Fire size={24} weight="fill" />
+              {stateIcon(icon)}
             </span>
             <div style={{ minWidth: 0 }}>
               <p className="na-title" style={{

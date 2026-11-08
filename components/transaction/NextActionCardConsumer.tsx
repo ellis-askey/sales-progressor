@@ -7,7 +7,7 @@
 // exist (e.g. all snoozed) it falls back to a plain reminders card.
 
 import { useState, type ReactNode } from "react";
-import { NextActionCard } from "./NextActionCard";
+import { NextActionCard, type NextActionIcon } from "./NextActionCard";
 import { useTabContext } from "./TabContext";
 import { completeTaskAction, snoozeTaskAction } from "@/app/actions/tasks";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
@@ -46,32 +46,45 @@ function relativeDueLabel(due: Date | string): { label: string; tone: "coral" | 
   return { label: `Due ${new Date(due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, tone: "muted" };
 }
 
-function ReminderRow({ r }: { r: MiniReminder }) {
-  const isSnoozed = r.snoozedUntil && new Date(r.snoozedUntil) > new Date();
-  if (isSnoozed) {
-    return (
-      <div className="agent-hover-row" style={{ padding: "7px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: "rgba(15,23,42,0.18)" }} />
-          <span style={{ fontSize: 12, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
-        </div>
-        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", flexShrink: 0 }}>Snoozed until {formatDate(r.snoozedUntil!)}</span>
-      </div>
-    );
-  }
+// Which state glyph leads the hero (Ellis's 2026-11-08 picks).
+function iconForReminder(r: { nextDueDate: Date | string; snoozedUntil?: Date | string | null }): NextActionIcon {
+  if (r.snoozedUntil && new Date(r.snoozedUntil) > new Date()) return "snoozed";
   const days = daysUntil(r.nextDueDate);
-  const isOverdue = days < 0;
-  const isToday = days === 0;
+  if (days < 0) return "overdue";
+  if (days <= 7) return "due";
+  return "upcoming";
+}
+
+function ReminderRow({ r, onNavigate }: { r: MiniReminder; onNavigate: () => void }) {
+  const isSnoozed = r.snoozedUntil && new Date(r.snoozedUntil) > new Date();
+  const days = isSnoozed ? 0 : daysUntil(r.nextDueDate);
+  const isOverdue = !isSnoozed && days < 0;
+  const isToday = !isSnoozed && days === 0;
   const dotColor = isOverdue ? "#ef4444" : isToday ? "var(--agent-coral)" : "rgba(15,23,42,0.18)";
-  const text = isOverdue ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue` : isToday ? "Due today" : `From ${formatDate(r.nextDueDate)}`;
+  const statusText = isSnoozed
+    ? `Snoozed until ${formatDate(r.snoozedUntil!)}`
+    : isOverdue ? `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} overdue` : isToday ? "Due today" : `From ${formatDate(r.nextDueDate)}`;
   return (
-    <div style={{ padding: "7px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+    <button
+      type="button"
+      onClick={onNavigate}
+      className="agent-hover-row"
+      aria-label={`${r.ruleName} — ${statusText}. Open reminders.`}
+      // Extra horizontal padding so the hover highlight breathes past the text,
+      // pulled back with a matching negative margin so the text stays aligned.
+      style={{
+        boxSizing: "border-box", width: "calc(100% + 20px)", marginLeft: -10,
+        padding: "7px 10px", borderRadius: 8,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        background: "none", border: "none", font: "inherit", textAlign: "left", cursor: "pointer",
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: dotColor }} />
-        <span style={{ fontSize: 12, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
-      </div>
-      <span style={{ fontSize: 10, color: isOverdue ? "#ef4444" : "var(--agent-text-muted)", flexShrink: 0, fontWeight: isOverdue ? 600 : 400 }}>{text}</span>
-    </div>
+        <span style={{ fontSize: 12, color: isSnoozed ? "var(--agent-text-muted)" : "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ruleName}</span>
+      </span>
+      <span style={{ fontSize: 10, color: isOverdue ? "#ef4444" : "var(--agent-text-muted)", flexShrink: 0, fontWeight: isOverdue ? 600 : 400 }}>{statusText}</span>
+    </button>
   );
 }
 
@@ -84,7 +97,8 @@ function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder
           View all{totalActive > 0 ? ` (${totalActive})` : ""} <LinkArrow />
         </button>
       </div>
-      {reminders.map((r) => <ReminderRow key={r.id} r={r} />)}
+      {/* Rows are clickable → the reminders tab (where snoozed + active live). */}
+      {reminders.map((r) => <ReminderRow key={r.id} r={r} onNavigate={onViewAll} />)}
     </div>
   );
 }
@@ -188,6 +202,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
           description={body}
           dueLabel={pending ? "Snoozing…" : due.label}
           dueTone={due.tone}
+          icon={iconForReminder(reminder)}
           primaryLabel="Mark complete"
           onPrimary={onMarkComplete}
           secondaryLabel="View reminders"
@@ -206,6 +221,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
           description="Follow up when you're ready."
           dueLabel={due.label}
           dueTone={due.tone}
+          icon={iconForReminder(ghost)}
           secondaryLabel="View reminders"
           onSecondary={goReminders}
           snoozeSlot={<SnoozeMenu variant="icon" subtextVerb="Comes back" disabled onConfirm={() => {}} />}
@@ -274,7 +290,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
           <button onClick={goReminders} className="agent-link" style={{ fontSize: 11 }}>View all <LinkArrow /></button>
         </div>
         <div style={{ padding: "6px 16px 12px" }}>
-          {otherReminders.map((r) => <ReminderRow key={r.id} r={r} />)}
+          {otherReminders.map((r) => <ReminderRow key={r.id} r={r} onNavigate={goReminders} />)}
         </div>
       </GlassCard>
     );
