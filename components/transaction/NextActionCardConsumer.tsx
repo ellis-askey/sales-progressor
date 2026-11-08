@@ -191,7 +191,9 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       const due = reminder.snoozedUntil && new Date(reminder.snoozedUntil) > new Date()
         ? { label: `Snoozed until ${formatDate(reminder.snoozedUntil)}`, tone: "muted" as const }
         : relativeDueLabel(reminder.nextDueDate);
-      const body = fallbackMilestone ? `Waiting on: ${fallbackMilestone.name.replace(/\.$/, "")}.` : "Follow up when you're ready.";
+      // No "Waiting on" line on the reminder-driven hero — the "Up next" queue on
+      // the right already carries what's coming, so the title + actions sit tight
+      // under each other. (The milestone-driven hero, Case 2, keeps its own line.)
       const taskId = reminder.topTaskId;
       const onMarkComplete = taskId
         ? () => {
@@ -206,7 +208,7 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
       card = (
         <NextActionCard
           title={reminder.ruleName}
-          description={body}
+          description=""
           dueLabel={pending ? "Snoozing…" : due.label}
           dueTone={due.tone}
           icon={iconForReminder(reminder)}
