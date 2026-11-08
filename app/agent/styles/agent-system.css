@@ -3835,11 +3835,44 @@
   .people-item:hover .intro-call-chip .icc-back,
   .intro-call-chip:hover .icc-back,
   .intro-call-chip:focus-visible .icc-back { transform: rotateY(0deg); }
+  /* The sparkle-phone rings on hover. The ring lives on an inner wrapper (rotateZ)
+     so it doesn't fight the face's rotateY flip. */
+  .intro-call-chip .icc-ring { position: relative; display: inline-grid; place-items: center; transform-origin: 50% 62%; }
+  .people-item:hover .intro-call-chip .icc-ring,
+  .intro-call-chip:hover .icc-ring,
+  .intro-call-chip:focus-visible .icc-ring { animation: intro-call-ring 0.7s ease-in-out infinite; }
   /* The sparkle that makes it the "intro" phone, pinned to the handset's top-right. */
-  .intro-call-chip .icc-spark { position: absolute; top: 4px; right: 5px; color: var(--agent-coral); }
+  .intro-call-chip .icc-spark { position: absolute; top: 2px; right: 3px; color: var(--agent-coral); }
+  @keyframes intro-call-ring {
+    0%, 62%, 100% { transform: rotate(0deg); }
+    8%  { transform: rotate(-12deg); }
+    18% { transform: rotate(10deg); }
+    28% { transform: rotate(-7deg); }
+    38% { transform: rotate(4deg); }
+    48% { transform: rotate(-2deg); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .intro-call-chip .icc-face { transition: none; }
+    .people-item:hover .intro-call-chip .icc-ring,
+    .intro-call-chip:hover .icc-ring,
+    .intro-call-chip:focus-visible .icc-ring { animation: none; }
   }
+
+  /* Tiny "Start intro call" signal — portalled to <body>, positioned over the
+     button. Small type, tight padding; lingers + is clickable (handled in JS). */
+  .intro-call-tip {
+    position: fixed;
+    transform: translate(-50%, calc(-100% - 7px));
+    background: var(--agent-text-primary);
+    color: var(--agent-surface-elevated);
+    font-size: 10.5px; font-weight: 600; line-height: 1;
+    font-family: inherit; white-space: nowrap;
+    padding: 3px 7px; border-radius: 6px;
+    border: none; cursor: pointer; z-index: 70;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.20);
+    animation: intro-tip-in 130ms ease;
+  }
+  @keyframes intro-tip-in { from { opacity: 0; } to { opacity: 1; } }
 
   /* Top-nav icon controls (theme / contrast / lab / bell): no outline box in ANY
      state, including hover/active (founder request). The shared coral hover border

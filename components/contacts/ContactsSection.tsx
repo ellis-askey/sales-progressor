@@ -30,8 +30,9 @@
 // on both breakpoints so the visual grouping is preserved.
 
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
-import { Popover, PopoverMenuItem, Tooltip } from "@/components/ui/Popover";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { createContactAction, updateContactAction, deleteContactAction, generatePortalTokenAction, reissuePortalTokenAction } from "@/app/actions/contacts";
 import { looksLikeBusiness } from "@/lib/contacts/business";
@@ -308,25 +309,61 @@ function PortalStatusCard({
 // to an active PhoneCall glyph on hover, and opens the intro-call drawer. The
 // flip + tooltip + theme handling live in .intro-call-chip (agent-system.css).
 function IntroCallButton({ onClick }: { onClick: () => void }) {
+  // A tiny "Start intro call" signal. Portalled to <body> (never clipped),
+  // positioned over the button. It lingers ~900ms after the mouse leaves and is
+  // itself hover-able + clickable — so you can slide onto it and open the call.
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [tip, setTip] = useState<{ left: number; top: number } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTip = () => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setTip({ left: r.left + r.width / 2, top: r.top });
+  };
+  const scheduleHide = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setTip(null), 900);
+  };
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
+
+  const open = (e: React.MouseEvent) => { e.stopPropagation(); onClick(); };
+
   return (
-    // Styled, animated "Start intro call" bubble via the shared Tooltip, which
-    // portals to a float layer so it can never be clipped by the row/card.
-    <Tooltip content="Start intro call" placement="top-start">
+    <>
       <button
+        ref={btnRef}
         type="button"
-        // Stop the click reaching the Tooltip anchor (which would pin it open);
-        // clicking just opens the drawer.
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onClick={open}
+        onMouseEnter={showTip}
+        onMouseLeave={scheduleHide}
+        onFocus={showTip}
+        onBlur={scheduleHide}
         className="intro-call-chip"
         aria-label="Start intro call"
       >
         <span className="icc-face icc-front"><Phone size={15} weight="regular" /></span>
         <span className="icc-face icc-back">
-          <Phone size={15} weight="regular" />
-          <Sparkle size={9} weight="fill" className="icc-spark" />
+          <span className="icc-ring">
+            <Phone size={15} weight="regular" />
+            <Sparkle size={9} weight="fill" className="icc-spark" />
+          </span>
         </span>
       </button>
-    </Tooltip>
+      {tip && typeof document !== "undefined" && createPortal(
+        <button
+          type="button"
+          className="intro-call-tip"
+          style={{ left: tip.left, top: tip.top }}
+          onMouseEnter={showTip}
+          onMouseLeave={scheduleHide}
+          onClick={open}
+        >
+          Start intro call
+        </button>,
+        document.body,
+      )}
+    </>
   );
 }
 
