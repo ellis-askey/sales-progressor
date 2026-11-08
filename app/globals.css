@@ -1403,7 +1403,7 @@ select {
 /* Sliding active pill — slides to the selected tab (index in --vs-idx). Matches
    the To-Do / Focus tab selector (.todotabs-pill): spring-overshoot easing + a
    brief horizontal stretch while travelling. Sizes stay the chain toggle's own. */
-.chain-viewswitch::before {
+.chain-vs-pill {
   content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--vs-count, 3));
   transform: translateX(calc(var(--vs-idx, 0) * 100%));
   transform-origin: center;
@@ -1411,7 +1411,7 @@ select {
   box-shadow: 0 1px 3px rgba(var(--agent-shadow-rgb), 0.14);
   transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 0;
 }
-.chain-viewswitch.travelling::before { transform: translateX(calc(var(--vs-idx, 0) * 100%)) scaleX(1.07); }
+.chain-viewswitch.travelling .chain-vs-pill { transform: translateX(calc(var(--vs-idx, 0) * 100%)) scaleX(1.07); }
 .chain-vs-btn {
   position: relative; z-index: 1; flex: 1 1 0; min-width: 82px; text-align: center;
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--agent-text-muted);
@@ -1473,7 +1473,7 @@ select {
   .chain-complete-pill .ccp-tick { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chain-viewswitch::before, .chain-viewswitch.travelling::before {
+  .chain-vs-pill, .chain-viewswitch.travelling .chain-vs-pill {
     transition: none; transform: translateX(calc(var(--vs-idx, 0) * 100%));
   }
 }

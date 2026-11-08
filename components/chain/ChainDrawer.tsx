@@ -238,6 +238,11 @@ export function ChainView({
   // edit reach the server now grants (mirrors canViewChain).
   const isInternal = isInternalStaff(currentUserRole);
   const addTag = useGlassTag("chain-add-btn", "Chain · add sale button", { dark: "v05" });
+  // View switch (Timeline / Map) — registered in the Design Lab and baked to the
+  // SAME baseline as the Focus / To-Do tab selector (TodoTabs: bar v04, active
+  // pill v03/v04) so the two read identically. Tunable per-id in the Lab.
+  const vsTag = useGlassTag("chain-viewswitch", "Chain · view switch", { light: "v04", dark: "v04" });
+  const vsPillTag = useGlassTag("chain-viewswitch-pill", "Chain · view switch · active pill", { light: "v03", dark: "v04" });
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -1225,9 +1230,12 @@ export function ChainView({
       {!loading && chain && links.length > 0 && (
         <div className="chain-headrow">
           <div
-            className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""}`}
+            className={`chain-viewswitch chain-viewswitch--enter${vsTravelling ? " travelling" : ""}${inline ? " chain-viewswitch--inline" : ""} ${vsTag.className}`}
+            {...vsTag.props}
             style={{ "--vs-idx": view === "timeline" ? 0 : view === "map" ? 1 : 2, "--vs-count": SHOW_CHAIN_ACTIVITY ? 3 : 2 } as React.CSSProperties}
           >
+            {/* Sliding active pill — its own Lab surface (like TodoTabs' pill). */}
+            <span className={`chain-vs-pill ${vsPillTag.className}`} aria-hidden {...vsPillTag.props} />
             <button type="button" className={`chain-vs-btn${view === "timeline" ? " on" : ""}`} onClick={() => selectView("timeline")}>Timeline</button>
             <button type="button" className={`chain-vs-btn${view === "map" ? " on" : ""}`} onClick={() => selectView("map")}>Map</button>
             {SHOW_CHAIN_ACTIVITY && (
