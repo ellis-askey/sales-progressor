@@ -8,8 +8,9 @@
 // 2026-10-30. All commercial logic (fee gating, add gates, save payloads) is
 // carried over from the former BrokerSection unchanged.
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple } from "@phosphor-icons/react";
+import { usePeopleOpenIntent } from "@/lib/transaction/people-open-intent";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { saveBrokerReferralAction } from "@/app/actions/transactions";
 import { getAdvisorPortalLinkAction } from "@/app/actions/advisor-portal";
@@ -134,6 +135,10 @@ function BrokerTile({
   );
 
   function openEdit() { setEditing(true); setExiting(false); }
+
+  // File-setup "Add broker" lands here and opens this side's editor after a beat.
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePeopleOpenIntent(`broker:${slot.side}`, rootRef, openEdit);
   function closeEdit() {
     setExiting(true);
     setTimeout(() => {
@@ -222,7 +227,7 @@ function BrokerTile({
   }
 
   return (
-    <div className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
+    <div ref={rootRef} className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
       {firm && !editing && !exiting && (
         <>
           <div className="people-row" style={{ padding: "10px 16px" }}>

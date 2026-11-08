@@ -30,6 +30,7 @@
 // on both breakpoints so the visual grouping is preserved.
 
 import { useState, useTransition, useCallback, useEffect, useRef } from "react";
+import { usePeopleOpenIntent } from "@/lib/transaction/people-open-intent";
 import { createPortal } from "react-dom";
 import { CONTACT_ROLES, titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
@@ -570,6 +571,21 @@ export function ContactsSection({
   const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // File-setup "Add seller / buyer" lands here and opens the add-contact form
+  // pre-set to the right role, after a welcoming beat — then focuses the name
+  // field so the agent can type straight away (the form fades in via
+  // agent-reveal-in). The role is seeded because EMPTY_FORM defaults to vendor.
+  const addFormRef = useRef<HTMLDivElement>(null);
+  const addNameRef = useRef<HTMLInputElement>(null);
+  const openAddContact = useCallback((roleType: "vendor" | "purchaser") => {
+    setError(null);
+    setForm({ ...EMPTY_FORM, roleType });
+    setShowForm(true);
+    requestAnimationFrame(() => addNameRef.current?.focus({ preventScroll: true }));
+  }, []);
+  usePeopleOpenIntent("contact:vendor", addFormRef, () => openAddContact("vendor"));
+  usePeopleOpenIntent("contact:purchaser", addFormRef, () => openAddContact("purchaser"));
+
   // Optimistic local copy of the contacts list (mirrors SolicitorSection).
   // Add / edit / remove reflect in the card instantly instead of waiting on
   // the server round-trip; the list then reconciles when the fresh server
@@ -938,7 +954,7 @@ export function ContactsSection({
       {/* Add contact form — above the cards so it's visible the moment Add is
           pressed (it used to render below the list, off-screen). Fades in. */}
       {showForm && (
-        <div className="agent-reveal-in p-5 border-b border-white/20">
+        <div ref={addFormRef} className="agent-reveal-in p-5 border-b border-white/20">
           <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -946,7 +962,7 @@ export function ContactsSection({
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
                   Full name <span className="text-red-500">*</span>
                 </label>
-                <input type="text" name="name" value={form.name} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }} required placeholder="Full name or company" className={INPUT} />
+                <input ref={addNameRef} type="text" name="name" value={form.name} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }} required placeholder="Full name or company" className={INPUT} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">

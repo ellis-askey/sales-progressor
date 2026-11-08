@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple, GlobeSimple, ArrowSquareOut, Briefcase } from "@phosphor-icons/react";
+import { usePeopleOpenIntent } from "@/lib/transaction/people-open-intent";
 import { SolicitorPicker, type SolicitorSelection } from "./SolicitorPicker";
 import { saveSolicitorsAction, getSolicitorPortalLinkAction } from "@/app/actions/transactions";
 import { PriceInput } from "@/components/ui/PriceInput";
@@ -221,6 +222,11 @@ function SolicitorTile({
     setExiting(false);
   }
 
+  // File-setup "Add solicitors" lands here and opens this side's editor after a
+  // welcoming beat (the SolicitorPicker fades in via agent-reveal-in).
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePeopleOpenIntent(`solicitor:${side}`, rootRef, openEdit);
+
   function closeEdit() {
     setExiting(true);
     setTimeout(() => {
@@ -299,7 +305,7 @@ function SolicitorTile({
   }
 
   return (
-    <div className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
+    <div ref={rootRef} className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
         <>
