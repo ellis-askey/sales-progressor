@@ -4,7 +4,7 @@
 // spacious, focused. Not a list, grid, or master-detail.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { notFound } from "next/navigation";
-import { EnvelopeSimple, PhoneCall, ArrowRight, Check, Moon, Sparkle } from "@/components/icons/ph";
+import { EnvelopeSimple, PhoneCall, ArrowRight, Check, Moon, Sparkle } from "@phosphor-icons/react";
 import { SALES, type Sale, type Side, rel, sideCovered, attentionScore } from "../../mock";
 import { who, first, sideStatus, headline, CH, STATE_LABEL, dirWord } from "../../common";
 

@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import {
   CalendarBlank, PaperPlaneTilt, Robot, User, WarningCircle, CheckCircle,
   PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight, CaretLeft, CaretRight,
-} from "@/components/icons/ph";
+} from "@phosphor-icons/react";
 import type {
   ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
 } from "@/lib/services/chase-timeline";

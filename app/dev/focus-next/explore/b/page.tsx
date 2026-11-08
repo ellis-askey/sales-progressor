@@ -4,7 +4,7 @@
 // focused panel. Cool, dense, premium. Spatial, not a list or master-detail.
 import { useMemo, useState } from "react";
 import { notFound } from "next/navigation";
-import { EnvelopeSimple, PhoneCall, X, Check } from "@/components/icons/ph";
+import { EnvelopeSimple, PhoneCall, X, Check } from "@phosphor-icons/react";
 import { SALES, type Sale, type Side, rel, sideCovered, attentionScore } from "../../mock";
 import { who, first, sideStatus, headline, CH, STATE_LABEL, dirWord } from "../../common";
 

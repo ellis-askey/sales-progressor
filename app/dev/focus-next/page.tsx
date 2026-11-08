@@ -15,7 +15,7 @@ import { notFound } from "next/navigation";
 import {
   PaperPlaneTilt, PhoneCall, MagnifyingGlass, XCircle, Check, CaretRight,
   Moon, Warning, Clock, ChatCircleDots, Sparkle, ArrowRight, Sun, MoonStars,
-} from "@/components/icons/ph";
+} from "@phosphor-icons/react";
 import { FOCUS_CSS } from "./styles";
 import {
   SALES, type Sale, type Side, type SideKind, type Comm,

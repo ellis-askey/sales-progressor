@@ -11,7 +11,7 @@ import {
   EnvelopeSimple, FolderOpen, LinkSimple, ChartBar, Gear, Handshake, Coins, Key, CalendarBlank,
   MagnifyingGlass, CaretDown, Sun, MoonStars, ArrowLeft, Warning, PhoneCall, PaperPlaneTilt,
   NotePencil, FileText, Check, SealCheck, Heartbeat,
-} from "@/components/icons/ph";
+} from "@phosphor-icons/react";
 import { FILE_CSS } from "./styles";
 import { FILE, NAV, TABS, type TabKey, type Enquiry, type Contact, type Activity } from "./mock";
 

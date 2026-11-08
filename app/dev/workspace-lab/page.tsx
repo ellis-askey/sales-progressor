@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound } from "next/navigation";
-import { PaperPlaneTilt, Check, ChatCircleDots, SealCheck, Sun, MoonStars } from "@/components/icons/ph";
+import { PaperPlaneTilt, Check, ChatCircleDots, SealCheck, Sun, MoonStars } from "@phosphor-icons/react";
 import { LAB_CSS } from "./styles";
 import { PROPERTIES, WORK, TODAY, STAGES, type Property, type WorkItem, type Tone } from "./mock";
 

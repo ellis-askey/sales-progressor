@@ -4,7 +4,7 @@
 // No sidebar, no cards, no master-detail. Reads like a beautifully typeset brief.
 import { useMemo, useState } from "react";
 import { notFound } from "next/navigation";
-import { EnvelopeSimple, PhoneCall, ArrowRight, MagnifyingGlass } from "@/components/icons/ph";
+import { EnvelopeSimple, PhoneCall, ArrowRight, MagnifyingGlass } from "@phosphor-icons/react";
 import { SALES, type Sale, type Side, rel, sideSignal, sideCovered, attentionScore } from "../../mock";
 import { who, first, sideStatus, headline } from "../../common";
 

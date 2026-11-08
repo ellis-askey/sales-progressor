@@ -1,7 +1,7 @@
 "use client";
 // Shared, visual-agnostic helpers for the Focus Next explorations + final build.
 // No styling here — each direction maps tone -> its own look. Local/dev only.
-import { EnvelopeSimple, WhatsappLogo, Phone } from "@/components/icons/ph";
+import { EnvelopeSimple, WhatsappLogo, Phone } from "@phosphor-icons/react";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { type Side, type Comm, type CommState, type Sale, rel, sideSignal, sideCovered } from "./mock";
 
