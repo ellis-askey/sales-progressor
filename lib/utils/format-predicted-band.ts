@@ -27,6 +27,24 @@ export function formatPredictedBand(date: Date): string {
   return `Around ${slot} ${month}${yearSuffix}`;
 }
 
+// Week-commencing label for the agent file forecast: snap the predicted date
+// back to its Monday and render "W/C 15 June" (+ year when it isn't the current
+// year). A deliberately weekly read — we forecast readiness, not a promised day.
+// Agent-side only; the client portal stays on formatPredictedBand.
+export function formatWeekCommencing(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 Sun … 6 Sat
+  const toMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + toMonday);
+
+  const month = MONTH_NAMES[d.getMonth()];
+  const year = d.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const yearSuffix = year !== currentYear ? ` ${year}` : "";
+
+  return `W/C ${d.getDate()} ${month}${yearSuffix}`;
+}
+
 // Short variant for space-constrained surfaces (chain LinkCard).
 // Drops the "Around" prefix.
 export function formatPredictedBandShort(date: Date): string {

@@ -24,9 +24,8 @@ import { buildCheckInMessage, type DueStep } from "@/lib/chase/step-questions";
 import { markStepsChasedAction } from "@/app/actions/tasks";
 import { formatPrice, formatFee, calculateOurFee, feeExVat, feeVatPortion } from "@/lib/services/fees";
 import { sendQuoteLinkToBuyerAction } from "@/app/actions/send-quote-link";
-import { formatPredictedBand } from "@/lib/utils/format-predicted-band";
+import { formatWeekCommencing } from "@/lib/utils/format-predicted-band";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
-import { MEDIANS_READY } from "@/lib/services/milestone-staleness";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { PreviousSalesCard } from "@/components/transaction/PreviousSalesCard";
 import type { PreviousSale } from "@/lib/services/previous-sales";
@@ -504,14 +503,13 @@ export function AgentFileSidebar({
           <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Key dates</p>
         </div>
 
-        {!progress.isEarlyEstimate && (
-          <SidebarRow
-            label="12-week target"
-            value={progress.twelveWeekTarget
-              ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-              : "–"}
-          />
-        )}
+        {/* 12-week target — always shown now (was hidden during onboarding). */}
+        <SidebarRow
+          label="12-week target"
+          value={progress.twelveWeekTarget
+            ? progress.twelveWeekTarget.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+            : "–"}
+        />
         {exchangeConfirmed ? (
           <SidebarRow
             label="Exchanged on"
@@ -521,14 +519,18 @@ export function AgentFileSidebar({
                 : "–"}
             </span>}
           />
-        ) : (transaction.overridePredictedDate || MEDIANS_READY) && (
+        ) : (
+          // Forecast is now always shown agent-side (the model already drives
+          // the countdown below). A manual override renders as an exact blue
+          // date; otherwise the median prediction as a "W/C" week. Portal stays
+          // gated separately — this is agent-only.
           <SidebarRow
-            label="Exchange forecast"
+            label="Est. ready to exchange"
             value={<span style={{ color: transaction.overridePredictedDate ? "#1d4ed8" : "var(--agent-text-primary)" }}>
               {progress.predictedExchangeDate
                 ? transaction.overridePredictedDate
                   ? progress.predictedExchangeDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-                  : formatPredictedBand(progress.predictedExchangeDate)
+                  : formatWeekCommencing(progress.predictedExchangeDate)
                 : "–"}
             </span>}
           />
@@ -539,17 +541,29 @@ export function AgentFileSidebar({
           exchangeConfirmed={exchangeConfirmed}
         />
         {progress.weeksRemaining !== null && !exchangeConfirmed && (() => {
+          // Companion countdown to the same predicted date, rounded to whole
+          // weeks and read as "Approx N weeks". formatTimeToExchange still
+          // carries the amber threshold + the "Any day now" edge.
           const t = formatTimeToExchange(progress.predictedExchangeDate ?? null, progress.weeksRemaining);
+          const days = progress.predictedExchangeDate
+            ? Math.ceil((progress.predictedExchangeDate.getTime() - Date.now()) / 86400000)
+            : progress.weeksRemaining * 7;
+          const wk = Math.round(days / 7);
+          const text = t.text === "Any day now"
+            ? t.text
+            : wk < 1
+              ? `Approx ${Math.max(days, 1)} day${days === 1 ? "" : "s"}`
+              : `Approx ${wk} week${wk === 1 ? "" : "s"}`;
           return (
             <SidebarRow
-              label="Est. time to exchange"
-              value={<span style={{ color: t.amber ? "#b45309" : "var(--agent-text-primary)" }}>{t.text}</span>}
+              label="Time to exchange"
+              value={<span style={{ color: t.amber ? "#b45309" : "var(--agent-text-primary)" }}>{text}</span>}
             />
           );
         })()}
         {transaction.chainLinkId && !exchangeConfirmed && (
           <p style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic", marginTop: 8 }}>
-            Chain not factored. This prediction is for this sale alone.
+            Estimated ready-to-exchange date for this sale only. Chain not included.
           </p>
         )}
 
