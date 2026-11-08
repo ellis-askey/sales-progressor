@@ -974,11 +974,20 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   </div>
                 </div>
               )}
-              {!def.eventDateRequired && (
-                <p className="text-[10px] text-slate-900/50 max-sm:text-center">
-                  Defaults to today. Change it only if this step happened earlier.
-                </p>
-              )}
+              {!def.eventDateRequired && (() => {
+                // Default sits on today; the helper line confirms that. The moment
+                // the date is moved off today, swap to the explicit "recorded as
+                // completed on the selected date" line so a backdate is unambiguous.
+                const todayIso = new Date().toISOString().split("T")[0];
+                const backdated = !!eventDate && eventDate !== todayIso;
+                return (
+                  <p className="text-[10px] text-slate-900/50 max-sm:text-center">
+                    {backdated
+                      ? "This step will be recorded as completed on the selected date."
+                      : "Set to today. Change the date if this step was completed earlier."}
+                  </p>
+                );
+              })()}
               {isPM6 && (
                 <label className="flex items-center gap-2 text-xs text-slate-900/50 cursor-pointer select-none">
                   <input

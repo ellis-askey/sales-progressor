@@ -67,7 +67,9 @@ export function ConfirmMilestoneDateModal({
           wrapperStyle={{ display: "inline-block" }}
         />
         <p className="text-[10px] text-slate-900/50 mt-2">
-          Defaults to today. Change it only if this happened earlier.
+          {date && date !== todayStr()
+            ? "This step will be recorded as completed on the selected date."
+            : "Set to today. Change the date if this step was completed earlier."}
         </p>
       </ModalBody>
       <ModalFooter>
