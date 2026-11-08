@@ -423,7 +423,7 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
 
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0 flex justify-end${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1000 }}>
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />
+      <div className={`fixed inset-0 agent-backdrop-overlay${closing ? " agent-backdrop-closing" : ""}`} onClick={doClose} />
       <div
         role="dialog"
         aria-label="Intro call"

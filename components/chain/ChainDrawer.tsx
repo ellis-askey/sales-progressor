@@ -1730,7 +1730,7 @@ export function ChainView({
   return createPortal(
     <div data-theme={theme} data-night={isNight ? "" : undefined} className={`fixed inset-0${isMap ? "" : " flex justify-end"}${isNight ? " nv2-night" : ""}`} style={{ zIndex: 1500, pointerEvents: isMap ? "none" : undefined }}>
       {/* Backdrop — timeline only; map mode leaves the nav visible. */}
-      {!isMap && <div className="fixed inset-0 agent-backdrop-overlay" onClick={doClose} />}
+      {!isMap && <div className={`fixed inset-0 agent-backdrop-overlay${closing ? " agent-backdrop-closing" : ""}`} onClick={doClose} />}
       {isMap ? (
         <div className="chain-cc">
           {shell}

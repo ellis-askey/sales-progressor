@@ -45,6 +45,18 @@ export function AutoChasePreviewModal({
   const [attempt, setAttempt] = useState(0);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
+  // Keep mounted for the exit so the backdrop + card fade out (overlay standard)
+  // instead of popping off. ~200ms matches the keyframes.
+  const [rendered, setRendered] = useState(open);
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => {
+    if (open) { setRendered(true); setExiting(false); return; }
+    if (!rendered) return;
+    setExiting(true);
+    const t = setTimeout(() => { setRendered(false); setExiting(false); }, 200);
+    return () => clearTimeout(t);
+  }, [open, rendered]);
+
   useEffect(() => {
     if (!open) return;
     let live = true;
@@ -74,7 +86,7 @@ export function AutoChasePreviewModal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!rendered) return null;
   if (typeof window === "undefined") return null;
 
   const label = { fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" };
@@ -84,13 +96,13 @@ export function AutoChasePreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label="Auto-chase email preview"
-      className="agent-backdrop-overlay nv2-night acp-backdrop"
+      className={`agent-backdrop-overlay nv2-night acp-backdrop${exiting ? " agent-backdrop-closing" : ""}`}
       data-theme={theme}
       data-night={isNight ? "" : undefined}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: "fixed", inset: 0, zIndex: 210, display: "flex" }}
     >
-      <div className="acp-card agent-modal-in" onClick={(e) => e.stopPropagation()}>
+      <div className={`acp-card ${exiting ? "agent-modal-out" : "agent-modal-in"}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ flexShrink: 0, padding: "20px 22px 12px", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, paddingRight: 28 }}>

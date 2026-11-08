@@ -8,7 +8,7 @@
 // builder is pure, so the preview re-renders live as they edit, and the same
 // edited copy is passed to the send action.
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -75,11 +75,22 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
     return () => { mounted = false; };
   }, [transactionId, contactId, direction, mode]);
 
+  // Hold mount briefly on close so the backdrop + card fade out (overlay
+  // standard) instead of popping. Ref-guarded so handleClose stays stable.
+  const exitingRef = useRef(false);
+  const [exiting, setExiting] = useState(false);
+  const handleClose = useCallback(() => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+    setExiting(true);
+    setTimeout(onClose, 200);
+  }, [onClose]);
+
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") handleClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [handleClose]);
 
   // Live preview — the exact builder the send uses, re-rendered as they edit.
   const previewHtml = useMemo(() => {
@@ -118,7 +129,7 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
       data-night={isNight ? "" : undefined}
       style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onClose} />
+      <div className={`fixed inset-0 agent-backdrop-overlay${exiting ? " agent-backdrop-closing" : ""}`} onClick={handleClose} />
 
       <div
         style={{
@@ -127,7 +138,7 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
           borderRadius: 20, border: "0.5px solid rgba(0,0,0,0.08)",
           width: "100%", maxWidth: 600, maxHeight: "85vh", margin: "0 16px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+          animation: exiting ? "agent-modal-out 180ms cubic-bezier(0.4,0,1,1) both" : "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
           display: "flex", flexDirection: "column",
         }}
       >
@@ -135,7 +146,7 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, ...SHEET_BAND_STYLE, borderTopLeftRadius: 20, borderTopRightRadius: 20, flexShrink: 0 }}>
           <SheetBandHeader kicker="Review and send" title="Email to your client" />
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
@@ -185,7 +196,7 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
 
         {/* Footer */}
         <div style={{ padding: "14px 20px 20px", display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "0.5px solid rgba(15,23,42,0.08)", flexShrink: 0 }}>
-          <button onClick={onClose} disabled={isSending} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
+          <button onClick={handleClose} disabled={isSending} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
           <button
             onClick={handleSend}
             disabled={!canSend || isSending}

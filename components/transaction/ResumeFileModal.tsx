@@ -7,6 +7,7 @@
 // Files-to-review card; the older embedded copies are grandfathered until
 // their surfaces are next touched (Law 19).
 
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -35,6 +36,11 @@ export function ResumeFileModal({ address, onCancel, onResume }: {
   onResume: (keepEmailsPaused: boolean) => void;
 }) {
   const { theme, isNight } = usePortalTheme();
+  // Hold mount briefly on cancel so the backdrop + card fade out (overlay
+  // standard) instead of popping. Resume actions close instantly (they navigate
+  // the file forward).
+  const [exiting, setExiting] = useState(false);
+  const handleCancel = () => { if (exiting) return; setExiting(true); setTimeout(onCancel, 200); };
   return createPortal(
     <div
       data-theme={theme}
@@ -42,7 +48,7 @@ export function ResumeFileModal({ address, onCancel, onResume }: {
       className="nv2-night"
       style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
     >
-      <div className="fixed inset-0 agent-backdrop-overlay" onClick={onCancel} style={{ zIndex: 0 }} />
+      <div className={`fixed inset-0 agent-backdrop-overlay${exiting ? " agent-backdrop-closing" : ""}`} onClick={handleCancel} style={{ zIndex: 0 }} />
       <div
         className="rounded-2xl w-full max-w-md"
         style={{
@@ -51,7 +57,7 @@ export function ResumeFileModal({ address, onCancel, onResume }: {
           background: "var(--agent-surface-elevated)",
           border: "0.5px solid rgba(0,0,0,0.08)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          animation: "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
+          animation: exiting ? "agent-modal-out 180ms cubic-bezier(0.4,0,1,1) both" : "agent-modal-in 240ms cubic-bezier(0.25,0,0,1) both",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -78,7 +84,7 @@ export function ResumeFileModal({ address, onCancel, onResume }: {
         <div style={{ padding: "0 20px 16px", display: "flex", justifyContent: "flex-end" }}>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancel}
             className="agent-link"
             style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
           >
