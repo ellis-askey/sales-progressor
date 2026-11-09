@@ -311,21 +311,22 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
       respondUrl,
     ];
   } else if (overallTone === "diy" && count === 1) {
-    // A single DIY item reads as one clean step, not a one-item bullet list.
     toneLines = [
-      `There's one thing on your ${transactionWord} at ${address} that only you can move forward: ${diy[0].label}.`,
+      `Just a quick reminder that there's an outstanding item on your ${transactionWord} at ${address} that needs your attention:`,
       ``,
-      `Open the page below to confirm it's done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.`,
+      bulletLine(diy[0].label),
+      ``,
+      `You can use the link below to confirm it's been completed, provide an expected date, or leave us a quick update. It only takes a minute.`,
       ``,
       respondUrl,
     ];
   } else if (overallTone === "diy") {
     toneLines = [
-      `There are ${count} things on your ${transactionWord} at ${address} that only you can move forward:`,
+      `Just a quick reminder that there are ${count} outstanding items on your ${transactionWord} at ${address} that need your attention:`,
       ``,
       ...diy.map((d) => bulletLine(d.label)),
       ``,
-      `Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.`,
+      `You can use the link below to confirm what's been completed, provide an expected date, or leave us a quick update. It only takes a minute.`,
       ``,
       respondUrl,
     ];
@@ -417,13 +418,14 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           <p style="${pStyle}">If you'd like a recommendation, you can request quotes from a small selection of trusted local surveyors using the button below. It takes around 30 seconds.</p>`;
   } else if (overallTone === "diy" && count === 1) {
     toneHtml = `
-          <p style="${pStyle}">There's one thing on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward: <strong>${escapeHtml(diy[0].label)}</strong>.</p>
-          <p style="${pStyle}">Open the page below to confirm it's done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
+          <p style="${pStyle}">Just a quick reminder that there's an outstanding item on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that needs your attention:</p>
+          ${renderList(diy)}
+          <p style="${pStyle}">You can use the link below to confirm it's been completed, provide an expected date, or leave us a quick update. It only takes a minute.</p>`;
   } else if (overallTone === "diy") {
     toneHtml = `
-          <p style="${pStyle}">There are ${count} things on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that only you can move forward:</p>
+          <p style="${pStyle}">Just a quick reminder that there are ${count} outstanding items on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that need your attention:</p>
           ${renderList(diy)}
-          <p style="${pStyle}">Open the page below to confirm each one is done, tell us a date you're expecting, or leave a quick note about why it's delayed. It takes about a minute.</p>`;
+          <p style="${pStyle}">You can use the link below to confirm what's been completed, provide an expected date, or leave us a quick update. It only takes a minute.</p>`;
   } else if (overallTone === "nudge") {
     const phrase = escapeHtml(sittingWithPhrase(nudgeParties));
     const opener = count === 1
@@ -471,9 +473,9 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
     (outroText ? `\n          ${extraPara(outroText)}` : "");
 
   // Primary CTA: the survey offer takes the button when it's the only item;
-  // otherwise the usual "Open the page" (the callout box carries the survey link).
+  // otherwise "Confirm or update" (the respond page is where they act on the items).
   const ctaHref = surveyOnly && surveyOffer ? surveyOffer.url : respondUrl;
-  const ctaLabel = surveyOnly && surveyOffer ? "Get a survey quote" : "Open the page";
+  const ctaLabel = surveyOnly && surveyOffer ? "Get a survey quote" : "Confirm or update";
   const surveyOnlySecondaryHtml = surveyOnly
     ? `
           <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#4a5162;">Already arranged your own surveyor? <a href="${respondUrl}" style="color:${theme.buttonBg};text-decoration:underline;">Confirm it on your page</a>.</p>`
@@ -930,7 +932,7 @@ export function renderEditedChaseEmailHtml(args: {
     return renderStudioEmail(studioTheme, {
       headline: subject,
       bodyHtml: paragraphs,
-      cta: { label: "Open the page", url: respondUrl },
+      cta: { label: "Confirm or update", url: respondUrl },
       footerText: complianceFooter,
       preheaderText: subject,
     }, { identityName, logoUrl: logoUrl ?? null, tileColor: tileColor ?? null });
@@ -948,7 +950,7 @@ export function renderEditedChaseEmailHtml(args: {
           ${paragraphs}
           <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr><td style="border-radius:8px;background:${theme.buttonBg};">
-              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">Open the page</a>
+              <a href="${respondUrl}" style="display:inline-block;padding:12px 24px;color:${theme.buttonText};text-decoration:none;font-weight:500;font-size:15px;">Confirm or update</a>
             </td></tr>
           </table>
         </td></tr>
