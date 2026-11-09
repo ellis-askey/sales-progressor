@@ -6,13 +6,16 @@
 // What it shares vs keeps out (founder-agreed, 2026-11-09):
 //   IN  — the concrete conveyancing steps that help a neighbour gauge chain
 //         timing, with a real date where one exists (survey booked, lender
-//         valuation booked, enquiries raised).
+//         valuation booked, searches due back, enquiries raised).
 //   OUT — exchange and completion as done (a client self-reports those; not ours
 //         to relay), any money, ID/AML admin, survey findings, enquiry content,
 //         and target/forecast dates. These are simply absent below.
 //
-// The Next-up line is read from resolveDisplayStages — the SAME merged stage view
-// the file's own strip uses — so the two can never disagree.
+// Each conveyancing TRACK shows only its FURTHEST-reached beat, so a later beat
+// supersedes an earlier one — "Search results received" replaces "Searches
+// ordered", "Mortgage offer received" replaces "application submitted". The
+// Next-up line is read from resolveDisplayStages — the SAME merged stage view the
+// file's own strip uses — so the two can never disagree.
 
 import { prisma } from "@/lib/prisma";
 import {
@@ -32,38 +35,62 @@ function esc(s: string): string {
 }
 
 type Comp = { eventDate: Date | null; completedAt: Date | null };
-type LineFn = (c: Comp) => string;
+type Ctx = { searchesDueBack: Date | null };
+type Beat = { codes: string[]; line: (c: Comp, ctx: Ctx) => string };
 
-// Plain factual lines, keyed by milestone code. Both-sides equivalents map to one
-// neutral phrase (and identical lines de-dupe), so the other agent reads the
-// sale's position, not seller-vs-buyer-side mechanics. A code absent here is
-// never shared — that is the keep-out list, enforced by omission.
-const SHAREABLE: Record<string, LineFn> = {
-  VM1: () => "Solicitors instructed",
-  PM1: () => "Solicitors instructed",
-  VM7: () => "Draft contract pack issued",
-  PM7: () => "Draft contract pack issued",
-  PM5: () => "Mortgage application submitted",
-  PM6: (c) => (c.eventDate ? `Lender valuation booked for ${shortDate(c.eventDate)}` : "Lender valuation booked"),
-  PM11: () => "Mortgage offer received",
-  PM8: () => "Searches ordered",
-  PM13: () => "Search results received",
-  PM9: (c) => (c.eventDate ? `Survey booked for ${shortDate(c.eventDate)}` : "Survey booked"),
-  PM10: () => "Survey report received",
-  VM8: () => "Management pack requested",
-  VM9: () => "Management pack received",
-  PM12: () => "Management pack received",
-  PM14: (c) => (c.completedAt ? `Enquiries raised ${shortDate(c.completedAt)}` : "Enquiries raised"),
-  PM20: () => "All enquiries resolved",
-  VM21: () => "All enquiries resolved",
-  VM16: () => "Contracts out for signing",
-  PM22: () => "Contracts out for signing",
-  VM17: () => "Contracts signed and returned",
-  PM23: () => "Contracts signed and returned",
-  PM24: () => "Deposit received",
-  VM18: () => "Ready to exchange",
-  PM25: () => "Ready to exchange",
-};
+// Each track's beats run earliest → furthest. We render only the furthest beat a
+// sale has reached (see module header). Both-sides equivalents sit in the same
+// beat (VM7/PM7, VM18/PM25 …) so a pair never doubles up. Any code absent from
+// every track is never shared — that is the keep-out list, enforced by omission.
+const TRACKS: { key: string; beats: Beat[] }[] = [
+  { key: "instructed", beats: [{ codes: ["VM1", "PM1"], line: () => "Solicitors instructed" }] },
+  {
+    key: "contract",
+    beats: [
+      { codes: ["VM7", "PM7"], line: () => "Draft contract pack issued" },
+      { codes: ["VM16", "PM22"], line: () => "Contracts out for signing" },
+      { codes: ["VM17", "PM23"], line: () => "Contracts signed and returned" },
+    ],
+  },
+  {
+    key: "finances",
+    beats: [
+      { codes: ["PM5"], line: () => "Mortgage application submitted" },
+      { codes: ["PM6"], line: (c) => (c.eventDate ? `Lender valuation booked for ${shortDate(c.eventDate)}` : "Lender valuation booked") },
+      { codes: ["PM11"], line: () => "Mortgage offer received" },
+    ],
+  },
+  {
+    key: "searches",
+    beats: [
+      { codes: ["PM8"], line: (_c, ctx) => (ctx.searchesDueBack ? `Searches ordered, due back around ${shortDate(ctx.searchesDueBack)}` : "Searches ordered") },
+      { codes: ["PM13"], line: () => "Search results received" },
+    ],
+  },
+  {
+    key: "survey",
+    beats: [
+      { codes: ["PM9"], line: (c) => (c.eventDate ? `Survey booked for ${shortDate(c.eventDate)}` : "Survey booked") },
+      { codes: ["PM10"], line: () => "Survey report received" },
+    ],
+  },
+  {
+    key: "mgmt",
+    beats: [
+      { codes: ["VM8"], line: () => "Management pack requested" },
+      { codes: ["VM9", "PM12"], line: () => "Management pack received" },
+    ],
+  },
+  {
+    key: "enquiries",
+    beats: [
+      { codes: ["PM14"], line: (c) => (c.completedAt ? `Enquiries raised ${shortDate(c.completedAt)}` : "Enquiries raised") },
+      { codes: ["PM20", "VM21"], line: () => "All enquiries resolved" },
+    ],
+  },
+  { key: "deposit", beats: [{ codes: ["PM24"], line: () => "Deposit received" }] },
+  { key: "ready", beats: [{ codes: ["VM18", "PM25"], line: () => "Ready to exchange" }] },
+];
 
 // The Next-up line is capped at the gating stages (instructed → enquiries). Once
 // those are through we say "ready to exchange" and go no further — we never reveal
@@ -95,6 +122,7 @@ export async function buildSaleShareSummary(transactionId: string): Promise<stri
           state: true,
           completedAt: true,
           eventDate: true,
+          expectedDate: true,
           reflected: true,
           milestoneDefinition: { select: { code: true } },
         },
@@ -108,6 +136,7 @@ export async function buildSaleShareSummary(transactionId: string): Promise<stri
     state: c.state,
     completedAt: c.completedAt,
     eventDate: c.eventDate,
+    expectedDate: c.expectedDate,
     reflected: c.reflected,
   }));
 
@@ -134,27 +163,40 @@ export async function buildSaleShareSummary(transactionId: string): Promise<stri
     }
   }
 
-  // Bullets — completed shareable steps, with the auto-completed mirror half of a
-  // paired step dropped (reflected), most-recently-logged first, de-duped by text,
-  // capped at five, then shown oldest → newest so it reads as a short progress run.
-  const done = comps
-    .filter((c) => c.state === "complete" && !c.reflected && SHAREABLE[c.code])
-    .map((c) => ({ text: SHAREABLE[c.code](c), at: c.completedAt ? new Date(c.completedAt).getTime() : 0 }))
-    .sort((a, b) => b.at - a.at);
-
-  const seen = new Set<string>();
-  const picked: string[] = [];
-  for (const d of done) {
-    if (seen.has(d.text)) continue;
-    seen.add(d.text);
-    picked.push(d.text);
-    if (picked.length >= 5) break;
+  // Completed, non-mirror rows keyed by code — the raw material for the track walk.
+  const completeByCode = new Map<string, Comp>();
+  for (const c of comps) {
+    if (c.state !== "complete") continue;
+    // Prefer the directly-confirmed half of a paired step over its mirror.
+    if (completeByCode.has(c.code) && c.reflected) continue;
+    completeByCode.set(c.code, { eventDate: c.eventDate, completedAt: c.completedAt });
   }
-  picked.reverse();
+  // Searches due-back — only meaningful while results aren't in yet.
+  const pm13 = comps.find((c) => c.code === "PM13");
+  const ctx: Ctx = { searchesDueBack: pm13 && pm13.state !== "complete" ? pm13.expectedDate : null };
+
+  // Per track, take only the FURTHEST beat reached. Earlier beats are superseded.
+  const lines: { text: string; at: number }[] = [];
+  let nonBaseline = 0;
+  for (const track of TRACKS) {
+    let reached: { beat: Beat; comp: Comp } | null = null;
+    for (const beat of track.beats) {
+      const hit = beat.codes.map((code) => completeByCode.get(code)).find(Boolean);
+      if (hit) reached = { beat, comp: hit };
+    }
+    if (!reached) continue;
+    if (track.key !== "instructed") nonBaseline += 1;
+    lines.push({ text: reached.beat.line(reached.comp, ctx), at: reached.comp.completedAt ? new Date(reached.comp.completedAt).getTime() : 0 });
+  }
+
+  // Drop the "Solicitors instructed" baseline once any real progress shows.
+  let picked = nonBaseline > 0 ? lines.filter((l) => l.text !== "Solicitors instructed") : lines;
+  // Most-recently-reached first, capped, then oldest → newest so it reads as a run.
+  picked = picked.sort((a, b) => b.at - a.at).slice(0, 5).reverse();
 
   const line1 = (tx.propertyAddress || "").split(",")[0].trim() || "this sale";
   const bullets = picked.length
-    ? picked.map((t) => `<li>${esc(t)}</li>`).join("")
+    ? picked.map((p) => `<li>${esc(p.text)}</li>`).join("")
     : "<li>Conveyancing just getting underway</li>";
 
   return (

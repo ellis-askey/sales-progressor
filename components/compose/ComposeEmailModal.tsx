@@ -157,6 +157,9 @@ export function ComposeEmailModal({
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  // True once "Share our latest" has dropped its block in — flips the label to
+  // "Refresh" so a re-click reads as replace-with-the-latest, not add-another.
+  const [shareInserted, setShareInserted] = useState(false);
 
   // body
   const [subject, setSubject] = useState("");
@@ -219,6 +222,7 @@ export function ComposeEmailModal({
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
     setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
+    setShareInserted(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (prefill) void selectSale(prefill.transactionId, prefill);
     else if (initialTransactionId) void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined);
@@ -411,6 +415,7 @@ export function ComposeEmailModal({
     const sig = editorRef.current.querySelector("[data-cem-sig]");
     if (sig) sig.insertAdjacentHTML("beforebegin", shareSummaryHtml);
     else editorRef.current.insertAdjacentHTML("beforeend", shareSummaryHtml);
+    setShareInserted(true);
     updateCount();
   }
 
@@ -674,7 +679,7 @@ export function ComposeEmailModal({
                   <p className="cem-eyebrow">Message</p>
                   {shareSummaryHtml && (
                     <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
-                      Share our latest
+                      {shareInserted ? "Refresh" : "Share our latest"}
                     </button>
                   )}
                 </div>
