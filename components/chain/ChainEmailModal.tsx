@@ -31,6 +31,8 @@ export function ChainEmailModal({
   onClose,
   onOpenAddNode,
   refreshKey = 0,
+  elevated = false,
+  onCloseStart,
 }: {
   open: boolean;
   transactionId: string;
@@ -39,6 +41,13 @@ export function ChainEmailModal({
   onClose: () => void;
   onOpenAddNode?: OpenAddNode;
   refreshKey?: number;
+  // Launched from the chain drawer: layer above it (z-2000) and dock as a bottom
+  // sheet on narrow screens. Off (default) for the page-level check-ins launch,
+  // which opens over the page and keeps the standard centred-modal level.
+  elevated?: boolean;
+  // Fired the instant the composer begins closing (backdrop / X / Escape / after a
+  // successful send) — lets the drawer start its un-park before we fully unmount.
+  onCloseStart?: () => void;
 }) {
   const { toast } = useAgentToast();
   const [agents, setAgents] = useState<ChainEmailAgent[]>([]);
@@ -106,6 +115,8 @@ export function ChainEmailModal({
     <ComposeEmailModal
       open={open}
       onClose={onClose}
+      onCloseStart={onCloseStart}
+      elevated={elevated}
       prefill={prefill}
       chainAgents={agents.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
       onNeedAgentEmail={handleNeedAgentEmail}

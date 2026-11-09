@@ -101,10 +101,18 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
 export type ComposeSaleHint = { line1: string; location: string; photoUrl?: string | null };
 
 export function ComposeEmailModal({
-  open, onClose, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
+  open, onClose, onCloseStart, elevated = false, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
   chainAgents, onNeedAgentEmail, autoPlace,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
+  // Fired the instant a close is requested (backdrop / X / Escape / post-send),
+  // before the exit animation runs — lets a launcher (e.g. the chain drawer)
+  // begin its own return motion in step with the composer's exit.
+  onCloseStart?: () => void;
+  // Layer above a drawer that launched this composer: the backdrop rises to the
+  // 2000 "deep" modal level and, on narrow screens, the modal docks as a bottom
+  // sheet (so it can trade places with the launcher) rather than centring.
+  elevated?: boolean;
   initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null;
   // "Email the chain" mode (optional, additive): the chain's agents shown as a
   // placement checklist. No-email agents call onNeedAgentEmail to open the chain
@@ -162,7 +170,7 @@ export function ComposeEmailModal({
   // on desktop) — we stay mounted until it finishes, then tell the parent to
   // unmount (critique #240).
   const [closing, setClosing] = useState(false);
-  function requestClose() { if (closing) return; setOpenField(null); setClosing(true); }
+  function requestClose() { if (closing) return; onCloseStart?.(); setOpenField(null); setClosing(true); }
   function onShellAnimEnd(e: ReactAnimationEvent) {
     if (closing && e.target === e.currentTarget) { setClosing(false); onClose(); }
   }
@@ -554,7 +562,7 @@ export function ComposeEmailModal({
   );
 
   return createPortal(
-    <div className="cem-backdrop" data-theme={theme} data-closing={closing ? "1" : undefined} onClick={() => { if (openField) setOpenField(null); else requestClose(); }}>
+    <div className={`cem-backdrop${elevated ? " cem-elevated" : ""}`} data-theme={theme} data-closing={closing ? "1" : undefined} style={elevated ? { zIndex: 2000 } : undefined} onClick={() => { if (openField) setOpenField(null); else requestClose(); }}>
       <style>{CEM_CSS}</style>
       <div className="cem-modal" role="dialog" aria-label="New email" data-closing={closing ? "1" : undefined} onAnimationEnd={onShellAnimEnd} onClick={(e) => e.stopPropagation()}>
         <div className="cem-hdr">
@@ -880,5 +888,17 @@ const CEM_CSS = `
   .cem-backdrop{align-items:flex-end;padding:0}
   .cem-modal{width:100%;max-width:100%;max-height:92vh;border-radius:18px 18px 0 0;animation:cemSheetin .3s cubic-bezier(.22,1,.36,1) both}
   .cem-modal[data-closing="1"]{animation:cemSheetout .26s ease both}
+}
+/* Elevated (chain-launched) composer: dock as a bottom sheet up to tablet width,
+   so it trades places vertically with the drawer that opened it. Phones (≤560) get
+   the sheet for every composer via the block above; this extends the sheet to the
+   561–1023 band for the elevated instance only — other composers stay centred on
+   tablet (scoped change, shared composer elsewhere untouched). */
+@media (max-width:1023px){
+  .cem-backdrop.cem-elevated{align-items:flex-end;padding:0}
+  .cem-elevated .cem-recrow{flex-wrap:wrap}
+  .cem-elevated .cem-ccbcc{order:3;width:100%;padding:5px 0 0 44px}
+  .cem-elevated .cem-modal{width:100%;max-width:100%;max-height:92vh;border-radius:18px 18px 0 0;animation:cemSheetin .3s cubic-bezier(.22,1,.36,1) both}
+  .cem-elevated .cem-modal[data-closing="1"]{animation:cemSheetout .26s ease both}
 }
 `;

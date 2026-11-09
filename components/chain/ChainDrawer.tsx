@@ -339,6 +339,23 @@ export function ChainView({
   // "Email the chain" — the shared ChainEmailModal (rendered below) owns the
   // fetch, the chain agents and the no-email edit-drawer flow.
   const [chainEmailOpen, setChainEmailOpen] = useState(false);
+  // Narrow (phone + tablet, ≤1023): the composer docks as a bottom sheet and the
+  // chain drawer hands off vertically — it slides DOWN to park as the composer
+  // rises, then back UP when the composer closes (send or cancel). On desktop the
+  // composer simply layers above the drawer (its own dim), so no park there.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setIsNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  // Drawer's email-handoff motion (narrow only): "down" parks it off the bottom,
+  // "up" brings it back. Stays "up" after an un-park so we never re-trigger the
+  // horizontal entrance; a fresh drawer mount resets it to "none".
+  const [emailAnim, setEmailAnim] = useState<"none" | "down" | "up">("none");
 
   // Seeded server-side (inline tab): pre-fill the seen-link set + mark past the
   // first load so the background reconcile fetch neither shows a skeleton nor
@@ -1182,9 +1199,15 @@ export function ChainView({
               background: "var(--agent-surface-elevated)",
               borderLeft: "0.5px solid rgba(0,0,0,0.08)",
               boxShadow: "-4px 0 24px rgba(0,0,0,0.10)",
-              animation: closing
-                ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
-                : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
+              animation: reduceMotion
+                ? undefined
+                : closing
+                  ? "agent-drawer-out 200ms cubic-bezier(0.25,0,0,1) forwards"
+                  : emailAnim === "down"
+                    ? "chain-park-down 300ms cubic-bezier(.22,1,.36,1) forwards"
+                    : emailAnim === "up"
+                      ? "chain-park-up 320ms cubic-bezier(.22,1,.36,1) forwards"
+                      : "agent-drawer-in 240ms cubic-bezier(0.25,0,0,1) both",
             }
       }
     >
@@ -1273,7 +1296,7 @@ export function ChainView({
               the chain's agents (Hub "New email" style). */}
           <button
             type="button"
-            onClick={() => setChainEmailOpen(true)}
+            onClick={() => { setChainEmailOpen(true); if (isNarrow) setEmailAnim("down"); }}
             className="agent-btn agent-btn-sm agent-btn-secondary chain-email-btn"
             style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
           >
@@ -1287,6 +1310,13 @@ export function ChainView({
             onClose={() => setChainEmailOpen(false)}
             onOpenAddNode={onOpenAddNode}
             refreshKey={refreshKey}
+            // Layer above the drawer (z-2000, the "deep" modal level) and, on narrow
+            // screens, dock as a bottom sheet — pairing with the drawer's park so the
+            // two trade places vertically rather than stacking.
+            elevated
+            // Overlapped hand-back: start raising the drawer the moment the composer
+            // begins its exit, so the drawer rises as the sheet falls.
+            onCloseStart={() => { if (isNarrow) setEmailAnim("up"); }}
           />
         </div>
       )}
