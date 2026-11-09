@@ -11,14 +11,15 @@ import { PortalGlassCard } from "./PortalGlassCard";
 function fmtDateLong(d: Date | string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
-// Soft, month-level rendering for the ESTIMATE so a small shift doesn't read as
-// a broken promise. Early (1-10) / mid (11-20) / late (21+) of the month.
-function fmtMonthLevel(d: Date | string): string {
+// Week-commencing for the client-facing estimate: snap to the Monday, then render
+// like the card's other dates (short month + year). The client only ever sees a
+// WEEK ("W/C 15 Jun 2026"), never a precise day. Agents / progressors can set a
+// specific date, but we always soften it to its week for the client. (#297)
+function formatWeekCommencing(d: Date | string): string {
   const dt = new Date(d);
-  const day = dt.getDate();
-  const tier = day <= 10 ? "early" : day <= 20 ? "mid" : "late";
-  const month = dt.toLocaleDateString("en-GB", { month: "long" });
-  return `${tier} ${month}`;
+  const day = dt.getDay(); // 0 Sun .. 6 Sat
+  dt.setDate(dt.getDate() + (day === 0 ? -6 : 1 - day));
+  return `W/C ${fmtDateLong(dt)}`;
 }
 
 export function PortalKeyDatesCard({
@@ -55,15 +56,21 @@ export function PortalKeyDatesCard({
             <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: P.textPrimary, lineHeight: 1.2 }}>
               {targetDate ? `by ${fmtDateLong(targetDate)}` : "To be confirmed"}
             </p>
+            {/* Caption: what the target actually means (#297). */}
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: P.textMuted, lineHeight: 1.35 }}>
+              Target date to be ready to exchange.
+            </p>
           </div>
         </div>
-        {/* Right: firm planned date, else the soft month-level estimate */}
+        {/* Right: the exchange estimate. Agents / progressors may set a precise
+            date, but the client only ever sees the WEEK it falls in (#297), so a
+            small shift never reads as a broken promise. */}
         <div className="portal-keydates-col2" style={{
           padding: "16px 18px",
           display: "flex", alignItems: "center", gap: 13,
           borderLeft: `0.5px solid ${P.border}`,
         }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={plannedDate ? P.primary : P.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={P.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
             <line x1="8"  y1="2" x2="8"  y2="6" />
@@ -71,22 +78,20 @@ export function PortalKeyDatesCard({
           </svg>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 11, color: P.textSecondary, fontWeight: 500 }}>
-              {plannedDate ? "Planned exchange" : "Estimated exchange"}
+              Estimated exchange
             </p>
             <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: P.textPrimary, lineHeight: 1.2 }}>
-              {plannedDate
-                ? fmtDateLong(plannedDate)
-                : estimateDate
-                  ? `around ${fmtMonthLevel(estimateDate)}`
-                  : "To be confirmed"}
+              {(plannedDate ?? estimateDate)
+                ? formatWeekCommencing((plannedDate ?? estimateDate) as Date)
+                : "To be confirmed"}
             </p>
             {typeof daysUntilPredicted === "number" && daysUntilPredicted >= 0 && (
               <p style={{ margin: "2px 0 0", fontSize: 11, color: P.textMuted }}>
                 {daysUntilPredicted === 0
                   ? "today"
                   : daysUntilPredicted === 1
-                    ? (plannedDate ? "1 day to go" : "about 1 day to go")
-                    : `${plannedDate ? "" : "about "}${daysUntilPredicted} days to go`}
+                    ? "about 1 day to go"
+                    : `about ${daysUntilPredicted} days to go`}
               </p>
             )}
           </div>
