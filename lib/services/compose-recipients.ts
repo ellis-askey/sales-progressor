@@ -161,6 +161,9 @@ export async function getComposeContext(
         id: { not: session.user.id },
         role: { in: ["director", "negotiator"] },
         email: { not: "" },
+        // TSP oversight accounts (our own domain) aren't real colleagues — keep
+        // them out of the compose recipient picker.
+        NOT: { email: { endsWith: "@thesalesprogressor.co.uk" } },
       },
       select: { id: true, name: true, email: true, image: true },
       orderBy: { name: "asc" },

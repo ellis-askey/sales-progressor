@@ -915,7 +915,9 @@ export async function getDraftTransactions(vis: AgentVisibility) {
 
 /** List all negotiators + director in an agency, scoped to firmName if provided. */
 export async function getAgencyTeam(agencyId: string, firmName?: string | null) {
-  const where: Record<string, unknown> = { agencyId, role: { in: ["director", "negotiator"] } };
+  // Excludes TSP oversight accounts (our own domain) — they're not operational
+  // staff, so they never appear as an analytics filter option.
+  const where: Record<string, unknown> = { agencyId, role: { in: ["director", "negotiator"] }, NOT: { email: { endsWith: "@thesalesprogressor.co.uk" } } };
   if (firmName) where.firmName = firmName;
   return prisma.user.findMany({
     where,
