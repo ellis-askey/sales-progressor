@@ -47,30 +47,43 @@ function StubCard({
   const address1 = parts[0]?.trim() || stub.stubPropertyAddress;
   const address2 = parts.slice(1).join(",").trim();
   const hasValidEmail = stub.stubAgentEmail && EMAIL_RE.test(stub.stubAgentEmail);
+  // One of the user's own files, picked to link (not a typed placeholder).
+  const isOwn = !!stub.linkTransactionId;
   const { surfaceClass, tag } = useCardSurface("new-sale-chain-link", "New sale · Chain link", "glass-card");
 
   return (
     <div className={`${surfaceClass} px-4 py-3`} {...tag} style={{ borderRadius: 13 }}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900/90 truncate">{address1}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-sm font-semibold text-slate-900/90 truncate">{address1}</p>
+            {isOwn && <Pill glass tone="brand" size="sm" className="flex-shrink-0">Your sale</Pill>}
+          </div>
           {address2 && <p className="text-xs text-slate-900/40 truncate">{address2}</p>}
-          {stub.stubAgencyName && <p className="text-xs text-slate-900/50 mt-0.5">{stub.stubAgencyName}</p>}
-          <p className="text-xs mt-0.5">
-            {hasValidEmail
-              ? <span className="text-slate-900/40">{stub.stubAgentEmail}</span>
-              : <span className="text-amber-500">Email needed to send invite</span>
-            }
-          </p>
+          {isOwn ? (
+            <p className="text-xs text-slate-900/50 mt-0.5">We&rsquo;ll link this file when the sale is created.</p>
+          ) : (
+            <>
+              {stub.stubAgencyName && <p className="text-xs text-slate-900/50 mt-0.5">{stub.stubAgencyName}</p>}
+              <p className="text-xs mt-0.5">
+                {hasValidEmail
+                  ? <span className="text-slate-900/40">{stub.stubAgentEmail}</span>
+                  : <span className="text-amber-500">Email needed to send invite</span>
+                }
+              </p>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 mt-0.5">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="text-xs text-slate-900/40 agent-hover-link transition-colors"
-          >
-            Edit
-          </button>
+          {!isOwn && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="text-xs text-slate-900/40 agent-hover-link transition-colors"
+            >
+              Edit
+            </button>
+          )}
           <button
             type="button"
             onClick={onRemove}

@@ -19,7 +19,7 @@ import { syncReferralRow, isBrokerEarned, applyRelistReferralRules } from "@/lib
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { solicitorPairViolation, solicitorHandlerRequiredMessage } from "@/lib/services/handover-readiness";
 import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
-import { createChainV2, getManagedChainSiblingIds } from "@/lib/services/chains";
+import { createChainV2, getManagedChainSiblingIds, selfLinkOwnSale } from "@/lib/services/chains";
 import { sendChainInvite } from "@/lib/chain/invite";
 import { evaluateTransactionReminders, createInitialRemindersInline } from "@/lib/services/reminders";
 import { completeMilestone, initializeMilestoneCompletions, maybeUnlockExchangeGate } from "@/lib/services/milestones";
@@ -189,6 +189,9 @@ export async function createTransactionAction(input: {
       stubAgentEmail: string;
       stubAgentPhone: string;
       stubNotes: string;
+      // Set when this entry is one of the caller's own files to self-link (not a
+      // typed placeholder). Linked after the chain is created.
+      linkTransactionId?: string | null;
     }>;
     sendInvites: boolean;
   };
@@ -623,7 +626,13 @@ export async function createTransactionAction(input: {
 
   // Chain creation — runs after transaction is fully committed; failure is non-fatal
   let chainFailed = false;
-  if (input.chain && input.chain.stubs.length > 0) {
+  // Split the builder entries: typed placeholders (created as stubs) vs the
+  // caller's own files (self-linked into the chain after it exists).
+  const placeholderStubs = input.chain?.stubs.filter((s) => !s.linkTransactionId) ?? [];
+  const ownFileEntries = (input.chain?.stubs ?? []).filter(
+    (s): s is (typeof s) & { linkTransactionId: string } => !!s.linkTransactionId,
+  );
+  if (input.chain && (placeholderStubs.length > 0 || ownFileEntries.length > 0)) {
     try {
       const createdChain = await createChainV2({
         transactionId: tx.id,
@@ -634,7 +643,7 @@ export async function createTransactionAction(input: {
         // failed. Your file was saved, but we couldn't link the chain.").
         agencyId: effectiveAgencyId,
         userId: session.user.id,
-        stubs: input.chain.stubs.map((s) => ({
+        stubs: placeholderStubs.map((s) => ({
           direction: s.direction,
           stubPropertyAddress: normaliseAddressString(s.stubPropertyAddress),
           stubAgencyName: s.stubAgencyName,
@@ -691,6 +700,23 @@ export async function createTransactionAction(input: {
             sentByName: session.user.name ?? "",
           });
         }
+      }
+
+      // Self-link the caller's own files into the chain now it exists. Each call
+      // links the real file (and folds its own chain in, scope-checked) at the
+      // matching end — the drawer already blocked files that couldn't join. Order
+      // kept: above entries stack upward, below entries stack down. Best-effort:
+      // a failure flags chainFailed but never unsaves the sale.
+      const linkScope = getAccessScope(session);
+      for (const own of ownFileEntries) {
+        const linked = await selfLinkOwnSale({
+          chainId: createdChain.id,
+          userId: session.user.id,
+          transactionId: own.linkTransactionId,
+          context: { kind: "spine", direction: own.direction },
+          scope: linkScope,
+        });
+        if (!linked.ok) chainFailed = true;
       }
     } catch (err) {
       console.error("Chain creation failed:", err);

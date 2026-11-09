@@ -24,6 +24,11 @@ export type StubFormData = {
   stubAgentEmail: string;
   stubAgentPhone: string;
   stubNotes: string;
+  // When set, this builder entry is one of the user's OWN live files to link
+  // (self-link), not a typed placeholder. New-Sale carries it in memory and
+  // self-links it after the sale is created. Absent on normal placeholders;
+  // stubPropertyAddress holds the file's address for display.
+  linkTransactionId?: string | null;
 };
 
 // Minimal editing contract — superset types like ChainLinkV2 are accepted via structural typing
@@ -395,9 +400,10 @@ export function AddNodeDrawer({
   const [serverError, setServerError] = useState("");
 
   // Add mode: a hand-typed placeholder ("stub") or one of your own live files
-  // ("own"). Self-linking only makes sense on an existing chain (there's an API
-  // to hit) and never while editing an existing link.
-  const canSelfLink = isExistingChain && !isEditMode;
+  // ("own"). Available both on an existing chain (links via the API) and in the
+  // New-Sale builder (in-memory via onSaveToMemory, linked after the sale saves).
+  // Never while editing an existing link.
+  const canSelfLink = (isExistingChain || !!onSaveToMemory) && !isEditMode;
   const [mode, setMode] = useState<"stub" | "own">("stub");
   const [fileQuery, setFileQuery] = useState("");
   // `chain` is set when the file already has its own chain: picking it folds
@@ -415,13 +421,19 @@ export function AddNodeDrawer({
   const [matchCtx, setMatchCtx] = useState<{ txId: string; ourAddress: string; neighbourAddress: string; ourContacts: MatchContact[]; theirContacts: MatchContact[] } | null>(null);
   const [searching, setSearching] = useState(false);
 
-  // Debounced search over your own eligible files when in "own" mode.
+  // Debounced search over your own eligible files when in "own" mode. On an
+  // existing chain we hit the chain-scoped endpoint; in the New-Sale builder
+  // (no chain yet) we hit the chainless one, which also checks the picked file
+  // sits at the safe end of its own chain for this direction.
   useEffect(() => {
-    if (mode !== "own" || !chainId) return;
+    if (mode !== "own" || (!chainId && !onSaveToMemory)) return;
+    const url = chainId
+      ? `/api/chains/${chainId}/link-candidates?q=${encodeURIComponent(fileQuery.trim())}`
+      : `/api/chains/link-candidates?q=${encodeURIComponent(fileQuery.trim())}&direction=${direction}`;
     let active = true;
     setSearching(true);
     const t = setTimeout(() => {
-      fetch(`/api/chains/${chainId}/link-candidates?q=${encodeURIComponent(fileQuery.trim())}`)
+      fetch(url)
         .then((r) => r.json().catch(() => ({ files: [] })))
         .then((data: { files?: FileCandidate[] }) => {
           if (active) setFileResults(data.files ?? []);
@@ -430,9 +442,9 @@ export function AddNodeDrawer({
         .finally(() => { if (active) setSearching(false); });
     }, 220);
     return () => { active = false; clearTimeout(t); };
-  }, [mode, fileQuery, chainId]);
+  }, [mode, fileQuery, chainId, direction, onSaveToMemory]);
 
-  type FormField = Exclude<keyof StubFormData, "stubPropertyAddress">;
+  type FormField = Exclude<keyof StubFormData, "stubPropertyAddress" | "linkTransactionId">;
 
   function update(field: FormField) {
     return (v: string) => setForm((f) => ({ ...f, [field]: v }));
@@ -481,7 +493,18 @@ export function AddNodeDrawer({
   async function handleSave() {
     // Self-link mode: drop one of your own files in as a claimed node.
     if (mode === "own") {
-      if (!chainId || !selectedFile) return;
+      if (!selectedFile) return;
+      // New-Sale builder (no chain yet): record the pick in memory. The file is
+      // actually linked after the sale + chain are created (createTransactionAction).
+      if (onSaveToMemory && !chainId) {
+        onSaveToMemory(
+          { stubPropertyAddress: selectedFile.propertyAddress, stubAgencyName: "", stubAgentName: "", stubAgentEmail: "", stubAgentPhone: "", stubNotes: "", linkTransactionId: selectedFile.id },
+          direction,
+        );
+        onSaved();
+        return;
+      }
+      if (!chainId) return;
       setSaving(true);
       setServerError("");
       try {
