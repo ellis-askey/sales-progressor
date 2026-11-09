@@ -93,6 +93,10 @@ export default async function AgentTodoPage() {
         {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
         <AddNoteButton />
         <ComposeEmailButton variant="ghost" />
+        {/* #292: on mobile, AgentTodoList portals its context-aware "Add to-do /
+            Add review" button into this slot, so all three actions share one row.
+            display:contents means it adds no box (no phantom gap) on desktop. */}
+        <span id="todo-mobile-add-slot" style={{ display: "contents" }} />
       </PageHeader>
 
       {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) ? (

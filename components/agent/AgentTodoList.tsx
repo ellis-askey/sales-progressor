@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
 import { ListChecks, UsersThree, CalendarPlus, CalendarCheck, CalendarBlank } from "@phosphor-icons/react";
@@ -113,6 +114,21 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   const [addOpen, setAddOpen] = useState(false);
   const changeTab = (key: string) => { setAddOpen(false); setActiveTab(key); };
 
+  // #292: on mobile, the context-aware Add button moves up into the page header
+  // (beside Add note / New email) instead of sitting on the tabs row. We portal it
+  // into the slot the To-Do page renders in its header. Desktop keeps it on the
+  // tabs row, so this is phone-only.
+  const [isMobile, setIsMobile] = useState(false);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    setHeaderSlot(document.getElementById("todo-mobile-add-slot"));
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   async function handleToggle(id: string, newStatus: "open" | "done") {
     try {
       const updated = await updateManualTaskAction(id, { status: newStatus });
@@ -223,7 +239,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
           <path d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
       )}
-      {safeActive === "reviews" ? "Add a review" : safeActive === "internal" ? "Add internal to-do" : "Add to-do"}
+      {safeActive === "reviews" ? "Add review" : "Add to-do"}
     </button>
   ) : null;
 
@@ -232,7 +248,10 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
     <ProgressorNameContext.Provider value={progressorName}>
     <RescheduleContext.Provider value={handleReschedule}>
     <DueDateContext.Provider value={handleDueDate}>
-    <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={addAction} glassId="todo-tabs" glassLabel="To-Do · tabs" glassBaseline={{ light: "v04", dark: "v04" }} glassPillBaseline={{ light: "v03", dark: "v04" }}>
+    {/* #292: on mobile, render the Add button up in the page header (via the slot);
+        on desktop it stays on the tabs row. */}
+    {isMobile && headerSlot && addAction ? createPortal(addAction, headerSlot) : null}
+    <TodoTabs tabs={tabs} active={safeActive} onChange={changeTab} action={isMobile ? null : addAction} glassId="todo-tabs" glassLabel="To-Do · tabs" glassBaseline={{ light: "v04", dark: "v04" }} glassPillBaseline={{ light: "v03", dark: "v04" }}>
       {/* Lets the Reviews slot's add-form share this tab-row's open state, so the
           top-right "Add a review" button drives the review composer. */}
       <ReviewAddContext.Provider value={{ open: addOpen, setOpen: setAddOpen }}>
