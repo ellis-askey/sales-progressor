@@ -971,7 +971,7 @@ const copy: Record<string, PortalCopy> = {
         subject: "Buyer has arranged their survey: {address}",
         heroLabel: "Buyer's survey arranged",
         opening: "The buyer has arranged a property survey{surveyorClause}.",
-        whatHappened: "Once the surveyor has a date in mind, access to the property will be arranged in the usual way, normally through the estate agent. There's nothing you need to do at this stage. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
+        whatHappened: "Now the survey is booked, access to the property will be arranged in the usual way, normally through the estate agent, so there's generally nothing you need to do. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
         whatNext: null,
         action: "View your portal",
       },
