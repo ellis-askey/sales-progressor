@@ -8,6 +8,20 @@ Last updated: 2026-11-01
 
 ---
 
+## WhatsApp media durability — redeploy the bridge (2026-11-09)
+
+The WhatsApp media fix (commit `fe8a159b`, critique #287) is **bridge code** — it does not reach prod via a Vercel deploy. The bridge runs separately on Railway, so it needs a **redeploy** to take effect, plus one new volume path.
+
+**Why:** inbound WhatsApp media (photos / voice notes / documents) was fire-and-forget — a single failed download or a single failed POST during an endpoint wobble lost the file for good (prod showed whole outage windows, e.g. 18–22 Oct, where every text landed but nearly all media died). The fix gives media the same disk-backed retry queue the text already has, retries the Baileys download, and keeps media queued until the message is ingested.
+
+**Actions:**
+1. **Redeploy the `whatsapp-bridge` service on Railway** (deploy the current branch once this reaches it). The one-line endpoint change (`attached` field) ships with the normal Vercel deploy; the bridge is the part that needs the manual redeploy.
+2. **Add `MEDIA_QUEUE_DIR` on the persistent volume.** Set `MEDIA_QUEUE_DIR=/data/media-queue` (alongside the existing `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue`). It defaults to `./media-queue`, but without the volume a redeploy would wipe any media still waiting to retry.
+
+**Note on the past gaps:** this fixes forward only. Media already dropped (mediaUrl null, pre-fix) is gone — WhatsApp expires media after ~2 weeks, so the old misses can't be back-fetched. No data migration will recover them.
+
+---
+
 ## Boardwalk "Migrate Sale" — go-live steps (2026-11-01)
 
 New self-service **Migrate Sale** feature, built on the `staging` branch, **ships fully dark**. Three things are needed to turn it on and make it work:
