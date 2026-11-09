@@ -5,6 +5,7 @@ import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { AgentInstallPrompt } from "@/components/agent/AgentInstallPrompt";
+import { AgentPwaPing } from "@/components/agent/AgentPwaPing";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
@@ -190,6 +191,9 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           />
         )}
         <AgentInstallPrompt />
+        {/* Records staff PWA adoption (pwaInstalledAt / pwaLastOpenedAt on User),
+            so we can see which team members actually run it as an app. */}
+        <AgentPwaPing />
         {/* Real-user speed monitoring (perf audit Track 1, 2026-10-10).
             Collects Core Web Vitals per route from real sessions and sends
             them to Vercel's Speed Insights dashboard. Agent app only —

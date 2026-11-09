@@ -513,6 +513,14 @@ model User {
   // Last successful sign-in, stamped in the auth signIn callback (fire-and-forget).
   // Null = hasn't signed in since this was added, or invite not yet accepted.
   lastLoginAt              DateTime?
+  // Staff PWA adoption — mirrors the Contact fields (contact_pwa_adoption). The
+  // agent app pings /api/agent/pwa when it loads in standalone display-mode or on
+  // the browser "appinstalled" event. pwaInstalledAt = first time we saw them
+  // added-to-home-screen (iOS gives no install event, so the first standalone
+  // open stamps it). pwaLastOpenedAt = most recent standalone open. Lets us see
+  // which staff actually run it as an app on their phone.
+  pwaInstalledAt           DateTime?
+  pwaLastOpenedAt          DateTime?
   hasSeenAgentWelcome      Boolean                  @default(false)
   // First-run welcome for an EXTERNAL progression-business owner (shown once,
   // separate from the agent welcome above so the two never collide). Set by
