@@ -1059,7 +1059,9 @@ function SplitFileCard({
                 <div style={{ minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
                   {supporting && (
-                    <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                    // Same explanation container as the needs-you rows (line ~867):
+                    // all-four-corners radius + soft shadow, no left accent bar.
+                    <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05)" }}>
                       {supporting}
                     </p>
                   )}
@@ -1083,7 +1085,9 @@ function SplitFileCard({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
                     {supporting && (
-                      <p style={{ margin: "3px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>{supporting}</p>
+                      // Same explanation container as the needs-you rows so every
+                      // row's copy sits in an identical box, single- or multi-file.
+                      <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05)" }}>{supporting}</p>
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
