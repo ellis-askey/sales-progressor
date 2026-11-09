@@ -225,6 +225,12 @@ const CHAIN_MEMBERS: ChainMember[] = [
 // One recipient with a single pending row, and another with two rows (the
 // second recipient exercises the merged-digest path when a matching digest
 // is supplied).
+// The real modal previews the queued payload.html in an iframe; these demo
+// rows carry a minimal branded stand-in so the gallery frame isn't blank.
+const demoEmailHtml = (heading: string, body: string) =>
+  `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;background:#fff"><div style="background:linear-gradient(135deg,#FF6F4E,#F04E2C);padding:28px 32px;color:#fff"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">${ADDRESS}</div><div style="font-size:22px;font-weight:700;margin-top:6px">${heading}</div></div><div style="padding:28px 32px;color:#2A2320;font-size:14px;line-height:1.6">Hi there,<p>${body}</p><div style="margin-top:22px"><span style="display:inline-block;background:#F04E2C;color:#fff;padding:11px 22px;border-radius:10px;font-weight:700;font-size:13px">View your portal</span></div></div></div>`;
+const withDemoHtml = (it: Omit<PendingQueueItem, "html">): PendingQueueItem => ({ ...it, html: demoEmailHtml(it.subject, it.bodyText) });
+
 const CONFIRM_ITEMS_SINGLE: PendingQueueItem[] = [
   {
     id: "demo-q-1",
@@ -240,38 +246,40 @@ const CONFIRM_ITEMS_SINGLE: PendingQueueItem[] = [
     editedAt: null,
     isExchangeCompletion: false,
   },
-];
+].map(withDemoHtml);
 
 const CONFIRM_ITEMS_MERGED: PendingQueueItem[] = [
   ...CONFIRM_ITEMS_SINGLE,
-  {
-    id: "demo-q-2",
-    recipientContactId: "demo-c-purchaser",
-    recipientName: "Tom & Rebecca Whitfield",
-    recipientRole: "purchaser",
-    recipientEmail: "t.whitfield@example.com",
-    milestoneCode: "PM13",
-    subject: "Searches ordered on your purchase",
-    bodyText: "We've ordered the local searches on your purchase. These usually take two to three weeks to come back.",
-    portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo",
-    scheduledFor: DATE_TODAY,
-    editedAt: null,
-    isExchangeCompletion: false,
-  },
-  {
-    id: "demo-q-3",
-    recipientContactId: "demo-c-purchaser",
-    recipientName: "Tom & Rebecca Whitfield",
-    recipientRole: "purchaser",
-    recipientEmail: "t.whitfield@example.com",
-    milestoneCode: "PM16",
-    subject: "Your mortgage offer is in",
-    bodyText: "Your lender has issued the formal mortgage offer. Your solicitor has a copy and will review the conditions.",
-    portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo",
-    scheduledFor: DATE_TODAY,
-    editedAt: null,
-    isExchangeCompletion: false,
-  },
+  ...[
+    {
+      id: "demo-q-2",
+      recipientContactId: "demo-c-purchaser",
+      recipientName: "Tom & Rebecca Whitfield",
+      recipientRole: "purchaser",
+      recipientEmail: "t.whitfield@example.com",
+      milestoneCode: "PM13",
+      subject: "Searches ordered on your purchase",
+      bodyText: "We've ordered the local searches on your purchase. These usually take two to three weeks to come back.",
+      portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo",
+      scheduledFor: DATE_TODAY,
+      editedAt: null,
+      isExchangeCompletion: false,
+    },
+    {
+      id: "demo-q-3",
+      recipientContactId: "demo-c-purchaser",
+      recipientName: "Tom & Rebecca Whitfield",
+      recipientRole: "purchaser",
+      recipientEmail: "t.whitfield@example.com",
+      milestoneCode: "PM16",
+      subject: "Your mortgage offer is in",
+      bodyText: "Your lender has issued the formal mortgage offer. Your solicitor has a copy and will review the conditions.",
+      portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo",
+      scheduledFor: DATE_TODAY,
+      editedAt: null,
+      isExchangeCompletion: false,
+    },
+  ].map(withDemoHtml),
 ];
 
 // ── Gap-sweep fixtures (2026-10-20) ──────────────────────────────────────────

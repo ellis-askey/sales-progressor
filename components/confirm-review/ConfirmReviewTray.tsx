@@ -37,6 +37,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
   const [items, setItems] = useState<PendingQueueItem[]>([]);
   const [digests, setDigests] = useState<RecipientDigest[]>([]);
   const [button, setButton] = useState<ReviewButtonTheme>(DEFAULT_BUTTON);
+  const [fromEmail, setFromEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,6 +51,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
         setItems(res.items);
         setDigests(res.digests);
         setButton(res.button);
+        setFromEmail(res.fromEmail ?? null);
       }
     } finally {
       setLoading(false);
@@ -196,6 +198,7 @@ export function ConfirmReviewTray({ transactionId }: Props) {
         items={items}
         digests={digests}
         button={button}
+        fromEmail={fromEmail}
         loading={loading}
         onChange={() => { void load(); }}
       />

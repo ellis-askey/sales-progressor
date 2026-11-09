@@ -27,14 +27,15 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { drainMilestoneDigestsForFile } from "@/lib/email/milestone-digest-drain";
+import { drainMilestoneDigestsForFile, decideSendForGroup } from "@/lib/email/milestone-digest-drain";
 import {
   assembleMilestoneDigest,
   collapseBilateralPairs,
   type MilestoneDigestPayload,
 } from "@/lib/email/milestone-digest";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
-import { resolveEmailTheme } from "@/lib/email/brand-theme";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import { resolveEmailTheme, type EmailTheme } from "@/lib/email/brand-theme";
 import type { UserRole } from "@prisma/client";
 
 type ActionResult<T = void> =
@@ -70,6 +71,7 @@ export type PendingQueueItem = {
   milestoneCode: string;
   subject: string;
   bodyText: string;
+  html: string;               // the exact rendered HTML this row will send (payload.html)
   portalUrl: string;          // per-recipient portal link (the CTA button target)
   scheduledFor: string;       // ISO string
   editedAt: string | null;
@@ -92,6 +94,7 @@ export type RecipientDigest = {
   recipientContactId: string;
   subject: string;
   bodyText: string;          // full plain-text body as it will send
+  html: string;              // the exact merged HTML the drain will send (byte-for-byte)
   portalUrl: string;         // per-recipient portal link (the CTA button target)
   overridden: boolean;       // agent has edited the merged email
   editedAt: string | null;   // ISO, latest edit across the group
@@ -104,21 +107,27 @@ export type RecipientDigest = {
 export async function getPendingConfirmQueueForFile(
   transactionId: string,
 ): Promise<
-  | { ok: true; items: PendingQueueItem[]; digests: RecipientDigest[]; button: ReviewButtonTheme }
+  | { ok: true; items: PendingQueueItem[]; digests: RecipientDigest[]; button: ReviewButtonTheme; fromEmail: string | null }
   | { ok: false; error: string }
 > {
   const auth = await requireFileViewer(transactionId);
   if (!auth) return { ok: false, error: "Not found" };
 
-  // The file's client-email button colours (agency theme → coral default), so
-  // the review preview renders the CTA exactly as it will send.
+  // The file's client-email branding (agency theme → coral default). We resolve
+  // the same logo band + theme + sender address the drain uses, so the review
+  // preview renders the CTA and the merged digest HTML exactly as they will send.
   let button: ReviewButtonTheme = (() => {
     const t = resolveEmailTheme(null);
     return { bg: t.buttonBg, text: t.buttonText };
   })();
+  let logoBand = "";
+  let theme: EmailTheme = resolveEmailTheme(null);
+  let fromEmail: string | null = null;
   try {
     const sender = await resolveAgencySenderForTransaction(transactionId);
-    const theme = sender.theme ?? resolveEmailTheme(null);
+    theme = sender.theme ?? resolveEmailTheme(null);
+    logoBand = agencyLogoHeaderHtml({ logoUrl: sender.logoUrl, tileColor: sender.tileColor, scale: sender.scale, align: sender.align });
+    fromEmail = sender.from ?? null;
     button = { bg: theme.buttonBg, text: theme.buttonText };
   } catch {
     // Keep the coral default if the agency sender can't be resolved.
@@ -152,6 +161,7 @@ export async function getPendingConfirmQueueForFile(
       const p = (r.payload ?? {}) as {
         subject?: string;
         text?: string;
+        html?: string;
         milestoneCode?: string;
         portalUrl?: string;
       };
@@ -165,6 +175,7 @@ export async function getPendingConfirmQueueForFile(
         milestoneCode,
         subject: p.subject ?? "",
         bodyText: p.text ?? "",
+        html: p.html ?? "",
         portalUrl: p.portalUrl ?? "",
         scheduledFor: r.scheduledFor.toISOString(),
         editedAt: r.editedAt?.toISOString() ?? null,
@@ -221,10 +232,17 @@ export async function getPendingConfirmQueueForFile(
         (acc, g) => (g.editedAt && (!acc || g.editedAt > acc) ? g.editedAt : acc),
         null,
       );
+      // Render the merged HTML through the SAME decision the drain uses at send
+      // (override → renderEditedEmailHtml; otherwise assembleMilestoneDigest),
+      // with the file's own logo band + theme — so the preview iframe is
+      // byte-for-byte what lands in the inbox and can't drift from the send.
+      const decision = decideSendForGroup(group, logoBand, theme);
+      const html = decision.mode === "digest" ? decision.assembled.html : "";
       digests.push({
         recipientContactId: contactId,
         subject: override?.subject ?? assembled.subject,
         bodyText: override?.text ?? assembled.text,
+        html,
         portalUrl: payloads[0]?.portalUrl ?? "",
         overridden: override !== null,
         editedAt: latestEdit ? latestEdit.toISOString() : null,
@@ -236,7 +254,7 @@ export async function getPendingConfirmQueueForFile(
     }
   }
 
-  return { ok: true, items, digests, button };
+  return { ok: true, items, digests, button, fromEmail };
 }
 
 // ─── Cancel: silently drop queued emails ────────────────────────────
@@ -329,7 +347,7 @@ export async function cancelPendingConfirmEmails(input: {
       transactionId: tx.id,
       type: "internal_note",
       contactIds: [],
-      content: `${session.user.name ?? "Agent"} didn't send the queued update emails${who ? ` to ${who}` : ""}. The steps stay confirmed on the file.`,
+      content: `Client updates${who ? ` for ${who}` : ""} not sent. Milestones remain confirmed.`,
       createdById: session.user.id,
     },
   });
@@ -411,7 +429,7 @@ export async function sendPendingConfirmEmailsNow(input: {
       transactionId: tx.id,
       type: "internal_note",
       contactIds: [],
-      content: `${session.user.name ?? "Agent"} sent queued client update emails now (skipping the 5-min countdown).`,
+      content: `Client update emails sent immediately, without the usual 5-minute delay.`,
       createdById: session.user.id,
     },
   });

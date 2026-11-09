@@ -155,9 +155,13 @@ const MOCK_ROUND_RESPONSE = {
   fileDocuments: [],
 };
 
+// The real modal previews the queued payload.html; these demo rows carry a
+// minimal branded stand-in so the gallery iframe isn't blank.
+const demoQueueHtml = (heading: string, body: string) =>
+  `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;background:#fff"><div style="background:linear-gradient(135deg,#FF6F4E,#F04E2C);padding:28px 32px;color:#fff"><div style="font-size:22px;font-weight:700">${heading}</div></div><div style="padding:28px 32px;color:#2A2320;font-size:14px;line-height:1.6"><p>${body}</p><div style="margin-top:22px"><span style="display:inline-block;background:#F04E2C;color:#fff;padding:11px 22px;border-radius:10px;font-weight:700;font-size:13px">View your portal</span></div></div></div>`;
 const MOCK_QUEUE_ITEMS: PendingQueueItem[] = [
-  { id: "q1", recipientContactId: "c3", recipientName: "Emily Thornton", recipientRole: "vendor", recipientEmail: "emily@email.com", milestoneCode: "VM07", subject: "Your searches are back", bodyText: "Hi Emily, good news, the property searches have returned with no issues. The next step is…", portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D1, editedAt: null, isExchangeCompletion: false },
-  { id: "q2", recipientContactId: "c2", recipientName: "James Cooper", recipientRole: "purchaser", recipientEmail: "j.cooper@cooperlegal.co.uk", milestoneCode: "PM08", subject: "Mortgage offer received", bodyText: "Dear James, we're pleased to confirm the mortgage offer has come through…", portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D2, editedAt: null, isExchangeCompletion: false },
+  { id: "q1", recipientContactId: "c3", recipientName: "Emily Thornton", recipientRole: "vendor", recipientEmail: "emily@email.com", milestoneCode: "VM07", subject: "Your searches are back", bodyText: "Hi Emily, good news, the property searches have returned with no issues. The next step is…", html: demoQueueHtml("Your searches are back", "Good news, the property searches have returned with no issues. The next step is to review them with your solicitor."), portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D1, editedAt: null, isExchangeCompletion: false },
+  { id: "q2", recipientContactId: "c2", recipientName: "James Cooper", recipientRole: "purchaser", recipientEmail: "j.cooper@cooperlegal.co.uk", milestoneCode: "PM08", subject: "Mortgage offer received", bodyText: "Dear James, we're pleased to confirm the mortgage offer has come through…", html: demoQueueHtml("Mortgage offer received", "We're pleased to confirm the mortgage offer has come through. Your solicitor has a copy and will review the conditions."), portalUrl: "https://portal.thesalesprogressor.co.uk/portal/demo", scheduledFor: D2, editedAt: null, isExchangeCompletion: false },
 ];
 const MOCK_TERMS: TermsSection[] = [
   { heading: "When you're charged", body: "We charge £59 per completed sale, taken only when the sale exchanges. Nothing before that." },
