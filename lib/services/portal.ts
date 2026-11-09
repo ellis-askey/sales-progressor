@@ -1443,7 +1443,7 @@ export async function releaseProvisionalBooking(input: {
         transactionId: input.transactionId,
         type: "internal_note",
         contactIds: [],
-        content: `${input.actingUserName || "Someone"} marked this step as complete (${getMilestoneCopy(def.code).label.toLowerCase()}). No client update was sent.`,
+        content: `${getMilestoneCopy(def.code).label} completed. No client update sent.`,
         createdById: input.actingUserId ?? null,
       },
     }).catch(() => {});
@@ -1464,7 +1464,7 @@ export async function releaseProvisionalBooking(input: {
           transactionId: input.transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `${input.actingUserName || "Someone"} logged the lender valuation. The mortgage offer was already confirmed, so clients weren't emailed (a valuation email now would arrive out of order).`,
+          content: `Lender valuation recorded. No client update sent, as the mortgage offer was already confirmed.`,
           createdById: input.actingUserId ?? null,
         },
       }).catch(() => {});
@@ -1486,7 +1486,7 @@ export async function releaseProvisionalBooking(input: {
         transactionId: input.transactionId,
         type: "internal_note",
         contactIds: [],
-        content: `${input.actingUserName || "Someone"} logged the ${getMilestoneCopy(def.code).label.toLowerCase()}. The date had already passed, so clients weren't emailed.`,
+        content: `${getMilestoneCopy(def.code).label} recorded as completed. No client update sent because the completion date was in the past.`,
         createdById: input.actingUserId ?? null,
       },
     }).catch(() => {});
@@ -2524,7 +2524,7 @@ async function sendRichMilestoneEmails(
         transactionId,
         type: "internal_note",
         contactIds: [],
-        content: "Lender valuation confirmed. The mortgage offer was already confirmed, so clients weren't emailed (a valuation email now would arrive out of order).",
+        content: "Lender valuation recorded. No client update sent, as the mortgage offer was already confirmed.",
         createdById: confirmerId ?? null,
       },
     }).catch(() => {});

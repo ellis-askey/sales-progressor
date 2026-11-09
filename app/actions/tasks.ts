@@ -38,8 +38,8 @@ async function logSnoozeNote(input: {
   const when = formatDate(input.wakeDate);
   const names = input.milestoneNames;
   const head = names.length === 1
-    ? `Snoozed "${names[0]}" until ${when}.`
-    : `Snoozed ${names.length} reminders until ${when}: ${names.join(", ")}.`;
+    ? `"${names[0]}" snoozed until ${when}.`
+    : `${names.length} reminders snoozed until ${when}: ${names.join(", ")}.`;
   const content = input.reason ? `${head} ${input.reason}` : head;
   await createCommunicationRecord({
     transactionId: input.transactionId,
@@ -449,7 +449,7 @@ export async function recordManualChaseAction(taskId: string, pathname: string) 
       createdById: session.user.id,
       type: "outbound",
       contactIds: [],
-      content: "Chased manually (recorded by agent)",
+      content: "Manual chase recorded.",
     },
   });
   after(async () => {
@@ -500,13 +500,13 @@ export async function escalateTaskAction(taskId: string, pathname: string, reaso
       // gets chased-through and cleared. Fire-and-forget - a feed failure
       // shouldn't roll back the escalation write above.
       const label = milestoneLabel ?? "chase";
-      const suffix = trimmedReason ? ` — reason: ${trimmedReason}` : "";
+      const suffix = trimmedReason ? ` Reason: ${trimmedReason}` : "";
       await prisma.outboundMessage.create({
         data: {
           transactionId: task.transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `${session.user.name ?? "Someone"} escalated "${label}"${suffix}`,
+          content: `"${label}" escalated.${suffix}`,
           createdById: session.user.id,
         },
       }).catch(() => {});

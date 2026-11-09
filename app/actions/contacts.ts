@@ -71,7 +71,7 @@ export async function createContactAction(input: {
   const contact = await createContact({ ...input, buyerRoundId }, scope);
   await logActivity(
     input.propertyTransactionId,
-    `${session.user.name} added contact: ${input.name} (${input.roleType.replace(/_/g, " ")})`,
+    `${input.name} added as ${input.roleType.replace(/_/g, " ")}.`,
     session.user.id
   );
   revalidateTx(input.propertyTransactionId);
@@ -130,7 +130,7 @@ export async function updateContactAction(input: {
   });
   await logActivity(
     input.transactionId,
-    `${session.user.name} updated contact: ${input.name.trim()}`,
+    `${input.name.trim()}'s contact details updated.`,
     session.user.id
   );
   revalidateTx(input.transactionId);
@@ -147,7 +147,7 @@ export async function deleteContactAction(contactId: string, transactionId: stri
   });
   await deleteContact(contactId, scope);
   if (contact) {
-    await logActivity(transactionId, `${session.user.name} removed contact: ${contact.name}`, session.user.id);
+    await logActivity(transactionId, `${contact.name} removed from the file.`, session.user.id);
   }
   revalidateTx(transactionId);
 }
@@ -196,7 +196,7 @@ export async function reissuePortalTokenAction(
   });
   await logActivity(
     transactionId,
-    `${session.user.name} reset the portal link for ${contact.name}`,
+    `Portal access link reset for ${contact.name}.`,
     session.user.id,
   );
   revalidateTx(transactionId);

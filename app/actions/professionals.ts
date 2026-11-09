@@ -56,7 +56,7 @@ export async function addProfessionalAction(transactionId: string, input: Profes
   await prisma.transactionProfessional.create({
     data: { transactionId, ...data, createdById: session.user.id },
   });
-  await logActivity(transactionId, `${session.user.name} added ${data.name} (${data.role}) to the professionals on this file`, session.user.id);
+  await logActivity(transactionId, `${data.name} added as ${data.role}.`, session.user.id);
   revalidateTx(transactionId);
 }
 
@@ -67,7 +67,7 @@ export async function updateProfessionalAction(transactionId: string, id: string
   const row = await prisma.transactionProfessional.findFirst({ where: { id, transactionId }, select: { id: true } });
   if (!row) throw new Error("Professional not found");
   await prisma.transactionProfessional.update({ where: { id }, data });
-  await logActivity(transactionId, `${session.user.name} updated ${data.name} (${data.role}) in the professionals on this file`, session.user.id);
+  await logActivity(transactionId, `${data.name}'s details updated.`, session.user.id);
   revalidateTx(transactionId);
 }
 
@@ -76,6 +76,6 @@ export async function removeProfessionalAction(transactionId: string, id: string
   const row = await prisma.transactionProfessional.findFirst({ where: { id, transactionId }, select: { id: true, name: true, role: true } });
   if (!row) throw new Error("Professional not found");
   await prisma.transactionProfessional.delete({ where: { id } });
-  await logActivity(transactionId, `${session.user.name} removed ${row.name} (${row.role}) from the professionals on this file`, session.user.id);
+  await logActivity(transactionId, `${row.name} removed from the file.`, session.user.id);
   revalidateTx(transactionId);
 }

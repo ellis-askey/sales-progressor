@@ -787,8 +787,8 @@ export async function saveCompletionDateAction(transactionId: string, completion
   await logActivity(
     transactionId,
     dateStr
-      ? `${session.user.name} set completion date to ${dateStr}`
-      : `${session.user.name} cleared completion date`,
+      ? `Completion date set to ${dateStr}.`
+      : `Completion date removed.`,
     session.user.id
   );
 
@@ -1192,7 +1192,7 @@ export async function changeStatusAction(
       transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${session.user.name} changed status from ${STATUS_LABELS[tx.status]} to ${STATUS_LABELS[status]}.${reasonNote}`,
+      content: `Sale status changed from ${STATUS_LABELS[tx.status]} to ${STATUS_LABELS[status]}.${reasonNote}`,
       createdById: session.user.id,
     },
   });
@@ -1321,7 +1321,7 @@ export async function savePriceAction(transactionId: string, purchasePrice: numb
     await prisma.outboundMessage.create({
       data: {
         transactionId, type: "internal_note", contactIds: [],
-        content: `${session.user.name} updated purchase price from ${oldFmt} to ${newFmt}.`,
+        content: `Purchase price updated from ${oldFmt} to ${newFmt}.`,
         createdById: session.user.id,
       },
     });
@@ -1397,13 +1397,13 @@ async function applyExchangeDateOverride(opts: {
   const dateStr = opts.newDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   const verbText =
     opts.verb === "set"
-      ? `set expected exchange date to ${dateStr}`
+      ? `Expected exchange date set to ${dateStr}`
       : opts.verb === "revised"
-        ? `revised the expected exchange date to ${dateStr}`
-        : `recalibrated the expected exchange date to ${dateStr}`;
+        ? `Expected exchange date updated to ${dateStr}`
+        : `Expected exchange date recalculated to ${dateStr}`;
   await logActivity(
     opts.transactionId,
-    `${opts.actorName} ${verbText}${opts.synced ? " (synced across the chain)" : ""}`,
+    `${verbText}${opts.synced ? " and synced across the chain" : ""}.`,
     opts.actorId,
   );
   revalidateTx(opts.transactionId);
@@ -1454,8 +1454,8 @@ export async function saveOverrideDateAction(transactionId: string, overridePred
   await logActivity(
     transactionId,
     dateStr
-      ? `${session.user.name} set expected exchange date to ${dateStr}`
-      : `${session.user.name} cleared expected exchange date`,
+      ? `Expected exchange date set to ${dateStr}.`
+      : `Expected exchange date removed.`,
     session.user.id
   );
 
@@ -1536,7 +1536,7 @@ export async function reviseOverdueExchangeDateAction(input: {
   const dateStr = parsed.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   await logActivity(
     input.transactionId,
-    `${session.user.name} revised the expected exchange date to ${dateStr}`,
+    `Expected exchange date updated to ${dateStr}.`,
     session.user.id,
   );
 
@@ -1639,8 +1639,8 @@ export async function recalibrateExchangeDateAction(transactionId: string): Prom
   await logActivity(
     transactionId,
     dateStr
-      ? `${session.user.name} recalibrated the expected exchange date to ${dateStr}`
-      : `${session.user.name} recalibrated the expected exchange date`,
+      ? `Expected exchange date recalculated to ${dateStr}.`
+      : `Expected exchange date recalculated.`,
     session.user.id,
   );
   revalidateTx(transactionId);
@@ -1694,7 +1694,7 @@ export async function saveAgentFeeAction(input: {
 
   await logActivity(
     input.transactionId,
-    `${session.user.name} updated agent fee`,
+    `Agent fee updated.`,
     session.user.id
   );
 
@@ -1764,7 +1764,7 @@ export async function reassignAgentAction(transactionId: string, newAgentUserId:
 
   await logActivity(
     transactionId,
-    `${session.user.name ?? "Director"} reassigned file to ${target.name ?? target.id}`,
+    `File reassigned to ${target.name ?? target.id}.`,
     session.user.id,
   );
 
@@ -1867,8 +1867,8 @@ export async function assignUserAction(transactionId: string, assignedUserId: st
   await logActivity(
     transactionId,
     assignee
-      ? `${session.user.name} assigned file to ${assignee.name}`
-      : `${session.user.name} unassigned file`,
+      ? `File assigned to ${assignee.name}.`
+      : `File unassigned.`,
     session.user.id
   );
 
@@ -2098,7 +2098,7 @@ export async function switchServiceTypeAction(
       data: {
         transactionId,
         type: "internal_note",
-        content: `${session.user.name ?? "Admin"} switched this file from ${prevLabel} to ${nextLabel}.`,
+        content: `Progression service changed from ${prevLabel} to ${nextLabel}.`,
         createdById: session.user.id,
         createdByRole: session.user.role,
         isAutomated: false,
@@ -2169,7 +2169,7 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
 
   // Fire-and-forget audit log — the action returns faster, and the audit
   // row lands on the next page render anyway (next revalidation pass).
-  void logActivity(transactionId, `${session.user.name} updated solicitor details`, session.user.id).catch((err) =>
+  void logActivity(transactionId, `Solicitor details updated.`, session.user.id).catch((err) =>
     console.error("[saveSolicitorsAction] logActivity failed:", err),
   );
 
@@ -2234,7 +2234,7 @@ export async function recoverSaleSetupAction(
     void evaluateTransactionReminders(transactionId).catch(() => {});
   }
 
-  await logActivity(transactionId, `${session.user.name} set up the sale details`, session.user.id);
+  await logActivity(transactionId, `Sale details added.`, session.user.id);
   revalidateTx(transactionId);
 }
 
@@ -2252,7 +2252,7 @@ export async function savePurchaseTypeAction(transactionId: string, purchaseType
   const TYPE_LABELS: Record<string, string> = { cash: "Cash", mortgage: "Mortgage", unknown: "Unknown" };
   await logActivity(
     transactionId,
-    `${session.user.name} changed purchase type to ${TYPE_LABELS[purchaseType] ?? purchaseType}`,
+    `Purchase type changed to ${TYPE_LABELS[purchaseType] ?? purchaseType}.`,
     session.user.id
   );
 
@@ -2316,7 +2316,7 @@ export async function saveContactEmailAction(contactId: string, email: string) {
   }
 
   const verb = contact.email ? "updated" : "added";
-  await logActivity(contact.propertyTransactionId, `${session.user.name} ${verb} a client email address`, session.user.id);
+  await logActivity(contact.propertyTransactionId, `Client email address ${verb}.`, session.user.id);
   revalidateTx(contact.propertyTransactionId);
 }
 
@@ -2410,7 +2410,7 @@ export async function saveReferralAction(
     earned: tx.status === "completed",
   });
 
-  await logActivity(transactionId, `${session.user.name} updated referral details`, session.user.id);
+  await logActivity(transactionId, `Referral details updated.`, session.user.id);
 
   revalidateTx(transactionId);
 }
@@ -2509,7 +2509,7 @@ export async function saveBrokerReferralAction(
   });
 
   const label = side === "vendor" ? "seller's onward broker" : "broker referral";
-  await logActivity(transactionId, `${session.user.name} updated ${label} details`, session.user.id);
+  await logActivity(transactionId, `${label.charAt(0).toUpperCase()}${label.slice(1)} details updated.`, session.user.id);
 
   revalidateTx(transactionId);
 }
@@ -2560,7 +2560,7 @@ export async function saveAddressAction(transactionId: string, newAddress: strin
 
   await logActivity(
     transactionId,
-    `${session.user.name} updated property address to "${trimmed}"`,
+    `Property address updated to ${trimmed}.`,
     session.user.id
   );
 
@@ -2587,7 +2587,7 @@ export async function saveIsShareOfFreeholdAction(transactionId: string, isShare
 
   await logActivity(
     transactionId,
-    `${session.user.name} set property type to ${isShareOfFreehold ? "share of freehold" : "standard leasehold"}`,
+    `Property type changed to ${isShareOfFreehold ? "share of freehold" : "standard leasehold"}.`,
     session.user.id
   );
 
@@ -2627,7 +2627,7 @@ export async function saveHousingAssociationAction(
 
   await logActivity(
     transactionId,
-    `${session.user.name} ${tx.housingAssociationName ? "updated" : "added"} the housing association details`,
+    `Housing association details ${tx.housingAssociationName ? "updated" : "added"}.`,
     session.user.id,
   );
   revalidateTx(transactionId);
@@ -2654,7 +2654,7 @@ export async function saveHasManagementPackAction(transactionId: string, hasMana
 
   await logActivity(
     transactionId,
-    `${session.user.name} ${hasManagementPack ? "marked this freehold as a managed development (management pack)" : "removed the management-pack flag"}`,
+    `${hasManagementPack ? "Managed development confirmed. Management pack required." : "Managed development status removed. Management pack no longer flagged as required."}`,
     session.user.id
   );
 
@@ -3346,7 +3346,7 @@ export async function confirmSaleDetailsAction(input: {
           transactionId: input.transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `Milestone reversed: "${def.name}" no longer applies — ${changeDesc}.`,
+          content: `Milestone reversed: "${def.name}" no longer applies (${changeDesc}).`,
           createdById: session.user.id,
         },
       });
@@ -4595,7 +4595,7 @@ export async function relistTransactionImpl(
         transactionId: tx.id,
         type: "internal_note",
         contactIds: [newContact.id],
-        content: `${session.userName} relisted this file with a new buyer (${input.newBuyer.name}) — Round ${nextRoundNumber}.${tx.fallThroughReason ? ` Previous round withdrew: ${tx.fallThroughReason}.` : ""}`,
+        content: `Sale restarted with a new buyer, ${input.newBuyer.name} (round ${nextRoundNumber}).${tx.fallThroughReason ? ` Previous buyer withdrew: ${tx.fallThroughReason}.` : ""}`,
         createdById: session.userId,
         buyerRoundId: newRound.id,
       },

@@ -67,7 +67,7 @@ export async function snoozeNoCommsSideAction(input: {
       type: "internal_note",
       method: null,
       contactIds: [],
-      content: `Snoozed the No-comms nudge for ${SIDE_LABEL[input.side] ?? input.side}: ${reason}`,
+      content: `${input.side === "vendor" ? "Seller" : "Buyer"} communication reminder snoozed. Reason: ${reason}`,
       visibleToClient: false,
       createdById: session.user.id,
       createdByRole: session.user.role,

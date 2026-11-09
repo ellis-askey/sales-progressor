@@ -84,7 +84,7 @@ export async function sendPortalInviteByToken(
       status: "sent",
       isAutomated: false,
       subject: "Portal invite",
-      content: `Portal invite emailed to ${firstName} (${contact.email}).`,
+      content: `Portal invitation sent to ${firstName} (${contact.email}).`,
       contactIds: [contact.id],
       recipientName: contact.name,
       recipientEmail: contact.email,

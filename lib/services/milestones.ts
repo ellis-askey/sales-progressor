@@ -109,7 +109,7 @@ export async function maybeAutoCompleteTransaction(
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: "Marked as completed. Both parties have confirmed.",
+          content: "Sale completed. Completion confirmed on both sides.",
           createdById: opts.actorUserId,
         },
       });
@@ -195,7 +195,7 @@ export async function maybeReopenCompletedTransaction(
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: "Reopened: a completion step was undone, so the sale is active again.",
+          content: "Sale reopened following the reversal of a completion milestone.",
           createdById: opts.actorUserId,
         },
       });
@@ -764,13 +764,13 @@ export async function maybeUnlockExchangeGate(
     cause: "exchange_gate_unlocked",
   });
 
-  const sideLabel = side === "vendor" ? "Vendor" : "Purchaser";
+  const sideLabel = side === "vendor" ? "Seller" : "Buyer";
   await db.outboundMessage.create({
     data: {
       transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${sideLabel} side ready to exchange — all required milestones complete`,
+      content: `${sideLabel} side ready to exchange. All required milestones complete.`,
       createdById,
     },
   });
@@ -2125,7 +2125,7 @@ export async function reverseMilestone(
       transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${completedByName} marked "${def?.name ?? "milestone"}" as incomplete.${reason ? ` Reason: ${reason}` : ""}`,
+      content: `"${def?.name ?? "milestone"}" marked as incomplete.${reason ? ` Reason: ${reason}` : ""}`,
       createdById: completedById,
     },
   });
@@ -2206,7 +2206,7 @@ export async function bulkReverseMilestones(
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `${completedByName} marked "${nameMap.get(defId) ?? "milestone"}" as incomplete (downstream of another reversal).`,
+          content: `"${nameMap.get(defId) ?? "milestone"}" marked as incomplete because an earlier milestone was reversed.`,
           createdById: completedById,
         },
       })
@@ -2295,7 +2295,7 @@ export async function markNotRequired(
       transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${completedByName} marked "${def?.name ?? "milestone"}" as not required. Reason: ${reason}`,
+      content: `"${def?.name ?? "milestone"}" marked as not required. Reason: ${reason}`,
       createdById: completedById,
     },
   });
@@ -2606,7 +2606,7 @@ export async function executeUndoMilestone(input: {
   completedById: string;
   completedByName: string;
 }): Promise<void> {
-  const { transactionId, milestoneDefinitionId, mode, completedById, completedByName } = input;
+  const { transactionId, milestoneDefinitionId, mode, completedById } = input;
 
   const targetDef = await prisma.milestoneDefinition.findUnique({
     where: { id: milestoneDefinitionId },
@@ -2875,8 +2875,8 @@ export async function executeUndoMilestone(input: {
 
     // Communication records — primary milestones
     const modeNote = mode === "target_only"
-      ? " — downstream milestones kept as-is"
-      : ` — undone by ${completedByName}`;
+      ? " Downstream milestones kept as-is."
+      : "";
     for (const defId of primaryIds) {
       const defName = defId === milestoneDefinitionId
         ? targetDef.name
@@ -2886,7 +2886,7 @@ export async function executeUndoMilestone(input: {
           transactionId,
           type: "internal_note",
           contactIds: [],
-          content: `${completedByName} undid "${defName}".${modeNote}`,
+          content: `"${defName}" confirmation undone.${modeNote}`,
           createdById: completedById,
         },
       });
@@ -2900,7 +2900,7 @@ export async function executeUndoMilestone(input: {
             transactionId,
             type: "internal_note",
             contactIds: [],
-            content: `"${item.name}" reset — cascaded from ${completedByName}'s undo of "${targetDef.name}".`,
+            content: `"${item.name}" reset following the reversal of "${targetDef.name}".`,
             createdById: completedById,
           },
         });

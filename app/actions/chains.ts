@@ -25,7 +25,7 @@ export async function confirmNoChainAction(transactionId: string): Promise<void>
     where: { id: transactionId },
     data: { noChainNeededAt: new Date(), noChainNeededById: session.user.id },
   });
-  await logActivity(transactionId, `${session.user.name} confirmed no chain is needed.`, session.user.id);
+  await logActivity(transactionId, `No chain required.`, session.user.id);
   revalidatePath("/agent/chains");
   // The file's Overview chain card reads this flag too — keep an open file tab in sync.
   revalidatePath(`/agent/transactions/${transactionId}`, "page");
@@ -47,7 +47,7 @@ export async function undoNoChainAction(transactionId: string): Promise<void> {
     where: { id: transactionId },
     data: { noChainNeededAt: null, noChainNeededById: null },
   });
-  await logActivity(transactionId, `${session.user.name} reopened the sale for chain setup.`, session.user.id);
+  await logActivity(transactionId, `Sale reopened for chain setup.`, session.user.id);
   revalidatePath("/agent/chains");
   // The file's Overview chain card reads this flag too — keep an open file tab in sync.
   revalidatePath(`/agent/transactions/${transactionId}`, "page");
@@ -116,7 +116,7 @@ export async function setChainLinkExchangeReadyAction(
       const address = link.transaction?.propertyAddress ?? link.stubPropertyAddress ?? "another sale in the chain";
       await logActivity(
         ownFile.id,
-        `${session.user.name} received confirmation that ${address} is also ready to exchange`,
+        `${address} ready to exchange. Confirmation received.`,
         session.user.id,
       ).catch(() => {});
       revalidatePath(`/agent/transactions/${ownFile.id}`);

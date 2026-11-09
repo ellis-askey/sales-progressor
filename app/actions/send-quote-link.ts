@@ -109,7 +109,7 @@ ${session.user.name ?? "Your agent"}
         type: "internal_note",
         method: "email",
         subject: `Sent survey quote link`,
-        content: `Sent survey quote link to ${buyer.email} (${firstName}). URL: ${link}`,
+        content: `Survey quote link sent to ${firstName} (${buyer.email}). Link: ${link}`,
         createdById: session.user.id,
       },
     })

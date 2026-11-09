@@ -687,7 +687,7 @@ export const FEATURES: FeatureDef[] = [
         where: {
           transactionId: { in: ctx.txIds },
           type: "internal_note",
-          content: { startsWith: "Sent survey quote link" },
+          content: { startsWith: "Survey quote link sent" },
         },
         select: { transactionId: true, createdAt: true },
       });

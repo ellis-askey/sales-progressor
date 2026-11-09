@@ -92,7 +92,7 @@ export async function saveChainIntelAction(linkId: string, input: ChainNodeIntel
         transactionId: link.transactionId,
         type: "internal_note",
         contactIds: [],
-        content: `${session.user.name} updated the chain details for this file.`,
+        content: `Chain details updated.`,
         createdById: session.user.id,
       },
     });
@@ -193,7 +193,7 @@ export async function addChainEntryAction(
         transactionId: activityTxId,
         type: "internal_note",
         contactIds: [],
-        content: `${session.user.name} logged a chain update: "${preview}"`,
+        content: `Chain update recorded: ${preview}`,
         createdById: session.user.id,
       },
     });

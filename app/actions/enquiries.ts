@@ -182,9 +182,9 @@ export async function logEnquiryChaseAction(input: {
   // aren't Contact rows. Best-effort: a failure here never fails the chase itself.
   const hasDetail = trimmedNote || input.partyLabel || input.withParty || (isPhone && input.outcome);
   if (ok && (isPhone || isEmail) && hasDetail) {
-    const verb = isPhone ? "Call" : "Email";
+    const verb = isPhone ? "Called" : "Emailed";
     const content =
-      `${partyLabel ? `${verb} with ${partyLabel}` : verb} re enquiries` +
+      `Enquiries update recorded. ${verb}${partyLabel ? ` ${partyLabel}` : ""}` +
       (isPhone && outcomeLabel && input.outcome !== "spoke" ? ` (${outcomeLabel})` : "") +
       (trimmedNote ? `: ${trimmedNote}` : ".");
     try {
@@ -396,7 +396,7 @@ export async function snoozeEnquiryRaiseAction(input: {
   if (reason) {
     await logActivity(
       input.transactionId,
-      `Snoozed the enquiries-raised reminder until ${toUKDateStr(until)}: ${reason}`,
+      `Enquiries reminder snoozed until ${toUKDateStr(until)}. Reason: ${reason}`,
       userId,
     ).catch(() => {});
   }

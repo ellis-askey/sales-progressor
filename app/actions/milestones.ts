@@ -747,7 +747,7 @@ export async function changeBookingDateAction(input: {
       transactionId: input.transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `Changed the ${noun} date from ${fmt(oldDate)} to ${fmt(newEventDate)}.`,
+      content: `${noun.charAt(0).toUpperCase()}${noun.slice(1)} date changed from ${fmt(oldDate)} to ${fmt(newEventDate)}.`,
       createdById: session.user.id,
     },
   });
@@ -935,7 +935,7 @@ export async function reinstateAsMortgageBuyerAction(input: {
         transactionId: input.transactionId,
         type: "internal_note",
         contactIds: [],
-        content: `${session.user.name ?? "An agent"} switched the buyer to mortgage-funded and marked the mortgage steps (applied, valuation and offer received) complete, as the offer was already in place.`,
+        content: `Purchase changed to mortgage-funded. Mortgage application, valuation and offer marked complete, as the offer was already in place.`,
         createdById: session.user.id,
         createdByRole: session.user.role,
       },

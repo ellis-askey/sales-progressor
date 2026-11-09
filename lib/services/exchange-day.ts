@@ -155,7 +155,7 @@ export async function startExchangeDay(input: {
       transactionId: input.transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${input.actorName} started exchange day. Aiming to exchange today, with completion agreed for ${longDate(completionDate)}.`,
+      content: `Exchange planned for today. Agreed completion date: ${longDate(completionDate)}.`,
       createdById: input.actorId,
     },
   });
@@ -180,7 +180,7 @@ export async function cancelExchangeDay(input: {
       transactionId: input.transactionId,
       type: "internal_note",
       contactIds: [],
-      content: `${input.actorName} ended exchange day (no longer aiming to exchange today).`,
+      content: `Exchange no longer planned for today.`,
       createdById: input.actorId,
     },
   });

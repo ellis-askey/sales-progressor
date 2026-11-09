@@ -332,6 +332,6 @@ export async function completeIntroCallAction(transactionId: string, side: Side)
 
   await prisma.propertyTransaction.update({ where: { id: transactionId }, data });
   const sideLabel = side === "vendor" ? "seller" : "buyer";
-  await logActivity(transactionId, `${session.user.name} completed the ${sideLabel} intro call.`, session.user.id);
+  await logActivity(transactionId, `${side === "vendor" ? "Seller" : "Buyer"} introduction call completed.`, session.user.id);
   revalidatePath(`/agent/transactions/${transactionId}`);
 }
