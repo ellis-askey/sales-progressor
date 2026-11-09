@@ -77,7 +77,9 @@ export async function GET(req: NextRequest) {
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId };
   } else {
-    txWhere = { agencyId: vis.agencyId, agentUserId: vis.userId };
+    // "Just mine" = files I agreed (agentUserId) OR am assigned to progress
+    // (assignedUserId), so an in-house progressor's search finds their own book.
+    txWhere = { agencyId: vis.agencyId, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
   }
 
   // Internal staff should not see agents' in-progress drafts in global search

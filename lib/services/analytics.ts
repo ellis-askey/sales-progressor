@@ -38,7 +38,9 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
       ? { agencyId: vis.agencyId, isDemo: false, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId, isDemo: false, agentUserId: { not: null } };
   }
-  return { agencyId: vis.agencyId, isDemo: false, agentUserId: vis.userId };
+  // "Just mine" = files I agreed (agentUserId) OR am assigned to progress
+  // (assignedUserId), so an in-house progressor's analytics aren't all zeroes.
+  return { agencyId: vis.agencyId, isDemo: false, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
 }
 
 export type MonthVolume = {

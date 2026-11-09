@@ -66,7 +66,10 @@ function buildTxWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInpu
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId, agentUserId: { not: null } };
   }
-  return { agencyId: vis.agencyId, agentUserId: vis.userId };
+  // "Just mine" = files I agreed as the agency agent OR am assigned to progress,
+  // matching reminders.ts (Ellis, 2026-11-06). Was agentUserId-only, so an
+  // in-house progressor's files (owned via the progressor slot) never showed.
+  return { agencyId: vis.agencyId, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
 }
 
 // Nested filter for relations (no agencyId — already on the parent model)
@@ -80,7 +83,8 @@ function buildTxNested(vis: AgentVisibility): Prisma.PropertyTransactionWhereInp
       ? { agentUser: { firmName: vis.firmName } }
       : { agentUserId: { not: null } };
   }
-  return { agentUserId: vis.userId };
+  // "Just mine" includes the assigned-progressor slot (see buildTxWhere above).
+  return { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
 }
 
 // ── Hub subtitle signals ──────────────────────────────────────────────────────
@@ -3750,7 +3754,9 @@ export async function getHubChainSetupPending(vis: AgentVisibility): Promise<Hub
       ? { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId };
   } else {
-    txWhere = { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId, agentUserId: vis.userId };
+    // "Progress themselves" = files I agreed (agentUserId) OR am assigned to
+    // progress (assignedUserId) — the in-house progressor slot counts too.
+    txWhere = { status: "active", chainSetupPending: true, serviceType: "self_managed", agencyId: vis.agencyId, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
   }
 
   const txs = await prisma.propertyTransaction.findMany({

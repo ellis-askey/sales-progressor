@@ -2131,10 +2131,12 @@ function serviceTypeFilter(scope: AccessScope) {
 // `ownerUserId` narrows to a single agent's own files — passed for an agency
 // negotiator without see-all, so the chains workspace honours the per-member
 // "Own files / All files" setting exactly like the All Files + Hub lists do
-// (resolveAgentVisibility). Omitted (undefined) = no narrowing beyond the scope.
+// (resolveAgentVisibility). "Own" = files I agreed (agentUserId) OR am assigned
+// to progress (assignedUserId), so an in-house progressor's book shows under
+// "Just mine" too. Omitted (undefined) = no narrowing beyond the scope.
 export async function listChainsForScope(scope: AccessScope, ownerUserId?: string | null): Promise<ChainsWorkspaceChain[]> {
   const ourTxns = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope), ...(ownerUserId ? { agentUserId: ownerUserId } : {}) }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, chainLinkId: { not: null }, ...serviceTypeFilter(scope), ...(ownerUserId ? { OR: [{ agentUserId: ownerUserId }, { assignedUserId: ownerUserId }] } : {}) }] },
     select: {
       id: true,
       agencyId: true,
@@ -2374,7 +2376,7 @@ export async function listCheckInsForScope(scope: AccessScope, ownerUserId?: str
   // surface already filters on. A chain with another, still-live sale of ours
   // keeps showing, anchored on that one.
   const ourTxns = await prisma.propertyTransaction.findMany({
-    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, exchangedAt: null, chainLinkId: { not: null }, ...serviceTypeFilter(scope), ...(ownerUserId ? { agentUserId: ownerUserId } : {}) }] },
+    where: { AND: [scopeTransactionWhere(scope), { status: { in: CHAINS_LIVE_STATUSES }, exchangedAt: null, chainLinkId: { not: null }, ...serviceTypeFilter(scope), ...(ownerUserId ? { OR: [{ agentUserId: ownerUserId }, { assignedUserId: ownerUserId }] } : {}) }] },
     select: { id: true, agencyId: true, propertyAddress: true, chainLink: { select: { chainId: true } } },
   });
   const ourTxIds = new Set(ourTxns.map((t) => t.id));
@@ -2522,7 +2524,7 @@ export async function countChainsNeedsSetup(scope: AccessScope, ownerUserId?: st
     where: {
       AND: [
         scopeTransactionWhere(scope),
-        { status: { in: CHAINS_LIVE_STATUSES }, noChainNeededAt: null, ...serviceTypeFilter(scope), ...(ownerUserId ? { agentUserId: ownerUserId } : {}) },
+        { status: { in: CHAINS_LIVE_STATUSES }, noChainNeededAt: null, ...serviceTypeFilter(scope), ...(ownerUserId ? { OR: [{ agentUserId: ownerUserId }, { assignedUserId: ownerUserId }] } : {}) },
         // No chain yet, OR in a chain but the onward's unconfirmed (#128).
         { OR: [{ chainLinkId: null }, { chainSetupPending: true }] },
       ],
@@ -2534,7 +2536,7 @@ export async function listNoChainSalesForScope(scope: AccessScope, ownerUserId?:
   const rows = await prisma.propertyTransaction.findMany({
     where: { AND: [
       scopeTransactionWhere(scope),
-      { status: { in: CHAINS_LIVE_STATUSES }, ...serviceTypeFilter(scope), ...(ownerUserId ? { agentUserId: ownerUserId } : {}) },
+      { status: { in: CHAINS_LIVE_STATUSES }, ...serviceTypeFilter(scope), ...(ownerUserId ? { OR: [{ agentUserId: ownerUserId }, { assignedUserId: ownerUserId }] } : {}) },
       // No chain yet, OR in a chain but the onward's unconfirmed (#128) — both
       // read as "needs clarifying" on the chains page.
       { OR: [{ chainLinkId: null }, { chainSetupPending: true }] },

@@ -31,7 +31,7 @@ export async function getBrokerDirectoryForAgent(vis: AgentVisibility): Promise<
     ? vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName }, status: { in: activeStatuses } }
       : { agencyId: vis.agencyId, status: { in: activeStatuses } }
-    : { agentUserId: vis.userId, status: { in: activeStatuses } };
+    : { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }], status: { in: activeStatuses } };
   return brokerDirectoryFromWhere(txFilter);
 }
 
@@ -131,7 +131,7 @@ export async function getBrokerFirmDetail(vis: AgentVisibility, firmId: string):
     ? vis.firmName
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId }
-    : { agentUserId: vis.userId };
+    : { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
   return brokerFirmDetailFromWhere(baseWhere, firmId);
 }
 

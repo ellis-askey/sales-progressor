@@ -56,7 +56,10 @@ export async function listTransactions(
       : { agencyId, agentUserId: { not: null } };
     whereClause = { ...whereClause, status: { not: "draft" } };
   } else if (agentUserId) {
-    whereClause = { agencyId, agentUserId, status: { not: "draft" } };
+    // "Just mine" = files I agreed as the agency agent OR am assigned to progress,
+    // matching the Hub + reminders.ts. Was agentUserId-only, so an in-house
+    // progressor's files (owned via the progressor slot) never showed here.
+    whereClause = { agencyId, OR: [{ agentUserId }, { assignedUserId: agentUserId }], status: { not: "draft" } };
   } else {
     whereClause = { agencyId, progressedBy: "progressor", status: { not: "draft" } };
   }
@@ -576,7 +579,10 @@ export async function countTransactionsByStatus(
       : { agencyId, agentUserId: { not: null } };
     whereClause = { ...whereClause, status: { not: "draft" } };
   } else if (agentUserId) {
-    whereClause = { agencyId, agentUserId, status: { not: "draft" } };
+    // "Just mine" = files I agreed as the agency agent OR am assigned to progress,
+    // matching the Hub + reminders.ts. Was agentUserId-only, so an in-house
+    // progressor's files (owned via the progressor slot) never showed here.
+    whereClause = { agencyId, OR: [{ agentUserId }, { assignedUserId: agentUserId }], status: { not: "draft" } };
   } else {
     whereClause = { agencyId, progressedBy: "progressor", status: { not: "draft" } };
   }

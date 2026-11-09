@@ -39,7 +39,10 @@ export function txWhereWorkQueue(vis: AgentVisibility): Prisma.PropertyTransacti
     }
     return { agencyId: vis.agencyId, serviceType: "self_managed" as const, isDemo: false };
   }
-  return { agentUserId: vis.userId, serviceType: "self_managed" as const, isDemo: false };
+  // "Just mine" = files I agreed (agentUserId) OR am assigned to progress
+  // (assignedUserId), matching the Hub + reminders.ts so an in-house progressor's
+  // work queue isn't empty.
+  return { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }], serviceType: "self_managed" as const, isDemo: false };
 }
 
 // Lightweight {id, address} list of the files this user can attach a to-do to

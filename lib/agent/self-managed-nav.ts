@@ -35,7 +35,11 @@ export async function agencyUserHasSelfManagedFiles(
       isDemo: false,
       ...(role === "director"
         ? { agencyId: agencyId ?? "__none__" }
-        : { agentUserId: userId }),
+        // A negotiator unlocks these self-managed surfaces for files they agreed
+        // (agentUserId) OR are assigned to progress (assignedUserId). An in-house
+        // progressor owns their whole book via the progressor slot, so without the
+        // assignedUserId arm they were wrongly locked out (Ruby, Boardwalk go-live).
+        : { OR: [{ agentUserId: userId }, { assignedUserId: userId }] }),
     },
   });
   return count > 0;
