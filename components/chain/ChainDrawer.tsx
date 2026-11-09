@@ -857,10 +857,12 @@ export function ChainView({
       metaLine: [chainStatusMeta(l, currentUserId), chainChasedMeta(l)].filter(Boolean).join(" · ") || null,
       badges: chainWithdrawalBadges(l, directional[l.id]),
       progressPercent: l.progressPercent,
-      // Check-in ticks for every NEIGHBOUR (not our own file — it has real
-      // milestones). Same ChainNodeStepMark + toggle as the check-ins tab.
+      // Check-in ticks are the manual "what we've heard" tracker — only for an
+      // UNCLAIMED placeholder with no real progress. Any claimed/linked file
+      // (ours or another agency's) already carries a real progress bar, so the
+      // ticks would just be noise (2026-11-09, founder).
       steps: l.steps,
-      onToggleStep: mine ? undefined : (stepKey: string, next: boolean) => handleToggleStep(l.id, stepKey, next),
+      onToggleStep: l.transactionId !== null ? undefined : (stepKey: string, next: boolean) => handleToggleStep(l.id, stepKey, next),
       stepBusyKey: ([...stepBusy].find((k) => k.startsWith(`${l.id}:`))?.slice(l.id.length + 1) ?? null),
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
       cta,
@@ -992,13 +994,12 @@ export function ChainView({
         onSaveIntel={handleSaveIntel}
         onAddEntry={handleAddEntry}
         onToggleCheckInStep={
-          // Check-in ticks are for every NEIGHBOUR — the links we hear about, not
-          // run. The only exclusion is our own anchor file (it has real
-          // milestones). The two immediate neighbours ALSO carry the richer
-          // onward/related tracker in their "Their steps" tab; they keep both.
-          // NOT gated on isYourFile: a neighbour whose stub we created still reads
-          // as createdBy-us, so that check wrongly hid claimed neighbours.
-          link.transactionId === transactionId ? undefined : handleToggleStep
+          // Check-in ticks are the manual "what we've heard" tracker — only useful
+          // for an UNCLAIMED placeholder we have no real progress for. Any claimed
+          // or linked file (ours, the team's, a progressor's, another agency's who
+          // accepted the invite) already carries a real progress bar, so the ticks
+          // would just be noise. Ticks on unclaimed stubs only (2026-11-09, founder).
+          link.transactionId !== null ? undefined : handleToggleStep
         }
         checkInStepBusy={stepBusy}
         stepsDirection={stepsDirForLink(link) ?? undefined}
