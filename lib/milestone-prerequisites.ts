@@ -49,7 +49,13 @@ export const DIRECT_PREREQUISITES: Record<string, string[]> = {
   PM21: ["PM20"],
   PM22: ["PM21"],
   PM23: ["PM22"],
-  PM24: ["PM23"],
+  // The deposit is where the contracts chain meets the MORTGAGE chain: a mortgage
+  // buyer can't transfer their exchange deposit until their offer is in. So PM24
+  // needs BOTH signed contracts (PM23) AND the mortgage offer (PM11), not just
+  // contracts. Cash buyers are unaffected — PM11 is auto-not-required for them,
+  // which the availability check treats as satisfied. (Critique #295: the deposit
+  // chase was firing before the mortgage offer existed.)
+  PM24: ["PM23", "PM11"],
   PM26: ["PM25"],
   PM27: ["PM26"],
 };
