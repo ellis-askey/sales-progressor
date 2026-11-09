@@ -12,22 +12,41 @@ import makeWASocket, {
   DisconnectReason,
   downloadMediaMessage,
   fetchLatestBaileysVersion,
+  proto,
   useMultiFileAuthState,
-  type proto,
   type WASocket,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import qrcode from "qrcode";
-import { rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { BridgeConfig } from "./config.js";
 import { log } from "./logger.js";
 import type { Delivery } from "./delivery.js";
 import { normaliseMessage } from "./normalise.js";
 import { Watermark } from "./watermark.js";
-import type { BridgeState } from "./types.js";
+import type { BridgeMessage, BridgeState } from "./types.js";
 
 const waLogger = pino({ level: "silent" });
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// How often to re-attempt downloads that failed their live retries, and how long
+// to keep trying. WhatsApp expires media after ~2 weeks, so past that there is
+// nothing left to re-request and the queued entry is dropped.
+const DOWNLOAD_RETRY_INTERVAL_MS = 60_000;
+const DOWNLOAD_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// A message whose media download failed its live retries, persisted so the
+// download can be re-attempted later (while the socket is up and WhatsApp still
+// holds the media). The encoded proto message is tiny — it carries the media
+// *keys*, not the bytes — so this queue stays small.
+type DownloadRetryItem = {
+  waMessageId: string;
+  mimetype?: string;
+  filename?: string;
+  enqueuedAt: number;
+  waB64: string; // proto.WebMessageInfo, protobuf-encoded then base64
+};
 
 export type ConnectionOpts = {
   id: string;
@@ -48,6 +67,8 @@ export class Connection {
   private groupNames = new Map<string, string>();
   private sock: WASocket | null = null;
   private closing = false; // set on deliberate disconnect so we don't auto-reconnect
+  private downloadQueueDir: string;
+  private drainingDownloads = false;
 
   constructor(cfg: BridgeConfig, delivery: Delivery, opts: ConnectionOpts) {
     this.cfg = cfg;
@@ -56,10 +77,15 @@ export class Connection {
     this.scoped = opts.scoped;
     this.authDir = opts.authDir;
     this.watermark = new Watermark(opts.watermarkPath);
+    // Per-connection: a download must be re-requested through the same account's
+    // socket, so each connection drains only its own queued downloads.
+    this.downloadQueueDir = join(cfg.downloadQueueDir, opts.id.replace(/[^a-zA-Z0-9_-]/g, "_"));
   }
 
   async init(): Promise<void> {
     await this.watermark.init();
+    await mkdir(this.downloadQueueDir, { recursive: true });
+    setInterval(() => void this.drainDownloadQueue(), DOWNLOAD_RETRY_INTERVAL_MS);
   }
 
   private async clearAuth(): Promise<void> {
@@ -140,6 +166,71 @@ export class Connection {
       }
     }
     throw lastErr;
+  }
+
+  // Persist a message whose media download failed its live retries, so we can
+  // re-attempt the download later. We store the protobuf-encoded message (the
+  // media keys, not the bytes) so decode → downloadMediaMessage works intact; a
+  // naive JSON round-trip would corrupt the binary key fields.
+  private async enqueueDownloadRetry(wa: proto.IWebMessageInfo, msg: BridgeMessage): Promise<void> {
+    try {
+      const encoded = proto.WebMessageInfo.encode(wa).finish();
+      const item: DownloadRetryItem = {
+        waMessageId: msg.waMessageId,
+        mimetype: msg.media?.mimetype,
+        filename: msg.media?.filename,
+        enqueuedAt: Date.now(),
+        waB64: Buffer.from(encoded).toString("base64"),
+      };
+      const safe = msg.waMessageId.replace(/[^a-zA-Z0-9_-]/g, "_");
+      await writeFile(join(this.downloadQueueDir, `${safe}.json`), JSON.stringify(item), "utf8");
+    } catch (err) {
+      log.warn("could not queue media download retry", { id: this.id, error: (err as Error).message, waMessageId: msg.waMessageId });
+    }
+  }
+
+  // Re-attempt queued media downloads. Needs a live socket (the re-request goes
+  // through this account's connection); when the socket is down we skip and try
+  // again next interval. A still-failing entry is left queued until it succeeds
+  // or ages out (the media has expired and is unrecoverable).
+  async drainDownloadQueue(): Promise<void> {
+    if (this.drainingDownloads) return;
+    const sock = this.sock;
+    if (!sock || this.state.connection !== "open") return;
+    this.drainingDownloads = true;
+    try {
+      const files = (await readdir(this.downloadQueueDir)).filter((f) => f.endsWith(".json"));
+      if (files.length === 0) return;
+      log.info("draining media download queue", { id: this.id, pending: files.length });
+      for (const file of files) {
+        const path = join(this.downloadQueueDir, file);
+        let item: DownloadRetryItem;
+        try {
+          item = JSON.parse(await readFile(path, "utf8")) as DownloadRetryItem;
+        } catch {
+          await unlink(path).catch(() => {});
+          continue;
+        }
+        if (Date.now() - item.enqueuedAt > DOWNLOAD_MAX_AGE_MS) {
+          log.warn("media download retry expired, dropping", { id: this.id, waMessageId: item.waMessageId });
+          await unlink(path).catch(() => {});
+          continue;
+        }
+        try {
+          const wa = proto.WebMessageInfo.decode(Buffer.from(item.waB64, "base64"));
+          const buffer = await this.downloadMediaWithRetry(wa, sock);
+          await this.delivery.sendMedia(item.waMessageId, buffer, item.mimetype, item.filename);
+          await unlink(path).catch(() => {});
+        } catch (err) {
+          log.warn("media download retry still failing", { id: this.id, waMessageId: item.waMessageId, error: (err as Error).message });
+          // Leave queued — try again next interval, until it succeeds or ages out.
+        }
+      }
+    } catch (err) {
+      log.warn("download queue drain failed", { id: this.id, error: (err as Error).message });
+    } finally {
+      this.drainingDownloads = false;
+    }
   }
 
   async connect(): Promise<void> {
@@ -230,7 +321,8 @@ export class Connection {
               const buffer = await this.downloadMediaWithRetry(wa, sock);
               await this.delivery.sendMedia(msg.waMessageId, buffer, msg.media.mimetype, msg.media.filename);
             } catch (err) {
-              log.warn("media download failed after retries", { id: this.id, error: (err as Error).message, waMessageId: msg.waMessageId });
+              log.warn("media download failed after retries, queued for later retry", { id: this.id, error: (err as Error).message, waMessageId: msg.waMessageId });
+              await this.enqueueDownloadRetry(wa, msg);
             }
           }
         } catch (err) {

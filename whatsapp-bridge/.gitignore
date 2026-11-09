@@ -4,6 +4,7 @@ auth/
 # Disk-backed retry queues.
 queue/
 media-queue/
+download-queue/
 .env
 .env.local
 *.log

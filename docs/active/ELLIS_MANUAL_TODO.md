@@ -16,7 +16,7 @@ The WhatsApp media fix (commit `fe8a159b`, critique #287) is **bridge code** —
 
 **Actions:**
 1. **Redeploy the `whatsapp-bridge` service on Railway** (deploy the current branch once this reaches it). The one-line endpoint change (`attached` field) ships with the normal Vercel deploy; the bridge is the part that needs the manual redeploy.
-2. **Add `MEDIA_QUEUE_DIR` on the persistent volume.** Set `MEDIA_QUEUE_DIR=/data/media-queue` (alongside the existing `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue`). It defaults to `./media-queue`, but without the volume a redeploy would wipe any media still waiting to retry.
+2. **Add two queue dirs on the persistent volume.** Set `MEDIA_QUEUE_DIR=/data/media-queue` and `DOWNLOAD_QUEUE_DIR=/data/download-queue` (alongside the existing `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue`). They default to `./…`, but without the volume a redeploy would wipe anything still waiting to retry. (`MEDIA_QUEUE_DIR` = media whose upload failed; `DOWNLOAD_QUEUE_DIR` = media whose download from WhatsApp failed and is being re-fetched.)
 
 **Note on the past gaps:** this fixes forward only. Media already dropped (mediaUrl null, pre-fix) is gone — WhatsApp expires media after ~2 weeks, so the old misses can't be back-fetched. No data migration will recover them.
 

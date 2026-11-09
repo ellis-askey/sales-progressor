@@ -8,6 +8,7 @@ export type BridgeConfig = {
   authDir: string;
   queueDir: string;
   mediaQueueDir: string;
+  downloadQueueDir: string;
   port: number;
 };
 
@@ -30,7 +31,10 @@ export function loadConfig(): BridgeConfig {
     controlSecret: (process.env.BRIDGE_CONTROL_SECRET ?? "").trim() || bridgeSecret,
     authDir: (process.env.AUTH_DIR ?? "./auth").trim(),
     queueDir: (process.env.QUEUE_DIR ?? "./queue").trim(),
+    // Upload-retry queue (media fetched, POST to PWA failed) and download-retry
+    // queue (Baileys download itself failed — retry the fetch later).
     mediaQueueDir: (process.env.MEDIA_QUEUE_DIR ?? "./media-queue").trim(),
+    downloadQueueDir: (process.env.DOWNLOAD_QUEUE_DIR ?? "./download-queue").trim(),
     port: Number(process.env.PORT ?? 8080) || 8080,
   };
 }
