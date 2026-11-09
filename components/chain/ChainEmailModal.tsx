@@ -7,8 +7,8 @@
 // Optionally pre-addresses one agent into To (e.g. a check-in row's "Email X").
 
 import { useEffect, useState } from "react";
-import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
-import { buildChainEmailDraft, type ChainEmailAgent } from "@/app/actions/chain-email";
+import { ComposeEmailModal, type ComposePrefill, type ComposeSaleHint } from "@/components/compose/ComposeEmailModal";
+import { buildChainEmailDraft, type ChainEmailAgent, type ChainEmailDraft } from "@/app/actions/chain-email";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -33,6 +33,8 @@ export function ChainEmailModal({
   refreshKey = 0,
   elevated = false,
   onCloseStart,
+  initialDraft = null,
+  initialSaleHint = null,
 }: {
   open: boolean;
   transactionId: string;
@@ -41,6 +43,14 @@ export function ChainEmailModal({
   onClose: () => void;
   onOpenAddNode?: OpenAddNode;
   refreshKey?: number;
+  // Prefetched draft (warmed on the button's hover/focus) so the composer seeds
+  // instantly on open instead of waiting on the build round-trip. Only used for
+  // the full-chain email (no single pre-addressed agent).
+  initialDraft?: ChainEmailDraft | null;
+  // The anchor property (address + photo) the drawer already has — lets the
+  // composer paint the sale card + a form skeleton immediately rather than
+  // flashing the empty "search your sales" box while the context loads.
+  initialSaleHint?: ComposeSaleHint | null;
   // Launched from the chain drawer: layer above it (z-2000) and dock as a bottom
   // sheet on narrow screens. Off (default) for the page-level check-ins launch,
   // which opens over the page and keeps the standard centred-modal level.
@@ -57,26 +67,36 @@ export function ChainEmailModal({
   const [autoPlace, setAutoPlace] = useState<{ email: string; name: string; field: Field } | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
+  // Seed the agents + prefill from a resolved draft (shared by the prefetch and
+  // the fetch paths).
+  function applyDraft(draft: ChainEmailDraft) {
+    setAgents(draft.agents);
+    setChainId(draft.chainId);
+    const pre = initialToEmail
+      ? draft.agents.filter((a) => a.email && a.email.toLowerCase() === initialToEmail.toLowerCase())
+      : [];
+    setPrefill({
+      transactionId: draft.anchorTransactionId,
+      to: pre.map((a) => ({ email: a.email as string, name: a.name })),
+      subject: draft.subject,
+      bodyHtml: "<p>Hi all,</p><p><br></p>",
+    });
+  }
+
   // Load the draft once per open (keyed by sale + the pre-addressed agent).
   useEffect(() => {
     if (!open) { setLoadedFor(null); return; }
     const key = `${transactionId}|${initialToEmail ?? ""}`;
     if (loadedFor === key) return;
+    // Prefetched on the button's hover/focus: seed synchronously, no round-trip.
+    // Only the full-chain email (a single pre-addressed agent still fetches, as
+    // the prefetch doesn't carry that filter).
+    if (initialDraft && !initialToEmail) { applyDraft(initialDraft); setLoadedFor(key); return; }
     let cancelled = false;
     void buildChainEmailDraft(transactionId).then((res) => {
       if (cancelled) return;
       if (!res.ok) { toast.error(res.error); onClose(); return; }
-      setAgents(res.draft.agents);
-      setChainId(res.draft.chainId);
-      const pre = initialToEmail
-        ? res.draft.agents.filter((a) => a.email && a.email.toLowerCase() === initialToEmail.toLowerCase())
-        : [];
-      setPrefill({
-        transactionId: res.draft.anchorTransactionId,
-        to: pre.map((a) => ({ email: a.email as string, name: a.name })),
-        subject: res.draft.subject,
-        bodyHtml: "<p>Hi all,</p><p><br></p>",
-      });
+      applyDraft(res.draft);
       setLoadedFor(key);
     });
     return () => { cancelled = true; };
@@ -117,6 +137,7 @@ export function ChainEmailModal({
       onClose={onClose}
       onCloseStart={onCloseStart}
       elevated={elevated}
+      initialSaleHint={initialSaleHint}
       prefill={prefill}
       chainAgents={agents.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
       onNeedAgentEmail={handleNeedAgentEmail}

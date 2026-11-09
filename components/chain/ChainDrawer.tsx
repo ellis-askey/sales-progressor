@@ -21,6 +21,7 @@ import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChainEmailModal } from "@/components/chain/ChainEmailModal";
+import { buildChainEmailDraft, type ChainEmailDraft } from "@/app/actions/chain-email";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
@@ -356,6 +357,20 @@ export function ChainView({
   // "up" brings it back. Stays "up" after an un-park so we never re-trigger the
   // horizontal entrance; a fresh drawer mount resets it to "none".
   const [emailAnim, setEmailAnim] = useState<"none" | "down" | "up">("none");
+  // Warm the chain-email draft on the button's hover/focus (the ViewChainButton
+  // pattern) so the composer seeds instantly on click instead of waiting on the
+  // build round-trip. Idempotent; a click that beats it just falls back to the
+  // modal's own fetch.
+  const emailDraftRef = useRef<ChainEmailDraft | null>(null);
+  const emailDraftFetching = useRef(false);
+  const prefetchEmailDraft = useCallback(() => {
+    if (emailDraftRef.current || emailDraftFetching.current) return;
+    emailDraftFetching.current = true;
+    void buildChainEmailDraft(transactionId).then((res) => {
+      if (res.ok) emailDraftRef.current = res.draft;
+      else emailDraftFetching.current = false; // allow a later hover to retry
+    });
+  }, [transactionId]);
 
   // Seeded server-side (inline tab): pre-fill the seen-link set + mark past the
   // first load so the background reconcile fetch neither shows a skeleton nor
@@ -1297,6 +1312,9 @@ export function ChainView({
           <button
             type="button"
             onClick={() => { setChainEmailOpen(true); if (isNarrow) setEmailAnim("down"); }}
+            onMouseEnter={prefetchEmailDraft}
+            onFocus={prefetchEmailDraft}
+            onTouchStart={prefetchEmailDraft}
             className="agent-btn agent-btn-sm agent-btn-secondary chain-email-btn"
             style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
           >
@@ -1317,6 +1335,21 @@ export function ChainView({
             // Overlapped hand-back: start raising the drawer the moment the composer
             // begins its exit, so the drawer rises as the sheet falls.
             onCloseStart={() => { if (isNarrow) setEmailAnim("up"); }}
+            // Instant open: seed from the prefetched draft (if warmed) and paint the
+            // anchor property + skeleton straight away rather than flashing the
+            // "search your sales" box while the context loads.
+            initialDraft={emailDraftRef.current}
+            initialSaleHint={(() => {
+              const al = links.find((l) => l.transactionId === transactionId);
+              const addr = al?.transaction?.propertyAddress ?? al?.stubPropertyAddress ?? "";
+              if (!addr) return null;
+              const ci = addr.indexOf(",");
+              return {
+                line1: ci === -1 ? addr : addr.slice(0, ci),
+                location: ci === -1 ? "" : addr.slice(ci + 1).trim(),
+                photoUrl: al?.photoUrl ?? al?.transaction?.photoUrl ?? null,
+              };
+            })()}
           />
         </div>
       )}
