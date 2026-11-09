@@ -21,6 +21,11 @@ export async function listAssignableAgentsForAgency(agencyId: string): Promise<A
       role: { in: ["director", "negotiator"] },
       // Exclude the made-up demo staff member who manages demo showcase files.
       isDemo: false,
+      // TSP oversight accounts (our own @thesalesprogressor.co.uk domain, added
+      // to an agency only to keep an eye on things) are never operational staff,
+      // so they must not be an option for owning/reassigning a file. They still
+      // appear in the settings team roster — only the assign dropdowns skip them.
+      email: { not: { endsWith: "@thesalesprogressor.co.uk" } },
     },
     select: { id: true, name: true, email: true, role: true },
     orderBy: [{ role: "asc" }, { name: "asc" }],
