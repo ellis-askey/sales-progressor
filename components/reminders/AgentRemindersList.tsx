@@ -1088,10 +1088,6 @@ function SplitFileCard({
                     )}
                     {!isAuto && (
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: isBuyer ? "var(--agent-success)" : "#2563eb", flexShrink: 0 }} />
-                          {isBuyer ? "Buyer" : "Seller"}
-                        </span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 999, padding: "2px 8px" }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
                           Due {dueDateLabel}
