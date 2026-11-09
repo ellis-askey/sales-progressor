@@ -878,10 +878,11 @@ const copy: Record<string, PortalCopy> = {
       },
       purchaser: {
         subject: "Mortgage valuation: {address}",
-        heroLabel: "Lender valuation underway",
-        // PHYSICAL valuation. For a DESKTOP valuation the render swaps opening +
-        // whatHappened for PM6_DESKTOP_PURCHASER (below) — different sentences,
-        // not just a clause. {attendClause} = " for <date>" (physical) / "" .
+        heroLabel: "Lender valuation booked",
+        // PHYSICAL valuation (banner "booked" — it's scheduled, matching the
+        // seller side + the body). For a DESKTOP valuation the render swaps
+        // heroLabel + opening + whatHappened for PM6_DESKTOP_PURCHASER (below),
+        // different sentences, not just a clause. {attendClause} = " for <date>".
         opening: "Your mortgage lender has arranged their valuation.",
         whatHappened: "Your lender has arranged a valuation of the property{attendClause}.",
         whatNext: "If you haven't already booked your own survey, now is a good time to consider it. A RICS HomeBuyer Report can give you a more detailed picture of the property's condition as you move forward. Once the valuation is complete, your mortgage offer may follow once the lender has finished its checks.",
@@ -1809,6 +1810,7 @@ export const CONTRACT_SIGNED_IN_PERSON: Record<"VM17" | "PM23", { vendor: Recipi
 // two fields in when the confirmer picks "Desktop valuation". whatNext is shared
 // with the physical copy above. No {placeholders} here (nothing to interpolate).
 export const PM6_DESKTOP_PURCHASER = {
+  heroLabel: "Lender valuation underway",
   opening: "Your mortgage lender is carrying out their valuation.",
   whatHappened:
     "Your lender is completing a desktop valuation of the property. This means they'll value it remotely, using information about the property and recent sales of similar properties in the area, so no visit is required.",

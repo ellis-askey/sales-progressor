@@ -1359,7 +1359,8 @@ export async function portalCompleteMilestone(input: {
  * See docs/active/booking-reminders/00-plan.md.
  */
 // A PM6 desktop valuation reads differently to both sides — swap the buyer's
-// opening + body, and the seller's banner + body. No-op unless PM6 + desktop.
+// banner + opening + body, and the seller's banner + body. No-op unless PM6 +
+// desktop.
 // Shared by both render paths (portal-confirm + agent-confirm) so they stay in
 // step. Caller decides isDesktop (PM6 with no event date).
 function applyPm6Desktop<T extends { opening?: string; whatHappened?: string; heroLabel?: string }>(
@@ -1370,7 +1371,7 @@ function applyPm6Desktop<T extends { opening?: string; whatHappened?: string; he
 ): T {
   if (milestoneCode !== "PM6" || !isDesktop) return copy;
   return recipientKey === "purchaser"
-    ? { ...copy, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
+    ? { ...copy, heroLabel: PM6_DESKTOP_PURCHASER.heroLabel, opening: PM6_DESKTOP_PURCHASER.opening, whatHappened: PM6_DESKTOP_PURCHASER.whatHappened }
     : { ...copy, heroLabel: PM6_DESKTOP_VENDOR.heroLabel, whatHappened: PM6_DESKTOP_VENDOR.whatHappened };
 }
 
