@@ -101,7 +101,7 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
 export type ComposeSaleHint = { line1: string; location: string; photoUrl?: string | null };
 
 export function ComposeEmailModal({
-  open, onClose, onCloseStart, elevated = false, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
+  open, onClose, onCloseStart, elevated = false, shareSummaryHtml, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
   chainAgents, onNeedAgentEmail, autoPlace,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
@@ -113,6 +113,10 @@ export function ComposeEmailModal({
   // 2000 "deep" modal level and, on narrow screens, the modal docks as a bottom
   // sheet (so it can trade places with the launcher) rather than centring.
   elevated?: boolean;
+  // "Share our latest" (chain email only): the factual progress block for the
+  // sale. When present, a plain text button on the Message row drops it into the
+  // body on demand. Null/absent → no button.
+  shareSummaryHtml?: string | null;
   initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null;
   // "Email the chain" mode (optional, additive): the chain's agents shown as a
   // placement checklist. No-email agents call onNeedAgentEmail to open the chain
@@ -398,6 +402,18 @@ export function ComposeEmailModal({
   function updateCount() { setCharCount((editorRef.current?.innerText ?? "").replace(/\s+$/, "").length); }
   function onEditorInput() { updateCount(); if (showRefined) setShowRefined(false); }
 
+  // "Share our latest" — drop the sale's progress block in just above the
+  // signature, replacing any previous copy so a re-click refreshes rather than
+  // stacks. Facts only; the sender types their greeting/ask around it.
+  function insertShareSummary() {
+    if (!shareSummaryHtml || !editorRef.current) return;
+    editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
+    const sig = editorRef.current.querySelector("[data-cem-sig]");
+    if (sig) sig.insertAdjacentHTML("beforebegin", shareSummaryHtml);
+    else editorRef.current.insertAdjacentHTML("beforeend", shareSummaryHtml);
+    updateCount();
+  }
+
   async function refine() {
     if (!editorRef.current || refining) return;
     const current = editorRef.current.innerHTML;
@@ -575,7 +591,6 @@ export function ComposeEmailModal({
 
         <div className="cem-body">
           <div className="cem-row">
-            <p className="cem-eyebrow">Sale</p>
             {ctx ? (
               <div className="cem-sale-selected">
                 <PropertyThumb photoUrl={ctx.photoUrl} size={44} />
@@ -655,7 +670,14 @@ export function ComposeEmailModal({
               </div>
 
               <div className="cem-row">
-                <p className="cem-eyebrow">Message</p>
+                <div className="cem-eyebrow-row">
+                  <p className="cem-eyebrow">Message</p>
+                  {shareSummaryHtml && (
+                    <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
+                      Share our latest
+                    </button>
+                  )}
+                </div>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
                     onInput={onEditorInput} />
@@ -791,7 +813,16 @@ const CEM_CSS = `
 .cem-xbtn:hover{opacity:1}
 .cem-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
 .cem-row{padding:13px 22px;border-bottom:1px solid var(--agent-border-subtle,rgba(45,24,16,.06))}
-.cem-eyebrow{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);margin:0 0 7px}
+.cem-eyebrow{font-size:11px;font-weight:700;letter-spacing:0;color:var(--agent-text-muted);margin:0 0 7px}
+/* Message row's label + the "Share our latest" text action, right-aligned. The
+   action is plain text that just darkens on hover — no icon, no accent. */
+.cem-eyebrow-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 7px}
+.cem-eyebrow-row .cem-eyebrow{margin:0}
+.cem-share{background:none;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--agent-text-muted);padding:0;transition:color .14s}
+.cem-share:hover{color:var(--agent-text-primary)}
+/* The inserted progress block inside the editor — tidy bullets, nothing loud. */
+.cem-editor [data-cem-share] ul{margin:0 0 10px;padding-left:20px}
+.cem-editor [data-cem-share] li{margin:0 0 3px}
 .cem-posrel{position:relative}
 .cem-sale-search,.cem-chipbox,.cem-subject,.cem-editor-wrap{border:1px solid var(--agent-border-default,rgba(45,24,16,.1));transition:border-color .15s ease}
 .cem-sale-search:hover,.cem-chipbox:hover,.cem-subject:hover,.cem-editor-wrap:hover{border-color:var(--agent-coral,#FF8A65)}

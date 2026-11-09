@@ -62,6 +62,7 @@ export function ChainEmailModal({
   const { toast } = useAgentToast();
   const [agents, setAgents] = useState<ChainEmailAgent[]>([]);
   const [prefill, setPrefill] = useState<ComposePrefill | null>(null);
+  const [shareHtml, setShareHtml] = useState<string | null>(null);
   const [chainId, setChainId] = useState<string | null>(null);
   const [pending, setPending] = useState<{ linkId: string; field: Field } | null>(null);
   const [autoPlace, setAutoPlace] = useState<{ email: string; name: string; field: Field } | null>(null);
@@ -72,6 +73,7 @@ export function ChainEmailModal({
   function applyDraft(draft: ChainEmailDraft) {
     setAgents(draft.agents);
     setChainId(draft.chainId);
+    setShareHtml(draft.shareSummaryHtml);
     const pre = initialToEmail
       ? draft.agents.filter((a) => a.email && a.email.toLowerCase() === initialToEmail.toLowerCase())
       : [];
@@ -138,6 +140,7 @@ export function ChainEmailModal({
       onCloseStart={onCloseStart}
       elevated={elevated}
       initialSaleHint={initialSaleHint}
+      shareSummaryHtml={shareHtml}
       prefill={prefill}
       chainAgents={agents.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
       onNeedAgentEmail={handleNeedAgentEmail}

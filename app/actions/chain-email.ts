@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { canManageStub, ownershipFromLinkRow, loadChainEditContext } from "@/lib/chain/stub-permissions";
 import { chainEmailSubject } from "@/lib/chain/chain-email";
 import { splitComposeAddress } from "@/lib/services/compose-recipients";
+import { buildSaleShareSummary } from "@/lib/chain/share-summary";
 
 export type ChainEmailStubEdit = {
   id: string;
@@ -46,6 +47,9 @@ export type ChainEmailDraft = {
   chainId: string;
   subject: string;
   agents: ChainEmailAgent[];
+  // "Share our latest" — the factual progress block for OUR sale (null if it
+  // can't be built). The composer drops it in on demand; never auto-inserted.
+  shareSummaryHtml: string | null;
 };
 
 export async function buildChainEmailDraft(
@@ -67,6 +71,9 @@ export async function buildChainEmailDraft(
   if (!owned) return { ok: false, error: "You don't have access to this sale." };
   if (!owned.chainLink) return { ok: false, error: "This sale isn't in a chain yet." };
   const chainId = owned.chainLink.chainId;
+
+  // Build the "Share our latest" block in parallel with the chain reads below.
+  const summaryPromise = buildSaleShareSummary(transactionId);
 
   const links = await prisma.chainLink.findMany({
     where: { chainId },
@@ -155,5 +162,5 @@ export async function buildChainEmailDraft(
     });
   }
 
-  return { ok: true, draft: { anchorTransactionId: transactionId, chainId, subject: chainEmailSubject(firstLines), agents } };
+  return { ok: true, draft: { anchorTransactionId: transactionId, chainId, subject: chainEmailSubject(firstLines), agents, shareSummaryHtml: await summaryPromise } };
 }
