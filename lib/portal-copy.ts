@@ -63,17 +63,17 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "You've instructed your solicitor: {address}",
         heroLabel: "Solicitor instructed",
-        opening: "Your solicitor is now instructed and can start getting things underway.",
+        opening: "Your solicitor has been instructed, so the legal work on your sale can begin.",
         whatHappened: "You've formally instructed your solicitor to act on the sale. They'll now start the conveyancing process, which involves preparing the contract pack, gathering title documents, and handling any questions that come in from the buyer's solicitor.",
-        whatNext: "Your solicitor will prepare the contract pack and, if the property is leasehold, request the management pack from your freeholder or managing agent. This typically takes a few weeks. We'll keep you updated as things move on.",
+        whatNext: "Your solicitor will prepare the contract pack and, if the property is leasehold, request the management pack from your freeholder or managing agent. This typically takes a few weeks. We'll keep you posted.",
         action: "View your portal",
       },
       purchaser: {
         subject: "The seller has instructed their solicitor: {address}",
         heroLabel: "Seller's solicitor instructed",
-        opening: "A little update on where things are with your purchase.",
+        opening: "The seller has instructed their solicitor to handle the sale.",
         whatHappened: "The seller has formally instructed their solicitor to act on the sale. This is an important early step. Things are now moving on the seller's side of the transaction.",
-        whatNext: "There's nothing you need to do for this step at the moment. The seller's solicitor will prepare the contract pack and send it to your solicitor in the coming weeks. We'll let you know when that happens.",
+        whatNext: "There's nothing you need to do at this stage. The seller's solicitor will prepare the contract pack and send it to your solicitor in the coming weeks. We'll let you know once it's been sent.",
         action: "View your portal",
       },
       progressor: {
@@ -127,15 +127,15 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller is engaging with their solicitor: {address}",
         heroLabel: "Seller received welcome pack",
-        opening: "A little update on where things are with your purchase.",
+        opening: "The seller has received their solicitor's welcome paperwork.",
         whatHappened: "The seller has received their welcome pack from their solicitor, the kick-off paperwork for conveyancing on their side.",
-        whatNext: "There's nothing you need to do for this step at the moment. The seller will return the forms to their solicitor in due course.",
+        whatNext: "There's nothing you need to do at this stage. The seller will return the forms to their solicitor in due course.",
         action: "View your portal",
       },
       vendor: {
         subject: "Welcome pack received from your solicitor: {address}",
         heroLabel: "Welcome pack received",
-        opening: "Your solicitor has now sent their welcome pack.",
+        opening: "Your solicitor's welcome pack has arrived.",
         whatHappened: "Your solicitor has sent you their welcome pack. It contains their terms of business, a property questionnaire, and details of what ID they need from you. Returning this quickly is one of the best things you can do to keep the transaction moving.",
         whatNext: "When you have a chance, work through the forms and send them back to your solicitor. Getting them returned in the next few days, where possible, will help your solicitor get properly underway.",
         action: "View your portal",
@@ -159,9 +159,9 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller's ID checks complete: {address}",
         heroLabel: "Seller's ID & AML complete",
-        opening: "A little update on where things are with your purchase.",
+        opening: "The seller has completed their identity checks.",
         whatHappened: "The seller has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the sale.",
-        whatNext: "There's nothing you need to do for this step at the moment. It means another of the early legal checks on the seller's side is now out of the way.",
+        whatNext: "There's nothing you need to do at this stage. It means another of the early legal checks on the seller's side is now out of the way.",
         action: "View your portal",
       },
       vendor: {
@@ -191,9 +191,9 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller is gathering property information: {address}",
         heroLabel: "Property forms in progress",
-        opening: "A little update on where things are with your purchase.",
+        opening: "Here's the latest on your purchase.",
         whatHappened: "The seller has been sent their property information forms (TA6 and TA10) by their solicitor. These capture details about the property's history, what's included in the sale, and any planning or dispute history.",
-        whatNext: "There's nothing you need to do for this step at the moment. The seller will complete and return these to their solicitor in the coming days.",
+        whatNext: "There's nothing you need to do at this stage. The seller will complete and return these to their solicitor in the coming days.",
         action: "View your portal",
       },
       vendor: {
@@ -233,7 +233,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Property forms returned",
         opening: "Another part of the legal work is now in place on your purchase.",
         whatHappened: "The seller has returned their completed property information forms to their solicitor. These will be included in the contract pack that comes to your solicitor.",
-        whatNext: "There's nothing you need to do for this step at the moment. The seller's solicitor will now finalise the contract pack and send it across.",
+        whatNext: "There's nothing you need to do at this stage. The seller's solicitor will now finalise the contract pack and send it across.",
         action: "View your portal",
       },
       progressor: {
@@ -295,9 +295,9 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Leasehold information requested: {address}",
         heroLabel: "Management pack requested",
-        opening: "A little update on where things are with your purchase.",
+        opening: "Here's the latest on your purchase.",
         whatHappened: "The seller's solicitor has requested the management pack from the freeholder or managing agent. This contains the leasehold information your solicitor will need: service charges, ground rent, building insurance, and any planned major works.",
-        whatNext: "Management packs sometimes take a few weeks to come back, but this is now in motion. There's nothing you need to do for this step at the moment.",
+        whatNext: "Management packs sometimes take a few weeks to come back, but this is now in motion. There's nothing you need to do at this stage.",
         action: "View your portal",
       },
       vendor: {
@@ -385,17 +385,17 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller has answered your solicitor's questions: {address}",
         heroLabel: "Seller provided replies",
-        opening: "Progress on your purchase.",
+        opening: "There's been an update on your purchase.",
         whatHappened: "The seller has provided their solicitor with the information needed to reply to your solicitor's enquiries. The seller's solicitor will now formally send the replies across.",
-        whatNext: "Nothing for you to do right now. Your solicitor will let you know once the replies are in their hands.",
+        whatNext: "There's nothing you need to do at this stage. Your solicitor will let you know once the replies are in their hands.",
         action: "View your portal",
       },
       vendor: {
         subject: "Replies to enquiries provided: {address}",
         heroLabel: "Enquiry replies provided",
-        opening: "Good progress on your sale.",
+        opening: "Another part of your sale is moving forward.",
         whatHappened: "You've provided your solicitor with the information they need to prepare replies to the buyer's enquiries.",
-        whatNext: "Your solicitor will compile the formal replies and send them to the buyer's solicitor. We'll let you know when they're across.",
+        whatNext: "Your solicitor will compile the formal replies and send them to the buyer's solicitor. We'll let you know once they've been sent.",
         action: "View your portal",
       },
       progressor: {
@@ -417,14 +417,14 @@ const copy: Record<string, PortalCopy> = {
         subject: "Enquiry replies sent to the buyer's solicitor: {address}",
         heroLabel: "Replies sent",
         opening: "Your solicitor has replied to the enquiries.",
-        whatHappened: "Your solicitor has sent their replies to the buyer's solicitor's initial enquiries. The buyer's solicitor will now review these and may come back with further questions. This is completely normal.",
+        whatHappened: "Your solicitor has sent their replies to the buyer's solicitor's initial enquiries. The buyer's solicitor will now review these and may come back with further questions. This is a normal part of conveyancing.",
         whatNext: "There's nothing for you to do right now. If another round of questions arrives, we'll let you know.",
         action: "View your portal",
       },
       purchaser: {
         subject: "The seller has replied to your solicitor's enquiries: {address}",
         heroLabel: "Enquiry replies received",
-        opening: "Progress on the enquiries.",
+        opening: "There's been an update on the enquiries.",
         whatHappened: "The seller's solicitor has sent replies to your solicitor's initial enquiries. Your solicitor will now review the answers and decide whether any further questions are needed.",
         whatNext: "Your solicitor will let you know if anything in the replies needs your attention. Otherwise, they'll continue working through the remaining points before you move towards exchange.",
         action: "View your portal",
@@ -447,15 +447,15 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Your further questions are with the seller's side: {address}",
         heroLabel: "Further enquiries received",
-        opening: "Quick update on your purchase.",
+        opening: "The seller's solicitor has received the follow-up questions.",
         whatHappened: "The further enquiries your solicitor raised have been received by the seller's solicitor. They'll now work through the additional points with the seller.",
-        whatNext: "Nothing for you to do right now.",
+        whatNext: "There's nothing you need to do at this stage.",
         action: "View your portal",
       },
       vendor: {
         subject: "Additional enquiries from the buyer: {address}",
         heroLabel: "Further enquiries received",
-        opening: "Another round of questions.",
+        opening: "The buyer's solicitor has sent over some further questions.",
         whatHappened: "Most transactions go through at least two rounds of enquiries before all questions are resolved. Your solicitor will work through these and may need your input on some points.",
         whatNext: "Your solicitor will work through these. If they need your input on any points, they'll be in touch. Please respond as promptly as you can.",
         action: "View your portal",
@@ -478,15 +478,15 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller has answered the further questions: {address}",
         heroLabel: "Additional replies provided",
-        opening: "Progress on your purchase.",
+        opening: "The seller has provided answers to the further questions.",
         whatHappened: "The seller has provided their solicitor with answers to the additional enquiries your solicitor raised. The seller's solicitor will now send these replies across.",
-        whatNext: "Nothing for you to do right now.",
+        whatNext: "There's nothing you need to do at this stage.",
         action: "View your portal",
       },
       vendor: {
         subject: "Additional replies provided: {address}",
         heroLabel: "Additional replies provided",
-        opening: "Good progress on your sale.",
+        opening: "You've provided the information needed for the further replies.",
         whatHappened: "You've given your solicitor the additional information needed to reply to the buyer's further enquiries.",
         whatNext: "Your solicitor will compile and send the additional replies to the buyer's solicitor.",
         action: "View your portal",
@@ -508,15 +508,15 @@ const copy: Record<string, PortalCopy> = {
     emailCopy: {
       vendor: {
         subject: "All enquiry replies sent, moving towards exchange: {address}",
-        heroLabel: "All replies sent",
-        opening: "The enquiries are behind you.",
-        whatHappened: "Your solicitor has sent replies to all outstanding enquiries from the buyer's solicitor. Both sides are now working towards exchange of contracts.",
+        heroLabel: "Further enquiry replies sent",
+        opening: "Your solicitor has sent the latest enquiry replies.",
+        whatHappened: "Your solicitor has sent replies to all outstanding enquiries from the buyer's solicitor. The buyer's solicitor will review the replies before confirming whether anything remains outstanding.",
         whatNext: "The next steps are your solicitor sending you the contract to sign and confirming they're ready to exchange. We'll be in touch when there's an update.",
         action: "View your portal",
       },
       purchaser: {
         subject: "The seller has replied to all enquiries: {address}",
-        heroLabel: "All replies received",
+        heroLabel: "Further enquiry replies received",
         opening: "The enquiry stage is winding up.",
         whatHappened: "The seller's solicitor has replied to all of your solicitor's enquiries. Your solicitor will now review the additional replies and work through any remaining outstanding points.",
         whatNext: "Once your solicitor is satisfied with all the replies, they'll prepare their final report to you and confirm they're ready to move towards exchange.",
@@ -541,9 +541,9 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Seller has received their contract: {address}",
         heroLabel: "Seller's contract issued",
-        opening: "A little update on where things are with your purchase.",
+        opening: "The seller has received their contract to review and sign.",
         whatHappened: "The seller has received their contract documents to review and sign. This is an important step. This brings things another step closer to exchange.",
-        whatNext: "There's nothing you need to do for this step at the moment. We'll let you know once the seller has signed and returned their contract.",
+        whatNext: "There's nothing you need to do at this stage. We'll let you know once the seller has signed and returned their contract.",
         action: "View your portal",
       },
       vendor: {
@@ -614,14 +614,14 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Ready to exchange",
         opening: "Your solicitor has confirmed they are ready to exchange.",
         whatHappened: "Your solicitor has everything in place to exchange contracts. They've confirmed to us that they're ready to proceed as soon as the buyer's side is ready too.",
-        whatNext: "We're now checking that everything is also in place on the buyer's side. Once both solicitors are ready, exchange can sometimes follow quite quickly, so it's worth keeping an eye on your phone in case anything needs confirming.",
+        whatNext: "We're now checking that everything is also in place on the buyer's side. Once both solicitors are ready and a completion date has been agreed, exchange can often be arranged, so it's worth keeping an eye on your phone in case anything needs confirming.",
         action: "View your portal",
       },
       purchaser: {
         subject: "The seller's solicitor is ready to exchange: {address}",
         heroLabel: "Seller ready to exchange",
         opening: "The seller's solicitor has confirmed they are ready to exchange.",
-        whatHappened: "The seller's solicitor has confirmed they're ready to exchange contracts. If your solicitor is also ready, exchange can be coordinated imminently.",
+        whatHappened: "The seller's solicitor has confirmed they're ready to exchange contracts. If your solicitor is also ready and the completion arrangements are agreed, the solicitors can coordinate exchange.",
         whatNext: "If you haven't already, it's worth checking that your solicitor has both your signed contract and the deposit as cleared funds, as they'll need these before exchange. We'll be in touch as soon as exchange is confirmed.",
         action: "View your portal",
       },
@@ -643,7 +643,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Contracts exchanged, your sale is legally committed: {address}",
         heroLabel: "Contracts exchanged",
-        opening: "Contracts have exchanged on your sale.",
+        opening: "Contracts have exchanged. Congratulations on reaching this milestone.",
         whatHappened: "Both solicitors have formally exchanged signed contracts, and the sale is now legally binding. Neither side can withdraw without significant financial penalty. The completion date is now fixed.",
         whatNext: "Between now and completion, you can focus on getting the property ready to hand over at the agreed time. Your solicitor will take care of the legal transfer of funds and will confirm with you once completion has taken place.",
         action: "View your portal",
@@ -680,7 +680,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Sale complete, congratulations: {address}",
         heroLabel: "Sale complete",
-        opening: "Congratulations. It's done.",
+        opening: "Congratulations. Your sale has completed.",
         whatHappened: "Your sale has completed. The purchase funds have been transferred, any mortgage secured on the property has been repaid by your solicitor, and ownership of the property has transferred to the buyer. The sale is legally concluded.",
         whatNext: "Your solicitor will send you a completion statement showing the final figures. If you're also buying, the net proceeds will be passed to your purchase solicitor. Keep your completion statement safely for your records. You may need it for tax purposes.",
         action: "View your portal",
@@ -719,17 +719,17 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "You've instructed your solicitor: {address}",
         heroLabel: "Solicitor instructed",
-        opening: "Your solicitor is now instructed and can start getting things underway.",
+        opening: "Your solicitor has been instructed, so the legal work on your purchase can begin.",
         whatHappened: "You've formally instructed your solicitor to act on your purchase. They'll now contact you with a welcome pack, their terms of business, and details of what they need from you to get started.",
-        whatNext: "If you haven't already, it's worth working through your solicitor's welcome pack and ID checks when you get a chance, as they'll need these before they can get fully underway. We'll keep you updated as things move on.",
+        whatNext: "If you haven't already, it's worth working through your solicitor's welcome pack and ID checks when you get a chance, as they'll need these before they can get fully underway. We'll keep you posted.",
         action: "View your portal",
       },
       vendor: {
         subject: "The buyer has instructed their solicitor: {address}",
         heroLabel: "Buyer's solicitor instructed",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer has instructed their solicitor to handle the purchase.",
         whatHappened: "The buyer has formally instructed their solicitor to act on the purchase. Conveyancing is now underway on the buyer's side.",
-        whatNext: "There's nothing you need to do for this step at the moment. We'll keep you updated as both sides progress.",
+        whatNext: "There's nothing you need to do at this stage. We'll keep you posted as both sides make progress.",
         action: "View your portal",
       },
       progressor: {
@@ -773,9 +773,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's ID checks complete: {address}",
         heroLabel: "Buyer's ID & AML complete",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer has completed their identity checks.",
         whatHappened: "The buyer has completed their ID and anti-money laundering checks. Their solicitor can now begin substantive work on the purchase.",
-        whatNext: "There's nothing you need to do for this step at the moment. It means another of the early legal checks on the buyer's side is now out of the way.",
+        whatNext: "There's nothing you need to do at this stage. It means another of the early legal checks on the buyer's side is now out of the way.",
         action: "View your portal",
       },
       purchaser: {
@@ -837,7 +837,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's mortgage application is in: {address}",
         heroLabel: "Mortgage application submitted",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer has submitted their mortgage application.",
         whatHappened: "The buyer has submitted their mortgage application to their lender. The lender will now process the application. This typically includes a valuation visit to the property. We'll be in touch to coordinate access.",
         whatNext: "We'll let you know when the mortgage offer is issued.",
         action: "View your portal",
@@ -847,7 +847,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Mortgage application submitted",
         opening: "Your mortgage application has now been submitted.",
         whatHappened: "Your full mortgage application has been submitted to your lender. They'll now assess your application, arrange a valuation of the property, and work towards issuing a formal mortgage offer.",
-        whatNext: "Your lender will book a valuation of the property, usually within a week or two. Once the valuation is done, the formal mortgage offer typically follows within 1 to 3 weeks. Your broker or lender will keep you updated.",
+        whatNext: "Your lender will book a valuation of the property, when the lender is ready. Once the valuation is done, the formal mortgage offer typically follows within 1 to 3 weeks. Your broker or lender will keep you updated.",
         action: "View your portal",
       },
       progressor: {
@@ -871,20 +871,20 @@ const copy: Record<string, PortalCopy> = {
         // PHYSICAL. For a DESKTOP valuation the render swaps heroLabel +
         // whatHappened for PM6_DESKTOP_VENDOR. {attendClause} = " for <date>".
         heroLabel: "Lender valuation booked",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer's lender has booked their valuation of the property{attendClause}. This is a standard part of the buyer's mortgage application, with a surveyor visiting on behalf of the lender to confirm the property's value. The appointment itself will usually take around 30 minutes and access has already been arranged, so there's nothing else you need to do. Once the valuation is complete, the buyer's mortgage offer will typically follow within 1 to 3 weeks. We'll let you know as soon as it's issued.",
+        opening: "Here's where things stand with your sale.",
+        whatHappened: "The buyer's lender has booked their valuation of the property{attendClause}. This is a standard part of the buyer's mortgage application, with a surveyor visiting on behalf of the lender to confirm the property's value. The appointment itself will usually take around 30 minutes and access has already been arranged, so there's nothing else you need to do. Once the valuation is complete, the buyer's mortgage offer may follow once the lender has finished its checks. We'll let you know as soon as it's issued.",
         whatNext: null,
         action: "View your portal",
       },
       purchaser: {
         subject: "Mortgage valuation: {address}",
-        heroLabel: "Lender valuation booked",
+        heroLabel: "Lender valuation underway",
         // PHYSICAL valuation. For a DESKTOP valuation the render swaps opening +
         // whatHappened for PM6_DESKTOP_PURCHASER (below) — different sentences,
         // not just a clause. {attendClause} = " for <date>" (physical) / "" .
         opening: "Your mortgage lender has arranged their valuation.",
         whatHappened: "Your lender has arranged a valuation of the property{attendClause}.",
-        whatNext: "If you haven't already booked your own survey, now is a good time to consider it. A RICS HomeBuyer Report can give you a more detailed picture of the property's condition as you move forward. Once the valuation is complete, your mortgage offer should follow within 1 to 3 weeks.",
+        whatNext: "If you haven't already booked your own survey, now is a good time to consider it. A RICS HomeBuyer Report can give you a more detailed picture of the property's condition as you move forward. Once the valuation is complete, your mortgage offer may follow once the lender has finished its checks.",
         action: "View your portal",
       },
       progressor: {
@@ -938,9 +938,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's solicitor has ordered searches: {address}",
         heroLabel: "Searches ordered",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer's solicitor has ordered the property searches.",
         whatHappened: "The buyer's solicitor has submitted search applications to the local authority, water authority, and other relevant bodies. Searches check for planning permissions, flood risk, and drainage. They're a standard part of the buyer's due diligence.",
-        whatNext: "There's nothing you need to do for this step at the moment. We'll keep you updated as the next pieces fall into place.",
+        whatNext: "There's nothing you need to do at this stage. We'll keep you updated as the next pieces fall into place.",
         action: "View your portal",
       },
       purchaser: {
@@ -968,15 +968,15 @@ const copy: Record<string, PortalCopy> = {
     next: "Your surveyor will inspect the property and prepare their report.",
     emailCopy: {
       vendor: {
-        subject: "Buyer has arranged their survey, {address}",
+        subject: "Buyer has arranged their survey: {address}",
         heroLabel: "Buyer's survey arranged",
         opening: "The buyer has arranged a property survey{surveyorClause}.",
-        whatHappened: "Once the surveyor has a date in mind, access to the property will be arranged in the usual way, normally through the estate agent. There's nothing you need to do for this step at the moment. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
+        whatHappened: "Once the surveyor has a date in mind, access to the property will be arranged in the usual way, normally through the estate agent. There's nothing you need to do at this stage. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
         whatNext: null,
         action: "View your portal",
       },
       purchaser: {
-        subject: "Your survey is arranged, {address}",
+        subject: "Your survey is arranged: {address}",
         heroLabel: "Survey arranged",
         opening: "Your property survey has been arranged{surveyorClause}.",
         // {valuationNote} appends the mortgage-only "separate from the lender's
@@ -1002,15 +1002,15 @@ const copy: Record<string, PortalCopy> = {
     next: "Your solicitor will continue reviewing the legal information provided by the seller's solicitor.",
     emailCopy: {
       vendor: {
-        subject: "Buyer's survey report is in, {address}",
+        subject: "Buyer's survey report is in: {address}",
         heroLabel: "Buyer's survey report received",
         opening: "The buyer has now received their survey report and will be taking some time to read through the findings.",
-        whatHappened: "There's nothing you need to do for this step at the moment. No news is generally good news when it comes to survey reports, so unless the buyer raises anything, the sale will simply continue progressing as normal.",
+        whatHappened: "There's nothing you need to do at this stage. The buyer will review the findings and decide whether they need any further information.",
         whatNext: "If the buyer does need further information or documentation following the survey, this may be raised with your solicitor through the normal enquiry process. If there's anything that needs your input directly, we'll be in touch.",
         action: "View your portal",
       },
       purchaser: {
-        subject: "Your survey report is in, {address}",
+        subject: "Your survey report is in: {address}",
         heroLabel: "Survey report received",
         opening: "Your survey report is now available.",
         whatHappened: "Take some time to read through it carefully. Surveyors generally use condition ratings to help highlight which areas need the most attention, so focus particularly on anything given a higher-risk rating or identified as requiring further investigation. If there's anything you don't understand or you're unsure how significant it is, speak with your surveyor before deciding what to do next. They'll usually be happy to talk through their findings and explain whether something is a genuine concern or a fairly routine observation for a property of this type and age.",
@@ -1044,9 +1044,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "The buyer's mortgage offer has been issued: {address}",
         heroLabel: "Buyer's mortgage offer received",
-        opening: "A little update on where things are with your sale.",
-        whatHappened: "The buyer has received their formal mortgage offer from their lender. The financing for your sale is now confirmed, a significant step towards exchange.",
-        whatNext: "There's nothing you need to do for this step at the moment. The transaction is moving in the right direction on the buyer's side.",
+        opening: "The buyer's mortgage offer has been issued.",
+        whatHappened: "The buyer has received their formal mortgage offer from their lender. The lender has issued a formal offer, subject to its terms and any conditions that still need to be met.",
+        whatNext: "There's nothing you need to do at this stage. The buyer's solicitor will continue checking the offer and any outstanding legal points.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -1076,9 +1076,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Management pack received: {address}",
         heroLabel: "Management pack received",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer's solicitor has received the management pack.",
         whatHappened: "The management pack from the freeholder has been received by the buyer's solicitor. They'll now review service charges, ground rent, building insurance, and any planned major works.",
-        whatNext: "There's nothing you need to do for this step at the moment.",
+        whatNext: "There's nothing you need to do at this stage.",
         action: "View your portal",
       },
       purchaser: {
@@ -1108,9 +1108,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's search results are back: {address}",
         heroLabel: "Search results received",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer's search results have arrived with their solicitor.",
         whatHappened: "The search results have been received by the buyer's solicitor. Searches cover planning, flood risk, drainage, and other local factors.",
-        whatNext: "There's nothing you need to do for this step at the moment. Most searches come back without issue. We'll let you know if anything needs attention.",
+        whatNext: "There's nothing you need to do at this stage. Your solicitor will review the results and check whether anything needs further attention. We'll let you know if anything needs attention.",
         action: "View your portal",
       },
       purchaser: {
@@ -1118,7 +1118,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Search results received",
         opening: "Your search results are now back with your solicitor.",
         whatHappened: "The search results have been received from the local authority and other bodies. Your solicitor will now review them carefully. They cover planning permissions, flood risk, drainage, and other factors affecting the property.",
-        whatNext: "Most searches come back with nothing of concern. If your solicitor does identify something worth discussing, they'll be in touch. Otherwise, this keeps things moving towards exchange.",
+        whatNext: "Your solicitor will check the results and explain anything that needs your attention. If your solicitor does identify something worth discussing, they'll be in touch. Otherwise, this keeps things moving towards exchange.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -1182,9 +1182,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Your solicitor has replied to the buyer's enquiries: {address}",
         heroLabel: "Enquiry replies sent",
-        opening: "Quick update on your sale.",
+        opening: "The buyer's solicitor has received the initial enquiry replies.",
         whatHappened: "Your solicitor has replied to the buyer's solicitor's initial enquiries. The buyer's solicitor will now review the responses.",
-        whatNext: "There may be follow-up questions. We'll keep you updated.",
+        whatNext: "There may be follow-up questions. We'll keep you posted.",
         action: "View your portal",
       },
       purchaser: {
@@ -1240,16 +1240,16 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's solicitor has raised further questions: {address}",
         heroLabel: "Further enquiries raised",
-        opening: "Quick update on your sale.",
-        whatHappened: "The buyer's solicitor has raised a further round of enquiries with your solicitor. Multiple rounds of questions are completely normal in conveyancing. This doesn't indicate a problem.",
+        opening: "The buyer's solicitor has raised some follow-up enquiries.",
+        whatHappened: "The buyer's solicitor has raised a further round of enquiries with your solicitor. Multiple rounds of questions are completely normal in conveyancing. It doesn't necessarily mean there's a problem.",
         whatNext: "Your solicitor will work through the additional questions and reply. We'll let you know when replies are sent.",
         action: "View your portal",
       },
       purchaser: {
         subject: "Your solicitor has raised further questions: {address}",
         heroLabel: "Further enquiries raised",
-        opening: "Another round of questions, completely normal.",
-        whatHappened: "Your solicitor has raised a further round of enquiries with the seller's solicitor. Most transactions go through at least two rounds of questions before everything is resolved. This doesn't indicate a problem.",
+        opening: "Your solicitor has raised some follow-up questions.",
+        whatHappened: "Your solicitor has raised a further round of enquiries with the seller's solicitor. Most transactions go through at least two rounds of questions before everything is resolved. It doesn't necessarily mean there's a problem.",
         whatNext: "The seller's solicitor will work through the additional questions and reply. Your solicitor will then review and let you know if all points have been resolved.",
         action: "View your portal",
       },
@@ -1271,7 +1271,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Your solicitor has replied to further buyer enquiries: {address}",
         heroLabel: "Additional replies sent",
-        opening: "Quick update on your sale.",
+        opening: "The buyer's solicitor has received the further enquiry replies.",
         whatHappened: "Your solicitor has replied to the buyer's solicitor's additional enquiries. The buyer's solicitor will now review the answers.",
         whatNext: "We'll let you know when the buyer's solicitor has worked through the replies.",
         action: "View your portal",
@@ -1305,7 +1305,7 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Your solicitor has reviewed all replies: {address}",
         heroLabel: "All replies reviewed",
-        opening: "Your solicitor has worked through everything.",
+        opening: "Your solicitor has reviewed the latest replies.",
         whatHappened: "Your solicitor has reviewed all of the seller's replies and is working through the final legal points. They're assessing whether everything has been addressed to their satisfaction.",
         whatNext: "If your solicitor is satisfied, they'll send you their final report and confirm they're ready to exchange.",
         action: "View your portal",
@@ -1328,9 +1328,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "All legal enquiries resolved: {address}",
         heroLabel: "All enquiries satisfied",
-        opening: "A little update on where things are with your sale.",
+        opening: "Here's the latest on your sale.",
         whatHappened: "All of the buyer's solicitor's legal questions have been answered to their satisfaction. This is one of the final legal steps before exchange of contracts.",
-        whatNext: "The buyer's solicitor will now prepare their final report to the buyer. Once the buyer reviews and signs off, you'll be ready to exchange.",
+        whatNext: "The buyer's solicitor will now prepare their final report to the buyer. The buyer will need to review the report and complete any remaining requirements before their solicitor can confirm they're ready to exchange.",
         action: "View your portal",
       },
       purchaser: {
@@ -1338,7 +1338,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "All enquiries satisfied",
         opening: "A good step forward on your purchase.",
         whatHappened: "All of the legal questions about the property have been answered to your solicitor's satisfaction. This is one of the last major legal steps before exchange of contracts.",
-        whatNext: "Your solicitor will now prepare their final report to you, which summarises the property, the title, the search results, and any conditions on your mortgage. Once you've received and reviewed that, you'll be ready to sign the contract and exchange.",
+        whatNext: "Your solicitor will now prepare their final report to you, which summarises the property, the title, the search results, and any conditions on your mortgage. Once you've reviewed the report, your solicitor will explain the remaining steps towards exchange.",
         action: "View your portal",
       },
       vendorAgent: {
@@ -1389,7 +1389,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer is reviewing their solicitor's final report: {address}",
         heroLabel: "Final report stage",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer has received their solicitor's final report.",
         whatHappened: "The buyer's solicitor has sent their final report to the buyer, a comprehensive summary of the property, title, searches, and mortgage conditions. The buyer is now reviewing it before signing the contract.",
         whatNext: "Once the buyer is satisfied and signs the contract, you'll be in the final stages before exchange.",
         action: "View your portal",
@@ -1421,7 +1421,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer has been issued their contract: {address}",
         heroLabel: "Contract issued to buyer",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer has received their contract to review and sign.",
         whatHappened: "The buyer's solicitor has issued the contract documents to the buyer for review and signature. This brings things another step closer to exchange.",
         whatNext: "Once the buyer signs and returns the contract, they will be another step closer to being ready to exchange.",
         action: "View your portal",
@@ -1453,9 +1453,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer has signed and returned their contract: {address}",
         heroLabel: "Contract signed",
-        opening: "A little update on where things are with your sale.",
-        whatHappened: "The buyer has signed their contract documents and returned them to their solicitor. Both sides are now very close to being ready to exchange.",
-        whatNext: "Once the deposit is in place and both solicitors confirm readiness, exchange can happen. We'll keep you updated.",
+        opening: "The buyer has signed and returned their contract.",
+        whatHappened: "The buyer has signed their contract documents and returned them to their solicitor. This is another requirement completed ahead of exchange.",
+        whatNext: "Once the deposit is in place and both solicitors confirm readiness, exchange can happen. We'll keep you posted.",
         action: "View your portal",
       },
       purchaser: {
@@ -1493,9 +1493,9 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer's deposit is in place: {address}",
         heroLabel: "Deposit received",
-        opening: "A little update on where things are with your sale.",
+        opening: "The buyer's solicitor has received the deposit.",
         whatHappened: "The buyer has transferred their deposit to their solicitor's client account as cleared funds. This is one of the final requirements before exchange can take place.",
-        whatNext: "Everything on the buyer's side is in place. That leaves them close to being ready for exchange.",
+        whatNext: "The deposit is one of the requirements for exchange. Both solicitors will still need to confirm that everything else is ready.",
         action: "View your portal",
       },
       purchaser: {
@@ -1503,7 +1503,7 @@ const copy: Record<string, PortalCopy> = {
         heroLabel: "Deposit received",
         opening: "Your deposit is in place.",
         whatHappened: "Your solicitor has confirmed receipt of your deposit as cleared funds. This is one of the final requirements before exchange of contracts can take place.",
-        whatNext: "Everything is now in place on your side. We're coordinating exchange with the seller's solicitor. We'll keep you updated as the final points are lined up for exchange.",
+        whatNext: "With your deposit received, your solicitor can continue working through the remaining requirements for exchange. We'll keep you updated as the final points are lined up for exchange.",
         action: "View your portal",
       },
       progressor: {
@@ -1533,7 +1533,7 @@ const copy: Record<string, PortalCopy> = {
         subject: "The buyer's solicitor is ready to exchange: {address}",
         heroLabel: "Buyer ready to exchange",
         opening: "The buyer's solicitor has confirmed they are ready to exchange.",
-        whatHappened: "The buyer's solicitor has confirmed they're ready to exchange contracts. If your solicitor is also ready, exchange can be coordinated imminently.",
+        whatHappened: "The buyer's solicitor has confirmed they're ready to exchange contracts. If your solicitor is also ready and the completion arrangements are agreed, the solicitors can coordinate exchange.",
         whatNext: "We'll be coordinating the final arrangements with both solicitors. Exchange can sometimes follow quite quickly from here, so it's worth keeping an eye on your phone in case anything needs confirming.",
         action: "View your portal",
       },
@@ -1555,7 +1555,7 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Contracts exchanged, your purchase is legally committed: {address}",
         heroLabel: "Contracts exchanged",
-        opening: "Contracts have exchanged on your purchase.",
+        opening: "Contracts have exchanged. Congratulations on reaching this milestone.",
         whatHappened: "Both solicitors have formally exchanged signed contracts, your deposit has been transferred, and your purchase is now legally binding. The completion date is fixed.",
         whatNext: "Completion day is now fixed, so you can make your plans for the property with certainty. Buildings insurance: risk in the property usually passes to you on exchange. Check with your solicitor whether this applies to your purchase, as for new-builds and many leaseholds the freeholder's policy covers the building. Your solicitor will manage the final transfer of funds on completion day.",
         action: "View your portal",
@@ -1581,7 +1581,7 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Purchase complete, welcome to your new home: {address}",
         heroLabel: "Purchase complete",
-        opening: "Congratulations. It's done.",
+        opening: "Congratulations. Your purchase has completed.",
         whatHappened: "Your purchase has completed. The funds have been transferred, ownership has passed to you, and the keys are yours. Your solicitor will now arrange for your ownership to be registered at HM Land Registry.",
         whatNext: "It's worth keeping your completion statement and transfer documents somewhere safe for your records, as they may be useful in future. Your solicitor will also confirm once your ownership has been registered at HM Land Registry; that part can take a little while to come through.",
         action: "View your portal",
@@ -1771,15 +1771,15 @@ export const CONTRACT_SIGNED_IN_PERSON: Record<"VM17" | "PM23", { vendor: Recipi
       heroLabel: "Contract signed",
       opening: "Your contract is signed and safely on file.",
       whatHappened: "You've signed your contract documents with your solicitor. They'll now hold these on file, so there's nothing further for you to sign or return at this stage.",
-      whatNext: "Your solicitor will continue working towards exchange and, once everything is ready across the transaction, they can coordinate exchange and confirm the completion date. We'll keep you updated as things progress.",
+      whatNext: "Your solicitor will continue working towards exchange and, once everything is ready across the transaction, they can coordinate exchange and confirm the completion date. We'll keep you posted.",
       action: "View your portal",
     },
     purchaser: {
       subject: "The seller has signed their contract: {address}",
       heroLabel: "Seller contract signed",
-      opening: "Another step forward with your purchase.",
+      opening: "The seller has now signed their contract.",
       whatHappened: "The seller has now signed their contract documents with their solicitor, who will hold them on file ahead of exchange.",
-      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place on both sides, they'll be able to coordinate exchange and agree the completion date. We'll keep you updated as things progress.",
+      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place on both sides, they'll be able to coordinate exchange and agree the completion date. We'll keep you posted.",
       action: "View your portal",
     },
   },
@@ -1796,9 +1796,9 @@ export const CONTRACT_SIGNED_IN_PERSON: Record<"VM17" | "PM23", { vendor: Recipi
     vendor: {
       subject: "The buyer has signed their contract: {address}",
       heroLabel: "Buyer contract signed",
-      opening: "Another step forward with your sale.",
+      opening: "The buyer has signed and returned their contract.",
       whatHappened: "The buyer has now signed their contract documents with their solicitor, who will hold them on file ahead of exchange.",
-      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place and both sides are ready, they'll be able to coordinate exchange and agree the completion date. We'll keep you updated as things progress.",
+      whatNext: "Both solicitors will continue working through anything still outstanding. Once everything is in place and both sides are ready, they'll be able to coordinate exchange and agree the completion date. We'll keep you posted.",
       action: "View your portal",
     },
   },
@@ -1819,7 +1819,7 @@ export const PM6_DESKTOP_PURCHASER = {
 export const PM6_DESKTOP_VENDOR = {
   heroLabel: "Lender valuation underway",
   whatHappened:
-    "The buyer's lender is carrying out a desktop valuation of the property. This is a standard part of the buyer's mortgage application, but unlike an in-person valuation, no surveyor needs to visit. The lender will value the property remotely using information about the property and recent sales of similar properties in the area. There's nothing you need to do for this. Once the valuation is complete, the buyer's mortgage offer will typically follow within 1 to 3 weeks. We'll let you know as soon as it's issued.",
+    "The buyer's lender is carrying out a desktop valuation of the property. This is a standard part of the buyer's mortgage application, but unlike an in-person valuation, no surveyor needs to visit. The lender will value the property remotely using information about the property and recent sales of similar properties in the area. There's nothing you need to do for this. Once the valuation is complete, the buyer's mortgage offer may follow once the lender has finished its checks. We'll let you know as soon as it's issued.",
 };
 
 export function getEventDateLabel(code: string): string {
