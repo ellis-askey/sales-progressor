@@ -107,9 +107,10 @@ const NEXT_PHRASE: Record<DisplayStageKey, string> = {
 };
 
 /**
- * Build the HTML block for "Share our latest" for one sale, or null if the sale
- * can't be read. The block carries a data-cem-share marker so the composer can
- * replace it on a re-click rather than stacking copies.
+ * Build the inner HTML for "Share our latest" for one sale, or null if the sale
+ * can't be read. Callers wrap it in a `data-cem-share` div (so the composer can
+ * replace it on a re-click) — the full chain email wraps this plus its questions
+ * in a single such block.
  */
 export async function buildSaleShareSummary(transactionId: string): Promise<string | null> {
   const tx = await prisma.propertyTransaction.findUnique({
@@ -200,10 +201,8 @@ export async function buildSaleShareSummary(transactionId: string): Promise<stri
     : "<li>Conveyancing just getting underway</li>";
 
   return (
-    `<div data-cem-share="1">` +
     `<p><strong>Here's where things are with ${esc(line1)}:</strong></p>` +
     `<ul>${bullets}</ul>` +
-    `<p>Next up: ${esc(nextUp)}.</p>` +
-    `</div>`
+    `<p>Next up: ${esc(nextUp)}.</p>`
   );
 }

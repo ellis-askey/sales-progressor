@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { ComposeEmailModal, type ComposePrefill, type ComposeSaleHint } from "@/components/compose/ComposeEmailModal";
-import { buildChainEmailDraft, type ChainEmailAgent, type ChainEmailDraft } from "@/app/actions/chain-email";
+import { buildChainEmailDraft, composeChainQuestionsEmail, type ChainEmailAgent, type ChainEmailDraft } from "@/app/actions/chain-email";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
@@ -63,6 +63,7 @@ export function ChainEmailModal({
   const [agents, setAgents] = useState<ChainEmailAgent[]>([]);
   const [prefill, setPrefill] = useState<ComposePrefill | null>(null);
   const [shareHtml, setShareHtml] = useState<string | null>(null);
+  const [canFullChain, setCanFullChain] = useState(false);
   const [chainId, setChainId] = useState<string | null>(null);
   const [pending, setPending] = useState<{ linkId: string; field: Field } | null>(null);
   const [autoPlace, setAutoPlace] = useState<{ email: string; name: string; field: Field } | null>(null);
@@ -74,6 +75,7 @@ export function ChainEmailModal({
     setAgents(draft.agents);
     setChainId(draft.chainId);
     setShareHtml(draft.shareSummaryHtml);
+    setCanFullChain(draft.canComposeFullChain);
     const pre = initialToEmail
       ? draft.agents.filter((a) => a.email && a.email.toLowerCase() === initialToEmail.toLowerCase())
       : [];
@@ -141,6 +143,12 @@ export function ChainEmailModal({
       elevated={elevated}
       initialSaleHint={initialSaleHint}
       shareSummaryHtml={shareHtml}
+      onComposeFullChain={
+        canFullChain
+          ? (recipientEmails) =>
+              composeChainQuestionsEmail({ transactionId, recipientEmails }).then((r) => (r.ok ? r.html : null))
+          : undefined
+      }
       prefill={prefill}
       chainAgents={agents.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
       onNeedAgentEmail={handleNeedAgentEmail}

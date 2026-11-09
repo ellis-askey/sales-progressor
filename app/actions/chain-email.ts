@@ -18,6 +18,20 @@ import { canManageStub, ownershipFromLinkRow, loadChainEditContext } from "@/lib
 import { chainEmailSubject } from "@/lib/chain/chain-email";
 import { splitComposeAddress } from "@/lib/services/compose-recipients";
 import { buildSaleShareSummary } from "@/lib/chain/share-summary";
+import { chainQuestionsFor, chainReportFor } from "@/lib/chain/chain-questions";
+import { listCheckInsForScope } from "@/lib/services/chains";
+import { extractFirstName } from "@/lib/contacts/displayName";
+
+// "Compose full chain email" is founder-only while it's tested on prod (2026-11-09).
+// Gate the button (canComposeFullChain) AND the action itself on this address.
+const FULL_CHAIN_EMAIL_ALLOWED = new Set(["ellis@thesalesprogressor.co.uk"]);
+function canComposeFullChainEmail(email: string | null | undefined): boolean {
+  return FULL_CHAIN_EMAIL_ALLOWED.has((email ?? "").toLowerCase());
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 export type ChainEmailStubEdit = {
   id: string;
@@ -50,6 +64,9 @@ export type ChainEmailDraft = {
   // "Share our latest" — the factual progress block for OUR sale (null if it
   // can't be built). The composer drops it in on demand; never auto-inserted.
   shareSummaryHtml: string | null;
+  // Founder-only (prod testing): show the "Full chain email" button, which calls
+  // composeChainQuestionsEmail with the current recipients.
+  canComposeFullChain: boolean;
 };
 
 export async function buildChainEmailDraft(
@@ -162,5 +179,77 @@ export async function buildChainEmailDraft(
     });
   }
 
-  return { ok: true, draft: { anchorTransactionId: transactionId, chainId, subject: chainEmailSubject(firstLines), agents, shareSummaryHtml: await summaryPromise } };
+  const shareInner = await summaryPromise;
+  return {
+    ok: true,
+    draft: {
+      anchorTransactionId: transactionId,
+      chainId,
+      subject: chainEmailSubject(firstLines),
+      agents,
+      shareSummaryHtml: shareInner ? `<div data-cem-share="1">${shareInner}</div>` : null,
+      canComposeFullChain: canComposeFullChainEmail(session.user.email),
+    },
+  };
+}
+
+// "Compose full chain email" (founder-only, prod testing). Conjures the whole
+// body: OUR sale's "Share our latest" block, then a line per other sale in the
+// chain. For each neighbour we read the nine ticks WE'VE confirmed and either ask
+// the holding agent one or two correctly-timed questions (when they're on the
+// email) or simply report what we've noted (when they're not). `recipientEmails`
+// is the composer's current To/Cc/Bcc at click time, so the ask/report split
+// tracks exactly who the email is going to.
+export async function composeChainQuestionsEmail(input: {
+  transactionId: string;
+  recipientEmails: string[];
+}): Promise<{ ok: true; html: string } | { ok: false; error: string }> {
+  const session = await requireSession();
+  if (!canComposeFullChainEmail(session.user.email)) return { ok: false, error: "Not available." };
+  const scope = getAccessScope(session);
+
+  // Law 7: only from a sale you can access, and it must be in a chain.
+  const owned = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, input.transactionId),
+    select: { id: true, chainLink: { select: { chainId: true } } },
+  });
+  if (!owned) return { ok: false, error: "You don't have access to this sale." };
+  if (!owned.chainLink) return { ok: false, error: "This sale isn't in a chain yet." };
+  const chainId = owned.chainLink.chainId;
+
+  // Our sale's progress block + every OTHER sale in this chain (listCheckInsForScope
+  // already excludes our own nodes and scopes the nine-step marks to our side).
+  const [shareInner, allRows] = await Promise.all([
+    buildSaleShareSummary(input.transactionId),
+    listCheckInsForScope(scope),
+  ]);
+  const rows = allRows.filter((r) => r.chainId === chainId);
+
+  const recips = new Set(input.recipientEmails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+
+  const neighbourLis: string[] = [];
+  for (const r of rows) {
+    const addr = escapeHtml(r.address);
+    const onEmail = !!r.agentEmail && recips.has(r.agentEmail.toLowerCase());
+    if (onEmail) {
+      const first = r.agentName ? escapeHtml(extractFirstName(r.agentName)) : null;
+      const who = first ? ` (${first})` : "";
+      const qs = chainQuestionsFor(r.steps).map(escapeHtml).join(" ");
+      neighbourLis.push(`<li><strong>${addr}</strong>${who} — ${qs}</li>`);
+    } else {
+      neighbourLis.push(`<li><strong>${addr}</strong> — ${escapeHtml(chainReportFor(r.steps))}.</li>`);
+    }
+  }
+
+  const parts: string[] = [];
+  if (shareInner) parts.push(shareInner);
+  if (neighbourLis.length) {
+    parts.push(
+      `<p><strong>Here's where I have the rest of the chain, with a couple of things it'd help to confirm:</strong></p>` +
+        `<ul>${neighbourLis.join("")}</ul>`,
+    );
+  }
+  if (parts.length === 0) return { ok: false, error: "Nothing to compose for this chain yet." };
+
+  return { ok: true, html: `<div data-cem-share="1">${parts.join("")}</div>` };
 }

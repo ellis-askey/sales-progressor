@@ -101,7 +101,7 @@ function RecAvatar({ rec, size }: { rec: ComposeRecipient | null; size: number }
 export type ComposeSaleHint = { line1: string; location: string; photoUrl?: string | null };
 
 export function ComposeEmailModal({
-  open, onClose, onCloseStart, elevated = false, shareSummaryHtml, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
+  open, onClose, onCloseStart, elevated = false, shareSummaryHtml, onComposeFullChain, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
   chainAgents, onNeedAgentEmail, autoPlace,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
@@ -117,6 +117,10 @@ export function ComposeEmailModal({
   // sale. When present, a plain text button on the Message row drops it into the
   // body on demand. Null/absent → no button.
   shareSummaryHtml?: string | null;
+  // "Full chain email" (chain email, founder-gated): given the current recipients,
+  // returns the whole body (our sale + a question/report per other sale) or null.
+  // When present, a second Message-row button composes and inserts it.
+  onComposeFullChain?: (recipientEmails: string[]) => Promise<string | null>;
   initialToContactIds?: string[] | null; prefill?: ComposePrefill | null; initialSaleHint?: ComposeSaleHint | null;
   // "Email the chain" mode (optional, additive): the chain's agents shown as a
   // placement checklist. No-email agents call onNeedAgentEmail to open the chain
@@ -160,6 +164,10 @@ export function ComposeEmailModal({
   // True once "Share our latest" has dropped its block in — flips the label to
   // "Refresh" so a re-click reads as replace-with-the-latest, not add-another.
   const [shareInserted, setShareInserted] = useState(false);
+  // "Full chain email": once composed it reads "Refresh" (re-click to rebuild for
+  // the current recipients); `composingChain` guards the in-flight server call.
+  const [fullChainUsed, setFullChainUsed] = useState(false);
+  const [composingChain, setComposingChain] = useState(false);
 
   // body
   const [subject, setSubject] = useState("");
@@ -222,7 +230,7 @@ export function ComposeEmailModal({
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
     setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
-    setShareInserted(false);
+    setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
     if (prefill) void selectSale(prefill.transactionId, prefill);
     else if (initialTransactionId) void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined);
@@ -417,6 +425,27 @@ export function ComposeEmailModal({
     else editorRef.current.insertAdjacentHTML("beforeend", shareSummaryHtml);
     setShareInserted(true);
     updateCount();
+  }
+
+  // "Full chain email" — ask the server to compose the whole body for the current
+  // recipients, then drop it in (replacing any existing share/chain block). A
+  // re-click rebuilds it, so changing recipients just needs another click.
+  async function insertFullChain() {
+    if (!onComposeFullChain || !editorRef.current || composingChain) return;
+    setComposingChain(true);
+    try {
+      const emails = [...tokens.to, ...tokens.cc, ...tokens.bcc].map((t) => t.email);
+      const html = await onComposeFullChain(emails);
+      if (!html || !editorRef.current) return;
+      editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
+      const sig = editorRef.current.querySelector("[data-cem-sig]");
+      if (sig) sig.insertAdjacentHTML("beforebegin", html);
+      else editorRef.current.insertAdjacentHTML("beforeend", html);
+      setFullChainUsed(true);
+      updateCount();
+    } finally {
+      setComposingChain(false);
+    }
   }
 
   async function refine() {
@@ -677,11 +706,18 @@ export function ComposeEmailModal({
               <div className="cem-row">
                 <div className="cem-eyebrow-row">
                   <p className="cem-eyebrow">Message</p>
-                  {shareSummaryHtml && (
-                    <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
-                      {shareInserted ? "Refresh" : "Share our latest"}
-                    </button>
-                  )}
+                  <span className="cem-share-actions">
+                    {shareSummaryHtml && (
+                      <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
+                        {shareInserted ? "Refresh" : "Share our latest"}
+                      </button>
+                    )}
+                    {onComposeFullChain && (
+                      <button type="button" className="cem-share" disabled={composingChain} onMouseDown={(e) => e.preventDefault()} onClick={insertFullChain}>
+                        {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
@@ -823,8 +859,10 @@ const CEM_CSS = `
    action is plain text that just darkens on hover — no icon, no accent. */
 .cem-eyebrow-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 7px}
 .cem-eyebrow-row .cem-eyebrow{margin:0}
+.cem-share-actions{display:inline-flex;align-items:center;gap:14px}
 .cem-share{background:none;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--agent-text-muted);padding:0;transition:color .14s}
-.cem-share:hover{color:var(--agent-text-primary)}
+.cem-share:hover:not(:disabled){color:var(--agent-text-primary)}
+.cem-share:disabled{cursor:default;opacity:.65}
 /* The inserted progress block inside the editor — tidy bullets, nothing loud. */
 .cem-editor [data-cem-share] ul{margin:0 0 10px;padding-left:20px}
 .cem-editor [data-cem-share] li{margin:0 0 3px}
