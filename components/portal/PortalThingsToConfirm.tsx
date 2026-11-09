@@ -149,7 +149,12 @@ export function PortalThingsToConfirm({
             style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
           />
           <div className="mt-4">
-            <PortalButton onClick={confirm}>Yes, confirm</PortalButton>
+            <PortalButton onClick={confirm} disabled={readOnly}>Yes, confirm</PortalButton>
+            {readOnly && (
+              <p className="text-[11.5px] text-center mt-2" style={{ color: P.textMuted }}>
+                Preview — only your client can confirm this.
+              </p>
+            )}
           </div>
           <button onClick={closeSheet} className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl" style={{ color: P.textSecondary, background: "transparent" }}>
             Cancel

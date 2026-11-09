@@ -400,9 +400,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                     // button and replace with explanatory copy.
                     const isAgentOnly   = isPortalAgentOnly(m.code);
                     // saleActive gate: a withdrawn/completed sale shows steps read-only.
-                    // readOnly gate: the onward mirror we can't tie this person to is a
-                    // pure view — no dead Confirm/Skip buttons (the action is a no-op).
-                    const canConfirm    = saleActive && !readOnly && !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
+                    // The Confirm button shows in the agent preview too (the agent sees
+                    // exactly the client's buttons, on the right side), and pressing it
+                    // opens the sheet — but the sheet's Confirm action is disabled in
+                    // read-only, so an agent can never actually confirm a step this way.
+                    const canConfirm    = saleActive && !m.isComplete && !m.isNotRequired && m.isAvailable && !isAgentOnly;
                     const isLocked      = !m.isComplete && !m.isNotRequired && !m.isAvailable;
                     const isProcessing  = processingId === m.id;
 
@@ -738,12 +740,17 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
 
               <button
                 onClick={() => confirmMilestone(confirmingMilestone.id, confirmingMilestone.eventDateRequired)}
-                disabled={loading}
+                disabled={loading || readOnly}
                 className="pbtn pbtn-press w-full flex items-center justify-center py-4 rounded-xl text-[15px] font-bold text-white disabled:opacity-50 transition-opacity"
-                style={{ background: P.primary, borderRadius: P.radiusMd }}
+                style={{ background: P.primary, borderRadius: P.radiusMd, cursor: readOnly ? "not-allowed" : undefined }}
               >
                 {loading ? "Saving…" : "Confirm"}
               </button>
+              {readOnly && (
+                <p className="text-[11.5px] text-center mt-2" style={{ color: P.textMuted }}>
+                  Preview — only your client can confirm this.
+                </p>
+              )}
               <button
                 onClick={closeSheet}
                 disabled={loading}

@@ -461,7 +461,23 @@ export function PortalOverviewHero({
         {/* Photo (or coral fallback if none). The mask fades the image itself
             to transparent toward the foot, so the fixed ambient shows through
             exactly as it does under the content below — no colour to mismatch. */}
-        {photoUrl ? (
+        {/* Fallback streetscape is the ALWAYS-ON base layer: it shows when there's
+            no photo, and also if a photo URL is present but fails to load (onError
+            hides the broken img, revealing this). The inline url() guards against
+            the themed --portal-hero-fallback var ever being unset (e.g. the agent
+            preview iframe, where the blank-hero bug was reported). */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute", inset: 0,
+            backgroundImage: "var(--portal-hero-fallback, url(/portal-hero-fallback.webp))",
+            backgroundSize: "cover",
+            backgroundPosition: "center 35%",
+            WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+            maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+          }}
+        />
+        {photoUrl && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={photoUrl}
@@ -469,22 +485,9 @@ export function PortalOverviewHero({
             aria-hidden
             fetchPriority="high"
             decoding="async"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             style={{
               position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-              WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
-              maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
-            }}
-          />
-        ) : (
-          /* No property photo: a soft line-art streetscape on the coral
-             gradient. Same foot mask so it dissolves into the fixed ambient. */
-          <div
-            aria-hidden
-            style={{
-              position: "absolute", inset: 0,
-              backgroundImage: "var(--portal-hero-fallback)",
-              backgroundSize: "cover",
-              backgroundPosition: "center 35%",
               WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
               maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
             }}

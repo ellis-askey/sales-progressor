@@ -198,9 +198,14 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext, saleAc
                 <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>
               )}
 
-              <PortalButton onClick={confirm}>
+              <PortalButton onClick={confirm} disabled={readOnly}>
                 Confirm
               </PortalButton>
+              {readOnly && (
+                <p className="text-[11.5px] text-center mt-2" style={{ color: P.textMuted }}>
+                  Preview — only your client can confirm this.
+                </p>
+              )}
               <button
                 onClick={closeSheet}
                 className="pbtn pbtn-press w-full mt-3 py-3 text-[15px] font-medium rounded-xl"
