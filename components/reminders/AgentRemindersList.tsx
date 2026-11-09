@@ -795,9 +795,14 @@ function SplitFileCard({
           // original value once chased, so using it here made the header and this
           // line disagree ("Next 25 Sept" over "Was due 18 Sept").
           const nextChaseDays = Math.ceil((new Date(log.nextDueDate).getTime() - Date.now()) / 86400000);
+          // "Next chase due …" only reads right once a nudge has gone out. On a
+          // never-chased step (effectiveChaseCount 0 — the "Not chased yet" case)
+          // drop "Next" so it reads "Chase due tomorrow / in N days", matching the
+          // already-"Next"-less "Chase due today".
+          const chaseVerb = effectiveChaseCount === 0 ? "Chase due" : "Next chase due";
           const nextChaseLabel =
-            nextChaseDays >= 2 ? `Next chase due in ${nextChaseDays} days`
-            : nextChaseDays === 1 ? "Next chase due tomorrow"
+            nextChaseDays >= 2 ? `${chaseVerb} in ${nextChaseDays} days`
+            : nextChaseDays === 1 ? `${chaseVerb} tomorrow`
             : nextChaseDays === 0 ? "Chase due today"
             : "Was due";
 
