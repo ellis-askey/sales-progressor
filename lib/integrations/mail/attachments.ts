@@ -25,7 +25,8 @@ export const MIN_IMAGE_ATTACHMENT_BYTES = 8 * 1024;
 
 // The types an agent legitimately receives on a conveyancing file. Kept broader
 // than the browser-upload allow-list (adds spreadsheets + gif/webp) because
-// inbound mail is more varied than what an agent uploads by hand.
+// inbound mail is more varied than what an agent uploads by hand. Audio is
+// included so a client's voice note sent by email is kept, not binned (#287).
 export const EMAIL_ATTACHMENT_ALLOWED_MIME = new Set<string>([
   "application/pdf",
   "image/jpeg",
@@ -36,6 +37,12 @@ export const EMAIL_ATTACHMENT_ALLOWED_MIME = new Set<string>([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
   "application/vnd.ms-excel", // .xls
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "audio/ogg", // voice notes
+  "audio/mpeg", // .mp3
+  "audio/mp4", // .m4a
+  "audio/x-m4a",
+  "audio/wav",
+  "audio/webm",
 ]);
 
 export type StorableAttachment = {

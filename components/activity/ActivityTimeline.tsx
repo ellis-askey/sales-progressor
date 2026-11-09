@@ -767,6 +767,35 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     );
                   })()}
 
+                  {/* Email attachments filed to Documents (inbound + agent-sent).
+                      A marker only — the files live on the Documents tab. */}
+                  {entry.kind === "comm" && entry.attachments && entry.attachments.length > 0 && (
+                    <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {entry.attachments.map((a, i) => (
+                        <span
+                          key={`${a.filename}-${i}`}
+                          title={a.filename}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            maxWidth: 240,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: "var(--agent-text-secondary)",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            border: "0.5px solid var(--agent-border-default)",
+                            background: "var(--agent-surface-glass)",
+                          }}
+                        >
+                          <span aria-hidden>📎</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.filename}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* WhatsApp media attachment (image / video / voice / doc) */}
                   {entry.kind === "comm" && entry.mediaUrl && (
                     <MediaAttachment url={entry.mediaUrl} type={entry.mediaType} />

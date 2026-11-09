@@ -13,7 +13,7 @@ import { cleanIngestedEmail } from "@/lib/email/clean-inbound";
 import { looksForwarded, extractInnerEmails } from "./forwarded";
 import { buildIndex, buildFolderHints, buildAddressIndex, matchMessage } from "./match";
 import { detectAutoReply } from "./auto-reply";
-import { filterStorableAttachments } from "./attachments";
+import { filterStorableAttachments, type StorableAttachment } from "./attachments";
 import { extractSignaturePhone } from "./signature";
 import { uploadToStorage } from "@/lib/supabase-storage";
 import { buildDocumentStoragePath } from "@/lib/upload/document-upload";
@@ -132,6 +132,11 @@ async function logMessage(
     ? null
     : await buildContactPhoneSuggestion(txId, msg.from, rawBody).catch(() => null);
 
+  // Decide which attachments we'll file BEFORE logging the row, so the row can
+  // carry their names (the timeline reads this to mark the email with a 📎). The
+  // same filtered list is then stored, so the marker and the Documents tab agree.
+  const storable = filterStorableAttachments(msg.attachments);
+
   await prisma.outboundMessage.create({
     data: {
       transactionId: txId,
@@ -168,6 +173,7 @@ async function logMessage(
         ...(autoReply ? { autoReply: true } : {}),
         ...(read && (read.summary || read.suggestions.length) ? { read } : {}),
         ...(contactSuggestion ? { contactSuggestion } : {}),
+        ...(storable.length ? { attachments: storable.map((f) => ({ filename: f.filename, size: f.size })) } : {}),
       },
       // Outbound sent mail is attributed to the mailbox owner (the agent) so it
       // renders as "<agent> · Your team"; inbound stays a system-logged row.
@@ -181,7 +187,7 @@ async function logMessage(
   // on the "logged" path (a de-duped re-sync returns early above, so files aren't
   // stored twice). Best-effort per attachment — a single bad upload never blocks
   // the email being logged or the other attachments.
-  await storeInboundAttachments(txId, msg);
+  await storeInboundAttachments(txId, storable);
   await touchLastActivity(txId);
   return { status: "logged", address };
 }
@@ -218,11 +224,11 @@ async function buildContactPhoneSuggestion(
   return { contactId: contact.id, contactName: contact.name, phone };
 }
 
-// Uploads the storable attachments on a message to the file's document bucket and
-// creates a TransactionDocument row for each (source "email"). Inline logos,
-// disallowed types, oversized and tiny-image parts are filtered upstream.
-async function storeInboundAttachments(txId: string, msg: IngestMessage): Promise<void> {
-  const files = filterStorableAttachments(msg.attachments);
+// Uploads the (already-filtered) storable attachments on a message to the file's
+// document bucket and creates a TransactionDocument row for each (source
+// "email"). Inline logos, disallowed types, oversized and tiny-image parts are
+// filtered out by the caller via filterStorableAttachments.
+async function storeInboundAttachments(txId: string, files: StorableAttachment[]): Promise<void> {
   if (files.length === 0) return;
   for (const file of files) {
     try {

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { sendChainEmail, sendEmail, isUserEmailSuppressed, isContactEmailSuppressed, buildOutboundMessageId, isTransientSendError, isSenderIdentityError, MAX_SEND_RETRY_MS } from "@/lib/email";
 import { recordEvent } from "@/lib/command/events/write";
 import { AGENT_COMPOSE_TYPE, type ComposeQueuePayload } from "@/lib/email/compose-queue";
+import { storeOutboundEmailAttachments } from "@/lib/integrations/mail/outbound-attachments";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
 
@@ -306,6 +307,13 @@ export async function drainOutboundQueue(): Promise<{
         });
         const sentAtNow = new Date();
         await prisma.outboundEmailQueue.update({ where: { id: record.id }, data: { sentAt: sentAtNow } });
+        // File the sent attachments onto the property (same as send-now), and
+        // keep metadata to mark the email on the timeline.
+        const composeAttachmentMeta = await storeOutboundEmailAttachments(
+          p.transactionId,
+          p.attachments?.map((a) => ({ filename: a.filename, type: a.type, contentBase64: a.content })),
+          p.createdById ?? null,
+        ).catch((e: unknown) => { console.error(`[compose mirror] attachment filing failed id=${record.id}`, e); return []; });
         await prisma.outboundMessage.create({
           data: {
             transactionId: p.transactionId, type: "outbound", method: "email", channel: "email", purpose: "other",
@@ -314,6 +322,7 @@ export async function drainOutboundQueue(): Promise<{
             subject: p.subject, bodyFormat: "html", sentEmailHtml: p.html, sentFromEmail: p.from,
             recipientEmail: p.to[0], recipientName: p.recipientName, ccEmails: p.ccEmails,
             createdById: p.createdById, createdByRole: p.createdByRole, visibleToClient: false, sentAt: sentAtNow,
+            providerWebhookData: composeAttachmentMeta.length ? { attachments: composeAttachmentMeta } : undefined,
           },
         }).catch((e: unknown) => console.error(`[compose mirror] failed id=${record.id}`, e));
         console.log(`[EMAIL_SENT] type=AGENT_COMPOSE to=${p.to.join(",")}`);

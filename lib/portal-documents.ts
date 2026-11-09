@@ -126,6 +126,24 @@ export function docLabel(key: string | null | undefined): string {
   return DOC_BY_KEY.get(key)?.label ?? "Document";
 }
 
+// Friendly label for a TransactionDocument.source value, so the Documents tab
+// never shows a raw token like "email_sent" (Law 21). Returns null for sources
+// that carry their provenance another way (a portal upload names its contact).
+export function documentSourceLabel(source: string | null | undefined): string | null {
+  switch (source) {
+    case "email":
+      return "Received by email";
+    case "email_sent":
+      return "Sent by email";
+    case "admin":
+      return "Team upload";
+    case "mos":
+      return "Memorandum of sale";
+    default:
+      return null;
+  }
+}
+
 export function docCategoryLabel(key: string | null | undefined): string | null {
   if (!key) return null;
   return CATEGORY_BY_DOC.get(key)?.label ?? null;

@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getComposeContext, splitComposeAddress, type ComposeContext } from "@/lib/services/compose-recipients";
 import { resolveSenderForTransaction, sendEmail, type EmailAttachment } from "@/lib/email";
+import { storeOutboundEmailAttachments } from "@/lib/integrations/mail/outbound-attachments";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
 import { getSignedUrl, getSignedUrlMap } from "@/lib/supabase-storage";
@@ -184,6 +185,19 @@ export async function sendComposedEmail(input: {
     return { ok: false, error: "Couldn't send the email. Please try again." };
   }
 
+  // File the sent attachments onto the property (previously dropped) and keep
+  // metadata to mark the email on the timeline. Best-effort — a storage hiccup
+  // never fails the send, which already went out.
+  const attachmentMeta = await storeOutboundEmailAttachments(
+    input.transactionId,
+    input.attachments,
+    session.user.id,
+  ).catch((e) => {
+    console.error("[compose] attachment filing failed", e);
+    return [];
+  });
+  const attachmentData = attachmentMeta.length ? { attachments: attachmentMeta } : undefined;
+
   if (input.chainRecipients && input.chainRecipients.length) {
     // ── Chain-email logging: per To recipient, by the rounded-system rules. ──
     const sideKey = agencySideKey(tx.agencyId);
@@ -216,6 +230,7 @@ export async function sendComposedEmail(input: {
           subject, bodyFormat: "html", sentEmailHtml: html, sentFromEmail: from,
           recipientEmail: nonNeighbour[0], recipientName, ccEmails,
           createdById: session.user.id, createdByRole: session.user.role, visibleToClient: false,
+          providerWebhookData: attachmentData,
         },
       }).catch((e) => console.error("[compose] anchor log failed", e));
     }
@@ -239,6 +254,7 @@ export async function sendComposedEmail(input: {
         createdById: session.user.id,
         createdByRole: session.user.role,
         visibleToClient: false,
+        providerWebhookData: attachmentData,
       },
     });
   }

@@ -45,6 +45,14 @@ describe("filterStorableAttachments", () => {
     expect(out).toHaveLength(0);
   });
 
+  it("keeps a voice note / audio attachment (#287)", () => {
+    const out = filterStorableAttachments([
+      att({ filename: "voicenote.ogg", contentType: "audio/ogg", size: 30_000 }),
+      att({ filename: "memo.m4a", contentType: "audio/mp4", size: 40_000 }),
+    ]);
+    expect(out.map((o) => o.filename)).toEqual(["voicenote.ogg", "memo.m4a"]);
+  });
+
   it("drops disallowed types (zip, exe, calendar)", () => {
     const out = filterStorableAttachments([
       att({ filename: "a.zip", contentType: "application/zip", size: 50_000 }),

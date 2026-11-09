@@ -1,5 +1,5 @@
 import { listLiveTransactionDocuments, type LiveTransactionDocumentRow } from "@/lib/services/transaction-documents";
-import { docLabel } from "@/lib/portal-documents";
+import { docLabel, documentSourceLabel } from "@/lib/portal-documents";
 import { GlassTagDiv } from "@/components/glass/GlassTagDiv";
 
 function fileIcon(mimeType: string) {
@@ -45,7 +45,7 @@ export function DocumentsList({ docs }: { docs: LiveTransactionDocumentRow[] }) 
               {doc.contact && (
                 <span className="ml-1">· Uploaded by {doc.contact.name} ({doc.contact.roleType})</span>
               )}
-              {doc.source === "admin" && <span className="ml-1">· Team upload</span>}
+              {documentSourceLabel(doc.source) && <span className="ml-1">· {documentSourceLabel(doc.source)}</span>}
             </p>
           </div>
           {doc.signedUrl ? (

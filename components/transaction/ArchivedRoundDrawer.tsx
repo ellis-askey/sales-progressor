@@ -32,6 +32,7 @@ import { ContactAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avat
 import { Pill } from "@/components/ui/Pill";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { getCommBadge } from "@/lib/agent/comms-display";
+import { documentSourceLabel } from "@/lib/portal-documents";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { getArchivedDocumentUrl } from "@/app/actions/archived-round";
 
@@ -631,7 +632,7 @@ export function ArchivedRoundDrawer({ open, transactionId, archivedRounds, onClo
                                 {d.filename}
                               </span>
                               <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
-                                {fmtSize(d.fileSize)} · {fmtShortDate(d.createdAt)}{d.source && <> · {d.source}</>}
+                                {fmtSize(d.fileSize)} · {fmtShortDate(d.createdAt)}{d.source && <> · {documentSourceLabel(d.source) ?? d.source}</>}
                               </span>
                             </div>
                             {d.signedUrl ? (

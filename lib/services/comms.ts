@@ -111,6 +111,10 @@ export type ActivityEntry =
       senderLabel: string | null;
       mediaUrl: string | null;
       mediaType: string | null;
+      // Email attachments filed to the Documents tab (synced inbound mail and
+      // agent-sent mail), read from providerWebhookData.attachments. Rendered as
+      // 📎 markers on the row. Optional so optimistic client rows can omit it.
+      attachments?: { filename: string; size: number }[] | null;
       // Who the row represents — avatar photo/colour + name + optional sublabel
       // ("Seller" / "Buyer" / "Solicitor"). See resolveActor.
       actorRole: ActorRole;
@@ -575,6 +579,10 @@ export async function getActivityTimeline(
     mediaUrl: c.mediaUrl ?? null, // object path here; signed below
     mediaType:
       (c.providerWebhookData as { media?: { type?: string } } | null)?.media?.type ?? null,
+    attachments: (() => {
+      const a = (c.providerWebhookData as { attachments?: { filename: string; size: number }[] } | null)?.attachments;
+      return Array.isArray(a) && a.length ? a : null;
+    })(),
     };
   });
 
