@@ -111,7 +111,10 @@ function txWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
   // a normal agency's self-managed files have assignedUserId = null, and
   // outsourced files point assignedUserId at a TSP/business progressor, never an
   // agency user. See docs/active/in-house-progression/00-spec.md.
-  return { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
+  // agencyId is ANDed so this branch can never escape the tenant even when `vis`
+  // is built from an untrusted ?user= param (analytics drill-down): a foreign
+  // userId then matches nothing within the caller's own agency. Law 7 backstop.
+  return { agencyId: vis.agencyId, OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
 }
 
 export async function getAgentTransactions(vis: AgentVisibility) {

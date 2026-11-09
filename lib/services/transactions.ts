@@ -631,7 +631,7 @@ export type ForecastMonth = {
 export async function getExchangeForecast(agencyId: string, agentUserId?: string, opts?: { allAgentFiles?: boolean; firmName?: string | null }, scope?: AccessScope): Promise<ForecastMonth[]> {
   let agentFilter: Record<string, unknown>;
   if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
-  else if (agentUserId) agentFilter = { agentUserId };
+  else if (agentUserId) agentFilter = { OR: [{ agentUserId }, { assignedUserId: agentUserId }] };
   else agentFilter = { progressedBy: "progressor" };
   const baseWhere = scope ? scopeTransactionWhere(scope) : { agencyId, ...agentFilter };
   const transactions = await prisma.propertyTransaction.findMany({
@@ -733,7 +733,7 @@ export async function getExchangedNotCompleting(agencyId: string, agentUserId?: 
 
   let agentFilter: Record<string, unknown>;
   if (opts?.allAgentFiles) agentFilter = opts.firmName ? { agentUser: { firmName: opts.firmName } } : { agentUserId: { not: null } };
-  else if (agentUserId) agentFilter = { agentUserId };
+  else if (agentUserId) agentFilter = { OR: [{ agentUserId }, { assignedUserId: agentUserId }] };
   else agentFilter = { progressedBy: "progressor" };
   const baseWhere = scope ? scopeTransactionWhere(scope) : { agencyId, ...agentFilter };
 
