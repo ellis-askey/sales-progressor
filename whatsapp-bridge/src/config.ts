@@ -7,6 +7,7 @@ export type BridgeConfig = {
   controlSecret: string;
   authDir: string;
   queueDir: string;
+  mediaQueueDir: string;
   port: number;
 };
 
@@ -29,6 +30,7 @@ export function loadConfig(): BridgeConfig {
     controlSecret: (process.env.BRIDGE_CONTROL_SECRET ?? "").trim() || bridgeSecret,
     authDir: (process.env.AUTH_DIR ?? "./auth").trim(),
     queueDir: (process.env.QUEUE_DIR ?? "./queue").trim(),
+    mediaQueueDir: (process.env.MEDIA_QUEUE_DIR ?? "./media-queue").trim(),
     port: Number(process.env.PORT ?? 8080) || 8080,
   };
 }

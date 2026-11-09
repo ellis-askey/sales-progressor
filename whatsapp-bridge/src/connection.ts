@@ -13,6 +13,7 @@ import makeWASocket, {
   downloadMediaMessage,
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
+  type proto,
   type WASocket,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
@@ -119,6 +120,28 @@ export class Connection {
     return null;
   }
 
+  // Download WhatsApp media with a few retries. Baileys downloads fail
+  // transiently (the media server occasionally needs a reupload request, or
+  // drops the first fetch); without a retry those single failures permanently
+  // lost the attachment. reuploadRequest asks WhatsApp to re-serve expired media.
+  private async downloadMediaWithRetry(wa: proto.IWebMessageInfo, sock: WASocket): Promise<Buffer> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return (await downloadMediaMessage(
+          wa,
+          "buffer",
+          {},
+          { logger: waLogger, reuploadRequest: sock.updateMediaMessage },
+        )) as Buffer;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < 2) await sleep(1000 * (attempt + 1));
+      }
+    }
+    throw lastErr;
+  }
+
   async connect(): Promise<void> {
     const { state: authState, saveCreds } = await useMultiFileAuthState(this.authDir);
     const { version } = await fetchLatestBaileysVersion();
@@ -204,15 +227,10 @@ export class Connection {
           this.watermark.observe(msg.timestamp);
           if (msg.media) {
             try {
-              const buffer = (await downloadMediaMessage(
-                wa,
-                "buffer",
-                {},
-                { logger: waLogger, reuploadRequest: sock.updateMediaMessage },
-              )) as Buffer;
+              const buffer = await this.downloadMediaWithRetry(wa, sock);
               await this.delivery.sendMedia(msg.waMessageId, buffer, msg.media.mimetype, msg.media.filename);
             } catch (err) {
-              log.warn("media download failed", { id: this.id, error: (err as Error).message, waMessageId: msg.waMessageId });
+              log.warn("media download failed after retries", { id: this.id, error: (err as Error).message, waMessageId: msg.waMessageId });
             }
           }
         } catch (err) {

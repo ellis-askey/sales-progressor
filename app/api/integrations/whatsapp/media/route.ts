@@ -57,14 +57,19 @@ export async function POST(req: Request) {
   }
 
   // Attach to the logged message; if it's still unmatched, attach to the pending
-  // row so it carries through when the chat is assigned.
+  // row so it carries through when the chat is assigned. `attached` tells the
+  // bridge whether a row was found — if neither exists yet (the message hasn't
+  // been ingested), the bridge keeps the media queued and retries, rather than
+  // uploading to the bucket and orphaning it.
   const logged = await prisma.outboundMessage.updateMany({
     where: { method: "whatsapp", providerMessageId: waMessageId },
     data: { mediaUrl: path },
   });
-  if (logged.count === 0) {
-    await prisma.whatsAppPendingMessage.updateMany({ where: { waMessageId }, data: { mediaUrl: path } });
+  let attached = logged.count > 0;
+  if (!attached) {
+    const pending = await prisma.whatsAppPendingMessage.updateMany({ where: { waMessageId }, data: { mediaUrl: path } });
+    attached = pending.count > 0;
   }
 
-  return NextResponse.json({ ok: true, path });
+  return NextResponse.json({ ok: true, path, attached });
 }

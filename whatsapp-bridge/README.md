@@ -20,7 +20,9 @@ is excluded from the main project's TypeScript build.
 3. On `messages.upsert` (live only — `syncFullHistory: false`, no bulk backfill) it
    normalises each message and calls the PWA.
 4. Failed POSTs are written to `QUEUE_DIR` and retried every 30s, so nothing is lost while
-   the PWA is briefly down.
+   the PWA is briefly down. Media uploads (photos / voice notes / documents) get the same
+   treatment via a parallel `MEDIA_QUEUE_DIR`, and the Baileys download itself is retried —
+   so an endpoint outage or a transient download failure no longer drops the attachment.
 5. Exposes `GET /health` (open) and `GET /status` + `GET /qr` (bearer `BRIDGE_CONTROL_SECRET`)
    for the Phase 4 in-app connect UI.
 
@@ -46,8 +48,10 @@ message in a `Sale of {address}` group and confirm it appears on that file in th
 ## Deploy to Railway
 
 1. New Railway project → **Deploy from repo** → this repo, **root directory** `whatsapp-bridge`.
-2. Add a **Volume** mounted at e.g. `/data`; set `AUTH_DIR=/data/auth` and `QUEUE_DIR=/data/queue`
-   so the session + queue survive restarts.
+2. Add a **Volume** mounted at e.g. `/data`; set `AUTH_DIR=/data/auth`, `QUEUE_DIR=/data/queue`
+   and `MEDIA_QUEUE_DIR=/data/media-queue` so the session + both retry queues survive restarts.
+   (`MEDIA_QUEUE_DIR` defaults to `./media-queue`; on a redeploy without a volume, queued media
+   waiting to retry would be lost — put it on the volume.)
 3. Set service variables: `PWA_INGEST_URL`, `WHATSAPP_BRIDGE_SECRET`, `BRIDGE_CONTROL_SECRET`.
    (`PORT` is provided by Railway.)
 4. Deploy. Open the deploy **logs**, scan the QR shown there once. Status is then visible at
