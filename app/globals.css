@@ -2140,21 +2140,27 @@ select {
 /* Add-node drawer mode toggle (placeholder vs one of my sales). The drawer is a
    fixed light surface regardless of theme, so this uses the same light palette
    (white active pill on a faint track) rather than agent theme tokens. */
-.chain-addmode { display: flex; gap: 4px; padding: 4px; border-radius: 12px;
+.chain-addmode { position: relative; display: flex; gap: 4px; padding: 4px; border-radius: 12px;
   background: rgba(0,0,0,0.04); border: 1px solid rgba(255,255,255,0.5); }
-.chain-addmode-tab { flex: 1; padding: 7px 10px; border-radius: 9px; border: none; cursor: pointer;
+/* The active pill is a single sliding thumb behind the tabs, so switching
+   modes glides across instead of the white background jumping tab-to-tab. */
+.chain-addmode-thumb { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 6px);
+  border-radius: 9px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.10); pointer-events: none;
+  transition: transform .24s cubic-bezier(0.4, 0, 0.2, 1); }
+.chain-addmode[data-mode="own"] .chain-addmode-thumb { transform: translateX(calc(100% + 4px)); }
+.chain-addmode-tab { position: relative; z-index: 1; flex: 1; padding: 7px 10px; border-radius: 9px; border: none; cursor: pointer;
   background: transparent; font-size: 12.5px; font-weight: 600; color: rgba(15,23,42,0.55);
-  transition: background-color .15s ease, color .15s ease, box-shadow .15s ease; }
+  transition: color .18s ease; }
 .chain-addmode-tab:hover { color: rgba(15,23,42,0.85); }
-.chain-addmode-tab.is-active { background: #fff; color: rgba(15,23,42,0.95);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
+.chain-addmode-tab.is-active { color: rgba(15,23,42,0.95); }
 /* Dark mode: the drawer is portalled (carries nv2-night / data-night), so the
    global shell overrides don't reach it. Light the muted tab text and give the
    unselected tab a visible hover; the active tab stays a bright pill. */
 .nv2-night[data-night] .chain-addmode { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.10); }
+.nv2-night[data-night] .chain-addmode-thumb { background: rgba(255,255,255,0.92); box-shadow: 0 1px 3px rgba(0,0,0,0.30); }
 .nv2-night[data-night] .chain-addmode-tab { color: rgba(226,232,240,0.62); }
-.nv2-night[data-night] .chain-addmode-tab:hover { color: rgba(226,232,240,0.95); background: rgba(255,255,255,0.06); }
-.nv2-night[data-night] .chain-addmode-tab.is-active { background: rgba(255,255,255,0.92); color: rgba(15,23,42,0.95); box-shadow: 0 1px 3px rgba(0,0,0,0.30); }
+.nv2-night[data-night] .chain-addmode-tab:hover { color: rgba(226,232,240,0.95); }
+.nv2-night[data-night] .chain-addmode-tab.is-active { color: rgba(15,23,42,0.95); }
 .chain-act-danger:hover { color: var(--agent-danger); opacity: 1; }
 .chain-act-link:focus-visible { outline: none; box-shadow: var(--agent-focus-ring-tight); border-radius: 4px; }
 

@@ -686,7 +686,8 @@ export function AddNodeDrawer({
           {/* Mode toggle — placeholder vs one of your own files. Only on an
               existing chain (self-link needs the API). */}
           {canSelfLink && (
-            <div className="chain-addmode" role="tablist" aria-label="What to add">
+            <div className="chain-addmode" role="tablist" aria-label="What to add" data-mode={mode}>
+              <span className="chain-addmode-thumb" aria-hidden />
               <button
                 type="button"
                 role="tab"
