@@ -1055,28 +1055,51 @@ function SplitFileCard({
               key={log.id}
               style={{ padding: "7px 12px", borderTop: (i > 0 || openTasks.length > 0) ? "0.5px solid var(--agent-border-subtle)" : undefined, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}
             >
-              <div style={{ minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
-                {isSingle && supporting && (
-                  <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
-                    {supporting}
-                  </p>
-                )}
-                {/* Date line only when NOT on autopilot — the green banner below
-                    carries the auto-chase date, so this would be a duplicate. */}
-                {!isAuto && (
-                  isSingle ? (
-                    <p style={{ margin: "6px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
-                  ) : (
-                    <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
-                      {isBuyer ? "Buyer" : "Seller"} · Due {dueDateLabel}
+              {isSingle ? (
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+                  {supporting && (
+                    <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderLeft: "2px solid var(--agent-border-default)", borderRadius: "0 8px 8px 0", padding: "6px 10px" }}>
+                      {supporting}
                     </p>
-                  )
-                )}
-                {isAuto && !isSingle && (
-                  <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>{isBuyer ? "Buyer" : "Seller"}</p>
-                )}
-              </div>
+                  )}
+                  {/* Date line only when NOT on autopilot — the green banner below
+                      carries the auto-chase date, so this would be a duplicate. */}
+                  {!isAuto && (
+                    <p style={{ margin: "6px 0 0", fontSize: 10, fontWeight: 500, color: "var(--agent-text-muted)" }}>Due {dueDateLabel}</p>
+                  )}
+                </div>
+              ) : (
+                // "Coming up" secondary row on a multi-reminder file. Levelled up
+                // (2026-11-09, /dev/reminder-rows "Proposed A"): an upcoming glyph,
+                // the supporting line (previously hidden here), and a tidy side +
+                // due pill — so a queued step reads as a real item, not a leftover.
+                // The due pill is dropped on autopilot (the green banner below owns
+                // the date), and so is the plain side line that used to sit here.
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", minWidth: 0 }}>
+                  <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "inline-flex", marginTop: 1, flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>{name}</p>
+                    {supporting && (
+                      <p style={{ margin: "3px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>{supporting}</p>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: isBuyer ? "var(--agent-success)" : "#2563eb", flexShrink: 0 }} />
+                        {isBuyer ? "Buyer" : "Seller"}
+                      </span>
+                      {!isAuto && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 999, padding: "2px 8px" }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                          Due {dueDateLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               {autoState?.kind === "auto" && (
                 <AutoChaseCountdown
                   iso={autoState.nextSend}
