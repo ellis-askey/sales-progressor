@@ -305,8 +305,12 @@ export function AddManualTaskForm({
   // tightens back up on save/cancel. The bottom gap lives inside the clip so it
   // collapses too (no stray space when closed).
   if (hideTrigger) {
+    // paddingBottom only while open: a 0fr grid row doesn't reliably clip the
+    // inner's padding when closed, which left ~32px of dead space above the
+    // list on the To-Do / Internal tabs (and nowhere else), so those tabs sat
+    // lower than Reviews / Outbound. Zero it when closed so all tabs line up.
     return (
-      <AccordionBody open={open} innerStyle={{ paddingBottom: 32 }}>
+      <AccordionBody open={open} innerStyle={{ paddingBottom: open ? 32 : 0 }}>
         {form}
       </AccordionBody>
     );

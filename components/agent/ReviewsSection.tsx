@@ -359,11 +359,16 @@ export function ReviewsSection({
     {/* No header here — the To-Do page renders ONE shared header above all three
         tabs so they line up at the same height. Style tag lives outside the
         layout flow so it can't push the first row down. */}
-    <div id="section-reviews" className="space-y-3">
+    {/* No space-y on this wrapper: it would give the content a top margin while the
+        add form is collapsed (the form is still a DOM child), dropping the first
+        card ~12px below where the To-Do / Outbound tabs' cards sit. Instead the
+        open-state gap lives on the form's own paddingBottom, which collapses to 0
+        when closed — so all three tabs' first cards line up. (#292 alignment.) */}
+    <div id="section-reviews">
       {/* Add-a-review form — a review is a to-do ticked as a review + a date.
           In the collapse so it animates in (pushing the list down) and out
           (tightening up) on save/cancel. */}
-      <AccordionBody open={addOpen}>
+      <AccordionBody open={addOpen} innerStyle={{ paddingBottom: addOpen ? 12 : 0 }}>
         <div className="agent-glass" style={{ borderRadius: 12, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             ref={aTitleRef}
