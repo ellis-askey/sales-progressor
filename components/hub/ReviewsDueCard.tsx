@@ -21,7 +21,6 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { Eye, CaretDown, Check, CalendarPlus, Clock, Prohibit, ArrowSquareOut, CalendarBlank } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
 import { RowActionMenu } from "@/components/hub/RowActionMenu";
 import { ResumeFileModal } from "@/components/transaction/ResumeFileModal";
 import { WithdrawFileModal } from "@/components/transaction/WithdrawFileModal";
@@ -177,6 +176,11 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
               const busy = busyKey === item.key;
               const isHold = item.kind === "hold";
               const pill = isHold ? ORIGIN_PILL[item.origin] : { label: "Review", tone: "info" as const };
+              // Toned status word on its own line, matching BookingsToConfirmCard
+              // (critique #295 — the inline pill is gone across the hub cards).
+              const pillColor = pill.tone === "warning" ? "var(--agent-warning)"
+                : pill.tone === "brand" ? "var(--agent-coral-deep)"
+                : "var(--agent-info)";
               const headline = item.address ?? (item.kind === "manual" ? item.title : "");
               // Only split real addresses — a manual task's title isn't comma-structured.
               const addr = item.address ? splitAddress(item.address) : null;
@@ -215,8 +219,10 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                             {headline}
                           </p>
                         )}
-                        <Pill glass tone={pill.tone} size="md" style={{ flexShrink: 0 }}>{pill.label}</Pill>
                       </div>
+                      <p style={{ margin: "2px 0 0", fontSize: 10.5, fontWeight: 750, color: pillColor, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {pill.label}
+                      </p>
                       <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {sub}
                       </p>
