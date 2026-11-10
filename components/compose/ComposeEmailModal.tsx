@@ -16,6 +16,8 @@ import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useContentEditableDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   searchComposeSales, getComposeContextAction, sendComposedEmail,
@@ -173,6 +175,11 @@ export function ComposeEmailModal({
   const [subject, setSubject] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const pendingBodyRef = useRef<string | null>(null);
+  // Voice typing — dictation streams into the body at the caret; Refine tidies
+  // the result afterwards. Hidden where the browser has no SpeechRecognition.
+  const dictation = useContentEditableDictation(editorRef, {
+    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
   // True while the greeting line should auto-follow the To recipients. Turned
   // off for the prefilled flow (surveyor email), which seeds its own greeting.
   const autoGreetRef = useRef(true);
@@ -723,6 +730,8 @@ export function ComposeEmailModal({
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
                     onInput={onEditorInput} />
                   <div className="cem-toolbar">
+                    <DictationMic controls={dictation} />
+                    <span className="cem-tbsep" />
                     <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
                     <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
                     <span className="cem-tbsep" />
