@@ -11,7 +11,7 @@
 
 import { commandDb } from "@/lib/command/prisma";
 import { classifyDevice } from "@/lib/command/device";
-import { getAgencySales, type AgencySaleRow } from "@/lib/command/agency-file";
+import { getAgencySales, getAgencyEmailLog, type AgencySaleRow } from "@/lib/command/agency-file";
 import type { TrialConfig } from "@/lib/command/trials";
 
 const DAY_MS = 86_400_000;
@@ -456,6 +456,134 @@ export async function getTrialActions(agencyId: string, trial: TrialConfig): Pro
     weeklySteps,
     weeklyManualChases,
     openTodos,
+  };
+}
+
+// ── Clients tab ───────────────────────────────────────────────────────────────
+
+export interface TrialSideFunnel {
+  invited: number;
+  visited: number;
+  engaged: number;
+}
+
+export interface TrialClientRow {
+  id: string;
+  name: string;
+  role: "Buyer" | "Seller";
+  address: string;
+  visits: number;
+  minutes: number;
+  lastVisited: Date | null;
+}
+
+export interface TrialClients {
+  totalClients: number; // buyers + sellers on live files
+  funnel: TrialSideFunnel; // nested: invited ⊇ visited ⊇ engaged
+  installed: number;       // added the portal to their home screen
+  notifications: number;   // push notifications on
+  bySide: { buyer: TrialSideFunnel; seller: TrialSideFunnel };
+  visitsTrial: number;     // portal visit-days since trial start
+  messagesTrial: number;   // messages clients sent since trial start
+  topClients: TrialClientRow[];
+  email: { totalSent: number; delivered: number; opened: number; clicked: number; bouncedFailed: number; openRatePct: number };
+}
+
+export async function getTrialClients(agencyId: string, trial: TrialConfig): Promise<TrialClients> {
+  const trialStart = new Date(`${trial.startsAt}T00:00:00`);
+
+  const contacts = await commandDb.contact.findMany({
+    where: {
+      roleType: { in: ["purchaser", "vendor"] as never },
+      transaction: { agencyId, isDemo: false, status: { in: ["active", "on_hold"] as never } },
+    },
+    select: {
+      id: true, name: true, roleType: true,
+      portalToken: true, lastVisitedPortalAt: true, pwaInstalledAt: true,
+      transaction: { select: { propertyAddress: true } },
+    },
+  });
+  const contactIds = contacts.map((c) => c.id);
+
+  const [visitGroups, sessionGroups, pushGroups, visitsTrial, messagesTrial, emailSummary] = await Promise.all([
+    contactIds.length
+      ? commandDb.portalVisit.groupBy({ by: ["contactId"], where: { contactId: { in: contactIds } }, _count: { _all: true } })
+      : [],
+    contactIds.length
+      ? commandDb.portalTimeSession.groupBy({ by: ["contactId"], where: { contactId: { in: contactIds } }, _sum: { totalEngagedSeconds: true } })
+      : [],
+    contactIds.length
+      ? commandDb.portalPushSubscription.groupBy({ by: ["contactId"], where: { contactId: { in: contactIds } } })
+      : [],
+    commandDb.portalVisit.count({
+      where: { createdAt: { gte: trialStart }, contact: { transaction: { agencyId, isDemo: false } } },
+    }),
+    commandDb.portalMessage.count({
+      where: { fromClient: true, createdAt: { gte: trialStart }, transaction: { agencyId, isDemo: false } },
+    }),
+    getAgencyEmailLog(agencyId, 1),
+  ]);
+
+  const visitMap = new Map(visitGroups.map((g) => [g.contactId, g._count._all]));
+  const minutesMap = new Map(sessionGroups.map((g) => [g.contactId, Math.round((g._sum.totalEngagedSeconds ?? 0) / 60)]));
+  const pushSet = new Set(pushGroups.map((g) => g.contactId));
+
+  // Same engagement bar as the adoption page: came back (2+ visit-days) or
+  // spent 5+ real minutes.
+  const engagedOf = (c: (typeof contacts)[number]) =>
+    (visitMap.get(c.id) ?? 0) >= 2 || (minutesMap.get(c.id) ?? 0) >= 5;
+
+  const emptyFunnel = (): TrialSideFunnel => ({ invited: 0, visited: 0, engaged: 0 });
+  const funnel = emptyFunnel();
+  const bySide = { buyer: emptyFunnel(), seller: emptyFunnel() };
+  let installed = 0;
+  for (const c of contacts) {
+    if (!c.portalToken) continue;
+    const side = c.roleType === "purchaser" ? bySide.buyer : bySide.seller;
+    funnel.invited += 1;
+    side.invited += 1;
+    if (c.lastVisitedPortalAt) {
+      funnel.visited += 1;
+      side.visited += 1;
+      if (engagedOf(c)) {
+        funnel.engaged += 1;
+        side.engaged += 1;
+      }
+    }
+    if (c.pwaInstalledAt) installed += 1;
+  }
+
+  const topClients: TrialClientRow[] = contacts
+    .filter((c) => c.lastVisitedPortalAt)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      role: (c.roleType === "purchaser" ? "Buyer" : "Seller") as "Buyer" | "Seller",
+      address: c.transaction.propertyAddress,
+      visits: visitMap.get(c.id) ?? 0,
+      minutes: minutesMap.get(c.id) ?? 0,
+      lastVisited: c.lastVisitedPortalAt,
+    }))
+    .sort((a, b) => b.visits - a.visits || b.minutes - a.minutes)
+    .slice(0, 8);
+
+  return {
+    totalClients: contacts.length,
+    funnel,
+    installed,
+    notifications: pushSet.size,
+    bySide,
+    visitsTrial,
+    messagesTrial,
+    topClients,
+    email: {
+      totalSent: emailSummary.totalSent,
+      delivered: emailSummary.delivered,
+      opened: emailSummary.opened,
+      clicked: emailSummary.clicked,
+      bouncedFailed: emailSummary.bouncedFailed,
+      openRatePct: emailSummary.openRatePct,
+    },
   };
 }
 
