@@ -3174,6 +3174,7 @@ model ChainLink {
   prospects              Prospect[] // acquisition prospects sourced from this chain invite (Command Centre → Prospects)
   entries                ChainLinkEntry[] // own-side chase-log entries on this node (b1ey9l)
   stepMarks              ChainNodeStepMark[] // own-side confirm-progress marks (critique #235)
+  nodeSolicitors         ChainNodeSolicitor[] // own-side noted buyer/seller solicitors on this neighbour node
 
   @@unique([chainId, branchKey, position])
   @@index([forkFromLinkId])
@@ -3238,6 +3239,33 @@ model ChainNodeStepMark {
   chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
 
   @@unique([chainLinkId, sideKey, stepKey])
+  @@index([chainLinkId])
+}
+
+// ─── ChainNodeSolicitor ────────────────────────────────────────────────────────
+// An agent's own private note of who's acting for the buyer / seller on a chain
+// NEIGHBOUR's sale (2026-11-10). Info only — SAME privacy + gate model as
+// ChainNodeStepMark: one row per (link, side = buyer|seller), scoped by sideKey,
+// never seen by the neighbour and never touching the real file / stub / claimed
+// transaction's solicitor data. The two adjacent nodes prefill from the viewer's
+// own file at read time (not stored) until edited here.
+model ChainNodeSolicitor {
+  id           String   @id @default(cuid())
+  chainLinkId  String
+  sideKey      String
+  side         String // "buyer" | "seller"
+  firmName     String
+  handlerName  String?
+  handlerPhone String?
+  handlerEmail String?
+  markedById   String? // user who last saved it (id only, no FK — standalone)
+  markedByName String? // display name captured at write time
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  chainLink ChainLink @relation(fields: [chainLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([chainLinkId, sideKey, side])
   @@index([chainLinkId])
 }
 

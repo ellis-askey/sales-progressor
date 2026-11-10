@@ -94,6 +94,21 @@ export type ChainNodeIntel = {
   lastChainCheckAt: Date | null;
 };
 
+// The viewer's private note of a chain NEIGHBOUR's buyer/seller solicitor (info
+// only). `prefilled` = sourced from the viewer's own file (the two adjacent nodes
+// share a side with our sale), NOT a saved note — shown as an editable default.
+export type ChainNodeSolicitorNote = {
+  firm: string;
+  handler: string | null;
+  phone: string | null;
+  email: string | null;
+  prefilled: boolean;
+};
+export type ChainNodeSolicitors = {
+  buyer: ChainNodeSolicitorNote | null;
+  seller: ChainNodeSolicitorNote | null;
+};
+
 // One own-side chase-log entry on a chain node (b1ey9l).
 export type ChainLinkEntryView = {
   id: string;
@@ -220,6 +235,11 @@ export type ChainLinkV2 = {
   // no viewer side. Never another side's marks. Optional so hand-built demo/dev
   // link literals compile; getChainV2 always sets it.
   steps?: string[];
+  // The viewer's own private note of this node's buyer/seller solicitors (info
+  // only; scoped to viewerSideKey). Shown on NEIGHBOUR cards only (null on the
+  // viewer's own node). The two adjacent nodes carry an editable prefill from the
+  // viewer's own file. Optional so hand-built demo/dev link literals compile.
+  solicitors?: ChainNodeSolicitors;
   // Whether the current viewer may edit this node's intel. False when no viewer
   // context is passed.
   canEditIntel?: boolean;
@@ -382,6 +402,9 @@ const LINK_V2_SELECT = {
   // so the viewer's own set can be filtered in memory; only the viewer-side keys
   // reach the wire (as `steps`), the raw marks are stripped in getChainV2.
   stepMarks: { select: { stepKey: true, sideKey: true } },
+  // Per-viewer solicitor notes on this node (info only). Fetched for every side;
+  // only the viewer-side rows reach the wire (as `solicitors`), filtered in getChainV2.
+  nodeSolicitors: { select: { side: true, sideKey: true, firmName: true, handlerName: true, handlerPhone: true, handlerEmail: true } },
   // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel;
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
@@ -409,6 +432,13 @@ const LINK_V2_SELECT = {
       tenure: true,
       isShareOfFreehold: true,
       overridePredictedDate: true,
+      // Own file's real solicitors — the prefill SOURCE for the two adjacent
+      // nodes. Only ever read for the viewer's OWN link in getChainV2; never put
+      // on the wire for any link (another agency's solicitors stay private).
+      vendorSolicitorFirm: { select: { name: true } },
+      vendorSolicitorContact: { select: { name: true, phone: true, email: true } },
+      purchaserSolicitorFirm: { select: { name: true } },
+      purchaserSolicitorContact: { select: { name: true, phone: true, email: true } },
       // Active buyer round — used to round-scope the chain progress % so a
       // relisted file doesn't count the previous buyer's steps (audit DATA-005).
       activeBuyerRoundId: true,
@@ -650,16 +680,39 @@ export async function getChainV2(
   // Falls back to the viewer's identity key if they have no claimed file here.
   // (#chain-checkins, shared-on-outsourced)
   let viewerSideKey: string | null = null;
+  let ownLink: (typeof chain.links)[number] | null = null;
   if (viewer) {
-    const ownLink = chain.links.find((l) => {
+    ownLink = chain.links.find((l) => {
       const tx = l.transaction;
       if (!tx) return false;
       if (viewer.scope.kind === "all") return tx.progressionBusinessId == null; // TSP's own files
       if (viewer.scope.kind === "assigned") return tx.assignedUserId === viewer.userId;
       if (viewer.scope.kind === "business") return tx.progressionBusinessId === viewer.scope.businessId;
       return !!viewer.agencyId && tx.agencyId === viewer.agencyId; // agency staff
-    });
+    }) ?? null;
     viewerSideKey = ownLink?.transaction?.agencyId ? agencySideKey(ownLink.transaction.agencyId) : noteSideKey(viewer);
+  }
+
+  // Prefill the two adjacent nodes' shared side from the viewer's own file's real
+  // solicitors (an info-only, editable default — not stored until edited). The
+  // node ABOVE (our seller's onward purchase, lower position per positions.ts)
+  // takes our vendor solicitor as ITS buyer; the node BELOW (our buyer's related
+  // sale, higher position) takes our purchaser solicitor as ITS seller.
+  const solPrefill = new Map<string, { buyer?: ChainNodeSolicitorNote; seller?: ChainNodeSolicitorNote }>();
+  if (ownLink) {
+    const otx = ownLink.transaction;
+    const mkNote = (
+      firm: { name: string } | null | undefined,
+      contact: { name: string; phone: string | null; email: string | null } | null | undefined,
+    ): ChainNodeSolicitorNote | null =>
+      firm?.name ? { firm: firm.name, handler: contact?.name ?? null, phone: contact?.phone ?? null, email: contact?.email ?? null, prefilled: true } : null;
+    const vendorNote = mkNote(otx?.vendorSolicitorFirm, otx?.vendorSolicitorContact);
+    const purchaserNote = mkNote(otx?.purchaserSolicitorFirm, otx?.purchaserSolicitorContact);
+    const sameBranch = (x: (typeof chain.links)[number]) => (x.branchKey ?? "") === (ownLink!.branchKey ?? "");
+    const above = chain.links.find((x) => sameBranch(x) && x.position === ownLink!.position - 1);
+    const below = chain.links.find((x) => sameBranch(x) && x.position === ownLink!.position + 1);
+    if (above && vendorNote) solPrefill.set(above.id, { buyer: vendorNote });
+    if (below && purchaserNote) solPrefill.set(below.id, { ...(solPrefill.get(below.id) ?? {}), seller: purchaserNote });
   }
 
   // Closed-loop chain arc (2026-06-05): detect "this chain used to be
@@ -844,6 +897,7 @@ export async function getChainV2(
         lastChainCheckAt,
         entries: rawEntries,
         stepMarks: rawStepMarks,
+        nodeSolicitors: rawSolicitors,
         stubPhotoStoragePath,
         shareToken,
         // Private stub fields (contact + notes) — pulled off here so they never
@@ -909,6 +963,19 @@ export async function getChainV2(
       const steps: string[] = viewerSideKey
         ? (rawStepMarks ?? []).filter((m) => m.sideKey === viewerSideKey).map((m) => m.stepKey)
         : [];
+      // Solicitor notes: the viewer's saved rows for this side win; else the
+      // adjacent-node prefill from our own file. Shown on NEIGHBOUR cards only —
+      // null on the viewer's own node (we already hold the real thing there).
+      const savedSol = viewerSideKey ? (rawSolicitors ?? []).filter((s) => s.sideKey === viewerSideKey) : [];
+      const toSolNote = (s: (typeof savedSol)[number]): ChainNodeSolicitorNote => ({ firm: s.firmName, handler: s.handlerName ?? null, phone: s.handlerPhone ?? null, email: s.handlerEmail ?? null, prefilled: false });
+      const pf = solPrefill.get(l.id);
+      const isOwnLink = !!ownLink && ownLink.id === l.id;
+      const solicitors: ChainNodeSolicitors = (isOwnLink || !viewer)
+        ? { buyer: null, seller: null }
+        : {
+            buyer: (() => { const r = savedSol.find((s) => s.side === "buyer"); return r ? toSolNote(r) : (pf?.buyer ?? null); })(),
+            seller: (() => { const r = savedSol.find((s) => s.side === "seller"); return r ? toSolNote(r) : (pf?.seller ?? null); })(),
+          };
       // Private stub contact + notes: same trust tier as intel (owning agency +
       // internal staff only). Re-added to the wire only when visible; null for
       // every other agency. Nulling has no visible status effect — an uninvited
@@ -956,6 +1023,12 @@ export async function getChainV2(
         overridePredictedDate,
         photoStoragePath,
         activeBuyerRoundId,
+        // Own-file solicitor source — used only for the prefill map above; pulled
+        // off here so another agency's solicitors never reach the wire.
+        vendorSolicitorFirm: _vsf,
+        vendorSolicitorContact: _vsc,
+        purchaserSolicitorFirm: _psf,
+        purchaserSolicitorContact: _psc,
         ...txnPublic
       } = rawTx;
       const photoUrl = photoStoragePath ? photoMap.get(photoStoragePath) ?? null : null;
@@ -1011,6 +1084,7 @@ export async function getChainV2(
         intel,
         entries,
         steps,
+        solicitors,
         canEditIntel,
         canEditStub,
         hasShareLink,

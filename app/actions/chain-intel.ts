@@ -202,6 +202,109 @@ export async function addChainEntryAction(
   return { id: entry.id, body: entry.body, authorName: entry.authorName, createdAt: entry.createdAt.toISOString() };
 }
 
+// Resolve the viewer's side-key for a chain node, with the SAME access model as
+// toggleChainStepAction: you may annotate a node you own OR a neighbour node in a
+// chain you're part of, and the note is private to your side. Returns the sideKey
+// the row is stored/read under. Looser than requireChainNodeEdit (own-only).
+async function resolveChainNodeSideScope(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  linkId: string,
+  contextTransactionId?: string,
+): Promise<{ sideKey: string }> {
+  const link = await prisma.chainLink.findUnique({
+    where: { id: linkId },
+    select: {
+      id: true, chainId: true, transactionId: true, createdByUserId: true,
+      createdBy: { select: { agencyId: true } },
+      transaction: { select: { agencyId: true, assignedUserId: true, agentUserId: true, progressionBusinessId: true } },
+    },
+  });
+  if (!link) throw new Error("Chain link not found");
+
+  const scope = getAccessScope(session);
+  const viewer: IntelViewer = { userId: session.user.id, role: session.user.role, agencyId: session.user.agencyId ?? null, businessId: session.user.progressionBusinessId ?? null, scope };
+  const ownSide = canEditNodeIntel(viewer, {
+    transactionId: link.transactionId,
+    linkCreatedByUserId: link.createdByUserId,
+    linkCreatedByAgencyId: link.createdBy?.agencyId ?? null,
+    txAgencyId: link.transaction?.agencyId ?? null,
+    txAssignedUserId: link.transaction?.assignedUserId ?? null,
+    txAgentUserId: link.transaction?.agentUserId ?? null,
+    txProgressionBusinessId: link.transaction?.progressionBusinessId ?? null,
+  });
+  if (!ownSide) {
+    const inChain = await prisma.propertyTransaction.findFirst({
+      where: { AND: [scopeTransactionWhere(scope), { chainLink: { chainId: link.chainId } }] },
+      select: { id: true },
+    });
+    if (!inChain) throw new Error("You don't have permission to update this chain node.");
+  }
+
+  let contextTx: { id: string; agencyId: string } | null = null;
+  if (contextTransactionId) {
+    contextTx = await prisma.propertyTransaction.findFirst({
+      where: scopeOwnershipWhere(scope, contextTransactionId),
+      select: { id: true, agencyId: true },
+    });
+  }
+  const sideKey = contextTx
+    ? agencySideKey(contextTx.agencyId)
+    : ownSide && link.transaction?.agencyId
+      ? agencySideKey(link.transaction.agencyId)
+      : noteSideKey(viewer);
+  return { sideKey };
+}
+
+export type ChainSolicitorInput = {
+  firm: string;
+  handler?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+// Save (upsert) the viewer's private note of a chain NEIGHBOUR's buyer/seller
+// solicitor. Info only — never touches the real file, the stub, or a claimed
+// transaction's solicitor data. Scoped to the viewer's side; firm is required.
+export async function setChainNodeSolicitorAction(
+  linkId: string,
+  side: "buyer" | "seller",
+  input: ChainSolicitorInput,
+  contextTransactionId?: string,
+): Promise<{ ok: true }> {
+  const session = await requireSession();
+  if (side !== "buyer" && side !== "seller") throw new Error("Unknown side.");
+  const firm = input.firm.trim();
+  if (!firm) throw new Error("A firm name is required.");
+  const { sideKey } = await resolveChainNodeSideScope(session, linkId, contextTransactionId);
+
+  const fields = {
+    firmName: firm,
+    handlerName: input.handler?.trim() || null,
+    handlerPhone: input.phone?.trim() || null,
+    handlerEmail: input.email?.trim() || null,
+    markedById: session.user.id,
+    markedByName: session.user.name ?? null,
+  };
+  await prisma.chainNodeSolicitor.upsert({
+    where: { chainLinkId_sideKey_side: { chainLinkId: linkId, sideKey, side } },
+    create: { chainLinkId: linkId, sideKey, side, ...fields },
+    update: fields,
+  });
+  return { ok: true };
+}
+
+// Remove the viewer's noted solicitor for one side of a chain node.
+export async function removeChainNodeSolicitorAction(
+  linkId: string,
+  side: "buyer" | "seller",
+  contextTransactionId?: string,
+): Promise<{ ok: true }> {
+  const session = await requireSession();
+  const { sideKey } = await resolveChainNodeSideScope(session, linkId, contextTransactionId);
+  await prisma.chainNodeSolicitor.deleteMany({ where: { chainLinkId: linkId, sideKey, side } });
+  return { ok: true };
+}
+
 // Toggle a "Confirm progress" step on a chain check-in node (critique #235).
 // Same access + side-key model as addChainEntryAction: you can mark steps on a
 // node you own or a neighbour node in a chain you're part of, and the marks are
