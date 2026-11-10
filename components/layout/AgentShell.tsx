@@ -28,6 +28,8 @@ import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
 import { AppPathRecorder } from "@/components/agent/AppPathRecorder";
 import { PullToRefresh } from "@/components/agent/PullToRefresh";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { FounderProvider } from "@/components/layout/FounderGate";
+import { QuickActionDock } from "@/components/quick-dock/QuickActionDock";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
@@ -302,6 +304,11 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
+  // Founder-only trial of the app-wide quick-action dock. When true the dock
+  // mounts AND the top-right "Add note"/"New email" header buttons self-hide
+  // (via FounderProvider below) so the dock is the single entry point. Everyone
+  // else is unaffected. Gate widens by editing this one check.
+  const isFounderDock   = (session.user.email ?? "").toLowerCase().trim() === "ellis@thesalesprogressor.co.uk";
   // DB-sourced name (falls back to the JWT). Reading it here means a profile
   // rename shows in the chrome as soon as the /agent layout revalidates,
   // rather than only after a sign-out/in that refreshes the token.
@@ -720,8 +727,14 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           + the shared skeletons, not here — a layout-level fade would play on
           the loading skeleton and leave the real content to snap in. */}
       <main className="agent-main-content" style={{ flex: 1, minWidth: 0 }}>
-        {children}
+        <FounderProvider value={isFounderDock}>{children}</FounderProvider>
       </main>
+
+      {/* App-wide quick-action dock (New note / New email) — plucked byte-for-byte
+          from /dev/updates-glass and wired to the real surfaces. Founder-gated
+          while it trials; in return the top-right header buttons hide for the
+          founder (FounderProvider above). */}
+      {isFounderDock && <QuickActionDock />}
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}

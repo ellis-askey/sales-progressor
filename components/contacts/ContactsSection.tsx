@@ -948,6 +948,7 @@ export function ContactsSection({
               the hint shows the property instantly (founder feedback 2026-10-21). */}
           <ComposeEmailButton
             variant="ghost"
+            keep
             initialTransactionId={transactionId}
             initialSaleHint={{
               line1: address.split(",")[0]?.trim() || address,
