@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTrialConfig, trialClock, resolveTrialAgency } from "@/lib/command/trials";
-import { getTrialOverview, type TrialKpi, type TrialDayPoint } from "@/lib/command/trial-cockpit";
+import { getTrialOverview, getTrialTeam, type TrialKpi, type TrialDayPoint } from "@/lib/command/trial-cockpit";
 import { KpiCard, DeltaPill, Section, ParamTabs, CardEmpty, InsightCard, fmtInt } from "@/components/command/ui/primitives";
 import { fmtHoursShort, fmtRelative, initials, avColor } from "@/lib/command/format";
+import { TeamTab } from "@/components/command/trials/TeamTab";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 const TABS = [
   { key: "overview", label: "Overview" },
+  { key: "team", label: "Team" },
 ];
 
 function fmtKpiValue(k: TrialKpi): string {
@@ -83,7 +85,9 @@ export default async function TrialCockpitPage({
     );
   }
 
-  const data = await getTrialOverview(agency.id, trial);
+  // Fetch only the active tab's data — each tab is its own query set.
+  const data = activeTab === "overview" ? await getTrialOverview(agency.id, trial) : null;
+  const team = activeTab === "team" ? await getTrialTeam(agency.id, trial) : null;
 
   return (
     <div className="space-y-8">
@@ -120,6 +124,8 @@ export default async function TrialCockpitPage({
       </div>
 
       <ParamTabs options={TABS} active={activeTab} hrefFor={(k) => `/command/trials/${slug}?tab=${k}`} />
+
+      {data && (<>
 
       {/* ── The headline: who's aboard + the book ───────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -202,6 +208,10 @@ export default async function TrialCockpitPage({
           )}
         </Section>
       </div>
+
+      </>)}
+
+      {team && <TeamTab team={team} staffTarget={trial.staffTarget} />}
     </div>
   );
 }

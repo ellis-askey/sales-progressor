@@ -141,6 +141,236 @@ async function windowCounts(agencyId: string, staffIds: string[], from: Date, to
   };
 }
 
+// ── Team tab ──────────────────────────────────────────────────────────────────
+
+export type TeamStatus = "active" | "quiet" | "dormant" | "never";
+
+export interface TeamMemberRow {
+  userId: string;
+  name: string;
+  role: string;
+  isInHouseProgressor: boolean;
+  image: string | null;
+  imageFocusX: number;
+  imageFocusY: number;
+  joinedAt: Date;          // account created
+  lastActive: Date | null; // max of events, file sessions, lastLoginAt
+  status: TeamStatus;
+  logins7d: number;
+  seconds7d: number;
+  files7d: number;
+  // Trial-to-date contribution counts, attributed to this person
+  steps: number;   // milestones they confirmed
+  chases: number;  // manual chase messages they sent
+  todos: number;   // hand-made to-dos they created
+  weeks: number[]; // 12 weekly file-session counts, oldest → newest
+}
+
+export interface TrialInviteRow {
+  id: string;
+  kind: "negotiator" | "director";
+  name: string;
+  email: string;
+  invitedBy: string;
+  sentAt: Date;
+  status: "accepted" | "pending" | "expired" | "cancelled";
+  acceptedAt: Date | null;
+}
+
+export interface TrialTeam {
+  rosterCount: number;
+  signedInCount: number;
+  active7dCount: number;
+  members: TeamMemberRow[];
+  invites: TrialInviteRow[];
+}
+
+function teamStatus(lastActive: Date | null, now: number): TeamStatus {
+  if (!lastActive) return "never";
+  const days = (now - lastActive.getTime()) / DAY_MS;
+  if (days < 7) return "active";
+  if (days < 14) return "quiet";
+  return "dormant";
+}
+
+const WEEKS = 12;
+
+export async function getTrialTeam(agencyId: string, trial: TrialConfig): Promise<TrialTeam> {
+  const now = Date.now();
+  const since7 = new Date(now - 7 * DAY_MS);
+  const since12w = new Date(now - WEEKS * 7 * DAY_MS);
+  const trialStart = new Date(`${trial.startsAt}T00:00:00`);
+
+  const staff = await commandDb.user.findMany({
+    where: {
+      agencyId,
+      role: { in: STAFF_ROLES as never },
+      isDemo: false,
+      deactivatedAt: null,
+      NOT: { email: { endsWith: TSP_DOMAIN } },
+    },
+    select: {
+      id: true, name: true, role: true, isInHouseProgressor: true,
+      image: true, imageFocusX: true, imageFocusY: true,
+      createdAt: true, lastLoginAt: true,
+    },
+  });
+  const staffIds = staff.map((s) => s.id);
+
+  const [loginGroups, lastEventGroups, lastSessionGroups, sessions, stepGroups, chaseGroups, todoGroups, negInvites, dirInvites] = await Promise.all([
+    staffIds.length
+      ? commandDb.event.groupBy({
+          by: ["userId"],
+          where: { type: "user_logged_in" as never, userId: { in: staffIds }, occurredAt: { gte: since7 } },
+          _count: { _all: true },
+        })
+      : [],
+    staffIds.length
+      ? commandDb.event.groupBy({ by: ["userId"], where: { agencyId, userId: { in: staffIds } }, _max: { occurredAt: true } })
+      : [],
+    staffIds.length
+      ? commandDb.fileTimeSession.groupBy({ by: ["userId"], where: { userId: { in: staffIds } }, _max: { lastActivityAt: true } })
+      : [],
+    staffIds.length
+      ? commandDb.fileTimeSession.findMany({
+          where: { userId: { in: staffIds }, startedAt: { gte: since12w } },
+          select: { userId: true, startedAt: true, endedAt: true, totalEngagedSeconds: true, transactionId: true },
+        })
+      : [],
+    commandDb.milestoneCompletion.groupBy({
+      by: ["completedById"],
+      where: {
+        state: "complete" as never,
+        reflected: false,
+        backfilledCompletion: false,
+        completedById: { in: staffIds.length ? staffIds : ["-"] },
+        completedAt: { gte: trialStart },
+        transaction: { agencyId, isDemo: false },
+      },
+      _count: { _all: true },
+    }),
+    commandDb.outboundMessage.groupBy({
+      by: ["createdById"],
+      where: {
+        agencyId,
+        purpose: "chase" as never,
+        type: "outbound" as never,
+        isAutomated: false,
+        createdById: { in: staffIds.length ? staffIds : ["-"] },
+        createdAt: { gte: trialStart },
+      },
+      _count: { _all: true },
+    }),
+    commandDb.manualTask.groupBy({
+      by: ["createdById"],
+      where: {
+        agencyId,
+        sourceMessageId: null,
+        isPossible: false,
+        createdById: { in: staffIds.length ? staffIds : ["-"] },
+        createdAt: { gte: trialStart },
+      },
+      _count: { _all: true },
+    }),
+    commandDb.negotiatorInvitation.findMany({
+      where: { agencyId },
+      select: {
+        id: true, negotiatorName: true, negotiatorEmail: true, createdAt: true,
+        expiresAt: true, acceptedAt: true, cancelledAt: true,
+        invitedBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    commandDb.directorInvitation.findMany({
+      where: { agencyId },
+      select: {
+        id: true, directorName: true, directorEmail: true, createdAt: true,
+        expiresAt: true, acceptedAt: true, cancelledAt: true,
+        invitedBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const loginMap = new Map(loginGroups.map((g) => [g.userId, g._count._all]));
+  const lastEventMap = new Map(lastEventGroups.map((g) => [g.userId, g._max.occurredAt ?? null]));
+  const lastSessionMap = new Map(lastSessionGroups.map((g) => [g.userId, g._max.lastActivityAt ?? null]));
+  const stepMap = new Map(stepGroups.filter((g) => g.completedById).map((g) => [g.completedById as string, g._count._all]));
+  const chaseMap = new Map(chaseGroups.filter((g) => g.createdById).map((g) => [g.createdById as string, g._count._all]));
+  const todoMap = new Map(todoGroups.map((g) => [g.createdById, g._count._all]));
+
+  const agg = new Map<string, { seconds: number; files: Set<string>; weeks: number[] }>();
+  for (const id of staffIds) agg.set(id, { seconds: 0, files: new Set(), weeks: new Array(WEEKS).fill(0) });
+  for (const s of sessions) {
+    const a = agg.get(s.userId);
+    if (!a) continue;
+    const started = s.startedAt.getTime();
+    const idx = WEEKS - 1 - Math.min(WEEKS - 1, Math.floor((now - started) / (7 * DAY_MS)));
+    if (idx >= 0 && idx < WEEKS) a.weeks[idx] += 1;
+    if (started >= now - 7 * DAY_MS) {
+      if (s.endedAt && s.totalEngagedSeconds) a.seconds += s.totalEngagedSeconds;
+      a.files.add(s.transactionId);
+    }
+  }
+
+  const later = (a: Date | null, b: Date | null) => (!a ? b : !b ? a : a > b ? a : b);
+  const members: TeamMemberRow[] = staff.map((u) => {
+    const a = agg.get(u.id)!;
+    const lastActive = later(later(lastEventMap.get(u.id) ?? null, lastSessionMap.get(u.id) ?? null), u.lastLoginAt);
+    return {
+      userId: u.id,
+      name: u.name,
+      role: u.role as string,
+      isInHouseProgressor: u.isInHouseProgressor,
+      image: u.image,
+      imageFocusX: u.imageFocusX,
+      imageFocusY: u.imageFocusY,
+      joinedAt: u.createdAt,
+      lastActive,
+      status: teamStatus(lastActive, now),
+      logins7d: loginMap.get(u.id) ?? 0,
+      seconds7d: a.seconds,
+      files7d: a.files.size,
+      steps: stepMap.get(u.id) ?? 0,
+      chases: chaseMap.get(u.id) ?? 0,
+      todos: todoMap.get(u.id) ?? 0,
+      weeks: a.weeks,
+    };
+  });
+  // Champions first: trial contribution, then engaged time, then recency.
+  members.sort(
+    (x, y) =>
+      y.steps + y.chases + y.todos - (x.steps + x.chases + x.todos) ||
+      y.seconds7d - x.seconds7d ||
+      (y.lastActive?.getTime() ?? 0) - (x.lastActive?.getTime() ?? 0),
+  );
+
+  const inviteStatus = (i: { acceptedAt: Date | null; cancelledAt: Date | null; expiresAt: Date }): TrialInviteRow["status"] => {
+    if (i.acceptedAt) return "accepted";
+    if (i.cancelledAt) return "cancelled";
+    if (i.expiresAt.getTime() < now) return "expired";
+    return "pending";
+  };
+  const invites: TrialInviteRow[] = [
+    ...negInvites.map((i): TrialInviteRow => ({
+      id: i.id, kind: "negotiator", name: i.negotiatorName, email: i.negotiatorEmail,
+      invitedBy: i.invitedBy.name, sentAt: i.createdAt, status: inviteStatus(i), acceptedAt: i.acceptedAt,
+    })),
+    ...dirInvites.map((i): TrialInviteRow => ({
+      id: i.id, kind: "director", name: i.directorName, email: i.directorEmail,
+      invitedBy: i.invitedBy.name, sentAt: i.createdAt, status: inviteStatus(i), acceptedAt: i.acceptedAt,
+    })),
+  ].sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
+
+  return {
+    rosterCount: staff.length,
+    signedInCount: staff.filter((s) => s.lastLoginAt !== null).length,
+    active7dCount: members.filter((m) => m.status === "active").length,
+    members,
+    invites,
+  };
+}
+
 export async function getTrialOverview(agencyId: string, trial: TrialConfig): Promise<TrialOverview> {
   const now = new Date();
   const since7 = new Date(now.getTime() - 7 * DAY_MS);
