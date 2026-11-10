@@ -90,6 +90,10 @@ export interface DictationControls {
   status: DictationStatus;
   analyser: AnalyserNode | null;
   toggle: () => void;
+  // Finalise and stop if recording; no-op otherwise. Call from a composer's
+  // Send handler so an in-progress dictation is committed (interim folded in,
+  // span unwrapped) before the body HTML is read.
+  stop: () => void;
 }
 
 // ── Core engine ──────────────────────────────────────────────────────────────
@@ -209,6 +213,9 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
   }, [render, stop]);
 
   const toggle = useCallback(() => { if (status === "listening") stop(); else void start(); }, [status, start, stop]);
+  // Guarded stop for consumers (Send handlers) — only acts while recording, so
+  // it never focuses the editor or fires input events when idle.
+  const requestStop = useCallback(() => { if (activeRef.current) stop(); }, [stop]);
 
   useEffect(() => () => {
     activeRef.current = false;
@@ -217,7 +224,7 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
     audioRef.current?.close().catch(() => {});
   }, []);
 
-  return { status, analyser, toggle };
+  return { status, analyser, toggle, stop: requestStop };
 }
 
 // ── Target: a controlled <textarea> ──────────────────────────────────────────

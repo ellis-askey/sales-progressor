@@ -494,6 +494,9 @@ export function ComposeEmailModal({
   function send() {
     if (!ctx) return;
     setError(null);
+    // Finalise any in-progress voice typing first (folds the last interim word
+    // in, unwraps the dictation span) so the body we read is clean and complete.
+    dictation.stop();
     const bodyHtml = editorRef.current?.innerHTML ?? "";
     const when = scheduledFor;
     startSend(async () => {
