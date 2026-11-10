@@ -19,8 +19,8 @@ export type DictationStatus = "idle" | "listening" | "unsupported" | "denied";
 // then tightened around the marks. Applied over the whole dictated run so a
 // command never gets split. Capitalisation + deeper tidy is left to Refine.
 const PUNCTUATION: Array<[RegExp, string]> = [
-  [/\bnew paragraph\b/gi, "\n\n"],
-  [/\bnew line\b/gi, "\n"],
+  [/\b(new paragraph|next paragraph)\b/gi, "\n\n"],
+  [/\b(new line|next line|line break)\b/gi, "\n"],
   [/\b(full stop|period)\b/gi, "."],
   [/\bcomma\b/gi, ","],
   [/\bquestion mark\b/gi, "?"],
@@ -36,8 +36,9 @@ const PUNCTUATION: Array<[RegExp, string]> = [
 export function applySpokenPunctuation(text: string): string {
   let t = text;
   for (const [re, mark] of PUNCTUATION) t = t.replace(re, mark);
-  t = t.replace(/\s+([.,;:!?)])/g, "$1");
-  t = t.replace(/([([])\s+/g, "$1");
+  // [ \t] (not \s) so newlines from "new line"/"new paragraph" are never eaten.
+  t = t.replace(/[ \t]+([.,;:!?)])/g, "$1");
+  t = t.replace(/([([])[ \t]+/g, "$1");
   t = t.replace(/([.,;:!?])(?=[^\s.,;:!?)])/g, "$1 ");
   t = t.replace(/[ \t]*\n[ \t]*/g, "\n");
   t = t.replace(/ {2,}/g, " ");
@@ -173,12 +174,17 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
         const txt = res[0].transcript;
         if (res.isFinal) {
           const prev = finalRef.current;
-          finalRef.current = prev + (prev && !prev.endsWith(" ") ? " " : "") + txt.trim();
+          // Trim spaces/tabs only — NOT newlines. The engine emits a real
+          // newline for "new line"/"new paragraph"; trim() stripped it, which
+          // is why punctuation worked but line breaks didn't.
+          const chunk = txt.replace(/^[ \t]+|[ \t]+$/g, "");
+          const sep = prev && !/\s$/.test(prev) && !/^\s/.test(chunk) ? " " : "";
+          finalRef.current = prev + sep + chunk;
         } else {
           interimText += txt;
         }
       }
-      interimRef.current = interimText.trim();
+      interimRef.current = interimText.replace(/^[ \t]+|[ \t]+$/g, "");
       render();
     };
     rec.onerror = (ev) => {

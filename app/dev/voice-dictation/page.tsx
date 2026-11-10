@@ -36,8 +36,8 @@ type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 // run so a command never gets split. Capitalisation + any deeper tidy is left
 // to the composer's Refine pass.
 const PUNCTUATION: Array<[RegExp, string]> = [
-  [/\bnew paragraph\b/gi, "\n\n"],
-  [/\bnew line\b/gi, "\n"],
+  [/\b(new paragraph|next paragraph)\b/gi, "\n\n"],
+  [/\b(new line|next line|line break)\b/gi, "\n"],
   [/\b(full stop|period)\b/gi, "."],
   [/\bcomma\b/gi, ","],
   [/\bquestion mark\b/gi, "?"],
@@ -53,8 +53,8 @@ const PUNCTUATION: Array<[RegExp, string]> = [
 function applySpokenPunctuation(text: string): string {
   let t = text;
   for (const [re, mark] of PUNCTUATION) t = t.replace(re, mark);
-  t = t.replace(/\s+([.,;:!?)])/g, "$1");        // no space before a mark
-  t = t.replace(/([([])\s+/g, "$1");               // no space after an opener
+  t = t.replace(/[ \t]+([.,;:!?)])/g, "$1");       // no space before a mark (newline-safe)
+  t = t.replace(/([([])[ \t]+/g, "$1");            // no space after an opener
   t = t.replace(/([.,;:!?])(?=[^\s.,;:!?)])/g, "$1 "); // one space after a mark
   t = t.replace(/[ \t]*\n[ \t]*/g, "\n");          // trim around line breaks
   t = t.replace(/ {2,}/g, " ");                     // collapse doubles
@@ -273,15 +273,17 @@ function useDictation(textareaRef: React.RefObject<HTMLTextAreaElement | null>, 
         const res = e.results[i];
         const txt = res[0].transcript;
         if (res.isFinal) {
-          // Append with smart spacing.
+          // Append with smart spacing. Trim spaces/tabs only — NOT newlines,
+          // which the engine emits for "new line"/"new paragraph".
           const prev = finalRef.current;
-          const sep = prev && !prev.endsWith(" ") ? " " : "";
-          finalRef.current = prev + sep + txt.trim();
+          const chunk = txt.replace(/^[ \t]+|[ \t]+$/g, "");
+          const sep = prev && !/\s$/.test(prev) && !/^\s/.test(chunk) ? " " : "";
+          finalRef.current = prev + sep + chunk;
         } else {
           interimText += txt;
         }
       }
-      interimRef.current = interimText.trim();
+      interimRef.current = interimText.replace(/^[ \t]+|[ \t]+$/g, "");
       commit(); // finals + interim both stream straight into the body
     };
     rec.onerror = (ev) => {
