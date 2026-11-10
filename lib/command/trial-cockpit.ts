@@ -12,6 +12,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import { classifyDevice } from "@/lib/command/device";
 import { getAgencySales, getAgencyEmailLog, type AgencySaleRow } from "@/lib/command/agency-file";
+import { getAgencySetupReadiness, type AgencySetupReadiness } from "@/lib/command/agency-readiness";
 import type { TrialConfig } from "@/lib/command/trials";
 
 const DAY_MS = 86_400_000;
@@ -584,6 +585,81 @@ export async function getTrialClients(agencyId: string, trial: TrialConfig): Pro
       bouncedFailed: emailSummary.bouncedFailed,
       openRatePct: emailSummary.openRatePct,
     },
+  };
+}
+
+// ── Setup tab ─────────────────────────────────────────────────────────────────
+
+export interface TrialSwitch {
+  key: string;
+  label: string;
+  on: boolean;
+}
+
+export interface TrialSetup {
+  readiness: AgencySetupReadiness | null;
+  switches: TrialSwitch[]; // the six automation switches + the feature gates
+  whatsapp: Array<{ name: string; status: string; lastMessageAt: Date | null }>;
+  mailboxes: Array<{ name: string; email: string; kind: "outlook" | "imap" }>;
+  customisation: { milestoneEmails: number; emailTemplates: number; chaseRules: number };
+}
+
+export async function getTrialSetup(agencyId: string): Promise<TrialSetup> {
+  const [readinessRes, agency, whatsappRows, outlookRows, imapRows, milestoneEmails, emailTemplates, chaseRules] = await Promise.all([
+    getAgencySetupReadiness({ agencyId }),
+    commandDb.agency.findUnique({
+      where: { id: agencyId },
+      select: {
+        solicitorChaseEnabled: true,
+        enquiryReplyChaseEnabled: true,
+        enquiryRaiseChaseEnabled: true,
+        weeklyClientUpdatesEnabled: true,
+        whatsAppCaptureEnabled: true,
+        whatsAppTasksEnabled: true,
+        inHouseProgressionEnabled: true,
+        chainNeighbourUpdatesEnabled: true,
+      },
+    }),
+    commandDb.whatsAppConnection.findMany({
+      where: { user: { agencyId } },
+      select: { status: true, lastMessageAt: true, user: { select: { name: true } } },
+      orderBy: { lastMessageAt: "desc" },
+    }),
+    commandDb.outlookConnection.findMany({
+      where: { user: { agencyId } },
+      select: { email: true, user: { select: { name: true } } },
+    }),
+    commandDb.imapConnection.findMany({
+      where: { user: { agencyId } },
+      select: { email: true, user: { select: { name: true } } },
+    }),
+    commandDb.milestoneEmailOverride.count({ where: { agencyId } }),
+    commandDb.agencyEmailTemplate.count({ where: { agencyId } }),
+    commandDb.agencyChaseRuleOverride.count({ where: { agencyId } }),
+  ]);
+
+  const switches: TrialSwitch[] = agency
+    ? [
+        { key: "solicitorChaseEnabled", label: "Solicitor auto-chase", on: agency.solicitorChaseEnabled },
+        { key: "enquiryReplyChaseEnabled", label: "Enquiry reply chase", on: agency.enquiryReplyChaseEnabled },
+        { key: "enquiryRaiseChaseEnabled", label: "Enquiry raise chase", on: agency.enquiryRaiseChaseEnabled },
+        { key: "weeklyClientUpdatesEnabled", label: "Weekly client updates", on: agency.weeklyClientUpdatesEnabled },
+        { key: "whatsAppCaptureEnabled", label: "WhatsApp capture", on: agency.whatsAppCaptureEnabled },
+        { key: "whatsAppTasksEnabled", label: "WhatsApp to-dos", on: agency.whatsAppTasksEnabled },
+        { key: "inHouseProgressionEnabled", label: "In-house progression", on: agency.inHouseProgressionEnabled },
+        { key: "chainNeighbourUpdatesEnabled", label: "Chain neighbour updates", on: agency.chainNeighbourUpdatesEnabled },
+      ]
+    : [];
+
+  return {
+    readiness: readinessRes.rows[0] ?? null,
+    switches,
+    whatsapp: whatsappRows.map((w) => ({ name: w.user.name, status: w.status, lastMessageAt: w.lastMessageAt })),
+    mailboxes: [
+      ...outlookRows.map((o) => ({ name: o.user.name, email: o.email, kind: "outlook" as const })),
+      ...imapRows.map((i) => ({ name: i.user.name, email: i.email, kind: "imap" as const })),
+    ],
+    customisation: { milestoneEmails, emailTemplates, chaseRules },
   };
 }
 
