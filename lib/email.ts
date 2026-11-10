@@ -557,7 +557,7 @@ export async function resolveSenderForTransaction(
 ): Promise<{ from: string; replyTo: string }> {
   const tx = await prisma.propertyTransaction.findFirst({
     where: { id: transactionId },
-    select: { agencyId: true, agency: { select: { name: true } } },
+    select: { agencyId: true, serviceType: true, agency: { select: { name: true } } },
   });
 
   // Manual sends brand like the automated rule: "{sender first name} at {Agency}"
@@ -654,7 +654,19 @@ export async function resolveSenderForTransaction(
       /* lookup failure → legacy behaviour below */
     }
   }
-  if (!userEmail) return fallback();
+  if (!userEmail) {
+    // An agency's OWN agent (not internal TSP staff) must never fall back to the
+    // agency's quoteSenderEmail — that is TSP's white-label channel for this
+    // agency, and only TSP's own sends belong on it. On an outsourced file, send
+    // from the platform address under the agent's own name, with replies coming
+    // back to them. (Self-managed agents fall to their own domain / the platform
+    // via fallback(), never the channel, so they are unaffected.)
+    if (sessionUser.agencyId && tx?.serviceType === "outsourced") {
+      const platform = "updates@thesalesprogressor.co.uk";
+      return { from: buildFrom(brandedDisplay, platform), replyTo: sessionUser.email?.trim() || platform };
+    }
+    return fallback();
+  }
 
   return { from: buildFrom(brandedDisplay, userEmail.email), replyTo: userEmail.email };
 }

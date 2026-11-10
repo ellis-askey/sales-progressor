@@ -223,7 +223,12 @@ export async function resolveAgencySenderForTransaction(
       const useAgencySender = !!(agencyAddr && agencyVerified);
       const from = useAgencySender ? agencyAddr! : prog;
       const replyTo = useAgencySender ? agencyAddr! : prog;
-      return { from: buildFrom(display, from), replyTo, canReply: true, ...logo };
+      // No assigned TSP progressor → the file isn't being progressed by a named
+      // person yet, so don't speak as the agency's own agent (never pretend to be
+      // whoever added the file). Brand neutrally as the agency. The channel stays
+      // as From — it's still TSP's white-label address for this agency.
+      const speakAs = tx.assignedUser ? display : (brand ?? "Sales Progressor");
+      return { from: buildFrom(speakAs, from), replyTo, canReply: true, ...logo };
     }
     // External progression business: the full client-facing sender ladder
     // (docs/active/progression-sender-ladder/PLAN.md). The business's own
