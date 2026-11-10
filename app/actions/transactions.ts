@@ -4266,10 +4266,12 @@ export async function relistTransactionImpl(
         // self-corrects on the next intro action.
         introCallPurchaserCompletedAt: null,
         introCallPurchaserCompletedById: null,
-        // WhatsApp group was created with the old buyer + seller; clear so a
-        // fresh group/link is made rather than inviting the new buyer into the
-        // old group.
+        // The old buyer's WhatsApp group link is cleared so the incoming buyer
+        // isn't invited into the previous buyer's group. The SELLER's group
+        // link is left intact. The seller is unchanged across a relist. (The
+        // legacy single-link column is cleared too.)
         whatsappGroupInviteUrl: null,
+        whatsappBuyerGroupUrl: null,
         // Enquiries auto-chase pause reflected a stance on the old buyer's file.
         enquiryChasePaused: false,
         // Buyer-broker fee columns reset for the incoming buyer (referral-ledger

@@ -103,6 +103,8 @@ type Props = {
     holdPeriods: Array<{ startedAt: Date; endedAt: Date | null }>;
     contacts: Contact[];
     whatsappGroupInviteUrl?: string | null;
+    whatsappSellerGroupUrl?: string | null;
+    whatsappBuyerGroupUrl?: string | null;
     // Storage path (from the DB row). OverviewPanel signs a fresh URL
     // internally per render for the ContactsSection preview.
     photoStoragePath?: string | null;
@@ -547,7 +549,8 @@ export async function OverviewPanel({
             transactionId={transaction.id}
             address={transaction.propertyAddress}
             contacts={clientContacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone ?? null, roleType: c.roleType }))}
-            currentInviteUrl={transaction.whatsappGroupInviteUrl ?? null}
+            sellerUrl={transaction.whatsappSellerGroupUrl ?? transaction.whatsappGroupInviteUrl ?? null}
+            buyerUrl={transaction.whatsappBuyerGroupUrl ?? null}
           />
         }
         clients={

@@ -969,7 +969,17 @@ model PropertyTransaction {
   // one-click a personalised "join the group" WhatsApp message to each
   // client contact. Not surfaced on the client portal — invites go via
   // WhatsApp, not the portal.
+  // Deprecated (2026-11-10): the old single "one group for the whole sale"
+  // link. Superseded by the per-side links below, which keep buyer and seller
+  // in separate groups. Retained (not dropped) so historic data isn't lost; the
+  // seller link was backfilled from this on migration.
   whatsappGroupInviteUrl String?
+  // Per-side WhatsApp group invite links (2026-11-10). Seller and buyer get
+  // SEPARATE groups so the two sides never share a chat or see each other's
+  // numbers. Each is populated after the agent creates that side's group in
+  // WhatsApp and pastes the invite link. Nothing is auto-created or auto-sent.
+  whatsappSellerGroupUrl String?
+  whatsappBuyerGroupUrl  String?
 
   // Optional property photo the agent uploads. photoStoragePath is relative
   // to the transaction-documents bucket (e.g. property-photos/{txId}.jpg);

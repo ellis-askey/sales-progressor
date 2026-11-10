@@ -391,7 +391,7 @@ export function OverlaysGallery() {
       {open === "claim" && <ClaimWelcomeModal address={MOCK_ADDR} originatorAgency="Bath Estates" />}
       {open === "relist" && <RelistFileModal open transactionId={MOCK_TX_ID} previousPurchasePrice={38500000} inChain={false} onClose={close} />}
       {open === "switchService" && <SwitchServiceTypeModal open transactionId={MOCK_TX_ID} current="self_managed" onClose={close} />}
-      {open === "whatsapp" && <WhatsappGroupModal open onClose={close} transactionId={MOCK_TX_ID} address={MOCK_ADDR} contacts={MOCK_CONTACTS} currentInviteUrl={null} />}
+      {open === "whatsapp" && <WhatsappGroupModal open onClose={close} transactionId={MOCK_TX_ID} address={MOCK_ADDR} contacts={MOCK_CONTACTS} sellerUrl={null} buyerUrl={null} />}
       {open === "confirmReview" && <ConfirmReviewModal open onClose={close} transactionId={MOCK_TX_ID} items={MOCK_QUEUE_ITEMS} loading={false} onChange={() => {}} />}
       {open === "changeFile" && <ChangeFileModal onConfirm={close} onCancel={close} />}
       {open === "billingNeg" && <BillingNegotiatorModal open onClose={close} />}

@@ -34,8 +34,17 @@ async function requireOwnership(transactionId: string): Promise<void> {
   if (!tx) throw new Error("Transaction not found");
 }
 
+// Seller and buyer keep SEPARATE WhatsApp groups, so the link is stored on the
+// side it belongs to. The old single-link column is left untouched (deprecated).
+type WhatsappSide = "seller" | "buyer";
+const SIDE_COLUMN: Record<WhatsappSide, "whatsappSellerGroupUrl" | "whatsappBuyerGroupUrl"> = {
+  seller: "whatsappSellerGroupUrl",
+  buyer: "whatsappBuyerGroupUrl",
+};
+
 export async function setWhatsappGroupInviteUrlAction(
   transactionId: string,
+  side: WhatsappSide,
   url: string,
 ): Promise<{ ok: true }> {
   await requireOwnership(transactionId);
@@ -45,7 +54,7 @@ export async function setWhatsappGroupInviteUrlAction(
   }
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { whatsappGroupInviteUrl: trimmed },
+    data: { [SIDE_COLUMN[side]]: trimmed },
   });
   revalidatePath(`/agent/transactions/${transactionId}`, "page");
   return { ok: true };
@@ -53,11 +62,12 @@ export async function setWhatsappGroupInviteUrlAction(
 
 export async function removeWhatsappGroupInviteUrlAction(
   transactionId: string,
+  side: WhatsappSide,
 ): Promise<{ ok: true }> {
   await requireOwnership(transactionId);
   await prisma.propertyTransaction.update({
     where: { id: transactionId },
-    data: { whatsappGroupInviteUrl: null },
+    data: { [SIDE_COLUMN[side]]: null },
   });
   revalidatePath(`/agent/transactions/${transactionId}`, "page");
   return { ok: true };

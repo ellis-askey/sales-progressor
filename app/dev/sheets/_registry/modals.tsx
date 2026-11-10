@@ -1359,7 +1359,8 @@ export const MODAL_ENTRIES: SheetEntry[] = [
           { id: "demo-c2", name: "Tom Whitfield", phone: "07700 900222", roleType: "purchaser" },
           { id: "demo-c3", name: "Rebecca Whitfield", phone: null, roleType: "purchaser" },
         ]}
-        currentInviteUrl={ctx.stateId === "linked" ? "https://chat.whatsapp.com/DemoInviteCode123" : null}
+        sellerUrl={ctx.stateId === "linked" ? "https://chat.whatsapp.com/DemoInviteCode123" : null}
+        buyerUrl={null}
       />
     ),
   },
