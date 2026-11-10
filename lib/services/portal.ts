@@ -473,12 +473,24 @@ export async function getPortalData(token: string): Promise<PortalDataResult> {
 // per-user WhatsApp numbers land this reads from the managing user instead.
 export type PortalTeam = {
   managing: {
-    // email is the AGENCY-assigned sender address, or null when unset (hidden).
+    // email: the person's own inbox on self-managed (agency sender fallback);
+    // the white-label sender on outsourced. Null when unset (button hidden).
     name: string;
     image: string | null;
     email: string | null;
     roleLabel: string;
     whatsappUrl: string | null;
+  } | null;
+  // The Client Manager as a second team entry — present only on a self-managed
+  // file where a DIFFERENT in-house progressor is assigned (in-house
+  // progression, founder 2026-11-10): the progressor is `managing` ("Your
+  // progressor", day-to-day), and the CM stays on the card as "Your agent".
+  // Null everywhere else, so the card renders exactly as before.
+  oversight: {
+    name: string;
+    image: string | null;
+    email: string | null;
+    roleLabel: string;
   } | null;
   solicitorFirmName: string | null;
   // Pre-built mailto for the client to email their own-side conveyancer: To =
@@ -550,9 +562,9 @@ export async function getPortalChainAgent(
     where: { id: transactionId },
     select: { serviceType: true, agencyId: true, progressionBusinessId: true, assignedUserId: true, agentUserId: true, assignedUser: { select: { email: true } }, agentUser: { select: { email: true } }, purchaseType: true, propertyAddress: true },
   });
-  const managingUserId = tx
-    ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
-    : null;
+  // Day-to-day rule (founder, 2026-11-10): the assigned progressor when set —
+  // including an in-house progressor on a self-managed file — else the agent.
+  const managingUserId = tx ? (tx.assignedUserId ?? tx.agentUserId) : null;
   // A pure cash buyer has no related sale, so their "selling agent" is n/a.
   const applicable = !(side === "purchaser" && tx?.purchaseType === "cash_buyer");
 
@@ -592,7 +604,8 @@ export async function getPortalChainAgent(
       isOutsourced: !!chainOutsourced,
       agencyId: tx?.agencyId ?? null,
       progressionBusinessId: tx?.progressionBusinessId ?? null,
-      personEmail: chainOutsourced ? tx?.assignedUser?.email : tx?.agentUser?.email,
+      // Self-managed: the assigned (in-house) progressor's inbox first, else the agent's.
+      personEmail: chainOutsourced ? tx?.assignedUser?.email : (tx?.assignedUser?.email ?? tx?.agentUser?.email),
     });
     // Addressed to whoever manages the file (assigned progressor / agency verified
     // sender). No clean address resolves → no correction link, rather than surfacing
@@ -642,7 +655,11 @@ async function resolveManagingEmail(opts: {
     where: { id: agencyId },
     select: { quoteSenderEmail: true, quoteSenderVerified: true },
   });
-  if (!isOutsourced) return agency?.quoteSenderEmail?.trim() || null; // self-managed
+  // Self-managed: the person's OWN inbox first (clients should reach the agent
+  // at their real address, not the agency's sending address — founder,
+  // 2026-11-10), falling back to the agency's verified sender when the person
+  // has no email on file.
+  if (!isOutsourced) return personEmail?.trim() || agency?.quoteSenderEmail?.trim() || null;
   const business = progressionBusinessId
     ? await prisma.progressionBusiness.findUnique({
         where: { id: progressionBusinessId },
@@ -696,6 +713,7 @@ export async function getPortalTeam(
     if (!tx) {
       return {
         managing: null,
+        oversight: null,
         solicitorFirmName: null,
         solicitorMailto: null,
         broker: null,
@@ -713,11 +731,19 @@ export async function getPortalTeam(
     }
 
     const isOutsourced = tx.serviceType !== "self_managed";
-    const person = isOutsourced ? tx.assignedUser : tx.agentUser;
+    // Who looks after the file day-to-day (founder rule, 2026-11-10): the
+    // assigned progressor when one is set — including an in-house progressor on
+    // a self-managed file — else the agent who owns the file.
+    const person = isOutsourced ? tx.assignedUser : (tx.assignedUser ?? tx.agentUser);
+    // In-house progression: a self-managed file with a DISTINCT progressor keeps
+    // the CM on the card too, as a second entry ("Your agent").
+    const cm = !isOutsourced && tx.assignedUser && tx.agentUser && tx.assignedUser.id !== tx.agentUser.id
+      ? tx.agentUser
+      : null;
 
     // The email shown to the client for "their progressor" — the per-(company, agency)
     // white-label sender (see resolveManagingEmail → resolveOutsourcedWhiteLabelSender),
-    // else the assigned progressor's own inbox. Never our platform updates@: null hides
+    // else the person's own inbox. Never our platform updates@: null hides
     // the Email button rather than leaking it.
     const managingEmail = await resolveManagingEmail({ isOutsourced, agencyId: tx.agencyId, progressionBusinessId: tx.progressionBusinessId, personEmail: person?.email });
 
@@ -731,8 +757,22 @@ export async function getPortalTeam(
         name: person.name ?? "Your progressor",
         image: person.image ?? null,
         email: managingEmail,
-        roleLabel: isOutsourced ? "Your progressor" : "Your agent",
+        // Self-managed: the day-to-day person is "Your progressor" only when a
+        // distinct in-house progressor is assigned; otherwise the agent reads
+        // "Your agent" exactly as before.
+        roleLabel: isOutsourced || cm ? "Your progressor" : "Your agent",
         whatsappUrl: isOutsourced ? whatsappLink(identity.contactWhatsapp) : null,
+      };
+    }
+
+    let oversight: PortalTeam["oversight"] = null;
+    if (cm) {
+      const cmEmail = await resolveManagingEmail({ isOutsourced: false, agencyId: tx.agencyId, progressionBusinessId: tx.progressionBusinessId, personEmail: cm.email });
+      oversight = {
+        name: cm.name ?? "Your agent",
+        image: cm.image ?? null,
+        email: cmEmail,
+        roleLabel: "Your agent",
       };
     }
 
@@ -801,7 +841,7 @@ export async function getPortalTeam(
     // Shared subject for the client emailing their team about this file.
     const emailSubject = `${side === "purchaser" ? "Purchase" : "Sale"} of ${tx.propertyAddress}`;
 
-    return { managing, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject };
+    return { managing, oversight, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject };
   });
 }
 
@@ -813,12 +853,12 @@ export type PortalVCard = { fn: string; org: string | null; email: string | null
 
 export async function getPortalVCardData(
   token: string,
-): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null; agent: PortalVCard | null }> {
+): Promise<{ progressor: PortalVCard | null; solicitor: PortalVCard | null; agent: PortalVCard | null; cm: PortalVCard | null }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: { roleType: true, propertyTransactionId: true },
   });
-  if (!contact) return { progressor: null, solicitor: null, agent: null };
+  if (!contact) return { progressor: null, solicitor: null, agent: null, cm: null };
   const side = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
   const tx = await prisma.propertyTransaction.findUnique({
@@ -826,8 +866,8 @@ export async function getPortalVCardData(
     select: {
       serviceType: true,
       agencyId: true,
-      assignedUser: { select: { name: true, phone: true, email: true } },
-      agentUser:    { select: { name: true, phone: true, email: true } },
+      assignedUser: { select: { id: true, name: true, phone: true, email: true } },
+      agentUser:    { select: { id: true, name: true, phone: true, email: true } },
       agency: { select: { name: true, quoteSenderEmail: true } },
       progressionBusinessId: true,
       progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true } },
@@ -837,10 +877,15 @@ export async function getPortalVCardData(
       purchaserSolicitorContact: { select: { name: true, email: true, phone: true } },
     },
   });
-  if (!tx) return { progressor: null, solicitor: null, agent: null };
+  if (!tx) return { progressor: null, solicitor: null, agent: null, cm: null };
 
   const isOutsourced = tx.serviceType !== "self_managed";
-  const person = isOutsourced ? tx.assignedUser : tx.agentUser;
+  // Same day-to-day rule as the team card: assigned progressor first (including
+  // in-house), else the owning agent.
+  const person = isOutsourced ? tx.assignedUser : (tx.assignedUser ?? tx.agentUser);
+  const cmUser = !isOutsourced && tx.assignedUser && tx.agentUser && tx.assignedUser.id !== tx.agentUser.id
+    ? tx.agentUser
+    : null;
   // Same per-(company, agency) white-label resolution as the portal contact card.
   const managingEmail = await resolveManagingEmail({ isOutsourced, agencyId: tx.agencyId, progressionBusinessId: tx.progressionBusinessId, personEmail: person?.email });
   // WhatsApp on an outsourced file comes from the responsible progression business
@@ -884,7 +929,18 @@ export async function getPortalVCardData(
         }
       : null;
 
-  return { progressor, solicitor, agent };
+  // The Client Manager's card — mirrors the team card's second entry (in-house
+  // progression: distinct CM alongside the assigned progressor).
+  const cm: PortalVCard | null = cmUser
+    ? {
+        fn: cmUser.name,
+        org: tx.agency?.name ?? null,
+        email: cmUser.email?.trim() || tx.agency?.quoteSenderEmail?.trim() || null,
+        tel: cmUser.phone?.trim() || null,
+      }
+    : null;
+
+  return { progressor, solicitor, agent, cm };
 }
 
 // Phase 1 commit 5 — round-scoped read.

@@ -24,10 +24,12 @@ export async function GET(
 ) {
   const { token } = await params;
   const whoParam = req.nextUrl.searchParams.get("who");
-  const who = whoParam === "solicitor" ? "solicitor" : whoParam === "agent" ? "agent" : "progressor";
+  // "cm" = the Client Manager entry on an in-house-progression file (the
+  // assigned progressor stays "progressor"; "agent" stays the chain agent).
+  const who = whoParam === "solicitor" ? "solicitor" : whoParam === "agent" ? "agent" : whoParam === "cm" ? "cm" : "progressor";
 
   const data = await getPortalVCardData(token);
-  const card = who === "solicitor" ? data.solicitor : who === "agent" ? data.agent : data.progressor;
+  const card = who === "solicitor" ? data.solicitor : who === "agent" ? data.agent : who === "cm" ? data.cm : data.progressor;
   if (!card) return new NextResponse("Not found", { status: 404 });
 
   // Feature-usage: a client saved a contact card. Otherwise invisible (a GET

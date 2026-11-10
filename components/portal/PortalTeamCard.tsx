@@ -48,7 +48,7 @@ function SaveContactIcon() {
 
 // Outlined "Save contact" download link (.vcf). Neutral, to sit apart from the
 // filled WhatsApp / Email actions.
-function SaveContactButton({ token, who }: { token: string; who: "progressor" | "solicitor" | "agent" }) {
+function SaveContactButton({ token, who }: { token: string; who: "progressor" | "solicitor" | "agent" | "cm" }) {
   return (
     <a
       href={`/api/portal/${token}/contact-card?who=${who}`}
@@ -74,7 +74,7 @@ function SaveContactButton({ token, who }: { token: string; who: "progressor" | 
 }
 
 export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; token: string; followup?: FollowupNudge | null }) {
-  const { managing, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject } = team;
+  const { managing, oversight, solicitorFirmName, solicitorMailto, broker, ownBroker, brokerAdd, chainAgent, emailSubject } = team;
   // Symmetric for both sides (2026-08-17): a buyer records their selling agent
   // (chain link below them), a seller their onward-purchase agent (link above).
   const showAgentRow = chainAgent.canManage && chainAgent.applicable;
@@ -257,6 +257,76 @@ export function PortalTeamCard({ team, token, followup }: { team: PortalTeam; to
             {managing.email && (
               <p style={{ margin: "8px 0 0", fontSize: 11.5, color: P.textMuted, wordBreak: "break-all" }}>
                 {managing.email}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* The Client Manager — second entry on in-house-progression files
+          (progressor above is day-to-day; the CM stays as "Your agent").
+          Same layout and avatar treatment as the managing entry. */}
+      {oversight && (
+        <div style={{ display: "flex", gap: 13, padding: "13px 18px", alignItems: "flex-start", borderTop: divider }}>
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: "50%",
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: 16,
+              color: "#fff",
+              background: oversight.image ? "#eee" : P.heroGradient,
+              boxShadow: "0 2px 6px rgba(255,107,74,0.30)",
+              overflow: "hidden",
+            }}
+          >
+            {oversight.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={oversight.image} alt={oversight.name} width={46} height={46} style={{ width: 46, height: 46, objectFit: "cover" }} />
+            ) : (
+              initials(oversight.name)
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: P.textPrimary, lineHeight: 1.25 }}>
+              {oversight.name}
+            </p>
+            <p style={{ margin: "1px 0 0", fontSize: 12, color: P.textSecondary }}>{oversight.roleLabel}</p>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              {oversight.email && (
+                <a
+                  href={`mailto:${oversight.email}?subject=${encodeURIComponent(emailSubject)}`}
+                  className="pbtn pbtn-press"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    padding: "9px 14px",
+                    borderRadius: 11,
+                    textDecoration: "none",
+                    background: PORTAL_BTN.emailBg,
+                    boxShadow: PORTAL_BTN.emailShadow,
+                    color: "#fff",
+                  }}
+                >
+                  <MailIcon /> Email
+                </a>
+              )}
+              <SaveContactButton token={token} who="cm" />
+            </div>
+
+            {oversight.email && (
+              <p style={{ margin: "8px 0 0", fontSize: 11.5, color: P.textMuted, wordBreak: "break-all" }}>
+                {oversight.email}
               </p>
             )}
           </div>
