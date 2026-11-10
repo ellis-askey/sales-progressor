@@ -16,6 +16,7 @@ import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
 import { PortalPill } from "./portal-ui";
 import { DateField } from "@/components/ui/DateField";
+import { ActorAvatar, ContactAvatar } from "@/components/ui/Avatar";
 import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 
@@ -40,6 +41,16 @@ type Milestone = {
   confirmedByPortal: boolean;
   description?: string | null;
   eventDateRequired: boolean;
+  // Who confirmed a completed step (founder, 2026-11-10): renders the
+  // updates-feed actor avatar in place of the green tick, and names them on
+  // the confirmed line ("You" when it's the viewer). Null/absent = no
+  // attribution (migrated/backfilled/system) → plain tick, exactly as before.
+  confirmer?: {
+    name: string;
+    image: string | null;
+    role: "buyer" | "seller" | "agent" | "progressor" | "solicitor" | "broker";
+    isYou: boolean;
+  } | null;
 };
 
 type Props = {
@@ -418,7 +429,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                         }}
                       >
                         <div className="flex items-start gap-3.5 px-5 py-4">
-                          <StatusDot isComplete={m.isComplete} isLocked={isLocked} canConfirm={canConfirm} isProcessing={isProcessing} />
+                          {m.isComplete && m.confirmer && !isProcessing ? (
+                            <ConfirmerAvatar confirmer={m.confirmer} />
+                          ) : (
+                            <StatusDot isComplete={m.isComplete} isLocked={isLocked} canConfirm={canConfirm} isProcessing={isProcessing} />
+                          )}
 
                           <div className="flex-1 min-w-0">
                             <p className="text-[14px] font-medium leading-snug" style={{ color: m.isComplete ? P.textMuted : P.textPrimary, textDecoration: m.isComplete ? "line-through" : "none" }}>
@@ -426,7 +441,7 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                             </p>
                             <p className="text-[12px] mt-0.5" style={{ color: m.isComplete ? P.success : P.textMuted }}>
                               {m.isComplete
-                                ? `Confirmed${m.confirmedByPortal ? " by you" : ""}${(m.eventDate ?? m.completedAt) ? ` · ${fmtDate(m.eventDate ?? m.completedAt)}` : ""}`
+                                ? `${m.confirmer ? `${m.confirmer.isYou ? "You" : m.confirmer.name} confirmed` : `Confirmed${m.confirmedByPortal ? " by you" : ""}`}${(m.eventDate ?? m.completedAt) ? ` · ${fmtDate(m.eventDate ?? m.completedAt)}` : ""}`
                                 : m.whoLabel
                               }
                             </p>
@@ -763,6 +778,34 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
         )}
       </PortalSheet>
     </>
+  );
+}
+
+// Completed-step avatar: the confirmer's photo, else the updates-feed branded
+// person art tinted to their role (buyer green / seller blue / agent coral /
+// progressor amber / solicitor navy / broker violet), with a small green tick
+// badge so "done" still reads at a glance. Same footprint as StatusDot.
+function ConfirmerAvatar({ confirmer }: { confirmer: NonNullable<Milestone["confirmer"]> }) {
+  return (
+    <div className="relative flex-shrink-0 mt-0.5" style={{ width: 24, height: 24 }}>
+      {confirmer.role === "broker" ? (
+        <ContactAvatar contact={{ name: confirmer.name, roleType: "broker" }} size={24} />
+      ) : (
+        <ActorAvatar name={confirmer.name} role={confirmer.role} image={confirmer.image} size={24} />
+      )}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute", right: -3, bottom: -3, width: 13, height: 13,
+          borderRadius: "50%", background: P.success, border: "2px solid #fff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+    </div>
   );
 }
 

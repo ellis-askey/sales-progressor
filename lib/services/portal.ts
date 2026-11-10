@@ -139,6 +139,18 @@ function resolvePortalRoundContext(
   return { roundIdForMilestones: tx.activeBuyerRoundId, deadRound: false };
 }
 
+// Who confirmed a completed step — drives the updates-feed actor treatment
+// (photo / branded art) on the portal steps list (founder, 2026-11-10). Null =
+// no attribution on the row (migrated / backfilled / system-reconciled), so
+// callers keep the plain green tick. contactId is set when a CLIENT confirmed,
+// letting the page render "You" for the viewer's own confirms.
+export type PortalMilestoneConfirmer = {
+  name: string;
+  image: string | null;
+  role: "buyer" | "seller" | "agent" | "progressor" | "solicitor" | "broker";
+  contactId: string | null;
+};
+
 export type PortalMilestone = {
   id: string;
   code: string;
@@ -157,6 +169,7 @@ export type PortalMilestone = {
   expectedDate: Date | null;
   confirmedByPortal: boolean;
   eventDateRequired: boolean;
+  confirmer: PortalMilestoneConfirmer | null;
 };
 
 export type PortalUpdate = {
@@ -969,7 +982,60 @@ export async function getPortalMilestones(
 
     const completions = await prisma.milestoneCompletion.findMany({
       where: { transactionId, ...milestoneScopeWhere(scope) },
+      include: {
+        completedBy: { select: { name: true, image: true, agencyId: true } },
+        confirmedBySolicitorContact: { select: { name: true } },
+        confirmedBySolicitorFirm: { select: { name: true } },
+        confirmedByBrokerContact: { select: { name: true } },
+        confirmedByBrokerFirm: { select: { name: true } },
+      },
     });
+
+    // confirmedByContactId is a scalar (no relation) — batch-resolve the client
+    // confirmers' names/photos/sides in one query.
+    const confirmerContactIds = [...new Set(completions.map((c) => c.confirmedByContactId).filter((x): x is string => !!x))];
+    const confirmerContacts = confirmerContactIds.length
+      ? await prisma.contact.findMany({
+          where: { id: { in: confirmerContactIds } },
+          select: { id: true, name: true, image: true, roleType: true },
+        })
+      : [];
+    const contactById = new Map(confirmerContacts.map((c) => [c.id, c]));
+
+    // Attribution → the actor shown on a completed step (founder, 2026-11-10):
+    // client via portal, else solicitor, else broker, else the staff user who
+    // confirmed (agency user = agent; TSP / progression-business = progressor).
+    // Null when the row carries no attribution (migrated / backfilled / system).
+    const resolveConfirmer = (comp: (typeof completions)[number]): PortalMilestoneConfirmer | null => {
+      if (comp.confirmedByContactId) {
+        const c = contactById.get(comp.confirmedByContactId);
+        if (c) {
+          return {
+            name: c.name,
+            image: c.image ?? null,
+            role: c.roleType === "vendor" ? "seller" : "buyer",
+            contactId: c.id,
+          };
+        }
+      }
+      if (comp.confirmedBySolicitorContact || comp.confirmedBySolicitorFirm) {
+        const name = comp.confirmedBySolicitorContact?.name?.trim() || comp.confirmedBySolicitorFirm?.name?.trim();
+        if (name) return { name, image: null, role: "solicitor", contactId: null };
+      }
+      if (comp.confirmedByBrokerContact || comp.confirmedByBrokerFirm) {
+        const name = comp.confirmedByBrokerContact?.name?.trim() || comp.confirmedByBrokerFirm?.name?.trim();
+        if (name) return { name, image: null, role: "broker", contactId: null };
+      }
+      if (comp.completedBy?.name) {
+        return {
+          name: comp.completedBy.name,
+          image: comp.completedBy.image ?? null,
+          role: comp.completedBy.agencyId ? "agent" : "progressor",
+          contactId: null,
+        };
+      }
+      return null;
+    };
 
     const completionMap = new Map(completions.map((c) => [c.milestoneDefinitionId, c]));
 
@@ -996,6 +1062,7 @@ export async function getPortalMilestones(
         expectedDate: comp?.expectedDate ?? null,
         confirmedByPortal: comp?.confirmedByPortal ?? false,
         eventDateRequired: def.eventDateRequired,
+        confirmer: comp && isComplete ? resolveConfirmer(comp) : null,
       };
     });
   });

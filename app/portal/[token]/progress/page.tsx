@@ -15,7 +15,10 @@ import { recordPortalEvent } from "@/lib/services/portal-events";
 const POST_EXCHANGE_PORTAL = new Set(["VM19", "VM20", "PM26", "PM27"]);
 const EXCHANGE_GATES_PORTAL = new Set(["VM18", "PM25"]);
 
-function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones>>) {
+// viewerContactId: who is LOOKING — lets a confirmed step read "You confirmed"
+// when the confirmer is this viewer (their twin contact on a mirrored neighbour
+// file counts too). Null (read-only mirror / agent preview) → always full name.
+function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones>>, viewerContactId: string | null = null) {
   return milestones.map((m) => ({
     id:              m.id,
     code:            m.code,
@@ -35,6 +38,14 @@ function toPortalShape(milestones: Awaited<ReturnType<typeof getPortalMilestones
     whoLabel:        WHO_LABELS[getMilestoneCopy(m.code).who] ?? getMilestoneCopy(m.code).who,
     description:        getMilestoneCopy(m.code).description ?? null,
     eventDateRequired:  m.eventDateRequired,
+    confirmer: m.confirmer
+      ? {
+          name: m.confirmer.name,
+          image: m.confirmer.image,
+          role: m.confirmer.role,
+          isYou: !!viewerContactId && m.confirmer.contactId === viewerContactId,
+        }
+      : null,
   }));
 }
 
@@ -85,7 +96,7 @@ async function buildNeighbourStepsPanel(
       return (
         <PortalMilestoneList
           token={twin.portalToken}
-          milestones={toPortalShape(bMilestones)}
+          milestones={toPortalShape(bMilestones, bContact.id)}
           otherSideMilestones={[]}
           hasExchanged={bHasExchanged}
           side={bSide}
@@ -163,8 +174,8 @@ export default async function PortalProgressPage({
   const progress = calculateProgress(toWeight(vendorMilestones), toWeight(purchaserMilestones), new Date(transaction.createdAt), transaction.overridePredictedDate ?? null);
   const percent  = side === "vendor" ? progress.vendorPercent : progress.purchaserPercent;
 
-  const portalMilestones      = toPortalShape(milestones);
-  const otherPortalMilestones = toPortalShape(otherSideMilestones);
+  const portalMilestones      = toPortalShape(milestones, contact.id);
+  const otherPortalMilestones = toPortalShape(otherSideMilestones, contact.id);
 
   // Extra swipe panel on the Progress tab:
   //   - sellers (vendor): their onward purchase (the link above), when they've
