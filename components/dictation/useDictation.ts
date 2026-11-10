@@ -144,6 +144,17 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
   const start = useCallback(async () => {
     const Ctor = getRecognitionCtor();
     if (!Ctor) { setStatus("unsupported"); onErrorRef.current?.("unsupported"); return; }
+    // Defensive teardown: release anything a previous session left running (e.g.
+    // an always-mounted modal closed mid-recording), so a fresh start never
+    // fights a leaked recognition/stream/context. activeRef off first so the
+    // old recognition's onend can't respawn during teardown.
+    activeRef.current = false;
+    try { recRef.current?.abort(); } catch { /* ignore */ }
+    recRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    audioRef.current?.close().catch(() => {});
+    audioRef.current = null;
     finalRef.current = "";
     interimRef.current = "";
     targetRef.current.begin();
@@ -154,6 +165,10 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AudioCtx();
       audioRef.current = ctx;
+      // A context created inside an async handler can start suspended (no data
+      // → no waveform). Resume it so the analyser reads the mic on every run,
+      // not just the first.
+      if (ctx.state === "suspended") await ctx.resume().catch(() => {});
       const src = ctx.createMediaStreamSource(stream);
       const node = ctx.createAnalyser();
       node.fftSize = 256;
@@ -284,8 +299,15 @@ function htmlFromText(text: string): string {
 
 export function useContentEditableDictation(
   ref: React.RefObject<HTMLElement | null>,
-  opts?: DictationOptions,
+  opts?: DictationOptions & {
+    // When dictation starts on an UNFOCUSED editor, insert before the first
+    // element matching this selector rather than at the very end — e.g. an
+    // email composer passes its signature marker so dictation lands in the
+    // body, above the signature, not below it.
+    appendBeforeSelector?: string;
+  },
 ): DictationControls {
+  const appendBeforeSelector = opts?.appendBeforeSelector;
   // A single span holds the evolving dictation so each update just replaces its
   // contents; on end it's unwrapped into the surrounding content.
   const spanRef = useRef<HTMLSpanElement | null>(null);
@@ -297,9 +319,11 @@ export function useContentEditableDictation(
       span.setAttribute("data-dictation", "");
       const sel = window.getSelection();
       // Insert at the live caret ONLY when the editor is already focused (the
-      // user placed a cursor). Otherwise append at the end WITHOUT focusing:
-      // focusing a sub-16px field on iOS zooms the page (and pops the keyboard
-      // mid-dictation), which is exactly what we don't want on a mic tap.
+      // user placed a cursor). Otherwise insert at a sensible default WITHOUT
+      // focusing: focusing a sub-16px field on iOS zooms the page (and pops the
+      // keyboard mid-dictation), which is exactly what we don't want on a mic
+      // tap. The default is before the signature (appendBeforeSelector) so the
+      // text lands in the body, else the end of the editor.
       const focusedHere = document.activeElement === editor && !!sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode);
       if (focusedHere && sel) {
         const range = sel.getRangeAt(0);
@@ -307,7 +331,9 @@ export function useContentEditableDictation(
         range.insertNode(span);
         placeCaretAfter(span);
       } else {
-        editor.appendChild(span);
+        const anchor = appendBeforeSelector ? editor.querySelector(appendBeforeSelector) : null;
+        if (anchor) editor.insertBefore(span, anchor);
+        else editor.appendChild(span);
       }
       spanRef.current = span;
     },
@@ -336,6 +362,6 @@ export function useContentEditableDictation(
       // No forced focus — avoids the iOS zoom when the field wasn't focused.
       editor?.dispatchEvent(new Event("input", { bubbles: true }));
     },
-  }), [ref]);
+  }), [ref, appendBeforeSelector]);
   return useDictation(target, opts);
 }

@@ -178,9 +178,16 @@ export function ComposeEmailModal({
   const pendingBodyRef = useRef<string | null>(null);
   // Voice typing — dictation streams into the body at the caret; Refine tidies
   // the result afterwards. Hidden where the browser has no SpeechRecognition.
+  // appendBeforeSelector keeps dictation in the body (above the signature) when
+  // the editor isn't focused, instead of landing below the signature block.
   const dictation = useContentEditableDictation(editorRef, {
+    appendBeforeSelector: "[data-cem-sig]",
     onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
   });
+  // This modal stays mounted (open just toggles), so the dictation hook never
+  // unmounts to clean itself up. Stop any active recording when the drawer
+  // closes, or a left-running session leaks and breaks the next open.
+  useEffect(() => { if (!open) dictation.stop(); }, [open, dictation.stop]);
   // True while the greeting line should auto-follow the To recipients. Turned
   // off for the prefilled flow (surveyor email), which seeds its own greeting.
   const autoGreetRef = useRef(true);
