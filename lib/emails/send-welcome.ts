@@ -17,10 +17,16 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildActivationDay1, buildProgressionWelcome } from "@/lib/emails/retention";
+import { isAgencyRetentionPaused } from "@/lib/services/retention";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
   try {
+    // Lifecycle-paused agency → no welcome at all (checked before the stamp, so
+    // the user flows normally if the agency is later unpaused).
+    const pre = await prisma.user.findUnique({ where: { id: userId }, select: { agencyId: true } });
+    if (await isAgencyRetentionPaused(pre?.agencyId)) return;
+
     // Atomic check-and-stamp. updateMany returns count=1 only if the WHERE
     // clause matched a row — i.e. only if welcomeEmailSentAt was NULL at the
     // moment of the UPDATE. Two concurrent callers can't both win this.
@@ -67,6 +73,9 @@ export async function sendWelcomeEmailIfNotSent(userId: string): Promise<void> {
 // of either flavour), but progressor copy + a CTA to add their first client.
 export async function sendProgressionWelcomeIfNotSent(userId: string): Promise<void> {
   try {
+    const pre = await prisma.user.findUnique({ where: { id: userId }, select: { agencyId: true } });
+    if (await isAgencyRetentionPaused(pre?.agencyId)) return;
+
     const result = await prisma.user.updateMany({
       where: { id: userId, welcomeEmailSentAt: null },
       data: { welcomeEmailSentAt: new Date() },

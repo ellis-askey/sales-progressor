@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { updateAgencyChaseStreamAction, type ChaseStream } from "@/app/actions/agency-chase";
 import { updateAgencyWeeklyUpdateAction } from "@/app/actions/agency-weekly-update";
 import { updateAgencyWhatsAppStreamAction, type WhatsAppStream } from "@/app/actions/agency-whatsapp";
+import { updateAgencyRetentionPausedAction } from "@/app/actions/agency-retention";
 
 export type AutomationValues = {
   solicitorChaseEnabled: boolean;
@@ -69,17 +70,41 @@ export function AgencyAutomationControls({
   values,
   agencySet,
   chaseMasterOn,
+  retentionEmailsPaused,
 }: {
   agencyId: string;
   values: AutomationValues;
   agencySet: AgencySetValues;
   chaseMasterOn: boolean;
+  retentionEmailsPaused: boolean;
 }) {
   const router = useRouter();
   const [v, setV] = useState<AutomationValues>(values);
   const [savingKey, setSavingKey] = useState<SwitchKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  // Lifecycle emails: shown as ON = sending (the natural reading), stored as the
+  // inverse (retentionEmailsPaused). Its own action, separate from the chase set.
+  const [lifecycleOn, setLifecycleOn] = useState(!retentionEmailsPaused);
+  const [savingLifecycle, setSavingLifecycle] = useState(false);
+
+  function toggleLifecycle() {
+    const nextOn = !lifecycleOn;
+    setSavingLifecycle(true);
+    setError(null);
+    setLifecycleOn(nextOn);
+    startTransition(async () => {
+      const res = await updateAgencyRetentionPausedAction({ agencyId, paused: !nextOn });
+      if (!res.ok) {
+        setError(res.error);
+        setLifecycleOn(!nextOn);
+      } else {
+        router.refresh();
+      }
+      setSavingLifecycle(false);
+    });
+  }
 
   function toggle(key: SwitchKey) {
     const next = !v[key];
@@ -129,6 +154,23 @@ export function AgencyAutomationControls({
             <Switch on={v[key]} disabled={savingKey === key} onClick={() => toggle(key)} />
           </div>
         ))}
+      </div>
+
+      {/* Lifecycle/retention emails from TSP to this agency (welcome + nudges +
+          exchange celebrations). Off = paused for trial/managed customers. */}
+      <div className="mt-3 pt-3 border-t border-neutral-800">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-neutral-400">
+            Lifecycle emails
+            <span className="ml-1.5 text-[10px] text-neutral-600">welcome + nudges</span>
+          </span>
+          <Switch on={lifecycleOn} disabled={savingLifecycle} onClick={toggleLifecycle} />
+        </div>
+        {!lifecycleOn && (
+          <p className="mt-1.5 text-[11px] text-amber-400/80 leading-relaxed">
+            Paused — no welcome, activation, quiet or celebration emails send to this agency.
+          </p>
+        )}
       </div>
 
       {/* Switches the agency controls from its own settings. Shown for the full

@@ -35,6 +35,7 @@ export type AgencySettingsSnapshot = {
   advisorChaseEnabled: boolean;
   weeklyClientUpdatesEnabled: boolean;
   chainNeighbourUpdatesEnabled: boolean;
+  retentionEmailsPaused: boolean;
   whatsAppCaptureEnabled: boolean;
   whatsAppTasksEnabled: boolean;
   clientChaseEscalateAfter: number;
@@ -96,7 +97,7 @@ export async function getAgencyFileHeader(agencyId: string): Promise<AgencyFileH
       firstSubmissionAt: true, archivedAt: true,
       chaseEmailsEnabled: true, solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true,
       enquiryRaiseChaseEnabled: true, advisorChaseEnabled: true, weeklyClientUpdatesEnabled: true,
-      chainNeighbourUpdatesEnabled: true, whatsAppCaptureEnabled: true, whatsAppTasksEnabled: true,
+      chainNeighbourUpdatesEnabled: true, retentionEmailsPaused: true, whatsAppCaptureEnabled: true, whatsAppTasksEnabled: true,
       clientChaseEscalateAfter: true,
       showPortalKeyDates: true, showPortalCosts: true, showPortalProgressPercent: true,
       showPortalWelcomeSheet: true, autoInviteClientsOnAdd: true,
@@ -154,6 +155,7 @@ export async function getAgencyFileHeader(agencyId: string): Promise<AgencyFileH
       advisorChaseEnabled: agency.advisorChaseEnabled,
       weeklyClientUpdatesEnabled: agency.weeklyClientUpdatesEnabled,
       chainNeighbourUpdatesEnabled: agency.chainNeighbourUpdatesEnabled,
+      retentionEmailsPaused: agency.retentionEmailsPaused,
       whatsAppCaptureEnabled: agency.whatsAppCaptureEnabled,
       whatsAppTasksEnabled: agency.whatsAppTasksEnabled,
       clientChaseEscalateAfter: agency.clientChaseEscalateAfter,

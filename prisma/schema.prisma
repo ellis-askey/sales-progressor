@@ -118,6 +118,12 @@ model Agency {
   // See docs/active/three-notes-distilled-2026-08-27.md (Note A).
   chainNeighbourUpdatesEnabled Boolean @default(false)
 
+  // Lifecycle/retention email kill switch (Command Centre, per agency). When true,
+  // the retention sweep + the welcome/exchange celebrations all skip this agency —
+  // for trial/managed customers who shouldn't be nudged. OFF by default (emails
+  // send as normal). Read by lib/services/retention.ts + the welcome senders.
+  retentionEmailsPaused Boolean @default(false)
+
   // WhatsApp capture: a Command Centre kill switch per agency. ON by default —
   // capture only happens once an agent deliberately links their WhatsApp, so
   // this is a force-off, not an opt-in. When false, ingest drops that agency's

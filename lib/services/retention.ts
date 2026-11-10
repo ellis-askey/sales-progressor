@@ -100,6 +100,23 @@ async function buildPropertyCard(tx: {
   return { addressLine: line, town, postcode, photoUrl, saleLabel, saleValue, tenure, added };
 }
 
+// ─── Lifecycle/retention kill switch (Agency.retentionEmailsPaused) ───────────
+// A paused agency gets NO welcome, nudge or celebration — for trial/managed
+// customers who shouldn't be re-engaged. The sweep excludes them at the query
+// (pausedAgencyIds); the event-fired celebrations + the welcome senders check
+// isAgencyRetentionPaused directly, since those don't run through the sweep.
+
+export async function isAgencyRetentionPaused(agencyId: string | null | undefined): Promise<boolean> {
+  if (!agencyId) return false;
+  const a = await prisma.agency.findUnique({ where: { id: agencyId }, select: { retentionEmailsPaused: true } });
+  return !!a?.retentionEmailsPaused;
+}
+
+async function pausedAgencyIds(): Promise<string[]> {
+  const rows = await prisma.agency.findMany({ where: { retentionEmailsPaused: true }, select: { id: true } });
+  return rows.map((r) => r.id);
+}
+
 // ─── Internal send helper ─────────────────────────────────────────────────────
 
 async function sendRetentionEmail({
@@ -188,6 +205,7 @@ export async function maybeFireFirstExchangeEmail(
     });
     if (!user?.email) return;
     if (INTERNAL_STAFF_ROLES.has(user.role)) return;
+    if (await isAgencyRetentionPaused(user.agencyId)) return;
 
     // Check if user already received first_exchange
     const existing = await prisma.retentionEmailLog.findFirst({
@@ -253,6 +271,7 @@ export async function maybeFireFirstOutsourcedFreeEmail(
 
     const agent = tx.agentUser;
     if (!agent?.email || INTERNAL_STAFF_ROLES.has(agent.role)) return;
+    if (await isAgencyRetentionPaused(tx.agencyId)) return;
 
     // Per-agency dedup: once per agency, ever. (Matches the existing per-user
     // first_exchange pattern — a claim-before-send log row, no unique index;
@@ -348,7 +367,9 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
     where: { progressionBusiness: { isTsp: false } },
     select: { agencyId: true },
   });
-  const externalClientAgencyIds = [...new Set(externalClientLinks.map((l) => l.agencyId))];
+  // Suppressed = external-progression-business clients (B1, never ours to
+  // re-engage) PLUS agencies with the lifecycle kill switch on (trial/managed).
+  const suppressedAgencyIds = [...new Set([...externalClientLinks.map((l) => l.agencyId), ...(await pausedAgencyIds())])];
 
   // Helper: get users who have NOT yet received a given emailKey
   // and have NOT been assigned an email this run
@@ -362,8 +383,8 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
         ...(isTransactional || allowOptOut ? {} : { retentionEmailOptOut: false }),
         NOT: [
           { retentionEmailLogs: { some: { emailKey } } },
-          // B1 — suppress every agency owned by an external progression business.
-          ...(externalClientAgencyIds.length ? [{ agencyId: { in: externalClientAgencyIds } }] : []),
+          // External-business clients (B1) + lifecycle-paused agencies.
+          ...(suppressedAgencyIds.length ? [{ agencyId: { in: suppressedAgencyIds } }] : []),
         ],
       },
       select: { id: true, email: true, name: true, agencyId: true },

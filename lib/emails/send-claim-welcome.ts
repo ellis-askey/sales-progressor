@@ -18,6 +18,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
 import { buildClaimWelcome } from "@/lib/emails/retention";
+import { isAgencyRetentionPaused } from "@/lib/services/retention";
 import { extractFirstName } from "@/lib/contacts/displayName";
 
 type ClaimWelcomeArgs = {
@@ -29,6 +30,9 @@ type ClaimWelcomeArgs = {
 export async function sendClaimWelcomeIfNotSent(args: ClaimWelcomeArgs): Promise<void> {
   const { userId, transactionId, propertyAddress } = args;
   try {
+    const pre = await prisma.user.findUnique({ where: { id: userId }, select: { agencyId: true } });
+    if (await isAgencyRetentionPaused(pre?.agencyId)) return;
+
     // Same atomic check-and-stamp as sendWelcomeEmailIfNotSent. Either helper
     // can be the winner; the other will see count=0 and skip.
     const result = await prisma.user.updateMany({

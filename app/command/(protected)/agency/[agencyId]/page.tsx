@@ -192,6 +192,7 @@ export default async function AgencyFilePage({
               clientChaseEscalateAfter: s.clientChaseEscalateAfter,
             }}
             chaseMasterOn={chaseSettings?.enabledByDefault ?? false}
+            retentionEmailsPaused={s.retentionEmailsPaused}
           />
 
           <SettingsGroup title="Client portal">
