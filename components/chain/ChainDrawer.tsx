@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
-import { saveChainIntelAction, addChainEntryAction, toggleChainStepAction } from "@/app/actions/chain-intel";
+import { saveChainIntelAction, addChainEntryAction, toggleChainStepAction, setChainNodeSolicitorAction, removeChainNodeSolicitorAction, type ChainSolicitorInput } from "@/app/actions/chain-intel";
 import type { ChainNodeIntelInput } from "@/lib/chain/intel";
 import { ChainActivityCard } from "@/components/chain/ChainActivityCard";
 import type { ChainV2, ChainTabPayload } from "@/lib/services/chains";
@@ -490,6 +490,36 @@ export function ChainView({
     }
   }, [stepBusy, transactionId]);
 
+  // Solicitor notes on a neighbour node (info only) — optimistic, keyed to OUR
+  // file as the context so the row is stored under our side. Mirrors the step
+  // toggle above; a failed save is reconciled by the next refetch.
+  const [solBusy, setSolBusy] = useState<Set<string>>(new Set());
+  const handleSaveSolicitor = useCallback(async (linkId: string, side: "buyer" | "seller", input: ChainSolicitorInput) => {
+    const busyKey = `${linkId}:${side}`;
+    setSolBusy((s) => new Set(s).add(busyKey));
+    const note = { firm: input.firm.trim(), handler: (input.handler ?? "").trim() || null, phone: (input.phone ?? "").trim() || null, email: (input.email ?? "").trim() || null, prefilled: false };
+    setChain((c) => (c ? { ...c, links: c.links.map((l) => (l.id === linkId ? { ...l, solicitors: { buyer: l.solicitors?.buyer ?? null, seller: l.solicitors?.seller ?? null, [side]: note } } : l)) } : c));
+    try {
+      await setChainNodeSolicitorAction(linkId, side, input, transactionId);
+    } catch {
+      // leave the optimistic value; the next refetch reconciles.
+    } finally {
+      setSolBusy((s) => { const n = new Set(s); n.delete(busyKey); return n; });
+    }
+  }, [transactionId]);
+  const handleRemoveSolicitor = useCallback(async (linkId: string, side: "buyer" | "seller") => {
+    const busyKey = `${linkId}:${side}`;
+    setSolBusy((s) => new Set(s).add(busyKey));
+    setChain((c) => (c ? { ...c, links: c.links.map((l) => (l.id === linkId ? { ...l, solicitors: { buyer: l.solicitors?.buyer ?? null, seller: l.solicitors?.seller ?? null, [side]: null } } : l)) } : c));
+    try {
+      await removeChainNodeSolicitorAction(linkId, side, transactionId);
+    } catch {
+      // leave it; the next refetch reconciles.
+    } finally {
+      setSolBusy((s) => { const n = new Set(s); n.delete(busyKey); return n; });
+    }
+  }, [transactionId]);
+
   useEffect(() => {
     fetchChain();
   }, [fetchChain, refreshKey]);
@@ -896,6 +926,11 @@ export function ChainView({
       steps: l.steps,
       onToggleStep: l.transactionId !== null ? undefined : (stepKey: string, next: boolean) => handleToggleStep(l.id, stepKey, next),
       stepBusyKey: ([...stepBusy].find((k) => k.startsWith(`${l.id}:`))?.slice(l.id.length + 1) ?? null),
+      // Solicitor notes — info only, neighbour cards only (not your own file).
+      solicitors: mine ? undefined : l.solicitors,
+      onSaveSolicitor: mine ? undefined : (side: "buyer" | "seller", input: { firm: string; handler: string; phone: string; email: string }) => handleSaveSolicitor(l.id, side, input),
+      onRemoveSolicitor: mine ? undefined : (side: "buyer" | "seller") => handleRemoveSolicitor(l.id, side),
+      solicitorBusy: [...solBusy].some((k) => k.startsWith(`${l.id}:`)),
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,
       cta,
       canEdit,

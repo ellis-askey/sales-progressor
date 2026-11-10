@@ -10,15 +10,17 @@
 // from. Selecting a row highlights its map pin; a selected pin scrolls its row
 // into view.
 
-import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref, type CSSProperties } from "react";
 import Link from "next/link";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { CHAIN_STATUS_COLOR, type ChainMapStatus } from "@/components/chain/chain-map-shared";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { ChainCardBadge } from "@/components/chain/LinkCard";
+import type { ChainNodeSolicitors } from "@/lib/services/chains";
 import { ChainStepTicks } from "@/components/chain/ChainStepTicks";
 import { chainStepsPercent } from "@/lib/chain/check-in-steps";
+import { User, Phone, EnvelopeSimple, Briefcase, PencilSimple, Plus } from "@phosphor-icons/react";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
 // buttons. `kind` tells the panel which handler to call: "invite" → onInvite
@@ -56,6 +58,13 @@ export type ChainMapPanelItem = {
   steps?: string[];
   onToggleStep?: (stepKey: string, next: boolean) => void;
   stepBusyKey?: string | null;
+  // Per-viewer solicitor notes on this NEIGHBOUR node (info only). Present only
+  // for a neighbour card (undefined on the viewer's own file). onSave/onRemove
+  // persist the annotation; solicitorBusy flags an in-flight save on this card.
+  solicitors?: ChainNodeSolicitors;
+  onSaveSolicitor?: (side: "buyer" | "seller", input: { firm: string; handler: string; phone: string; email: string }) => void;
+  onRemoveSolicitor?: (side: "buyer" | "seller") => void;
+  solicitorBusy?: boolean;
   // ⋮ menu capabilities
   canEdit: boolean;
   hasShareLink: boolean;
@@ -71,6 +80,110 @@ export type ChainMapPanelItem = {
   // it and the one above (same-ladder pairs only).
   canInsertAbove: boolean;
 };
+
+// ── Solicitors row (info-only neighbour-solicitor notes) ─────────────────────
+// Your private note of who's acting for the buyer/seller on a neighbour's sale.
+// The container is Design-Lab taggable (glassId "chain-sol-cell"); until a glass
+// variant is picked it shows the plain elevated-cell surface.
+type SolDraft = { firm: string; handler: string; phone: string; email: string };
+
+function SolCell({ side, note, busy, onSave, onRemove }: {
+  side: "buyer" | "seller";
+  note: ChainNodeSolicitors["buyer"];
+  busy: boolean;
+  onSave: (side: "buyer" | "seller", input: SolDraft) => void;
+  onRemove: (side: "buyer" | "seller") => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<SolDraft>({ firm: note?.firm ?? "", handler: note?.handler ?? "", phone: note?.phone ?? "", email: note?.email ?? "" });
+  const heading = side === "buyer" ? "Buyer's solicitor" : "Seller's solicitor";
+  const glass = useGlassTag("chain-sol-cell", "Chain · solicitor cell");
+  const surface: CSSProperties = glass.picked ? {} : { border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)" };
+  const box = (extra?: CSSProperties): CSSProperties => ({ padding: "10px 12px", borderRadius: 10, ...surface, ...extra });
+
+  function start() { setDraft({ firm: note?.firm ?? "", handler: note?.handler ?? "", phone: note?.phone ?? "", email: note?.email ?? "" }); setEditing(true); }
+  function save() { if (!draft.firm.trim()) return; onSave(side, draft); setEditing(false); }
+
+  const head = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+      <span style={{ fontSize: 11, fontWeight: 650, color: "var(--agent-text-muted)" }}>{heading}</span>
+      {note && !editing && (
+        <button type="button" onClick={start} className="cmp-act" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, color: "var(--agent-text-muted)" }}>
+          <PencilSimple size={11} /> Edit
+        </button>
+      )}
+    </div>
+  );
+
+  if (editing) {
+    const f = (ph: string, k: keyof SolDraft, type = "text") => (
+      <input value={draft[k]} type={type} placeholder={ph} className="agent-field" style={{ fontSize: 12, padding: "5px 8px", width: "100%", fontFamily: "inherit" }} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
+    );
+    return (
+      <div {...glass.props} className={glass.className} style={box()}>
+        {head}
+        <div style={{ display: "grid", gap: 5 }}>
+          {f("Firm name", "firm")}
+          {f("Case handler", "handler")}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>{f("Phone", "phone", "tel")}{f("Email", "email", "email")}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 1 }}>
+            <button type="button" onClick={save} disabled={busy || !draft.firm.trim()} className="agent-btn agent-btn-xs agent-btn-primary">{busy ? "Saving…" : "Save"}</button>
+            <button type="button" onClick={() => setEditing(false)} className="cmp-act" style={{ fontSize: 11 }}>Cancel</button>
+            {note && <button type="button" onClick={() => { onRemove(side); setEditing(false); }} className="cmp-act" style={{ fontSize: 11, color: "var(--agent-danger)", marginLeft: "auto" }}>Remove</button>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!note) {
+    return (
+      <div {...glass.props} className={glass.className} style={box({ borderStyle: glass.picked ? undefined : "dashed", display: "flex", flexDirection: "column" })}>
+        {head}
+        <button type="button" onClick={start} className="cmp-act cmp-act--primary" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, alignSelf: "flex-start", marginTop: 1 }}>
+          <Plus size={11} weight="bold" /> Add {side === "buyer" ? "buyer's" : "seller's"} solicitor
+        </button>
+      </div>
+    );
+  }
+
+  const line = (icon: ReactNode, text: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--agent-text-secondary)", minWidth: 0 }}>
+      <span style={{ color: "var(--agent-text-muted)", flexShrink: 0, display: "inline-flex" }}>{icon}</span>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
+    </div>
+  );
+  return (
+    <div {...glass.props} className={glass.className} style={box()}>
+      {head}
+      <div style={{ display: "grid", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "var(--agent-coral-deep)", flexShrink: 0, display: "inline-flex" }}><Briefcase size={13} weight="fill" /></span>
+          <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{note.firm}</span>
+        </div>
+        {note.handler && line(<User size={12} />, note.handler)}
+        {note.phone && line(<Phone size={12} />, note.phone)}
+        {note.email && line(<EnvelopeSimple size={12} />, note.email)}
+      </div>
+    </div>
+  );
+}
+
+function SolicitorsRow({ solicitors, busy, onSave, onRemove }: {
+  solicitors: ChainNodeSolicitors;
+  busy: boolean;
+  onSave: (side: "buyer" | "seller", input: SolDraft) => void;
+  onRemove: (side: "buyer" | "seller") => void;
+}) {
+  return (
+    <div className="cmp-sols">
+      <div className="cmp-sols-grid">
+        <SolCell side="buyer" note={solicitors.buyer} busy={busy} onSave={onSave} onRemove={onRemove} />
+        <SolCell side="seller" note={solicitors.seller} busy={busy} onSave={onSave} onRemove={onRemove} />
+      </div>
+    </div>
+  );
+}
 
 export type ChainMapActions = {
   onEdit?: (id: string) => void;
@@ -271,6 +384,15 @@ function PanelRow({
           <RowMenu item={item} actions={actions} />
         </div>
       </div>
+
+      {item.solicitors && item.onSaveSolicitor && item.onRemoveSolicitor && (
+        <SolicitorsRow
+          solicitors={item.solicitors}
+          busy={!!item.solicitorBusy}
+          onSave={item.onSaveSolicitor}
+          onRemove={item.onRemoveSolicitor}
+        />
+      )}
 
       {item.progressPercent != null && (
         <div className="cmp-progress">

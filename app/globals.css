@@ -1866,6 +1866,12 @@ select {
 /* Unclaimed: steps take the left of .cmp-acts, the action stays right. */
 .cmp-steps--inline { flex: 0 1 auto; margin-right: auto; }
 
+/* Solicitors row — your private note of a neighbour's buyer/seller solicitors.
+   Sits between the header and the progress/steps, ruled off both sides. The two
+   columns collapse to one as the card narrows (auto-fit, no breakpoint math). */
+.cmp-sols { margin: 0 12px; padding: 11px 0; border-top: 1px solid var(--agent-border-subtle); border-bottom: 1px solid var(--agent-border-subtle); }
+.cmp-sols-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; }
+
 /* Row tools cluster (chevron + ⋮) pinned to the card's top-right. */
 .cmp-rowtools { display: flex; align-items: flex-start; gap: 0; flex-shrink: 0; }
 .cmp-chevron {
