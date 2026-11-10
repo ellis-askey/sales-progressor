@@ -157,18 +157,22 @@ export async function resolveAgencySenderForTransaction(
         },
       },
       agentUser: { select: { name: true, email: true, preferredSenderEmail: true } },
-      assignedUser: { select: { email: true, name: true } },
+      assignedUser: { select: { email: true, name: true, preferredSenderEmail: true } },
       progressionBusiness: { select: { name: true, contactWhatsapp: true, senderEmail: true, senderDomain: true, senderVerified: true, isTsp: true, emailTheme: true } },
     },
   });
   if (!tx) return resolveAgencySender(null);
 
-  const acting = tx.agentUser;
-  // Whose name brands the email ("{first} at {Agency}"): on OUTSOURCED files WE
-  // run it, so it's the assigned PROGRESSOR (e.g. "Ellis at VIA Properties"); on
-  // SELF-MANAGED files the AGENT runs their own, so it's the agent. (Was always
-  // using the agent's name, which mis-branded outsourced files.)
-  const brandPerson = tx.serviceType === "outsourced" ? tx.assignedUser : tx.agentUser;
+  // Who the email speaks as — the person looking after the file day-to-day
+  // (founder rule, 2026-11-10): the assigned progressor when one is set
+  // (outsourced files AND in-house progression on self-managed), else the
+  // agent who owns the file. Drives the self-managed from/reply-to decision
+  // below, so Ruby's clients reply to Ruby, not the CM.
+  const acting = tx.assignedUser ?? tx.agentUser;
+  // Whose name brands the email ("{first} at {Agency}"): the same day-to-day
+  // person. (Also retires the old `=== "outsourced"` check that disagreed with
+  // the portal's `!== "self_managed"` reading of serviceType.)
+  const brandPerson = tx.assignedUser ?? tx.agentUser;
   const firstName = brandPerson?.name?.trim() ? extractFirstName(brandPerson.name) : undefined;
   const brand = tx.agency?.name ? stripAgencyLegalSuffix(tx.agency.name) : null;
   const display = brand ? (firstName ? `${firstName} at ${brand}` : brand) : "Sales Progressor";

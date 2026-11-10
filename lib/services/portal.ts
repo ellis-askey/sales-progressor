@@ -1711,8 +1711,9 @@ export async function logPortalMilestoneConfirm(
   const base = process.env.NEXTAUTH_URL ?? "";
   const address = tx.propertyAddress;
   const serviceType     = tx.serviceType ?? undefined;
-  const progressorName  = tx.assignedUser?.name  ?? "Your sales progressor";
-  const progressorEmail = tx.assignedUser?.email ?? "";
+  // Day-to-day rule (founder, 2026-11-10): assigned progressor, else the agent.
+  const progressorName  = tx.assignedUser?.name  ?? tx.agentUser?.name  ?? "Your sales progressor";
+  const progressorEmail = tx.assignedUser?.email ?? tx.agentUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
   const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
@@ -2648,8 +2649,9 @@ async function sendRichMilestoneEmails(
   const base             = process.env.NEXTAUTH_URL ?? "";
   const address          = tx.propertyAddress;
   const serviceType      = tx.serviceType ?? undefined;
-  const progressorName   = tx.assignedUser?.name  ?? "Your sales progressor";
-  const progressorEmail  = tx.assignedUser?.email ?? "";
+  // Day-to-day rule (founder, 2026-11-10): assigned progressor, else the agent.
+  const progressorName   = tx.assignedUser?.name  ?? tx.agentUser?.name  ?? "Your sales progressor";
+  const progressorEmail  = tx.assignedUser?.email ?? tx.agentUser?.email ?? "";
   // Send from the agency's authenticated address, Reply-To matching (founder
   // decision 2026-08-17). Was the SP default with a personal progressor Reply-To.
   const { from: agencyEmailFrom, replyTo, canReply: agencyCanReply, logoUrl: agencyLogoUrl, tileColor: agencyTileColor, scale: agencyLogoScale, align: agencyLogoAlign, theme: agencyTheme, studioTheme: agencyStudioTheme, brandName: agencyBrandName } = await resolveAgencySenderForTransaction(transactionId);
