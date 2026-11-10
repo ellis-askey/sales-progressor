@@ -3,7 +3,7 @@
 // Standalone "Add note" launcher (critique #275). Sits next to the "New email"
 // button in the top-right of the general pages (hub, focus, chains, comms,
 // to-do, files). A note normally lives on a file, so from a general page there's
-// no property context — step 1 is a property search (the exact one the email
+// no property context, so step 1 is a property search (the exact one the email
 // composer uses), and picking a sale morphs the same sheet into the full
 // "Log an update" surface (LogUpdateModal in embedded mode) with the property
 // pinned at the top and an ✕ to animate back to the search.
@@ -92,13 +92,13 @@ export function AddNoteButton({ variant = "ghost" }: { variant?: "primary" | "gh
       {open && typeof document !== "undefined" && createPortal(
         <>
           <style dangerouslySetInnerHTML={{ __html: LOG_UPDATE_CSS }} />
-          <div className="lum-ov" role="dialog" aria-modal="true" aria-label="Add a note" data-closing={closing ? "1" : undefined}>
-            <div className="lum-bg" onClick={close} />
+          <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Add a note" data-closing={closing ? "1" : undefined}>
+            <div className="lu-bg" onClick={close} />
             <div
-              className={"lum-sheet" + (closing ? " lum-closing" : "")}
+              className={"lu-sheet" + (closing ? " lu-closing" : "")}
               onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}
             >
-              <div className="lum-grab" />
+              <div className="lu-grab" />
               {step === "log" && ctx && picked ? (
                 <LogUpdateModal
                   embedded
@@ -114,15 +114,15 @@ export function AddNoteButton({ variant = "ghost" }: { variant?: "primary" | "gh
                   onOptimisticAdd={() => toast.success(`Note added to ${picked.line1}`)}
                 />
               ) : (
-                <div className="lum-fade">
-                  <div className="lum-head">
-                    <h2 className="lum-title">Add a note</h2>
-                    <button className="lum-ic lum-ic-x" onClick={close} aria-label="Close">
+                <div className="lu-fade">
+                  <div className="lu-head">
+                    <h2 className="lu-title">Add a note</h2>
+                    <button className="lu-ic lu-ic-x" onClick={close} aria-label="Close">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                     </button>
                   </div>
-                  <div className="lum-body">
-                    <p className="lum-eyebrow">Which property is this about?</p>
+                  <div className="lu-body">
+                    <p className="lu-eyebrow">Which property is this about?</p>
                     <div className="anb-search">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--agent-text-muted,#9a8a7f)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
                       <input
