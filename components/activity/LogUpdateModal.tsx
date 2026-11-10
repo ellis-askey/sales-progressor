@@ -274,7 +274,7 @@ export function LogUpdateModal(props: Props) {
       <button key={c.id} type="button" className="lu-pickrow" onClick={() => toggleSel(c.id)}>
         <span className={"lu-cbx" + (on ? " on" : "")}>{on && <span dangerouslySetInnerHTML={{ __html: svg(IC.check, 11, 3) }} />}</span>
         <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={26} />
-        <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>{c.name}</span>
+        <span style={{ fontSize: 13 }}>{c.name}</span>
       </button>
     );
   }
@@ -282,7 +282,7 @@ export function LogUpdateModal(props: Props) {
   const avatarStack = (people: { id: string; name: string; roleType: string }[], on: boolean) => (
     <span className="lu-avastack">
       {people.slice(0, 3).map((c, i) => (
-        <span key={c.id} className="lu-avai" style={{ marginLeft: i ? -8 : 0, zIndex: people.length - i, boxShadow: `0 0 0 2px ${on ? "rgba(255,255,255,.9)" : "var(--agent-surface)"}` }}>
+        <span key={c.id} className="lu-avai" style={{ marginLeft: i ? -8 : 0, zIndex: people.length - i, boxShadow: `0 0 0 2px ${on ? "rgba(255,255,255,.9)" : "var(--agent-surface-elevated)"}` }}>
           <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={24} />
         </span>
       ))}
@@ -371,7 +371,7 @@ export function LogUpdateModal(props: Props) {
                 {METHODS.map((m) => <span key={m.key}>{methodBtn(m)}</span>)}
                 <div ref={moreWrapRef} style={{ position: "relative" }}>
                   {methodBtn({ key: "note", label: "More", icon: IC.more }, true)}
-                  <AnchoredPanel anchorRef={moreWrapRef} open={moreOpen} onClose={() => setMoreOpen(false)} placement="bottom-end" width={200} bare>
+                  <AnchoredPanel anchorRef={moreWrapRef} open={moreOpen} onClose={() => setMoreOpen(false)} placement="bottom-end" width={200} bare zIndex={1600}>
                     {MORE.map((m) => (
                       <button key={m.key} type="button" className="ui-pop-pick" style={{ display: "flex", alignItems: "center", gap: 10 }} onClick={() => { setMethod(m.key); setMoreOpen(false); }}>
                         <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: svg(m.icon, 16) }} />
@@ -410,7 +410,7 @@ export function LogUpdateModal(props: Props) {
                     )}
                     <span className="lu-usericon" dangerouslySetInnerHTML={{ __html: svg(IC.chevron, 13, 2.2) }} />
                   </button>
-                  <AnchoredPanel anchorRef={whoWrapRef} open={whoOpen} onClose={() => setWhoOpen(false)} placement="bottom-start" matchWidth bare>
+                  <AnchoredPanel anchorRef={whoWrapRef} open={whoOpen} onClose={() => setWhoOpen(false)} placement="bottom-start" matchWidth bare zIndex={1600}>
                     <div style={{ padding: "4px 6px 2px", overflowY: "auto", maxHeight: 280 }}>
                       {sellerParticipants.length > 0 && (
                         <div style={{ marginBottom: 4 }}><div className="lu-grouplab">Seller&rsquo;s side</div>{sellerParticipants.map(pickRow)}</div>
@@ -510,7 +510,10 @@ export function LogUpdateModal(props: Props) {
             {headBody}
           </div>
         </div>,
-        document.body,
+        // Portal into the agent shell (not document.body) so the sheet stays
+        // inside the [data-theme] token scope so var(--agent-*) resolves in both
+        // light and dark. On body the tokens are undefined (transparent sheet).
+        (typeof document !== "undefined" && (document.querySelector(".agent-shell-root") as HTMLElement | null)) || document.body,
       )}
     </>
   );
@@ -542,7 +545,7 @@ const CSS = `
 @keyframes lu-bgf { from { opacity:0 } to { opacity:1 } }
 .lu-ov[data-closing="1"] .lu-bg { animation:lu-bgout .24s ease both; }
 @keyframes lu-bgout { from { opacity:1 } to { opacity:0 } }
-.lu-sheet { position:absolute; display:flex; flex-direction:column; overflow:hidden; background:var(--agent-surface); border:0.5px solid var(--agent-border-default); box-shadow:0 24px 70px -20px rgba(0,0,0,.45); }
+.lu-sheet { position:absolute; display:flex; flex-direction:column; overflow:hidden; background:var(--agent-surface-elevated); border:0.5px solid var(--agent-border-default); box-shadow:0 24px 70px -20px rgba(0,0,0,.45); }
 .lu-sheet { top:50%; left:50%; width:min(560px, calc(100vw - 40px)); max-height:min(90vh,820px); border-radius:18px; transform:translate(-50%,-48%) scale(.98); opacity:0; animation:lu-in .28s cubic-bezier(.22,1,.36,1) forwards; }
 @keyframes lu-in { to { transform:translate(-50%,-50%) scale(1); opacity:1 } }
 .lu-sheet.lu-closing { animation:lu-out .22s cubic-bezier(.4,0,1,1) forwards; }
@@ -585,7 +588,7 @@ const CSS = `
 .lu-wave { display:inline-flex; align-items:center; gap:2px; height:15px; }
 .lu-wave span { width:2.5px; height:28%; border-radius:999px; background:var(--agent-coral-deep); animation:lu-wav .9s ease-in-out infinite; }
 @keyframes lu-wav { 0%,100%{height:28%} 50%{height:100%} }
-.lu-mic { width:32px; height:32px; border-radius:999px; display:grid; place-items:center; cursor:pointer; border:1px solid var(--agent-border-default); background:var(--agent-surface); color:var(--agent-text-secondary); transition:all .15s; }
+.lu-mic { width:32px; height:32px; border-radius:999px; display:grid; place-items:center; cursor:pointer; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-secondary); transition:all .15s; }
 .lu-mic:hover { border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 .lu-mic.on { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
 
@@ -602,7 +605,7 @@ const CSS = `
 .lu-whotrigger { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-height:42px; padding:7px 11px; border-radius:11px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); font:inherit; font-size:13px; cursor:pointer; text-align:left; transition:border-color .15s; }
 .lu-whotrigger:hover { border-color:var(--agent-coral); }
 .lu-usericon { display:inline-flex; color:var(--agent-text-muted); flex:0 0 auto; }
-.lu-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 7px 3px 4px; border-radius:999px; background:var(--agent-surface); border:1px solid var(--agent-border-default); font-size:12.5px; font-weight:600; color:var(--agent-text-primary); }
+.lu-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 7px 3px 4px; border-radius:999px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); font-size:12.5px; font-weight:600; color:var(--agent-text-primary); }
 .lu-chipx { display:inline-flex; width:16px; height:16px; border-radius:999px; align-items:center; justify-content:center; color:var(--agent-text-muted); }
 .lu-chipx:hover { background:var(--agent-hover-shade); color:var(--agent-text-primary); }
 
@@ -612,6 +615,15 @@ const CSS = `
 .lu-pickrow:hover { background:var(--agent-hover-shade); }
 .lu-cbx { width:19px; height:19px; border-radius:6px; border:1.5px solid var(--agent-border-strong); display:grid; place-items:center; color:#fff; flex:0 0 auto; transition:all .14s; }
 .lu-cbx.on { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); }
+/* The who-picker renders inside a body-portalled .ui-pop, which is outside the
+   shell's --agent-* scope but defines --ui-ink (flipped for dark). Re-point the
+   picker rows to --ui-ink so they read correctly in BOTH themes. Sheet-side
+   copies of these classes keep their --agent-* tokens (shell scope). */
+.ui-pop .lu-grouplab { color:rgba(var(--ui-ink),.55); }
+.ui-pop .lu-empty { color:rgba(var(--ui-ink),.5); }
+.ui-pop .lu-pickrow { color:rgb(var(--ui-ink)); }
+.ui-pop .lu-pickrow:hover { background:rgba(var(--ui-ink),.06); }
+.ui-pop .lu-cbx { border-color:rgba(var(--ui-ink),.32); }
 
 .lu-switch { position:relative; width:38px; height:22px; flex:0 0 auto; border-radius:999px; border:0; cursor:pointer; background:var(--agent-border-strong); transition:background .18s; padding:0; margin-top:1px; }
 .lu-switch.on { background:var(--agent-coral-deep); }
@@ -639,7 +651,7 @@ const CSS = `
 .lu-pastelink:hover { opacity:.72; }
 .lu-err { margin:0; font-size:12.5px; color:#C0392B; }
 
-.lu-foot { display:flex; gap:10px; padding:14px 18px; border-top:0.5px solid var(--agent-border-subtle); background:var(--agent-surface); }
+.lu-foot { display:flex; gap:10px; padding:14px 18px; border-top:0.5px solid var(--agent-border-subtle); background:var(--agent-surface-elevated); }
 .lu-btn { display:inline-flex; align-items:center; gap:8px; font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; padding:11px 15px; border-radius:10px; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-primary); transition:all .14s; }
 .lu-btn:hover { border-color:var(--agent-border-strong); }
 .lu-ghost svg { color:var(--agent-coral-deep); }
