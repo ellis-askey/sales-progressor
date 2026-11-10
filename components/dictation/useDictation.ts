@@ -162,12 +162,7 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
       return;
     }
 
-    const rec = new Ctor();
-    rec.lang = "en-GB";
-    rec.continuous = true;
-    rec.interimResults = true;
-    recRef.current = rec;
-    rec.onresult = (e) => {
+    const onResult = (e: SREvent) => {
       let interimText = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
@@ -187,14 +182,30 @@ export function useDictation(target: DictationTarget, opts?: DictationOptions): 
       interimRef.current = interimText.replace(/^[ \t]+|[ \t]+$/g, "");
       render();
     };
-    rec.onerror = (ev) => {
-      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { stop(); setStatus("denied"); onErrorRef.current?.("denied"); }
+
+    // Spawn a FRESH recognition each session. Chrome ends the session on pauses,
+    // and an instance can wedge after a transient error (network / aborted /
+    // no-speech); creating a new instance on every end self-heals, so a long
+    // dictation with pauses keeps working instead of going silently dead.
+    const spawn = () => {
+      const rec = new Ctor();
+      rec.lang = "en-GB";
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = onResult;
+      rec.onerror = (ev) => {
+        // Only a permission failure is terminal; transient errors fall through
+        // to onend, which respawns.
+        if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { stop(); setStatus("denied"); onErrorRef.current?.("denied"); }
+      };
+      rec.onend = () => { if (activeRef.current) { recRef.current = null; try { spawn(); } catch { /* next end retries */ } } };
+      recRef.current = rec;
+      try { rec.start(); } catch { /* a stale instance may still be stopping; next onend respawns */ }
     };
-    rec.onend = () => { if (activeRef.current) { try { rec.start(); } catch { /* restarting */ } } };
 
     activeRef.current = true;
     setStatus("listening");
-    try { rec.start(); } catch { /* double-start */ }
+    spawn();
   }, [render, stop]);
 
   const toggle = useCallback(() => { if (status === "listening") stop(); else void start(); }, [status, start, stop]);
