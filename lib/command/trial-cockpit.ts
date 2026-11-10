@@ -10,6 +10,7 @@
 // (@thesalesprogressor.co.uk) from the staff roster.
 
 import { commandDb } from "@/lib/command/prisma";
+import { classifyDevice } from "@/lib/command/device";
 import type { TrialConfig } from "@/lib/command/trials";
 
 const DAY_MS = 86_400_000;
@@ -139,6 +140,124 @@ async function windowCounts(agencyId: string, staffIds: string[], from: Date, to
     todos,
     portalVisits,
   };
+}
+
+// ── Usage tab ─────────────────────────────────────────────────────────────────
+
+export interface UsageDayPoint {
+  date: string; // YYYY-MM-DD
+  logins: number;
+  activeUsers: number;
+}
+
+export interface WeekHoursPoint {
+  label: string;   // week-start date, e.g. "3 Nov"
+  seconds: number; // engaged seconds that week, whole team
+}
+
+export interface TrialUsage {
+  days: UsageDayPoint[];        // trial start → today
+  weeklyHours: WeekHoursPoint[]; // last 12 weeks, oldest first
+  deviceMobile: number;          // file sessions, last 12 weeks
+  deviceDesktop: number;
+  weekday: number[];             // 7 session counts Mon→Sun, last 8 weeks
+  hourOfDay: number[];           // 24 session counts by start hour, last 8 weeks
+}
+
+async function staffIdsFor(agencyId: string): Promise<string[]> {
+  const staff = await commandDb.user.findMany({
+    where: {
+      agencyId,
+      role: { in: STAFF_ROLES as never },
+      isDemo: false,
+      deactivatedAt: null,
+      NOT: { email: { endsWith: TSP_DOMAIN } },
+    },
+    select: { id: true },
+  });
+  return staff.map((s) => s.id);
+}
+
+export async function getTrialUsage(agencyId: string, trial: TrialConfig): Promise<TrialUsage> {
+  const now = new Date();
+  const nowMs = now.getTime();
+  const trialStart = new Date(`${trial.startsAt}T00:00:00`);
+  const since12w = new Date(nowMs - 12 * 7 * DAY_MS);
+  const since8w = new Date(nowMs - 8 * 7 * DAY_MS);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const staffIds = await staffIdsFor(agencyId);
+
+  const [metricRows, sessions, todayLogins, todayActive] = await Promise.all([
+    commandDb.dailyMetric.findMany({
+      where: { agencyId, date: { gte: trialStart } },
+      select: { date: true, logins: true, uniqueActiveUsers: true },
+      orderBy: { date: "asc" },
+    }),
+    staffIds.length
+      ? commandDb.fileTimeSession.findMany({
+          where: { agencyId, userId: { in: staffIds }, startedAt: { gte: since12w } },
+          select: { startedAt: true, endedAt: true, totalEngagedSeconds: true, userAgent: true },
+        })
+      : [],
+    commandDb.event.count({
+      where: { agencyId, type: "user_logged_in" as never, isInternalUser: false, occurredAt: { gte: todayStart } },
+    }),
+    activeStaffIds(agencyId, staffIds, todayStart, now),
+  ]);
+
+  // Daily logins + active users: nightly rollups, live today on top.
+  const byDay = new Map<string, UsageDayPoint>();
+  for (const r of metricRows) {
+    const key = r.date.toISOString().slice(0, 10);
+    const cur = byDay.get(key) ?? { date: key, logins: 0, activeUsers: 0 };
+    cur.logins += r.logins;
+    cur.activeUsers += r.uniqueActiveUsers;
+    byDay.set(key, cur);
+  }
+  const dayKey = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  if (todayStart >= trialStart) {
+    const key = dayKey(todayStart);
+    const cur = byDay.get(key) ?? { date: key, logins: 0, activeUsers: 0 };
+    cur.logins = Math.max(cur.logins, todayLogins);
+    cur.activeUsers = Math.max(cur.activeUsers, todayActive.size);
+    byDay.set(key, cur);
+  }
+  const days: UsageDayPoint[] = [];
+  for (let t = trialStart.getTime(); t <= todayStart.getTime(); t += DAY_MS) {
+    const key = dayKey(new Date(t));
+    days.push(byDay.get(key) ?? { date: key, logins: 0, activeUsers: 0 });
+  }
+
+  // Weekly engaged hours + device + rhythm from the raw sessions.
+  const weeklyHours: WeekHoursPoint[] = Array.from({ length: 12 }, (_, i) => {
+    const start = new Date(nowMs - (12 - 1 - i) * 7 * DAY_MS - 6 * DAY_MS);
+    return { label: start.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), seconds: 0 };
+  });
+  let deviceMobile = 0;
+  let deviceDesktop = 0;
+  const weekday = new Array(7).fill(0);
+  const hourOfDay = new Array(24).fill(0);
+  for (const s of sessions) {
+    const started = s.startedAt.getTime();
+    const idx = 12 - 1 - Math.min(12 - 1, Math.floor((nowMs - started) / (7 * DAY_MS)));
+    if (idx >= 0 && idx < 12 && s.endedAt && s.totalEngagedSeconds) weeklyHours[idx].seconds += s.totalEngagedSeconds;
+    const device = classifyDevice(s.userAgent);
+    if (device === "mobile") deviceMobile += 1;
+    else if (device === "desktop") deviceDesktop += 1;
+    if (started >= since8w.getTime()) {
+      const d = s.startedAt.getDay(); // 0 Sun .. 6 Sat
+      weekday[(d + 6) % 7] += 1;      // Mon-first
+      hourOfDay[s.startedAt.getHours()] += 1;
+    }
+  }
+
+  return { days, weeklyHours, deviceMobile, deviceDesktop, weekday, hourOfDay };
 }
 
 // ── Team tab ──────────────────────────────────────────────────────────────────
