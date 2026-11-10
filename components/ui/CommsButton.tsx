@@ -15,6 +15,9 @@ export function CommsButton({
   // the Contacts roster rows where space is tight. Title still carries the
   // action name for hover/screen-readers.
   compact = false,
+  // In-app action instead of a link (e.g. open the email composer). When given,
+  // renders a <button> rather than an <a>. href still wins for tel:/mailto: etc.
+  onClick,
 }: {
   href?: string;
   label: string;
@@ -22,6 +25,7 @@ export function CommsButton({
   disabled?: boolean;
   title?: string;
   compact?: boolean;
+  onClick?: () => void;
 }) {
   const style: React.CSSProperties = {
     display: "inline-flex",
@@ -44,9 +48,17 @@ export function CommsButton({
     opacity: disabled ? 0.5 : 1,
   };
   const labelStyle: React.CSSProperties = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
-  if (disabled || !href) {
+  if (disabled || (!href && !onClick)) {
     return (
       <button type="button" disabled title={title ?? label} aria-label={label} style={style}>
+        {icon}
+        {!compact && <span style={labelStyle}>{label}</span>}
+      </button>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} title={title ?? label} aria-label={label} className="agent-chip-hover" style={style}>
         {icon}
         {!compact && <span style={labelStyle}>{label}</span>}
       </button>

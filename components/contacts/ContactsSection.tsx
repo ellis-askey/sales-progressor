@@ -45,6 +45,8 @@ import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, Sparkle, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
+import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
+import { useRouter } from "next/navigation";
 import { IntroCallDrawer } from "@/components/transaction/IntroCallDrawer";
 import { getIntroCallDataAction, type IntroCallData } from "@/app/actions/intro-call";
 import { logPortalLinkCopiedAction } from "@/app/actions/comms";
@@ -554,6 +556,11 @@ export function ContactsSection({
 }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useAgentToast();
+  const router = useRouter();
+  // The contact we're emailing via the in-app composer (its Contact id), or null.
+  // Mirrors the Focus page: the card's email icon opens the composer pre-addressed
+  // to this client with the sale already selected, instead of a mailto handoff.
+  const [composeToIds, setComposeToIds] = useState<string[] | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1148,7 +1155,7 @@ export function ContactsSection({
                           <CommsButton compact href={contact.phone ? `tel:${contact.phone}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
                         )}
                         <CommsButton compact href={contact.phone ? whatsappHref(contact.phone) : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "WhatsApp" : "No phone number on file"} />
-                        <CommsButton compact href={contact.email ? emailHref(contact.email, contact.roleType, address) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"} />
+                        <CommsButton compact onClick={contact.email ? () => setComposeToIds([contact.id]) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? (optedOut ? "Client has opted out. Send manually with care." : "Email") : "No email on file"} />
                         <RowKebab
                           contactName={contact.name}
                           onEdit={() => startEdit(contact)}
@@ -1368,6 +1375,21 @@ export function ContactsSection({
           }}
         />
       )}
+
+      {/* In-app email composer, opened from a contact card's email icon —
+          pre-addressed to that client with the sale already selected (same as the
+          Focus page). The sale hint paints the property instantly on open. */}
+      <ComposeEmailModal
+        open={!!composeToIds}
+        initialTransactionId={transactionId}
+        initialToContactIds={composeToIds}
+        initialSaleHint={{
+          line1: address.split(",")[0]?.trim() || address,
+          location: address.split(",").slice(1).join(",").trim(),
+          photoUrl,
+        }}
+        onClose={() => { setComposeToIds(null); router.refresh(); }}
+      />
 
       {/* Mobile responsive rules */}
       <style jsx>{`
