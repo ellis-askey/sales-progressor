@@ -308,8 +308,13 @@ const SECTIONS: PolicySection[] = [
             <tr>
               <td>Google</td>
               <td>
-                Secure sign-in for staff who choose to sign in with a Google account. Used to verify
-                identity at login only.
+                Secure sign-in for staff who choose to sign in with a Google account, used to verify
+                identity at login. Also powers optional voice typing in the composer. When a user turns
+                on the dictation mic, their browser&rsquo;s built-in speech service converts the spoken
+                audio to text and returns it to their device to add to the message. Which provider does
+                this depends on the browser: for Chrome and Edge, which most staff use, it is Google;
+                other browsers use their own provider. The audio is used only to transcribe it and is
+                not stored by us.
               </td>
               <td>US (SCCs + UK IDTA)</td>
             </tr>

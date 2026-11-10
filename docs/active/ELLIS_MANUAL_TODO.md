@@ -8,6 +8,21 @@ Last updated: 2026-11-01
 
 ---
 
+## Voice typing — confirm the sub-processor wording (2026-11-10)
+
+**Why:** the new voice-typing feature (dictation mic in the email composers, LIVE PROD) routes the agent's spoken audio to the **browser's** built-in speech service for transcription (Chrome/Edge → Google, Safari → Apple). Audio never touches our servers and isn't stored by us, but it's a sub-processor flow worth a founder sign-off. CC has already drafted the entries in your voice.
+
+**Done by CC (review + sign off):**
+- Expanded the **Google** row in `app/privacy/page.tsx` (fuller prose: voice typing, browser-determined provider, audio not stored).
+- Expanded the **Google** row in `app/legal/dpa/page.tsx` (terse style).
+- Added a line to `docs/compliance/dpia/final-audit/DATA-PROCESSING-INVENTORY.md`.
+
+**Your calls:**
+1. **Safari / Apple:** the privacy prose says "other browsers use their own provider" and the DPIA names Apple for Safari. Apple is **not** a separately listed sub-processor. If Safari dictation is a realistic path for your users, decide whether to add an Apple row; if not (your users are Chrome), the current wording is accurate for how it's used.
+2. Confirm you're happy with the Google-row placement vs. a standalone "voice typing" row.
+
+---
+
 ## Raise the Supabase pooler's max client connections (2026-11-10, URGENT follow-up)
 
 **Why:** a prod incident on 2026-11-10 took the app down app-wide (portal, hub, comms, command all 500'd) with `FATAL: (EMAXCONN) max client connections reached, limit: 200`. The pooler's **client-connection ceiling is 200**, and `instances x connection_limit` blew past it under deploy churn + the 15-min mailbox cron + traffic. Hot-fix (commit `81e45aef`) cut `connection_limit` from 10 to **3** in `lib/prisma.ts`, which throttles the per-instance footprint but makes the agent file-shell's parallel queries a little slower.

@@ -362,7 +362,7 @@ const SECTIONS: PolicySection[] = [
             </tr>
             <tr>
               <td>Google</td>
-              <td>Sign-in for staff</td>
+              <td>Sign-in for staff; speech-to-text for optional voice typing in Chrome/Edge (browser-provided, audio transcribed and not stored)</td>
               <td>US (SCCs + UK IDTA)</td>
             </tr>
             <tr>

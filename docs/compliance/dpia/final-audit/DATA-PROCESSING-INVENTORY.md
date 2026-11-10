@@ -36,6 +36,7 @@
 - Compute/hosting: **Vercel, Dublin (EEA)** [VERIFIED-CONFIG `vercel.json`]; US company.
 - Transient AI processing: **Anthropic & OpenAI, US** [VERIFIED-CODE endpoints].
 - Email: SendGrid (US). Analytics: PostHog (EU). Errors: Sentry (region NOT-VERIFIED).
+- Voice typing (optional, agent-initiated): the browser's built-in Web Speech service transcribes the agent's dictated audio to text client-side; the audio does **not** reach TSP servers and is not stored by us. Provider is browser-determined: **Google (Chrome/Edge), US**; Safari uses Apple. Agents may speak client PII aloud, so the transcript (not the audio) lands in the composed message. No SpeechRecognition on Firefox (feature hidden) [VERIFIED-CODE `components/dictation/useDictation.ts`].
 
 ## Retention & deletion (reality)
 - **Automated:** staff `User` accounts anonymised after 3 years inactivity (`app/api/cron/data-retention`) [VERIFIED-CODE].
