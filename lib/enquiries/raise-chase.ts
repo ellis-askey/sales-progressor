@@ -197,6 +197,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
     const agentSig = await resolveAgentSignatureForFile({
       serviceType: tx.serviceType,
       agentUserId: tx.agentUserId,
+      assignedUserId: tx.assignedUserId,
       agentName: senderName,
       agency: tx.agency,
     });

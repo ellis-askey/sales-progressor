@@ -299,6 +299,45 @@ export async function listProgressorInboxTasks(progressorId: string) {
   }) as Promise<ManualTaskWithRelations[]>;
 }
 
+/**
+ * Agent-request inbox for an IN-HOUSE progressor (founder, 2026-11-10): a
+ * negotiator flagged isInHouseProgressor sees open requests colleagues raised
+ * on the files assigned to them (or addressed to them directly), exactly like
+ * the internal progressor inbox — but HARD-FENCED to their own agency:
+ *  - `agencyId` on every row, so a request aimed at TSP (agencyId null on
+ *    internal self-assigned rows) or at another agency can never surface;
+ *  - the isInHouseProgressor flag is re-checked here (fail-closed: not
+ *    flagged → empty), so an ordinary negotiator gets nothing even if called;
+ *  - `createdById != them`, so their own requests don't double-render next to
+ *    the own-tasks list.
+ * Editing/completing stays behind updateManualTask's { id, agencyId } guard.
+ */
+export async function listInHouseInboxTasks(userId: string, agencyId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, agencyId, isInHouseProgressor: true },
+    select: { id: true },
+  });
+  if (!user) return [] as ManualTaskWithRelations[];
+  return prisma.manualTask.findMany({
+    where: {
+      agencyId,
+      isAgentRequest: true,
+      status: "open",
+      createdById: { not: userId },
+      OR: [
+        { transaction: { assignedUserId: userId } },
+        { assignedToId: userId },
+      ],
+    },
+    orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+    include: {
+      transaction: { select: { propertyAddress: true, photoStoragePath: true } },
+      assignedTo: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  }) as Promise<ManualTaskWithRelations[]>;
+}
+
 /** Update a task owned by a sales_progressor (own note OR agent inbox request). */
 export async function updateManualTaskAsProgressor(
   id: string,
@@ -346,7 +385,12 @@ export async function countAgentDueOrOverdue(userId: string, agencyId: string | 
   const isInternal = isProgressor || role === "admin" || role === "superadmin";
   const [own, inbox, internal] = await Promise.all([
     agencyId ? listAllTasksForAgent(userId, agencyId) : Promise.resolve([]),
-    isProgressor ? listProgressorInboxTasks(userId) : Promise.resolve([]),
+    isProgressor
+      ? listProgressorInboxTasks(userId)
+      : agencyId
+        // In-house progressor inbox (agency-fenced; empty unless flagged).
+        ? listInHouseInboxTasks(userId, agencyId)
+        : Promise.resolve([]),
     isInternal ? listInternalSelfAssignedTasks(scope, userId) : Promise.resolve([]),
   ]);
   const todayStr = toUKDateStr(new Date());

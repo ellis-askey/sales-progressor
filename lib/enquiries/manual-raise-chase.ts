@@ -60,6 +60,7 @@ async function assemble(transactionId: string) {
   const agentSig = await resolveAgentSignatureForFile({
     serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
+    assignedUserId: tx.assignedUserId,
     agentName: senderName,
     agency: tx.agency,
   });

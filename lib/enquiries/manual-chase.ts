@@ -101,6 +101,7 @@ export async function resolveEnquiryChaseContext(transactionId: string): Promise
   const agentSig = await resolveAgentSignatureForFile({
     serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
+    assignedUserId: tx.assignedUserId,
     agentName: senderName,
     agency: tx.agency,
   });

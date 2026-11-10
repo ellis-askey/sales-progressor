@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { listAllTasksForAgent, listProgressorInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
+import { listAllTasksForAgent, listProgressorInboxTasks, listInHouseInboxTasks, listInternalSelfAssignedTasks } from "@/lib/services/manual-tasks";
 import { listReviews } from "@/lib/services/reviews";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
@@ -33,7 +33,14 @@ export default async function AgentTodoPage() {
   const ownTasks = session.user.agencyId
     ? await listAllTasksForAgent(session.user.id, session.user.agencyId)
     : [];
-  const inboxTasks = isProgressor ? await listProgressorInboxTasks(session.user.id) : [];
+  // Inbox: the internal progressor inbox for sales_progressors; for agency
+  // users, the agency-fenced in-house progressor inbox (empty unless they're
+  // flagged isInHouseProgressor) — founder, 2026-11-10.
+  const inboxTasks = isProgressor
+    ? await listProgressorInboxTasks(session.user.id)
+    : session.user.agencyId
+      ? await listInHouseInboxTasks(session.user.id, session.user.agencyId)
+      : [];
   const internalTasks = isInternal ? await listInternalSelfAssignedTasks(scope, session.user.id) : [];
   const tasks = [...ownTasks, ...inboxTasks, ...internalTasks];
 

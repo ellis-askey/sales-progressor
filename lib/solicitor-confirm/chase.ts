@@ -491,7 +491,8 @@ async function sendDigestForGroup(group: DueGroup, now: Date): Promise<boolean> 
   const agentSig = await resolveAgentSignatureForFile({
     serviceType: tx.serviceType,
     agentUserId: tx.agentUserId,
-    agentName: tx.agentUser?.name,
+    assignedUserId: tx.assignedUserId,
+    agentName: person?.name,
     agency: tx.agency,
   });
   // Outsourced file: if THIS client has a per-client IMAGE/CUSTOM sign-off set,

@@ -109,8 +109,10 @@ export async function getWorkQueueTasks(
 export async function getWorkQueueCounts(agencyId: string, userId: string, agentUserId?: string): Promise<WorkQueueCounts> {
   const todayStr = toUKDateStr(new Date());
 
+  // Own-or-assigned (founder, 2026-11-10): the per-agent counts include files
+  // assigned to them as in-house progressor, matching the Mine lists.
   const txFilter = agentUserId
-    ? { agencyId, status: "active" as const, agentUserId }
+    ? { agencyId, status: "active" as const, OR: [{ agentUserId }, { assignedUserId: agentUserId }] }
     : { agencyId, status: "active" as const, progressedBy: "progressor" as const };
 
   const [allPending, snoozedCount] = await Promise.all([

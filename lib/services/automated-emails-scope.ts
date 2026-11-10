@@ -42,12 +42,15 @@ export function buildTxWhere(input: EmailScopeInput): Prisma.PropertyTransaction
     where.assignedUserId = input.userId;
   } else if (input.role === "negotiator" || input.role === "viewer") {
     where.agencyId = input.agencyId ?? "__none__";
-    where.agentUserId = input.userId;
+    // Own-or-assigned (founder, 2026-11-10): an in-house progressor's feed
+    // covers the files assigned to them, not just those they own as agent.
+    // Matches the Mine widening on the main lists.
+    where.OR = [{ agentUserId: input.userId }, { assignedUserId: input.userId }];
     where.serviceType = "self_managed";
   } else if (input.role === "director") {
     where.agencyId = input.agencyId ?? "__none__";
     where.serviceType = "self_managed";
-    if (input.mineOnly) where.agentUserId = input.userId;
+    if (input.mineOnly) where.OR = [{ agentUserId: input.userId }, { assignedUserId: input.userId }];
   }
 
   if (input.fileId) where.id = input.fileId;

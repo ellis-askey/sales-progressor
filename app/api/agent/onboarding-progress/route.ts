@@ -8,8 +8,15 @@ export async function GET() {
   const userId = session.user.id;
   const agencyId = session.user.agencyId;
 
-  // All checks scoped to this agent's own files
-  const agentTxWhere = { agentUserId: userId, agencyId, status: { not: "draft" as const } };
+  // All checks scoped to the files this agent works: owned as agent OR
+  // assigned to them as in-house progressor (founder, 2026-11-10 — a pure
+  // progressor used to read hasSale=false forever and the onboarding nudge
+  // never completed for them).
+  const agentTxWhere = {
+    OR: [{ agentUserId: userId }, { assignedUserId: userId }],
+    agencyId,
+    status: { not: "draft" as const },
+  };
 
   const [activeTxCount, contactWithDetails, contactWithEmail, verifiedEmail, user, firstTx, verifiedDomainCount, inboundConnectionCount] =
     await Promise.all([
