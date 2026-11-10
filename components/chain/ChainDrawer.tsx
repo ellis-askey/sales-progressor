@@ -497,7 +497,7 @@ export function ChainView({
   const handleSaveSolicitor = useCallback(async (linkId: string, side: "buyer" | "seller", input: ChainSolicitorInput) => {
     const busyKey = `${linkId}:${side}`;
     setSolBusy((s) => new Set(s).add(busyKey));
-    const note = { firm: input.firm.trim(), handler: (input.handler ?? "").trim() || null, phone: (input.phone ?? "").trim() || null, email: (input.email ?? "").trim() || null, prefilled: false };
+    const note = { firmId: input.firmId ?? null, contactId: input.contactId ?? null, firm: input.firm.trim(), handler: (input.handler ?? "").trim() || null, phone: (input.phone ?? "").trim() || null, email: (input.email ?? "").trim() || null, prefilled: false };
     setChain((c) => (c ? { ...c, links: c.links.map((l) => (l.id === linkId ? { ...l, solicitors: { buyer: l.solicitors?.buyer ?? null, seller: l.solicitors?.seller ?? null, [side]: note } } : l)) } : c));
     try {
       await setChainNodeSolicitorAction(linkId, side, input, transactionId);
@@ -928,7 +928,7 @@ export function ChainView({
       stepBusyKey: ([...stepBusy].find((k) => k.startsWith(`${l.id}:`))?.slice(l.id.length + 1) ?? null),
       // Solicitor notes — info only, neighbour cards only (not your own file).
       solicitors: mine ? undefined : l.solicitors,
-      onSaveSolicitor: mine ? undefined : (side: "buyer" | "seller", input: { firm: string; handler: string; phone: string; email: string }) => handleSaveSolicitor(l.id, side, input),
+      onSaveSolicitor: mine ? undefined : (side: "buyer" | "seller", input: { firm: string; firmId: string | null; contactId: string | null; handler: string | null; phone: string | null; email: string | null }) => handleSaveSolicitor(l.id, side, input),
       onRemoveSolicitor: mine ? undefined : (side: "buyer" | "seller") => handleRemoveSolicitor(l.id, side),
       solicitorBusy: [...solBusy].some((k) => k.startsWith(`${l.id}:`)),
       href: l.transactionId && mine ? `/agent/transactions/${l.transactionId}` : null,

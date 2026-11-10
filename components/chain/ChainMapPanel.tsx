@@ -21,6 +21,7 @@ import type { ChainNodeSolicitors } from "@/lib/services/chains";
 import { ChainStepTicks } from "@/components/chain/ChainStepTicks";
 import { chainStepsPercent } from "@/lib/chain/check-in-steps";
 import { User, Phone, EnvelopeSimple, Briefcase, PencilSimple, Plus } from "@phosphor-icons/react";
+import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
 // buttons. `kind` tells the panel which handler to call: "invite" → onInvite
@@ -62,7 +63,7 @@ export type ChainMapPanelItem = {
   // for a neighbour card (undefined on the viewer's own file). onSave/onRemove
   // persist the annotation; solicitorBusy flags an in-flight save on this card.
   solicitors?: ChainNodeSolicitors;
-  onSaveSolicitor?: (side: "buyer" | "seller", input: { firm: string; handler: string; phone: string; email: string }) => void;
+  onSaveSolicitor?: (side: "buyer" | "seller", input: { firm: string; firmId: string | null; contactId: string | null; handler: string | null; phone: string | null; email: string | null }) => void;
   onRemoveSolicitor?: (side: "buyer" | "seller") => void;
   solicitorBusy?: boolean;
   // ⋮ menu capabilities
@@ -85,24 +86,31 @@ export type ChainMapPanelItem = {
 // Your private note of who's acting for the buyer/seller on a neighbour's sale.
 // The container is Design-Lab taggable (glassId "chain-sol-cell"); until a glass
 // variant is picked it shows the plain elevated-cell surface.
-type SolDraft = { firm: string; handler: string; phone: string; email: string };
+type SolInput = { firm: string; firmId: string | null; contactId: string | null; handler: string | null; phone: string | null; email: string | null };
 
 function SolCell({ side, note, busy, onSave, onRemove }: {
   side: "buyer" | "seller";
   note: ChainNodeSolicitors["buyer"];
   busy: boolean;
-  onSave: (side: "buyer" | "seller", input: SolDraft) => void;
+  onSave: (side: "buyer" | "seller", input: SolInput) => void;
   onRemove: (side: "buyer" | "seller") => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<SolDraft>({ firm: note?.firm ?? "", handler: note?.handler ?? "", phone: note?.phone ?? "", email: note?.email ?? "" });
+  const noteToSelection = (): SolicitorSelection | null => note
+    ? { firmId: note.firmId ?? "", firmName: note.firm, contactId: note.contactId, contactName: note.handler, phone: note.phone, email: note.email }
+    : null;
+  const [selection, setSelection] = useState<SolicitorSelection | null>(noteToSelection);
   const heading = side === "buyer" ? "Buyer's solicitor" : "Seller's solicitor";
   const glass = useGlassTag("chain-sol-cell", "Chain · solicitor cell");
   const surface: CSSProperties = glass.picked ? {} : { border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)" };
   const box = (extra?: CSSProperties): CSSProperties => ({ padding: "10px 12px", borderRadius: 10, ...surface, ...extra });
 
-  function start() { setDraft({ firm: note?.firm ?? "", handler: note?.handler ?? "", phone: note?.phone ?? "", email: note?.email ?? "" }); setEditing(true); }
-  function save() { if (!draft.firm.trim()) return; onSave(side, draft); setEditing(false); }
+  function start() { setSelection(noteToSelection()); setEditing(true); }
+  function saveSel() {
+    if (!selection?.firmName) return;
+    onSave(side, { firm: selection.firmName, firmId: selection.firmId || null, contactId: selection.contactId, handler: selection.contactName, phone: selection.phone, email: selection.email });
+    setEditing(false);
+  }
 
   const head = (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
@@ -116,21 +124,25 @@ function SolCell({ side, note, busy, onSave, onRemove }: {
   );
 
   if (editing) {
-    const f = (ph: string, k: keyof SolDraft, type = "text") => (
-      <input value={draft[k]} type={type} placeholder={ph} className="agent-field" style={{ fontSize: 12, padding: "5px 8px", width: "100%", fontFamily: "inherit" }} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} />
-    );
     return (
       <div {...glass.props} className={glass.className} style={box()}>
         {head}
-        <div style={{ display: "grid", gap: 5 }}>
-          {f("Firm name", "firm")}
-          {f("Case handler", "handler")}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>{f("Phone", "phone", "tel")}{f("Email", "email", "email")}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 1 }}>
-            <button type="button" onClick={save} disabled={busy || !draft.firm.trim()} className="agent-btn agent-btn-xs agent-btn-primary">{busy ? "Saving…" : "Save"}</button>
-            <button type="button" onClick={() => setEditing(false)} className="cmp-act" style={{ fontSize: 11 }}>Cancel</button>
-            {note && <button type="button" onClick={() => { onRemove(side); setEditing(false); }} className="cmp-act" style={{ fontSize: 11, color: "var(--agent-danger)", marginLeft: "auto" }}>Remove</button>}
-          </div>
+        {/* Same search picker as "add a sale". Dropdowns ride above the chain
+            drawer (z 1500) via panelZIndex; the Add-firm modal is already deep
+            (z 2000) so it portals over the drawer with a full backdrop. */}
+        <SolicitorPicker
+          label=""
+          hideHeader
+          hideAssistant
+          panelZIndex={2000}
+          value={selection}
+          onChange={setSelection}
+          onFirmCreated={setSelection}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <button type="button" onClick={saveSel} disabled={busy || !selection?.firmName} className="agent-btn agent-btn-xs agent-btn-primary">{busy ? "Saving…" : "Save"}</button>
+          <button type="button" onClick={() => setEditing(false)} className="agent-btn agent-btn-xs agent-btn-neutral">Cancel</button>
+          {note && <button type="button" onClick={() => { onRemove(side); setEditing(false); }} className="cmp-act" style={{ fontSize: 11, color: "var(--agent-danger)", marginLeft: "auto" }}>Remove</button>}
         </div>
       </div>
     );
@@ -172,7 +184,7 @@ function SolCell({ side, note, busy, onSave, onRemove }: {
 function SolicitorsRow({ solicitors, busy, onSave, onRemove }: {
   solicitors: ChainNodeSolicitors;
   busy: boolean;
-  onSave: (side: "buyer" | "seller", input: SolDraft) => void;
+  onSave: (side: "buyer" | "seller", input: SolInput) => void;
   onRemove: (side: "buyer" | "seller") => void;
 }) {
   return (

@@ -3254,6 +3254,11 @@ model ChainNodeSolicitor {
   chainLinkId  String
   sideKey      String
   side         String // "buyer" | "seller"
+  // Resolved via the solicitor-firm picker (same UI as add-a-sale). firmId /
+  // contactId reference the shared directory so re-opening pre-selects them; the
+  // name/phone/email are a snapshot for display. No FK — a pure annotation.
+  firmId       String?
+  contactId    String?
   firmName     String
   handlerName  String?
   handlerPhone String?

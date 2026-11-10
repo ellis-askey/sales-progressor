@@ -98,6 +98,8 @@ export type ChainNodeIntel = {
 // only). `prefilled` = sourced from the viewer's own file (the two adjacent nodes
 // share a side with our sale), NOT a saved note — shown as an editable default.
 export type ChainNodeSolicitorNote = {
+  firmId: string | null;
+  contactId: string | null;
   firm: string;
   handler: string | null;
   phone: string | null;
@@ -404,7 +406,7 @@ const LINK_V2_SELECT = {
   stepMarks: { select: { stepKey: true, sideKey: true } },
   // Per-viewer solicitor notes on this node (info only). Fetched for every side;
   // only the viewer-side rows reach the wire (as `solicitors`), filtered in getChainV2.
-  nodeSolicitors: { select: { side: true, sideKey: true, firmName: true, handlerName: true, handlerPhone: true, handlerEmail: true } },
+  nodeSolicitors: { select: { side: true, sideKey: true, firmId: true, contactId: true, firmName: true, handlerName: true, handlerPhone: true, handlerEmail: true } },
   // Own-side chase-log entries (b1ey9l), newest first. Same trust tier as intel;
   // gated per viewer in getChainV2 (nulled to [] for another agency).
   entries: {
@@ -435,10 +437,10 @@ const LINK_V2_SELECT = {
       // Own file's real solicitors — the prefill SOURCE for the two adjacent
       // nodes. Only ever read for the viewer's OWN link in getChainV2; never put
       // on the wire for any link (another agency's solicitors stay private).
-      vendorSolicitorFirm: { select: { name: true } },
-      vendorSolicitorContact: { select: { name: true, phone: true, email: true } },
-      purchaserSolicitorFirm: { select: { name: true } },
-      purchaserSolicitorContact: { select: { name: true, phone: true, email: true } },
+      vendorSolicitorFirm: { select: { id: true, name: true } },
+      vendorSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
+      purchaserSolicitorFirm: { select: { id: true, name: true } },
+      purchaserSolicitorContact: { select: { id: true, name: true, phone: true, email: true } },
       // Active buyer round — used to round-scope the chain progress % so a
       // relisted file doesn't count the previous buyer's steps (audit DATA-005).
       activeBuyerRoundId: true,
@@ -702,10 +704,10 @@ export async function getChainV2(
   if (ownLink) {
     const otx = ownLink.transaction;
     const mkNote = (
-      firm: { name: string } | null | undefined,
-      contact: { name: string; phone: string | null; email: string | null } | null | undefined,
+      firm: { id: string; name: string } | null | undefined,
+      contact: { id: string; name: string; phone: string | null; email: string | null } | null | undefined,
     ): ChainNodeSolicitorNote | null =>
-      firm?.name ? { firm: firm.name, handler: contact?.name ?? null, phone: contact?.phone ?? null, email: contact?.email ?? null, prefilled: true } : null;
+      firm?.name ? { firmId: firm.id, contactId: contact?.id ?? null, firm: firm.name, handler: contact?.name ?? null, phone: contact?.phone ?? null, email: contact?.email ?? null, prefilled: true } : null;
     const vendorNote = mkNote(otx?.vendorSolicitorFirm, otx?.vendorSolicitorContact);
     const purchaserNote = mkNote(otx?.purchaserSolicitorFirm, otx?.purchaserSolicitorContact);
     const sameBranch = (x: (typeof chain.links)[number]) => (x.branchKey ?? "") === (ownLink!.branchKey ?? "");
@@ -967,7 +969,7 @@ export async function getChainV2(
       // adjacent-node prefill from our own file. Shown on NEIGHBOUR cards only —
       // null on the viewer's own node (we already hold the real thing there).
       const savedSol = viewerSideKey ? (rawSolicitors ?? []).filter((s) => s.sideKey === viewerSideKey) : [];
-      const toSolNote = (s: (typeof savedSol)[number]): ChainNodeSolicitorNote => ({ firm: s.firmName, handler: s.handlerName ?? null, phone: s.handlerPhone ?? null, email: s.handlerEmail ?? null, prefilled: false });
+      const toSolNote = (s: (typeof savedSol)[number]): ChainNodeSolicitorNote => ({ firmId: s.firmId ?? null, contactId: s.contactId ?? null, firm: s.firmName, handler: s.handlerName ?? null, phone: s.handlerPhone ?? null, email: s.handlerEmail ?? null, prefilled: false });
       const pf = solPrefill.get(l.id);
       const isOwnLink = !!ownLink && ownLink.id === l.id;
       const solicitors: ChainNodeSolicitors = (isOwnLink || !viewer)
@@ -1007,6 +1009,7 @@ export async function getChainV2(
           intel,
           entries,
           steps,
+          solicitors,
           canEditIntel,
           canEditStub,
           hasShareLink,

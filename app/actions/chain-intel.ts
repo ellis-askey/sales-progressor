@@ -257,6 +257,8 @@ async function resolveChainNodeSideScope(
 
 export type ChainSolicitorInput = {
   firm: string;
+  firmId?: string | null;
+  contactId?: string | null;
   handler?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -278,6 +280,8 @@ export async function setChainNodeSolicitorAction(
   const { sideKey } = await resolveChainNodeSideScope(session, linkId, contextTransactionId);
 
   const fields = {
+    firmId: input.firmId?.trim() || null,
+    contactId: input.contactId?.trim() || null,
     firmName: firm,
     handlerName: input.handler?.trim() || null,
     handlerPhone: input.phone?.trim() || null,

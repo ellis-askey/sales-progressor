@@ -49,9 +49,13 @@ type Props = {
   // escalated modal (e.g. the Relist window at z 1500) so results aren't hidden
   // behind it. Defaults to the AnchoredPanel baseline (1400).
   panelZIndex?: number;
+  // Hide the "assistant email" row — it's a mailing-only setting on the shared
+  // handler, irrelevant where the picker only captures a reference (e.g. the
+  // chain-node solicitor note).
+  hideAssistant?: boolean;
 };
 
-export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId, hideHeader, panelZIndex }: Props) {
+export function SolicitorPicker({ label, value, onChange, onFirmCreated, transactionId, hideHeader, panelZIndex, hideAssistant }: Props) {
   const [query, setQuery] = useState(value?.firmName ?? "");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -436,6 +440,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                     className="px-3 py-2 text-sm border border-[var(--agent-border-default)] rounded-lg bg-[var(--agent-surface-subtle)] text-[var(--agent-text-muted)] outline-none focus:outline-none" />
                 </div>
                 {/* Assistant / secretary — cc'd on every email to this handler */}
+                {!hideAssistant && (
                 <div className="space-y-1">
                   <label className="block text-[11px] font-semibold text-slate-900/45">
                     Assistant email <span className="font-normal text-slate-900/35">optional, cc&apos;d on all emails</span>
@@ -480,6 +485,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                     </>
                   )}
                 </div>
+                )}
               </>
             )}
           </div>
