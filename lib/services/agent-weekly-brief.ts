@@ -105,13 +105,14 @@ export async function sendAgentWeeklyBriefs(agencyId: string): Promise<number> {
     if (!agent.email) continue;
     if (prefsByUser.get(agent.id)?.weeklyBrief === false) continue;
 
-    // Directors see the whole branch; negotiators see only their own sales — the
-    // same scope each role opens when they click through to the pipeline.
+    // Directors see the whole branch; negotiators see their own sales — owned
+    // as agent OR assigned to them as in-house progressor (founder,
+    // 2026-11-10) — the same own-or-assigned scope their Mine list opens.
     const isDirector = agent.role === "director";
     const transactions = await prisma.propertyTransaction.findMany({
       where: isDirector
         ? { agencyId, status: "active" }
-        : { agencyId, agentUserId: agent.id, status: "active" },
+        : { agencyId, OR: [{ agentUserId: agent.id }, { assignedUserId: agent.id }], status: "active" },
       select: {
         id: true,
         propertyAddress: true,

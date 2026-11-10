@@ -39,7 +39,17 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
   const todayStr = toUKDateStr(new Date());
 
   const progressors = await prisma.user.findMany({
-    where: { agencyId, role: { in: ["admin", "sales_progressor", "director"] } },
+    where: {
+      agencyId,
+      OR: [
+        { role: { in: ["admin", "sales_progressor", "director"] } },
+        // In-house progressors (founder, 2026-11-10): negotiators flagged
+        // isInHouseProgressor get the digest for the files assigned to them —
+        // the file scope below is already assignedUserId-based, which is
+        // exactly their book. Ordinary negotiators stay excluded.
+        { role: "negotiator", isInHouseProgressor: true },
+      ],
+    },
     select: { id: true, name: true, email: true, role: true },
   });
 
@@ -48,9 +58,10 @@ export async function buildMorningDigest(agencyId: string): Promise<ProgressorDi
   for (const user of progressors) {
     if (!user.email) continue;
 
-    // A director is an agency user — never chase them about a TSP-managed file
-    // (our team runs those). Internal progressors/admins still see everything.
-    const excludeManaged = user.role === "director";
+    // Agency users (director / in-house progressor) are never chased about a
+    // TSP-managed file (our team runs those). Internal progressors/admins
+    // still see everything.
+    const excludeManaged = user.role === "director" || user.role === "negotiator";
     const transactions = await prisma.propertyTransaction.findMany({
       where: {
         agencyId,
