@@ -107,6 +107,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
           agentUserId: true,
           activeBuyerRoundId: true,
           assignedUser: { select: { id: true, name: true, email: true } },
+          agentUser:    { select: { id: true, name: true, email: true } },
         },
       },
     },
@@ -148,7 +149,11 @@ export async function sendClientPortalMessage(token: string, content: string): P
     }
   }
 
-  if (!tx.assignedUser?.email) return;
+  // Email whoever looks after the file day-to-day (founder rule, 2026-11-10):
+  // the assigned progressor, else the agent. Previously progressor-ONLY, so a
+  // self-managed file with no assignment emailed nobody at all.
+  const emailTarget = tx.assignedUser?.email ? tx.assignedUser : tx.agentUser?.email ? tx.agentUser : null;
+  if (!emailTarget?.email) return;
 
   const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/${tx.id}`;
   const roleLabel = contact.roleType === "purchaser" ? "Buyer" : contact.roleType === "vendor" ? "Seller" : contact.roleType;
@@ -163,12 +168,12 @@ export async function sendClientPortalMessage(token: string, content: string): P
   });
 
   await sendAgentEmail({
-    to:      tx.assignedUser.email,
+    to:      emailTarget.email,
     subject: built.subject,
     text:    built.text,
     html:    built.html,
     kind: "portal_message",
-    userId: tx.assignedUser.id,
+    userId: emailTarget.id,
     transactionId: tx.id,
   }).catch(() => {});
 }

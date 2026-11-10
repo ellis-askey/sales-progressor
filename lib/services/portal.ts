@@ -1690,16 +1690,15 @@ export async function logPortalMilestoneConfirm(
   // agent's id, so it wore the agent's photo. The bell + emails below are the
   // agent-facing signal; the timeline shows the completion directly.
 
-  // Structured notification for the file-owner's bell. Fires for BOTH
-  // outsourced (assignedUser) and self-managed (agentUser) files — before this
-  // generalisation, the bell only rang on outsourced files and self-managed
-  // agents had to spot client confirms in the activity feed manually. Now they
-  // ring for whoever owns the file.
-  const bellUserId = tx.assignedUser?.id ?? tx.agentUser?.id;
-  if (bellUserId) {
+  // Structured notification for the file's bells. Rings for BOTH the assigned
+  // progressor AND the agent/CM when distinct (founder Rule B, 2026-11-10: a
+  // client confirm is a thing happening on the file, so neither person is left
+  // out), deduped to one ring when they're the same person.
+  const bellUserIds = [...new Set([tx.assignedUser?.id, tx.agentUser?.id].filter((x): x is string => !!x))];
+  for (const ringUserId of bellUserIds) {
     const contact = tx.contacts.find((c) => c.id === contactId);
     notifyPortalMilestoneConfirmed({
-      userId: bellUserId,
+      userId: ringUserId,
       transactionId,
       contactName,
       contactRole: contact?.roleType ?? "contact",
@@ -1728,15 +1727,16 @@ export async function logPortalMilestoneConfirm(
   const wantsEmail = (userId: string | undefined) =>
     userId ? prefsByUser.get(userId)?.clientConfirmationEmails !== false : false;
 
-  // Push to the file owner (assignedUser ?? agentUser). Default OFF — agent
-  // opts in from settings. The bell entry above runs unconditionally so opt-out
-  // users still see it on their next SP visit.
-  if (bellUserId && prefsByUser.get(bellUserId)?.push?.clientConfirmation === true) {
+  // Push to both the file's people (Rule B), each gated by their own opt-in.
+  // Default OFF — agents opt in from settings. The bell entries above run
+  // unconditionally so opt-out users still see it on their next SP visit.
+  for (const ringUserId of bellUserIds) {
+    if (prefsByUser.get(ringUserId)?.push?.clientConfirmation !== true) continue;
     const shortAddress = address.split(",")[0];
     // portalLabel is the shorter portal-copy label computed earlier from
     // getMilestoneCopy(milestoneCode).label; falls back to milestoneLabel
     // (MilestoneDefinition.name) when no portal copy exists for the code.
-    pushToUser(bellUserId, {
+    pushToUser(ringUserId, {
       title: `${contactName} confirmed: ${portalLabel}`,
       body:  shortAddress,
       url:   dashUrl,

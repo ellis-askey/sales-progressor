@@ -12,6 +12,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { filePeopleIds, dayToDayUserId } from "@/lib/services/file-people";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import {
   getOnwardTrackerView,
@@ -66,13 +67,14 @@ async function notifyOnwardLifecycle(opts: {
     where: { id: opts.transactionId },
     select: { serviceType: true, assignedUserId: true, agentUserId: true },
   });
-  const managingUserId = tx ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId) : null;
   await prisma.outboundMessage.create({
     data: { transactionId: opts.transactionId, type: "internal_note", contactIds: [], content: opts.internalBody },
   });
-  if (managingUserId) {
+  // Bell BOTH the file's people (assigned progressor + agent/CM, deduped) —
+  // founder Rule B, 2026-11-10.
+  for (const uid of tx ? filePeopleIds(tx) : []) {
     await createNotification({
-      userId: managingUserId,
+      userId: uid,
       type: "portal_onward_lifecycle",
       transactionId: opts.transactionId,
       payload: { title: opts.bellTitle, body: opts.internalBody, contactName: opts.contactName },
@@ -246,7 +248,8 @@ export async function portalChangeOnwardPlaceAction(input: {
     where: { id: v.transactionId },
     select: { serviceType: true, assignedUserId: true, agentUserId: true, agencyId: true },
   });
-  const managingUserId = tx ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId) : null;
+  // Attribution follows the day-to-day rule (assigned progressor, else agent).
+  const managingUserId = tx ? dayToDayUserId(tx) : null;
   if (!tx || !managingUserId || !tx.agencyId) {
     return { ok: false, error: "We can't update the chain on this file yet. Let us know and we'll sort it." };
   }

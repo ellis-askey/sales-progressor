@@ -17,6 +17,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { writeClientChainStub } from "@/lib/services/chains";
+import { filePeopleIds, dayToDayUserId } from "@/lib/services/file-people";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
 import { getPortalChainAgent, getPortalSurveyState, type PortalChainAgent } from "@/lib/services/portal";
 import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
@@ -209,9 +210,8 @@ export async function updateMyChainAgentAction(input: {
     where: { id: contact.propertyTransactionId },
     select: { serviceType: true, assignedUserId: true, agentUserId: true, agencyId: true },
   });
-  const managingUserId = tx
-    ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId)
-    : null;
+  // Attribution follows the day-to-day rule (assigned progressor, else agent).
+  const managingUserId = tx ? dayToDayUserId(tx) : null;
   if (!tx || !managingUserId || !tx.agencyId) {
     return { ok: false as const, error: "We can't update the chain on this file yet. Your agent can add it for you." };
   }
@@ -408,17 +408,15 @@ export async function switchMySolicitorFirmAction(input: {
   await prisma.outboundMessage.create({
     data: { transactionId: contact.propertyTransactionId, type: "internal_note", contactIds: [], content: firmBody },
   });
-  // Bell for the managing agent (self-managed) / Sales Progressor (outsourced).
+  // Bell BOTH the file's people (assigned progressor + agent/CM, deduped) —
+  // founder Rule B, 2026-11-10.
   const solTx = await prisma.propertyTransaction.findUnique({
     where: { id: contact.propertyTransactionId },
     select: { serviceType: true, assignedUserId: true, agentUserId: true },
   });
-  const solManagingUserId = solTx
-    ? (solTx.serviceType !== "self_managed" ? solTx.assignedUserId : solTx.agentUserId)
-    : null;
-  if (solManagingUserId) {
+  for (const uid of solTx ? filePeopleIds(solTx) : []) {
     await createNotification({
-      userId: solManagingUserId,
+      userId: uid,
       type: "portal_solicitor_firm_switched",
       transactionId: contact.propertyTransactionId,
       payload: { title: "Solicitor firm changed", body: firmBody, contactName: contact.name },

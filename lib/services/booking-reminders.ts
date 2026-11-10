@@ -271,10 +271,10 @@ export async function sendBookingMorningReminders(): Promise<number> {
           id: true,
           propertyAddress: true,
           agencyId: true,
+          serviceType: true,
           agentUserId: true,
           assignedUserId: true,
           agentUser: { select: { name: true, email: true } },
-          // Never-happens fallback so a file with no agent still reaches someone.
           assignedUser: { select: { name: true, email: true } },
         },
       },
@@ -285,9 +285,20 @@ export async function sendBookingMorningReminders(): Promise<number> {
   for (const r of rows) {
     const tx = r.transaction;
     const code = (r.milestoneDefinition.code === "PM6" ? "PM6" : "PM9") as BookingCode;
-    // Recipient: the agency agent on every file (they hold keys / are local).
-    const recipientId = tx.agentUserId ?? tx.assignedUserId;
-    const recipient = tx.agentUser?.email ? tx.agentUser : tx.assignedUser;
+    // Recipient — two deliberate rules (founder, 2026-11-10):
+    //  - OUTSOURCED: the agency's own agent (they hold keys / are local); the
+    //    remote progressor stays out of it. Unchanged.
+    //  - SELF-MANAGED: whoever looks after the file day-to-day — the assigned
+    //    in-house progressor when one is set, else the agent. (Previously
+    //    agent-first, which cut the in-house progressor out of survey-day
+    //    reminders on every file they run.)
+    const selfManaged = tx.serviceType === "self_managed";
+    const recipientId = selfManaged
+      ? (tx.assignedUserId ?? tx.agentUserId)
+      : (tx.agentUserId ?? tx.assignedUserId);
+    const recipient = selfManaged
+      ? (tx.assignedUser?.email ? tx.assignedUser : tx.agentUser)
+      : (tx.agentUser?.email ? tx.agentUser : tx.assignedUser);
     if (!recipientId || !recipient?.email) continue;
 
     const prefs = await getNotificationPrefs(recipientId);

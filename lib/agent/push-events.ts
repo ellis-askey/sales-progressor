@@ -1,6 +1,7 @@
 // High-level helpers for agent-facing push events. Each helper:
-//   1. Resolves the file owner (assignedUserId ?? agentUserId)
-//   2. Fetches their notification prefs
+//   1. Resolves the file's people (assigned progressor + agent/CM — Rule B,
+//      founder 2026-11-10: things happening on a file alert BOTH, deduped)
+//   2. Fetches each person's notification prefs
 //   3. Fires pushToUser only if the relevant per-event toggle is on
 //
 // Keeps the call sites in actions/services tidy — they call a one-liner like
@@ -19,8 +20,10 @@ function shortAddress(propertyAddress: string): string {
   return propertyAddress.split(",")[0] ?? propertyAddress;
 }
 
-// Resolves file owner + dashboard URL + pushes only if the user has the
+// Resolves the file's people + dashboard URL + pushes to each who has the
 // supplied push toggle enabled. Returns nothing — fire-and-forget.
+// Previously progressor-first single-recipient, which cut the CM out of
+// escalations on every in-house-progression file (and vice versa).
 async function pushToFileOwner(args: {
   transactionId: string;
   key: PushKey;
@@ -34,18 +37,19 @@ async function pushToFileOwner(args: {
     });
     if (!tx) return;
 
-    const userId = tx.assignedUserId ?? tx.agentUserId;
-    if (!userId) return;
-
-    const prefs = await getNotificationPrefs(userId);
-    if (!prefs.push[args.key]) return;
+    const userIds = [...new Set([tx.assignedUserId, tx.agentUserId].filter((id): id is string => !!id))];
+    if (userIds.length === 0) return;
 
     const base = process.env.NEXTAUTH_URL ?? "";
-    await pushToUser(userId, {
-      title: args.title,
-      body:  args.body,
-      url:   `${base}/agent/transactions/${tx.id}`,
-    });
+    for (const userId of userIds) {
+      const prefs = await getNotificationPrefs(userId);
+      if (!prefs.push[args.key]) continue;
+      await pushToUser(userId, {
+        title: args.title,
+        body:  args.body,
+        url:   `${base}/agent/transactions/${tx.id}`,
+      });
+    }
   } catch (err) {
     console.error(`[push-events] ${args.key} failed for tx ${args.transactionId}:`, err);
   }

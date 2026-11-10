@@ -3,6 +3,11 @@ import { pushToContact } from "@/lib/services/push";
 import { createNotification } from "@/lib/services/notifications";
 import { maybeUnlockExchangeGate, maybeLockExchangeGate } from "@/lib/services/milestones";
 import { requiredParties } from "@/lib/checkpoints/blocking";
+// A client confirm rings the bell of BOTH the file's people — the assigned
+// progressor and the agent/CM, deduped (founder Rule B, 2026-11-10; was the
+// single serviceType-switched "overseer", which cut the in-house progressor
+// out of checkpoint confirms on self-managed files).
+import { filePeopleIds } from "@/lib/services/file-people";
 import type { CheckpointAudience, CheckpointParty } from "@prisma/client";
 
 // Per-file "Checkpoints" (client-facing: "Things to confirm") — critique #21+#23.
@@ -36,12 +41,6 @@ export type CheckpointView = {
   pushVendor: boolean;
   pushPurchaser: boolean;
 };
-
-// The overseer of a file (rings their bell on a client confirm): the assigned
-// Sales Progressor when outsourced, otherwise the managing agent.
-function overseerId(t: { serviceType: string | null; assignedUserId: string | null; agentUserId: string | null }): string | null {
-  return t.serviceType === "outsourced" ? t.assignedUserId : t.agentUserId;
-}
 
 export async function listCheckpoints(transactionId: string): Promise<CheckpointView[]> {
   const rows = await prisma.checkpoint.findMany({
@@ -155,10 +154,9 @@ export async function confirmCheckpoint(input: {
     await maybeUnlockExchangeGate(cp.transaction.id, "purchaser", actor);
   }
 
-  // A client confirming rings the file overseer's bell.
+  // A client confirming rings the bell of both the file's people (Rule B).
   if (input.by.kind === "contact") {
-    const uid = overseerId(cp.transaction);
-    if (uid) {
+    for (const uid of filePeopleIds(cp.transaction)) {
       await createNotification({
         userId: uid,
         type: "checkpoint_confirmed",

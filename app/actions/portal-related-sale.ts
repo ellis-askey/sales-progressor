@@ -13,6 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { filePeopleIds } from "@/lib/services/file-people";
 import type { Tenure } from "@prisma/client";
 import {
   getOnwardTrackerView,
@@ -134,13 +135,14 @@ async function notifyRelatedSaleLifecycle(opts: {
     where: { id: opts.transactionId },
     select: { serviceType: true, assignedUserId: true, agentUserId: true },
   });
-  const managingUserId = tx ? (tx.serviceType !== "self_managed" ? tx.assignedUserId : tx.agentUserId) : null;
   await prisma.outboundMessage.create({
     data: { transactionId: opts.transactionId, type: "internal_note", contactIds: [], content: opts.internalBody },
   });
-  if (managingUserId) {
+  // Bell BOTH the file's people (assigned progressor + agent/CM, deduped) —
+  // founder Rule B, 2026-11-10.
+  for (const uid of tx ? filePeopleIds(tx) : []) {
     await createNotification({
-      userId: managingUserId,
+      userId: uid,
       type: "portal_onward_lifecycle",
       transactionId: opts.transactionId,
       payload: { title: opts.bellTitle, body: opts.internalBody, contactName: opts.contactName },

@@ -156,27 +156,31 @@ async function handleFileReply(token: string, form: FormData) {
     console.error(`[reply-capture] filing reply failed for tx ${tx.id}:`, err);
   }
 
-  // Forward to the file's agent (assigned progressor first, else the client
-  // agent) so the reply still lands in their own inbox, reading as naturally as
-  // the sender's own email: their NAME on the From, their address as Reply-To,
-  // their subject + body untouched. The sending address must be a verified
-  // sender of ours to deliver, so that's the only tell — flagged by one discreet
-  // provenance line at the foot. Replying goes straight to the real sender.
-  const agentEmail = tx.assignedUser?.email ?? tx.agentUser?.email ?? null;
-  if (agentEmail) {
+  // Forward to the file's people — BOTH the assigned progressor and the agent
+  // when distinct (founder Rule B, 2026-11-10: a client reply is a thing
+  // happening on the file, so neither person is left out) — reading as
+  // naturally as the sender's own email: their NAME on the From, their address
+  // as Reply-To, their subject + body untouched. The sending address must be a
+  // verified sender of ours to deliver, so that's the only tell — flagged by
+  // one discreet provenance line at the foot. Replying goes straight to the
+  // real sender.
+  const forwardTo = [...new Set([tx.assignedUser?.email, tx.agentUser?.email].filter((e): e is string => !!e))];
+  if (forwardTo.length > 0) {
     const provenance = `Forwarded by Sales Progressor · filed on your sale at ${tx.propertyAddress}`;
     const forwardHtml = html && html.trim()
       ? `${html}<p style="color:#8a8a8a;font-size:12px;margin-top:16px">— ${escapeHtml(provenance)}</p>`
       : undefined;
-    await sendEmail({
-      to: agentEmail,
-      from: buildFrom(sender.name ?? sender.email, "updates@thesalesprogressor.co.uk"),
-      replyTo: sender.email,
-      subject,
-      text: `${body}\n\n—\n${provenance}`,
-      html: forwardHtml,
-      attachments: forwardAttachments.length ? forwardAttachments : undefined,
-    }).catch((err) => console.error(`[reply-capture] forward failed for tx ${tx.id}:`, err));
+    for (const agentEmail of forwardTo) {
+      await sendEmail({
+        to: agentEmail,
+        from: buildFrom(sender.name ?? sender.email, "updates@thesalesprogressor.co.uk"),
+        replyTo: sender.email,
+        subject,
+        text: `${body}\n\n—\n${provenance}`,
+        html: forwardHtml,
+        attachments: forwardAttachments.length ? forwardAttachments : undefined,
+      }).catch((err) => console.error(`[reply-capture] forward failed for tx ${tx.id}:`, err));
+    }
   }
 
   return NextResponse.json({ ok: true, matched: true });
