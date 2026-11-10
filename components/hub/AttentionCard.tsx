@@ -47,9 +47,8 @@ import {
   CalendarPlus,
   UserPlus,
   ArrowsClockwise,
-  Clock,
-  CalendarBlank,
 } from "@phosphor-icons/react/dist/ssr";
+import { SnoozeMenu } from "@/components/reminders/SnoozeMenu";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
 import { assignUserAction, acknowledgeRelistAction, clearChainSetupPendingAction } from "@/app/actions/transactions";
 import { advanceChaseTaskAction, completeTaskAction, snoozeTaskAction, chaseNowFromLogAction } from "@/app/actions/tasks";
@@ -238,53 +237,50 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
 
   return (
     <>
-      <div style={{ display: "inline-flex", marginLeft: "auto", flexShrink: 0 }}>
-        <button
-          type="button"
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto", flexShrink: 0 }}>
+        {/* The full snooze control (presets + pick-a-date + reason), shared with
+            the Reminders page — replaces the two quick-only snooze items that used
+            to live in the chevron menu. snoozeTaskAction already takes the date +
+            reason and logs it to Activity. */}
+        <SnoozeMenu
+          variant="row"
           disabled={busy}
-          onClick={openChase}
-          className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-          style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-        >
-          Chase
-        </button>
-        <RowActionMenu
-          joined
-          disabled={busy}
-          items={[
-            {
-              key: "chased",
-              icon: <ArrowsClockwise size={16} weight="bold" />,
-              title: "Mark as chased",
-              sub: "Advances the next chase date. No email is sent.",
-              onClick: () => run((taskId) => advanceChaseTaskAction(taskId, pathname), "Marked as chased", "Next chase date advanced."),
-            },
-            {
-              key: "done",
-              icon: <Check size={16} weight="bold" />,
-              title: "Confirm step done",
-              sub: "Marks the step complete on the file.",
-              onClick: () => {
-                if (milestoneNeedsDatePrompt(item.targetMilestoneCode)) setDateModalOpen(true);
-                else confirmDone(null);
-              },
-            },
-            {
-              key: "snooze-tomorrow",
-              icon: <Clock size={16} weight="bold" />,
-              title: "Snooze until tomorrow",
-              sub: "Back on this list tomorrow.",
-              onClick: () => run((taskId) => snoozeTaskAction(taskId, { hours: 24 }, pathname), "Snoozed", "Back on the list tomorrow."),
-            },
-            {
-              key: "snooze-week",
-              icon: <CalendarBlank size={16} weight="bold" />,
-              title: "Snooze for a week",
-              sub: "Back on this list in 7 days.",
-              onClick: () => run((taskId) => snoozeTaskAction(taskId, { hours: 168 }, pathname), "Snoozed", "Back on the list in a week."),
-            },
-          ]}
+          onConfirm={(choice) => run((taskId) => snoozeTaskAction(taskId, choice, pathname), "Snoozed", `${item.reminderName} snoozed.`)}
         />
+        <div style={{ display: "inline-flex", flexShrink: 0 }}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={openChase}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          >
+            Chase
+          </button>
+          <RowActionMenu
+            joined
+            disabled={busy}
+            items={[
+              {
+                key: "chased",
+                icon: <ArrowsClockwise size={16} weight="bold" />,
+                title: "Mark as chased",
+                sub: "Advances the next chase date. No email is sent.",
+                onClick: () => run((taskId) => advanceChaseTaskAction(taskId, pathname), "Marked as chased", "Next chase date advanced."),
+              },
+              {
+                key: "done",
+                icon: <Check size={16} weight="bold" />,
+                title: "Confirm step done",
+                sub: "Marks the step complete on the file.",
+                onClick: () => {
+                  if (milestoneNeedsDatePrompt(item.targetMilestoneCode)) setDateModalOpen(true);
+                  else confirmDone(null);
+                },
+              },
+            ]}
+          />
+        </div>
       </div>
       {dateModalOpen && (
         <ConfirmMilestoneDateModal
