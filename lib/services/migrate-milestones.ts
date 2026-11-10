@@ -16,7 +16,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
-import { unlockDirectDependents, maybeUnlockExchangeGate } from "@/lib/services/milestones";
+import { unlockDirectDependents, maybeUnlockExchangeGate, replayEnquirySyncForCodes } from "@/lib/services/milestones";
 import { evaluateTransactionReminders, autoCompleteRemindersForMilestone } from "@/lib/services/reminders";
 
 export type MigratedCompletionInput = {
@@ -53,6 +53,9 @@ export async function applyMigratedMilestoneCompletions(input: {
 
   let applied = 0;
   let latestEventTime = 0;
+  // Codes completed in this run — drives the enquiry-tracker / raise-chase replay
+  // below, since writing completions directly bypasses completeMilestone's sync.
+  const appliedCodes = new Set<string>();
   // When this import runs — the honest "recorded" time for event-date milestones
   // whose supplied date is a real-world EVENT date (see completedAtValue below).
   const importedAt = new Date();
@@ -132,6 +135,7 @@ export async function applyMigratedMilestoneCompletions(input: {
       );
 
       applied++;
+      appliedCodes.add(def.code);
     } catch (err) {
       console.error(
         `[applyMigratedMilestoneCompletions] failed to apply ${def.code} on tx ${input.transactionId}:`,
@@ -162,6 +166,14 @@ export async function applyMigratedMilestoneCompletions(input: {
   );
   await maybeUnlockExchangeGate(input.transactionId, "purchaser", completerId).catch((err) =>
     console.error(`[applyMigratedMilestoneCompletions] purchaser gate unlock failed:`, err),
+  );
+
+  // Writing completions directly bypassed completeMilestone's per-tick enquiry
+  // sync, so replay it from the final completed set. Without this a migrated file
+  // with enquiries raised-but-not-satisfied has no EnquiryTracker — invisible on
+  // the Enquiries page and never enquiry-chased (Boardwalk go-live, 2026-11-10).
+  await replayEnquirySyncForCodes(input.transactionId, appliedCodes).catch((err) =>
+    console.error(`[applyMigratedMilestoneCompletions] enquiry sync replay failed:`, err),
   );
 
   // One reminder-engine pass against the new completion state — seeds the

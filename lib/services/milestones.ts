@@ -402,6 +402,25 @@ export async function syncRaiseChase(
   }
 }
 
+// Replay the enquiry-tracker + raise-chase sync for a transaction's set of
+// ALREADY-complete milestone codes, open-before-close so the result is
+// independent of the order the codes were applied. The silent Migrate-Sale path
+// writes MilestoneCompletion rows directly and bypasses completeMilestone, so
+// syncEnquiryTracker / syncRaiseChase never fired for a migrated file — its
+// Enquiries page stays empty and no enquiry chase runs even when enquiries are
+// genuinely outstanding. Called by the migration writer and the one-off backfill
+// for already-migrated files. Idempotent (the sync fns guard on existing state).
+export async function replayEnquirySyncForCodes(
+  transactionId: string,
+  completeCodes: Set<string>,
+  db?: Prisma.TransactionClient | PrismaClient,
+): Promise<void> {
+  for (const code of ENQUIRY_OPEN_CODES) if (completeCodes.has(code)) await syncEnquiryTracker(transactionId, code, db);
+  for (const code of ENQUIRY_CLOSE_CODES) if (completeCodes.has(code)) await syncEnquiryTracker(transactionId, code, db);
+  if (completeCodes.has(RAISE_OPEN_CODE)) await syncRaiseChase(transactionId, RAISE_OPEN_CODE, db);
+  if (completeCodes.has(RAISE_CLOSE_CODE)) await syncRaiseChase(transactionId, RAISE_CLOSE_CODE, db);
+}
+
 function collectAllDependentCodes(startCode: string): string[] {
   const visited = new Set<string>();
   const queue = [startCode];

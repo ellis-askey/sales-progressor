@@ -471,3 +471,11 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-10-20.
 - **Deletion criteria:** delete together with convert-chase-timings-to-working-days.ts once production is verified.
 - **Justification:** the founder-gated safety check for a live-engine change; read-only apart from the deliberate engine run.
+
+### scripts/backfill-enquiry-trackers.ts
+
+- **Purpose:** Backfill the EnquiryTracker / EnquiryRaiseChase rows the silent Migrate-Sale path never created (it writes MilestoneCompletion rows directly, bypassing completeMilestone -> syncEnquiryTracker/syncRaiseChase). Migrated files with enquiries raised-but-not-satisfied were invisible on the Enquiries page and got no enquiry chase. Dry-run by default; `--apply` writes.
+- **Lifetime:** `one-shot`
+- **Author:** Claude (Ellis), 2026-11-10
+- **Deletion criteria:** delete once the Boardwalk migrated book has been reconciled (run with `--apply`, enquiry trackers present) and confirmed. The forward fix (replayEnquirySyncForCodes in migrate-milestones.ts) means no future migration needs it.
+- **Justification:** one-off data reconciliation for files migrated BEFORE the forward fix shipped. Not a feature (no recurring need), not a test, not an admin action (it reuses the real sync logic via replayEnquirySyncForCodes). Idempotent + gated behind `--apply`.
