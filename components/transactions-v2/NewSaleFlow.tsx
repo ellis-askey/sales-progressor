@@ -397,7 +397,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
   const [extractionError, setExtractionError] = useState<string | null>(null);
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [formFields, setFormFields] = useState<FormFields>(() => defaultFormFields(defaultProgressedBy));
+  const [formFields, setFormFields] = useState<FormFields>(() => ({
+    ...defaultFormFields(defaultProgressedBy),
+    // In-house progression: a progressor adding a sale is taking it on, so the
+    // "Who's progressing it?" picker defaults to THEM (founder, 2026-11-10).
+    // They can still pick a colleague or "Decide later". The server applies the
+    // same default, so the data matches what the form shows.
+    inHouseProgressorId:
+      inHouseProgressionEnabled && inHouseProgressors.some((p) => p.id === currentUserId)
+        ? currentUserId
+        : "",
+  }));
   const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(new Set());
 
   // Progressor create: which client agency this sale is for. Pre-set when launched

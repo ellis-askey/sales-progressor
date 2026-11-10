@@ -399,6 +399,19 @@ export async function createTransactionAction(input: {
       throw new Error("Cannot assign: that user is not an in-house progressor in your agency");
     }
     effectiveAssignedUserId = prog.id;
+  } else if (inHouseEnabled && input.inHouseProgressorId === undefined && effectiveAssignedUserId === undefined) {
+    // No picker value at all (non-form paths; the form itself preselects the
+    // creator): a progressor ADDING a sale is taking it on, so default the file
+    // to them (founder, 2026-11-10). An explicit "Decide later" arrives as
+    // null and is respected; an ordinary agent's create stays unassigned and
+    // lands on the needs-a-progressor pile.
+    const creator = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isInHouseProgressor: true, agencyId: true },
+    });
+    if (creator?.isInHouseProgressor && creator.agencyId === effectiveAgencyId) {
+      effectiveAssignedUserId = session.user.id;
+    }
   }
 
   // Progression-business assignment: a progressor creating a sale for a client may
