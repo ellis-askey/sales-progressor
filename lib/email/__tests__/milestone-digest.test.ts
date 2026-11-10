@@ -175,6 +175,15 @@ describe("4. Bilateral suppression preserved across sequential confirmations", (
   // → B's row queued, A NOT re-enqueued because PR 2 suppresses A.
   // Trace: VM7 (seller acts) at t=0, PM7 (buyer acts) at some later
   // confirmation (counterpartComplete=true by then).
+  //
+  // NB (2026-11-10): VM7↔PM7 themselves no longer confirm sequentially —
+  // confirming either side auto-completes the other atomically (the
+  // completeMilestone reflection), so in the LIVE send path they are exempted
+  // from this suppression (see sendRichMilestoneEmails / isAtomicContractPack)
+  // and BOTH sides are emailed from the one confirm. These cases stay here as
+  // pure coverage of the helper's math, which still governs the genuinely
+  // sequential pairs (VM12↔PM15, VM13↔PM17, VM15↔PM18). Do not "re-apply"
+  // VM7/PM7 suppression in the send path on the strength of these unit cases.
   test("VM7 fired first (counterpart not complete) does NOT suppress; both sides enqueue", () => {
     // direction = "default" — VM7 is natural first-actor, no counterpart yet.
     expect(computeBilateralSuppressedRecipient("VM7", "default")).toBeNull();
@@ -200,6 +209,9 @@ describe("4. Bilateral suppression preserved across sequential confirmations", (
 // ── 5. Harder case (both halves within the 3-minute window) ──────────────
 
 describe("5. Harder case: both halves of a bilateral pair within the window", () => {
+  // NB (2026-11-10): as in section 4, the VM7→PM7 trace below is pre-atomic
+  // history. VM7/PM7 now auto-complete together and bypass this suppression in
+  // the live send path; these remain pure-helper coverage.
   // Scenario: agent ticks VM7 at t=0 then PM7 at t=2min. Drain at
   // t=3min+. The queue state should be:
   //   • Vendor recipient: 1 row — VM7 acted-side from t=0

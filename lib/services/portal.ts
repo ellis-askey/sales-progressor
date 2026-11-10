@@ -2699,6 +2699,19 @@ async function sendRichMilestoneEmails(
     overrideRows
   );
 
+  // Contract-pack pair (VM7↔PM7): unlike the sequential reply/enquiry handoff
+  // pairs, these auto-complete BOTH sides atomically (the completeMilestone
+  // reflection), so there is never a separate second confirmation. The single
+  // confirm must reach both sides from this code's own copy (which carries
+  // both the vendor and purchaser blocks), and the sequential-handoff
+  // direction + suppression — which assume the counterpart was already emailed
+  // on an earlier confirm — must not apply here, or the second side is silently
+  // dropped (the bug: a seller confirming "contract pack issued" never emailed
+  // the buyer). The pair is deliberately NOT in AUTO_COUNTERPART_OF, so no
+  // counterpart email fires to double anyone up.
+  const isAtomicContractPack = milestoneCode === "VM7" || milestoneCode === "PM7";
+  const effectiveHandoffDirection = isAtomicContractPack ? undefined : handoffDirection;
+
   // Skeleton-mode FileShape — null when the flag is off OR when tenure/
   // purchaseType aren't both set on the tx. Null shape means
   // resolveRecipientCopy will fall through to legacy emailCopy for every
@@ -2709,7 +2722,7 @@ async function sendRichMilestoneEmails(
           tenure: tx.tenure,
           purchaseType: tx.purchaseType,
           route: confirmerRoute,
-          direction: handoffDirection,
+          direction: effectiveHandoffDirection,
         }
       : null;
 
@@ -2781,7 +2794,7 @@ async function sendRichMilestoneEmails(
   // emailed when they confirmed and must not be re-notified now. Runs
   // BEFORE the enqueue so suppressed sides never get a queue row, exactly
   // as suppression ran before the send call pre-batching.
-  const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, handoffDirection);
+  const suppressedRecipient = computeBilateralSuppressedRecipient(milestoneCode, effectiveHandoffDirection);
 
   // Exchange/completion handling. The four codes VM19/PM26/VM20/PM27
   // use the shorter 60s delay through the queue (still feel discrete,
