@@ -1,7 +1,7 @@
 import sgMail from "@sendgrid/mail";
 import { prisma } from "@/lib/prisma";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
-import { buildFrom, stripAgencyLegalSuffix } from "@/lib/email/from-name";
+import { buildFrom, stripAgencyLegalSuffix, rebrandSenderDisplay } from "@/lib/email/from-name";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { isAudienceBucketEnabled } from "@/lib/email/bucket-toggles";
 import type { AudienceBucket } from "@/lib/email/audience-buckets";
@@ -581,7 +581,19 @@ export async function resolveSenderForTransaction(
   // (e.g. nick@theirdomain), not the automated updates@ mailbox. A person typing
   // an email should send as themselves. (Outsourced files ignore the persona and
   // keep the agency/business sender, as before.)
-  const fallback = () => resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+  // A manual compose / chase send speaks as the PERSON clicking send (the
+  // signed-in opener), not the file's day-to-day agent/progressor that
+  // resolveAgencySenderForTransaction brands with (brandPerson = assignedUser ??
+  // agentUser). When the opener has no verified sending address of their own we
+  // still borrow the agency's AUTHENTICATED address for deliverability — but the
+  // display name must stay the opener's own brand, or we send from one identity's
+  // address under another person's name. Bug (2026-11-10): an outsourced file with
+  // no assigned progressor branded every manual send as the agency's agent — e.g.
+  // "Jack at Akeman <ellis@…>" — whoever actually opened the drawer.
+  const fallback = async (): Promise<{ from: string; replyTo: string }> => {
+    const fb = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+    return { from: rebrandSenderDisplay(fb.from, brandedDisplay), replyTo: fb.replyTo };
+  };
 
   const isInternalStaff =
     sessionUser.role === "sales_progressor" || sessionUser.role === "admin";

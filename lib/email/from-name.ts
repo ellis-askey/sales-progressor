@@ -24,6 +24,20 @@ export function agencyFrom(agencyName: string): string {
   return buildFrom(stripAgencyLegalSuffix(agencyName));
 }
 
+/**
+ * Re-brands a resolved `Display <address>` sender: keeps the authenticated
+ * ADDRESS, swaps in a new display name. Used by the manual-send resolver's
+ * fallback (lib/email.ts) — when the person sending has no verified address of
+ * their own, we borrow the agency's deliverable address but the display name
+ * must stay the SENDER's own, never the file's agent/progressor, so we never
+ * send from one identity's address under another person's name. Returns the
+ * input unchanged when there's no parseable trailing `<address>`.
+ */
+export function rebrandSenderDisplay(resolvedFrom: string, display: string): string {
+  const addr = resolvedFrom.match(/<([^>]+)>\s*$/)?.[1] ?? null;
+  return addr ? buildFrom(display, addr) : resolvedFrom;
+}
+
 /** "First Name at Agency" — for client-facing emails where a personal name is available. */
 export function personAgencyFrom(firstName: string, agencyName: string): string {
   return buildFrom(`${firstName} at ${stripAgencyLegalSuffix(agencyName)}`);
