@@ -238,7 +238,10 @@ export function useTextareaDictation(
   const target = useMemo<DictationTarget>(() => ({
     begin() {
       const el = ref.current;
-      atRef.current = el ? el.selectionStart : 0;
+      const focused = !!el && document.activeElement === el;
+      // Insert at the caret only when the field is already focused; otherwise
+      // append at the end without focusing (so a mic tap can't zoom iOS).
+      atRef.current = el ? (focused ? el.selectionStart : el.value.length) : 0;
       baseRef.current = el?.value ?? "";
     },
     update(text) {
@@ -253,8 +256,12 @@ export function useTextareaDictation(
     end(text) {
       const el = ref.current;
       if (!el) return;
-      const pos = atRef.current + text.length;
-      requestAnimationFrame(() => { el.focus(); try { el.setSelectionRange(pos, pos); } catch { /* unsupported */ } });
+      // Reposition the caret only when the field is already focused — never call
+      // focus() ourselves (that would zoom on iOS).
+      if (document.activeElement === el) {
+        const pos = atRef.current + text.length;
+        requestAnimationFrame(() => { try { el.setSelectionRange(pos, pos); } catch { /* unsupported */ } });
+      }
     },
   }), [ref, setValue]);
   return useDictation(target, opts);
@@ -286,40 +293,47 @@ export function useContentEditableDictation(
     begin() {
       const editor = ref.current;
       if (!editor) return;
-      editor.focus();
       const span = document.createElement("span");
       span.setAttribute("data-dictation", "");
       const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      // Insert at the live caret ONLY when the editor is already focused (the
+      // user placed a cursor). Otherwise append at the end WITHOUT focusing:
+      // focusing a sub-16px field on iOS zooms the page (and pops the keyboard
+      // mid-dictation), which is exactly what we don't want on a mic tap.
+      const focusedHere = document.activeElement === editor && !!sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode);
+      if (focusedHere && sel) {
         const range = sel.getRangeAt(0);
         range.deleteContents();
         range.insertNode(span);
+        placeCaretAfter(span);
       } else {
         editor.appendChild(span);
       }
       spanRef.current = span;
-      placeCaretAfter(span);
     },
     update(text) {
       const span = spanRef.current;
       if (!span) return;
       span.innerHTML = htmlFromText(text);
-      placeCaretAfter(span);
+      // Keep the caret after the dictated text only while the field is focused;
+      // never touch selection on an unfocused field (would zoom on iOS).
+      if (document.activeElement === ref.current) placeCaretAfter(span);
       ref.current?.dispatchEvent(new Event("input", { bubbles: true }));
     },
     end() {
       const span = spanRef.current;
       const editor = ref.current;
+      const wasFocused = document.activeElement === editor;
       if (span && span.parentNode) {
         const parent = span.parentNode;
         const marker = document.createTextNode("");
         while (span.firstChild) parent.insertBefore(span.firstChild, span);
         parent.insertBefore(marker, span);
         parent.removeChild(span);
-        placeCaretAfter(marker);
+        if (wasFocused) placeCaretAfter(marker);
       }
       spanRef.current = null;
-      editor?.focus();
+      // No forced focus — avoids the iOS zoom when the field wasn't focused.
       editor?.dispatchEvent(new Event("input", { bubbles: true }));
     },
   }), [ref]);
