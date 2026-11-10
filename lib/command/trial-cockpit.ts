@@ -326,6 +326,139 @@ export async function getTrialFiles(agencyId: string, trial: TrialConfig): Promi
   };
 }
 
+// ── Actions tab ───────────────────────────────────────────────────────────────
+
+export interface TrialActions {
+  // Trial-to-date counts
+  steps: number;
+  manualChases: number;
+  autoChases: number;
+  updatesLogged: number;   // internal notes / logged updates by a person
+  todosAdded: number;      // hand-made
+  todosCompleted: number;
+  chainsBuilt: number;     // chains created during the trial
+  activeChains: number;
+  openEnquiries: number;   // open enquiry loops right now
+  enquiriesClosed: number; // closed during the trial
+  // Who confirms steps (trial-to-date)
+  confirmSplit: { agent: number; portal: number; solicitor: number; broker: number; other: number };
+  // Per trial week, oldest first
+  weeklySteps: Array<{ label: string; value: number }>;
+  weeklyManualChases: Array<{ label: string; value: number }>;
+  // Open to-dos by assignee, busiest first
+  openTodos: Array<{ name: string; count: number }>;
+}
+
+export async function getTrialActions(agencyId: string, trial: TrialConfig): Promise<TrialActions> {
+  const now = new Date();
+  const trialStart = new Date(`${trial.startsAt}T00:00:00`);
+  const weeksSoFar = Math.max(1, Math.ceil(((now.getTime() - trialStart.getTime()) / DAY_MS + 1) / 7));
+  const weekBuckets = () =>
+    Array.from({ length: weeksSoFar }, (_, i) => {
+      const start = new Date(trialStart.getTime() + i * 7 * DAY_MS);
+      return { label: start.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), value: 0 };
+    });
+  const weekIdx = (d: Date) => Math.floor((d.getTime() - trialStart.getTime()) / (7 * DAY_MS));
+
+  const [milestones, chaseRows, updatesLogged, todosAdded, todosCompleted, chainsBuilt, activeChains, openEnquiries, enquiriesClosed, openTodoGroups] = await Promise.all([
+    commandDb.milestoneCompletion.findMany({
+      where: {
+        state: "complete" as never,
+        reflected: false,
+        backfilledCompletion: false,
+        completedAt: { gte: trialStart },
+        transaction: { agencyId, isDemo: false },
+      },
+      select: {
+        completedAt: true,
+        completedById: true,
+        confirmedByPortal: true,
+        confirmedBySolicitorFirmId: true,
+        confirmedBySolicitorContactId: true,
+        confirmedByBrokerFirmId: true,
+        confirmedByBrokerContactId: true,
+      },
+    }),
+    commandDb.outboundMessage.findMany({
+      where: { agencyId, purpose: "chase" as never, type: "outbound" as never, createdAt: { gte: trialStart } },
+      select: { createdAt: true, isAutomated: true },
+    }),
+    commandDb.outboundMessage.count({
+      where: { agencyId, type: "internal_note" as never, createdById: { not: null }, createdAt: { gte: trialStart } },
+    }),
+    commandDb.manualTask.count({
+      where: { agencyId, sourceMessageId: null, isPossible: false, createdAt: { gte: trialStart } },
+    }),
+    commandDb.manualTask.count({
+      where: { agencyId, status: "done" as never, completedAt: { gte: trialStart } },
+    }),
+    commandDb.propertyChain.count({ where: { agencyId, createdAt: { gte: trialStart } } }),
+    commandDb.propertyChain.count({ where: { agencyId, status: "ACTIVE" as never } }),
+    commandDb.enquiryTracker.count({ where: { closedAt: null, transaction: { agencyId, isDemo: false } } }),
+    commandDb.enquiryTracker.count({ where: { closedAt: { gte: trialStart }, transaction: { agencyId, isDemo: false } } }),
+    commandDb.manualTask.groupBy({
+      by: ["assignedToId"],
+      where: { agencyId, status: "open" as never, isPossible: false },
+      _count: { _all: true },
+    }),
+  ]);
+
+  // Attribution: portal first (client self-confirm), then solicitor, broker,
+  // then an agent-side user, else "other" (system reconciliation etc.).
+  const confirmSplit = { agent: 0, portal: 0, solicitor: 0, broker: 0, other: 0 };
+  const weeklySteps = weekBuckets();
+  for (const m of milestones) {
+    if (m.confirmedByPortal) confirmSplit.portal += 1;
+    else if (m.confirmedBySolicitorFirmId || m.confirmedBySolicitorContactId) confirmSplit.solicitor += 1;
+    else if (m.confirmedByBrokerFirmId || m.confirmedByBrokerContactId) confirmSplit.broker += 1;
+    else if (m.completedById) confirmSplit.agent += 1;
+    else confirmSplit.other += 1;
+    if (m.completedAt) {
+      const idx = weekIdx(m.completedAt);
+      if (idx >= 0 && idx < weeklySteps.length) weeklySteps[idx].value += 1;
+    }
+  }
+
+  const weeklyManualChases = weekBuckets();
+  let manualChases = 0;
+  let autoChases = 0;
+  for (const c of chaseRows) {
+    if (c.isAutomated) autoChases += 1;
+    else {
+      manualChases += 1;
+      const idx = weekIdx(c.createdAt);
+      if (idx >= 0 && idx < weeklyManualChases.length) weeklyManualChases[idx].value += 1;
+    }
+  }
+
+  // Resolve assignee names for open to-dos (unassigned rolls up as one row).
+  const assigneeIds = openTodoGroups.map((g) => g.assignedToId).filter((id): id is string => !!id);
+  const assignees = assigneeIds.length
+    ? await commandDb.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, name: true } })
+    : [];
+  const nameMap = new Map(assignees.map((a) => [a.id, a.name]));
+  const openTodos = openTodoGroups
+    .map((g) => ({ name: g.assignedToId ? nameMap.get(g.assignedToId) ?? "Unknown" : "Unassigned", count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    steps: milestones.length,
+    manualChases,
+    autoChases,
+    updatesLogged,
+    todosAdded,
+    todosCompleted,
+    chainsBuilt,
+    activeChains,
+    openEnquiries,
+    enquiriesClosed,
+    confirmSplit,
+    weeklySteps,
+    weeklyManualChases,
+    openTodos,
+  };
+}
+
 // ── Team tab ──────────────────────────────────────────────────────────────────
 
 export type TeamStatus = "active" | "quiet" | "dormant" | "never";

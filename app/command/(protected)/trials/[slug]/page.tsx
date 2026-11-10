@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTrialConfig, trialClock, resolveTrialAgency } from "@/lib/command/trials";
-import { getTrialOverview, getTrialTeam, getTrialUsage, getTrialFiles, type TrialKpi, type TrialDayPoint } from "@/lib/command/trial-cockpit";
+import { getTrialOverview, getTrialTeam, getTrialUsage, getTrialFiles, getTrialActions, type TrialKpi, type TrialDayPoint } from "@/lib/command/trial-cockpit";
 import { KpiCard, DeltaPill, Section, ParamTabs, CardEmpty, InsightCard, fmtInt } from "@/components/command/ui/primitives";
 import { fmtHoursShort, fmtRelative, initials, avColor } from "@/lib/command/format";
 import { TeamTab } from "@/components/command/trials/TeamTab";
 import { UsageTab } from "@/components/command/trials/UsageTab";
 import { FilesTab } from "@/components/command/trials/FilesTab";
+import { ActionsTab } from "@/components/command/trials/ActionsTab";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ const TABS = [
   { key: "team", label: "Team" },
   { key: "usage", label: "Usage" },
   { key: "files", label: "Files" },
+  { key: "actions", label: "Actions" },
 ];
 
 function fmtKpiValue(k: TrialKpi): string {
@@ -94,6 +96,7 @@ export default async function TrialCockpitPage({
   const team = activeTab === "team" ? await getTrialTeam(agency.id, trial) : null;
   const usage = activeTab === "usage" ? await getTrialUsage(agency.id, trial) : null;
   const files = activeTab === "files" ? await getTrialFiles(agency.id, trial) : null;
+  const actions = activeTab === "actions" ? await getTrialActions(agency.id, trial) : null;
 
   return (
     <div className="space-y-8">
@@ -220,6 +223,7 @@ export default async function TrialCockpitPage({
       {team && <TeamTab team={team} staffTarget={trial.staffTarget} />}
       {usage && <UsageTab usage={usage} />}
       {files && <FilesTab files={files} />}
+      {actions && <ActionsTab actions={actions} />}
     </div>
   );
 }
