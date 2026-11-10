@@ -10,8 +10,13 @@
 // this reconciles the files migrated BEFORE that fix shipped.
 //
 // Usage:
-//   npx tsx scripts/backfill-enquiry-trackers.ts            # DRY RUN — report only
-//   npx tsx scripts/backfill-enquiry-trackers.ts --apply    # write the trackers
+//   npx tsx scripts/backfill-enquiry-trackers.ts                       # DRY RUN, all migrated agencies
+//   npx tsx scripts/backfill-enquiry-trackers.ts --agency=<id>         # DRY RUN, one agency
+//   npx tsx scripts/backfill-enquiry-trackers.ts --agency=<id> --apply # write that agency's trackers
+//
+// SCOPE: multiple agencies have migrated files (Boardwalk + Knights). Always
+// scope with --agency unless you deliberately mean every migrated agency, so you
+// don't activate enquiry chasing on an agency that isn't live yet.
 //
 // Idempotent: replayEnquirySyncForCodes guards on existing state, so re-running is
 // safe. NOTE: creating open trackers ACTIVATES enquiry chasing on those files —
@@ -26,14 +31,15 @@ const CLOSE = ["PM20", "VM21"];
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  console.log(`Mode: ${apply ? "APPLY (writing trackers)" : "DRY RUN (report only)"}\n`);
+  const agencyArg = process.argv.find((a) => a.startsWith("--agency="))?.split("=")[1] ?? null;
+  console.log(`Mode: ${apply ? "APPLY (writing trackers)" : "DRY RUN (report only)"}  |  Agency: ${agencyArg ?? "ALL migrated"}\n`);
 
   // Code lookup once (small table).
   const defs = await prisma.milestoneDefinition.findMany({ select: { id: true, code: true } });
   const codeById = new Map(defs.map((d) => [d.id, d.code]));
 
   const txns = await prisma.propertyTransaction.findMany({
-    where: { isMigrated: true, isDemo: false, status: "active" },
+    where: { isMigrated: true, isDemo: false, status: "active", ...(agencyArg ? { agencyId: agencyArg } : {}) },
     select: { id: true, propertyAddress: true },
     orderBy: { propertyAddress: "asc" },
   });
