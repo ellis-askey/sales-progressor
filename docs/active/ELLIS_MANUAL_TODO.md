@@ -8,6 +8,16 @@ Last updated: 2026-11-01
 
 ---
 
+## Raise the Supabase pooler's max client connections (2026-11-10, URGENT follow-up)
+
+**Why:** a prod incident on 2026-11-10 took the app down app-wide (portal, hub, comms, command all 500'd) with `FATAL: (EMAXCONN) max client connections reached, limit: 200`. The pooler's **client-connection ceiling is 200**, and `instances x connection_limit` blew past it under deploy churn + the 15-min mailbox cron + traffic. Hot-fix (commit `81e45aef`) cut `connection_limit` from 10 to **3** in `lib/prisma.ts`, which throttles the per-instance footprint but makes the agent file-shell's parallel queries a little slower.
+
+**Action:** in the **Supabase dashboard → Database → Connection pooling**, raise the pooler's **max client connections** well above 200 (e.g. 500+; check the compute add-on tier allows it). Once raised, we can restore `connection_limit` toward 10 in `lib/prisma.ts` to get the file-shell speed back.
+
+**Until then:** leave `connection_limit=3`. If EMAXCONN recurs before the ceiling is raised, it can go lower (2) as an emergency throttle.
+
+---
+
 ## WhatsApp media durability — redeploy the bridge (2026-11-09)
 
 The WhatsApp media fix (commit `fe8a159b`, critique #287) is **bridge code** — it does not reach prod via a Vercel deploy. The bridge runs separately on Railway, so it needs a **redeploy** to take effect, plus one new volume path.
