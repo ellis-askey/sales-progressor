@@ -46,6 +46,9 @@ export type IntroCallData = {
   // Who completed each side's intro (null until that side is introduced).
   introVendorBy: IntroActor | null;
   introPurchaserBy: IntroActor | null;
+  // Progressor's free-text call notes, per side, with the last-edited stamp.
+  notesVendor: { text: string; updatedAt: string | null };
+  notesPurchaser: { text: string; updatedAt: string | null };
   hasVendor: boolean;
   hasPurchaser: boolean;
   vendor: IntroCallContact | null;
@@ -137,6 +140,10 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
       introCallPurchaserCompletedAt: true,
       introCallVendorCompletedById: true,
       introCallPurchaserCompletedById: true,
+      introCallVendorNotes: true,
+      introCallVendorNotesAt: true,
+      introCallPurchaserNotes: true,
+      introCallPurchaserNotesAt: true,
       clientDepositGBP: true,
       clientMortgageGBP: true,
       clientOtherFundsSentGBP: true,
@@ -205,6 +212,8 @@ export async function getIntroCallDataAction(transactionId: string): Promise<Int
     introDonePurchaser: tx.introCallPurchaserCompletedAt != null,
     introVendorBy: introActor(tx.introCallVendorCompletedById, tx.introCallVendorCompletedAt),
     introPurchaserBy: introActor(tx.introCallPurchaserCompletedById, tx.introCallPurchaserCompletedAt),
+    notesVendor: { text: tx.introCallVendorNotes ?? "", updatedAt: tx.introCallVendorNotesAt?.toISOString() ?? null },
+    notesPurchaser: { text: tx.introCallPurchaserNotes ?? "", updatedAt: tx.introCallPurchaserNotesAt?.toISOString() ?? null },
     hasVendor: !!vendor,
     hasPurchaser: !!purchaser,
     vendor: vendor ? { id: vendor.id, name: vendor.name, phone: vendor.phone, email: vendor.email } : null,
@@ -307,6 +316,33 @@ export async function saveMoveInfoAgentAction(
     update: data as never,
   });
   revalidatePath(`/agent/transactions/${transactionId}`);
+}
+
+// Save the progressor's free-text call notes for ONE side. Returns the server
+// edit stamp so the drawer can show an accurate "Last edited" without a refetch.
+// Notes are internal scratchpad only: no activity log, no client visibility.
+export async function saveIntroCallNotesAction(
+  transactionId: string,
+  side: Side,
+  text: string,
+): Promise<{ updatedAt: string }> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  const trimmed = text.trim();
+  const value = trimmed === "" ? null : text;
+  const now = new Date();
+  const data: Record<string, unknown> = side === "vendor"
+    ? { introCallVendorNotes: value, introCallVendorNotesAt: now }
+    : { introCallPurchaserNotes: value, introCallPurchaserNotesAt: now };
+
+  await prisma.propertyTransaction.update({ where: { id: transactionId }, data });
+  return { updatedAt: now.toISOString() };
 }
 
 // Stamp ONE side's introduction as complete + timeline note. Buyer and seller

@@ -873,6 +873,13 @@ model PropertyTransaction {
   introCallVendorCompletedById    String?
   introCallPurchaserCompletedAt   DateTime?
   introCallPurchaserCompletedById String?
+  // Free-text scratchpad the progressor types while running each side's intro
+  // call (2026-11-10). Per-side, like the completion stamps above. The *NotesAt
+  // timestamp drives the "Last edited" line on the in-drawer notes box.
+  introCallVendorNotes            String?
+  introCallVendorNotesAt          DateTime?
+  introCallPurchaserNotes         String?
+  introCallPurchaserNotesAt       DateTime?
   referredFirmId                  String?
   referralFee                     Int?
   // VAT treatment of this referral income, snapshotted from the recommended

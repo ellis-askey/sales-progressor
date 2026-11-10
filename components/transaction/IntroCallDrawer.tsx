@@ -9,6 +9,7 @@ import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import {
   saveClientCostsAgentAction,
   saveMoveInfoAgentAction,
+  saveIntroCallNotesAction,
   completeIntroCallAction,
   type IntroCallData,
 } from "@/app/actions/intro-call";
@@ -219,6 +220,74 @@ function AreaField({ label, initial, onSave, placeholder }: { label: string; ini
         onChange={(e) => setV(e.target.value)}
         onBlur={() => { if (v !== last.current) { last.current = v; onSave(v); } }} />
     </label>
+  );
+}
+
+// Relative "last edited" stamp for the notes box. Runtime-only (client), so
+// Date.now() here is fine.
+function relWhen(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "yesterday";
+  return `${days}d ago`;
+}
+
+// The progressor's call scratchpad. "Notes" label left, "Last edited" right,
+// a drag-to-resize textarea beneath. Debounced autosave onto the intro call
+// (per side); flushes any pending edit when the drawer closes so nothing's lost.
+function CallNotes({ transactionId, side, initialText, initialUpdatedAt }: {
+  transactionId: string; side: "vendor" | "purchaser"; initialText: string; initialUpdatedAt: string | null;
+}) {
+  const [text, setText] = useState(initialText);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt);
+  const [saving, setSaving] = useState(false);
+  const [, force] = useState(0);
+  const saved = useRef(initialText);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef(text); latest.current = text;
+
+  // Keep "Last edited 2m ago" honest between edits.
+  useEffect(() => { const id = setInterval(() => force((n) => n + 1), 45000); return () => clearInterval(id); }, []);
+
+  const flush = useCallback((value: string) => {
+    if (value === saved.current) return;
+    saved.current = value;
+    setSaving(true);
+    saveIntroCallNotesAction(transactionId, side, value)
+      .then((r) => setUpdatedAt(r.updatedAt))
+      .catch(() => {})
+      .finally(() => setSaving(false));
+  }, [transactionId, side]);
+
+  const schedule = useCallback((value: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => flush(value), 650);
+  }, [flush]);
+
+  // Flush the last edit on unmount (drawer close / route change).
+  useEffect(() => () => { if (timer.current) { clearTimeout(timer.current); } flush(latest.current); }, [flush]);
+
+  return (
+    <div style={{ marginTop: 26, paddingTop: 22, borderTop: "1px solid var(--agent-border-subtle)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 7 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>Notes</span>
+        <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>
+          {saving ? "Saving…" : updatedAt ? `Last edited ${relWhen(updatedAt)}` : "Autosaves as you go"}
+        </span>
+      </div>
+      <textarea
+        value={text}
+        placeholder="Jot down anything from the call. Only your team sees this."
+        className="agent-field"
+        style={{ fontSize: 13, fontWeight: 400, padding: "10px 12px", borderRadius: 10, width: "100%", fontFamily: "inherit", minHeight: 128, resize: "vertical", lineHeight: 1.5 }}
+        onChange={(e) => { setText(e.target.value); schedule(e.target.value); }}
+        onBlur={() => { if (timer.current) clearTimeout(timer.current); flush(text); }}
+      />
+    </div>
   );
 }
 
@@ -489,6 +558,13 @@ export function IntroCallDrawer({ data: initialData, onClose, onCompleted, focus
                 style={{ marginTop: 20, padding: "9px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600 }}>
                 On to the questions <LinkArrow />
               </button>
+
+              <CallNotes
+                transactionId={tx}
+                side={side}
+                initialText={side === "vendor" ? data.notesVendor.text : data.notesPurchaser.text}
+                initialUpdatedAt={side === "vendor" ? data.notesVendor.updatedAt : data.notesPurchaser.updatedAt}
+              />
             </div>
 
             {/* Page 2 — questions (single side, fixed by focusSide) */}
