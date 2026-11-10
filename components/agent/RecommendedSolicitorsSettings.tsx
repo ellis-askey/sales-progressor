@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { NumericFormat } from "react-number-format";
+import { Scales, FolderSimple, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import {
@@ -11,6 +12,9 @@ import {
 } from "@/app/actions/solicitors";
 import { VatToggle } from "@/components/agent/partners/VatToggle";
 import type { FeeVatTreatment } from "@prisma/client";
+
+const BLUE = "#2f74e0";
+const BLUE_RGB = "59,130,246";
 
 type RecommendedFirm = {
   id: string;
@@ -37,6 +41,8 @@ export function RecommendedSolicitorsSettings({
   // search state
   const [query, setQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  // In the filled card the search is revealed by the "+ Add firm" link.
+  const [addOpen, setAddOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   // pending-add state (contact form shown before confirming)
@@ -109,6 +115,7 @@ export function RecommendedSolicitorsSettings({
 
   function cancelPending() {
     setPendingFirm(null);
+    setAddOpen(false);
     setCName(""); setCPhone(""); setCEmail(""); setPendingFee(null); setPendingVat("plus"); setAddError("");
   }
 
@@ -141,168 +148,224 @@ export function RecommendedSolicitorsSettings({
     }
   }
 
-  return (
-    <div className="space-y-3">
-      {recommended.length === 0 && !pendingFirm && (
-        <p className="text-sm text-slate-900/40 italic">No recommended firms yet.</p>
-      )}
+  const empty = recommended.length === 0;
+  // The search box shows in the empty card, or when "+ Add firm" is open.
+  const showSearchBox = !pendingFirm && (empty || addOpen);
 
-      {/* Recommended rows */}
-      {recommended.map((r) => (
-        <div key={r.firmId} className="flex items-center gap-3 py-2 border-b border-white/15 last:border-0">
-          <span className="flex-1 text-sm font-medium text-slate-900/80 truncate">{r.firmName}</span>
-
-          <div className="flex items-center flex-shrink-0">
-            <NumericFormat
-              value={r.defaultReferralFeePence != null ? r.defaultReferralFeePence / 100 : ""}
-              onValueChange={({ floatValue }) => updateFee(r.firmId, floatValue != null ? Math.round(floatValue * 100) : null)}
-              onBlur={() => persist(r.firmId, r.defaultReferralFeePence, r.defaultReferralFeeVat)}
-              prefix="£"
-              thousandSeparator=","
-              decimalScale={2}
-              allowNegative={false}
-              inputMode="decimal"
-              placeholder="£ fee"
-              className="w-28 px-2 py-1 text-sm rounded-lg bg-white/50 border border-white/30 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-            />
-          </div>
-
-          <VatToggle value={r.defaultReferralFeeVat} onChange={(v) => saveVat(r.firmId, v)} disabled={saving === r.firmId} />
-
-          {saving === r.firmId && <span className="text-xs text-slate-900/30 flex-shrink-0">Saving…</span>}
-
-          <button
-            onClick={() => handleRemove(r.firmId)}
-            disabled={removing === r.firmId}
-            className="p-2 -m-2 text-xs text-slate-900/30 hover:text-red-400 transition-colors disabled:opacity-40 flex-shrink-0"
-          >
-            {removing === r.firmId ? "…" : "Remove"}
-          </button>
-        </div>
-      ))}
-
-      {/* Contact details form — shown after selecting a firm, before confirming */}
-      {pendingFirm && (
-        <div className="rounded-xl border border-blue-200/60 bg-blue-50/30 p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-900/70">
-            Adding <span className="text-blue-700">{pendingFirm.name}</span>: enter case handler details
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="col-span-1 sm:col-span-2">
-              <label className="block text-xs text-slate-900/50 mb-1">Case handler name <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                value={cName}
-                onChange={(e) => setCName(e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }}
-                placeholder="e.g. Sarah Jones"
-                autoFocus
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-900/50 mb-1">Phone <span className="text-red-400">*</span></label>
-              <input
-                type="tel"
-                value={cPhone}
-                onChange={(e) => setCPhone(cleanPhone(e.target.value))}
-                onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }}
-                maxLength={20}
-                placeholder="e.g. 01234 567890"
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-900/50 mb-1">Email <span className="text-red-400">*</span></label>
-              <input
-                type="email"
-                value={cEmail}
-                onChange={(e) => setCEmail(e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }}
-                maxLength={100}
-                placeholder="e.g. sarah@firmname.co.uk"
-                className="w-full px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-              />
-            </div>
-            <div className="col-span-1 sm:col-span-2">
-              <label className="block text-xs text-slate-900/50 mb-1">Default referral fee (optional)</label>
-              <div className="flex items-center gap-2">
-                <NumericFormat
-                  value={pendingFee != null ? pendingFee / 100 : ""}
-                  onValueChange={({ floatValue }) => setPendingFee(floatValue != null ? Math.round(floatValue * 100) : null)}
-                  prefix="£"
-                  thousandSeparator=","
-                  decimalScale={2}
-                  allowNegative={false}
-                  inputMode="decimal"
-                  placeholder="£250"
-                  className="w-40 px-3 py-2 text-sm rounded-lg bg-white/70 border border-white/40 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-                />
-                <VatToggle value={pendingVat} onChange={setPendingVat} disabled={adding} />
-              </div>
-            </div>
-          </div>
-
-          {addError && <p className="text-xs text-red-500">{addError}</p>}
-
-          <div className="flex gap-2">
+  const searchBox = (
+    <div ref={searchRef} style={{ position: "relative" }}>
+      <MagnifyingGlass size={16} weight="bold" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }} />
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setShowSearch(true); }}
+        onFocus={() => setShowSearch(true)}
+        placeholder="Search or add a solicitor firm…"
+        autoFocus={addOpen}
+        className="pf-input"
+        style={{ paddingLeft: 38 }}
+      />
+      {showSearch && (query.length > 0 || filtered.length > 0) && (
+        <div style={{
+          position: "absolute", zIndex: 30, left: 0, right: 0, marginTop: 6,
+          borderRadius: 12, overflow: "hidden", maxHeight: 220, overflowY: "auto",
+          background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)",
+          boxShadow: "0 12px 30px rgba(15,23,42,0.14)",
+        }}>
+          {filtered.map((f) => (
             <button
-              onClick={confirmAdd}
-              disabled={adding}
-              className="px-4 py-1.5 text-xs font-semibold agent-btn-color-primary rounded-lg transition-colors disabled:opacity-40"
+              key={f.id}
+              type="button"
+              onMouseDown={() => openContactForm({ id: f.id, name: f.name })}
+              className="agent-hover-row"
+              style={{ width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13.5, color: "var(--agent-text-primary)", background: "none", border: "none", cursor: "pointer" }}
             >
-              {adding ? "Adding…" : "Confirm add"}
+              {f.name}
             </button>
+          ))}
+          {query.trim() && !allFirms.some((f) => f.name.toLowerCase() === query.trim().toLowerCase()) && (
             <button
-              onClick={cancelPending}
-              disabled={adding}
-              className="px-4 py-1.5 text-xs text-slate-900/50 hover:text-slate-900/80 transition-colors"
+              type="button"
+              onMouseDown={() => openContactForm({ name: query.trim() })}
+              className="agent-hover-row"
+              style={{ width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13.5, fontWeight: 600, color: "var(--agent-coral-deep)", background: "none", border: "none", borderTop: "1px solid var(--agent-border-subtle)", cursor: "pointer" }}
             >
-              Cancel
+              + Add &ldquo;{query.trim()}&rdquo; as a new firm
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Search / add — hidden while contact form is open */}
-      {!pendingFirm && (
-        <div ref={searchRef} className="relative pt-1">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setShowSearch(true); }}
-            onFocus={() => setShowSearch(true)}
-            placeholder="Search or add a solicitor firm…"
-            className="w-full px-3 py-2 text-sm rounded-lg bg-white/50 border border-white/30 text-slate-900/80 placeholder-slate-400 focus:outline-none focus:border-blue-400/60"
-          />
-
-          {showSearch && (query.length > 0 || filtered.length > 0) && (
-            <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl bg-white/90 border border-white/40 shadow-lg overflow-hidden max-h-52 overflow-y-auto">
-              {filtered.map((f) => (
-                <button
-                  key={f.id}
-                  onMouseDown={() => openContactForm({ id: f.id, name: f.name })}
-                  className="w-full text-left px-4 py-2.5 text-sm text-slate-900/80 agent-hover-row transition-colors"
-                >
-                  {f.name}
-                </button>
-              ))}
-              {query.trim() && !allFirms.some((f) => f.name.toLowerCase() === query.trim().toLowerCase()) && (
-                <button
-                  onMouseDown={() => openContactForm({ name: query.trim() })}
-                  className="w-full text-left px-4 py-2.5 text-sm font-medium agent-link-primary agent-hover-row transition-colors border-t border-white/30"
-                >
-                  + Add &ldquo;{query.trim()}&rdquo; as a new firm
-                </button>
-              )}
-              {filtered.length === 0 && !query.trim() && (
-                <p className="px-4 py-3 text-sm text-slate-900/40 italic">All known firms already added.</p>
-              )}
-            </div>
+          )}
+          {filtered.length === 0 && !query.trim() && (
+            <p style={{ margin: 0, padding: "12px 14px", fontSize: 13, color: "var(--agent-text-muted)", fontStyle: "italic" }}>All known firms already added.</p>
           )}
         </div>
       )}
     </div>
+  );
+
+  return (
+    <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", padding: 20, display: "flex", flexDirection: "column", gap: 18, position: "relative", zIndex: 5 }}>
+      {/* Header */}
+      {empty ? (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <span style={{ flexShrink: 0, color: BLUE, display: "flex", alignItems: "center", marginTop: 1 }}><Scales size={24} weight="regular" /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>Recommended solicitors</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>Add the firms you recommend to clients and set a default referral fee.</p>
+          </div>
+          <StatusPill>0 firms</StatusPill>
+        </div>
+      ) : (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--agent-text-primary)" }}>Recommended solicitors</p>
+          {!pendingFirm && !addOpen && (
+            <button type="button" className="pf-addfirm" onClick={() => { setAddOpen(true); setShowSearch(true); }}>
+              <Plus size={14} weight="bold" /> Add firm
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filled rows */}
+      {!empty && (
+        <div>
+          <div style={{ borderTop: "1px solid var(--agent-border-subtle)", marginBottom: 4 }} />
+          {recommended.map((r, i) => (
+            <div
+              key={r.firmId}
+              style={{
+                display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+                padding: "12px 4px",
+                borderTop: i === 0 ? "none" : "1px solid var(--agent-border-subtle)",
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 140, fontSize: 14.5, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.firmName}</span>
+              <NumericFormat
+                value={r.defaultReferralFeePence != null ? r.defaultReferralFeePence / 100 : ""}
+                onValueChange={({ floatValue }) => updateFee(r.firmId, floatValue != null ? Math.round(floatValue * 100) : null)}
+                onBlur={() => persist(r.firmId, r.defaultReferralFeePence, r.defaultReferralFeeVat)}
+                prefix="£"
+                thousandSeparator=","
+                decimalScale={2}
+                allowNegative={false}
+                inputMode="decimal"
+                placeholder="£ fee"
+                className="pf-input"
+                style={{ width: 100 }}
+              />
+              <VatToggle value={r.defaultReferralFeeVat} onChange={(v) => saveVat(r.firmId, v)} disabled={saving === r.firmId} />
+              {saving === r.firmId && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Saving…</span>}
+              <button
+                type="button"
+                onClick={() => handleRemove(r.firmId)}
+                disabled={removing === r.firmId}
+                style={{ fontSize: 12, color: "var(--agent-text-muted)", background: "none", border: "none", cursor: removing === r.firmId ? "default" : "pointer", padding: 0, flexShrink: 0 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#f05252")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+              >
+                {removing === r.firmId ? "…" : "Remove"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pending contact form — after selecting a firm, before confirming */}
+      {pendingFirm && (
+        <div style={{ borderRadius: 12, border: `1px solid rgba(${BLUE_RGB},0.3)`, background: `rgba(${BLUE_RGB},0.05)`, padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+            Adding <span style={{ color: BLUE }}>{pendingFirm.name}</span>: enter case handler details
+          </p>
+          <Field label="Case handler name" req>
+            <input type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" autoFocus className="pf-input" />
+          </Field>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Field label="Phone" req>
+              <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="e.g. 01234 567890" className="pf-input" />
+            </Field>
+            <Field label="Email" req>
+              <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="e.g. sarah@firmname.co.uk" className="pf-input" />
+            </Field>
+          </div>
+          <div>
+            <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 6 }}>
+              Default referral fee <span style={{ color: "var(--agent-text-muted)", fontWeight: 400 }}>(optional)</span>
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <NumericFormat
+                value={pendingFee != null ? pendingFee / 100 : ""}
+                onValueChange={({ floatValue }) => setPendingFee(floatValue != null ? Math.round(floatValue * 100) : null)}
+                prefix="£"
+                thousandSeparator=","
+                decimalScale={2}
+                allowNegative={false}
+                inputMode="decimal"
+                placeholder="£250"
+                className="pf-input"
+                style={{ width: 96 }}
+              />
+              <VatToggle value={pendingVat} onChange={setPendingVat} disabled={adding} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+                <button type="button" onClick={cancelPending} disabled={adding} className="agent-btn agent-btn-ghost agent-btn-md">Cancel</button>
+                <button type="button" onClick={confirmAdd} disabled={adding} className="agent-btn agent-btn-primary agent-btn-md">
+                  {adding ? "Adding…" : "Confirm add"}
+                </button>
+              </div>
+            </div>
+          </div>
+          {addError && <p style={{ margin: 0, fontSize: 12, color: "#e5484d" }}>{addError}</p>}
+        </div>
+      )}
+
+      {/* Empty body (empty card) or revealed search box (filled card) */}
+      {empty && !pendingFirm ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12, padding: "20px 8px 8px" }}>
+          <span style={{
+            width: 86, height: 86, borderRadius: "50%", color: BLUE,
+            background: `radial-gradient(circle at 50% 42%, rgba(${BLUE_RGB},0.16), rgba(${BLUE_RGB},0.06) 70%)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}><FolderSimple size={34} weight="duotone" /></span>
+          <div style={{ maxWidth: 320 }}>
+            <p style={{ margin: 0, fontSize: 16.5, fontWeight: 700, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>Your recommended firms will appear here</p>
+            <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Build your list of trusted solicitors and set referral fees for each firm.</p>
+          </div>
+          <div style={{ width: "100%", maxWidth: 320, marginTop: 4 }}>{searchBox}</div>
+        </div>
+      ) : (
+        showSearchBox && <div>{searchBox}</div>
+      )}
+
+      <style>{`
+        .pf-input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:13.5px;border-radius:10px;outline:none;font-family:inherit;color:var(--agent-text-primary);background:var(--agent-surface-elevated);border:1px solid var(--agent-border-default);transition:border-color 140ms ease}
+        .pf-input::placeholder{color:var(--agent-text-muted)}
+        .pf-input:hover{border-color:var(--agent-coral-deep)}
+        .pf-input:focus{border-color:#C0381C}
+        .pf-addfirm{display:inline-flex;align-items:center;gap:6px;background:none;border:none;padding:0;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--agent-coral-deep);text-decoration:none;transition:color 140ms}
+        .pf-addfirm:hover{color:#C0381C}
+      `}</style>
+    </div>
+  );
+}
+
+function Field({ label, req, children }: { label: string; req?: boolean; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "block" }}>
+      <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 5 }}>
+        {label}
+        {req && <span style={{ color: "#e5484d", marginLeft: 3 }}>*</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function StatusPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "4px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+      color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)",
+      border: "1px solid var(--agent-border-subtle)", whiteSpace: "nowrap", flexShrink: 0,
+    }}>
+      {children}
+    </span>
   );
 }

@@ -1,21 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/Card";
-import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import {
-  Buildings,
-  Scales,
-  Bank,
-  ArrowSquareOut,
   MagnifyingGlass,
+  ArrowsDownUp,
+  CaretDown,
+  Phone,
+  EnvelopeSimple,
+  ArrowSquareOut,
+  Check,
 } from "@phosphor-icons/react";
+import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 
 // Directory of professional partners (conveyancers + mortgage brokers) with
-// client-side search and sort. The server page (app/agent/partners/page.tsx)
-// fetches and scopes the data, attaches per-firm intelligence, and hands plain
-// serialisable objects to this component.
+// client-side search, sort and an active-files view filter. The server page
+// (app/agent/partners/page.tsx) fetches and scopes the data, attaches per-firm
+// intelligence, and hands plain serialisable objects to this component.
 
 type ContactWithFiles = {
   id: string;
@@ -48,6 +49,9 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "exchange", label: "Fastest exchange" },
 ];
 
+const CORAL = "var(--agent-coral-deep)";
+const CORAL_RGB = "var(--agent-coral-rgb)";
+
 function formatGBP(pence: number): string {
   return `£${Math.round(pence / 100).toLocaleString("en-GB")}`;
 }
@@ -66,8 +70,6 @@ function sortFirms(firms: DirectoryFirm[], key: SortKey): DirectoryFirm[] {
   } else if (key === "active") {
     copy.sort((a, b) => b.totalActiveFiles - a.totalActiveFiles || a.name.localeCompare(b.name));
   } else {
-    // Fastest exchange: firms with an avg come first (ascending); firms with
-    // no exchange history sink to the bottom, then order by name.
     copy.sort((a, b) => {
       const av = a.intel.avgDaysToExchange;
       const bv = b.intel.avgDaysToExchange;
@@ -91,120 +93,174 @@ export function PartnersDirectory({
 }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
-  const searchTag = useGlassTag("partners-search", "Partners · search bar");
-  const sortTag = useGlassTag("partners-sort", "Partners · sort");
+  const [activeOnly, setActiveOnly] = useState(false);
 
-  const visibleSolicitors = useMemo(
-    () => sortFirms(solicitorFirms.filter((f) => matchesQuery(f, query)), sort),
-    [solicitorFirms, query, sort]
-  );
-  const visibleBrokers = useMemo(
-    () => sortFirms(brokerFirms.filter((f) => matchesQuery(f, query)), sort),
-    [brokerFirms, query, sort]
+  // Measured sliding thumb for the view toggle — matches the active segment
+  // exactly regardless of the two labels' differing widths.
+  const allTabRef = useRef<HTMLButtonElement>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
+  const [thumb, setThumb] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const el = activeOnly ? activeTabRef.current : allTabRef.current;
+    if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [activeOnly]);
+
+  useEffect(() => {
+    function measure() {
+      const el = activeOnly ? activeTabRef.current : allTabRef.current;
+      if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
+    }
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeOnly]);
+
+  const applyView = useMemo(
+    () => (firms: DirectoryFirm[]) =>
+      sortFirms(
+        firms.filter((f) => matchesQuery(f, query) && (!activeOnly || f.totalActiveFiles > 0)),
+        sort,
+      ),
+    [query, sort, activeOnly],
   );
 
-  const noMatches = query.trim().length > 0 && visibleSolicitors.length === 0 && visibleBrokers.length === 0;
+  const visibleSolicitors = useMemo(() => applyView(solicitorFirms), [applyView, solicitorFirms]);
+  const visibleBrokers = useMemo(() => applyView(brokerFirms), [applyView, brokerFirms]);
+
+  const noMatches =
+    (query.trim().length > 0 || activeOnly) && visibleSolicitors.length === 0 && visibleBrokers.length === 0;
+
+  const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
 
   return (
-    <div className="space-y-4">
-      {/* Control bar */}
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-        <div className={searchTag.className} {...searchTag.props} style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
-          <MagnifyingGlass
-            weight="regular"
-            style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--agent-text-muted)", pointerEvents: "none" }}
-          />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Controls */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <label style={{ position: "relative", flex: "1 1 320px", minWidth: 0 }}>
+          <MagnifyingGlass size={16} weight="bold" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }} />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search firms or contacts"
+            placeholder="Search firms, contacts or addresses…"
             aria-label="Search partners"
-            style={{
-              width: "100%", padding: "8px 12px 8px 33px", fontSize: 13,
-              borderRadius: 10, border: "1px solid var(--agent-border-default)",
-              background: "var(--agent-surface-glass)", color: "var(--agent-text-primary)",
-              outline: "none", boxSizing: "border-box",
-            }}
+            className="pf-input"
+            style={{ paddingLeft: 38 }}
           />
+        </label>
+
+        <div className="pf-seg">
+          <span className="pf-seg-thumb" aria-hidden style={{ left: thumb.left, width: thumb.width, opacity: thumb.width ? 1 : 0 }} />
+          <button ref={allTabRef} type="button" onClick={() => setActiveOnly(false)} aria-pressed={!activeOnly} className={`pf-seg-tab${!activeOnly ? " is-active" : ""}`}>
+            All firms
+          </button>
+          <button ref={activeTabRef} type="button" onClick={() => setActiveOnly(true)} aria-pressed={activeOnly} className={`pf-seg-tab${activeOnly ? " is-active" : ""}`}>
+            With active files
+          </button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "var(--agent-text-muted)", flexShrink: 0 }}>Sort</span>
-          <div className={sortTag.className} {...sortTag.props} style={{ display: "inline-flex", padding: 2, borderRadius: 10, ...(sortTag.picked ? {} : { background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-default)" }) }}>
-            {SORTS.map((s) => {
-              const active = sort === s.key;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setSort(s.key)}
-                  aria-pressed={active}
-                  style={{
-                    padding: "5px 11px", fontSize: 12, fontWeight: 600, borderRadius: 8,
-                    border: "none", cursor: "pointer",
-                    color: active ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-                    background: active ? "var(--agent-surface-raised, rgba(255,255,255,0.7))" : "transparent",
-                    boxShadow: active ? "0 1px 2px rgba(15,23,42,0.06)" : "none",
-                    transition: "color 120ms, background 120ms",
-                  }}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+
+        <Popover
+          placement="bottom-end"
+          trigger={(open) => (
+            <button type="button" className="agent-btn agent-btn-secondary agent-btn-sm" style={{ gap: 7 }} aria-haspopup="menu" aria-expanded={open}>
+              <ArrowsDownUp size={14} weight="bold" /> Sort: {sortLabel}
+              <CaretDown size={12} weight="bold" style={{ transition: "transform .18s ease", transform: open ? "rotate(180deg)" : "none" }} />
+            </button>
+          )}
+        >
+          {(close) =>
+            SORTS.map((s) => (
+              <PopoverMenuItem
+                key={s.key}
+                icon={s.key === sort ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
+                onClick={() => { setSort(s.key); close(); }}
+              >
+                {s.label}
+              </PopoverMenuItem>
+            ))
+          }
+        </Popover>
       </div>
 
       {noMatches ? (
-        <div
-          className="agent-glass-strong"
-          style={{ padding: "36px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
-        >
+        <div className="agent-glass-strong" style={{ padding: "36px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-            No partners match &ldquo;{query}&rdquo;
+            {query.trim() ? <>No partners match &ldquo;{query}&rdquo;</> : "No firms with active files"}
           </p>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-            Try a firm name or a contact&apos;s name.
+            Try a firm name, a contact&apos;s name, or clear the filter.
           </p>
         </div>
       ) : (
         <>
           {visibleSolicitors.length > 0 && (
-            <div className="space-y-3">
-              <SectionHeading Icon={Scales} label="Conveyancers" count={visibleSolicitors.length} />
-              {visibleSolicitors.map((firm, i) => (
-                <div key={firm.id} className="partner-card-in" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                  <FirmCard firm={firm} kind="solicitor" showIncome={showIncome} />
-                </div>
-              ))}
-            </div>
+            <DirectorySection
+              label="Conveyancers"
+              subtitle="Solicitor firms and contacts associated with your sales."
+              firms={visibleSolicitors}
+              kind="solicitor"
+              showIncome={showIncome}
+            />
           )}
           {visibleBrokers.length > 0 && (
-            <div className="space-y-3">
-              <SectionHeading Icon={Bank} label="Mortgage brokers" count={visibleBrokers.length} />
-              {visibleBrokers.map((firm, i) => (
-                <div key={firm.id} className="partner-card-in" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
-                  <FirmCard firm={firm} kind="broker" showIncome={showIncome} />
-                </div>
-              ))}
-            </div>
+            <DirectorySection
+              label="Mortgage brokers"
+              subtitle="Mortgage brokers and contacts associated with your sales."
+              firms={visibleBrokers}
+              kind="broker"
+              showIncome={showIncome}
+            />
           )}
         </>
       )}
+
+      <style>{`
+        .pf-input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:13.5px;border-radius:10px;outline:none;font-family:inherit;color:var(--agent-text-primary);background:var(--agent-surface-elevated);border:1px solid var(--agent-border-default);transition:border-color 140ms ease}
+        .pf-input::placeholder{color:var(--agent-text-muted)}
+        .pf-input:hover{border-color:var(--agent-coral-deep)}
+        .pf-input:focus{border-color:#C0381C}
+        .conv-row-head:hover{background:rgba(var(--agent-coral-rgb),0.045)}
+        .pf-seg{position:relative;display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--agent-surface-glass);border:1px solid var(--agent-border-subtle)}
+        .pf-seg-thumb{position:absolute;top:4px;bottom:4px;border-radius:9px;background:var(--agent-coral-deep);box-shadow:0 2px 8px rgba(var(--agent-coral-rgb),0.30);pointer-events:none;z-index:0;transition:left .24s cubic-bezier(0.4,0,0.2,1),width .24s cubic-bezier(0.4,0,0.2,1),opacity .18s ease}
+        .pf-seg-tab{position:relative;z-index:1;padding:7px 14px;border-radius:9px;border:none;cursor:pointer;background:transparent;font-size:13px;font-weight:600;color:var(--agent-text-muted);white-space:nowrap;transition:color .18s ease,background .18s ease}
+        .pf-seg-tab:hover:not(.is-active){background:rgba(100,116,139,0.12);color:var(--agent-text-secondary)}
+        .pf-seg-tab.is-active{color:#fff}
+      `}</style>
     </div>
   );
 }
 
-function SectionHeading({ Icon, label, count }: { Icon: typeof Scales; label: string; count: number }) {
+function DirectorySection({
+  label,
+  subtitle,
+  firms,
+  kind,
+  showIncome,
+}: {
+  label: string;
+  subtitle: string;
+  firms: DirectoryFirm[];
+  kind: "solicitor" | "broker";
+  showIncome: boolean;
+}) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 2px" }}>
-      <Icon weight="regular" style={{ width: 16, height: 16, color: "var(--agent-text-muted)" }} />
-      <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-secondary)", letterSpacing: "-0.01em" }}>
-        {label}
-      </h2>
-      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-disabled)", fontVariantNumeric: "tabular-nums" }}>
-        {count}
-      </span>
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>{label}</h2>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-muted)" }}>{firms.length} firm{firms.length === 1 ? "" : "s"}</span>
+      </div>
+      <p style={{ margin: "4px 0 16px", fontSize: 13.5, color: "var(--agent-text-secondary)" }}>{subtitle}</p>
+
+      <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1.6fr) minmax(0,0.8fr)", gap: 16, padding: "12px 20px", fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)", borderBottom: "1px solid var(--agent-border-subtle)" }}>
+          <span>Firm &amp; contact</span>
+          <span>Associated sales</span>
+          <span style={{ textAlign: "right" }}>Active files</span>
+        </div>
+        {firms.map((firm, i) => (
+          <FirmRow key={firm.id} firm={firm} kind={kind} showIncome={showIncome} last={i === firms.length - 1} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -214,174 +270,134 @@ function IntelPill({ label, tone = "muted" }: { label: string; tone?: "muted" | 
   const bg = tone === "success" ? "var(--agent-success-bg)" : tone === "warn" ? "rgba(180,83,9,0.08)" : "var(--agent-surface-glass)";
   const border = tone === "success" ? "var(--agent-success-border)" : tone === "warn" ? "rgba(180,83,9,0.18)" : "var(--agent-border-default)";
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "3px 9px", borderRadius: 7,
-      fontSize: 11, fontWeight: 600, color,
-      background: bg, border: `1px solid ${border}`,
-      fontVariantNumeric: "tabular-nums",
-    }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 7, fontSize: 11, fontWeight: 600, color, background: bg, border: `1px solid ${border}`, fontVariantNumeric: "tabular-nums" }}>
       {label}
     </span>
   );
 }
 
-function IntelRow({ intel, showIncome }: { intel: FirmIntel; showIncome: boolean }) {
-  const hasAvg = intel.avgDaysToExchange != null;
-  const hasIncome = showIncome && intel.income != null && (intel.income.receivedPence > 0 || intel.income.pendingPence > 0);
-  if (!hasAvg && !hasIncome) return null;
+function FirmRow({ firm, kind, showIncome, last }: { firm: DirectoryFirm; kind: "solicitor" | "broker"; showIncome: boolean; last: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  const allFiles = firm.contacts.flatMap((c) => c.activeFiles.map((f) => ({ ...f, contactName: c.name })));
+  const contactLine = firm.contacts.length === 0
+    ? "No contacts recorded"
+    : firm.contacts.length === 1
+      ? firm.contacts[0].name
+      : `${firm.contacts.length} contacts`;
+
+  const hasAvg = firm.intel.avgDaysToExchange != null;
+  const income = firm.intel.income;
+  const hasIncome = showIncome && income != null && (income.receivedPence > 0 || income.pendingPence > 0);
+
+  const single = allFiles.length === 1;
+  const showSalesList = allFiles.length > 1;
+
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 20px 0" }}>
-      {hasAvg && <IntelPill label={`${intel.avgDaysToExchange} days avg to exchange`} />}
-      {hasIncome && intel.income!.receivedPence > 0 && (
-        <IntelPill label={`${formatGBP(intel.income!.receivedPence)} in`} tone="success" />
-      )}
-      {hasIncome && intel.income!.pendingPence > 0 && (
-        <IntelPill label={`${formatGBP(intel.income!.pendingPence)} due`} tone="warn" />
-      )}
-    </div>
-  );
-}
-
-function ActiveBadge({ totalActiveFiles, referralActiveFiles }: { totalActiveFiles: number; referralActiveFiles: number }) {
-  if (totalActiveFiles === 0) return null;
-  return (
-    <span style={{
-      fontSize: 11, fontWeight: 600, flexShrink: 0,
-      padding: "3px 10px", borderRadius: 20,
-      color: "var(--agent-success)",
-      background: "var(--agent-success-bg)",
-      border: "1px solid var(--agent-success-border)",
-    }}>
-      {totalActiveFiles} active
-      {referralActiveFiles > 0
-        ? ` · ${referralActiveFiles} referral${referralActiveFiles !== 1 ? "s" : ""}`
-        : ` file${totalActiveFiles !== 1 ? "s" : ""}`}
-    </span>
-  );
-}
-
-function ContactFileChips({ files }: { files: ContactWithFiles["activeFiles"] }) {
-  if (files.length === 0) return null;
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-      {files.map((f) => (
-        <Link key={`${f.id}-${f.role ?? "purchaser"}`} href={`/agent/transactions/${f.id}`} style={{ textDecoration: "none" }}>
-          <span
-            className="solicitor-file-chip"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              padding: "3px 9px", borderRadius: 6,
-              fontSize: 11, color: "var(--agent-text-secondary)",
-              background: "var(--agent-surface-glass)",
-              border: "1px solid var(--agent-border-default)",
-              transition: "background 120ms",
-            }}
-          >
-            <span style={{
-              width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-              background: f.isReferral ? "#f59e0b" : f.role === "vendor" ? "#a78bfa" : "#60a5fa",
-            }} />
-            <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {f.propertyAddress}
-            </span>
-            {f.role && (
-              <span style={{ color: "var(--agent-text-disabled)", textTransform: "capitalize" }}>({f.role})</span>
-            )}
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function ContactRow({ contact, isLast }: { contact: ContactWithFiles; isLast: boolean }) {
-  return (
-    <div style={{ padding: "14px 20px", borderBottom: isLast ? "none" : "0.5px solid var(--agent-border-default)" }}>
-      <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{contact.name}</p>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 12px", marginTop: 3 }}>
-          {contact.email && (
-            <a href={`mailto:${contact.email}`} style={{ fontSize: 12, color: "var(--agent-info)", textDecoration: "none" }}>{contact.email}</a>
-          )}
-          {contact.phone && (
-            <a href={`tel:${contact.phone}`} style={{ fontSize: 12, color: "var(--agent-text-muted)", textDecoration: "none" }}>{contact.phone}</a>
-          )}
-          {!contact.email && !contact.phone && (
-            <span style={{ fontSize: 12, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>No contact details</span>
-          )}
-        </div>
-      </div>
-      <ContactFileChips files={contact.activeFiles} />
-    </div>
-  );
-}
-
-function FirmCard({ firm, kind, showIncome }: { firm: DirectoryFirm; kind: "solicitor" | "broker"; showIncome: boolean }) {
-  const cleanWebsite = firm.website ? firm.website.replace(/^https?:\/\//, "") : null;
-  const websiteHref = firm.website ? (firm.website.startsWith("http") ? firm.website : `https://${firm.website}`) : null;
-  const tag = useGlassTag("partners-firm-card", "Partners · firm card");
-  return (
-    <Card padding="none" className={tag.className} {...tag.props}>
-      {/* Firm header */}
-      <div style={{
-        padding: "14px 20px",
-        borderBottom: "0.5px solid var(--agent-border-default)",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-      }}>
-        <Link
-          href={`/agent/partners/${kind}/${firm.id}`}
-          className="partner-firm-link"
-          style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", flex: 1 }}
-        >
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: "rgba(99,102,241,0.10)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Buildings weight="regular" style={{ width: 15, height: 15, color: "#6366f1" }} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {firm.name}
-            </p>
-            {websiteHref && cleanWebsite && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 1, fontSize: 11, color: "var(--agent-text-muted)" }}>
-                {cleanWebsite}
-              </span>
-            )}
-          </div>
-        </Link>
-        <ActiveBadge totalActiveFiles={firm.totalActiveFiles} referralActiveFiles={firm.referralActiveFiles} />
-      </div>
-
-      <IntelRow intel={firm.intel} showIncome={showIncome} />
-
-      {firm.contacts.length === 0 ? (
-        <p style={{ margin: 0, padding: "14px 20px", fontSize: 13, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>
-          No contacts recorded
-        </p>
-      ) : (
-        <div style={{ marginTop: 4 }}>
-          {firm.contacts.map((contact, i) => (
-            <ContactRow key={contact.id} contact={contact} isLast={i === firm.contacts.length - 1} />
-          ))}
-        </div>
-      )}
-
-      {/* View firm detail */}
-      <Link
-        href={`/agent/partners/${kind}/${firm.id}`}
-        className="partner-firm-link"
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "11px 20px", borderTop: "0.5px solid var(--agent-border-default)",
-          fontSize: 12, fontWeight: 600, color: "#6366f1", textDecoration: "none",
-        }}
+    <div style={{ borderBottom: last ? "none" : "1px solid var(--agent-border-subtle)", background: open ? "var(--agent-surface-glass)" : "transparent", transition: "background 140ms ease" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
+        className="conv-row-head"
+        style={{ width: "100%", display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1.6fr) minmax(0,0.8fr)", gap: 16, alignItems: "center", padding: "14px 20px", cursor: "pointer", textAlign: "left" }}
       >
-        <span>View firm</span>
-        <ArrowSquareOut size={13} weight="bold" />
-      </Link>
-    </Card>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{firm.name}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contactLine}</p>
+        </div>
+        <div style={{ minWidth: 0, fontSize: 13.5, color: "var(--agent-text-secondary)" }}>
+          {allFiles.length === 0 ? (
+            <span style={{ color: "var(--agent-text-muted)" }}>No active files</span>
+          ) : single ? (
+            <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {allFiles[0].propertyAddress}
+                {allFiles[0].role ? <span style={{ color: "var(--agent-text-muted)", textTransform: "capitalize" }}> · {allFiles[0].role}</span> : null}
+              </span>
+              <Link
+                href={`/agent/transactions/${allFiles[0].id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ display: "inline-flex", color: CORAL, flexShrink: 0 }}
+                aria-label="Open sale"
+              >
+                <ArrowSquareOut size={14} weight="bold" />
+              </Link>
+            </span>
+          ) : (
+            <span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>{allFiles.length} sales</span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{firm.totalActiveFiles} active</span>
+          <CaretDown size={15} weight="bold" style={{ color: open ? CORAL : "var(--agent-text-muted)", transition: "transform .22s ease, color .18s ease", transform: open ? "rotate(180deg)" : "none" }} />
+        </div>
+      </div>
+
+      <div className={`agent-acc${open ? " open" : ""}`}>
+        <div className="agent-acc-in">
+        <div style={{ display: "grid", gridTemplateColumns: showSalesList ? "minmax(0,1fr) minmax(0,1.9fr)" : "1fr", gap: 28, padding: "2px 20px 18px" }}>
+          <div>
+            <p style={{ margin: "0 0 9px", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>Contact details</p>
+            {firm.contacts.length === 0 && (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>No contacts recorded</p>
+            )}
+            {firm.contacts.map((c) => (
+              <div key={c.id} style={{ marginBottom: 10 }}>
+                {firm.contacts.length > 1 && (
+                  <p style={{ margin: "0 0 3px", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{c.name}</p>
+                )}
+                {c.email && (
+                  <p style={{ margin: "0 0 5px", display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                    <EnvelopeSimple size={15} style={{ color: "var(--agent-text-muted)" }} />
+                    <a href={`mailto:${c.email}`} style={{ color: "inherit", textDecoration: "none" }}>{c.email}</a>
+                  </p>
+                )}
+                {c.phone && (
+                  <p style={{ margin: 0, display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--agent-text-secondary)" }}>
+                    <Phone size={15} style={{ color: "var(--agent-text-muted)" }} />
+                    <a href={`tel:${c.phone}`} style={{ color: "inherit", textDecoration: "none" }}>{c.phone}</a>
+                  </p>
+                )}
+                {!c.email && !c.phone && (
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-disabled)", fontStyle: "italic" }}>No contact details</p>
+                )}
+              </div>
+            ))}
+            {(hasAvg || hasIncome) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                {hasAvg && <IntelPill label={`${firm.intel.avgDaysToExchange} days avg to exchange`} />}
+                {hasIncome && income!.receivedPence > 0 && <IntelPill label={`${formatGBP(income!.receivedPence)} in`} tone="success" />}
+                {hasIncome && income!.pendingPence > 0 && <IntelPill label={`${formatGBP(income!.pendingPence)} due`} tone="warn" />}
+              </div>
+            )}
+            <Link href={`/agent/partners/${kind}/${firm.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: CORAL, textDecoration: "none" }}>
+              View firm <ArrowSquareOut size={13} weight="bold" />
+            </Link>
+          </div>
+          {showSalesList && (
+            <div style={{ borderLeft: "1px solid var(--agent-border-subtle)", paddingLeft: 28 }}>
+              <p style={{ margin: "0 0 4px", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>Associated sales ({allFiles.length})</p>
+              {allFiles.map((f) => (
+                <div key={`${f.id}-${f.role ?? "purchaser"}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "7px 0", borderTop: "1px solid var(--agent-border-subtle)" }}>
+                  <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.propertyAddress}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+                    {f.role && <span style={{ fontSize: 12.5, color: "var(--agent-text-muted)", textTransform: "capitalize" }}>{f.role}</span>}
+                    <Link href={`/agent/transactions/${f.id}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", color: CORAL }} aria-label="Open sale">
+                      <ArrowSquareOut size={15} weight="bold" />
+                    </Link>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </div>
+      </div>
+    </div>
   );
 }

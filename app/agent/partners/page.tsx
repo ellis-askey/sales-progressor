@@ -1,5 +1,4 @@
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
@@ -191,56 +190,36 @@ export default async function AgentPartnersPage() {
   const showOnboarding = isDirector && directoryEmpty;
 
   return (
-    <>
-      <PageHeader title="Partners" subtitle="Solicitors, brokers, and preferred professional partners." />
-      <BloomStage className="px-4 md:px-8 py-2 md:py-4 space-y-4">
+    <BloomStage className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 
-        {showOnboarding ? (
-          <PartnersEmptyState
-            initialBroker={preferredBroker}
-            initialRecommended={(recommendedSolicitors as { solicitorFirmId: string; solicitorFirm: { name: string }; defaultReferralFeePence: number | null; defaultReferralFeeVat: FeeVatTreatment }[]).map((r) => ({
-              firmId: r.solicitorFirmId,
-              firmName: r.solicitorFirm.name,
-              defaultReferralFeePence: r.defaultReferralFeePence,
-              defaultReferralFeeVat: r.defaultReferralFeeVat,
-            }))}
-            allFirms={allSolicitorFirms}
-            canCreateSale
-          />
-        ) : (
-        <>
+      {showOnboarding ? (
+        <PartnersEmptyState
+          initialBroker={preferredBroker}
+          initialRecommended={(recommendedSolicitors as { solicitorFirmId: string; solicitorFirm: { name: string }; defaultReferralFeePence: number | null; defaultReferralFeeVat: FeeVatTreatment }[]).map((r) => ({
+            firmId: r.solicitorFirmId,
+            firmName: r.solicitorFirm.name,
+            defaultReferralFeePence: r.defaultReferralFeePence,
+            defaultReferralFeeVat: r.defaultReferralFeeVat,
+          }))}
+          allFirms={allSolicitorFirms}
+          canCreateSale
+        />
+      ) : (
+      <>
+
+        {/* Header — title + subtitle only */}
+        <div data-bloom style={{ padding: "6px 2px 0" }}>
+          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: "var(--agent-tracking-tight)", color: "var(--agent-text-primary)", lineHeight: 1.1 }}>Your partners</h1>
+          <p style={{ margin: "6px 0 0", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Manage your preferred broker and recommended solicitors in one place.</p>
+        </div>
 
         {/* Director-only settings — preferred broker + recommended solicitors (side by side) */}
         {isDirector && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            {/* Preferred mortgage broker */}
-            <Card padding="lg" data-bloom>
-              <div className="mb-5">
-                <h2 className="text-sm font-bold text-slate-900/80 mb-1">Preferred mortgage broker</h2>
-                <p className="text-xs text-slate-900/50">
-                  Set one preferred broker for your agency. They&apos;ll be pre-filled on new sales and their referral fee included in your income analytics.
-                </p>
-              </div>
-              <PreferredBrokerSettings
-                initialBroker={preferredBroker}
-              />
-            </Card>
-
-            {/* Recommended solicitors. overflow-visible + raised stacking so the
-                firm-search dropdown can spill past the card edge and sit above
-                the cards below, instead of being clipped by Card's overflow-hidden. */}
-            <Card padding="lg" className="relative z-30" data-bloom style={{ overflow: "visible" }}>
-              <div className="mb-5">
-                <h2 className="text-sm font-bold text-slate-900/80 mb-1">Recommended solicitors</h2>
-                <p className="text-xs text-slate-900/50">
-                  Mark solicitor firms you recommend to clients and set a default referral fee. These feed into your referral income analytics.
-                </p>
-                <div className="flex items-center gap-4 mt-3 text-xs text-slate-900/40">
-                  <span>Toggle = recommended</span>
-                  <span>·</span>
-                  <span>Fee field = default referral fee (£)</span>
-                </div>
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 18, alignItems: "start", position: "relative", zIndex: 10 }}>
+            <div data-bloom>
+              <PreferredBrokerSettings initialBroker={preferredBroker} />
+            </div>
+            <div data-bloom>
               <RecommendedSolicitorsSettings
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 initialRecommended={(recommendedSolicitors as any[]).map((r) => ({
@@ -252,20 +231,21 @@ export default async function AgentPartnersPage() {
                 }))}
                 allFirms={allSolicitorFirms}
               />
-            </Card>
+            </div>
           </div>
         )}
 
         {/* Directory */}
-        {directoryEmpty ? (
-          <EmptyDirectory />
-        ) : (
-          <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={isDirector} />
-        )}
-        </>
-        )}
-      </BloomStage>
-    </>
+        <div data-bloom>
+          {directoryEmpty ? (
+            <EmptyDirectory />
+          ) : (
+            <PartnersDirectory solicitorFirms={solicitor} brokerFirms={broker} showIncome={isDirector} />
+          )}
+        </div>
+      </>
+      )}
+    </BloomStage>
   );
 }
 

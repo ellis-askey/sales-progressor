@@ -143,7 +143,7 @@ export function AddSolicitorForm({
               <button
                 type="button"
                 onClick={() => { setFirm(null); setHandlers(null); }}
-                style={{ fontSize: 12, fontWeight: 600, color: `rgb(${ACCENT})`, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                className="pf-change"
               >
                 Change
               </button>
@@ -158,7 +158,7 @@ export function AddSolicitorForm({
               onClick={() => setShowList(true)}
               placeholder="Search or add a solicitor firm…"
               autoFocus
-              className="agent-input"
+              className="pf-input"
             />
             <AnchoredPanel
               anchorRef={searchRef}
@@ -259,20 +259,20 @@ export function AddSolicitorForm({
           {firm && handlers !== null && handlerChoice === NEW && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {!hasHandlers && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>This firm has no case handlers yet — add one so we can reach them.</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)" }}>This firm has no case handlers yet. Add one so we can reach them.</p>
               )}
               <div>
                 <label style={labelStyle}>Name <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
-                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" className="agent-input" />
+                <input ref={nameRef} type="text" value={cName} onChange={(e) => setCName(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="e.g. Sarah Jones" className="pf-input" />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Phone <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
-                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="01234 567890" className="agent-input" />
+                  <input type="tel" value={cPhone} onChange={(e) => setCPhone(cleanPhone(e.target.value))} onBlur={(e) => { if (e.target.value.trim()) setCPhone(formatUKPhone(e.target.value)); }} maxLength={20} placeholder="01234 567890" className="pf-input" />
                 </div>
                 <div>
                   <label style={labelStyle}>Email <span style={{ color: "var(--agent-coral-deep)" }}>*</span></label>
-                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="sarah@firm.co.uk" className="agent-input" />
+                  <input type="email" value={cEmail} onChange={(e) => setCEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setCEmail(e.target.value.trim().toLowerCase()); }} maxLength={100} placeholder="sarah@firm.co.uk" className="pf-input" />
                 </div>
               </div>
             </div>
@@ -290,7 +290,7 @@ export function AddSolicitorForm({
             allowNegative={false}
             inputMode="decimal"
             placeholder="£250"
-            className="agent-input" style={{ width: 120 }}
+            className="pf-input" style={{ width: 120 }}
           />
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>(optional)</span>
         </div>
@@ -298,13 +298,12 @@ export function AddSolicitorForm({
 
       {error && <p style={{ margin: 0, fontSize: 12, color: "var(--agent-danger, #dc2626)" }}>{error}</p>}
 
-      {/* Actions — Cancel + primary, matching the standard modal footer. */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 2 }}>
+      {/* Actions — ghost Cancel + auto-width primary, right-aligned. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, paddingTop: 2 }}>
         <button
           type="button"
           onClick={onCancel}
-          className="agent-btn agent-btn-neutral"
-          style={{ padding: "10px 16px", fontSize: 13, borderRadius: 12 }}
+          className="agent-btn agent-btn-ghost agent-btn-md"
         >
           Cancel
         </button>
@@ -312,12 +311,21 @@ export function AddSolicitorForm({
           type="button"
           onClick={confirm}
           disabled={saving || !firm}
-          className="agent-btn-color-primary"
-          style={{ flex: 1, padding: "10px 16px", fontSize: 13, fontWeight: 600, borderRadius: 12, border: "none", opacity: !firm ? 0.5 : 1, cursor: (saving || !firm) ? "default" : "pointer" }}
+          className="agent-btn agent-btn-color-primary agent-btn-md"
+          style={{ opacity: !firm ? 0.5 : 1 }}
         >
           {saving ? "Saving…" : isEdit ? "Save changes" : "Add firm"}
         </button>
       </div>
+
+      <style>{`
+        .pf-input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:13.5px;border-radius:10px;outline:none;font-family:inherit;color:var(--agent-text-primary);background:var(--agent-surface-elevated);border:1px solid var(--agent-border-default);transition:border-color 140ms ease}
+        .pf-input::placeholder{color:var(--agent-text-muted)}
+        .pf-input:hover{border-color:var(--agent-coral-deep)}
+        .pf-input:focus{border-color:#C0381C}
+        .pf-change{background:none;border:none;padding:0;cursor:pointer;font-size:13px;font-weight:600;color:var(--agent-coral-deep);text-decoration:none;transition:color 140ms ease}
+        .pf-change:hover{color:#C0381C}
+      `}</style>
     </div>
   );
 }
