@@ -238,19 +238,22 @@ export async function listMailFolders(accessToken: string): Promise<MailFolder[]
 const addr = (r?: GraphRecipient | null): string | null =>
   r?.emailAddress?.address ? String(r.emailAddress.address) : null;
 
-// Pull the auto-reply-relevant headers (lowercased) out of Graph's
-// internetMessageHeaders, for detectAutoReply. Kept small on purpose.
-const AUTO_REPLY_HEADERS = new Set([
+// Pull the headers (lowercased) we actually read off Graph's
+// internetMessageHeaders: the auto-reply set (for detectAutoReply) plus
+// x-tsp-sent, which we stamp on our own Graph sends so the Sent-folder re-ingest
+// can skip them (lib/integrations/mail/ingest.ts). Kept small on purpose.
+const CAPTURED_HEADERS = new Set([
   "auto-submitted",
   "x-autoreply",
   "x-auto-response-suppress",
   "precedence",
+  "x-tsp-sent",
 ]);
 function pickHeaders(headers: GraphHeader[] | null | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   for (const h of headers ?? []) {
     const name = (h.name ?? "").toLowerCase();
-    if (AUTO_REPLY_HEADERS.has(name) && h.value != null) out[name] = String(h.value);
+    if (CAPTURED_HEADERS.has(name) && h.value != null) out[name] = String(h.value);
   }
   return out;
 }

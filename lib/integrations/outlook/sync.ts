@@ -60,7 +60,7 @@ export type ConnRow = {
 
 // ─── Access token (refresh if near expiry) ────────────────────────────────────
 
-async function getValidAccessToken(conn: ConnRow): Promise<string> {
+export async function getValidAccessToken(conn: ConnRow): Promise<string> {
   if (conn.tokenExpiresAt.getTime() - EXPIRY_BUFFER_MS > Date.now()) {
     return decryptSecret(conn.accessToken);
   }

@@ -224,6 +224,7 @@ export async function sendComposedEmail(input: {
       await prisma.outboundMessage.create({
         data: {
           transactionId: input.transactionId,
+          sentAt: new Date(),
           type: "outbound", method: "email", channel: "email", purpose: "other",
           contactIds,
           content: `Email sent to ${nonNeighbour.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}\n\nSubject: ${subject}\n\n${text}`,
@@ -238,6 +239,9 @@ export async function sendComposedEmail(input: {
     await prisma.outboundMessage.create({
       data: {
         transactionId: input.transactionId,
+        // Real send time — also the key the Sent-folder re-ingest de-dups on when
+        // the mailbox provider rewrote our Message-ID (e.g. a Graph send).
+        sentAt: new Date(),
         type: "outbound",
         method: "email",
         channel: "email",

@@ -196,6 +196,27 @@ async function tryMailboxRoute(msg: {
   const addr = bareEmailAddress(msg.from);
   if (!addr.includes("@")) return { routed: false };
 
+  // Outlook (Graph) send — flag-gated (OUTLOOK_SEND_ENABLED), dark until verified
+  // against a live connected mailbox. When the From belongs to a connected
+  // Microsoft mailbox, send through it so a copy lands in their Outlook Sent. On
+  // ANY failure (or no connection) we fall through to the SMTP route / SendGrid.
+  if (process.env.OUTLOOK_SEND_ENABLED === "true") {
+    try {
+      const { findOutlookSendConnection, sendViaOutlookGraph } = await import("@/lib/integrations/outlook/send");
+      const conn = await findOutlookSendConnection(addr);
+      if (conn) {
+        const outcome = await sendViaOutlookGraph(conn, {
+          from: msg.from, to: msg.to, cc: msg.cc, bcc: msg.bcc, replyTo: msg.replyTo,
+          subject: msg.subject, text: msg.text, html: msg.html, attachments: msg.attachments,
+        });
+        if (outcome.ok) return { routed: true, sent: true };
+        console.warn(`[email] outlook send failed for ${addr} (${outcome.error}) — falling back`);
+      }
+    } catch (err) {
+      console.warn(`[email] outlook route errored for ${addr} — falling back`, err);
+    }
+  }
+
   // Lookup failures (DB blip, module load) mean NO routing — the send proceeds
   // exactly as today, with its original From. Only a failure after a mailbox
   // was actually found may rewrite the sender for the fallback.

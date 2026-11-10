@@ -62,6 +62,14 @@ async function logMessage(
     return { status: "already", address };
   }
 
+  // A Graph-sent email (lib/integrations/outlook/send.ts) carries our x-tsp-sent
+  // stamp. Microsoft assigns its own Message-ID, so the domain arm above can't
+  // catch it — the stamp does, so our own send never double-logs when the Sent
+  // sync reads it back.
+  if (outbound && msg.headers?.["x-tsp-sent"] === "1") {
+    return { status: "already", address };
+  }
+
   const received = new Date(msg.receivedDateTime);
   // Dedup on the provider id, the RFC Message-ID, AND the real message (same file
   // + counterparty + subject + time). The same email filed in both the Inbox and
