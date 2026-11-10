@@ -244,6 +244,26 @@ export function firstLineAppears(lowerText: string, firstLine: string): boolean 
   return new RegExp(`\\b${escapeRegExp(firstLine)}\\b`).test(lowerText);
 }
 
+// Of several candidate files, which have their OWN house-number+street line
+// present in the SUBJECT? Deliberately ignores the body — the subject of a
+// reply carries the property the thread is about, even when the body also
+// quotes a chain-linked property. Used to break a chain tie: the caller files
+// only when this returns exactly one, so a subject naming two properties stays
+// in the review tray. Never widens matching — it only ranks already-matched
+// candidates.
+export function namedInSubject(
+  subject: string,
+  candidateTxIds: string[],
+  addressOf: (txId: string) => string | null | undefined,
+): string[] {
+  const subjLc = (subject ?? "").toLowerCase();
+  if (!subjLc) return [];
+  return candidateTxIds.filter((txId) => {
+    const fl = addressFirstLine(addressOf(txId) ?? "");
+    return fl ? firstLineAppears(subjLc, fl) : false;
+  });
+}
+
 // Match an email's text to files by the property it names. HIGH-CONFIDENCE only:
 //   - Strong match: a file's postcode AND its first line both appear → it's that
 //     property. Returns strong matches if any.
@@ -408,6 +428,16 @@ export function matchMessage(
         });
         if (byPostcode.length === 1) return { txId: byPostcode[0], candidates: named };
       }
+      // Subject-line tiebreak (chain mail): when the SUBJECT names exactly one
+      // of the candidate files by its own house-number+street line, that's the
+      // file. A reply titled "RE: 6 Everest Avenue" belongs to 6 Everest Avenue
+      // even though the body quotes the chain's onward property — which is what
+      // made both "named" via chain corroboration above. This only PICKS among
+      // files already matched (never widens the set) and only fires when the
+      // subject settles it to exactly one, so genuinely dual-named mail ("15
+      // Edward Street & 10 Ventnor Road") still falls through to review.
+      const bySubjectLine = namedInSubject(msg.subject, named, (id) => index.txAddress.get(id));
+      if (bySubjectLine.length === 1) return { txId: bySubjectLine[0], candidates: named };
       return { txId: null, candidates: named };
     }
     // A party matched but the email names NONE of their files. The shared-party
@@ -426,7 +456,18 @@ export function matchMessage(
   if (!isOwnSender(msg.from, mailboxLc) && !isMachineSender(msg.from) && addressIndex.length) {
     const hits = matchByAddress(text, addressIndex);
     if (hits.length === 1) return { txId: hits[0], candidates: hits };
-    if (hits.length > 1) return { txId: null, candidates: hits };
+    if (hits.length > 1) {
+      // Same subject-line tiebreak as the known-party branch: several files are
+      // named in the body (a chain thread), but if the SUBJECT names exactly one
+      // of them, file it there. Only narrows an already-matched set to one.
+      const addrOf = (id: string) => addressIndex.find((a) => a.txId === id)?.firstLine;
+      const bySubjectLine = hits.filter((txId) => {
+        const fl = addrOf(txId);
+        return fl ? firstLineAppears(msg.subject.toLowerCase(), fl) : false;
+      });
+      if (bySubjectLine.length === 1) return { txId: bySubjectLine[0], candidates: hits };
+      return { txId: null, candidates: hits };
+    }
   }
 
   // Nothing confidently placed it. Surface known-party mail for manual filing

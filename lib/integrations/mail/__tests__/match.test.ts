@@ -108,6 +108,93 @@ describe("matchMessage", () => {
   });
 });
 
+// Subject-line tiebreak for chain mail. Mirrors the real Boardwalk tray cases
+// (Ruby/Laura, 2026-11-10): a shared party sits on two chain-linked files, so
+// chain corroboration names BOTH — but the subject names exactly one, which
+// should file it. Genuinely dual-named subjects stay in review. Zero-regression:
+// these only convert a 2-candidate review into a single file; never the reverse.
+describe("matchMessage: subject-line tiebreak (chain mail)", () => {
+  // chainparty@x.com is buyer on one file and seller on the other (a chain).
+  const chain: Index = {
+    emailToTx: new Map([["chainparty@x.com", new Set(["txEverest", "txNewB"])]]),
+    txAddress: new Map([
+      ["txEverest", "6 Everest Avenue, Bristol, BS16 2BY"],
+      ["txNewB", "25 New Buildings, Bristol, BS16 2BT"],
+    ]),
+    txChainAddresses: new Map([
+      ["txEverest", ["25 New Buildings, Bristol, BS16 2BT"]],
+      ["txNewB", ["6 Everest Avenue, Bristol, BS16 2BY"]],
+    ]),
+  };
+
+  it("known party on both chain files, subject names ONE → files that one", () => {
+    const msg = baseMsg({ from: "chainparty@x.com", subject: "RE: 6 Everest Avenue" });
+    expect(matchMessage(msg, MAILBOX, chain, new Map())).toEqual({
+      txId: "txEverest",
+      candidates: ["txEverest", "txNewB"],
+    });
+  });
+
+  it("the other way round: subject names the onward file → files that one", () => {
+    const msg = baseMsg({ from: "chainparty@x.com", subject: "25 New Buildings - Draft Contract" });
+    expect(matchMessage(msg, MAILBOX, chain, new Map())).toEqual({
+      txId: "txNewB",
+      candidates: ["txEverest", "txNewB"],
+    });
+  });
+
+  it("subject names BOTH chain files → stays in review (no safe pick)", () => {
+    const msg = baseMsg({ from: "chainparty@x.com", subject: "Re: 6 Everest Avenue & 25 New Buildings" });
+    expect(matchMessage(msg, MAILBOX, chain, new Map())).toEqual({
+      txId: null,
+      candidates: ["txEverest", "txNewB"],
+    });
+  });
+
+  it("REGRESSION: both named only in the BODY, uninformative subject → stays in review", () => {
+    const msg = baseMsg({
+      from: "chainparty@x.com",
+      subject: "quick update",
+      body: "Progress on 6 Everest Avenue and 25 New Buildings this week.",
+    });
+    expect(matchMessage(msg, MAILBOX, chain, new Map())).toEqual({
+      txId: null,
+      candidates: ["txEverest", "txNewB"],
+    });
+  });
+
+  // Address branch (sender is not a known party): both files are named in the
+  // body, the subject names one.
+  const addrIndex = [
+    { txId: "txVentnor", firstLine: "10 ventnor road", postcodes: new Set(["BS57SG"]) },
+    { txId: "txEdward", firstLine: "15 edward street", postcodes: new Set(["BS56LW"]) },
+  ];
+
+  it("address branch: body names both, subject names ONE → files that one", () => {
+    const msg = baseMsg({
+      from: "stranger@x.com",
+      subject: "Re: 10 Ventnor Road - Welcome to the team",
+      body: "Covering both 10 Ventnor Road and 15 Edward Street.",
+    });
+    expect(matchMessage(msg, MAILBOX, { emailToTx: new Map(), txAddress: new Map() }, new Map(), addrIndex)).toEqual({
+      txId: "txVentnor",
+      candidates: ["txVentnor", "txEdward"],
+    });
+  });
+
+  it("address branch: subject names BOTH → stays in review", () => {
+    const msg = baseMsg({
+      from: "stranger@x.com",
+      subject: "RE: 15 Edward Street & 10 Ventnor Road",
+      body: "Thread covering both.",
+    });
+    expect(matchMessage(msg, MAILBOX, { emailToTx: new Map(), txAddress: new Map() }, new Map(), addrIndex)).toEqual({
+      txId: null,
+      candidates: ["txVentnor", "txEdward"],
+    });
+  });
+});
+
 describe("matchesAddressStart", () => {
   it("matches the first line / start of the address", () => {
     expect(matchesAddressStart("8 Brambling Crescent", "8 Brambling Crescent, Tring, HP23 4DS")).toBe(true);
