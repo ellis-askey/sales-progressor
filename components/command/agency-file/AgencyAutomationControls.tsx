@@ -168,7 +168,7 @@ export function AgencyAutomationControls({
         </div>
         {!lifecycleOn && (
           <p className="mt-1.5 text-[11px] text-amber-400/80 leading-relaxed">
-            Paused — no welcome, activation, quiet or celebration emails send to this agency.
+            Paused. No welcome, activation, quiet or celebration emails send to this agency.
           </p>
         )}
       </div>
