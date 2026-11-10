@@ -588,3 +588,21 @@ drift between pages.
 **Not urgent.** Catch on the next batched doc tightening pass; the four
 remaining polish-pass inventories (dashboard, analytics, completions,
 to-do, etc.) can apply this workflow ad hoc until the template is updated.
+
+---
+
+## Mailbox sync — scale past ~50 connected inboxes (filed 2026-11-10)
+
+The Outlook/IMAP capture cron (`/api/cron/outlook-sync`) syncs every connected
+mailbox SEQUENTIALLY, one at a time, with `maxDuration = 300` (5 min). Fine at a
+handful of inboxes (a run is seconds), but run time grows linearly with mailbox
+count: around ~50–75 inboxes a single run bumps the 5-minute cap and the last
+mailboxes don't sync, forming a backlog. Frequency isn't the ceiling (now every
+15 min, 7am–9pm, 7 days — `vercel.json`); mailbox COUNT is.
+
+Before mass onboarding, re-architect per-mailbox throughput: process mailboxes
+with a bounded concurrency (not one-at-a-time, not all-at-once — the latter
+spikes the Supabase pooler, which already briefly hit its 200-client ceiling on
+2026-11-10), and/or shard mailboxes across runs, and/or move to Graph delta
+queries so each mailbox sync does far less work. Early signal to watch in Sentry:
+`max client connections` errors + outlook-sync cron timeouts.

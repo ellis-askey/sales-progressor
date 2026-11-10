@@ -169,7 +169,7 @@
     },
     {
       "path": "/api/cron/outlook-sync",
-      "schedule": "0 8-18 * * 1-5"
+      "schedule": "*/15 7-21 * * *"
     },
     {
       "path": "/api/cron/expire-join-requests",
