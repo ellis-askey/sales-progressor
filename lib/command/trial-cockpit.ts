@@ -11,6 +11,7 @@
 
 import { commandDb } from "@/lib/command/prisma";
 import { classifyDevice } from "@/lib/command/device";
+import { getAgencySales, type AgencySaleRow } from "@/lib/command/agency-file";
 import type { TrialConfig } from "@/lib/command/trials";
 
 const DAY_MS = 86_400_000;
@@ -258,6 +259,71 @@ export async function getTrialUsage(agencyId: string, trial: TrialConfig): Promi
   }
 
   return { days, weeklyHours, deviceMobile, deviceDesktop, weekday, hourOfDay };
+}
+
+// ── Files tab ─────────────────────────────────────────────────────────────────
+
+export interface TrialFiles {
+  migrated: number;
+  newSinceTrial: number;
+  exchangedTrial: number; // contracts_exchanged events since trial start
+  completedTrial: number; // sale_completed events since trial start
+  withdrawnTrial: number;
+  weeklyNew: Array<{ label: string; value: number }>; // per trial week, oldest first
+  selfManagedLive: number;
+  outsourcedLive: number;
+  stageCounts: Array<{ stage: AgencySaleRow["stage"]; count: number }>;
+  sales: AgencySaleRow[]; // every live file, most recently worked first
+}
+
+export async function getTrialFiles(agencyId: string, trial: TrialConfig): Promise<TrialFiles> {
+  const now = new Date();
+  const trialStart = new Date(`${trial.startsAt}T00:00:00`);
+
+  const [sales, migrated, newRows, exchangedTrial, completedTrial, withdrawnTrial] = await Promise.all([
+    getAgencySales(agencyId, now),
+    commandDb.propertyTransaction.count({ where: { agencyId, isMigrated: true } }),
+    commandDb.propertyTransaction.findMany({
+      where: { agencyId, isDemo: false, isMigrated: false, createdAt: { gte: trialStart } },
+      select: { createdAt: true },
+    }),
+    commandDb.event.count({
+      where: { agencyId, type: "contracts_exchanged" as never, occurredAt: { gte: trialStart } },
+    }),
+    commandDb.event.count({
+      where: { agencyId, type: "sale_completed" as never, occurredAt: { gte: trialStart } },
+    }),
+    commandDb.propertyTransaction.count({
+      where: { agencyId, isDemo: false, withdrawnAt: { gte: trialStart } },
+    }),
+  ]);
+
+  // New instructions per trial week (week 1 = the first 7 days, and so on).
+  const weeksSoFar = Math.max(1, Math.ceil(((now.getTime() - trialStart.getTime()) / DAY_MS + 1) / 7));
+  const weeklyNew = Array.from({ length: weeksSoFar }, (_, i) => {
+    const start = new Date(trialStart.getTime() + i * 7 * DAY_MS);
+    return { label: start.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), value: 0 };
+  });
+  for (const r of newRows) {
+    const idx = Math.floor((r.createdAt.getTime() - trialStart.getTime()) / (7 * DAY_MS));
+    if (idx >= 0 && idx < weeklyNew.length) weeklyNew[idx].value += 1;
+  }
+
+  const stageOrder: AgencySaleRow["stage"][] = ["Onboarding", "Conveyancing", "Pre-exchange", "Post-exchange"];
+  const stageCounts = stageOrder.map((stage) => ({ stage, count: sales.filter((s) => s.stage === stage).length }));
+
+  return {
+    migrated,
+    newSinceTrial: newRows.length,
+    exchangedTrial,
+    completedTrial,
+    withdrawnTrial,
+    weeklyNew,
+    selfManagedLive: sales.filter((s) => s.serviceType === "self_managed").length,
+    outsourcedLive: sales.filter((s) => s.serviceType === "outsourced").length,
+    stageCounts,
+    sales,
+  };
 }
 
 // ── Team tab ──────────────────────────────────────────────────────────────────
