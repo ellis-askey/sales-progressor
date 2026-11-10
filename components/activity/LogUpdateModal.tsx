@@ -19,6 +19,8 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import { DesignLabDrawer } from "@/components/glass/DesignLabDrawer";
 import type { CommType, CommMethod } from "@prisma/client";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
@@ -62,6 +64,7 @@ const IC = {
   chevron: '<path d="M6 9l6 6 6-6"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7 15h10"/>',
 };
 function svg(path: string, size = 16, sw = 1.8) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
@@ -124,6 +127,25 @@ export function LogUpdateModal(props: Props) {
 
   const moreWrapRef = useRef<HTMLDivElement>(null);
   const whoWrapRef = useRef<HTMLDivElement>(null);
+
+  // ── Design Lab wiring (local dev only) ──────────────────────────────────────
+  // Tag each surface so the glass Design Lab discovers it and Ellis/Emily can
+  // design its glass live, then export + bake. No pick → className is "" and the
+  // surface is byte-for-byte unchanged. The flask toggle + drawer only render on
+  // local dev, so nothing design-tool ships to real users.
+  const showLab = process.env.NODE_ENV !== "production";
+  const [labOpen, setLabOpen] = useState(false);
+  const gCard = useGlassTag("log-update-card", "Log an update · card");
+  const gField = useGlassTag("log-update-field", "Log an update · what-happened field");
+  const gMethod = useGlassTag("log-update-method", "Log an update · method pill");
+  const gSeg = useGlassTag("log-update-direction", "Log an update · direction segment");
+  const gWho = useGlassTag("log-update-who", "Log an update · who selector");
+  const gShare = useGlassTag("log-update-share-card", "Log an update · share card");
+  const gFooter = useGlassTag("log-update-footer", "Log an update · footer");
+  const gSave = useGlassTag("log-update-save", "Log an update · save button");
+  const gDraft = useGlassTag("log-update-draft", "Log an update · draft button");
+  // Helper: merge a base className with a tag's glass class + data attrs.
+  const tagCls = (base: string, t: { className: string }) => (t.className ? `${base} ${t.className}` : base);
 
   useEffect(() => {
     if (embedded) return;
@@ -260,7 +282,7 @@ export function LogUpdateModal(props: Props) {
     const label = caret && activeMore ? activeMore.label : m.label;
     const icon = caret && activeMore ? activeMore.icon : m.icon;
     return (
-      <button type="button" className={"lu-method" + (on ? " on" : "")} onClick={() => { if (caret) setMoreOpen((v) => !v); else { setMethod(m.key); setMoreOpen(false); } }}>
+      <button type="button" {...gMethod.props} className={tagCls("lu-method" + (on ? " on" : ""), gMethod)} onClick={() => { if (caret) setMoreOpen((v) => !v); else { setMethod(m.key); setMoreOpen(false); } }}>
         <span dangerouslySetInnerHTML={{ __html: svg(icon, 15) }} />
         {label}
         {caret && <span dangerouslySetInnerHTML={{ __html: svg(IC.chevron, 11, 2.4) }} style={{ opacity: 0.7 }} />}
@@ -291,7 +313,7 @@ export function LogUpdateModal(props: Props) {
   const sideCard = (side: "seller" | "buyer", people: Contact[]) => {
     const on = audSides[side];
     return (
-      <button type="button" className={"lu-sidecard lu-" + side + (on ? " on" : "")} onClick={() => setAudSides((s) => ({ ...s, [side]: !s[side] }))}>
+      <button type="button" {...gShare.props} className={tagCls("lu-sidecard lu-" + side + (on ? " on" : ""), gShare)} onClick={() => setAudSides((s) => ({ ...s, [side]: !s[side] }))}>
         <span className="lu-cbx">{on && <span dangerouslySetInnerHTML={{ __html: svg(IC.check, 11, 3) }} />}</span>
         {avatarStack(people.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType })), on)}
         <span style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
@@ -325,6 +347,9 @@ export function LogUpdateModal(props: Props) {
           <button className="lu-ic" onClick={() => setScreen("form")} aria-label="Back" dangerouslySetInnerHTML={{ __html: svg(IC.back, 16, 2.2) }} />
         ) : null}
         <h2 className="lu-title">{screen === "draft" ? "Draft an update" : screen === "whatsapp" ? "Paste a WhatsApp chat" : "Log an update"}</h2>
+        {showLab && (
+          <button type="button" className="lu-ic" onClick={() => setLabOpen(true)} aria-label="Open Design Lab" title="Design Lab (local only)" style={{ color: "#5b8cff" }} dangerouslySetInnerHTML={{ __html: svg(IC.flask, 15, 1.9) }} />
+        )}
         <button className="lu-ic lu-ic-x" onClick={close} aria-label="Close" dangerouslySetInnerHTML={{ __html: svg(IC.x, 15, 2.2) }} />
       </div>
 
@@ -348,7 +373,7 @@ export function LogUpdateModal(props: Props) {
             {/* what happened */}
             <div>
               <div className="lu-lab">What happened?</div>
-              <div className={"lu-field" + (rec ? " rec" : "")}>
+              <div {...gField.props} className={tagCls("lu-field" + (rec ? " rec" : ""), gField)}>
                 <textarea ref={taRef} className="lu-ta" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Add an update, or tap the microphone to dictate…" rows={3} />
                 <div className="lu-micwrap">
                   {rec && (
@@ -378,6 +403,18 @@ export function LogUpdateModal(props: Props) {
                         {m.label}
                       </button>
                     ))}
+                    {/* Paste-a-WhatsApp-chat lives in here now rather than standing
+                        out at the bottom of the modal — a quieter home for a
+                        power-user shortcut. */}
+                    {canPasteChat && (
+                      <>
+                        <div style={{ height: 1, background: "var(--agent-border-subtle, rgba(45,24,16,0.09))", margin: "4px 0" }} aria-hidden />
+                        <button type="button" className="ui-pop-pick" style={{ display: "flex", alignItems: "center", gap: 10 }} onClick={() => { setScreen("whatsapp"); setMoreOpen(false); }}>
+                          <span style={{ display: "inline-flex" }} dangerouslySetInnerHTML={{ __html: svg(IC.whatsapp, 16) }} />
+                          Paste a WhatsApp chat
+                        </button>
+                      </>
+                    )}
                   </AnchoredPanel>
                 </div>
               </div>
@@ -388,11 +425,11 @@ export function LogUpdateModal(props: Props) {
               <div className="lu-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
                   <div className="lu-lab">Direction</div>
-                  <DirectionSeg value={direction} onChange={setDirection} />
+                  <DirectionSeg value={direction} onChange={setDirection} tagClassName={gSeg.className} tagProps={gSeg.props} />
                 </div>
                 <div ref={whoWrapRef} style={{ position: "relative" }}>
                   <div className="lu-lab">Who was this {methodWord(method)} with?</div>
-                  <button type="button" className="lu-whotrigger" onClick={() => setWhoOpen((v) => !v)}>
+                  <button type="button" {...gWho.props} className={tagCls("lu-whotrigger", gWho)} onClick={() => setWhoOpen((v) => !v)}>
                     {selected.length === 0 ? (
                       <span style={{ color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 7 }}>
                         <span className="lu-usericon" dangerouslySetInnerHTML={{ __html: svg(IC.user, 13, 1.7) }} /> Select contact(s)
@@ -471,22 +508,20 @@ export function LogUpdateModal(props: Props) {
             ) : null}
 
             {err && <p className="lu-err">{err}</p>}
-
-            {canPasteChat && (
-              <button type="button" className="lu-pastelink" onClick={() => setScreen("whatsapp")}>Paste a WhatsApp chat instead</button>
-            )}
           </div>
         )}
       </div>
 
       {screen === "form" && (
-        <div className="lu-foot">
-          <button type="button" className="lu-btn lu-ghost" onClick={() => setScreen("draft")}>
+        <div {...gFooter.props} className={tagCls("lu-foot", gFooter)}>
+          <button type="button" {...gDraft.props} className={tagCls("lu-btn lu-ghost", gDraft)} onClick={() => setScreen("draft")}>
             <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 15, 1.9) }} /> Draft client updates
           </button>
-          <button type="button" className="lu-btn lu-primary lu-grow" disabled={saving} onClick={saveLog}>{saving ? "Saving…" : "Save update"}</button>
+          <button type="button" {...gSave.props} className={tagCls("lu-btn lu-primary lu-grow", gSave)} disabled={saving} onClick={saveLog}>{saving ? "Saving…" : "Save update"}</button>
         </div>
       )}
+
+      {showLab && <DesignLabDrawer open={labOpen} onClose={() => setLabOpen(false)} />}
     </>
   );
 
@@ -505,7 +540,7 @@ export function LogUpdateModal(props: Props) {
       {open && typeof document !== "undefined" && createPortal(
         <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Log an update" data-closing={closing ? "1" : undefined}>
           <div className="lu-bg" onClick={close} />
-          <div className={"lu-sheet" + (closing ? " lu-closing" : "")} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
+          <div {...gCard.props} className={tagCls("lu-sheet" + (closing ? " lu-closing" : ""), gCard)} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
             <div className="lu-grab" />
             {headBody}
           </div>
@@ -520,7 +555,7 @@ export function LogUpdateModal(props: Props) {
 }
 
 // Direction segment with a measured sliding thumb.
-function DirectionSeg({ value, onChange }: { value: "outbound" | "inbound"; onChange: (v: "outbound" | "inbound") => void }) {
+function DirectionSeg({ value, onChange, tagClassName = "", tagProps }: { value: "outbound" | "inbound"; onChange: (v: "outbound" | "inbound") => void; tagClassName?: string; tagProps?: Record<string, string> }) {
   const ref = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
   useEffect(() => {
@@ -528,7 +563,7 @@ function DirectionSeg({ value, onChange }: { value: "outbound" | "inbound"; onCh
     if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
   }, [value]);
   return (
-    <div ref={ref} className="lu-seg" style={{ position: "relative" }}>
+    <div ref={ref} {...tagProps} className={tagClassName ? `lu-seg ${tagClassName}` : "lu-seg"} style={{ position: "relative" }}>
       {thumb && <span className="lu-segthumb" style={{ left: thumb.left, width: thumb.width }} />}
       {(["outbound", "inbound"] as const).map((v) => (
         <button key={v} type="button" data-v={v} className={value === v ? "on" : ""} onClick={() => onChange(v)} style={{ position: "relative", zIndex: 1 }}>
@@ -647,8 +682,6 @@ const CSS = `
 .lu-summaryline.warn b { color:#A5281B; }
 .lu-summaryline.dim { color:var(--agent-text-muted); }
 
-.lu-pastelink { align-self:flex-start; font:inherit; font-size:12.5px; font-weight:600; color:var(--agent-coral-deep); background:none; border:0; cursor:pointer; padding:0; }
-.lu-pastelink:hover { opacity:.72; }
 .lu-err { margin:0; font-size:12.5px; color:#C0392B; }
 
 .lu-foot { display:flex; gap:10px; padding:14px 18px; border-top:0.5px solid var(--agent-border-subtle); background:var(--agent-surface-elevated); }
