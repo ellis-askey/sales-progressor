@@ -724,14 +724,13 @@ export function ComposeEmailModal({
                         {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
                       </button>
                     )}
+                    <DictationMic controls={dictation} size={16} />
                   </span>
                 </div>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
                     onInput={onEditorInput} />
                   <div className="cem-toolbar">
-                    <DictationMic controls={dictation} />
-                    <span className="cem-tbsep" />
                     <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
                     <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
                     <span className="cem-tbsep" />
