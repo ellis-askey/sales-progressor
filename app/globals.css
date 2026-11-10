@@ -3410,11 +3410,15 @@ button:hover > .agent-add-photo-ring { transform: scale(1.04); }
  * pinch-zoom (accessibility). The fix is the control itself: on coarse-pointer
  * devices (phones + tablets, any OS) every text-entry control renders at 16px.
  * Checkboxes/radios excluded — they don't trigger the zoom and their size is
- * set by their components. */
+ * set by their components. contenteditable editors (the compose + chase email
+ * bodies, portal fields) are text-entry too and zoomed the same way — included
+ * here (2026-11-10), as they were the gap: input/select/textarea alone missed
+ * every rich-text body. */
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select,
-  textarea {
+  textarea,
+  [contenteditable]:not([contenteditable="false"]) {
     font-size: 16px !important;
   }
 }
