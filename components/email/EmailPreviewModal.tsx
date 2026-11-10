@@ -19,12 +19,14 @@
 // Matches NavAwayModal's chrome: portal-to-body, agent-backdrop-overlay,
 // agent-modal-in animation, escape-to-close, X button.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { X, Pencil } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { updateEmailPayload, getEmailForPreview } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 
 type PreviewData = NonNullable<Awaited<ReturnType<typeof getEmailForPreview>> & { ok: true }>["data"];
@@ -58,6 +60,10 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
   const [text, setText] = useState("");
   const [isSaving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setText, {
+    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   // Load on mount.
   useEffect(() => {
@@ -85,6 +91,7 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
 
   function handleSave() {
     setSaveError(null);
+    dictation.stop();
     startSaving(async () => {
       const res = await updateEmailPayload(emailId, { subject, text });
       if (res.ok) {
@@ -308,20 +315,22 @@ export function EmailPreviewModal({ emailId, onClose, onSaved }: Props) {
                       marginBottom: 14,
                     }}
                   />
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                      color: "var(--agent-text-muted)",
-                      marginBottom: 4,
-                    }}
-                  >
-                    Body
-                  </label>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        color: "var(--agent-text-muted)",
+                      }}
+                    >
+                      Body
+                    </label>
+                    <DictationMic controls={dictation} size={16} />
+                  </div>
                   <textarea
+                    ref={bodyRef}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     disabled={isSaving}

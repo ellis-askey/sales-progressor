@@ -14,6 +14,8 @@ import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { buildOnwardNudgeEmail, type OnwardNudgeDirection, type OnwardNudgeMode } from "@/lib/emails/onward-nudge";
 import { previewOnwardNudgeAction, sendOnwardNudgeAction, type OnwardNudgePreview } from "@/app/actions/onward";
@@ -58,6 +60,10 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, startSending] = useTransition();
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setBody, {
+    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -109,6 +115,7 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
 
   function handleSend() {
     setSendError(null);
+    dictation.stop();
     startSending(async () => {
       const res = await sendOnwardNudgeAction({ transactionId, contactId, direction, mode, copy: { subject, lead, body } });
       if (res.ok) {
@@ -177,8 +184,11 @@ export function OnwardNudgeModal({ transactionId, contactId, direction, mode, on
               <label style={labelStyle}>Opening</label>
               <textarea value={lead} onChange={(e) => setLead(e.target.value)} disabled={isSending} rows={2} style={{ ...fieldStyle, resize: "vertical", marginBottom: 14 }} />
 
-              <label style={labelStyle}>Message</label>
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} disabled={isSending} rows={3} style={{ ...fieldStyle, resize: "vertical", marginBottom: 18 }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <label style={labelStyle}>Message</label>
+                <DictationMic controls={dictation} size={16} />
+              </div>
+              <textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} disabled={isSending} rows={3} style={{ ...fieldStyle, resize: "vertical", marginBottom: 18 }} />
 
               {/* Live preview */}
               <p style={labelStyle}>Preview (what they&rsquo;ll receive)</p>

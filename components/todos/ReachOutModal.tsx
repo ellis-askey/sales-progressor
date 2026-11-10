@@ -10,10 +10,12 @@
 //             falls back to a branded email otherwise; same rule as elsewhere)
 // Sending on a side is what resets its clock, so onSent lets the card drop it.
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt } from "@phosphor-icons/react";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { logCommAction } from "@/app/actions/comms";
 import { sendDraftClientUpdateAction } from "@/app/actions/draft-update";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -47,6 +49,10 @@ export function ReachOutModal({
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setBody, {
+    onError: (k) => { if (k === "denied") setError("Microphone access was blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   const unavailable =
     channel === "email" && !side.email
@@ -60,6 +66,7 @@ export function ReachOutModal({
 
   async function send() {
     if (!canSend) return;
+    dictation.stop();
     setSending(true);
     setError(null);
     const text = body.trim();
@@ -135,10 +142,14 @@ export function ReachOutModal({
           <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", padding: "18px 4px" }}>{unavailable}</p>
         ) : (
           <>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", color: "var(--agent-text-muted)", marginBottom: 6 }}>
-              {isCall ? "What was discussed" : channel === "portal" ? "Your update" : "Message"}
-            </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", color: "var(--agent-text-muted)" }}>
+                {isCall ? "What was discussed" : channel === "portal" ? "Your update" : "Message"}
+              </label>
+              <DictationMic controls={dictation} size={16} />
+            </div>
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={5}

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PaperPlaneTilt, CaretDown, Warning } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 
 type VerifiedEmail = { id: string; email: string; status: string };
 
@@ -39,6 +41,10 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
   const [error, setError] = useState<string | null>(null);
   const [noEmailDismissed, setNoEmailDismissed] = useState(false);
   const [signature, setSignature] = useState<SigPreview | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setBody, {
+    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   // Resolve the real sign-off for this file so the composer shows exactly how
   // the email closes — and nudges a bare BASIC signature towards Settings.
@@ -65,6 +71,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
 
   async function send() {
     if (!fromEmail || !to.trim() || !subject.trim() || !body.trim()) return;
+    dictation.stop();
     setSending(true);
     setError(null);
     const res = await fetch("/api/agent/send-email", {
@@ -177,9 +184,13 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
           theme, because an email is always light — agent tokens would vanish in
           dark mode. The signature the recipient sees is appended on send. */}
       <div>
-        <label className="agent-label">Message</label>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <label className="agent-label" style={{ margin: 0 }}>Message</label>
+          <DictationMic controls={dictation} size={16} />
+        </div>
         <div style={{ background: "#ffffff", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 10, overflow: "hidden" }}>
           <textarea
+            ref={bodyRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={10}

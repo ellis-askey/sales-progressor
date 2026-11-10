@@ -8,9 +8,11 @@
 // comes from previewChaseEmailAction, composed with the exact functions the cron
 // uses, so preview == send. See docs/active/chase-consolidation/00-spec.md.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { PencilSimple, Prohibit, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { EmailPreviewFrame } from "@/components/email/EmailPreviewFrame";
 import {
   skipChaseThreadAction,
@@ -47,6 +49,10 @@ export function NextChaseControl({
   const [body, setBody] = useState("");
   const [saving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setBody, {
+    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   const actionTarget =
     target.kind === "client"
@@ -77,6 +83,7 @@ export function NextChaseControl({
 
   function handleSave() {
     setSaveError(null);
+    dictation.stop();
     startSaving(async () => {
       try {
         await editChaseThreadAction({ ...base, subject, body });
@@ -142,7 +149,7 @@ export function NextChaseControl({
             {mode === "view" ? (
               <EmailPreviewFrame html={preview.html} title="Next email preview" minHeight={260} />
             ) : (
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} disabled={saving} aria-label="Body" style={{ width: "100%", minHeight: 240, border: "none", outline: "none", background: "#fff", color: "#1f2937", fontSize: 14, lineHeight: 1.6, fontFamily: "inherit", padding: "16px 18px", resize: "vertical", boxSizing: "border-box" }} />
+              <textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} disabled={saving} aria-label="Body" style={{ width: "100%", minHeight: 240, border: "none", outline: "none", background: "#fff", color: "#1f2937", fontSize: 14, lineHeight: 1.6, fontFamily: "inherit", padding: "16px 18px", resize: "vertical", boxSizing: "border-box" }} />
             )}
           </div>
 
@@ -157,6 +164,7 @@ export function NextChaseControl({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             {mode === "edit" ? (
               <>
+                <span style={{ marginRight: "auto" }}><DictationMic controls={dictation} size={16} /></span>
                 <button type="button" onClick={() => { setMode("view"); setSubject(preview.subject); setBody(preview.text); setSaveError(null); }} disabled={saving} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
                 <button type="button" onClick={handleSave} disabled={saving || !subject.trim() || !body.trim()} className="agent-btn agent-btn-sm agent-btn-primary">{saving ? "Saving…" : "Save"}</button>
               </>

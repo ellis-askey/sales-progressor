@@ -18,7 +18,9 @@
 // The preview chrome (band header, recipient cards, envelope, iframe, footer)
 // is the founder-approved /dev/confirm-review-v2 design, ported verbatim.
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useTextareaDictation } from "@/components/dictation/useDictation";
 import {
   cancelPendingConfirmEmails,
   sendPendingConfirmEmailsNow,
@@ -375,6 +377,10 @@ function EmailBlock({
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useTextareaDictation(bodyRef, setDraftText, {
+    onError: (k) => { if (k === "denied") setErr("Microphone access was blocked. Allow it from the address-bar icon, then tap the mic again."); },
+  });
 
   // Keep the view in sync with refreshed props while not mid-edit.
   useEffect(() => {
@@ -385,6 +391,7 @@ function EmailBlock({
 
   function save() {
     setErr(null);
+    dictation.stop();
     start(async () => {
       const res = await onSave(draftSubject.trim(), draftText.trim());
       if (res.ok) { setEditing(false); setSaved(true); window.setTimeout(() => setSaved(false), 1600); }
@@ -436,7 +443,7 @@ function EmailBlock({
       {editing ? (
         <div className="crv-editwrap">
           <label className="crv-field"><span className="crv-field-label">Subject</span><input className="crv-input" value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} /></label>
-          <label className="crv-field"><span className="crv-field-label">Body</span><textarea className="crv-textarea" rows={editRows} value={draftText} onChange={(e) => setDraftText(e.target.value)} /></label>
+          <label className="crv-field"><span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><span className="crv-field-label">Body</span><DictationMic controls={dictation} size={15} /></span><textarea ref={bodyRef} className="crv-textarea" rows={editRows} value={draftText} onChange={(e) => setDraftText(e.target.value)} /></label>
           <div className="crv-edit-actions">
             <button type="button" className="crv-btn crv-btn-ghost" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
             <button type="button" className="crv-btn crv-btn-primary" onClick={save} disabled={busy || !draftSubject.trim() || !draftText.trim()}>{busy ? "Saving…" : "Save & preview"}</button>
