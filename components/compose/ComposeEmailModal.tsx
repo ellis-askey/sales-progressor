@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
+import { PaperPlaneTilt } from "@phosphor-icons/react";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
@@ -798,7 +799,7 @@ export function ComposeEmailModal({
                       ? (scheduledFor ? "Scheduling…" : "Sending…")
                       : scheduledFor
                         ? (<><span className="cem-lbl-desktop">Schedule send</span><span className="cem-lbl-mobile">Send</span></>)
-                        : (<><span className="cem-arrow">➤&nbsp;</span>Send</>)}
+                        : (<><PaperPlaneTilt size={14} weight="fill" /> Send</>)}
                   </button>
                   <button className="cem-send-split" aria-label="Schedule options" onClick={() => setSchedOpen((v) => !v)}>▾</button>
                 </div>
@@ -942,10 +943,14 @@ const CEM_CSS = `
 .cem-foot{flex-shrink:0;display:flex;flex-direction:column;padding:12px 20px 16px;border-top:1px solid var(--agent-border-subtle);background:var(--agent-surface-elevated,#fff)}
 .cem-fromline{font-size:11px;color:var(--agent-text-muted);margin-right:auto}.cem-fromline b{color:var(--agent-text-secondary);font-weight:600}
 .cem-send{display:inline-flex;align-items:stretch;border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(255,107,74,0.28)}
-.cem-send-go{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 18px;height:40px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--agent-coral-deep,#FF6B4A),var(--agent-coral-light,#FFB18F));transition:filter .12s}
-.cem-send-go:hover{filter:brightness(1.05)}.cem-send-go:disabled{opacity:.6;cursor:default}
-.cem-send-split{border:none;cursor:pointer;color:#fff;width:34px;height:40px;display:grid;place-items:center;font-size:11px;background:linear-gradient(135deg,var(--agent-coral-darker,#E55B3D),var(--agent-coral-deep,#FF6B4A));box-shadow:inset 1px 0 0 rgba(255,255,255,0.18);transition:filter .12s}
-.cem-send-split:hover{filter:brightness(1.05)}
+/* Polished split-send — matches the enquiries "Replies sent" primary
+   (.enq-btn-primary2): one vertical coral→coral-deep gradient across BOTH
+   halves, a top sheen, and a white hairline between them. Was two mismatched
+   diagonal gradients (main fading to light pink, caret darker). */
+.cem-send-go{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 18px;height:40px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,var(--agent-coral) 0%,var(--agent-coral-deep) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
+.cem-send-go:hover{filter:brightness(1.04)}.cem-send-go:disabled{opacity:.6;cursor:default}
+.cem-send-split{border:none;border-left:1px solid rgba(255,255,255,0.28);cursor:pointer;color:#fff;width:34px;height:40px;display:grid;place-items:center;font-size:11px;background:linear-gradient(180deg,var(--agent-coral) 0%,var(--agent-coral-deep) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
+.cem-send-split:hover{filter:brightness(1.04)}
 .cem-sched-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(61,122,184,0.1);border:1px solid rgba(61,122,184,0.3);color:var(--agent-info,#3D7AB8);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600}
 .cem-sched-chip .cem-x{cursor:pointer;opacity:.7}.cem-sched-chip .cem-x:hover{opacity:1}
 .cem-schedmenu{position:absolute;bottom:calc(100% + 8px);right:0;z-index:50;width:min(252px,calc(100vw - 44px));max-width:252px;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;box-shadow:0 16px 44px rgba(45,24,16,0.18);animation:cemMenuin .16s ease both}
