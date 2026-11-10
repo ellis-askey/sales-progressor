@@ -28,6 +28,8 @@ export type PredictedItem = {
   txId: string;
   address: string;
   recipientLabel: string;
+  recipientName: string;              // display name beside the avatar (client name, or "Buyer's solicitor")
+  recipientRole: string;              // Contact.roleType for the role avatar + subtext: vendor|purchaser|solicitor|broker
   milestoneLabel: string;
   milestoneCode: string;
   // Preview identity (upgrade phase 2): exactly what previewChaseEmailAction
@@ -176,6 +178,8 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
         txId,
         address,
         recipientLabel: `${u.contactName} · ${roleLabelFor(u.contactRole)}`,
+        recipientName: u.contactName,
+        recipientRole: u.contactRole,
         milestoneLabel: u.milestoneLabel,
         milestoneCode: u.milestoneCode,
         contactId: u.contactId,
@@ -237,6 +241,8 @@ export async function getUpcomingForecast(input: EmailScopeInput): Promise<Upcom
       txId: s.transactionId,
       address: txAddressById.get(s.transactionId) ?? "(unknown file)",
       recipientLabel: sideLabel(s.side),
+      recipientName: sideLabel(s.side),
+      recipientRole: "solicitor",
       milestoneLabel: milestoneLabel(s.milestoneCode),
       milestoneCode: s.milestoneCode,
       contactId: null,

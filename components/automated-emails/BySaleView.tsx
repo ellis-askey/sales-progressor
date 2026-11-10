@@ -15,10 +15,12 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
-import { RoleIcon } from "@/components/ui/RoleIcon";
+import { asRole, roleShortLabel } from "@/components/ui/RoleIcon";
 import { StatusPill } from "@/components/reminders/StatusPill";
 import { Pill } from "@/components/ui/Pill";
-import type { Cockpit, CockpitNeedKind } from "@/lib/services/automated-emails-cockpit";
+import { previewChaseEmailAction } from "@/app/actions/chase-timeline";
+import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
+import type { Cockpit, CockpitNeedKind, CockpitChaseRow } from "@/lib/services/automated-emails-cockpit";
 
 function splitAddress(a: string): { line: string; location: string } {
   const i = a.indexOf(",");
@@ -97,6 +99,101 @@ function Dots({ n, max }: { n: number; max: number }) {
   );
 }
 
+// One "Chasing now" row. The file identity + its send day sit up top (View file
+// navigates; the row click expands the email). Below, the recipient's role
+// avatar + name + role, then milestone + chase N of M. Clicking the row animates
+// open the EXACT email this chase will send — composed by the same engine the
+// send uses (previewChaseEmailAction), so it's true-to-send and reflects any
+// staged edit. Lazy-loaded on first open.
+function ChaseRow({ r }: { r: CockpitChaseRow }) {
+  const { line, location } = splitAddress(r.address);
+  const role = asRole(r.recipientRole);
+  const roleWord = role ? roleShortLabel(role) : "";
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState<{ loading: boolean; html: string | null; subject: string; error: string | null }>(
+    { loading: false, html: null, subject: "", error: null },
+  );
+
+  async function load() {
+    setEmail((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const res = await previewChaseEmailAction({
+        transactionId: r.txId,
+        target: r.preview.kind === "client"
+          ? { kind: "client", contactId: r.preview.contactId }
+          : { kind: "solicitor", side: r.preview.side },
+        milestoneCode: r.preview.milestoneCode,
+      });
+      if (res.ok) setEmail({ loading: false, html: res.html, subject: res.subject, error: null });
+      else setEmail((s) => ({ ...s, loading: false, error: res.error || "Couldn't load this email." }));
+    } catch {
+      setEmail((s) => ({ ...s, loading: false, error: "Couldn't load this email." }));
+    }
+  }
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && email.html === null && !email.loading) void load();
+  }
+  function onKey(e: React.KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+  }
+
+  return (
+    <GlassCard glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
+      <div role="button" tabIndex={0} aria-expanded={open} onClick={toggle} onKeyDown={onKey} style={{ ...ROW_INNER, cursor: "pointer" }}>
+        {/* File identity — the row click expands the email; "View file" navigates. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, flex: "1 1 auto" }}>
+          <PropertyThumb photoUrl={r.photoUrl} size={40} />
+          <div style={{ minWidth: 0 }}>
+            <span className="rem-addr" style={{ display: "block", fontSize: 13.5, fontWeight: 600, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{line}</span>
+            {location && <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</p>}
+          </div>
+        </div>
+
+        {/* Actions: View file, with the send-day pill tucked beneath it. */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+          <Link href={fileHref(r.txId)} onClick={(e) => e.stopPropagation()} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ textDecoration: "none" }}>View file</Link>
+          {!r.onDefaultRun && (
+            <StatusPill tone="warning" icon={<CaretRight size={11} weight="bold" />} label={`Sends ${r.nextLabel}`} />
+          )}
+        </div>
+
+        <CaretRight size={16} weight="bold" aria-hidden style={{ color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 150ms ease", transform: open ? "rotate(90deg)" : "none" }} />
+
+        {/* Recipient (role avatar + name + role subtext) · milestone · chase N of M */}
+        <div style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+            <ContactAvatar contact={{ name: r.recipientName || "?", roleType: r.recipientRole || undefined }} size={30} />
+            <span style={{ display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.25 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.recipientName}</span>
+              {roleWord && <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{roleWord}</span>}
+            </span>
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10, marginLeft: "auto", fontSize: 12, color: "var(--agent-text-muted)", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <span>{r.milestone}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Dots n={r.chaseNumber} max={r.chaseMax} /> chase {r.chaseNumber} of {r.chaseMax}</span>
+          </span>
+        </div>
+      </div>
+
+      {open && (
+        <div data-bloom style={{ padding: "0 14px 14px" }}>
+          {email.loading && <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", fontStyle: "italic" }}>Loading the email&hellip;</p>}
+          {email.error && <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--agent-danger)" }}>{email.error}</p>}
+          {email.html && (
+            <div style={{ border: "1px solid var(--agent-border-strong)", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+              <div style={{ padding: "10px 14px", borderBottom: "1px solid #e5e7eb", fontSize: 12.5, fontWeight: 700, color: "#111827" }}>{email.subject}</div>
+              <iframe title="Email preview" srcDoc={previewSrcDoc(email.html)} sandbox="" style={{ width: "100%", minHeight: 360, border: "none", background: "#fff", display: "block" }} />
+            </div>
+          )}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
 export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
   const [showQuiet, setShowQuiet] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
@@ -136,24 +233,7 @@ export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
           hint={chasing.length ? <>on their own{chasingRunLabel ? <> · next run <b style={{ color: "var(--agent-text-secondary)" }}>{chasingRunLabel}</b></> : null}</> : "no active chases"} />
         <div className="space-y-2">
           {chasing.map((r) => (
-            <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
-              <div style={ROW_INNER}>
-                <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
-                {!r.onDefaultRun && (
-                  <StatusPill tone="warning" icon={<CaretRight size={11} weight="bold" />} label={`Sends ${r.nextLabel}`} />
-                )}
-                <Link href={fileHref(r.txId)} className="agent-btn agent-btn-sm agent-btn-ghost-bordered" style={{ textDecoration: "none", flexShrink: 0 }}>View file</Link>
-                <div style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--agent-text-muted)", flexWrap: "wrap" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "var(--agent-text-secondary)", fontWeight: 600 }}>
-                    {r.isSolicitor ? <PhoneCall size={12} weight="bold" /> : <RoleIcon role={r.isBuyerSide ? "purchaser" : "vendor"} size={12} />}
-                    {r.who}
-                  </span>
-                  <span>·</span>
-                  <span>{r.milestone}</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 2 }}><Dots n={r.chaseNumber} max={r.chaseMax} /> chase {r.chaseNumber} of {r.chaseMax}</span>
-                </div>
-              </div>
-            </GlassCard>
+            <ChaseRow key={r.txId} r={r} />
           ))}
           {chasing.length === 0 && (
             <GlassCard glassId="auto-cockpit-row" label="Cockpit · row" style={CARD_STYLE}>

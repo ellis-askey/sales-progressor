@@ -22,6 +22,7 @@ const need = (txId: string, status: NeedsAttentionItem["status"], over: Partial<
 
 const predict = (txId: string, over: Partial<PredictedItem> = {}): PredictedItem =>
   ({ id: `p-${txId}`, kind: "solicitor", txId, address: `${txId} Road, Town`, recipientLabel: "Buyer's solicitor",
+     recipientName: "Buyer's solicitor", recipientRole: "solicitor",
      milestoneLabel: "Searches ordered", milestoneCode: "PM8", contactId: null, side: "purchaser",
      chaseNumber: 2, chaseMax: 3, predictedFor: new Date("2026-10-27T09:30:00Z"), ...over });
 
@@ -72,7 +73,7 @@ it("a paused file is never counted as chasing even with a prediction", () => {
   expect(c.paused.map((r) => r.txId)).toEqual(["f"]);
 });
 
-it("chasing rows carry who / milestone / chase N of M from the soonest prediction", () => {
+it("chasing rows carry recipient / milestone / chase N of M + preview target from the soonest prediction", () => {
   const c = run({
     files: [file("f", "covered")],
     predicted: [
@@ -84,5 +85,17 @@ it("chasing rows carry who / milestone / chase N of M from the soonest predictio
   expect(c.chasing[0].milestone).toBe("Soonest");
   expect(c.chasing[0].chaseNumber).toBe(1);
   expect(c.chasing[0].chaseMax).toBe(2);
-  expect(c.chasing[0].isSolicitor).toBe(true);
+  expect(c.chasing[0].recipientRole).toBe("solicitor");
+  expect(c.chasing[0].recipientName).toBe("Buyer's solicitor");
+  expect(c.chasing[0].preview).toEqual({ kind: "solicitor", side: "purchaser", milestoneCode: "PM8" });
+});
+
+it("a client prediction yields a client preview target", () => {
+  const c = run({
+    files: [file("f", "covered")],
+    predicted: [predict("f", { kind: "client", contactId: "c-1", side: null, recipientName: "Kim Bowling", recipientRole: "purchaser" })],
+  });
+  expect(c.chasing[0].recipientName).toBe("Kim Bowling");
+  expect(c.chasing[0].recipientRole).toBe("purchaser");
+  expect(c.chasing[0].preview).toEqual({ kind: "client", contactId: "c-1", milestoneCode: "PM8" });
 });

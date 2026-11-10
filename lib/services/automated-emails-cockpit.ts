@@ -29,11 +29,17 @@ export type CockpitNeedRow = {
   avatarRole: string;      // Contact.roleType: "vendor" | "purchaser" | "solicitor"
   avatarImage: string | null;
 };
+// What a chasing row expands to show — the exact email it will send. Carries
+// just what previewChaseEmailAction needs to compose the real, true-to-send
+// email (and reflect any staged ChaseEmailOverride edit).
+export type CockpitChasePreview =
+  | { kind: "client"; contactId: string; milestoneCode: string }
+  | { kind: "solicitor"; side: "vendor" | "purchaser"; milestoneCode: string };
 export type CockpitChaseRow = {
   txId: string; address: string; photoUrl: string | null;
-  who: string;             // "Buyer's solicitor", "Kim Bowling · Buyer", …
-  isSolicitor: boolean;
-  isBuyerSide: boolean;
+  recipientName: string;   // "Kim Bowling", "Buyer's solicitor" — the name beside the avatar
+  recipientRole: string;   // Contact.roleType: vendor|purchaser|solicitor|broker — drives the role avatar + subtext
+  preview: CockpitChasePreview;
   milestone: string;
   nextLabel: string;       // the send day for THIS row ("Mon 26 Oct")
   onDefaultRun: boolean;   // true when it goes with the common next run
@@ -144,10 +150,14 @@ export function assembleCockpit(input: AssembleInput, now: Date): Cockpit {
 
   const chasing: CockpitChaseRow[] = [...soonest.values()].map((p) => {
     const d = effectiveNext(p);
-    const { isSolicitor, isBuyer } = sideFromLabel(p.recipientLabel);
+    const preview: CockpitChasePreview =
+      p.kind === "solicitor" && (p.side === "vendor" || p.side === "purchaser")
+        ? { kind: "solicitor", side: p.side, milestoneCode: p.milestoneCode }
+        : { kind: "client", contactId: p.contactId ?? "", milestoneCode: p.milestoneCode };
     return {
       txId: p.txId, address: addressOf(p.txId, p.address), photoUrl: photo(p.txId),
-      who: p.recipientLabel, isSolicitor, isBuyerSide: isBuyer,
+      recipientName: p.recipientName, recipientRole: p.recipientRole,
+      preview,
       milestone: p.milestoneLabel,
       nextLabel: dayLabel(d, now), onDefaultRun: dayKey(d) === runKey,
       chaseNumber: p.chaseNumber, chaseMax: p.chaseMax,
