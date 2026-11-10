@@ -20,6 +20,8 @@ const SIG_STYLES: { key: SigStyle; label: string; sub: string }[] = [
   { key: "default", label: "Default", sub: "Your saved signature" },
 ];
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
+import { DictationMic } from "@/components/dictation/DictationMic";
+import { useContentEditableDictation } from "@/components/dictation/useDictation";
 
 export type ChaseAttachment = { id: string; file: File };
 
@@ -88,6 +90,9 @@ export function ChaseComposer({
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const lastEmitted = useRef<string | null>(null);
+  // Voice typing — streams into the chase body at the caret (same control as the
+  // New email composer). Hidden where the browser has no SpeechRecognition.
+  const dictation = useContentEditableDictation(ref);
   const [active, setActive] = useState({ bold: false, italic: false, ul: false, ol: false });
   const [sigMenuOpen, setSigMenuOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -219,6 +224,8 @@ export function ChaseComposer({
         border: "0.5px solid var(--agent-border-subtle)", borderTop: "0.5px solid var(--agent-border-subtle)",
         background: "var(--agent-surface-glass)",
       }}>
+        <DictationMic controls={dictation} size={17} />
+        <span style={{ width: 1, height: 18, background: "var(--agent-border-subtle)", margin: "0 4px" }} />
         <ToolButton title="Bold" active={active.bold} onMouseDown={toolMouseDown("bold")}>
           <TextB size={16} weight={active.bold ? "bold" : "regular"} />
         </ToolButton>
