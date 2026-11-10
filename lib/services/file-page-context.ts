@@ -85,10 +85,22 @@ export const loadFilePageContext = cache(async (id: string): Promise<FilePageCon
   // check ignored that flag, so a colleague could see a file in the list but hit
   // not-found opening it (audit W3). Internal staff are already scoped above.
   if (!isInternalStaff && !isDirectorRole) {
-    let canOpen = transaction.agentUserId === session.user.id;
+    // Ownership slots first: the agent who owns the file (CM) AND the person
+    // assigned to progress it can always open it. The old check ignored
+    // assignedUserId, so an in-house progressor whose list toggle was "Mine"
+    // saw their 22 assigned files in the list but hit not-found opening every
+    // one (Boardwalk/Ruby, 2026-11-10) — the same list/guard mismatch as
+    // audit W3, this time on the progressor slot.
+    let canOpen =
+      transaction.agentUserId === session.user.id ||
+      transaction.assignedUserId === session.user.id;
     if (!canOpen && session.user.agencyId) {
       const vis = await resolveAgentVisibility(session.user.id, session.user.agencyId);
-      if (vis.seeAll) {
+      // Gate on the director-set CEILING (canToggleViewAll), not seeAll:
+      // seeAll is the ceiling narrowed by the user's own "All files / Mine"
+      // list toggle, and that toggle is a display preference — flipping the
+      // list to Mine must never revoke access to files their ceiling allows.
+      if (vis.canToggleViewAll) {
         if (!vis.firmName) {
           canOpen = true; // sees the whole agency's book
         } else {
