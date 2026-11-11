@@ -13,9 +13,15 @@ export type GlassVariantId =
   | "v08" | "v09" | "v10" | "v21"
   | "v12" | "v13" | "v14" | "v15"
   | "v17" | "v18" | "v19" | "v22"
-  | "v23" | "v24" | "v25" | "v26" | "v27" | "v28" | "v29";
+  | "v23" | "v24" | "v25" | "v26" | "v27" | "v28" | "v29"
+  // Live slab-lens optics — NOT a CSS class. Rendered by LiquidLens (per-element
+  // SVG displacement). useGlassTag returns `lens: true` for it instead of a class.
+  | "lens";
 
 export const DEFAULT_VARIANT: GlassVariantId = "v00";
+
+/** The live-optics pick — rendered by a component, not a CSS class. */
+export const LENS_VARIANT: GlassVariantId = "lens";
 
 const ALL_VARIANT_IDS: ReadonlySet<GlassVariantId> = new Set<GlassVariantId>([
   "v00",
@@ -25,6 +31,7 @@ const ALL_VARIANT_IDS: ReadonlySet<GlassVariantId> = new Set<GlassVariantId>([
   "v12", "v13", "v14", "v15",
   "v17", "v18", "v19", "v22",
   "v23", "v24", "v25", "v26", "v27", "v28", "v29",
+  "lens",
 ]);
 
 export function isGlassVariantId(v: unknown): v is GlassVariantId {
@@ -219,6 +226,22 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
       { id: "v27", label: "Classic frost bar", technique: "white 15% · blur 8px · 18% hairline · deep soft shadow" },
       { id: "v28", label: "Contrast lens · nav blur", technique: "v26 contrast lens · blur 8px (Elevra mobile tab bar)" },
       { id: "v29", label: "Edge-lit lens", technique: "white 13% · blur 13px · top+left edge highlights · v26 inner lens (reduced)" },
+    ],
+  },
+  {
+    id: "optics",
+    label: "Optics (live)",
+    intro:
+      "Real-time slab-lens refraction that actually bends the backdrop, like magnified frosted glass. Rendered by a per-element SVG filter, so it's heavier than the CSS families and best on ONE large surface (the card). Safari and Firefox fall back to a polished frost.",
+    bestFor: [
+      "One large hero surface (the modal card)",
+      "When you want true refraction, not just a tint",
+    ],
+    avoid: [
+      "Many small controls at once — each gets its own live filter",
+    ],
+    variants: [
+      { id: "lens", label: "Slab lens", technique: "live SVG displacement · sized per element · rim-blurred edge", recommended: true, recommendedFor: "The real Apple-glass lens bend. Use sparingly — ideally just the card." },
     ],
   },
 ];

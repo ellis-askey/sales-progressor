@@ -16,6 +16,7 @@ import { searchComposeSales, type ComposeSaleResult } from "@/app/actions/compos
 import { getNoteContextAction, type NoteContext } from "@/app/actions/comms";
 import { LogUpdateModal, LOG_UPDATE_CSS } from "@/components/activity/LogUpdateModal";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import { GlassLens } from "@/components/glass/GlassLens";
 
 // The minimal sale header the "log" step needs — from a search result OR the
 // file-context load (getNoteContextAction.property).
@@ -113,8 +114,10 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null }: { o
         <div
           {...gCard.props}
           className={"lu-sheet" + (closing ? " lu-closing" : "") + (gCard.className ? " " + gCard.className : "")}
+          style={gCard.lens ? { background: "transparent", isolation: "isolate" } : undefined}
           onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) finish(); }}
         >
+          {gCard.lens && <GlassLens radius={18} />}
           <div className="lu-grab" />
           {step === "log" && ctx && picked ? (
             <LogUpdateModal

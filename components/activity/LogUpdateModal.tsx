@@ -8,7 +8,7 @@
 // (logCommAction) and the SAME audience logic. This is a UI re-jig, not a
 // behaviour change. Desktop = centred modal, tablet/mobile = up-sliding drawer.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { DraftForEveryonePanel } from "./DraftForEveryonePanel";
 import { PasteWhatsAppPanel, type ImportableContact } from "./PasteWhatsAppPanel";
@@ -21,6 +21,7 @@ import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { DesignLabDrawer } from "@/components/glass/DesignLabDrawer";
+import { GlassLens } from "@/components/glass/GlassLens";
 import { useIsFounder } from "@/components/layout/FounderGate";
 import type { CommType, CommMethod } from "@prisma/client";
 
@@ -148,6 +149,12 @@ export function LogUpdateModal(props: Props) {
   const gDraft = useGlassTag("log-update-draft", "Log an update · draft button");
   // Helper: merge a base className with a tag's glass class + data attrs.
   const tagCls = (base: string, t: { className: string }) => (t.className ? `${base} ${t.className}` : base);
+  // Lens host style: drop the surface's own background so the page shows through
+  // to the lens, and isolate the z-index:-1 lens layer. `positioned` hosts (the
+  // centred sheet, the direction segment) keep their own position; static hosts
+  // get position:relative so the inset layer anchors to them.
+  const lensHost = (lens: boolean, positioned = false): CSSProperties | undefined =>
+    lens ? { background: "transparent", isolation: "isolate", ...(positioned ? {} : { position: "relative" }) } : undefined;
 
   useEffect(() => {
     if (embedded) return;
@@ -284,7 +291,8 @@ export function LogUpdateModal(props: Props) {
     const label = caret && activeMore ? activeMore.label : m.label;
     const icon = caret && activeMore ? activeMore.icon : m.icon;
     return (
-      <button type="button" {...gMethod.props} className={tagCls("lu-method" + (on ? " on" : ""), gMethod)} onClick={() => { if (caret) setMoreOpen((v) => !v); else { setMethod(m.key); setMoreOpen(false); } }}>
+      <button type="button" {...gMethod.props} className={tagCls("lu-method" + (on ? " on" : ""), gMethod)} style={lensHost(gMethod.lens)} onClick={() => { if (caret) setMoreOpen((v) => !v); else { setMethod(m.key); setMoreOpen(false); } }}>
+        {gMethod.lens && <GlassLens radius={9} />}
         <span dangerouslySetInnerHTML={{ __html: svg(icon, 15) }} />
         {label}
         {caret && <span dangerouslySetInnerHTML={{ __html: svg(IC.chevron, 11, 2.4) }} style={{ opacity: 0.7 }} />}
@@ -315,7 +323,8 @@ export function LogUpdateModal(props: Props) {
   const sideCard = (side: "seller" | "buyer", people: Contact[]) => {
     const on = audSides[side];
     return (
-      <button type="button" {...gShare.props} className={tagCls("lu-sidecard lu-" + side + (on ? " on" : ""), gShare)} onClick={() => setAudSides((s) => ({ ...s, [side]: !s[side] }))}>
+      <button type="button" {...gShare.props} className={tagCls("lu-sidecard lu-" + side + (on ? " on" : ""), gShare)} style={lensHost(gShare.lens)} onClick={() => setAudSides((s) => ({ ...s, [side]: !s[side] }))}>
+        {gShare.lens && <GlassLens radius={12} />}
         <span className="lu-cbx">{on && <span dangerouslySetInnerHTML={{ __html: svg(IC.check, 11, 3) }} />}</span>
         {avatarStack(people.map((c) => ({ id: c.id, name: c.name, roleType: c.roleType })), on)}
         <span style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
@@ -375,7 +384,8 @@ export function LogUpdateModal(props: Props) {
             {/* what happened */}
             <div>
               <div className="lu-lab">What happened?</div>
-              <div {...gField.props} className={tagCls("lu-field" + (rec ? " rec" : ""), gField)}>
+              <div {...gField.props} className={tagCls("lu-field" + (rec ? " rec" : ""), gField)} style={lensHost(gField.lens)}>
+                {gField.lens && <GlassLens radius={11} />}
                 <textarea ref={taRef} className="lu-ta" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Add an update, or tap the microphone to dictate…" rows={3} />
                 <div className="lu-micwrap">
                   {rec && (
@@ -427,11 +437,12 @@ export function LogUpdateModal(props: Props) {
               <div className="lu-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
                   <div className="lu-lab">Direction</div>
-                  <DirectionSeg value={direction} onChange={setDirection} tagClassName={gSeg.className} tagProps={gSeg.props} />
+                  <DirectionSeg value={direction} onChange={setDirection} tagClassName={gSeg.className} tagProps={gSeg.props} tagLens={gSeg.lens} />
                 </div>
                 <div ref={whoWrapRef} style={{ position: "relative" }}>
                   <div className="lu-lab">Who was this {methodWord(method)} with?</div>
-                  <button type="button" {...gWho.props} className={tagCls("lu-whotrigger", gWho)} onClick={() => setWhoOpen((v) => !v)}>
+                  <button type="button" {...gWho.props} className={tagCls("lu-whotrigger", gWho)} style={lensHost(gWho.lens)} onClick={() => setWhoOpen((v) => !v)}>
+                    {gWho.lens && <GlassLens radius={11} />}
                     {selected.length === 0 ? (
                       <span style={{ color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 7 }}>
                         <span className="lu-usericon" dangerouslySetInnerHTML={{ __html: svg(IC.user, 13, 1.7) }} /> Select contact(s)
@@ -515,11 +526,13 @@ export function LogUpdateModal(props: Props) {
       </div>
 
       {screen === "form" && (
-        <div {...gFooter.props} className={tagCls("lu-foot", gFooter)}>
-          <button type="button" {...gDraft.props} className={tagCls("lu-btn lu-ghost", gDraft)} onClick={() => setScreen("draft")}>
+        <div {...gFooter.props} className={tagCls("lu-foot", gFooter)} style={lensHost(gFooter.lens)}>
+          {gFooter.lens && <GlassLens radius={0} />}
+          <button type="button" {...gDraft.props} className={tagCls("lu-btn lu-ghost", gDraft)} style={lensHost(gDraft.lens)} onClick={() => setScreen("draft")}>
+            {gDraft.lens && <GlassLens radius={10} />}
             <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 15, 1.9) }} /> Draft client updates
           </button>
-          <button type="button" {...gSave.props} className={tagCls("lu-btn lu-primary lu-grow", gSave)} disabled={saving} onClick={saveLog}>{saving ? "Saving…" : "Save update"}</button>
+          <button type="button" {...gSave.props} className={tagCls("lu-btn lu-primary lu-grow", gSave)} style={lensHost(gSave.lens)} disabled={saving} onClick={saveLog}>{gSave.lens && <GlassLens radius={10} />}{saving ? "Saving…" : "Save update"}</button>
         </div>
       )}
 
@@ -542,7 +555,8 @@ export function LogUpdateModal(props: Props) {
       {open && typeof document !== "undefined" && createPortal(
         <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Log an update" data-closing={closing ? "1" : undefined}>
           <div className="lu-bg" onClick={close} />
-          <div {...gCard.props} className={tagCls("lu-sheet" + (closing ? " lu-closing" : ""), gCard)} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
+          <div {...gCard.props} className={tagCls("lu-sheet" + (closing ? " lu-closing" : ""), gCard)} style={lensHost(gCard.lens, true)} onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) reallyClose(); }}>
+            {gCard.lens && <GlassLens radius={18} />}
             <div className="lu-grab" />
             {headBody}
           </div>
@@ -557,7 +571,7 @@ export function LogUpdateModal(props: Props) {
 }
 
 // Direction segment with a measured sliding thumb.
-function DirectionSeg({ value, onChange, tagClassName = "", tagProps }: { value: "outbound" | "inbound"; onChange: (v: "outbound" | "inbound") => void; tagClassName?: string; tagProps?: Record<string, string> }) {
+function DirectionSeg({ value, onChange, tagClassName = "", tagProps, tagLens = false }: { value: "outbound" | "inbound"; onChange: (v: "outbound" | "inbound") => void; tagClassName?: string; tagProps?: Record<string, string>; tagLens?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
   useEffect(() => {
@@ -565,7 +579,8 @@ function DirectionSeg({ value, onChange, tagClassName = "", tagProps }: { value:
     if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
   }, [value]);
   return (
-    <div ref={ref} {...tagProps} className={tagClassName ? `lu-seg ${tagClassName}` : "lu-seg"} style={{ position: "relative" }}>
+    <div ref={ref} {...tagProps} className={tagClassName ? `lu-seg ${tagClassName}` : "lu-seg"} style={{ position: "relative", ...(tagLens ? { background: "transparent", isolation: "isolate" } : null) }}>
+      {tagLens && <GlassLens radius={10} />}
       {thumb && <span className="lu-segthumb" style={{ left: thumb.left, width: thumb.width }} />}
       {(["outbound", "inbound"] as const).map((v) => (
         <button key={v} type="button" data-v={v} className={value === v ? "on" : ""} onClick={() => onChange(v)} style={{ position: "relative", zIndex: 1 }}>

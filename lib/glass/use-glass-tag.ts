@@ -1,7 +1,7 @@
 "use client";
 
 import { useGlassPicks } from "./context";
-import { classFor, DEFAULT_VARIANT, type GlassPick } from "./variants";
+import { classFor, DEFAULT_VARIANT, LENS_VARIANT, type GlassPick } from "./variants";
 
 // Make an EXISTING, already-styled element pickable in the Design Lab WITHOUT
 // changing how it looks today. Unlike <GlassCard> (which always applies a
@@ -37,6 +37,9 @@ export function useGlassTag(
 ): {
   className: string;
   picked: boolean;
+  /** True when the pick is the live slab lens — rendered by <GlassLens>, not a
+   *  CSS class. The consumer drops its own background + renders a lens layer. */
+  lens: boolean;
   props: {
     "data-glass-id": string;
     "data-glass-label": string;
@@ -48,10 +51,13 @@ export function useGlassTag(
     preview && preview.glassId === glassId && preview.mode === mode
       ? "cs-preview"
       : picks[glassId]?.[mode] ?? baseline?.[mode];
+  const lens = resolved === LENS_VARIANT;
   return {
-    // No pick and no baseline → no glass class → the element is unchanged.
-    className: resolved ? classFor(resolved) : "",
+    // No pick and no baseline → no glass class → the element is unchanged. The
+    // lens is a component, not a class, so it contributes no className.
+    className: resolved && !lens ? classFor(resolved) : "",
     picked: !!resolved,
+    lens,
     props: {
       "data-glass-id": glassId,
       "data-glass-label": label,
