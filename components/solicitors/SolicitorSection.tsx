@@ -11,6 +11,7 @@ import { SavingPulse } from "@/components/ui/SavingPulse";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -494,6 +495,7 @@ function SolicitorTile({
 }
 
 export function SolicitorSection({ transactionId, vendor, purchaser, recommendedFirms, referredFirmId, referralFee, address, contacts, isInternalStaff = false, embedded = false, onlySide, hideHeader = false, briefcaseIcon = false }: Props) {
+  const { toast } = useAgentToast();
   const [isPending, startTransition] = useTransition();
   const [saving, setSaving] = useState(false);
 
@@ -515,6 +517,13 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
     startTransition(async () => {
       try {
         await saveSolicitorsAction(transactionId, patch);
+      } catch (e) {
+        // Surface the validation message (e.g. "Add the named case handler for
+        // the seller's solicitor.") instead of letting the thrown error crash
+        // the page. Revert the optimistic rows so nothing looks saved.
+        toast.error(e instanceof Error ? e.message : "Couldn't save the solicitor. Please try again.");
+        setVendorState(vendor);
+        setPurchaserState(purchaser);
       } finally {
         setSaving(false);
       }

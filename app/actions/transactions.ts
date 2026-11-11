@@ -2163,16 +2163,26 @@ export async function saveSolicitorsAction(transactionId: string, patch: {
   }
   const merged = (key: keyof typeof current) =>
     key in solicitorPatch ? (solicitorPatch as Record<string, string | null | undefined>)[key] ?? null : current[key];
-  if (solicitorPairViolation(merged("vendorSolicitorFirmId"), merged("vendorSolicitorContactId"))) {
+  // Only enforce the firm-needs-a-handler invariant on the side this patch
+  // actually TOUCHES. Re-validating an untouched side let one side's pre-invariant
+  // legacy data (a firm saved before 2026-09-18 with no handler) block edits to
+  // the OTHER side — which trapped Boardwalk's 71 Muller Road: both sides had a
+  // firm but no handler, so every solicitor save threw and the file could never
+  // be fixed. The handover-readiness gate still checks BOTH sides at promotion /
+  // outsource time; this per-side save just shouldn't reject a legal edit because
+  // of stale data it isn't changing.
+  const touchesVendor = "vendorSolicitorFirmId" in solicitorPatch || "vendorSolicitorContactId" in solicitorPatch;
+  const touchesPurchaser = "purchaserSolicitorFirmId" in solicitorPatch || "purchaserSolicitorContactId" in solicitorPatch;
+  if (touchesVendor && solicitorPairViolation(merged("vendorSolicitorFirmId"), merged("vendorSolicitorContactId"))) {
     throw new Error(solicitorHandlerRequiredMessage("seller"));
   }
-  if (solicitorPairViolation(merged("purchaserSolicitorFirmId"), merged("purchaserSolicitorContactId"))) {
+  if (touchesPurchaser && solicitorPairViolation(merged("purchaserSolicitorFirmId"), merged("purchaserSolicitorContactId"))) {
     throw new Error(solicitorHandlerRequiredMessage("buyer"));
   }
   // Clearing a firm clears its handler too — never leave a contact dangling
-  // without a firm.
-  if (merged("vendorSolicitorFirmId") == null) data.vendorSolicitorContactId = null;
-  if (merged("purchaserSolicitorFirmId") == null) data.purchaserSolicitorContactId = null;
+  // without a firm (only for the side being changed).
+  if (touchesVendor && merged("vendorSolicitorFirmId") == null) data.vendorSolicitorContactId = null;
+  if (touchesPurchaser && merged("purchaserSolicitorFirmId") == null) data.purchaserSolicitorContactId = null;
 
   const result = await prisma.propertyTransaction.updateMany({
     where: scopeOwnershipWhere(scope, transactionId),
