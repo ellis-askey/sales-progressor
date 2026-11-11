@@ -3,16 +3,16 @@
 // App-wide quick-action dock — the glass pill plucked byte-for-byte from the
 // /dev/updates-glass prototype (the exact <LiquidGlass> render + the exact
 // .lgx-surface / .ug-dock* CSS + vars), now wired to the REAL surfaces:
-//   New note  → AddNoteModal   (search a sale → Log an update)
+//   New note  → AddNoteModal   (search a sale, or straight onto the open file)
 //   New email → ComposeEmailModal
 //
-// Everything visual is verbatim from that page; the only additions are (1) the
-// real wiring, (2) theme sync with the agent app (html[data-theme]), and (3) a
-// scroll-aware slide-down hide so it stays out of the way while reading. All CSS
-// is scoped under .qdock-root so nothing global changes.
-//
-// Founder-gated at the mount site (AgentShell). See docs — rendered only for
-// ellis@thesalesprogressor.co.uk while this is a trial.
+// The SVG-backdrop refraction only renders on Chromium. Safari / Firefox / iOS
+// can't present it, so there we keep the EXACT same container and swap the
+// material for the same frosted glass the enquiries dropdown menu uses
+// (blur(30px) saturate(200%)). Also: theme sync with the app (html[data-theme]),
+// a scroll-aware slide-down hide, and labels that never wrap (the dock widens to
+// fit, truncating only when the viewport is genuinely too narrow). All CSS is
+// scoped under .qdock-root so nothing global changes.
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -39,8 +39,24 @@ function useIsDark(): boolean {
   return dark;
 }
 
+// True on engines that can't present the SVG-backdrop refraction (WebKit/iOS +
+// Firefox) — there we fall back to a plain frosted pill. Chromium keeps the real
+// LiquidGlass. Defaults false (SSR) and resolves on mount.
+function useGlassFallback(): boolean {
+  const [fallback, setFallback] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const iOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const safari = /^((?!chrome|android|crios|fxios|edg|opr).)*safari/i.test(ua);
+    const firefox = /firefox|fxios/i.test(ua);
+    setFallback(iOS || safari || firefox);
+  }, []);
+  return fallback;
+}
+
 export function QuickActionDock() {
   const isDark = useIsDark();
+  const fallback = useGlassFallback();
   const pathname = usePathname();
   // When you're on a file (/agent/transactions/<id>), the dock's New note / New
   // email open straight onto THAT sale — no re-searching for the file you're
@@ -84,27 +100,41 @@ export function QuickActionDock() {
   // flicker when the sheet animates.
   const hidden = down && !noteOpen && !emailOpen;
 
+  // Same buttons in both the refraction and fallback shells.
+  const dockInner = (
+    <>
+      <button className="ug-dock-btn" onClick={() => setNoteOpen(true)}>
+        <NotePencil weight="regular" />
+        <span>New note</span>
+      </button>
+      <span className="ug-dock-sep" />
+      <button className="ug-dock-btn" onClick={() => setEmailOpen(true)}>
+        <PaperPlaneTilt weight="regular" />
+        <span>New email</span>
+      </button>
+    </>
+  );
+
   return (
     <div className="qdock-root" data-theme={theme}>
-      <LiquidGlass
-        radius={22}
-        thickness={14}
-        displace={46}
-        aberration={4}
-        tint={DOCK_TINT[theme]}
-        className="ug-dock"
-        data-down={hidden ? "1" : undefined}
-      >
-        <button className="ug-dock-btn" onClick={() => setNoteOpen(true)}>
-          <NotePencil weight="regular" />
-          <span>New note</span>
-        </button>
-        <span className="ug-dock-sep" />
-        <button className="ug-dock-btn" onClick={() => setEmailOpen(true)}>
-          <PaperPlaneTilt weight="regular" />
-          <span>New email</span>
-        </button>
-      </LiquidGlass>
+      {fallback ? (
+        // Same container (.ug-dock), enquiries-menu frosted material (.qdock-fallback).
+        <div className="ug-dock qdock-fallback" data-down={hidden ? "1" : undefined}>
+          {dockInner}
+        </div>
+      ) : (
+        <LiquidGlass
+          radius={22}
+          thickness={14}
+          displace={46}
+          aberration={4}
+          tint={DOCK_TINT[theme]}
+          className="ug-dock"
+          data-down={hidden ? "1" : undefined}
+        >
+          {dockInner}
+        </LiquidGlass>
+      )}
 
       <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={fileId} />
       <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} />
@@ -116,7 +146,8 @@ export function QuickActionDock() {
 
 // Verbatim from /dev/updates-glass — the vars (.ug-root), the LiquidGlass base
 // (.lgx-surface) and the dock (.ug-dock*) — scoped under .qdock-root so nothing
-// global is touched. The only additions are the hide transition + [data-down].
+// global is touched. Additions: the hide transition + [data-down], the no-wrap /
+// widen-to-fit labels, and the .qdock-fallback material for non-Chromium.
 const QDOCK_CSS = `
 .qdock-root[data-theme="dark"]{
   --accent:#0a84ff; --ink:#f3f4f8; --line:rgba(255,255,255,0.1); --row-hover:rgba(255,255,255,0.045);
@@ -135,16 +166,32 @@ const QDOCK_CSS = `
   background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent) top/100% 1px no-repeat; opacity:.55; }
 .qdock-root .lgx-filter-svg{ position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
 
-/* Dock — verbatim .ug-dock* + a slide-down hide */
+/* Dock — verbatim .ug-dock* + a slide-down hide. width:max-content so it widens
+   to fit the labels (no wrap); max-width clamps it to the viewport so it only
+   truncates when genuinely too narrow (~<300px). */
 .qdock-root .ug-dock{ position:fixed; z-index:40; bottom:24px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:4px; padding:7px 9px;
+  width:max-content; max-width:calc(100vw - 20px);
   transition:transform .42s cubic-bezier(.3,.9,.3,1), opacity .3s ease; }
 .qdock-root .ug-dock[data-down="1"]{ transform:translateX(-50%) translateY(180%); opacity:0; pointer-events:none; }
 .qdock-root .ug-dock > *{ position:relative; z-index:1; }
-.qdock-root .ug-dock-btn{ display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:15px; background:none; border:none; color:var(--ink); font-size:13.5px; font-weight:550; font-family:inherit; cursor:pointer; transition:background .25s, transform .3s cubic-bezier(.3,1.35,.4,1); }
-.qdock-root .ug-dock-btn svg{ width:17px; height:17px; color:var(--accent); }
+.qdock-root .ug-dock-btn{ display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:15px; background:none; border:none; color:var(--ink); font-size:13.5px; font-weight:550; font-family:inherit; cursor:pointer; white-space:nowrap; min-width:0; transition:background .25s, transform .3s cubic-bezier(.3,1.35,.4,1); }
+.qdock-root .ug-dock-btn span{ overflow:hidden; text-overflow:ellipsis; }
+.qdock-root .ug-dock-btn svg{ width:17px; height:17px; flex-shrink:0; color:var(--accent); }
 .qdock-root .ug-dock-btn:hover{ background:var(--row-hover); }
 .qdock-root .ug-dock-btn:active{ transform:scale(.96); }
-.qdock-root .ug-dock-sep{ width:1px; height:22px; background:var(--line); }
+.qdock-root .ug-dock-sep{ width:1px; height:22px; flex-shrink:0; background:var(--line); }
+
+/* Non-Chromium fallback — identical container, the enquiries dropdown's frosted
+   glass (surfaceStyle in components/ui/Popover.tsx): blur(30) saturate(200),
+   30% tint, 1px --agent-border-default, 0 12px 30px rgba(20,12,6,0.16). Keeps
+   the dock's own 22px radius, not the menu's 10px. */
+.qdock-root .ug-dock.qdock-fallback{
+  background:rgba(255,255,255,0.30);
+  -webkit-backdrop-filter:blur(30px) saturate(200%); backdrop-filter:blur(30px) saturate(200%);
+  border:1px solid var(--agent-border-default); border-radius:22px;
+  box-shadow:0 12px 30px rgba(20,12,6,0.16); }
+.qdock-root[data-theme="dark"] .ug-dock.qdock-fallback{ background:rgba(20,26,36,0.30); }
+
 @media (prefers-reduced-motion: reduce){
   .qdock-root .ug-dock, .qdock-root .ug-dock-btn, .qdock-root .lgx-surface{ transition:none; }
 }

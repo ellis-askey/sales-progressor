@@ -1142,6 +1142,27 @@ select {
    * (critique, 2026-09-23: "Need attention" number wasn't flush left). */
   .hub-stats-grid > *:nth-child(3) { border-left: none !important; padding-left: 0 !important; }
 
+  /* One card style on mobile (founder, 2026-11-11): every hub card adopts the
+   * "Needs your attention" look (the hub-attention / glass-v27 resolved style)
+   * so the page reads as one consistent stack of white cards on a phone, instead
+   * of three different glass treatments (v05 / v22 / v27). Desktop is untouched.
+   * Scoped to the hub body; overrides the [data-glass-id].glass-vNN variants, so
+   * !important is required to win the cascade. */
+  :root:not([data-theme="dark"]) .hub-content-pad [data-glass-id] {
+    background: rgba(255, 255, 255, 0.82) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 8px 32px 0 rgba(13, 38, 38, 0.30) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+  :root[data-theme="dark"] .hub-content-pad [data-glass-id] {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 8px 32px 0 rgba(13, 38, 38, 0.30) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+
   /* Hub activity ribbon — stack vertically on mobile/tablet (<768px).
    * Fixes two issues: (1) "View file" no longer floats right where it collides
    * with fixed corner elements; (2) overflow/truncation: inline alignItems:center
