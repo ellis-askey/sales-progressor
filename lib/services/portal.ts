@@ -224,7 +224,7 @@ export async function logAutomatedEmail(
   // contact whose subject/text is logged).
   sentHtml?: string | null,
   fromEmail?: string | null,
-): Promise<void> {
+): Promise<string | null> {
   const stripped = bodyPlain
     .split("\n")
     .filter((line) => !line.includes("/portal/"))
@@ -267,7 +267,7 @@ export async function logAutomatedEmail(
     recipientName = rep?.name ?? null;
   }
 
-  await prisma.outboundMessage.create({
+  const created = await prisma.outboundMessage.create({
     data: {
       transactionId,
       type: "outbound",
@@ -283,7 +283,9 @@ export async function logAutomatedEmail(
       createdById: null,
       buyerRoundId: stampRoundId,
     },
+    select: { id: true },
   });
+  return created.id;
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {

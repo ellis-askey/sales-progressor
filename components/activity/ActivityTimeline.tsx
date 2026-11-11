@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@phosphor-icons/react";
+import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@/components/icons/ph";
 import { formatTimestamp } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
@@ -149,6 +149,32 @@ function dotColor(entry: ActivityEntry): string {
     inbound: "#10b981",
   };
   return map[entry.type] ?? "rgba(30,45,74,0.22)";
+}
+
+// Delivery-status dot for outbound email cards (top-right). sent = grey (no
+// confirmation yet / mailbox-routed), delivered = green (reached the inbox
+// server), bounced = red (never arrived; hover shows the reason). Driven by the
+// SendGrid webhook via entry.delivery (lib/services/comms.ts).
+function DeliveryDot({ delivery }: { delivery: { state: "sent" | "delivered" | "bounced"; reason: string | null } }) {
+  const cfg = {
+    sent: { dot: "#9aa3b2", label: "Sent", text: "var(--agent-text-muted)" },
+    delivered: { dot: "#15b371", label: "Delivered", text: "var(--agent-text-muted)" },
+    bounced: { dot: "#e5484d", label: "Bounced", text: "#e5484d" },
+  }[delivery.state];
+  const hasReason = delivery.state === "bounced" && !!delivery.reason;
+  return (
+    <span
+      title={hasReason ? `Bounced: ${delivery.reason}` : undefined}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+        fontSize: 10, fontWeight: 600, letterSpacing: "0.01em", color: cfg.text,
+        cursor: hasReason ? "help" : "default",
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: cfg.dot, boxShadow: `0 0 0 3px ${cfg.dot}1f` }} />
+      {cfg.label}
+    </span>
+  );
 }
 
 // `getCommBadge` and `AuthorPill` live in lib/agent/comms-display.tsx so the
@@ -598,6 +624,13 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                   className="relative group"
                   style={{ padding: "10px 14px", borderRadius: 10 }}
                 >
+                  {/* Delivery status (outbound emails only) — top-right. */}
+                  {email && entry.type === "outbound" && entry.delivery && (
+                    <div style={{ position: "absolute", top: 10, right: 12, zIndex: 1 }}>
+                      <DeliveryDot delivery={entry.delivery} />
+                    </div>
+                  )}
+
                   {/* Who did it — actor at the top of the card. */}
                   <ActorFooter
                     role={entry.actorRole}

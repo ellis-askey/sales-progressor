@@ -178,30 +178,36 @@ ${portalSection}
 <p style="margin:0;font-size:12px;color:#8b91a3">${tx.agency.name}</p>
 </body></html>`;
 
-      await sendEmail({ to: contact.email, subject, text, html, from: fromAddr, replyTo }).catch(() => {});
+      // Log the send FIRST so we can tag the email with this row's id — the
+      // SendGrid webhook then stamps delivery/bounce straight onto this activity
+      // card (sendEmail.outboundMessageId). Best-effort: a failed log still sends
+      // (untracked, as before). A client should never be emailed without a record.
+      let loggedMsgId: string | null = null;
+      try {
+        const logged = await prisma.outboundMessage.create({
+          data: {
+            transactionId: tx.id,
+            agencyId,
+            type: "outbound",
+            method: "email",
+            channel: "email",
+            purpose: "notification",
+            status: "sent",
+            subject,
+            content: text,
+            contactIds: [contact.id],
+            recipientEmail: contact.email,
+            sentEmailHtml: html,
+            sentFromEmail: fromAddr,
+            isAutomated: true,
+            visibleToClient: true,
+            sentAt: new Date(),
+          },
+        });
+        loggedMsgId = logged.id;
+      } catch { /* logging failed — still send, just untracked */ }
 
-      // Log the send so it shows in the Command Centre Outbound list and on the
-      // file's activity feed — a client should never be emailed without a record.
-      await prisma.outboundMessage.create({
-        data: {
-          transactionId: tx.id,
-          agencyId,
-          type: "outbound",
-          method: "email",
-          channel: "email",
-          purpose: "notification",
-          status: "sent",
-          subject,
-          content: text,
-          contactIds: [contact.id],
-          recipientEmail: contact.email,
-          sentEmailHtml: html,
-          sentFromEmail: fromAddr,
-          isAutomated: true,
-          visibleToClient: true,
-          sentAt: new Date(),
-        },
-      }).catch(() => {});
+      await sendEmail({ to: contact.email, subject, text, html, from: fromAddr, replyTo, ...(loggedMsgId ? { outboundMessageId: loggedMsgId } : {}) }).catch(() => {});
       sent++;
     }
   }

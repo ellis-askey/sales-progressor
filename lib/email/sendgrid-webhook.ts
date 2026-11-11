@@ -30,6 +30,9 @@ export type SendGridEvent = {
   // Custom args we set in sendEmail() — comma-joined queue row ids for
   // bundled digest sends, single id otherwise.
   queueId?: string;
+  // Custom arg for DIRECT (non-queued) sends — the activity-feed OutboundMessage
+  // id, so delivery status attaches to the card even without a queue row.
+  outboundMessageId?: string;
   [key: string]: unknown;
 };
 
@@ -88,6 +91,15 @@ export function classifyEvent(event: SendGridEvent): QueueUpdate | null {
 export function extractQueueIds(event: SendGridEvent): string[] {
   if (typeof event.queueId !== "string" || event.queueId.length === 0) return [];
   return event.queueId
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+// Direct-send tracking id (customArgs.outboundMessageId) → the activity-feed row.
+export function extractOutboundMessageIds(event: SendGridEvent): string[] {
+  if (typeof event.outboundMessageId !== "string" || event.outboundMessageId.length === 0) return [];
+  return event.outboundMessageId
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);

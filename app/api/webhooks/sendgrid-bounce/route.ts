@@ -30,6 +30,7 @@ import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import {
   classifyEvent,
   extractQueueIds,
+  extractOutboundMessageIds,
   type QueueUpdate,
   type SendGridEvent,
 } from "@/lib/email/sendgrid-webhook";
@@ -119,6 +120,15 @@ export async function POST(req: NextRequest) {
             console.error("[sendgrid-webhook] broker-callback bell failed", err),
           );
         }
+      }
+      // Direct (non-queued) sends — weekly updates, milestone confirms — carry
+      // their activity-row id in customArgs.outboundMessageId. Stamp delivery
+      // straight onto the OutboundMessage so the feed dot lights up for them too.
+      const directMsgIds = extractOutboundMessageIds(event);
+      if (directMsgIds.length > 0) {
+        await stampOutboundMessages(directMsgIds, update).catch((err) =>
+          console.error("[sendgrid-webhook] direct message stamp failed", err),
+        );
       }
     }
 
@@ -238,6 +248,14 @@ async function mirrorToOutboundMessage(queueIds: string[], update: QueueUpdate):
     select: { outboundMessageId: true },
   });
   const msgIds = rows.map((r) => r.outboundMessageId).filter((v): v is string => !!v);
+  await stampOutboundMessages(msgIds, update);
+}
+
+// Direct delivery-status write onto OutboundMessage (activity-feed) rows. Shared
+// by the queue mirror above AND the direct-send path (customArgs.outboundMessageId)
+// for client emails that never hit the queue — weekly updates, milestone confirms.
+// Guarded so a late webhook never regresses a further-along state.
+async function stampOutboundMessages(msgIds: string[], update: QueueUpdate): Promise<void> {
   if (msgIds.length === 0) return;
 
   switch (update.kind) {

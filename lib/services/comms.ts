@@ -121,6 +121,12 @@ export type ActivityEntry =
       actorName: string;
       actorImage: string | null;
       actorSubLabel: string | null;
+      // Delivery status for OUTBOUND emails, from the SendGrid webhook: "sent"
+      // (no confirmation yet / mailbox-routed), "delivered" (reached the inbox
+      // server) or "bounced" (never arrived — reason powers a tooltip). Null for
+      // inbound, internal notes, WhatsApp and non-email rows (no dot shown).
+      // Optional so optimistic client rows + other builders can omit it.
+      delivery?: { state: "sent" | "delivered" | "bounced"; reason: string | null } | null;
     };
 
 // ─── Actor role helpers (activity avatars) ─────────────────────────────────────
@@ -547,6 +553,18 @@ export async function getActivityTimeline(
     isAutomated: c.isAutomated,
     tone: c.tone,
     subject: c.subject ?? null,
+    // Delivery dot: only for outbound emails. A bounced/failed status is the
+    // high-value red; a delivered/opened status (or a deliveredAt stamp) is
+    // green; everything else (not yet confirmed, or a mailbox-routed send with
+    // no SendGrid events) is a neutral "sent". See the SendGrid webhook.
+    delivery:
+      c.type === "outbound" && c.method === "email"
+        ? c.status === "bounced" || c.status === "failed"
+          ? { state: "bounced" as const, reason: c.failureReason ?? null }
+          : c.deliveredAt || c.status === "delivered" || c.status === "opened" || c.status === "clicked"
+            ? { state: "delivered" as const, reason: null }
+            : { state: "sent" as const, reason: null }
+        : null,
     rawOriginal: (() => {
       if (c.type !== "inbound") return null;
       const raw = (c.providerWebhookData as { raw?: string } | null)?.raw;

@@ -274,6 +274,7 @@ export async function sendEmail({
   attachments,
   messageId,
   audienceBucket,
+  outboundMessageId,
 }: {
   // Single address, or several (the agent composer can address multiple people
   // on the To line). Non-deliverable/reserved addresses are filtered per-address.
@@ -308,6 +309,11 @@ export async function sendEmail({
   // set it as the message's Message-ID header so an inbound reply can be matched
   // to this send. Omit → no header set, behaviour identical to before.
   messageId?: string;
+  // Like queueId, but joins SendGrid events straight to an OutboundMessage
+  // (the activity-feed row) for delivery-status writes — for DIRECT sends that
+  // don't go through the queue (weekly updates, milestone confirms). The webhook
+  // stamps status/deliveredAt/openedAt onto this row. Omit → not tracked.
+  outboundMessageId?: string;
 }) {
   const toList = (Array.isArray(to) ? to : [to]).filter((t) => !isNonDeliverableRecipient(t));
   if (!toList.length) {
@@ -321,7 +327,7 @@ export async function sendEmail({
     return { suppressedBucket: audienceBucket };
   }
   const tags = analyticsTags(emailType, templateVersion);
-  const customArgs = { ...(queueId ? { queueId } : {}), ...tags.customArgs };
+  const customArgs = { ...(queueId ? { queueId } : {}), ...(outboundMessageId ? { outboundMessageId } : {}), ...tags.customArgs };
 
   // Dev-redirect first so a mailbox route can never reach a real recipient
   // from localhost either; then try the agent's own mailbox before SendGrid.

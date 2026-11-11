@@ -286,14 +286,22 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
         // the recipient received (single-event matrix copy).
         const txId = transactionIdFromSourceId(decision.row.sourceId);
         if (txId) {
-          await logAutomatedEmail(
+          const loggedId = await logAutomatedEmail(
             txId,
             [contactId],
             decision.payload.subject,
             decision.payload.text,
             decision.payload.html,
             sender?.from ?? null,
-          ).catch(() => {});
+          ).catch(() => null);
+          // Link the queue row to the activity card so the SendGrid webhook's
+          // mirror stamps delivery/bounce onto it (queueId already carries the
+          // delivery truth). Best-effort; a missed link just leaves the card untracked.
+          if (loggedId) {
+            await prisma.outboundEmailQueue
+              .update({ where: { id: decision.row.id }, data: { outboundMessageId: loggedId } })
+              .catch(() => {});
+          }
         }
         singleSends++;
       } else {
@@ -318,14 +326,21 @@ export async function drainMilestoneDigests(): Promise<DrainResult> {
         // contact, matching exactly what landed in their inbox.
         const txId = transactionIdFromSourceId(decision.rows[0].sourceId);
         if (txId) {
-          await logAutomatedEmail(
+          const loggedId = await logAutomatedEmail(
             txId,
             [contactId],
             decision.assembled.subject,
             decision.assembled.text,
             decision.assembled.html,
             sender?.from ?? null,
-          ).catch(() => {});
+          ).catch(() => null);
+          // Link every bundled queue row to the one activity card, so a delivery/
+          // bounce event on the digest stamps the card via the webhook mirror.
+          if (loggedId) {
+            await prisma.outboundEmailQueue
+              .updateMany({ where: { id: { in: decision.rows.map((r) => r.id) } }, data: { outboundMessageId: loggedId } })
+              .catch(() => {});
+          }
         }
         digestSends++;
       }
