@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { AgentShell } from "@/components/layout/AgentShell";
+import { AgentShell, EXPERIMENTAL_SHELL_EMAILS } from "@/components/layout/AgentShell";
+import { AgentShellExperimental } from "@/components/layout/AgentShellExperimental";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
@@ -107,6 +108,14 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       ? await getAgentChasePrefs(session.user.agencyId)
       : null;
 
+  // Ellis-only experimental chrome (Floating drawers / Compact command bar),
+  // chosen via a persisted switcher. A pure UI swap — identical props, identical
+  // functionality. Everyone else gets the production AgentShell untouched. Widen
+  // by editing EXPERIMENTAL_SHELL_EMAILS in components/layout/AgentShell.tsx.
+  const Shell = EXPERIMENTAL_SHELL_EMAILS.has((session.user.email ?? "").toLowerCase().trim())
+    ? AgentShellExperimental
+    : AgentShell;
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's App Colour config, derived into the full token set + button
@@ -129,7 +138,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles} initialMode={themeMode}>
       <AgentToaster>
-        <AgentShell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode}>
+        <Shell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode}>
           {session.user.viewAsOperatorId && (
             <div style={{ padding: "12px 24px 0" }}>
               <div
@@ -164,7 +173,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
               sidebar) stays static; only the page content region animates.
               Reduced-motion snaps to visible. 2026-08-10. */}
           <PageFadeIn>{children}</PageFadeIn>
-        </AgentShell>
+        </Shell>
         {/* Help / feedback pill. Shown to agency users (director / negotiator)
             and to EXTERNAL progression-business users (own sales-prog companies),
             who carry role=sales_progressor but belong to a non-TSP business

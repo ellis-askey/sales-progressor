@@ -40,10 +40,15 @@ import { NAV_BADGES_REFRESH_EVENT } from "@/lib/agent/nav-badges-client";
 
 // Accounts that see the Design Lab flask in the topbar. Picks persist per-user,
 // so adding an email here is all that's needed to let that account use it.
-const DESIGN_LAB_EMAILS = new Set([
+export const DESIGN_LAB_EMAILS = new Set([
   "ellis@thesalesprogressor.co.uk",
   "ellisaskey+tb@googlemail.com", // Tim Branston — Ellis's agent test account
 ]);
+
+// Ellis-only experimental chrome (Floating drawers / Compact command bar). The
+// gate lives in app/agent/layout.tsx; editing this one set widens the rollout
+// once a winner is picked. Kept here so nav/account stay single-sourced.
+export const EXPERIMENTAL_SHELL_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
 function formatAgentTime(d: Date): string {
   try {
@@ -55,7 +60,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false) {
+export function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -117,7 +122,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   viewer:           "Viewer",
 };
 
-function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false, isBusinessMember = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean; isBusinessMember?: boolean }) {
+export function UserDropdown({ session, role, userName, userImage, isBusinessOwner = false, isBusinessMember = false }: { session: Session; role: UserRole; userName: string; userImage?: string | null; isBusinessOwner?: boolean; isBusinessMember?: boolean }) {
   const [open, setOpen] = useState(false);
   const slotRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -300,7 +305,9 @@ function UserDropdown({ session, role, userName, userImage, isBusinessOwner = fa
   );
 }
 
-export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, fileViewMode = "all" }: { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; fileViewMode?: "all" | "mine" }) {
+export type AgentShellProps = { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; fileViewMode?: "all" | "mine" };
+
+export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, fileViewMode = "all" }: AgentShellProps) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;

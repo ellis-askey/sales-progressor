@@ -1,0 +1,131 @@
+/* Experimental agent chrome (Ellis-only). Scoped entirely under .agx-root so it
+   never touches the production shell. Only the floating-shell STRUCTURE lives
+   here — the nav rail, New-sale CTA, search, control cluster and page content are
+   the real production components/classes, so they carry their own look + theming.
+   See components/layout/AgentShellExperimental.tsx. */
+
+/* Full-width content: drop the 220px sidebar gutter, clear the floating bar. */
+.agx-root .agent-main-content.agx-main { margin-left: 0; padding-top: 86px; }
+
+/* LiquidGlass: the filter <svg> MUST collapse to 0×0 or it balloons the glass. */
+.agx-root .lgx-surface { position: relative; }
+.agx-root .lgx-surface > * { position: relative; z-index: 1; }
+.agx-root .lgx-filter-svg { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* Frosted fallback material (iOS/Safari/Firefox) — mirrors the bottom dock. */
+.agx-frost {
+  position: relative;
+  background: var(--agent-surface-glass, rgba(255, 255, 255, 0.6));
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  backdrop-filter: blur(30px) saturate(190%);
+  border: 1px solid var(--agent-glass-border);
+  box-shadow: 0 14px 40px rgba(24, 30, 54, 0.14);
+}
+:root[data-theme="dark"] .agx-frost { background: var(--agent-surface-glass, rgba(25, 29, 40, 0.62)); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); }
+
+/* ── Shared control cluster + separators inside the floating bars ──────────── */
+.agx-controls { display: flex; align-items: center; gap: 4px; }
+.agx-sep { width: 1px; height: 22px; background: var(--agent-border-subtle); flex-shrink: 0; }
+.agx-asof {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: none; background: none; color: var(--agent-text-muted);
+  font-size: 11.5px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; cursor: pointer;
+}
+.agx-asof svg { width: 13px; height: 13px; }
+.agx-icon-btn {
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: none; border-radius: 9px; color: var(--agent-text-muted);
+  cursor: pointer; transition: background 0.16s, color 0.16s;
+}
+.agx-icon-btn:hover { background: var(--agent-hover-tint); color: var(--agent-text-primary); }
+.agx-icon-btn svg { width: 17px; height: 17px; }
+
+/* ── Floating drawers: capsule · handle · scrim · drawer ───────────────────── */
+.agx-cap-wrap { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 45; max-width: calc(100vw - 40px); }
+.agx-cap { display: inline-flex; align-items: center; gap: 10px; padding: 7px 11px; }
+.agx-cap-search { width: min(420px, 42vw); }
+
+.agx-edge-handle {
+  position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 44;
+  width: 24px; height: 92px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--agent-border-default); border-left: none; border-radius: 0 15px 15px 0;
+  background: var(--agent-surface-elevated); color: var(--agent-text-muted);
+  box-shadow: 0 6px 20px rgba(24, 30, 54, 0.12); cursor: pointer;
+  transition: width 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.agx-edge-handle:hover, .agx-edge-handle:focus-visible { width: 30px; color: var(--agent-coral); box-shadow: 0 10px 30px rgba(24, 30, 54, 0.2); }
+.agx-edge-handle svg { width: 16px; height: 16px; }
+
+.agx-scrim { position: fixed; inset: 0; z-index: 48; background: rgba(10, 14, 24, 0.3); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); animation: agxFade 0.2s ease; }
+
+.agx-drawer {
+  position: fixed; top: 14px; bottom: 14px; left: 14px; width: 276px; z-index: 49;
+  transform: translateX(calc(-100% - 24px)); pointer-events: none;
+  transition: transform 0.42s cubic-bezier(0.2, 0.86, 0.26, 1);
+}
+.agx-drawer.open { transform: translateX(0); pointer-events: auto; }
+.agx-drawer-glass { position: relative; height: 100%; display: flex; flex-direction: column; padding: 18px 16px 16px; overflow: hidden; }
+.agx-drawer-close { position: absolute; top: 16px; right: 14px; z-index: 2; }
+
+/* ── Compact command bar + hover menu ─────────────────────────────────────── */
+.agx-cmd-wrap { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 45; width: min(940px, calc(100vw - 40px)); }
+.agx-cmd { display: flex; align-items: center; gap: 10px; padding: 7px 11px; }
+.agx-cmd-region { position: relative; display: inline-flex; }
+.agx-cmd-menu {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border: none; background: var(--agent-surface-subtle); border-radius: 10px;
+  font-size: 13.5px; font-weight: 580; color: var(--agent-text-primary); flex-shrink: 0; cursor: pointer;
+  transition: background 0.16s, color 0.16s;
+}
+.agx-cmd-menu svg { width: 17px; height: 17px; }
+.agx-cmd-menu:hover { background: var(--agent-hover-tint); }
+.agx-cmd-menu[aria-expanded="true"] { background: color-mix(in srgb, var(--agent-coral) 14%, transparent); color: var(--agent-coral); }
+.agx-cmd-search { flex: 1; min-width: 0; }
+.agx-cmd-spacer { flex: 0 0 2px; }
+
+.agx-cmd-panel {
+  position: absolute; top: calc(100% + 13px); left: 0; width: 276px;
+  opacity: 0; transform: translateY(-8px) scale(0.98); transform-origin: top left; pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.agx-cmd-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.agx-cmd-panel-glass { display: flex; flex-direction: column; padding: 16px; max-height: 76vh; overflow: hidden; }
+
+/* ── Drawer / menu body: brand · scroll region · recents ──────────────────── */
+.agx-brand { display: flex; align-items: center; gap: 10px; padding: 2px 2px 14px; }
+.agx-brand-text { min-width: 0; flex: 1; }
+.agx-brand-name { margin: 0; font-size: 13px; font-weight: 600; color: var(--agent-text-primary); line-height: 1.2; }
+.agx-brand-firm { margin: 1px 0 0; font-size: 11px; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agx-side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; overflow-x: hidden; }
+.agx-nav-div { height: 0.5px; background: var(--agent-border-subtle); margin: 6px 0; }
+.agx-recents { display: flex; flex-direction: column; gap: 2px; }
+.agx-recents-title { margin: 0 0 4px 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--agent-text-muted); }
+
+/* ── Shell switcher (personal preview control) ────────────────────────────── */
+.agx-switcher {
+  position: fixed; left: 18px; bottom: 18px; z-index: 80;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px 7px 12px; border-radius: 13px;
+  background: var(--agent-surface-elevated); border: 1px solid var(--agent-border-subtle);
+  box-shadow: 0 10px 30px rgba(24, 30, 54, 0.14);
+}
+.agx-switcher-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--agent-text-muted); }
+.agx-switcher-opts { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--agent-surface-subtle); }
+.agx-switcher-opts button {
+  border: none; background: none; color: var(--agent-text-muted);
+  font-size: 12px; font-weight: 580; padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.agx-switcher-opts button:hover { color: var(--agent-text-primary); }
+.agx-switcher-opts button.on { background: var(--agent-surface-elevated); color: var(--agent-coral); box-shadow: 0 1px 2px rgba(43, 38, 32, 0.08); }
+
+@keyframes agxFade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .agx-drawer { transition: transform 0.2s linear; }
+  .agx-cmd-panel { transition: opacity 0.12s; transform: none; }
+  .agx-scrim { animation: none; }
+}
+
+/* Narrow laptops: trim the capsule search so the cluster never overflows. */
+@media (max-width: 1100px) { .agx-cap-search { width: min(320px, 38vw); } }
