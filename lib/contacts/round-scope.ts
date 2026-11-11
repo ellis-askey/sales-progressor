@@ -20,7 +20,7 @@ export function isActiveRoundContact(
   return c.buyerRoundId === activeBuyerRoundId;
 }
 
-export type EmailCoverageContact = { roleType: string; email: string | null; buyerRoundId: string | null };
+export type EmailCoverageContact = { roleType: string; email: string | null; buyerRoundId: string | null; unsubscribedAt?: Date | null };
 
 // Which client sides (seller / buyer) can't be reached by email at all.
 //
@@ -43,6 +43,26 @@ export function sidesWithNoEmail(
     if (onSide.length === 0) continue; // no one on this side → nothing to chase, not a gap
     const reachable = onSide.some((c) => !!c.email && c.email.trim() !== "");
     if (!reachable) out.push(side);
+  }
+  return out;
+}
+
+// Which client sides have an email on file but can't be chased because EVERY
+// emailable contact on the side has unsubscribed (a consent opt-out, distinct
+// from a missing address). Same per-side, round-scoped rule as sidesWithNoEmail:
+// a side counts as opted-out only when it has at least one address AND none of
+// its addressed contacts is still subscribed.
+export function sidesOptedOut(
+  contacts: EmailCoverageContact[],
+  activeBuyerRoundId: string | null,
+): ("vendor" | "purchaser")[] {
+  const out: ("vendor" | "purchaser")[] = [];
+  for (const side of ["vendor", "purchaser"] as const) {
+    const onSide = contacts.filter((c) => c.roleType === side && isActiveRoundContact(c, activeBuyerRoundId));
+    const withEmail = onSide.filter((c) => !!c.email && c.email.trim() !== "");
+    if (withEmail.length === 0) continue; // no address at all → that's "need info", not opted-out
+    const anySubscribed = withEmail.some((c) => c.unsubscribedAt == null);
+    if (!anySubscribed) out.push(side);
   }
   return out;
 }

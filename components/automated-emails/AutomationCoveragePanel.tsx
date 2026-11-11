@@ -11,6 +11,7 @@ import type { AutomationCoverage } from "@/lib/services/automated-emails-coverag
 
 const COVERED = "var(--agent-success)";
 const NEED = "var(--agent-warning)";
+const OPTED = "#6366f1"; // indigo — informational (they chose to unsubscribe), not a problem
 const PAUSED = "var(--agent-text-muted)";
 
 const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" } as const;
@@ -19,11 +20,12 @@ function ringBackground(c: AutomationCoverage): string {
   if (c.total === 0) return "var(--agent-border-subtle, rgba(15,23,42,0.10))";
   const a1 = (c.covered / c.total) * 360;
   const a2 = a1 + (c.needInfo / c.total) * 360;
-  return `conic-gradient(${COVERED} 0 ${a1}deg, ${NEED} ${a1}deg ${a2}deg, ${PAUSED} ${a2}deg 360deg)`;
+  const a3 = a2 + (c.optedOut / c.total) * 360;
+  return `conic-gradient(${COVERED} 0 ${a1}deg, ${NEED} ${a1}deg ${a2}deg, ${OPTED} ${a2}deg ${a3}deg, ${PAUSED} ${a3}deg 360deg)`;
 }
 
 export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCoverage }) {
-  const { total, covered, needInfo, paused } = coverage;
+  const { total, covered, needInfo, optedOut, paused } = coverage;
 
   return (
     <GlassCard glassId="auto-emails-coverage" label="Auto emails · Coverage" defaultVariant="v05" style={CARD_STYLE}>
@@ -37,7 +39,7 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
           <div
             role="img"
-            aria-label={`${covered} of ${total} files fully covered, ${needInfo} need information, ${paused} paused`}
+            aria-label={`${covered} of ${total} files fully covered, ${needInfo} need information, ${optedOut} opted out, ${paused} paused`}
             style={{ position: "relative", width: 148, height: 148 }}
           >
             <div
@@ -58,6 +60,7 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
             <LegendRow colour={COVERED} value={covered} title="Fully covered" sub="All contacts present, chasing on" />
             <LegendRow colour={NEED} value={needInfo} title="Need information" sub="Missing a client email address" />
+            {optedOut > 0 && <LegendRow colour={OPTED} value={optedOut} title="Opted out" sub="They unsubscribed — we won't email them" />}
             <LegendRow colour={PAUSED} value={paused} title="Paused" sub="Automation paused on the file" />
           </div>
 

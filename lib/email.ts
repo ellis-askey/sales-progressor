@@ -511,6 +511,23 @@ export async function suppressContactByEmail(email: string): Promise<number> {
   return res.count;
 }
 
+// Mark every contact on this email address as UNSUBSCRIBED (a consent opt-out —
+// e.g. a SendGrid "Group Unsubscribe" drop). This is NOT a bad address, so it
+// must not set emailBouncedAt: the agent has nothing to "fix". Chasing still
+// stops (isContactEmailSuppressed checks unsubscribedAt), but the file reads as
+// "opted out", not "bounced / update the email". Also clears any stale bounce
+// flag we may have mis-set on this address before this split existed. Only
+// stamps rows not already unsubscribed, so it's idempotent. Returns the count.
+export async function unsubscribeContactByEmail(email: string): Promise<number> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return 0;
+  const res = await prisma.contact.updateMany({
+    where: { email: { equals: normalized, mode: "insensitive" }, unsubscribedAt: null },
+    data: { unsubscribedAt: new Date(), emailBouncedAt: null },
+  });
+  return res.count;
+}
+
 // Returns true if this chain link's invite has been unsubscribed (unclaimed agents only).
 export async function isInviteEmailSuppressed(chainLinkId: string): Promise<boolean> {
   const link = await prisma.chainLink.findUnique({

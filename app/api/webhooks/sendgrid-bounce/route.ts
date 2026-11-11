@@ -24,11 +24,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createPublicKey, createVerify } from "node:crypto";
 import { handleBouncedInvite } from "@/lib/chain/invite";
-import { suppressContactByEmail } from "@/lib/email";
+import { suppressContactByEmail, unsubscribeContactByEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { haltActiveFlows } from "@/lib/prospects/flow-ops";
 import {
   classifyEvent,
+  isOptOutDrop,
   extractQueueIds,
   extractOutboundMessageIds,
   type QueueUpdate,
@@ -136,8 +137,17 @@ export async function POST(req: NextRequest) {
     // chain invites trigger invite-bounced notifications; bounces on
     // operational user emails suppress the user globally so we stop
     // sending to a dead address.
+    // A consent opt-out (group unsubscribe) is recorded as an UNSUBSCRIBE on the
+    // contact, never a bounce. The address is valid — there's nothing to "fix" —
+    // so emailBouncedAt and the queue bounce mark are deliberately left unset
+    // (chasing still stops via unsubscribedAt, and the file reads "opted out").
+    if (isOptOutDrop(event) && typeof event.email === "string") {
+      await unsubscribeContactByEmail(event.email).catch(console.error);
+    }
+
     const isHardBounce =
-      (event.event === "bounce" && event.type !== "blocked") || event.event === "dropped";
+      (event.event === "bounce" && event.type !== "blocked") ||
+      (event.event === "dropped" && !isOptOutDrop(event));
     if (isHardBounce && typeof event.email === "string") {
       await handleBouncedInvite(event.email).catch(console.error);
       await suppressUserByEmail(event.email).catch(console.error);

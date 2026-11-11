@@ -18,7 +18,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
-import { sidesWithNoEmail } from "@/lib/contacts/round-scope";
+import { sidesWithNoEmail, sidesOptedOut } from "@/lib/contacts/round-scope";
 
 // The chase cron's global gate (mirrors automated-emails-preview.ts). Anything
 // other than the literal "true" leaves every file's chases dormant.
@@ -30,12 +30,13 @@ export type AutomationCoverage = {
   total: number;    // active files in scope
   covered: number;
   needInfo: number;
+  optedOut: number; // a whole client side has an address but has unsubscribed
   paused: number;
 };
 
 export async function getAutomationCoverage(input: EmailScopeInput): Promise<AutomationCoverage> {
   const { txIds } = await resolveEmailScope(input);
-  if (txIds.length === 0) return { total: 0, covered: 0, needInfo: 0, paused: 0 };
+  if (txIds.length === 0) return { total: 0, covered: 0, needInfo: 0, optedOut: 0, paused: 0 };
 
   const globalOff = chaseGloballyPaused();
   const txs = await prisma.propertyTransaction.findMany({
@@ -47,13 +48,14 @@ export async function getAutomationCoverage(input: EmailScopeInput): Promise<Aut
       agency: { select: { chaseEmailsEnabled: true } },
       contacts: {
         where: { roleType: { in: ["vendor", "purchaser"] } },
-        select: { roleType: true, email: true, buyerRoundId: true },
+        select: { roleType: true, email: true, buyerRoundId: true, unsubscribedAt: true },
       },
     },
   });
 
   let covered = 0;
   let needInfo = 0;
+  let optedOut = 0;
   let paused = 0;
   for (const t of txs) {
     // Most-global pause wins, matching the preview service's pause precedence.
@@ -63,12 +65,14 @@ export async function getAutomationCoverage(input: EmailScopeInput): Promise<Aut
     }
     // needInfo only when a whole SIDE has no emailable contact (per-side,
     // round-scoped) — a couple with one address between them is reachable.
-    const missingEmail = sidesWithNoEmail(t.contacts, t.activeBuyerRoundId).length > 0;
-    if (missingEmail) needInfo++;
-    else covered++;
+    if (sidesWithNoEmail(t.contacts, t.activeBuyerRoundId).length > 0) { needInfo++; continue; }
+    // optedOut: the side HAS an address but every addressed contact has
+    // unsubscribed — a consent opt-out, not a setup gap. Distinct from a bounce.
+    if (sidesOptedOut(t.contacts, t.activeBuyerRoundId).length > 0) { optedOut++; continue; }
+    covered++;
   }
 
-  return { total: txs.length, covered, needInfo, paused };
+  return { total: txs.length, covered, needInfo, optedOut, paused };
 }
 
 // ── Per-file rollup (the Files tab) ──────────────────────────────────────────

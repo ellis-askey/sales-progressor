@@ -56,6 +56,16 @@ function reasonOf(event: SendGridEvent): string | null {
   return event.reason ?? event.status ?? null;
 }
 
+// A "dropped" event caused by a CONSENT OPT-OUT — the recipient is on one of our
+// SendGrid unsubscribe groups (reason "Group Unsubscribe" / "Unsubscribed
+// Address"). This is not a dead address, so it must NOT be treated as a bounce:
+// the webhook records it as an unsubscribe on the contact instead, and the queue
+// row is left unmarked (no bouncedAt) so it never surfaces as "fix the email".
+const OPT_OUT_DROP_RE = /unsubscrib|opt(?:ed)?[\s-]?out/i;
+export function isOptOutDrop(event: SendGridEvent): boolean {
+  return event.event === "dropped" && OPT_OUT_DROP_RE.test(reasonOf(event) ?? "");
+}
+
 export function classifyEvent(event: SendGridEvent): QueueUpdate | null {
   const at = tsToDate(event.timestamp);
   switch (event.event) {
@@ -79,6 +89,9 @@ export function classifyEvent(event: SendGridEvent): QueueUpdate | null {
     case "blocked":
       return { kind: "blocked", blockedAt: at, blockedReason: reasonOf(event) };
     case "dropped":
+      // A consent opt-out (group unsubscribe) is handled as an unsubscribe in the
+      // webhook route, NOT a bounce — so don't stamp the queue row at all.
+      if (isOptOutDrop(event)) return null;
       return { kind: "bounced", bouncedAt: at, bouncedReason: reasonOf(event) ?? "dropped" };
     default:
       return null;
