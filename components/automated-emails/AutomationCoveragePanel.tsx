@@ -60,7 +60,7 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
             <LegendRow colour={COVERED} value={covered} title="Fully covered" sub="All contacts present, chasing on" />
             <LegendRow colour={NEED} value={needInfo} title="Need information" sub="Missing a client email address" />
-            {optedOut > 0 && <LegendRow colour={OPTED} value={optedOut} title="Opted out" sub="They unsubscribed — we won't email them" />}
+            {optedOut > 0 && <LegendRow colour={OPTED} value={optedOut} title="Opted out" sub="They unsubscribed, so we won't email them" />}
             <LegendRow colour={PAUSED} value={paused} title="Paused" sub="Automation paused on the file" />
           </div>
 
