@@ -593,6 +593,9 @@ function DirectionSeg({ value, onChange, tagClassName = "", tagProps, tagLens = 
 
 const CSS = `
 .lu-ov { position:fixed; inset:0; z-index:1500; font-family:var(--font-geist-sans, -apple-system, system-ui, sans-serif); }
+/* LiquidLens filter SVG (slab-lens pick): defs-only, must never take layout
+   space. liquid-glass.css scopes this under .lg-ds; the lens renders outside it. */
+.lgx-filter-svg { position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
 .lu-bg { position:absolute; inset:0; background:rgba(0,0,0,0.38); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:lu-bgf .26s ease both; }
 @keyframes lu-bgf { from { opacity:0 } to { opacity:1 } }
 .lu-ov[data-closing="1"] .lu-bg { animation:lu-bgout .24s ease both; }
