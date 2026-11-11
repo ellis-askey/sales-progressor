@@ -48,7 +48,10 @@ export const DESIGN_LAB_EMAILS = new Set([
 // Ellis-only experimental chrome (Floating drawers / Compact command bar). The
 // gate lives in app/agent/layout.tsx; editing this one set widens the rollout
 // once a winner is picked. Kept here so nav/account stay single-sourced.
-export const EXPERIMENTAL_SHELL_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
+// TEMPORARILY EMPTY (2026-11-11): the experimental shell threw at runtime on the
+// hub; disabled to restore access while the crash is fixed. Re-add the email
+// once AgentShellExperimental is confirmed stable.
+export const EXPERIMENTAL_SHELL_EMAILS = new Set<string>();
 
 function formatAgentTime(d: Date): string {
   try {
