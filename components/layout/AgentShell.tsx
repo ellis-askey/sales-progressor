@@ -317,11 +317,13 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const isDirector      = role === "director";
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
   const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
-  // Migrate sale is hidden from the left nav per founder (2026-11-06). The
-  // feature + the /agent/transactions/migrate page stay gated by the
-  // MIGRATE_SALE_AGENCY_IDS allowlist and remain reachable; this flag only
-  // controls the sidebar shortcut. Set to true to restore the button.
-  const SHOW_MIGRATE_SALE_NAV = false;
+  // Migrate sale nav shortcut. Restored (founder, 2026-11-11) after the import
+  // path was hardened to replicate completeMilestone's persistent side-effects
+  // (mirror-pair completions, exchange stamp, mortgage-offer expiry, referral
+  // ledger) so a migrated file behaves like a normally-added one. Still gated to
+  // the MIGRATE_SALE_AGENCY_IDS allowlist via canMigrateSale, so the button only
+  // shows for Boardwalk. Set to false to hide the sidebar shortcut again.
+  const SHOW_MIGRATE_SALE_NAV = true;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
