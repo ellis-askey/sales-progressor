@@ -12,8 +12,6 @@ import { ReviewsSection } from "@/components/agent/ReviewsSection";
 import { TodoEmptyState } from "@/components/agent/TodoEmptyState";
 import { isBusinessOwnerViewer, getProgressorCopy } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { toUKDateStr } from "@/lib/utils";
 
 export default async function AgentTodoPage() {
@@ -97,9 +95,6 @@ export default async function AgentTodoPage() {
       {/* The quick-nav stat pills are gone — the tabs below carry the counts now
           (critique #261). */}
       <PageHeader title="To-Do" subtitle={subtitle}>
-        {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
         {/* #292: on mobile, AgentTodoList portals its context-aware "Add to-do /
             Add review" button into this slot, so all three actions share one row.
             display:contents means it adds no box (no phantom gap) on desktop. */}

@@ -17,7 +17,11 @@ import { getNoteContextAction, type NoteContext } from "@/app/actions/comms";
 import { LogUpdateModal, LOG_UPDATE_CSS } from "@/components/activity/LogUpdateModal";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
-export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+// The minimal sale header the "log" step needs — from a search result OR the
+// file-context load (getNoteContextAction.property).
+type SaleHead = { id: string; line1: string; location: string; photoUrl: string | null };
+
+export function AddNoteModal({ open, onClose, initialTransactionId = null }: { open: boolean; onClose: () => void; initialTransactionId?: string | null }) {
   const { toast } = useAgentToast();
   // Tag the sheet with the shared card id so its glass edits alongside the
   // Activity-tab modal's card. The Design Lab itself is Ellis-gated inside
@@ -33,7 +37,7 @@ export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => 
   const [searching, setSearching] = useState(false);
 
   // Picked sale + its loaded log-an-update context.
-  const [picked, setPicked] = useState<ComposeSaleResult | null>(null);
+  const [picked, setPicked] = useState<SaleHead | null>(null);
   const [ctx, setCtx] = useState<NoteContext | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(false);
 
@@ -41,10 +45,25 @@ export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => 
   const close = useCallback(() => { setClosing(true); }, []);
   const finish = useCallback(() => { setClosing(false); onClose(); }, [onClose]);
 
-  // Reset to a clean search whenever (re)opened.
+  // (Re)initialise on open. On a file (initialTransactionId set) jump straight
+  // to that sale's "Log an update"; otherwise start on the property search.
   useEffect(() => {
-    if (open) { setStep("search"); setQuery(""); setResults([]); setPicked(null); setCtx(null); setClosing(false); }
-  }, [open]);
+    if (!open) return;
+    setClosing(false); setQuery(""); setResults([]);
+    if (initialTransactionId) {
+      setStep("log"); setPicked(null); setCtx(null); setLoadingCtx(true);
+      getNoteContextAction(initialTransactionId)
+        .then((res) => {
+          if (!res) { setStep("search"); return; } // can't open it → let them search
+          setPicked({ id: initialTransactionId, line1: res.property.line1, location: res.property.location, photoUrl: res.property.photoUrl });
+          setCtx(res);
+        })
+        .catch(() => setStep("search"))
+        .finally(() => setLoadingCtx(false));
+    } else {
+      setStep("search"); setPicked(null); setCtx(null);
+    }
+  }, [open, initialTransactionId]);
 
   // Escape closes (matches the file's Log-an-update sheet).
   useEffect(() => {
@@ -69,7 +88,7 @@ export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => 
   }, [query, open, step]);
 
   async function pick(sale: ComposeSaleResult) {
-    setPicked(sale);
+    setPicked({ id: sale.id, line1: sale.line1, location: sale.location, photoUrl: sale.photoUrl });
     setLoadingCtx(true);
     const res = await getNoteContextAction(sale.id).catch(() => null);
     setLoadingCtx(false);
@@ -107,7 +126,7 @@ export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => 
               emailConnected={ctx.emailConnected}
               canMarkPrivate={ctx.canMarkPrivate}
               propertyHeader={{ line1: picked.line1, location: picked.location, photoUrl: picked.photoUrl }}
-              onBackToSearch={backToSearch}
+              onBackToSearch={initialTransactionId ? undefined : backToSearch}
               onClose={close}
               onOptimisticAdd={() => toast.success(`Note added to ${picked.line1}`)}
             />

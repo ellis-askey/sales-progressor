@@ -8,8 +8,6 @@ import { canSeeChains } from "@/lib/chain/chains-access";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { isExternalProgressorViewer, isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -79,9 +77,6 @@ export default async function AgentChainsPage() {
   return (
     <>
       <PageHeader title="Chains" subtitle={subtitle}>
-        {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
       </PageHeader>
       <div className="px-4 md:px-8 py-2 md:py-4">
         <ChainsWorkspace

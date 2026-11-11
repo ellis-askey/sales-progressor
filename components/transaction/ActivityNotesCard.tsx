@@ -20,7 +20,6 @@ import type { Icon } from "@phosphor-icons/react";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { LogUpdateModal } from "@/components/activity/LogUpdateModal";
 import { deleteCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
@@ -210,16 +209,6 @@ export function ActivityNotesCard({
               Notes{noteCount > 0 ? ` ${noteCount}` : ""}
             </button>
           </div>
-          {/* Composer — the exact Activity-tab "Log an update" button + modal (critique #238) */}
-          <LogUpdateModal
-            transactionId={transactionId}
-            contacts={contacts ?? []}
-            solicitors={solicitors}
-            canPasteChat={canPasteChat}
-            emailConnected={emailConnected}
-            compactTrigger
-            onOptimisticAdd={handleOptimisticAdd}
-          />
         </div>
         <button onClick={() => setActiveTab("activity")} className="agent-link" style={{ fontSize: 11, flexShrink: 0 }}>View all <LinkArrow /></button>
       </div>

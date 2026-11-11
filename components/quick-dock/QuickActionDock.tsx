@@ -15,6 +15,7 @@
 // ellis@thesalesprogressor.co.uk while this is a trial.
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { NotePencil, PaperPlaneTilt } from "@phosphor-icons/react";
 import { LiquidGlass } from "@/components/quick-dock/LiquidGlass";
 import { AddNoteModal } from "@/components/activity/AddNoteModal";
@@ -40,6 +41,12 @@ function useIsDark(): boolean {
 
 export function QuickActionDock() {
   const isDark = useIsDark();
+  const pathname = usePathname();
+  // When you're on a file (/agent/transactions/<id>), the dock's New note / New
+  // email open straight onto THAT sale — no re-searching for the file you're
+  // already looking at. Off a file, they start from a sale search as normal.
+  const fileMatch = pathname?.match(/^\/agent\/transactions\/([^/]+)/);
+  const fileId = fileMatch && fileMatch[1] !== "migrate" && fileMatch[1] !== "new" ? fileMatch[1] : null;
   const [noteOpen, setNoteOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [down, setDown] = useState(false);
@@ -99,8 +106,8 @@ export function QuickActionDock() {
         </button>
       </LiquidGlass>
 
-      <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} />
-      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} />
+      <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={fileId} />
+      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} />
 
       <style>{QDOCK_CSS}</style>
     </div>

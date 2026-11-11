@@ -19,8 +19,6 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { AnchoredPanel, Tooltip } from "@/components/ui/Popover";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -263,12 +261,6 @@ export function FocusClientComms({ files, totalSides, doneSides, showWhatsApp, n
         <header className="fc-hd" data-bloom>
           <h1 className="fc-h1">Keep every client in the loop</h1>
           <p key={view} className="fcl-sub">{SUB_COPY[view]}</p>
-          {/* Same composer as the hub. Top-right on desktop; on small screens it
-              drops below the title + subtext and right-aligns (right-handed reach). */}
-          <div className="fc-hd-actions">
-            <AddNoteButton />
-            <ComposeEmailButton variant="ghost" />
-          </div>
 
           <div className="fc-bar"><i style={{ width: `${barIn ? pct : 0}%` }} /></div>
           <div className="fc-barlbl">

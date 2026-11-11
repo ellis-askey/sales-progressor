@@ -12,8 +12,6 @@
 
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
@@ -184,8 +182,6 @@ export default async function AutomatedEmailsPage({
         title="Automated emails"
         subtitle={subtitleFor(role, mineOnly, fileLabel, hasAdminPowers(session))}
       >
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
       </PageHeader>
       <AutoRefresh />
 

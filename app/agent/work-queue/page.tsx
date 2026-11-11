@@ -15,8 +15,6 @@ import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milest
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
@@ -177,8 +175,6 @@ export default async function WorkQueuePage() {
           ? "What needs chasing across your files."
           : "What needs chasing, today and ahead."}
       >
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
       </PageHeader>
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-6">

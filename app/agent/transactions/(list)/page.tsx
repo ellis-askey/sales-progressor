@@ -16,8 +16,6 @@ import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState
 import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getProgressorCopy } from "@/lib/services/progression-clients";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
@@ -258,9 +256,6 @@ export default async function AllTransactionsPage({
             New sale
           </Link>
         )}
-        {/* Same composer, same header slot as the hub (founder ask, 2026-10-21). */}
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
         {/* AgentFlagButton — agent-only, and only when there's a team to receive
             it (an active outsourced sale) AND one obvious recipient. A
             2+-progressor agency has no single destination for a general note, so

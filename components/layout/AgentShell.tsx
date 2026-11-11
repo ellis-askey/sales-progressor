@@ -731,10 +731,12 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
       </main>
 
       {/* App-wide quick-action dock (New note / New email) — plucked byte-for-byte
-          from /dev/updates-glass and wired to the real surfaces. Founder-gated
-          while it trials; in return the top-right header buttons hide for the
-          founder (FounderProvider above). */}
-      {isFounderDock && <QuickActionDock />}
+          from /dev/updates-glass and wired to the real surfaces. The single entry
+          point for everyone now: the old top-right header buttons + the file-page
+          "Log an update" triggers were retired in favour of this. On a file it
+          opens straight onto that sale (QuickActionDock reads the route).
+          FounderProvider stays (the Design Lab in LogUpdateModal gates on it). */}
+      <QuickActionDock />
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}

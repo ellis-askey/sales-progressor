@@ -5,8 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { getOpenEnquiries } from "@/lib/services/enquiries";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AddNoteButton } from "@/components/activity/AddNoteButton";
-import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
 import { EnquiriesEmptyState } from "@/components/enquiries/EnquiriesEmptyState";
 import { BloomStage } from "@/components/agent/BloomStage";
@@ -46,8 +44,6 @@ export default async function EnquiriesPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing.">
-        <AddNoteButton />
-        <ComposeEmailButton variant="ghost" />
       </PageHeader>
       <BloomStage>
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
