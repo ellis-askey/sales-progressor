@@ -15,9 +15,15 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { searchComposeSales, type ComposeSaleResult } from "@/app/actions/compose";
 import { getNoteContextAction, type NoteContext } from "@/app/actions/comms";
 import { LogUpdateModal, LOG_UPDATE_CSS } from "@/components/activity/LogUpdateModal";
+import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useAgentToast();
+  // Tag the sheet with the shared card id so its glass edits alongside the
+  // Activity-tab modal's card. The Design Lab itself is Ellis-gated inside
+  // LogUpdateModal (useIsFounder), so this tag is an inert data attribute for
+  // everyone else.
+  const gCard = useGlassTag("log-update-card", "Log an update · card");
   const [closing, setClosing] = useState(false);
   const [step, setStep] = useState<"search" | "log">("search");
 
@@ -86,7 +92,8 @@ export function AddNoteModal({ open, onClose }: { open: boolean; onClose: () => 
       <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Add a note" data-closing={closing ? "1" : undefined}>
         <div className="lu-bg" onClick={close} />
         <div
-          className={"lu-sheet" + (closing ? " lu-closing" : "")}
+          {...gCard.props}
+          className={"lu-sheet" + (closing ? " lu-closing" : "") + (gCard.className ? " " + gCard.className : "")}
           onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) finish(); }}
         >
           <div className="lu-grab" />

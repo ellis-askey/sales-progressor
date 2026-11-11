@@ -21,6 +21,7 @@ import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { DesignLabDrawer } from "@/components/glass/DesignLabDrawer";
+import { useIsFounder } from "@/components/layout/FounderGate";
 import type { CommType, CommMethod } from "@prisma/client";
 
 type Contact = { id: string; name: string; roleType: string; phone?: string | null };
@@ -128,12 +129,13 @@ export function LogUpdateModal(props: Props) {
   const moreWrapRef = useRef<HTMLDivElement>(null);
   const whoWrapRef = useRef<HTMLDivElement>(null);
 
-  // ── Design Lab wiring (local dev only) ──────────────────────────────────────
-  // Tag each surface so the glass Design Lab discovers it and Ellis/Emily can
-  // design its glass live, then export + bake. No pick → className is "" and the
-  // surface is byte-for-byte unchanged. The flask toggle + drawer only render on
-  // local dev, so nothing design-tool ships to real users.
-  const showLab = process.env.NODE_ENV !== "production";
+  // ── Design Lab wiring (Ellis only) ──────────────────────────────────────────
+  // Tag each surface so the glass Design Lab discovers it and Ellis can design
+  // its glass live, then export + bake. No pick → className is "" and the surface
+  // is byte-for-byte unchanged. The flask toggle + drawer render ONLY for the
+  // founder (useIsFounder is true solely for ellis@thesalesprogressor.co.uk), so
+  // nothing design-tool is exposed to any other user, in any environment.
+  const showLab = useIsFounder();
   const [labOpen, setLabOpen] = useState(false);
   const gCard = useGlassTag("log-update-card", "Log an update · card");
   const gField = useGlassTag("log-update-field", "Log an update · what-happened field");

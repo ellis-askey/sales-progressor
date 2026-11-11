@@ -19,7 +19,7 @@ import {
   type GlassPicks,
 } from "./variants";
 import { DEFAULT_PICKS } from "./default-picks";
-import { DEFAULT_STYLES, glassStylesCss, isCustomStyleId, parseGlassStyles, recipeToCssBody, type GlassStyle, type GlassRecipe } from "./custom";
+import { DEFAULT_STYLES, glassStylesCss, isCustomStyleId, parseGlassStyles, recipeCssRules, type GlassStyle, type GlassRecipe } from "./custom";
 import type { ThemeMode } from "@/lib/agent/theme-mode";
 
 type Preview = { glassId: string; mode: GlassMode; recipe: GlassRecipe } | null;
@@ -161,7 +161,7 @@ export function GlassPicksProvider({
 
   const css =
     glassStylesCss(effectiveStyles) +
-    (preview ? `\n[data-glass-id].glass-cs-preview {\n${recipeToCssBody(preview.recipe)}\n}` : "");
+    (preview ? "\n" + recipeCssRules("[data-glass-id].glass-cs-preview", preview.recipe) : "");
 
   return (
     <GlassCtx.Provider value={value}>

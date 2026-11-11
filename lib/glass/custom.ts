@@ -9,6 +9,13 @@
 // everybody" happens the same way picks do today: Export JSON → bake into
 // DEFAULT_STYLES / DEFAULT_PICKS page by page.
 
+// Apple-glass refraction overlays, ported from the /dev/glass-foundry materials
+// (frost / clear / edge-lit). Each slot maps to one pseudo-element on the glass
+// surface, so a surface gets at most one ::before + one ::after. All optional:
+// an absent/`"none"` value emits nothing, so existing recipes are unchanged.
+export type GlassTop = "none" | "sheen" | "edge"; // ::before — top gloss / edge-lit rim
+export type GlassGlare = "none" | "glare" | "streak"; // ::after — corner specular / diagonal refraction
+
 export type GlassRecipe = {
   /** backdrop-filter blur, px */
   blur: number;
@@ -26,6 +33,13 @@ export type GlassRecipe = {
   borderA: number;
   /** drop-shadow depth 0–100 */
   shadow: number;
+  // ── Apple-glass refraction (all optional; absent = off) ──────────────────────
+  /** specular bevel — inset edge highlights + inner rim + bottom inner shade, 0–100 */
+  bevel?: number;
+  /** ::before overlay — "sheen" top gloss or "edge" bright gradient rim */
+  top?: GlassTop;
+  /** ::after overlay — "glare" corner specular or "streak" diagonal refraction */
+  glare?: GlassGlare;
 };
 
 export type GlassStyle = { id: string; name: string; recipe: GlassRecipe };
@@ -101,23 +115,74 @@ function shadowValue(depth: number): string {
  *  `<style data-glass-custom>` is injected after glass.css (document order), so
  *  at equal specificity + importance the custom rule wins. Background + border
  *  stay un-important so normal hover states still layer over them. */
+// Refraction is expressed entirely through `background` layers + `box-shadow`
+// (no pseudo-elements, no position/overflow changes) so it layers onto ANY
+// tagged surface without disturbing its layout — a glass rule that forced
+// `position: relative` would break the modal's `position: absolute` centring.
+// Gradient layers always paint behind content, so no z-index juggling either.
+
+/** Specular bevel as inset box-shadow layers (empty when off). Scales the
+ *  /dev/glass-foundry .gf-disp craft: top highlight + inner rim + bottom shade. */
+function bevelInsets(bevel: number | undefined): string[] {
+  const s = Math.min(100, Math.max(0, bevel ?? 0)) / 100;
+  if (s <= 0) return [];
+  return [
+    `0 1px 0 rgba(255,255,255,${(0.5 * s).toFixed(3)}) inset`,
+    `0 0 0 0.5px rgba(255,255,255,${(0.22 * s).toFixed(3)}) inset`,
+    `0 -14px 26px rgba(0,0,0,${(0.22 * s).toFixed(3)}) inset`,
+  ];
+}
+
+/** Edge-lit bright rim (gf-edge) as inset box-shadow layers. */
+function edgeRimInsets(r: GlassRecipe): string[] {
+  if (r.top !== "edge") return [];
+  return [
+    "0 0 0 1px rgba(255,255,255,0.14) inset",
+    "0 1.5px 1px rgba(255,255,255,0.55) inset",
+    "0 -2px 2px rgba(255,255,255,0.15) inset",
+  ];
+}
+
+/** Refraction glare/sheen as translucent `background` gradient layers (gf-frost
+ *  top gloss, gf-edge corner glare, gf-clear diagonal streak). Painted over the
+ *  base tint, which is appended last by the caller. */
+function gradientLayers(r: GlassRecipe): string[] {
+  const g: string[] = [];
+  if (r.top === "sheen") g.push("linear-gradient(180deg, rgba(255,255,255,0.16) 0%, transparent 42%)");
+  if (r.glare === "glare") g.push("radial-gradient(120% 80% at 30% 6%, rgba(255,255,255,0.26), transparent 44%)");
+  else if (r.glare === "streak") g.push("linear-gradient(135deg, rgba(255,255,255,0.22), transparent 40%)");
+  return g;
+}
+
 export function recipeToCssBody(r: GlassRecipe): string {
   const bf = `blur(${r.blur}px) saturate(${r.sat})`;
   const border = r.borderW > 0 ? `${r.borderW}px solid rgba(${r.borderC}, ${r.borderA})` : "none";
+  const outer = shadowValue(r.shadow);
+  const shadows = [...bevelInsets(r.bevel), ...edgeRimInsets(r), ...(outer === "none" ? [] : [outer])];
+  const boxShadow = shadows.length ? shadows.join(", ") : "none";
+  const tint = `rgba(${r.bg}, ${r.bgA})`;
+  const layers = gradientLayers(r);
+  const background = layers.length ? `${layers.join(", ")}, ${tint}` : tint;
   return [
-    `  background: rgba(${r.bg}, ${r.bgA});`,
+    `  background: ${background};`,
     `  -webkit-backdrop-filter: ${bf} !important;`,
     `  backdrop-filter: ${bf} !important;`,
     `  border: ${border};`,
-    `  box-shadow: ${shadowValue(r.shadow)} !important;`,
+    `  box-shadow: ${boxShadow} !important;`,
   ].join("\n");
+}
+
+/** CSS rule for a recipe at a selector. Shared by saved styles + the live editor
+ *  preview so both render alike. */
+export function recipeCssRules(selector: string, r: GlassRecipe): string {
+  return `${selector} {\n${recipeToCssBody(r)}\n}`;
 }
 
 /** Full stylesheet body for a set of custom styles. Scoped `[data-glass-id]`
  *  to match the variant specificity boost so it wins over bespoke surfaces. */
 export function glassStylesCss(styles: GlassStyle[]): string {
   return styles
-    .map((s) => `[data-glass-id].glass-${s.id} {\n${recipeToCssBody(s.recipe)}\n}`)
+    .map((s) => recipeCssRules(`[data-glass-id].glass-${s.id}`, s.recipe))
     .join("\n");
 }
 
@@ -133,6 +198,8 @@ export function parseGlassStyles(raw: unknown): GlassStyle[] {
     const num = (v: unknown, fb: number, lo: number, hi: number) =>
       Math.min(hi, Math.max(lo, typeof v === "number" && isFinite(v) ? v : fb));
     const rgb = (v: unknown, fb: string) => (typeof v === "string" && /^\d{1,3},\s*\d{1,3},\s*\d{1,3}$/.test(v.trim()) ? v.trim() : fb);
+    const top: GlassTop = r.top === "sheen" || r.top === "edge" ? r.top : "none";
+    const glare: GlassGlare = r.glare === "glare" || r.glare === "streak" ? r.glare : "none";
     out.push({
       id: o.id,
       name: o.name.slice(0, 40),
@@ -145,6 +212,9 @@ export function parseGlassStyles(raw: unknown): GlassStyle[] {
         borderC: rgb(r.borderC, DEFAULT_RECIPE.borderC),
         borderA: num(r.borderA, DEFAULT_RECIPE.borderA, 0, 1),
         shadow: num(r.shadow, DEFAULT_RECIPE.shadow, 0, 100),
+        bevel: num(r.bevel, 0, 0, 100),
+        top,
+        glare,
       },
     });
   }

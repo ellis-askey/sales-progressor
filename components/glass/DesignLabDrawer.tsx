@@ -663,6 +663,26 @@ function GlassStyleEditor({
 
       <Slider label="Shadow" value={recipe.shadow} min={0} max={100} step={1} onChange={(v) => patch({ shadow: v })} fmt={(v) => `${Math.round(v)}`} />
 
+      {/* ── Apple-glass refraction (ported from /dev/glass-foundry) ───────────── */}
+      <div style={{ margin: "4px 0 12px", paddingTop: 12, borderTop: `0.5px solid ${c.border}` }}>
+        <p style={{ margin: "0 0 11px", fontSize: 11, fontWeight: 700, color: "#5b8cff", textTransform: "uppercase", letterSpacing: "0.06em" }}>Refraction</p>
+        <Slider label="Bevel (specular edge)" value={recipe.bevel ?? 0} min={0} max={100} step={1} onChange={(v) => patch({ bevel: v })} fmt={(v) => (v === 0 ? "off" : `${Math.round(v)}`)} />
+        <Seg
+          label="Top gloss"
+          value={recipe.top ?? "none"}
+          options={[{ v: "none", label: "None" }, { v: "sheen", label: "Sheen" }, { v: "edge", label: "Edge-lit" }]}
+          onChange={(v) => patch({ top: v })}
+          c={c}
+        />
+        <Seg
+          label="Highlight"
+          value={recipe.glare ?? "none"}
+          options={[{ v: "none", label: "None" }, { v: "glare", label: "Glare" }, { v: "streak", label: "Streak" }]}
+          onChange={(v) => patch({ glare: v })}
+          c={c}
+        />
+      </div>
+
       <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
         <button type="button" onClick={onClose} style={{ flex: 1, padding: "9px 12px", fontSize: 12, fontWeight: 600, borderRadius: 9, border: `0.5px solid ${c.border}`, background: c.chip, color: c.text, cursor: "pointer" }}>
           Cancel
@@ -670,6 +690,32 @@ function GlassStyleEditor({
         <button type="button" onClick={doSave} style={{ flex: 2, padding: "9px 12px", fontSize: 12, fontWeight: 700, borderRadius: 9, border: "1px solid #5b8cff", background: "#5b8cff", color: "#fff", cursor: "pointer" }}>
           Save as style
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Mutually-exclusive segmented picker — one slot (::before / ::after) per group.
+function Seg<T extends string>({ label, value, options, onChange, c }: {
+  label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void; c: Record<string, string>;
+}) {
+  return (
+    <div style={{ marginBottom: 13 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: c.sub, marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 9, background: c.rowBg, border: `0.5px solid ${c.border}` }}>
+        {options.map((o) => {
+          const on = value === o.v;
+          return (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => onChange(o.v)}
+              style={{ flex: 1, padding: "6px 4px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, background: on ? "#5b8cff" : "transparent", color: on ? "#fff" : c.sub, transition: "background 140ms, color 140ms" }}
+            >
+              {o.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
