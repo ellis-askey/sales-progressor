@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { AgentShell, EXPERIMENTAL_SHELL_EMAILS } from "@/components/layout/AgentShell";
+import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentShellExperimental } from "@/components/layout/AgentShellExperimental";
+import { usesExperimentalShell } from "@/lib/agent/experimental-shell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
@@ -108,13 +109,13 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       ? await getAgentChasePrefs(session.user.agencyId)
       : null;
 
-  // Ellis-only experimental chrome (Floating drawers / Compact command bar),
-  // chosen via a persisted switcher. A pure UI swap — identical props, identical
-  // functionality. Everyone else gets the production AgentShell untouched. Widen
-  // by editing EXPERIMENTAL_SHELL_EMAILS in components/layout/AgentShell.tsx.
-  const Shell = EXPERIMENTAL_SHELL_EMAILS.has((session.user.email ?? "").toLowerCase().trim())
-    ? AgentShellExperimental
-    : AgentShell;
+  // Experimental chrome (Floating drawers / Compact command bar) via a persisted
+  // switcher. A pure UI swap; everyone else gets the production AgentShell. The
+  // allowlist + check live in a SERVER-SAFE module — importing a Set from the
+  // "use client" AgentShell into this server component made it a client-reference
+  // proxy whose `.has` threw on every /agent page (incident 2026-11-11). Widen by
+  // editing lib/agent/experimental-shell.ts.
+  const Shell = usesExperimentalShell(session.user.email) ? AgentShellExperimental : AgentShell;
 
   return (
     <div data-theme="custom" style={{ display: "contents" }}>

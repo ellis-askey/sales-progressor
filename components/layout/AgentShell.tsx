@@ -45,13 +45,11 @@ export const DESIGN_LAB_EMAILS = new Set([
   "ellisaskey+tb@googlemail.com", // Tim Branston — Ellis's agent test account
 ]);
 
-// Ellis-only experimental chrome (Floating drawers / Compact command bar). The
-// gate lives in app/agent/layout.tsx; editing this one set widens the rollout
-// once a winner is picked. Kept here so nav/account stay single-sourced.
-// TEMPORARILY EMPTY (2026-11-11): the experimental shell threw at runtime on the
-// hub; disabled to restore access while the crash is fixed. Re-add the email
-// once AgentShellExperimental is confirmed stable.
-export const EXPERIMENTAL_SHELL_EMAILS = new Set<string>();
+// The experimental-shell allowlist deliberately does NOT live here. This is a
+// "use client" module, and a Set exported from here and imported into the SERVER
+// app/agent/layout.tsx became a client-reference proxy (`.has` threw on every
+// /agent page — incident 2026-11-11). The gate now lives in the server-safe
+// lib/agent/experimental-shell.ts. Do not reintroduce it in this file.
 
 function formatAgentTime(d: Date): string {
   try {
