@@ -238,10 +238,10 @@ export const GLASS_FAMILIES: readonly GlassFamily[] = [
       "When you want true refraction, not just a tint",
     ],
     avoid: [
-      "Many small controls at once — each gets its own live filter",
+      "Many small controls at once (each gets its own live filter)",
     ],
     variants: [
-      { id: "lens", label: "Slab lens", technique: "live SVG displacement · sized per element · rim-blurred edge", recommended: true, recommendedFor: "The real Apple-glass lens bend. Use sparingly — ideally just the card." },
+      { id: "lens", label: "Slab lens", technique: "live SVG displacement · sized per element · rim-blurred edge", recommended: true, recommendedFor: "The real Apple-glass lens bend. Use sparingly, ideally just the card." },
     ],
   },
 ];
