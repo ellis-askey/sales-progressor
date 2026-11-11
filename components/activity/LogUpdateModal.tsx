@@ -65,6 +65,8 @@ const IC = {
   back: '<path d="M15 18l-6-6 6-6"/>',
   chevron: '<path d="M6 9l6 6 6-6"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7 15h10"/>',
 };
@@ -111,6 +113,8 @@ export function LogUpdateModal(props: Props) {
   const [audMode, setAudMode] = useState<"side" | "people">("side");
   const [audSides, setAudSides] = useState<{ seller: boolean; buyer: boolean }>({ seller: false, buyer: true });
   const [audPeople, setAudPeople] = useState<string[]>([]);
+  // Bump to replay the eye "flash" the moment the audience becomes both sides.
+  const [eyeKey, setEyeKey] = useState(0);
 
   // dictation into the "What happened?" field.
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -264,11 +268,15 @@ export function LogUpdateModal(props: Props) {
   const hasSided = partSides.seller || partSides.buyer;
   const crossSide = hasSided && ((audienceSides.seller && !partSides.seller) || (audienceSides.buyer && !partSides.buyer));
   const audienceEmpty = audMode === "side" ? !audSides.seller && !audSides.buyer : audPeople.length === 0;
+  // Replay the eye flash when the audience becomes BOTH sides (and it's not a
+  // cross-side share) — the "now everyone sees this" beat.
+  const bothSides = audienceSides.seller && audienceSides.buyer;
+  useEffect(() => { if (bothSides && !crossSide) setEyeKey((k) => k + 1); }, [bothSides, crossSide]);
 
   function audienceSummary() {
     if (crossSide) {
       const otherSide = audienceSides.seller && !partSides.seller ? "seller" : "buyer";
-      return <>Heads up. This was with the {otherSide === "seller" ? "buyer" : "seller"}, so sharing with the <b>{otherSide}&rsquo;s side</b> shows them a conversation they weren&rsquo;t part of.</>;
+      return <>Heads up. This was logged with the {otherSide === "seller" ? "buyer" : "seller"}, so sharing with the <b>{otherSide}&rsquo;s side</b> shows them a conversation they weren&rsquo;t part of.</>;
     }
     if (audMode === "side") {
       if (audSides.seller && audSides.buyer) return <><b>Both sides</b> will see this in their portal.</>;
@@ -506,7 +514,10 @@ export function LogUpdateModal(props: Props) {
                         {buyerClients.map((c) => personToggle(c, "buyer"))}
                       </div>
                     )}
-                    <div className={"lu-summaryline" + (crossSide ? " warn" : "") + (audienceEmpty ? " dim" : "")}>{audienceSummary()}</div>
+                    <div className={"lu-summaryline" + (crossSide ? " warn" : "") + (audienceEmpty ? " dim" : "")}>
+                      <span key={eyeKey} className="lu-eye" dangerouslySetInnerHTML={{ __html: svg(crossSide ? IC.eyeOff : IC.eye, 15, 2) }} />
+                      <span className="lu-summarytext">{audienceSummary()}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -696,11 +707,15 @@ const CSS = `
 .lu-sidecard.on .lu-cbx { background:#fff; border-color:#fff; }
 .lu-sidecard.lu-seller.on .lu-cbx { color:#0C447C; }
 .lu-sidecard.lu-buyer.on .lu-cbx { color:#085041; }
-.lu-summaryline { font-size:12.5px; color:var(--agent-text-secondary); line-height:1.45; margin-top:12px; }
+.lu-summaryline { display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--agent-text-secondary); line-height:1.45; margin-top:12px; }
+.lu-summarytext { flex:1; min-width:0; }
 .lu-summaryline b { color:var(--agent-text-primary); font-weight:650; }
 .lu-summaryline.warn { color:#C0392B; }
 .lu-summaryline.warn b { color:#A5281B; }
 .lu-summaryline.dim { color:var(--agent-text-muted); }
+.lu-eye { flex-shrink:0; margin-top:1.5px; display:inline-flex; animation:lu-eyeflash .42s cubic-bezier(.34,1.56,.64,1); }
+.lu-eye svg { display:block; }
+@keyframes lu-eyeflash { 0%{ transform:scale(.6); opacity:0; } 55%{ transform:scale(1.25); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
 
 .lu-err { margin:0; font-size:12.5px; color:#C0392B; }
 
