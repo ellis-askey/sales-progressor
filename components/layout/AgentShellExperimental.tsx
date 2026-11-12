@@ -40,7 +40,6 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { FounderProvider } from "@/components/layout/FounderGate";
 import { QuickActionDock } from "@/components/quick-dock/QuickActionDock";
 import { ShellGlassProvider, useShellGlass, engineOf, cssKeyOf } from "@/lib/agent/shell-glass";
-import { ShellGlassLabToggle } from "@/components/layout/ShellGlassLab";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { getNavBadgeCountsAction } from "@/app/actions/nav-badges";
@@ -49,9 +48,6 @@ import {
   buildNavGroups, UserDropdown, DESIGN_LAB_EMAILS, type AgentShellProps,
 } from "@/components/layout/AgentShell";
 import "@/app/agent/styles/shell-experimental.css";
-
-type ShellKind = "drawers" | "compact";
-const STORE_KEY = "agx-shell";
 
 // Same material + fallback conditions as the bottom QuickActionDock: iOS / Safari
 // / Firefox can't run the refraction filter, so they get the frosted blur.
@@ -93,9 +89,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const navGroups = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
   const SHOW_MIGRATE_SALE_NAV = true;
 
-  const [shell, setShell] = useState<ShellKind>("drawers");
-  const [navOpen, setNavOpen] = useState(false);   // drawers: the left drawer
-  const [menuOpen, setMenuOpen] = useState(false);  // compact: the hover menu
+  const [navOpen, setNavOpen] = useState(false);   // the left drawer
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [fallback, setFallback] = useState(false);
@@ -103,17 +97,8 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
   const { isDark } = useDarkMode(themeMode);
 
-  // Persisted per-device shell choice (read after mount to avoid a hydration
-  // mismatch; one-frame default→saved settle is fine for a personal preview).
-  useEffect(() => {
-    const s = typeof window !== "undefined" ? window.localStorage.getItem(STORE_KEY) : null;
-    if (s === "compact" || s === "drawers") setShell(s);
-    setFallback(detectFallback());
-  }, []);
-  function chooseShell(k: ShellKind) {
-    setNavOpen(false); setMenuOpen(false); setShell(k);
-    try { window.localStorage.setItem(STORE_KEY, k); } catch { /* ignore */ }
-  }
+  // Detect the Safari/Firefox/iOS frost fallback after mount.
+  useEffect(() => { setFallback(detectFallback()); }, []);
 
   // Lock body scroll while the drawer is open.
   useEffect(() => {
@@ -164,9 +149,6 @@ export function AgentShellExperimental(props: AgentShellProps) {
       <div className="hidden md:block"><AuroraOpacityControl initialOpacity={backgroundOpacity} /></div>
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><DesignLabToggle /></div>
-      )}
-      {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
-        <div className="hidden md:block"><ShellGlassLabToggle /></div>
       )}
       <span className="agx-hide-on-search" style={{ display: "inline-flex" }}><AgentBell initialClearedAt={agentBellClearedAt} /></span>
       <UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} isBusinessMember={isBusinessMember} />
@@ -233,10 +215,8 @@ export function AgentShellExperimental(props: AgentShellProps) {
 
   return (
     <ShellGlassProvider>
-    <div className="agent-shell-root agx-root" data-theme="custom" data-shell={shell}>
-      {shell === "drawers"
-        ? <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
-        : <CompactChrome menuOpen={menuOpen} setMenuOpen={setMenuOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />}
+    <div className="agent-shell-root agx-root" data-theme="custom" data-shell="drawers">
+      <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
 
       <AppPathRecorder />
       <PullToRefresh />
@@ -246,15 +226,6 @@ export function AgentShellExperimental(props: AgentShellProps) {
       </main>
 
       <QuickActionDock />
-
-      {/* Persisted shell switcher — bottom-left so it clears the bottom dock. */}
-      <aside className="agx-switcher" aria-label="Shell preview">
-        <span className="agx-switcher-label">Shell</span>
-        <div className="agx-switcher-opts" role="radiogroup" aria-label="Shell layout">
-          <button type="button" role="radio" aria-checked={shell === "drawers"} className={shell === "drawers" ? "on" : ""} onClick={() => chooseShell("drawers")}>Drawers</button>
-          <button type="button" role="radio" aria-checked={shell === "compact"} className={shell === "compact" ? "on" : ""} onClick={() => chooseShell("compact")}>Compact</button>
-        </div>
-      </aside>
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
@@ -329,48 +300,5 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
         </AgxGlass>
       </div>
     </>
-  );
-}
-
-// ── Compact command bar (nav opens on hover) ───────────────────────────────────
-function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navPanel, searching, onSearchOpenChange }: ChromeShared & { menuOpen: boolean; setMenuOpen: (v: boolean) => void }) {
-  const regionRef = useRef<HTMLDivElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<number | undefined>(undefined);
-  const open = () => { window.clearTimeout(closeTimer.current); setMenuOpen(true); };
-  const scheduleClose = () => { closeTimer.current = window.setTimeout(() => setMenuOpen(false), 140); };
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); btnRef.current?.focus(); } };
-    const onDown = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest?.("[data-shell-glass-lab]")) return;
-      if (regionRef.current && !regionRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener("keydown", onKey, true);
-    document.addEventListener("mousedown", onDown, true);
-    return () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("mousedown", onDown, true); };
-  }, [menuOpen, setMenuOpen]);
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
-
-  return (
-    <div className="agx-cmd-wrap">
-      <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cmd${searching ? " agx-cmd--searching" : ""}`}>
-        <div ref={regionRef} className="agx-cmd-region" onMouseEnter={open} onMouseLeave={scheduleClose}>
-          <button ref={btnRef} className="agx-cmd-menu" type="button" aria-expanded={menuOpen} aria-haspopup="menu"
-            onClick={() => { if (menuOpen) { setMenuOpen(false); } else { open(); requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("a,button")?.focus()); } }}>
-            <List weight="bold" /><span>Menu</span>
-          </button>
-          <div ref={panelRef} className={`agx-cmd-panel${menuOpen ? " open" : ""}`} role="menu" aria-label="Navigation" aria-hidden={!menuOpen}>
-            <AgxGlass fallback={fallback} isDark={isDark} radius={20} className="agx-cmd-panel-glass">{navPanel(() => setMenuOpen(false))}</AgxGlass>
-          </div>
-        </div>
-        <span className="agx-sep agx-hide-on-search" />
-        <div className="agx-cmd-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
-        <span className="agx-cmd-spacer" />
-        {controls}
-      </AgxGlass>
-    </div>
   );
 }

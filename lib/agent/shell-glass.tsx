@@ -71,7 +71,7 @@ const mk = (id: ShellGlassMaterial, label: string, note: string, over: Partial<S
 
 export const SHELL_GLASS_MATERIALS: ShellGlassMaterialDef[] = [
   // ── canvas · LiquidGlass ──────────────────────────────────────────────────
-  mk("lg-shipped", "Liquid Glass · Shipped", "Today's live shell look.", {}),
+  mk("lg-shipped", "Liquid Glass · Shipped", "Today's live shell look.", { blur: 22, tintLight: "rgba(255, 255, 255, 1)", tintDark: "rgba(0, 0, 0, 0.78)" }),
   mk("lg-card", "Liquid Glass · Card", "Soft, barely refracting (design-system Card).", { displace: 30, thickness: 14, aberration: 1, tintLight: "rgba(255, 255, 255, 0.52)", tintDark: "rgba(32, 35, 47, 0.44)" }),
   mk("lg-panel", "Liquid Glass · Panel", "Mid refraction (design-system Panel).", { displace: 46, thickness: 12, aberration: 4, tintLight: "rgba(255, 255, 255, 0.56)", tintDark: "rgba(26, 29, 40, 0.50)" }),
   mk("lg-raised", "Liquid Glass · Raised", "Thick, strong aberration · hero/floating (design-system Raised).", { displace: 70, thickness: 18, aberration: 10, tintLight: "rgba(255, 255, 255, 0.74)", tintDark: "rgba(38, 41, 54, 0.66)" }),
