@@ -4246,7 +4246,10 @@ model CritiqueNote {
   resolvedBy String? // user id/email who resolved it
   adminNotes String?   @db.Text // reserved review field, nullable
 
+  folder String? // optional organising folder (free-text; folders exist as the distinct set of values)
+
   @@index([resolvedAt, createdAt])
+  @@index([folder])
 }
 
 // Review state for the Command Centre Email Catalogue (/command/emails). One row

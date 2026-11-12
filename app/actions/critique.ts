@@ -34,3 +34,19 @@ export async function setCritiqueResolvedAction(formData: FormData): Promise<{ o
   revalidatePath("/command/critique");
   return { ok: true };
 }
+
+// Move a note into a folder (or clear it). Folders are free-text and exist as
+// the distinct set of non-null values — no separate folder table (#290).
+// Superadmin-gated, same as the resolve toggle.
+export async function setCritiqueFolderAction(formData: FormData): Promise<{ ok: boolean }> {
+  await assertSuperadmin();
+
+  const id = formData.get("id") as string;
+  if (!id) return { ok: false };
+  const raw = ((formData.get("folder") as string) ?? "").trim();
+  const folder = raw.length > 0 ? raw.slice(0, 60) : null; // cap length; empty clears
+
+  await commandDb.critiqueNote.update({ where: { id }, data: { folder } });
+  revalidatePath("/command/critique");
+  return { ok: true };
+}

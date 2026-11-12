@@ -29,6 +29,7 @@ export default async function CritiquePage() {
       userEmail: n.userEmail,
       resolvedAt: n.resolvedAt ? n.resolvedAt.toISOString() : null,
       resolvedBy: n.resolvedBy,
+      folder: n.folder,
       screenshotUrl: n.screenshotPath ? await getCritiqueSignedUrl(n.screenshotPath) : null,
     })),
   );

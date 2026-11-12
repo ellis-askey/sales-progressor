@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, RotateCcw, ExternalLink, Search, X } from "lucide-react";
-import { setCritiqueResolvedAction } from "@/app/actions/critique";
+import { Check, RotateCcw, ExternalLink, Search, X, Folder } from "lucide-react";
+import { setCritiqueResolvedAction, setCritiqueFolderAction } from "@/app/actions/critique";
 
 type Note = {
   id: string;
@@ -15,21 +15,75 @@ type Note = {
   userEmail: string | null;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  folder: string | null;
   screenshotUrl: string | null;
 };
 
-// Command Centre review of founder Critique notes. Open / Done filter, resolve
-// toggle per note, screenshot opens full-size in a new tab. Command visual
-// system: solid dark surfaces, hairline borders, blue accent, no glass.
+const ALL = "__all__";
+const UNFILED = "__unfiled__";
+
+// Per-note folder control: a free-text input backed by a datalist of existing
+// folders, so you can file into an existing folder or type a new one. Saves on
+// blur / Enter; empty clears the folder.
+function FolderInput({ note, onSaved }: { note: Note; onSaved: () => void }) {
+  const [value, setValue] = useState(note.folder ?? "");
+  const [state, setState] = useState<"idle" | "saving" | "ok">("idle");
+  const [, start] = useTransition();
+
+  function commit() {
+    const trimmed = value.trim();
+    if (trimmed === (note.folder ?? "").trim()) return; // unchanged
+    setState("saving");
+    const fd = new FormData();
+    fd.set("id", note.id);
+    fd.set("folder", trimmed);
+    start(async () => {
+      await setCritiqueFolderAction(fd);
+      setState("ok");
+      onSaved();
+    });
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1" title="File this note into a folder">
+      <Folder size={12} className={note.folder ? "text-[#93c5fd]" : "text-[#525252]"} />
+      <input
+        list="critique-folders"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        placeholder="Add to folder"
+        aria-label="Folder"
+        maxLength={60}
+        className={`w-28 rounded border border-transparent bg-transparent px-1 py-0.5 text-[11px] placeholder:text-[#525252] hover:border-[#2e2e2e] focus:border-[#2563eb] focus:outline-none ${
+          note.folder ? "text-[#93c5fd]" : "text-[#a3a3a3]"
+        } ${state === "saving" ? "opacity-50" : ""}`}
+      />
+    </span>
+  );
+}
+
+// Command Centre review of founder Critique notes. Open / Done filter, folder
+// filter + per-note folder assignment, resolve toggle, screenshot opens
+// full-size. Command visual system: solid dark surfaces, hairline borders,
+// blue accent, no glass.
 export function CritiqueReview({ notes }: { notes: Note[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<"open" | "done">("open");
+  const [folderFilter, setFolderFilter] = useState<string>(ALL);
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const openCount = notes.filter((n) => !n.resolvedAt).length;
   const doneCount = notes.length - openCount;
+
+  // Folders exist implicitly as the distinct set of non-null values.
+  const folders = Array.from(new Set(notes.map((n) => n.folder).filter((f): f is string => !!f))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const unfiledCount = notes.filter((n) => !n.folder).length;
 
   // Search matches the note text, the page/route it came from, or the note's
   // reference number (so "14", "#14", "chains" or "portal access" all work).
@@ -42,8 +96,12 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
     String(n.seq) === q.replace(/^#/, "") ||
     `#${n.seq}`.includes(q);
 
+  const matchesFolder = (n: Note) =>
+    folderFilter === ALL ? true : folderFilter === UNFILED ? !n.folder : n.folder === folderFilter;
+
   const shown = notes
     .filter((n) => (filter === "open" ? !n.resolvedAt : !!n.resolvedAt))
+    .filter(matchesFolder)
     .filter(matchesQuery);
 
   function toggle(note: Note) {
@@ -63,7 +121,14 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Open / Done filter + search by number, phrase, or page */}
+      {/* Shared datalist of existing folders for every note's folder input. */}
+      <datalist id="critique-folders">
+        {folders.map((f) => (
+          <option key={f} value={f} />
+        ))}
+      </datalist>
+
+      {/* Open / Done filter + folder filter + search by number, phrase, or page */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex gap-0.5 rounded-md bg-[#1a1a1a] p-0.5">
           {(["open", "done"] as const).map((f) => (
@@ -79,7 +144,28 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
           ))}
         </div>
 
-        <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+        {/* Folder filter — only once at least one folder exists. */}
+        {folders.length > 0 && (
+          <div className="relative inline-flex items-center">
+            <Folder size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#525252]" />
+            <select
+              value={folderFilter}
+              onChange={(e) => setFolderFilter(e.target.value)}
+              aria-label="Filter by folder"
+              className="appearance-none rounded-md border border-[#262626] bg-[#141414] py-1.5 pl-7 pr-7 text-[12px] text-[#e5e5e5] focus:border-[#2563eb] focus:outline-none"
+            >
+              <option value={ALL}>All folders</option>
+              <option value={UNFILED}>Unfiled · {unfiledCount}</option>
+              {folders.map((f) => (
+                <option key={f} value={f}>
+                  {f} · {notes.filter((n) => n.folder === f).length}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="relative min-w-[200px] flex-1 sm:max-w-sm">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#525252]" />
           <input
             type="text"
@@ -100,7 +186,7 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
           )}
         </div>
 
-        {q && (
+        {(q || folderFilter !== ALL) && (
           <span className="text-[11px] text-[#525252]">
             {shown.length} {shown.length === 1 ? "match" : "matches"}
           </span>
@@ -109,8 +195,8 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
 
       {shown.length === 0 ? (
         <p className="rounded-lg border border-[#262626] bg-[#141414] px-4 py-8 text-center text-[13px] text-[#525252]">
-          {q
-            ? "No notes match your search."
+          {q || folderFilter !== ALL
+            ? "No notes match the current filter."
             : filter === "open"
               ? "No open critique notes."
               : "Nothing marked done yet."}
@@ -157,6 +243,8 @@ export function CritiqueReview({ notes }: { notes: Note[] }) {
                     )}
                     {n.viewportSize && (<><span>·</span><span>{n.viewportSize}</span></>)}
                     {n.resolvedAt && (<><span>·</span><span className="text-[#3f6f4f]">done {fmt(n.resolvedAt)}</span></>)}
+                    <span>·</span>
+                    <FolderInput key={`${n.id}:${n.folder ?? ""}`} note={n} onSaved={() => router.refresh()} />
                   </div>
                 </div>
 
