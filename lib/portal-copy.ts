@@ -971,7 +971,7 @@ const copy: Record<string, PortalCopy> = {
       vendor: {
         subject: "Buyer has arranged their survey: {address}",
         heroLabel: "Buyer's survey arranged",
-        opening: "The buyer has arranged a property survey{surveyorClause}.",
+        opening: "The buyer has arranged a property survey{surveyorClause}{attendClause}.",
         whatHappened: "Now the survey is booked, access to the property has already been arranged, so there's nothing you need to do. If the survey raises anything the buyer wishes to investigate further, this may be raised with your solicitor as an enquiry. If anything is needed from you, we'll be in touch.",
         whatNext: null,
         action: "View your portal",
@@ -979,7 +979,7 @@ const copy: Record<string, PortalCopy> = {
       purchaser: {
         subject: "Your survey is arranged: {address}",
         heroLabel: "Survey arranged",
-        opening: "Your property survey has been arranged{surveyorClause}.",
+        opening: "Your property survey has been arranged{surveyorClause}{attendClause}.",
         // {valuationNote} appends the mortgage-only "separate from the lender's
         // valuation" sentences (empty for cash buyers, who have no valuation).
         whatHappened: "The surveyor will inspect the property in person and produce a report directly for you. A Level 2 (HomeBuyer) survey typically takes 1 to 2 hours at the property, while a Level 3 (full structural) survey can take 2 to 3 hours.{valuationNote}",
