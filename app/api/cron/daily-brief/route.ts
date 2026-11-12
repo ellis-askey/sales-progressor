@@ -2,6 +2,7 @@
 // Fires after the nightly signal detector run (02:00 UTC) so signals are fresh.
 
 import { NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { runDailyBrief } from "@/lib/services/insight/daily-brief";
 import { runJob } from "@/lib/cron/run-job";
 
@@ -13,6 +14,8 @@ export async function GET(req: Request) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("daily-brief", async () => {
     try {

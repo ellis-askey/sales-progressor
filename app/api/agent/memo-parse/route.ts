@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { uploadToStorage } from "@/lib/supabase-storage";
 import { randomUUID } from "crypto";
 
@@ -42,6 +43,9 @@ const ALLOWED_TYPES = new Set([
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  // AI master switch (#291): this route builds its own Anthropic client, so the
+  // proxied-client guard doesn't cover it — gate here.
+  if (!(await aiEnabled())) return NextResponse.json({ error: "AI is turned off" }, { status: 503 });
 
   let formData: FormData;
   try {

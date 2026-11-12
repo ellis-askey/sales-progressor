@@ -1,6 +1,7 @@
 // Runs at 07:00 UTC Monday (= 07:00 GMT / 08:00 BST).
 
 import { NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { runWeeklyReview } from "@/lib/services/insight/weekly-review";
 import { runJob } from "@/lib/cron/run-job";
 
@@ -12,6 +13,8 @@ export async function GET(req: Request) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("weekly-review", async () => {
     const result = await runWeeklyReview();

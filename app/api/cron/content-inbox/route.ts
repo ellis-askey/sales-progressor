@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { refreshInbox } from "@/lib/command/content/inbox";
 
 // Content inbox refresh (docs/active/content-brand/SPEC.md, Phase 1.3). Pulls
@@ -17,6 +18,8 @@ export async function GET(req: NextRequest) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   const result = await refreshInbox(new Date());
   return NextResponse.json({ ok: true, ...result });

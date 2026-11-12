@@ -4252,6 +4252,19 @@ model CritiqueNote {
   @@index([folder])
 }
 
+// Global platform system settings — a single row (id = "singleton"). Currently
+// the AI master switch (#291): when aiEnabled is false every AI-powered feature
+// short-circuits and its UI trigger is hidden, so the product runs on
+// deterministic code alone. Read via lib/ai/enabled.ts; flipped from the
+// Command Centre settings page (superadmin). An env AI_GLOBAL_DISABLE=true is a
+// hard break-glass that overrides this value.
+model SystemSetting {
+  id        String   @id @default("singleton")
+  aiEnabled Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
 // Review state for the Command Centre Email Catalogue (/command/emails). One row
 // per catalogued email specimen once a superadmin has reviewed + OK'd it.
 // contentHash is a hash of the email rendered at the canonical scenario, so a

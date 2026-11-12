@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { prisma } from "@/lib/prisma";
 import { commandDb } from "@/lib/command/prisma";
 import { anthropic } from "@/lib/anthropic";
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 

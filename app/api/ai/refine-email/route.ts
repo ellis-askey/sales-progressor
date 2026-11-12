@@ -7,6 +7,7 @@
 // refinements sound more like what they actually send and approve.
 
 import { NextRequest, NextResponse, after } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { requireSession } from "@/lib/session";
 import { getVoiceProfile, maybeRefreshVoiceProfile } from "@/lib/chase/voice-profile";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
@@ -21,6 +22,8 @@ function stripDashes(s: string): string {
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
+  // AI master switch (#291): direct Anthropic REST call, needs its own guard.
+  if (!(await aiEnabled())) return NextResponse.json({ error: "AI is turned off" }, { status: 503 });
 
   const rate = await checkAiLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 30 }));
   if (!rate.success) return NextResponse.json(rateLimitJson(rate), { status: 429 });

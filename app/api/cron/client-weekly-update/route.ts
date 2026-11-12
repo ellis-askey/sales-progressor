@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { sendClientWeeklyUpdates } from "@/lib/services/client-weekly-update";
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
   if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("client-weekly-update", async () => {
     const agencies = await prisma.agency.findMany({ select: { id: true } });

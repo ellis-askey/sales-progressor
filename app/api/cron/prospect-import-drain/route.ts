@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { runJob } from "@/lib/cron/run-job";
 import { drainProcessingBatches } from "@/lib/prospects/import-core";
 
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
   if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("prospect-import-drain", async () => {
     // Leave headroom under the 300s function limit for the final DB writes.

@@ -10,6 +10,7 @@
 // final application-side validation layer (see runStructured).
 
 import OpenAI from "openai";
+import { aiEnabled, AiDisabledError } from "@/lib/ai/enabled";
 import { AIMissingKeyError, AIProviderError } from "./errors";
 import {
   DEFAULT_MAX_TOKENS,
@@ -46,6 +47,9 @@ export class OpenAIProvider implements AIProvider {
     maxTokens: number,
     responseFormat?: Record<string, unknown>,
   ): Promise<AIGenerateResult> {
+    // AI master switch (#291): the one OpenAI root (the reviewer model). The
+    // Anthropic side is gated by the proxied client in lib/anthropic.ts.
+    if (!(await aiEnabled())) throw new AiDisabledError();
     try {
       const res = await client().chat.completions.create({
         model: this.model,

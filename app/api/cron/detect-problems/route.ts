@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { prisma } from "@/lib/prisma";
 import { detectAndStoreFlags } from "@/lib/services/problem-detection";
 import { runJob } from "@/lib/cron/run-job";
@@ -8,6 +9,8 @@ export async function GET(req: NextRequest) {
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("detect-problems", async () => {
     const agencies = await prisma.agency.findMany({ select: { id: true } });

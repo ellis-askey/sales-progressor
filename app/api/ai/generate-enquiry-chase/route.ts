@@ -10,6 +10,7 @@
 // the /s/ update button + sign-off are added deterministically after.
 
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +37,8 @@ const TONE_GUIDANCE: Record<string, string> = {
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  // AI master switch (#291): direct Anthropic REST call, needs its own guard.
+  if (!(await aiEnabled())) return NextResponse.json({ error: "AI is turned off" }, { status: 503 });
   const scope = getAccessScope(session);
 
   const rateLimit = await checkAiLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 30 }));

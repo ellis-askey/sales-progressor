@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { scanWhatsAppPromises } from "@/lib/services/whatsapp-promises";
 import { runJob } from "@/lib/cron/run-job";
 
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // AI master switch (#291): skip cleanly when AI is off.
+  if (!(await aiEnabled())) return NextResponse.json({ ok: true, skipped: "ai_disabled" });
 
   return runJob("whatsapp-promises", async () => {
     const res = await scanWhatsAppPromises(25).catch(() => ({ scanned: 0, created: 0 }));

@@ -1,6 +1,7 @@
 // app/api/ai/generate-chase/route.ts
 
 import { NextRequest, NextResponse, after } from "next/server";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
+  // AI master switch (#291): this route calls the Anthropic REST API directly
+  // (bypassing the proxied client), so it needs its own guard.
+  if (!(await aiEnabled())) return NextResponse.json({ error: "AI is turned off" }, { status: 503 });
   const scope = getAccessScope(session);
 
   const rateLimit = await checkAiLimit(session.user.id).catch(() => ({ success: true, reset: 0, remaining: 30 }));

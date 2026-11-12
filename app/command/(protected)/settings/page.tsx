@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { aiEnabled } from "@/lib/ai/enabled";
+import { AiMasterSwitch } from "@/components/command/AiMasterSwitch";
 
 // Command Centre → Settings. A lean tools + pointers page. The read-only engine
 // reference (milestones + reminder rules) now lives on its own /command/rules
 // page; agency fees live on /command/agencies. What remains here is the
 // occasional-use tooling and signposts to where config moved.
+
+export const dynamic = "force-dynamic"; // reads the live AI switch state
 
 function Tile({ href, title, body }: { href: string; title: string; body: string }) {
   return (
@@ -18,13 +22,21 @@ function Tile({ href, title, body }: { href: string; title: string; body: string
   );
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const aiOn = await aiEnabled();
+  const envForcedOff = process.env.AI_GLOBAL_DISABLE === "true";
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-neutral-100">Settings</h1>
         <p className="text-sm text-neutral-400 mt-1">Occasional tools, and where the platform&rsquo;s configuration lives.</p>
       </div>
+
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">AI &amp; automation</h2>
+        <AiMasterSwitch enabled={aiOn} envForcedOff={envForcedOff} />
+      </section>
 
       <section>
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Tools</h2>
