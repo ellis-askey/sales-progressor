@@ -12,7 +12,7 @@
 // Currently EMPTY (shell off for everyone). Re-add the email below to switch the
 // experimental shell back on for that account once it is confirmed to render.
 const EXPERIMENTAL_SHELL_EMAILS = new Set<string>([
-  // "ellis@thesalesprogressor.co.uk",
+  "ellis@thesalesprogressor.co.uk",
 ]);
 
 export function usesExperimentalShell(email: string | null | undefined): boolean {
