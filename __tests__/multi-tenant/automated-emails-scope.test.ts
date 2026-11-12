@@ -42,7 +42,10 @@ describe("automated-emails buildTxWhere: multi-tenant isolation", () => {
   it("a negotiator sees only their own self-managed files in their agency", () => {
     const w = buildTxWhere({ role: "negotiator", userId: "n1", agencyId: "ag1" });
     expect(w.agencyId).toBe("ag1");
-    expect(w.agentUserId).toBe("n1");
+    // Own-or-assigned widening: buildTxWhere scopes a negotiator by OR on their
+    // own id (agentUserId) and files assigned to them (assignedUserId), not a
+    // single field. Still agency-fenced + self-managed, so isolation is intact.
+    expect(w.OR).toEqual([{ agentUserId: "n1" }, { assignedUserId: "n1" }]);
     expect(w.serviceType).toBe("self_managed");
   });
 });

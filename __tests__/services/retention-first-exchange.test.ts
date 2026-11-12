@@ -8,6 +8,9 @@ const prismaMock = {
   user: { findUnique: jest.fn() },
   propertyTransaction: { findFirst: jest.fn(), findUnique: jest.fn() },
   retentionEmailLog: { findFirst: jest.fn(), create: jest.fn(async () => ({ id: "log1" })) },
+  // The retention kill switch (isAgencyRetentionPaused) reads prisma.agency;
+  // default to not-paused so the celebration emails proceed.
+  agency: { findUnique: jest.fn().mockResolvedValue({ retentionEmailsPaused: false }) },
 };
 jest.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
