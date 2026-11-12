@@ -339,6 +339,7 @@ export async function getRevenueDashboard(
         propertyAddress: true,
         serviceType: true,
         priceAtExchange: true,
+        pricingVersion: true,
         billedAtExchange: true,
         agencyId: true,
         agency: {
@@ -394,6 +395,7 @@ export async function getRevenueDashboard(
         isShareOfFreehold: true,
         createdAt: true,
         overridePredictedDate: true,
+        pricingVersion: true,
         agencyId: true,
         agency: {
           select: {
@@ -429,6 +431,7 @@ export async function getRevenueDashboard(
         propertyAddress: true,
         serviceType: true,
         priceAtExchange: true,
+        pricingVersion: true,
         billedAtExchange: true,
         agency: {
           select: {
@@ -573,7 +576,7 @@ export async function getRevenueDashboard(
   let bankedFallbackCount = 0;
   for (const r of bankedRows) {
     if (accruedTxIds.has(r.id)) continue;
-    const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency));
+    const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency), r.pricingVersion);
     bankedTotalPence += fee.totalPence;
     if (r.serviceType === "self_managed") bankedInHousePence += fee.totalPence;
     else bankedOutsourcedPence += fee.totalPence;
@@ -620,6 +623,7 @@ export async function getRevenueDashboard(
       f.purchasePrice,
       vatOf(f.agency),
       feeOverrideOf(f.agency),
+      f.pricingVersion,
     );
 
     // On-hold files are paused: kept in their own bucket, out of the timed
@@ -704,7 +708,7 @@ export async function getRevenueDashboard(
   for (const l of recentLines) if (l.transactionId) billedByTx.set(l.transactionId, l.totalPence);
 
   const recentExchanges: ExchangeRow[] = recentExchangeRows.map((r) => {
-    const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency));
+    const fee = computeFee(r.serviceType, r.priceAtExchange, vatOf(r.agency), feeOverrideOf(r.agency), r.pricingVersion);
     return {
       transactionId: r.id,
       propertyAddress: r.propertyAddress,
@@ -856,6 +860,7 @@ export async function getAgencyRevenueDetail(
         propertyAddress: true,
         serviceType: true,
         priceAtExchange: true,
+        pricingVersion: true,
         billedAtExchange: true,
       },
     }),
@@ -871,6 +876,7 @@ export async function getAgencyRevenueDetail(
         isShareOfFreehold: true,
         createdAt: true,
         overridePredictedDate: true,
+        pricingVersion: true,
         milestoneCompletions: {
           where: { state: { in: ["complete", "not_required"] } },
           select: {
@@ -890,12 +896,13 @@ export async function getAgencyRevenueDetail(
         propertyAddress: true,
         serviceType: true,
         priceAtExchange: true,
+        pricingVersion: true,
         billedAtExchange: true,
       },
     }),
     commandDb.propertyTransaction.findMany({
       where: { agencyId, freeOnExchange: true, exchangedAt: { not: null } },
-      select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
+      select: { serviceType: true, priceAtExchange: true, purchasePrice: true, pricingVersion: true },
     }),
     commandDb.$queryRaw<Array<{ totalPence: bigint }>>`
       SELECT COALESCE(SUM(il."totalPence"), 0)::bigint AS "totalPence"
@@ -920,8 +927,8 @@ export async function getAgencyRevenueDetail(
     vatRegisteredAt: agency.vatRegisteredAt,
     vatRateBps: agency.vatRateBps,
   };
-  const fee = (svc: ServiceType, price: number | null) =>
-    computeFee(svc, price, vatOf(agencyForFee), feeOverrideOf(agencyForFee));
+  const fee = (svc: ServiceType, price: number | null, pricingVersion?: string | null) =>
+    computeFee(svc, price, vatOf(agencyForFee), feeOverrideOf(agencyForFee), pricingVersion);
 
   // Banked = actual invoiced (frozen InvoiceLine) + a recompute fallback for a
   // same-day exchange the nightly accrual hasn't invoiced yet.
@@ -935,14 +942,14 @@ export async function getAgencyRevenueDetail(
   }
   for (const r of bankedRows) {
     if (accruedTxIds.has(r.id)) continue;
-    bankedSum += fee(r.serviceType, r.priceAtExchange).totalPence;
+    bankedSum += fee(r.serviceType, r.priceAtExchange, r.pricingVersion).totalPence;
     bankedCount += 1;
   }
 
   // Trial lifetime
   let trialLifetime = 0;
   for (const r of trialRows) {
-    trialLifetime += fee(r.serviceType, r.priceAtExchange ?? r.purchasePrice).totalPence;
+    trialLifetime += fee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, r.pricingVersion).totalPence;
   }
 
   // Pipeline + at-risk + active files list
@@ -961,7 +968,7 @@ export async function getAgencyRevenueDetail(
       effectiveStartDate: effectiveStart,
     };
     const predicted = calculatePhaseAwarePrediction(phaseInput, f.createdAt, f.overridePredictedDate);
-    const expected = fee(f.serviceType, f.purchasePrice);
+    const expected = fee(f.serviceType, f.purchasePrice, f.pricingVersion);
     pipeAllSum += expected.totalPence;
     pipeAllCount += 1;
     const bucket = bucketForPrediction(predicted, now, monthStart, nextMonthStart, monthAfterStart, monthAfterEnd);
@@ -995,7 +1002,7 @@ export async function getAgencyRevenueDetail(
   for (const l of recentLines) if (l.transactionId) billedByTx.set(l.transactionId, l.totalPence);
 
   const recentExchanges: ExchangeRow[] = recentExchangeRows.map((r) => {
-    const f = fee(r.serviceType, r.priceAtExchange);
+    const f = fee(r.serviceType, r.priceAtExchange, r.pricingVersion);
     return {
       transactionId: r.id,
       propertyAddress: r.propertyAddress,
