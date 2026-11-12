@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
 import { getSolicitorFirmDetail, getSolicitorFirmDetailForScope } from "@/lib/services/solicitors";
-import type { FirmFileRow } from "@/lib/services/solicitors";
+import { SolicitorProfileView } from "@/components/agent/partners/SolicitorProfileView";
 import { getBrokerFirmDetail, getBrokerFirmDetailForScope } from "@/lib/services/brokers";
 import type { BrokerFirmFileRow } from "@/lib/services/brokers";
 import {
@@ -16,7 +17,7 @@ import {
   getBrokerReferralStats,
   getBrokerReferralStatsForScope,
 } from "@/lib/services/analytics";
-import { CaretLeft, ArrowSquareOut, Scales, Bank } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, ArrowSquareOut, Bank } from "@/components/icons/ph-ssr";
 
 type FileRow = { id: string; propertyAddress: string; status: string; role?: "vendor" | "purchaser" | "both"; isReferral: boolean; createdAt: Date };
 
@@ -56,50 +57,70 @@ export default async function PartnerFirmDetailPage({
   const showIncome = isAgent ? session.user.role === "director" : hasAdminPowers(session);
   const vis = isAgent ? await resolveAgentVisibility(session.user.id, session.user.agencyId) : null;
 
-  let firmName: string;
-  let website: string | null = null;
-  let contacts: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null }[];
-  let files: FileRow[];
-  let avgDaysToExchange: number | null = null;
-  let exchangeCount = 0;
-  let income: { receivedPence: number; pendingPence: number } | null = null;
-
+  // ── Solicitor: the redesigned profile (Phase B) ──────────────────────────
   if (kind === "solicitor") {
     const [detail, exchangeStats, referrals] = await Promise.all([
       isAgent ? getSolicitorFirmDetail(vis!, id) : getSolicitorFirmDetailForScope(scope, id),
       (isAgent ? getSolicitorExchangeStats(vis!) : getSolicitorExchangeStatsForScope(scope)).catch(() => []),
+      // Referral income — director (agency) / admin-powers (internal) only. Same
+      // figures + gate as before; calculations unchanged.
       showIncome
         ? (isAgent ? getReferralStats(session.user.agencyId) : getReferralStatsForScope(scope)).catch(() => [])
         : Promise.resolve([]),
     ]);
     if (!detail) notFound();
-    firmName = detail.name;
-    contacts = detail.contacts;
-    files = detail.files as FirmFileRow[];
     const ex = exchangeStats.find((s) => s.firmId === id);
-    if (ex && ex.exchangeCount > 0) {
-      avgDaysToExchange = ex.avgDaysToExchange;
-      exchangeCount = ex.exchangeCount;
+    const exchange = ex && ex.exchangeCount > 0
+      ? { avgDaysToExchange: ex.avgDaysToExchange, exchangeCount: ex.exchangeCount }
+      : { avgDaysToExchange: null, exchangeCount: 0 };
+    const inc = referrals.find((r) => r.firmId === id);
+    const income = inc ? { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence } : null;
+    // "Recommended" is per-agency (AgencyRecommendedSolicitor); internal staff
+    // have no agency, so no recommended status is shown for them.
+    let recommendedStatus: "recommended" | "not_recommended" | null = null;
+    if (isAgent && session.user.agencyId) {
+      const rec = await prisma.agencyRecommendedSolicitor.findFirst({
+        where: { agencyId: session.user.agencyId, solicitorFirmId: id },
+        select: { id: true },
+      });
+      recommendedStatus = rec ? "recommended" : "not_recommended";
     }
-    const inc = referrals.find((r) => r.firmId === id);
-    if (inc) income = { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence };
-  } else {
-    const [detail, referrals] = await Promise.all([
-      isAgent ? getBrokerFirmDetail(vis!, id) : getBrokerFirmDetailForScope(scope, id),
-      showIncome
-        ? (isAgent ? getBrokerReferralStats(session.user.agencyId) : getBrokerReferralStatsForScope(scope)).catch(() => [])
-        : Promise.resolve([]),
-    ]);
-    if (!detail) notFound();
-    firmName = detail.name;
-    website = detail.website;
-    contacts = detail.contacts;
-    files = detail.files as BrokerFirmFileRow[];
-    const inc = referrals.find((r) => r.firmId === id);
-    if (inc) income = { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence };
+    return (
+      <SolicitorProfileView
+        firmId={detail.id}
+        firmName={detail.name}
+        contacts={detail.contacts}
+        files={detail.files}
+        exchange={exchange}
+        income={income}
+        recommendedStatus={recommendedStatus}
+        canAddContact
+      />
+    );
   }
 
-  const KindIcon = kind === "solicitor" ? Scales : Bank;
+  // ── Broker: existing layout (unchanged) ──────────────────────────────────
+  let firmName: string;
+  let website: string | null = null;
+  let contacts: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail?: string | null }[];
+  let files: FileRow[];
+  let income: { receivedPence: number; pendingPence: number } | null = null;
+
+  const [detail, referrals] = await Promise.all([
+    isAgent ? getBrokerFirmDetail(vis!, id) : getBrokerFirmDetailForScope(scope, id),
+    showIncome
+      ? (isAgent ? getBrokerReferralStats(session.user.agencyId) : getBrokerReferralStatsForScope(scope)).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+  if (!detail) notFound();
+  firmName = detail.name;
+  website = detail.website;
+  contacts = detail.contacts;
+  files = detail.files as BrokerFirmFileRow[];
+  const inc = referrals.find((r) => r.firmId === id);
+  if (inc) income = { receivedPence: inc.feeReceivedPence, pendingPence: inc.feeExpectedPence - inc.feeReceivedPence };
+
+  const KindIcon = Bank;
   const activeCount = files.filter((f) => f.status === "active" || f.status === "on_hold").length;
   const cleanWebsite = website ? website.replace(/^https?:\/\//, "") : null;
   const websiteHref = website ? (website.startsWith("http") ? website : `https://${website}`) : null;
@@ -129,7 +150,7 @@ export default async function PartnerFirmDetailPage({
             {firmName}
           </h1>
           <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>
-            {kind === "solicitor" ? "Conveyancer" : "Mortgage broker"}
+            Mortgage broker
           </p>
           {websiteHref && cleanWebsite && (
             <a
@@ -149,17 +170,6 @@ export default async function PartnerFirmDetailPage({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
         <StatTile value={String(activeCount)} label="Active files" />
         <StatTile value={String(files.length)} label="Files all time" />
-        {kind === "solicitor" && (
-          avgDaysToExchange != null ? (
-            <StatTile
-              value={String(avgDaysToExchange)}
-              label="Days avg to exchange"
-              sub={`over ${exchangeCount} exchange${exchangeCount !== 1 ? "s" : ""}`}
-            />
-          ) : (
-            <StatTile value="0" label="Exchanges tracked" sub="No exchange history yet" />
-          )
-        )}
         {showIncome && income && (
           <StatTile
             value={formatGBP(income.receivedPence)}

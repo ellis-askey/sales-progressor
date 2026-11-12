@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { AgentVisibility } from "./agent";
 import type { Prisma, TransactionStatus } from "@prisma/client";
 import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
+import { getSignedUrlMap } from "@/lib/supabase-storage";
 
 export type SolicitorContactWithFiles = {
   id: string;
@@ -126,12 +127,29 @@ export type FirmFileRow = {
   role: "vendor" | "purchaser" | "both";
   isReferral: boolean;
   createdAt: Date;
+  // The handler at THIS firm working the file (vendor- or purchaser-side), for
+  // the "conveyancer" line on each associated-sale row. Null when the file
+  // points at the firm but not a specific handler.
+  conveyancerName: string | null;
+  // Signed thumbnail URL (null when the agent hasn't uploaded a property photo).
+  photoUrl: string | null;
+};
+
+export type FirmContactRow = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  secondaryEmail: string | null;
+  image: string | null;
+  // Active (active + on_hold) files this handler is working at this firm.
+  activeFileCount: number;
 };
 
 export type SolicitorFirmDetail = {
   id: string;
   name: string;
-  contacts: { id: string; name: string; phone: string | null; email: string | null; secondaryEmail: string | null }[];
+  contacts: FirmContactRow[];
   files: FirmFileRow[];
 };
 
@@ -166,7 +184,7 @@ async function solicitorFirmDetailFromWhere(
         name: true,
         handlers: {
           orderBy: { name: "asc" },
-          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true },
+          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true, image: true },
         },
       },
     }),
@@ -185,15 +203,29 @@ async function solicitorFirmDetailFromWhere(
         referredFirmId: true,
         vendorSolicitorFirmId: true,
         purchaserSolicitorFirmId: true,
+        vendorSolicitorContactId: true,
+        purchaserSolicitorContactId: true,
+        photoStoragePath: true,
       },
     }),
   ]);
 
   if (!firm || transactions.length === 0) return null;
 
+  // Sign property thumbnails in one batch (null paths pass through as null).
+  const photoMap = await getSignedUrlMap(transactions.map((t) => t.photoStoragePath));
+  const handlerName = new Map(firm.handlers.map((h) => [h.id, h.name] as const));
+  const activeByContact = new Map<string, number>();
+
   const files: FirmFileRow[] = transactions.map((tx) => {
     const isVendor = tx.vendorSolicitorFirmId === firmId;
     const isPurchaser = tx.purchaserSolicitorFirmId === firmId;
+    // The handler working this file at THIS firm — vendor-side id when we're the
+    // vendor solicitor, else the purchaser-side id.
+    const contactId = isVendor ? tx.vendorSolicitorContactId : tx.purchaserSolicitorContactId;
+    if (contactId && (tx.status === "active" || tx.status === "on_hold")) {
+      activeByContact.set(contactId, (activeByContact.get(contactId) ?? 0) + 1);
+    }
     return {
       id: tx.id,
       propertyAddress: tx.propertyAddress,
@@ -201,10 +233,22 @@ async function solicitorFirmDetailFromWhere(
       role: isVendor && isPurchaser ? "both" : isVendor ? "vendor" : "purchaser",
       isReferral: tx.referredFirmId === firmId,
       createdAt: tx.createdAt,
+      conveyancerName: contactId ? handlerName.get(contactId) ?? null : null,
+      photoUrl: tx.photoStoragePath ? photoMap.get(tx.photoStoragePath) ?? null : null,
     };
   });
 
-  return { id: firm.id, name: firm.name, contacts: firm.handlers, files };
+  const contacts: FirmContactRow[] = firm.handlers.map((h) => ({
+    id: h.id,
+    name: h.name,
+    phone: h.phone,
+    email: h.email,
+    secondaryEmail: h.secondaryEmail,
+    image: h.image,
+    activeFileCount: activeByContact.get(h.id) ?? 0,
+  }));
+
+  return { id: firm.id, name: firm.name, contacts, files };
 }
 
 // Removed getSolicitorDirectory (2026-10-09): dead, with no callers. It listed

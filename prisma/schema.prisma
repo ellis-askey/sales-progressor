@@ -1680,6 +1680,7 @@ model SolicitorFirm {
   recommendations          AgencyRecommendedSolicitor[]
   milestoneConfirmations   MilestoneCompletion[]        @relation("MilestoneConfirmedByFirm")
   referrals                Referral[]                   @relation("ReferralSolicitorFirm")
+  agencyNotes              AgencyFirmNote[]
 
   @@unique([name])
 }
@@ -1702,6 +1703,29 @@ model AgencyRecommendedSolicitor {
   @@index([agencyId])
 }
 
+// An agency's PRIVATE internal note about a (globally-shared) solicitor firm —
+// relationship notes not tied to any one property. Scoped per (agency, firm) so
+// one agency's note is never visible to another that shares the same firm row
+// (the shared-directory tenancy rule — same pattern as SolicitorContactAgencyOverride).
+// Never surfaced in buyer/seller portals; writes are director/admin-gated.
+// agencyId + updatedById are standalone scoping/audit columns (no FK), like
+// CritiqueNote — avoids coupling to the Agency/User models.
+model AgencyFirmNote {
+  id              String   @id @default(cuid())
+  agencyId        String
+  solicitorFirmId String
+  note            String   @db.Text
+  updatedById     String?
+  updatedByEmail  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  solicitorFirm SolicitorFirm @relation(fields: [solicitorFirmId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, solicitorFirmId])
+  @@index([solicitorFirmId])
+}
+
 model SolicitorContact {
   id             String   @id @default(cuid())
   firmId         String
@@ -1716,6 +1740,10 @@ model SolicitorContact {
   // Handler's profile photo (public avatar URL). Set from the solicitor portal;
   // shown on their confirmations in the feed. Falls back to initials.
   image          String?
+  // Optional job title on the handler, e.g. "Conveyancer", "Assistant",
+  // "Team Leader". Shown on the partner profile's People list. Free text; like
+  // name/phone/email it is a shared-directory value (edited via the contact form).
+  role           String?
   // Demo-only handler (see SolicitorFirm.isDemo). Filtered from real lists.
   isDemo         Boolean  @default(false)
   createdAt      DateTime @default(now())
