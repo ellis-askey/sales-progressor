@@ -9,7 +9,7 @@ import {
   createPlatformUpdateUploadUrl,
   platformUpdateObjectExists,
   deletePlatformUpdateObject,
-} from "@/lib/command/platform-update-storage";
+} from "@/lib/platform-updates/storage";
 import type { PlatformUpdateCategory, PlatformUpdateAudience } from "@prisma/client";
 
 // Platform Updates management — founder-only (Command Centre, Phase 1). commandDb

@@ -257,6 +257,33 @@ export async function markAgentBellReadAction(): Promise<{ ok: true; clearedAt: 
   return { ok: true as const, clearedAt };
 }
 
+// Persists the "What's new" seen baseline on User.agentPreferences.whatsNewSeenAt
+// (Phase 2). Called when the agent opens the What's new page, so the unread dot
+// clears. Mirrors markAgentBellReadAction: server-backed (consistent across
+// devices), read-merge-write so other prefs are preserved. The caller fires the
+// nav-badge refresh afterwards so the dot drops without a full reload.
+export async function markWhatsNewSeenAction(): Promise<{ ok: true; seenAt: string }> {
+  const session = await requireSession();
+  const seenAt = new Date().toISOString();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { agentPreferences: true },
+  });
+
+  const existingPrefs =
+    user?.agentPreferences && typeof user.agentPreferences === "object"
+      ? (user.agentPreferences as Record<string, unknown>)
+      : {};
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { agentPreferences: { ...existingPrefs, whatsNewSeenAt: seenAt } },
+  });
+
+  return { ok: true as const, seenAt };
+}
+
 export async function updateAgentNightMode(nightMode: boolean | null) {
   const session = await requireSession();
 

@@ -6,7 +6,9 @@
 
 import type { Session } from "next-auth";
 import type { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { getWhatsNewNavState } from "@/lib/platform-updates/feed";
 import { canSeeChains } from "@/lib/chain/chains-access";
 import { countAgentDueOrOverdue } from "@/lib/services/manual-tasks";
 import { countReviewsDue } from "@/lib/services/reviews";
@@ -16,7 +18,27 @@ import { countCompletionsToday, resolveAgentVisibility, resolveInternalVisibilit
 import { getHubAttentionItems } from "@/lib/services/hub";
 import { getEscalatedEnquiryReminders } from "@/lib/services/enquiry-escalations";
 
-export type NavBadgeCounts = { todo: number; enquiries: number; reminders: number; chains: number; completions: number };
+export type NavBadgeCounts = {
+  todo: number;
+  enquiries: number;
+  reminders: number;
+  chains: number;
+  completions: number;
+  // Platform Updates / "What's new" (Phase 2). visible = at least one published
+  // update the viewer may see exists (drives whether the nav item + page exist);
+  // unread = the newest such update is newer than their seen stamp (drives the
+  // dot). Both false until the founder publishes a relevant update.
+  whatsNewVisible: boolean;
+  whatsNewUnread: boolean;
+};
+
+function readWhatsNewSeenAt(prefs: unknown): string | null {
+  if (prefs && typeof prefs === "object") {
+    const v = (prefs as Record<string, unknown>).whatsNewSeenAt;
+    return typeof v === "string" ? v : null;
+  }
+  return null;
+}
 
 export async function computeNavBadgeCounts(session: Session, hasSelfManagedFiles: boolean): Promise<NavBadgeCounts> {
   const role = session.user.role as UserRole;
@@ -34,7 +56,7 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
   // the rail badge matches the (now per-member scoped) chains page.
   const chainsOwnerUserId = isAgencyUser && !vis.seeAll ? session.user.id : undefined;
 
-  const [todoBase, reviews, enquiries, chains, completions, reminders] = await Promise.all([
+  const [todoBase, reviews, enquiries, chains, completions, reminders, userPrefs] = await Promise.all([
     role === "admin" ? Promise.resolve(0) : countAgentDueOrOverdue(session.user.id, session.user.agencyId, role, scope),
     role === "admin" ? Promise.resolve(0) : countReviewsDue(scope).catch(() => 0),
     showSelfPages ? countEscalatedEnquiries(scope).catch(() => 0) : Promise.resolve(0),
@@ -54,7 +76,24 @@ export async function computeNavBadgeCounts(session: Session, hasSelfManagedFile
           getEscalatedEnquiryReminders(vis).then((r) => r.length),
         ]).then(([attention, escalations]) => attention + escalations).catch(() => 0)
       : Promise.resolve(0),
+    // Viewer's "seen" stamp for the What's-new unread dot. Fetched alongside the
+    // counts so the dot stays live through the same nav-badge refresh.
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { agentPreferences: true } }),
   ]);
 
-  return { todo: todoBase + reviews, enquiries, reminders, chains, completions };
+  const whatsNewSeenAt = readWhatsNewSeenAt(userPrefs?.agentPreferences);
+  const whatsNew = await getWhatsNewNavState(
+    { isBusinessMember: !!session.user.progressionBusinessId, isInternalStaff: isInternal },
+    whatsNewSeenAt,
+  );
+
+  return {
+    todo: todoBase + reviews,
+    enquiries,
+    reminders,
+    chains,
+    completions,
+    whatsNewVisible: whatsNew.visible,
+    whatsNewUnread: whatsNew.unread,
+  };
 }

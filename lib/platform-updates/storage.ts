@@ -3,9 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 // Storage for Platform Update screenshots. Own PRIVATE bucket, never public:
 // unpublished drafts (and their images) must not be reachable by ordinary
 // agents, so images are only ever served through a short-lived signed URL
-// generated server-side for the superadmin Command Centre (Phase 1). The agent
-// read-path (Phase 2) will sign its own URLs server-side too. Command-only
-// (Law 8). Mirrors lib/command/critique-storage.ts.
+// generated server-side (the superadmin manager AND the agent read-path both
+// sign their own URLs server-side). Shared, NOT under lib/command, so the
+// agent-facing feed can read a signed URL without importing Command code (Law 8).
+// Writes (upload/ensure/delete) are only ever called from the superadmin actions.
 //
 // The bucket is created automatically on first use so there is no manual
 // provisioning step to forget. Images upload straight from the browser via a
@@ -38,7 +39,8 @@ export async function ensurePlatformUpdateBucket(): Promise<void> {
 }
 
 /** Mint a one-time signed upload URL so the browser PUTs the image straight to
- *  storage. Ensures the bucket exists first. Returns null if it can't be minted. */
+ *  storage. Ensures the bucket exists first. Returns null if it can't be minted.
+ *  Superadmin-only (called from app/actions/platform-updates.ts). */
 export async function createPlatformUpdateUploadUrl(path: string): Promise<{ uploadUrl: string; path: string } | null> {
   try {
     await ensurePlatformUpdateBucket();
@@ -63,7 +65,9 @@ export async function platformUpdateObjectExists(path: string): Promise<boolean>
   }
 }
 
-/** Signed read URL for a stored image (default 1h), null if it can't sign. */
+/** Signed read URL for a stored image (default 1h), null if it can't sign. Used
+ *  by both the superadmin manager and the agent feed — each only ever signs URLs
+ *  for updates the viewer is allowed to see (published + their audience). */
 export async function getPlatformUpdateSignedUrl(path: string, expiresInSeconds = 3600): Promise<string | null> {
   try {
     const { data } = await client().storage.from(PLATFORM_UPDATE_BUCKET).createSignedUrl(path, expiresInSeconds);
@@ -73,8 +77,7 @@ export async function getPlatformUpdateSignedUrl(path: string, expiresInSeconds 
   }
 }
 
-/** Remove a stored image (best-effort), e.g. when the image is replaced/cleared
- *  or the update is deleted. */
+/** Remove a stored image (best-effort). Superadmin-only. */
 export async function deletePlatformUpdateObject(path: string): Promise<void> {
   try {
     await client().storage.from(PLATFORM_UPDATE_BUCKET).remove([path]);

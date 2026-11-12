@@ -1,5 +1,5 @@
 import { commandDb } from "@/lib/command/prisma";
-import { getPlatformUpdateSignedUrl } from "@/lib/command/platform-update-storage";
+import { getPlatformUpdateSignedUrl } from "@/lib/platform-updates/storage";
 import { PlatformUpdatesManager, type ManagedUpdate } from "@/components/command/platform-updates/PlatformUpdatesManager";
 
 // Founder Platform Updates management (Phase 1). Every entry, newest-first, with

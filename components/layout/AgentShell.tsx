@@ -18,7 +18,7 @@ import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake, Sparkle,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -61,7 +61,7 @@ function formatAgentTime(d: Date): string {
 
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
-export function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false) {
+export function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false, whatsNewVisible: boolean = false, whatsNewUnread: boolean = false) {
   // Reminders + Auto emails are self-progression surfaces. For agency
   // users (director/negotiator) they only appear when the agency actually
   // progresses a live file itself; agencies that outsource everything get
@@ -105,6 +105,9 @@ export function buildNavGroups(role: UserRole, email: string | null | undefined,
   return {
     main,
     secondary: [
+      // What's new (Phase 2): only present once the founder has published an
+      // update this viewer may see (whatsNewVisible). Subtle unread dot.
+      ...(whatsNewVisible ? [{ href: "/agent/whats-new", label: "What's new", Icon: Sparkle, dot: whatsNewUnread }] : []),
       { href: "/agent/partners",    label: "Partners",    Icon: Buildings     },
       // Billing lives in the top-right UserDropdown alongside Settings —
       // it's a "manage your agency" surface, not a daily-use nav item.
@@ -306,9 +309,9 @@ export function UserDropdown({ session, role, userName, userImage, isBusinessOwn
   );
 }
 
-export type AgentShellProps = { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; fileViewMode?: "all" | "mine" };
+export type AgentShellProps = { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; whatsNewVisible?: boolean; whatsNewUnread?: boolean; fileViewMode?: "all" | "mine" };
 
-export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, fileViewMode = "all" }: AgentShellProps) {
+export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, whatsNewVisible = false, whatsNewUnread = false, fileViewMode = "all" }: AgentShellProps) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -323,8 +326,8 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const displayName     = userName ?? session.user.name ?? "";
   const isInternalStaff = role === "admin" || role === "sales_progressor";
   const isDirector      = role === "director";
-  const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
-  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
+  const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount, whatsNewVisible, whatsNewUnread });
+  const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav, badges.whatsNewVisible, badges.whatsNewUnread);
   // Migrate sale nav shortcut. Restored (founder, 2026-11-11) after the import
   // path was hardened to replicate completeMilestone's persistent side-effects
   // (mirror-pair completions, exchange stamp, mortgage-offer expiry, referral
@@ -365,8 +368,8 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   // Keep badge counts in sync when the server layout re-renders (a hard load or
   // the manual refresh updates the props).
   useEffect(() => {
-    setBadges({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
-  }, [todoDueCount, enquiriesOpenCount, remindersCount, chainsCount, completionsCount]);
+    setBadges({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount, whatsNewVisible, whatsNewUnread });
+  }, [todoDueCount, enquiriesOpenCount, remindersCount, chainsCount, completionsCount, whatsNewVisible, whatsNewUnread]);
 
   // Refetch the "needs attention" counts on client-side navigation, so a number
   // drops the moment you clear the work rather than sticking until a reload.

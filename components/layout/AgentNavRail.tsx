@@ -29,6 +29,9 @@ export type NavRailItem = {
   label: string;
   Icon: Icon;
   badge?: number;
+  // A subtle unread dot (not a count), e.g. "What's new" has published items the
+  // viewer hasn't opened. Shown in the same trailing slot as a badge.
+  dot?: boolean;
   // Heavy destinations opt out of the on-mount full prefetch and load
   // their data on hover instead (same pattern as the Recently-viewed
   // links). Perf audit follow-up 2026-10-12: a dozen simultaneous full
@@ -43,8 +46,19 @@ export type NavRailItem = {
 // instant-shell slice (2026-09-18): rail destinations are fully prefetched
 // and every route has an instant skeleton shell, so a click commits to the
 // destination immediately — there is no wait left to acknowledge.
-function RailTrailing({ badge }: { badge?: number }) {
+function RailTrailing({ badge, dot }: { badge?: number; dot?: boolean }) {
   if (badge && badge > 0) return <span className="agent-rail-badge">{badge}</span>;
+  if (dot)
+    return (
+      <span
+        aria-hidden
+        style={{
+          width: 7, height: 7, borderRadius: 999, flexShrink: 0,
+          background: "var(--agent-coral, #FF6B4A)",
+          boxShadow: "0 0 0 3px rgba(255,107,74,0.18)",
+        }}
+      />
+    );
   return (
     <span className="agent-rail-chevron" aria-hidden>
       <CaretRight size={12} weight="bold" />
@@ -132,7 +146,7 @@ export function AgentNavRail({
           >
             <Icon weight={active ? "fill" : "regular"} style={{ width: 17, height: 17, flexShrink: 0 }} />
             <span className="agent-rail-item-label">{item.label}</span>
-            <RailTrailing badge={item.badge} />
+            <RailTrailing badge={item.badge} dot={item.dot} />
           </Link>
         );
       })}
