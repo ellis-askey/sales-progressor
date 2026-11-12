@@ -4,7 +4,30 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-11-01
+Last updated: 2026-11-12
+
+---
+
+## Platform Updates — add the read-only GitHub token (2026-11-12)
+
+**Why:** Phase 3 auto-drafts Platform Updates from each production release. To read *what changed* in a release it calls the GitHub API (read-only). Without the token the automation simply does nothing (safe) — it starts working the moment the token is set. This is a NEW third-party integration (GitHub API), flagged here for your sign-off.
+
+**What to do (one-time, ~2 minutes):**
+1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. **Resource owner:** your account (`ellis-askey`). **Repository access:** *Only select repositories* → `sales-progressor`.
+3. **Permissions:** Repository permissions → **Contents: Read-only**. Nothing else. (No write, no org, no other repos.)
+4. **Expiration:** your call (e.g. 1 year — set a reminder to rotate).
+5. Generate, copy the token.
+6. Vercel → the Sales Progressor project → **Settings → Environment Variables** → add `GITHUB_TOKEN` = the token, scoped to **Production** only. Redeploy (or it's picked up on the next prod deploy).
+
+**Notes:**
+- Read-only + single-repo + contents-only is the least privilege that works.
+- The automation only runs on **production** and only creates **Hidden** drafts — it never publishes. You review them in **Command Centre → Platform updates**.
+- Until the token is set, releases are left for it to catch up on once configured (nothing is lost, nothing is drafted).
+
+**Your calls:**
+- [ ] Approve adding the GitHub read token (you already approved the approach).
+- [ ] Create the token + add `GITHUB_TOKEN` to Vercel Production.
 
 ---
 

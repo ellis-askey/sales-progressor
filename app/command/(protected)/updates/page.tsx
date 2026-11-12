@@ -11,7 +11,11 @@ export const dynamic = "force-dynamic";
 
 export default async function PlatformUpdatesPage() {
   const updates = await commandDb.platformUpdate.findMany({
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    // Dismissed auto-drafts drop out of the review list (kept in the DB for the
+    // dedup trail, never regenerated).
+    where: { dismissedAt: null },
+    // Newest first, so freshly auto-drafted entries awaiting review sit at the top.
+    orderBy: { createdAt: "desc" },
     take: 300,
   });
 
@@ -23,6 +27,8 @@ export default async function PlatformUpdatesPage() {
       category: u.category,
       status: u.status,
       audience: u.audience,
+      origin: u.origin,
+      sourceReleaseSha: u.sourceReleaseSha,
       publishedAt: u.publishedAt ? u.publishedAt.toISOString() : null,
       createdAt: u.createdAt.toISOString(),
       linkUrl: u.linkUrl,
@@ -34,6 +40,7 @@ export default async function PlatformUpdatesPage() {
   );
 
   const publishedCount = rows.filter((r) => r.status === "published").length;
+  const awaitingReview = rows.filter((r) => r.origin === "auto" && r.status === "draft").length;
 
   return (
     <div className="space-y-6">
@@ -49,6 +56,14 @@ export default async function PlatformUpdatesPage() {
           {rows.length - publishedCount} hidden
         </p>
       </div>
+
+      {awaitingReview > 0 && (
+        <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-2.5 text-[13px] text-violet-200">
+          <span className="font-semibold">{awaitingReview}</span> auto-drafted{" "}
+          {awaitingReview === 1 ? "update" : "updates"} from recent releases awaiting your review. Edit and publish the
+          worthwhile ones, or dismiss the rest. Nothing is visible to users until you publish it.
+        </div>
+      )}
 
       <PlatformUpdatesManager updates={rows} />
     </div>

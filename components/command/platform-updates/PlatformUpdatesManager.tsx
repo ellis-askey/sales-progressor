@@ -3,12 +3,13 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Plus, Pencil, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, X, Check, Loader2,
+  Plus, Pencil, Trash2, Eye, EyeOff, ExternalLink, ImagePlus, X, Check, Loader2, Sparkles, Archive,
 } from "lucide-react";
 import {
   savePlatformUpdateAction,
   setPlatformUpdateStatusAction,
   deletePlatformUpdateAction,
+  dismissPlatformUpdateAction,
   requestPlatformUpdateImageUploadAction,
   attachPlatformUpdateImageAction,
   removePlatformUpdateImageAction,
@@ -25,6 +26,8 @@ export type ManagedUpdate = {
   category: Category;
   status: Status;
   audience: Audience;
+  origin: "manual" | "auto";
+  sourceReleaseSha: string | null;
   publishedAt: string | null;
   createdAt: string;
   linkUrl: string | null;
@@ -141,6 +144,14 @@ function Row({
       router.refresh();
     });
   }
+  function doDismiss() {
+    const fd = new FormData();
+    fd.set("id", update.id);
+    start(async () => {
+      await dismissPlatformUpdateAction(fd);
+      router.refresh();
+    });
+  }
 
   return (
     <div className="rounded-lg border border-[#262626] bg-[#121212] p-4">
@@ -166,6 +177,14 @@ function Row({
               {published ? <Eye size={10} /> : <EyeOff size={10} />}
               {published ? "Published" : "Hidden"}
             </span>
+            {update.origin === "auto" && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-violet-300"
+                title={update.sourceReleaseSha ? `Auto-drafted from release ${update.sourceReleaseSha.slice(0, 8)}` : "Auto-drafted from a release"}
+              >
+                <Sparkles size={10} /> Auto
+              </span>
+            )}
             <span className="text-[11px] text-neutral-600">{AUDIENCE_LABEL[update.audience]}</span>
             <span className="text-[11px] text-neutral-600">· {fmtDate(update.publishedAt ?? update.createdAt)}</span>
           </div>
@@ -198,6 +217,16 @@ function Row({
           >
             <Pencil size={14} />
           </button>
+          {update.origin === "auto" && !published && (
+            <button
+              onClick={doDismiss}
+              disabled={pending}
+              title="Dismiss this auto-draft — removed from review, never regenerated"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#1a1a1a] px-2.5 py-1.5 text-[12px] text-neutral-400 transition-colors hover:bg-[#222] hover:text-neutral-200 disabled:opacity-50"
+            >
+              <Archive size={13} /> Dismiss
+            </button>
+          )}
           {confirmDelete ? (
             <span className="inline-flex items-center gap-1">
               <button

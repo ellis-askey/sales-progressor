@@ -136,6 +136,10 @@
       "schedule": "30 9 * * 1-5"
     },
     {
+      "path": "/api/cron/platform-update-drafts",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/solicitor-chase",
       "schedule": "0 9 * * 1-5"
     },

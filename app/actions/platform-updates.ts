@@ -109,6 +109,19 @@ export async function setPlatformUpdateStatusAction(formData: FormData): Promise
   return { ok: true };
 }
 
+// Dismiss an auto-draft the founder doesn't want to announce: a SOFT remove
+// (stamps dismissedAt) so it drops out of the review list but stays recorded,
+// and is never regenerated (the release is already marked processed). Reversible
+// by nothing today — a dismissed entry can still be hard-deleted.
+export async function dismissPlatformUpdateAction(formData: FormData): Promise<{ ok: boolean }> {
+  await assertSuperadmin();
+  const id = ((formData.get("id") as string) ?? "").trim();
+  if (!id) return { ok: false };
+  await commandDb.platformUpdate.update({ where: { id }, data: { dismissedAt: new Date() } });
+  revalidatePath(MANAGE_PATH);
+  return { ok: true };
+}
+
 // Hard-delete an entry (and its image).
 export async function deletePlatformUpdateAction(formData: FormData): Promise<{ ok: boolean }> {
   await assertSuperadmin();

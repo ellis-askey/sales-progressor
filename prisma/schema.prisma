@@ -4290,6 +4290,14 @@ enum PlatformUpdateAudience {
   tsp_internal
 }
 
+// How an entry was created: hand-written by the founder, or auto-drafted from a
+// production release (Phase 3). Auto drafts are born Hidden like any other and
+// are never published, edited or overwritten by the system.
+enum PlatformUpdateOrigin {
+  manual
+  auto
+}
+
 model PlatformUpdate {
   id                 String                 @id @default(cuid())
   title              String // user-facing published headline
@@ -4308,8 +4316,16 @@ model PlatformUpdate {
   // Internal only — raw change context for the founder while writing the real
   // copy. NEVER returned to any user-facing surface.
   technicalSummary   String?                @db.Text
-  // Reserved for Phase 3: the deploy SHAs that fed this entry (dedup + trace).
+  // The individual commit SHAs grouped into this entry (Phase 3 auto-drafts).
   sourceShas         String[]               @default([])
+  // Phase 3 automation. origin=auto for drafts generated from a production
+  // release; sourceReleaseSha is that release's HEAD commit (trace + dedup).
+  // dismissedAt soft-removes an auto-draft the founder rejected (kept out of the
+  // review list, never regenerated). The automation only ever INSERTs entries —
+  // it never updates one — so a reviewed or edited draft is never overwritten.
+  origin             PlatformUpdateOrigin   @default(manual)
+  sourceReleaseSha   String?
+  dismissedAt        DateTime?
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
   createdById        String?
@@ -4321,6 +4337,22 @@ model PlatformUpdate {
   // ordered by publishedAt desc.
   @@index([status, publishedAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+  @@index([origin, dismissedAt])
+}
+
+// One row per production release the Phase 3 automation has processed, keyed by
+// the release's HEAD commit SHA. This is the dedup + "last processed" marker: a
+// release is expanded into drafts exactly once, even if the cron runs again or a
+// release produced zero announcements. Written only by the cron.
+model ProcessedRelease {
+  id                String   @id @default(cuid())
+  sha               String   @unique // production HEAD commit SHA at processing time
+  processedAt       DateTime @default(now())
+  commitsConsidered Int      @default(0) // commits in the compare range after noise filtering
+  draftsCreated     Int      @default(0)
+  note              String? // short status / error note for the audit trail
+
+  @@index([processedAt(sort: Desc)])
 }
 
 // Review state for the Command Centre Email Catalogue (/command/emails). One row
