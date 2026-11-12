@@ -97,7 +97,18 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
   const [sideFilter, setSideFilter] = useState<Side>("vendor");
   const [query, setQuery] = useState("");
   const [openStages, setOpenStages] = useState<Set<string>>(new Set());
-  const [openSteps, setOpenSteps] = useState<Set<string>>(new Set());
+  // One step open at a time (accordion). The first step of the shown side opens
+  // by default; opening another closes it. Lazy-init to the first Seller step so
+  // there's no closed-then-open flash on load.
+  const [openStep, setOpenStep] = useState<string | null>(() => {
+    const first = toEdit(initialRules)
+      .filter((r) => r.side === "vendor")
+      .sort((a, b) => {
+        const sd = STAGE_ORDER.indexOf(stageFor(a.code)) - STAGE_ORDER.indexOf(stageFor(b.code));
+        return sd !== 0 ? sd : a.order - b.order;
+      })[0];
+    return first?.code ?? null;
+  });
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +182,20 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
   });
   groups.forEach((g) => g.items.sort((a, b) => a.order - b.order));
   groups.sort((a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage));
+
+  // Switching Seller/Buyer reopens that side's first step (one open at a time).
+  const firstStepCodeFor = (side: Side): string | null => {
+    const vis = rows.filter((r) => r.side === side);
+    if (vis.length === 0) return null;
+    return [...vis].sort((a, b) => {
+      const sd = STAGE_ORDER.indexOf(stageFor(a.code)) - STAGE_ORDER.indexOf(stageFor(b.code));
+      return sd !== 0 ? sd : a.order - b.order;
+    })[0].code;
+  };
+  useEffect(() => {
+    setOpenStep(firstStepCodeFor(sideFilter));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sideFilter]);
 
   const sellerCount = rows.filter((r) => r.side === "vendor").length;
   const buyerCount = rows.filter((r) => r.side === "purchaser").length;
@@ -276,11 +301,11 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
               <Collapse open={open}>
                 <div className="ct-stage-body">
                   {g.items.map((s) => {
-                    const sOpen = openSteps.has(s.code);
+                    const sOpen = openStep === s.code;
                     const ch = rowChanged(s);
                     return (
                       <div className={`ct-step${ch ? " changed" : ""}${s.enabled ? "" : " off"}${sOpen ? " open" : ""}`} key={s.code}>
-                        <div className="ct-step-row" onClick={() => toggleSet(openSteps, s.code, setOpenSteps)}>
+                        <div className="ct-step-row" onClick={() => setOpenStep((cur) => (cur === s.code ? null : s.code))}>
                           <div className="ct-step-main">
                             <div className="ct-step-name">{ch && <span className="ct-reddot" />}{s.name}</div>
                             <div className="ct-step-sum">
