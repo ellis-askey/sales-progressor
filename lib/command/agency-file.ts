@@ -193,6 +193,11 @@ export type AgencySaleRow = {
   propertyAddress: string;
   onHold: boolean;
   serviceType: "self_managed" | "outsourced" | null;
+  // Per-sale free grant (outsourced-sunset "click which sales are free") + the
+  // pricing version it was stamped with, so the CC shows the control only on
+  // files the flat £50 actually applies to.
+  freeOnExchange: boolean;
+  pricingVersion: string | null;
   stage: "Onboarding" | "Conveyancing" | "Pre-exchange" | "Post-exchange";
   stepsDone: number;
   stepsLive: number; // done + available (the steps that "count")
@@ -231,6 +236,7 @@ export async function getAgencySales(agencyId: string, now: Date): Promise<Agenc
     where: { agencyId, status: { in: ["active", "on_hold"] }, isDemo: false },
     select: {
       id: true, propertyAddress: true, status: true, serviceType: true,
+      freeOnExchange: true, pricingVersion: true,
       lastActivityAt: true, predictedExchangeDate: true, expectedExchangeDate: true,
       milestoneCompletions: {
         select: { state: true, milestoneDefinition: { select: { code: true } } },
@@ -274,6 +280,8 @@ export async function getAgencySales(agencyId: string, now: Date): Promise<Agenc
       propertyAddress: f.propertyAddress,
       onHold: f.status === "on_hold",
       serviceType: f.serviceType,
+      freeOnExchange: f.freeOnExchange,
+      pricingVersion: f.pricingVersion,
       stage: STAGE_BY_PHASE[fileLevelPhase] ?? "Onboarding",
       stepsDone,
       stepsLive,

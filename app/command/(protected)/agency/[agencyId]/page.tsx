@@ -10,6 +10,8 @@ import { getAgencySetupReadiness } from "@/lib/command/agency-readiness";
 import { getManagingBusinesses } from "@/lib/command/businesses";
 import { commandDb } from "@/lib/command/prisma";
 import { ViewAsButton } from "@/components/command/ViewAsButton";
+import { MarkFreeToggle } from "@/components/command/agency-file/MarkFreeToggle";
+import { isFlatFiftyVersion } from "@/lib/billing/pricing-version";
 import { ReadinessDetail, ReadinessPill } from "@/components/command/agencies/ReadinessDetail";
 import { AgencyAutomationControls } from "@/components/command/agency-file/AgencyAutomationControls";
 import { AgencyFeeEditor } from "@/components/command/agency-file/AgencyFeeEditor";
@@ -278,6 +280,7 @@ function SalesTable({ rows }: { rows: AgencySaleRow[] }) {
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Stage</th>
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Progress</th>
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Chasing</th>
+            <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Billing</th>
             <th className="text-left px-4 py-3 text-xs font-medium text-neutral-500">Last worked</th>
             <th className="text-right px-4 py-3 text-xs font-medium text-neutral-500">Predicted exchange</th>
           </tr>
@@ -299,6 +302,13 @@ function SalesTable({ rows }: { rows: AgencySaleRow[] }) {
               </td>
               <td className="px-4 py-3 text-xs whitespace-nowrap">
                 <ChaseHealth f={f} />
+              </td>
+              <td className="px-4 py-3 text-xs whitespace-nowrap">
+                {isFlatFiftyVersion(f.pricingVersion) ? (
+                  <MarkFreeToggle transactionId={f.transactionId} free={f.freeOnExchange} />
+                ) : (
+                  <span className="text-neutral-600">—</span>
+                )}
               </td>
               <td className={`px-4 py-3 text-xs whitespace-nowrap ${f.idleDays != null && f.idleDays >= 14 ? "text-amber-400" : "text-neutral-400"}`}>
                 {f.idleDays == null ? "—" : f.idleDays === 0 ? "today" : f.idleDays === 1 ? "yesterday" : `${f.idleDays}d ago`}
