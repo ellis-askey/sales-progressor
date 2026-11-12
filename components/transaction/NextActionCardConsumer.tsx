@@ -16,7 +16,7 @@ import { daysUntil, formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 
-type MiniReminder = { id: string; ruleName: string; nextDueDate: Date | string; snoozedUntil?: Date | string | null };
+export type MiniReminder = { id: string; ruleName: string; nextDueDate: Date | string; snoozedUntil?: Date | string | null };
 
 export type NextActionInput = {
   transactionId: string;
@@ -105,7 +105,7 @@ function ReminderRow({ r, onNavigate }: { r: MiniReminder; onNavigate: () => voi
   );
 }
 
-function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder[]; totalActive: number; onViewAll: () => void }) {
+export function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniReminder[]; totalActive: number; onViewAll: () => void }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
