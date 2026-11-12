@@ -108,7 +108,7 @@ function contactHref(c: AgentSearchResult["contacts"][number]): string {
   return c.previousSale ? `${base}?round=${encodeURIComponent(c.previousSale.roundId)}` : base;
 }
 
-export function AgentGlobalSearch() {
+export function AgentGlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = {}) {
   const { theme, isNight } = usePortalTheme();
   // Design Lab: the closed search trigger is a pickable surface (undefined for
   // everyone but Ellis, so the default look is unchanged).
@@ -131,6 +131,11 @@ export function AgentGlobalSearch() {
   const router   = useRouter();
 
   useEffect(() => { openRef.current = open; }, [open]);
+
+  // Let a host shell react to the modal opening (experimental shell's mobile/
+  // tablet top bar widens the search + hides refresh/bell while searching).
+  // Optional: AgentShell passes nothing, so this is a no-op there.
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
 
   const close = useCallback(() => {
     if (!openRef.current) return;

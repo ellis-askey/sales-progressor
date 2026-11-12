@@ -152,3 +152,30 @@
 .agx-root .agx-mat-edge::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; background: linear-gradient(135deg, rgba(255, 255, 255, .8), rgba(255, 255, 255, .1) 40%, transparent 60%, rgba(255, 255, 255, .5)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
 .agx-root .agx-mat-edge::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(120% 80% at 30% 6%, rgba(255, 255, 255, .28), transparent 44%); }
 :root[data-theme="light"] .agx-root .agx-mat-edge { background: rgba(255, 255, 255, .14); }
+
+/* ── Drawer / menu footer: theme toggle (moved off the top bar) ───────────────── */
+.agx-side-foot { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 2px 2px; margin-top: 6px; border-top: 0.5px solid var(--agent-border-subtle); }
+.agx-side-foot-label { font-size: 11px; font-weight: 600; color: var(--agent-text-muted); }
+
+/* ── Tablet / mobile top-bar optimisation (Ellis, 2026-11-12) ──────────────────
+   Span the width so search + the account pill sit flush (no centered-overflow
+   "detached pill"); plus a bespoke search mode — tapping search widens the field
+   and collapses the refresh + bell away, leaving just search + the pill. The
+   modal opens over the top. Desktop (>= 1024px) is untouched. */
+@media (max-width: 1023px) {
+  .agx-cap-wrap { left: 12px; right: 12px; transform: none; max-width: none; }
+  .agx-cap { display: flex; width: 100%; }
+  .agx-cap-search { flex: 1; width: auto; min-width: 0; }
+
+  .agx-cmd-wrap { left: 12px; right: 12px; transform: none; width: auto; }
+
+  .agx-hide-on-search { transition: opacity 0.18s ease, max-width 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.2s ease, padding 0.2s ease; max-width: 160px; overflow: hidden; }
+  .agx-cap--searching .agx-hide-on-search,
+  .agx-cmd--searching .agx-hide-on-search { opacity: 0; max-width: 0; margin: 0; padding-left: 0; padding-right: 0; pointer-events: none; }
+  .agx-cap--searching .agx-cap-search,
+  .agx-cmd--searching .agx-cmd-search { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agx-hide-on-search { transition: opacity 0.12s ease; }
+}

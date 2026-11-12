@@ -99,6 +99,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [fallback, setFallback] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);  // mobile/tablet: top bar collapses to search + pill while searching
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
   const { isDark } = useDarkMode(themeMode);
 
@@ -153,14 +154,13 @@ export function AgentShellExperimental(props: AgentShellProps) {
       {canToggleViewAll && (
         <div className="hidden md:block"><ViewModeToggle initialMode={fileViewMode} /></div>
       )}
-      <button onClick={handleRefresh} disabled={refreshing} title="Refresh data" className="agent-hover-ctl agx-asof" type="button">
+      <button onClick={handleRefresh} disabled={refreshing} title="Refresh data" className="agent-hover-ctl agx-asof agx-hide-on-search" type="button">
         <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}><ArrowsClockwise size={13} /></span>
         <span className="agx-asof-txt" suppressHydrationWarning>{`As of ${formatAgentTime(refreshedAt)}`}</span>
       </button>
-      {/* Theme + account stay visible at every width: V2 has no mobile sidebar
-          footer to carry them (unlike AgentShell), so the floating bar is the
-          only home for them. */}
-      <ThemeModeToggle initialMode={themeMode} />
+      {/* Aurora + the Labs are desktop-only. Theme moved to the drawer/menu footer
+          (navPanel) so the top bar stays lean on tablet/mobile, and collapses to
+          just search + the account pill while searching. */}
       <div className="hidden md:block"><AuroraOpacityControl initialOpacity={backgroundOpacity} /></div>
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><DesignLabToggle /></div>
@@ -168,7 +168,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><ShellGlassLabToggle /></div>
       )}
-      <AgentBell initialClearedAt={agentBellClearedAt} />
+      <span className="agx-hide-on-search" style={{ display: "inline-flex" }}><AgentBell initialClearedAt={agentBellClearedAt} /></span>
       <UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} isBusinessMember={isBusinessMember} />
     </div>
   );
@@ -222,6 +222,12 @@ export function AgentShellExperimental(props: AgentShellProps) {
           </div>
         )}
       </div>
+      {/* Theme lives here now (moved off the top bar) — the drawer/menu is the
+          nav + settings home at every width on this shell. */}
+      <div className="agx-side-foot">
+        <span className="agx-side-foot-label">Appearance</span>
+        <ThemeModeToggle initialMode={themeMode} />
+      </div>
     </>
   );
 
@@ -229,8 +235,8 @@ export function AgentShellExperimental(props: AgentShellProps) {
     <ShellGlassProvider>
     <div className="agent-shell-root agx-root" data-theme="custom" data-shell={shell}>
       {shell === "drawers"
-        ? <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} />
-        : <CompactChrome menuOpen={menuOpen} setMenuOpen={setMenuOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} />}
+        ? <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
+        : <CompactChrome menuOpen={menuOpen} setMenuOpen={setMenuOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />}
 
       <AppPathRecorder />
       <PullToRefresh />
@@ -283,10 +289,10 @@ function AgxGlass({ fallback, isDark, radius = 20, className = "", children, ...
   return <LiquidGlass radius={r} blur={settings.blur} thickness={settings.thickness} displace={settings.displace} aberration={settings.aberration} tint={tint} className={className} {...rest}>{children}</LiquidGlass>;
 }
 
-type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode };
+type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode; searching: boolean; onSearchOpenChange: (v: boolean) => void };
 
 // ── Floating drawers ──────────────────────────────────────────────────────────
-function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPanel }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void }) {
+function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPanel, searching, onSearchOpenChange }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -308,9 +314,9 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
   return (
     <>
       <div className="agx-cap-wrap">
-        <AgxGlass fallback={fallback} isDark={isDark} radius={19} className="agx-cap">
-          <div className="agx-cap-search"><AgentGlobalSearch /></div>
-          <span className="agx-sep" />
+        <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cap${searching ? " agx-cap--searching" : ""}`}>
+          <div className="agx-cap-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
+          <span className="agx-sep agx-hide-on-search" />
           {controls}
         </AgxGlass>
       </div>
@@ -327,7 +333,7 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
 }
 
 // ── Compact command bar (nav opens on hover) ───────────────────────────────────
-function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navPanel }: ChromeShared & { menuOpen: boolean; setMenuOpen: (v: boolean) => void }) {
+function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navPanel, searching, onSearchOpenChange }: ChromeShared & { menuOpen: boolean; setMenuOpen: (v: boolean) => void }) {
   const regionRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -350,7 +356,7 @@ function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navP
 
   return (
     <div className="agx-cmd-wrap">
-      <AgxGlass fallback={fallback} isDark={isDark} radius={19} className="agx-cmd">
+      <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cmd${searching ? " agx-cmd--searching" : ""}`}>
         <div ref={regionRef} className="agx-cmd-region" onMouseEnter={open} onMouseLeave={scheduleClose}>
           <button ref={btnRef} className="agx-cmd-menu" type="button" aria-expanded={menuOpen} aria-haspopup="menu"
             onClick={() => { if (menuOpen) { setMenuOpen(false); } else { open(); requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("a,button")?.focus()); } }}>
@@ -360,8 +366,8 @@ function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navP
             <AgxGlass fallback={fallback} isDark={isDark} radius={20} className="agx-cmd-panel-glass">{navPanel(() => setMenuOpen(false))}</AgxGlass>
           </div>
         </div>
-        <span className="agx-sep" />
-        <div className="agx-cmd-search"><AgentGlobalSearch /></div>
+        <span className="agx-sep agx-hide-on-search" />
+        <div className="agx-cmd-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
         <span className="agx-cmd-spacer" />
         {controls}
       </AgxGlass>
