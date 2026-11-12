@@ -212,7 +212,7 @@ export async function OverviewPanel({
     prisma.propertyTransaction
       .findUnique({
         where: { id: transaction.id },
-        select: { activeBuyerRound: { select: { createdAt: true } } },
+        select: { activeBuyerRound: { select: { id: true, createdAt: true } } },
       })
       .then((r) => r?.activeBuyerRound ?? null)
       .catch(() => null),
@@ -389,6 +389,30 @@ export async function OverviewPanel({
     .filter((l) => l.id !== heroReminderId)
     .slice(0, 3)
     .map((l) => ({ id: l.id, ruleName: l.reminderRule.name, nextDueDate: l.nextDueDate, snoozedUntil: l.snoozedUntil ?? null }));
+
+  // Hold-pile confirmation (critique #280): a survey/valuation the client logged
+  // on their portal that WE still owe a confirmation on (PM6/PM9,
+  // awaitingBookingConfirmation). It's a concrete thing to action, so it outranks
+  // any chase — the card shows it as the hero. Scoped to the active round so a
+  // fallen-through buyer's stale row can't surface on a relisted file.
+  const pendingBookingConfirmation = await prisma.milestoneCompletion.findFirst({
+    where: {
+      transactionId: transaction.id,
+      awaitingBookingConfirmation: true,
+      state: "complete",
+      milestoneDefinition: { code: { in: ["PM6", "PM9"] } },
+      ...(activeRound?.id ? { OR: [{ buyerRoundId: activeRound.id }, { buyerRoundId: null }] } : {}),
+    },
+    orderBy: { eventDate: "asc" },
+    select: { milestoneDefinitionId: true, eventDate: true, milestoneDefinition: { select: { code: true } } },
+  });
+  const nextActionConfirmation = pendingBookingConfirmation
+    ? {
+        milestoneDefinitionId: pendingBookingConfirmation.milestoneDefinitionId,
+        kind: (pendingBookingConfirmation.milestoneDefinition.code === "PM6" ? "valuation" : "survey") as "valuation" | "survey",
+        eventDateISO: pendingBookingConfirmation.eventDate ? pendingBookingConfirmation.eventDate.toISOString().slice(0, 10) : null,
+      }
+    : null;
 
   // ── Next-step computation per side ─────────────────────────────────────
   const computeSideState = makeComputeMilestoneSideState(transaction.completionDate, todayUKStr);
@@ -666,6 +690,7 @@ export async function OverviewPanel({
       <NextActionCardConsumer
         transactionId={transaction.id}
         pathname={`/agent/transactions/${transaction.id}`}
+        confirmation={nextActionConfirmation}
         reminder={nextActionReminder}
         fallbackMilestone={
           vendorSideState.state === "hasNext"

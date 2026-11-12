@@ -15,7 +15,7 @@
 // container decides what "Mark complete" means (advance the reminder,
 // tick the milestone, whatever).
 
-import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle, Bell, BellRinging, Clock, Siren, ArrowsClockwise, LinkBreak, SealCheck, ChatCircleDots, Warning, ListChecks, Star, HandWaving } from "@phosphor-icons/react/dist/ssr";
+import { Fire, DotsThree, Phone, EnvelopeSimple, CheckCircle, Bell, BellRinging, Clock, Siren, ArrowsClockwise, LinkBreak, SealCheck } from "@phosphor-icons/react/dist/ssr";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
 
@@ -23,12 +23,11 @@ import { GlassCard } from "@/components/glass/GlassCard";
 // snoozed=Zzz, overdue=BellRinging, due=Bell, upcoming=Clock, escalated=Siren,
 // auto=ArrowsClockwise (loop), chain=LinkBreak. Default keeps the flame.
 //
-// Per-row TYPE glyphs (critique #280) — as the card grows past chases into a
-// typed feed, each non-chase action leads with its own glyph: confirm a step,
-// an enquiry to action, a file problem, a to-do, a review to request, file setup.
+// Per-row TYPE glyph (critique #280): "confirm" leads a survey/valuation booking
+// the card surfaces for you to confirm — distinct from a chase at a glance.
 export type NextActionIcon =
   | "overdue" | "due" | "snoozed" | "upcoming" | "escalated" | "auto" | "chain" | "default"
-  | "confirm" | "enquiry" | "problem" | "task" | "review" | "setup";
+  | "confirm";
 
 // Three "z" sleeping glyph — phosphor has no Zzz, so this is the artifact's.
 function Zzz({ size = 24 }: { size?: number }) {
@@ -49,11 +48,6 @@ function stateIcon(icon: NextActionIcon): ReactNode {
     case "auto":      return <ArrowsClockwise size={24} weight="bold" />;
     case "chain":     return <LinkBreak size={24} weight="bold" />;
     case "confirm":   return <SealCheck size={24} weight="fill" />;
-    case "enquiry":   return <ChatCircleDots size={24} weight="fill" />;
-    case "problem":   return <Warning size={24} weight="fill" />;
-    case "task":      return <ListChecks size={24} weight="bold" />;
-    case "review":    return <Star size={24} weight="fill" />;
-    case "setup":     return <HandWaving size={24} weight="fill" />;
     default:          return <Fire size={24} weight="fill" />;
   }
 }

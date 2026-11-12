@@ -2,10 +2,11 @@
 
 // /dev/next-action-card — a byte-for-byte harness for the Overview "Next action"
 // card (critique #280). Renders the REAL <NextActionCard> (and the real <UpNext>
-// queue) with mock props, and lets you cycle every display: the current chase
-// states, the fallbacks, and the new typed-feed item types we're adding
-// (confirm a step, enquiry to action, file problem, to-do, review, chain nudge,
-// setup). Flip light/dark to check both themes.
+// queue) with mock props, and cycles every display that actually ships: the
+// chase states, the fallbacks, and the one new type — a confirmation you owe
+// (survey/valuation bookings in your hold pile), which outranks any chase.
+// Everything else we discussed (problems, tasks, chain nudges, reviews, setup)
+// was deliberately NOT built. Flip light/dark to check both themes.
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NextActionCard, type NextActionCardProps } from "@/components/transaction/NextActionCard";
@@ -71,28 +72,18 @@ const STATES: State[] = [
       </div>
     ) },
 
-  // ── New typed-feed items (critique #280 — "these things we're adding") ──
-  { key: "confirm", group: "New types", label: "Step to confirm",
-    note: "A milestone looks reached but hasn't been ticked (fallbackMilestone, live data).",
-    render: () => card({ title: "Confirm: Searches received", description: "This step looks done but hasn't been ticked yet.", dueLabel: "Ready to confirm", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm step", onPrimary: noop, secondaryLabel: "View steps", onSecondary: noop }) },
-  { key: "enquiry", group: "New types", label: "Enquiry to action",
-    note: "A stalled enquiry loop on this file.",
-    render: () => card({ title: "Enquiries stalled", description: "No reply on the enquiry loop for 9 days.", dueLabel: "Stalled 9 days", dueTone: "warn", icon: "enquiry", primaryLabel: "Open enquiries", onPrimary: noop, secondaryLabel: "Chase solicitor", onSecondary: noop }) },
-  { key: "problem", group: "New types", label: "File problem to fix",
-    note: "Missing solicitor / email / blocked step — problem-detection computes these.",
-    render: () => card({ title: "Add the buyer's solicitor", description: "No buyer solicitor on file, so searches can't be ordered.", dueLabel: "Blocking the sale", dueTone: "warn", icon: "problem", primaryLabel: "Add solicitor", onPrimary: noop }) },
-  { key: "task", group: "New types", label: "To-do / task",
-    note: "A pending task on this file (Tasks feature).",
-    render: () => card({ title: "Call the vendor about access", description: "From your to-do list for this file.", dueLabel: "Due today", dueTone: "coral", icon: "task", primaryLabel: "Mark done", onPrimary: noop, secondaryLabel: "Snooze", onSecondary: noop }) },
-  { key: "review", group: "New types", label: "Review to request",
-    note: "Near / after completion — a good moment to ask.",
-    render: () => card({ title: "Ask for a Google review", description: "Completion is close, so now's a good time to ask.", dueLabel: "Near completion", dueTone: "muted", icon: "review", primaryLabel: "Send review request", onPrimary: noop }) },
-  { key: "chainnudge", group: "New types", label: "Chain nudge",
-    note: "Chase a neighbour / push the chain to exchange.",
-    render: () => card({ title: "Push the chain to exchange", description: "The sale below is holding things up.", dueLabel: "Ready to push", dueTone: "coral", icon: "chain", primaryLabel: "Chase neighbour", onPrimary: noop }) },
-  { key: "setup", group: "New types", label: "Setup / intro",
-    note: "Brand-new file — intro call / set expectations.",
-    render: () => card({ title: "Introduce yourself to the clients", description: "Brand-new file — send the intro and set expectations.", dueLabel: "New file", dueTone: "coral", icon: "setup", primaryLabel: "Send intro", onPrimary: noop, secondaryLabel: "Set up file", onSecondary: noop }) },
+  // ── The one real new type: a confirmation you owe (critique #280) ───────
+  // Everything else (problems, tasks, chain nudges, reviews, setup/intro) was
+  // deliberately NOT added — see the plan. Only chases + confirmations ship.
+  { key: "confirm", group: "Confirmation you owe", label: "Survey to confirm",
+    note: "A survey the client booked on their portal, sitting in your hold pile. It outranks any chase, so it's the hero. The real Confirm button opens a date + keys panel.",
+    render: () => card({ title: "Confirm the survey booking", description: "A client logged a survey on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
+  { key: "confirm-valuation", group: "Confirmation you owe", label: "Valuation to confirm",
+    note: "The lender-valuation variant (PM6).",
+    render: () => card({ title: "Confirm the valuation booking", description: "A client logged a lender valuation on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 20 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
+  { key: "confirm-queue", group: "Confirmation you owe", label: "Confirmation + chases below",
+    note: "When you owe a confirmation AND have chases, the confirmation is the hero and the chases drop into Up next.",
+    render: () => card({ title: "Confirm the survey booking", description: "A client logged a survey on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop, belowActions: upNextSlot }) },
 ];
 
 export default function NextActionCardDevPage() {

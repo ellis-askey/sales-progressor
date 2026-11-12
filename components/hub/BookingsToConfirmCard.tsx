@@ -324,7 +324,7 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
   );
 }
 
-function ConfirmPanel({
+export function ConfirmPanel({
   row,
   busy,
   onConfirm,

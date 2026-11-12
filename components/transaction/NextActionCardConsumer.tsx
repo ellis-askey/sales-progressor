@@ -15,12 +15,24 @@ import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/component
 import { daysUntil, formatDate } from "@/lib/utils";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
+import { ConfirmPanel, type BookingConfirmRow } from "@/components/hub/BookingsToConfirmCard";
+import { confirmProvisionalBookingAction } from "@/app/actions/booking-confirmation";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 export type MiniReminder = { id: string; ruleName: string; nextDueDate: Date | string; snoozedUntil?: Date | string | null };
 
 export type NextActionInput = {
   transactionId: string;
   pathname: string;
+  // A survey / lender-valuation booking the client logged on their portal that
+  // OUR side still owes a confirmation on (awaitingBookingConfirmation, PM6/PM9).
+  // A confirmation is a concrete thing to action, so it OUTRANKS any chase and
+  // becomes the hero; the top reminder drops into "Up next". (critique #280)
+  confirmation?: {
+    milestoneDefinitionId: string;
+    kind: "survey" | "valuation";
+    eventDateISO: string | null;
+  } | null;
   reminder: {
     ruleName: string;
     topTaskId: string | null;
@@ -120,7 +132,76 @@ export function UpNext({ reminders, totalActive, onViewAll }: { reminders: MiniR
   );
 }
 
-export function NextActionCardConsumer({ transactionId, pathname, reminder, fallbackMilestone, otherReminders, totalActive }: NextActionInput) {
+// Case 0 hero — a survey/valuation booking we owe a confirmation on. Reuses the
+// hub's ConfirmPanel (date + keys) and the same confirm action. (critique #280)
+function ConfirmationHero({
+  confirmation, transactionId, belowActions, onViewReminders,
+}: {
+  confirmation: NonNullable<NextActionInput["confirmation"]>;
+  transactionId: string;
+  belowActions: ReactNode;
+  onViewReminders: () => void;
+}) {
+  const { toast } = useAgentToast();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const noun = confirmation.kind === "valuation" ? "valuation" : "survey";
+  const longNoun = confirmation.kind === "valuation" ? "lender valuation" : "survey";
+
+  // The shared ConfirmPanel only reads kind + eventDateISO; the rest is unused here.
+  const row: BookingConfirmRow = {
+    transactionId, milestoneDefinitionId: confirmation.milestoneDefinitionId,
+    href: "", photoUrl: null, address: "", kind: confirmation.kind,
+    pillLabel: "", subtext: "", eventDateISO: confirmation.eventDateISO,
+  };
+
+  async function onConfirm(keys: boolean, date: string | null) {
+    setBusy(true);
+    try {
+      const res = await confirmProvisionalBookingAction({
+        transactionId, milestoneDefinitionId: confirmation.milestoneDefinitionId,
+        keyCollectionRequired: keys, eventDate: date, outcome: "confirm",
+      });
+      if (res.ok) {
+        toast.success(`${noun.charAt(0).toUpperCase()}${noun.slice(1)} confirmed`, { description: "We've let the client and the seller know." });
+        setOpen(false);
+        // confirmProvisionalBookingAction revalidates this page — the card then
+        // re-renders without the confirmation (it's no longer awaiting).
+      } else {
+        toast.error("This booking was already handled.");
+      }
+    } catch {
+      toast.error("Couldn't confirm that. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <NextActionCard
+        title={`Confirm the ${noun} booking`}
+        description={`A client logged a ${longNoun} on their portal. Check the date and access, then confirm and we'll let everyone know.`}
+        dueLabel={confirmation.eventDateISO ? `Booked for ${formatDate(confirmation.eventDateISO)}` : "Waiting for you to confirm"}
+        dueTone="coral"
+        icon="confirm"
+        primaryLabel={open ? "Close" : "Confirm"}
+        onPrimary={() => setOpen((v) => !v)}
+        secondaryLabel="View reminders"
+        onSecondary={onViewReminders}
+        belowActions={belowActions}
+      />
+      {open && (
+        <div style={{ marginTop: 10, border: "0.5px solid var(--agent-border-default)", borderRadius: 12, background: "var(--agent-surface-elevated)" }}>
+          <ConfirmPanel row={row} busy={busy} onConfirm={onConfirm} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function NextActionCardConsumer({ transactionId, pathname, confirmation, reminder, fallbackMilestone, otherReminders, totalActive }: NextActionInput) {
   const { setActiveTab } = useTabContext();
   // Phase 2 (2026-09-17): pending is ack-scoped - it clears when the
   // server acknowledges the write, not when the page refetch lands.
@@ -179,6 +260,19 @@ export function NextActionCardConsumer({ transactionId, pathname, reminder, fall
   const list = otherReminders.length > 0
     ? <UpNext reminders={otherReminders} totalActive={totalActive} onViewAll={goReminders} />
     : undefined;
+
+  // Case 0 — a confirmation we OWE outranks any chase (#280). Shown as the hero;
+  // the chases drop into the Up-next list on the right.
+  if (confirmation) {
+    return (
+      <ConfirmationHero
+        confirmation={confirmation}
+        transactionId={transactionId}
+        belowActions={list}
+        onViewReminders={goReminders}
+      />
+    );
+  }
 
   // Case 1 — reminder-driven hero
   if (reminder) {
