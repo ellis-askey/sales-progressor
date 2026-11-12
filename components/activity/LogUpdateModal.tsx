@@ -397,10 +397,8 @@ export function LogUpdateModal(props: Props) {
 
             {/* what happened */}
             <div>
-              <div className="lu-lab">What happened?</div>
-              <div {...gField.props} className={tagCls("lu-field" + (rec ? " rec" : ""), gField)} style={lensHost(gField.lens)}>
-                {gField.lens && <GlassLens radius={11} />}
-                <textarea ref={taRef} className="lu-ta" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Add an update, or tap the microphone to dictate…" rows={3} />
+              <div className="lu-lab-row">
+                <div className="lu-lab">What happened?</div>
                 <div className="lu-micwrap">
                   {rec && (
                     <span className="lu-rectag">
@@ -411,7 +409,7 @@ export function LogUpdateModal(props: Props) {
                   {dictation.status !== "unsupported" && !rec && (
                     <span ref={tipsWrapRef} style={{ display: "inline-flex" }}>
                       <button type="button" className="lu-micinfo" onClick={() => setTipsOpen((v) => !v)} aria-label="Dictation tips" dangerouslySetInnerHTML={{ __html: svg(IC.info, 14, 1.9) }} />
-                      <AnchoredPanel anchorRef={tipsWrapRef} open={tipsOpen} onClose={() => setTipsOpen(false)} placement="top-end" width={244} bare zIndex={1600}>
+                      <AnchoredPanel anchorRef={tipsWrapRef} open={tipsOpen} onClose={() => setTipsOpen(false)} placement="bottom-end" width={244} bare zIndex={1600}>
                         <div className="lu-tips">
                           <div className="lu-tips-h">Speak punctuation and breaks</div>
                           <p className="lu-tips-p">While dictating, just say the word:</p>
@@ -428,6 +426,10 @@ export function LogUpdateModal(props: Props) {
                     <button type="button" className={"lu-mic" + (rec ? " on" : "")} onClick={() => dictation.toggle()} aria-label={rec ? "Stop recording" : "Dictate"} dangerouslySetInnerHTML={{ __html: svg(rec ? IC.stop : IC.mic, rec ? 14 : 16, 1.9) }} />
                   )}
                 </div>
+              </div>
+              <div {...gField.props} className={tagCls("lu-field" + (rec ? " rec" : ""), gField)} style={lensHost(gField.lens)}>
+                {gField.lens && <GlassLens radius={11} />}
+                <textarea ref={taRef} className="lu-ta" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Add an update, or tap the microphone to dictate…" rows={3} />
               </div>
             </div>
 
@@ -659,6 +661,9 @@ const CSS = `
 .lu-fade { animation:lu-fade .22s cubic-bezier(.22,1,.36,1) both; }
 @keyframes lu-fade { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
 .lu-lab { font-size:11.5px; font-weight:600; color:var(--agent-text-secondary); margin-bottom:8px; }
+/* "What happened?" label + the dictation mic/tips on one row (matches the email modal). */
+.lu-lab-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; min-height:32px; }
+.lu-lab-row .lu-lab { margin-bottom:0; }
 
 .lu-prophead { display:flex; align-items:center; gap:11px; width:100%; padding:9px 11px; border:0.5px solid var(--agent-border-default); border-radius:12px; background:var(--agent-surface-elevated); font:inherit; text-align:left; transition:border-color .14s; }
 .lu-prophead[title]:hover { border-color:var(--agent-coral); }
@@ -670,10 +675,9 @@ const CSS = `
 .lu-field { position:relative; border:1px solid var(--agent-border-default); border-radius:11px; background:var(--agent-surface-elevated); transition:border-color .16s, box-shadow .16s; }
 .lu-field:focus-within { border-color:var(--agent-coral-deep); }
 .lu-field.rec { border-color:var(--agent-coral-deep); box-shadow:0 0 0 3px rgba(var(--agent-coral-rgb),.12); }
-.lu-ta { width:100%; box-sizing:border-box; border:0; background:transparent; resize:vertical; padding:11px 74px 11px 13px; font:inherit; font-size:14px; line-height:1.55; color:var(--agent-text-primary); outline:none; min-height:74px; }
+.lu-ta { width:100%; box-sizing:border-box; border:0; background:transparent; resize:vertical; padding:11px 13px; font:inherit; font-size:14px; line-height:1.55; color:var(--agent-text-primary); outline:none; min-height:74px; }
 .lu-ta::placeholder { color:var(--agent-text-muted); }
-.lu-micwrap { position:absolute; right:9px; bottom:9px; display:flex; align-items:center; gap:8px; pointer-events:none; }
-.lu-micwrap > * { pointer-events:auto; }
+.lu-micwrap { display:flex; align-items:center; gap:8px; }
 .lu-rectag { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--agent-coral-deep); }
 .lu-wave { display:inline-flex; align-items:center; gap:2px; height:15px; }
 .lu-wave span { width:2.5px; height:28%; border-radius:999px; background:var(--agent-coral-deep); animation:lu-wav .9s ease-in-out infinite; }
