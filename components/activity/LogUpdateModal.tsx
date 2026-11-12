@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { DraftForEveryonePanel } from "./DraftForEveryonePanel";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { PasteWhatsAppPanel, type ImportableContact } from "./PasteWhatsAppPanel";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { logCommAction } from "@/app/actions/comms";
@@ -60,6 +61,7 @@ const IC = {
   more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
   sparkle: '<path d="M12 3l1.9 4.7L19 9l-4.3 2.9L15.8 17 12 14.2 8.2 17l1.1-5.1L5 9l5.1-1.3z"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   back: '<path d="M15 18l-6-6 6-6"/>',
@@ -95,6 +97,7 @@ export function LogUpdateModal(props: Props) {
   const { toast } = useAgentToast();
   const [open, setOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("form");
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the AI "Draft client updates" entry when off
   const [closing, setClosing] = useState(false);
 
   // form state
@@ -133,6 +136,9 @@ export function LogUpdateModal(props: Props) {
 
   const moreWrapRef = useRef<HTMLDivElement>(null);
   const whoWrapRef = useRef<HTMLDivElement>(null);
+  // Dictation-tips popover (the "i" by the mic — critique #284).
+  const tipsWrapRef = useRef<HTMLSpanElement>(null);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   // ── Design Lab wiring (Ellis only) ──────────────────────────────────────────
   // Tag each surface so the glass Design Lab discovers it and Ellis can design
@@ -349,7 +355,7 @@ export function LogUpdateModal(props: Props) {
         <span className="lu-cbx">{on && <span dangerouslySetInnerHTML={{ __html: svg(IC.check, 11, 3) }} />}</span>
         <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={24} />
         <span style={{ flex: 1, textAlign: "left", fontSize: 13, fontWeight: 600, color: on ? "#fff" : "var(--agent-text-primary)" }}>{extractFirstName(c.name)}</span>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: on ? "rgba(255,255,255,.85)" : "var(--agent-text-muted)" }}>{side === "seller" ? "Seller" : "Buyer"}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: on ? "rgba(255,255,255,.85)" : "var(--agent-text-muted)" }}>{side === "seller" ? "Seller" : "Buyer"}</span>
       </button>
     );
   };
@@ -400,6 +406,22 @@ export function LogUpdateModal(props: Props) {
                     <span className="lu-rectag">
                       <span className="lu-wave">{[0, 1, 2, 3, 4].map((i) => <span key={i} style={{ animationDelay: `${i * 0.11}s` }} />)}</span>
                       Recording… {mmss}
+                    </span>
+                  )}
+                  {dictation.status !== "unsupported" && !rec && (
+                    <span ref={tipsWrapRef} style={{ display: "inline-flex" }}>
+                      <button type="button" className="lu-micinfo" onClick={() => setTipsOpen((v) => !v)} aria-label="Dictation tips" dangerouslySetInnerHTML={{ __html: svg(IC.info, 14, 1.9) }} />
+                      <AnchoredPanel anchorRef={tipsWrapRef} open={tipsOpen} onClose={() => setTipsOpen(false)} placement="top-end" width={244} bare zIndex={1600}>
+                        <div className="lu-tips">
+                          <div className="lu-tips-h">Speak punctuation and breaks</div>
+                          <p className="lu-tips-p">While dictating, just say the word:</p>
+                          <ul className="lu-tips-list">
+                            {["new line", "new paragraph", "full stop", "comma", "question mark", "exclamation mark"].map((t) => (
+                              <li key={t}>“{t}”</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </AnchoredPanel>
                     </span>
                   )}
                   {dictation.status !== "unsupported" && (
@@ -539,10 +561,12 @@ export function LogUpdateModal(props: Props) {
       {screen === "form" && (
         <div {...gFooter.props} className={tagCls("lu-foot", gFooter)} style={lensHost(gFooter.lens)}>
           {gFooter.lens && <GlassLens radius={0} />}
-          <button type="button" {...gDraft.props} className={tagCls("lu-btn lu-ghost", gDraft)} style={lensHost(gDraft.lens)} onClick={() => setScreen("draft")}>
-            {gDraft.lens && <GlassLens radius={10} />}
-            <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 15, 1.9) }} /> Draft client updates
-          </button>
+          {aiOn && (
+            <button type="button" {...gDraft.props} className={tagCls("lu-btn lu-ghost", gDraft)} style={lensHost(gDraft.lens)} onClick={() => setScreen("draft")}>
+              {gDraft.lens && <GlassLens radius={10} />}
+              <span dangerouslySetInnerHTML={{ __html: svg(IC.sparkle, 15, 1.9) }} /> Draft client updates
+            </button>
+          )}
           <button type="button" {...gSave.props} className={tagCls("lu-btn lu-primary lu-grow", gSave)} style={lensHost(gSave.lens)} disabled={saving} onClick={saveLog}>{gSave.lens && <GlassLens radius={10} />}{saving ? "Saving…" : "Save update"}</button>
         </div>
       )}
@@ -646,7 +670,7 @@ const CSS = `
 .lu-field { position:relative; border:1px solid var(--agent-border-default); border-radius:11px; background:var(--agent-surface-elevated); transition:border-color .16s, box-shadow .16s; }
 .lu-field:focus-within { border-color:var(--agent-coral-deep); }
 .lu-field.rec { border-color:var(--agent-coral-deep); box-shadow:0 0 0 3px rgba(var(--agent-coral-rgb),.12); }
-.lu-ta { width:100%; box-sizing:border-box; border:0; background:transparent; resize:vertical; padding:11px 48px 11px 13px; font:inherit; font-size:14px; line-height:1.55; color:var(--agent-text-primary); outline:none; min-height:74px; }
+.lu-ta { width:100%; box-sizing:border-box; border:0; background:transparent; resize:vertical; padding:11px 74px 11px 13px; font:inherit; font-size:14px; line-height:1.55; color:var(--agent-text-primary); outline:none; min-height:74px; }
 .lu-ta::placeholder { color:var(--agent-text-muted); }
 .lu-micwrap { position:absolute; right:9px; bottom:9px; display:flex; align-items:center; gap:8px; pointer-events:none; }
 .lu-micwrap > * { pointer-events:auto; }
@@ -657,6 +681,15 @@ const CSS = `
 .lu-mic { width:32px; height:32px; border-radius:999px; display:grid; place-items:center; cursor:pointer; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-secondary); transition:all .15s; }
 .lu-mic:hover { border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 .lu-mic.on { background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); color:#fff; }
+.lu-micinfo { width:24px; height:24px; border-radius:999px; display:grid; place-items:center; cursor:pointer; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-muted); transition:border-color .15s, color .15s; }
+.lu-micinfo:hover { border-color:var(--agent-coral); color:var(--agent-coral-deep); }
+/* Dictation-tips popover renders body-portalled inside .ui-pop (outside the
+   --agent-* scope), so colour off --ui-ink like the who-picker rows do. */
+.lu-tips { padding:11px 13px; }
+.lu-tips-h { font-size:12px; font-weight:700; color:rgb(var(--ui-ink)); margin-bottom:5px; }
+.lu-tips-p { margin:0 0 8px; font-size:11.5px; color:rgba(var(--ui-ink),.6); line-height:1.4; }
+.lu-tips-list { margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:5px; }
+.lu-tips-list li { font-size:11px; font-weight:600; color:rgba(var(--ui-ink),.8); background:rgba(var(--ui-ink),.07); border-radius:6px; padding:3px 8px; }
 
 .lu-method { display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:9px; cursor:pointer; border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated); color:var(--agent-text-secondary); transition:all .15s; }
 .lu-method:hover { border-color:var(--agent-coral); color:var(--agent-text-primary); }
@@ -732,7 +765,9 @@ const CSS = `
 .lu-trigger:hover { filter:brightness(1.04); } .lu-trigger:active { transform:translateY(1px); }
 .lu-trigger-sm { font-size:12px; padding:6px 12px; border-radius:10px; gap:7px; }
 /* Property-search step (standalone Add-note launcher). */
-.lu-eyebrow { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--agent-text-muted); margin:4px 0 10px; }
+/* Matches .lu-lab (sentence-case, not all-caps) so the property-search step's
+   label is consistent with every other label in the modal (critique #285). */
+.lu-eyebrow { font-size:11.5px; font-weight:600; color:var(--agent-text-secondary); margin:4px 0 10px; }
 .anb-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:10px 13px; transition:border-color .15s; }
 .anb-search:focus-within { border-color:var(--agent-coral-deep); }
 .anb-search input { flex:1; border:none; outline:none; background:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary); }

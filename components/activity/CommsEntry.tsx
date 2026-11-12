@@ -20,6 +20,7 @@ import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { PasteWhatsAppPanel, type ImportableContact } from "@/components/activity/PasteWhatsAppPanel";
 import { DraftForEveryonePanel } from "@/components/activity/DraftForEveryonePanel";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Popover, PopoverMenuItem, PopoverDivider } from "@/components/ui/Popover";
 
@@ -79,6 +80,7 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
   const [loading, setLoading]         = useState(false);
   const [isPasteMode, setIsPasteMode] = useState(false);
   const [isDraftMode, setIsDraftMode] = useState(false);
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the AI draft entry when off
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const logItems = LOG_ITEMS.filter((i) => !(i.value === "email" && emailConnected));
@@ -228,8 +230,9 @@ export function CommsEntry({ transactionId, contacts, solicitors, canPasteChat =
           borderBottom: (hasChannel || isPasteMode || isDraftMode) ? "0.5px solid var(--agent-border-default)" : "none",
         }}
       >
-        {/* Draft for everyone — the primary action (type one fact → client message + file note) */}
-        <button onClick={openDraftMode} className="ce-primary" data-active={isDraftMode}>✨ Draft for everyone</button>
+        {/* Draft for everyone — the primary action (type one fact → client message + file note).
+            Hidden when the AI master switch is off (#291). */}
+        {aiOn && <button onClick={openDraftMode} className="ce-primary" data-active={isDraftMode}>✨ Draft for everyone</button>}
 
         {/* Note */}
         <button onClick={() => selectChannel("note")} className="ce-ghost" data-on={isNote}>📝 Note</button>

@@ -22,6 +22,8 @@ import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
 import { GlassPicksProvider } from "@/lib/glass/context";
+import { AiEnabledProvider } from "@/components/ai/AiEnabledProvider";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import { appColourCss } from "@/lib/agent/brand-theme";
 import "./styles/themes.css";
@@ -117,6 +119,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   // editing lib/agent/experimental-shell.ts.
   const Shell = usesExperimentalShell(session.user.email) ? AgentShellExperimental : AgentShell;
 
+  // AI master switch (#291): mirror the global flag to client AI-trigger
+  // components so they hide when AI is off.
+  const aiOn = await aiEnabled();
+
   return (
     <div data-theme="custom" style={{ display: "contents" }}>
       {/* The user's App Colour config, derived into the full token set + button
@@ -138,6 +144,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
           via context. Empty for anyone who hasn't set picks, so their
           tagged cards render as their defaultVariant (v00 = today). */}
       <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles} initialMode={themeMode}>
+      <AiEnabledProvider enabled={aiOn}>
       <AgentToaster>
         <Shell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode}>
           {session.user.viewAsOperatorId && (
@@ -213,6 +220,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
             local dev. No cookies, no PII — route-level timings only. */}
         <SpeedInsights />
       </AgentToaster>
+      </AiEnabledProvider>
       </GlassPicksProvider>
     </div>
   );

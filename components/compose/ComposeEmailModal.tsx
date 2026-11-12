@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, useTransition, type AnimationEvent as Reac
 import { createPortal } from "react-dom";
 import { PaperPlaneTilt } from "@phosphor-icons/react";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -228,6 +229,7 @@ export function ComposeEmailModal({
   // refine (phase 3)
   const [refining, setRefining] = useState(false);
   const [showRefined, setShowRefined] = useState(false);
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the AI "Refine" button when off
   const preRefineRef = useRef<string | null>(null);
 
   // signature style (basic / logo / default), like the chase drawer
@@ -782,9 +784,11 @@ export function ComposeEmailModal({
                       )}
                     </span>
                     <span className="cem-tbspace" />
-                    <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>
-                      {refining ? "✦ Refining…" : "✦ Refine"}
-                    </button>
+                    {aiOn && (
+                      <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>
+                        {refining ? "✦ Refining…" : "✦ Refine"}
+                      </button>
+                    )}
                     <span className="cem-count">{charCount} characters</span>
                   </div>
                 </div>
