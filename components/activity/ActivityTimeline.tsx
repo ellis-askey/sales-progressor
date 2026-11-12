@@ -212,6 +212,12 @@ const LINK_BTN = {
 
 const COLLAPSE_AT = 700;
 
+// How many feed entries show before "load more". On mobile the old single
+// "Show earlier updates" button sat behind the fixed quick-action dock, so the
+// feed now auto-loads the next page as you scroll near the bottom (critique
+// #294); the button stays as an explicit shortcut.
+const PAGE_SIZE = 10;
+
 // ─── Date grouping (Email redesign Phase 1) ─────────────────────────────────────
 // Restrained date headers group the mixed timeline by calendar day so a long
 // chronology is scannable. Applies to every entry type, not just email.
@@ -360,7 +366,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   // Auto-animate the entry list — siblings collapse smoothly when an
   // entry is removed (delete) or when filter/search shrinks the set.
   const [listRef] = useAutoAnimate<HTMLDivElement>();
-  const [showAll, setShowAll]       = useState(false);
+  const [limit, setLimit]           = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [filter, setFilter]         = useState<FilterKind>("all");
   const [search, setSearch]         = useState("");
   const [showPortalVisits, setShowPortalVisits] = useState(false);
@@ -411,10 +418,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const convSubject = convMsgs.length ? (convMsgs[0].subject ?? splitSubject(convMsgs[0].content).subject) : null;
 
   function handleFilter(f: FilterKind) {
-    setFilter(f); setShowAll(false); setEntriesKey((k) => k + 1);
+    setFilter(f); setLimit(PAGE_SIZE); setEntriesKey((k) => k + 1);
   }
   function handleSearch(q: string) {
-    setSearch(q); setShowAll(false); setEntriesKey((k) => k + 1);
+    setSearch(q); setLimit(PAGE_SIZE); setEntriesKey((k) => k + 1);
   }
 
   const filtered = entries.filter((entry) => {
@@ -437,9 +444,28 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   });
 
   // Individual entries stay individual, chronological events (no giant inline
-  // thread expansion). Cap to the latest 10 unless expanded.
-  const visible = showAll ? filtered : filtered.slice(0, 10);
-  const hasMore = filtered.length > 10;
+  // thread expansion). Show a page at a time, growing as the reader scrolls.
+  const visible = filtered.slice(0, limit);
+  const hasMore = filtered.length > limit;
+
+  // Auto-load the next page when the sentinel nears the viewport. rootMargin
+  // pre-triggers well before the bottom, so the next batch is already in place
+  // before the fixed quick-action dock could cover the manual button (#294).
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (obsEntries) => {
+        if (obsEntries.some((e) => e.isIntersecting)) {
+          setLimit((l) => Math.min(l + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: "240px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, filtered.length, limit]);
 
   function startEdit(entry: Extract<ActivityEntry, { kind: "comm" }>) {
     const override = localEdits[entry.id];
@@ -514,7 +540,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     return (
       <div
         key={entry.id}
-        className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : ""} ${showAll && idx >= 10 ? "agent-reveal-in" : ""}`}
+        className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : ""} ${idx >= PAGE_SIZE ? "agent-reveal-in" : ""}`}
       >
         {/* Timeline marker — a restrained envelope for email rows, a coloured
             dot for everything else. */}
@@ -1024,7 +1050,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
           <button
             className="act-eye"
             data-on={showPortalVisits}
-            onClick={() => { setShowPortalVisits((v) => !v); setShowAll(false); setEntriesKey((k) => k + 1); }}
+            onClick={() => { setShowPortalVisits((v) => !v); setLimit(PAGE_SIZE); setEntriesKey((k) => k + 1); }}
             aria-pressed={showPortalVisits}
           >
             {showPortalVisits ? <Eye size={14} weight="regular" /> : <EyeSlash size={14} weight="regular" />}
@@ -1053,14 +1079,31 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
             {listNodes}
           </div>
 
+          {/* Auto-load sentinel — the feed grows a page at a time as this nears
+              the viewport, so the reader never has to reach a button the dock
+              might cover on mobile (#294). The button is an explicit shortcut. */}
           {hasMore && (
+            <>
+              <div ref={sentinelRef} aria-hidden="true" style={{ height: 1 }} />
+              <div className="pl-5 mt-2">
+                <button
+                  onClick={() => setLimit(filtered.length)}
+                  className="agent-link agent-link-muted"
+                  style={{ fontSize: 11 }}
+                >
+                  {`Show ${filtered.length - limit} earlier updates…`}
+                </button>
+              </div>
+            </>
+          )}
+          {!hasMore && limit > PAGE_SIZE && (
             <div className="pl-5 mt-2">
               <button
-                onClick={() => setShowAll(!showAll)}
+                onClick={() => setLimit(PAGE_SIZE)}
                 className="agent-link agent-link-muted"
                 style={{ fontSize: 11 }}
               >
-                {showAll ? "Show less" : `Show ${filtered.length - 10} earlier updates…`}
+                Show less
               </button>
             </div>
           )}
