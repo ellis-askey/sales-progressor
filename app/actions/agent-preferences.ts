@@ -536,8 +536,8 @@ export async function sendTestPushAction() {
   }
 
   await pushToUser(session.user.id, {
-    title: "Push notifications are on",
-    body:  "You're all set, this is a test.",
+    title: "Push notifications are working",
+    body:  "You're all set. This is a test notification.",
     url:   `${process.env.NEXTAUTH_URL ?? ""}/agent/account/notifications`,
   });
 

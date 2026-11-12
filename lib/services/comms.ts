@@ -1182,7 +1182,7 @@ export async function createCommunicationRecord(input: CreateCommInput) {
 
     const short = tx.propertyAddress.split(",")[0];
     pushToTransaction(input.transactionId, {
-      title: `New update: ${short}`,
+      title: `New update for ${short}`,
       body: preview,
       urlPath: "/updates",
     }, audience).catch(() => {});

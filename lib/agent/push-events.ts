@@ -75,8 +75,8 @@ export async function pushChaseEscalation(
   await pushToFileOwner({
     transactionId,
     key: "chaseEscalation",
-    title: milestoneLabel ? `Escalated: ${milestoneLabel}` : "Chase escalated",
-    body:  `${short} · needs a chase`,
+    title: milestoneLabel ? `Chase escalated: ${milestoneLabel}` : "Chase escalated",
+    body:  `${short} · Follow-up required`,
   });
 }
 
@@ -102,7 +102,7 @@ export async function pushFileAssigned(args: {
     // Title now names the assigner so the agent knows WHO put it on their
     // plate — the data is already captured in args.assignerName.
     await pushToUser(args.assigneeUserId, {
-      title: `${args.assignerName} assigned you a file`,
+      title: `${args.assignerName} assigned you a sale`,
       body:  shortAddress(tx.propertyAddress),
       url:   `${base}/agent/transactions/${args.transactionId}`,
     });
@@ -126,10 +126,10 @@ export async function pushExchangeApproaching(
   // the address. Reads faster on a lock-screen line than the old "Exchange
   // approaching · address — target in N days" stack.
   const title = daysUntil <= 0
-    ? "Exchange target: today"
+    ? "Exchange target is today"
     : daysUntil === 1
-      ? "Exchange target: tomorrow"
-      : `Exchange target: ${daysUntil} days`;
+      ? "Exchange target is tomorrow"
+      : `Exchange target in ${daysUntil} days`;
   await pushToFileOwner({
     transactionId,
     key: "exchangeApproaching",
@@ -151,8 +151,8 @@ export async function pushExchangeApproachingDigest(
     if (!prefs.push.exchangeApproaching) return;
     const base = process.env.NEXTAUTH_URL ?? "";
     await pushToUser(userId, {
-      title: `${count} sales exchanging soon`,
-      body: "Tap to see which files are approaching their exchange target.",
+      title: `${count} sales approaching exchange`,
+      body: "Review your upcoming exchange targets.",
       url: `${base}/agent/transactions`,
     });
   } catch (err) {
@@ -184,7 +184,7 @@ export async function pushMortgageOfferExpiring(
       ? "Seller's onward mortgage offer"
       : "Buyer's mortgage offer";
   const title = daysUntil < 0
-    ? `${whose} expired`
+    ? `${whose} has expired`
     : daysUntil <= 0
       ? `${whose} expires today`
       : daysUntil === 1
@@ -218,22 +218,22 @@ export async function pushChainEvent(args: {
     if (!prefs.push.chainEvent) return;
 
     const titleMap: Record<typeof args.kind, string> = {
-      LOST_BUYER:     "Chain update: the buyer has pulled out",
-      LOST_PURCHASE:  "Chain update: the purchase has fallen through",
-      ASKED_TO_WAIT:  "Chain update: can your client wait?",
-      WAIT_NUDGE:     "Still waiting on this chain",
-      DECLINE:        "Chain invite declined",
-      BUYER_FOUND:    "Chain update: a new buyer has been secured below you",
-      CHAIN_DETACHED: "Chain update: your chain has been shortened",
+      LOST_BUYER:     "Chain update: Buyer withdrawn",
+      LOST_PURCHASE:  "Chain update: Purchase fallen through",
+      ASKED_TO_WAIT:  "Chain update: Can your client wait?",
+      WAIT_NUDGE:     "Chain update: Still awaiting a response",
+      DECLINE:        "Chain invitation declined",
+      BUYER_FOUND:    "Chain update: New buyer secured",
+      CHAIN_DETACHED: "Chain update: Chain shortened",
     };
     const bodyMap: Record<typeof args.kind, string> = {
-      LOST_BUYER:     `${shortAddress(args.propertyAddress)} · tap to respond`,
-      LOST_PURCHASE:  `${shortAddress(args.propertyAddress)} · tap to respond`,
-      ASKED_TO_WAIT:  `${shortAddress(args.propertyAddress)} · tap to respond`,
-      WAIT_NUDGE:     `${shortAddress(args.propertyAddress)} · an update is needed`,
+      LOST_BUYER:     `${shortAddress(args.propertyAddress)} · Action required`,
+      LOST_PURCHASE:  `${shortAddress(args.propertyAddress)} · Action required`,
+      ASKED_TO_WAIT:  `${shortAddress(args.propertyAddress)} · Response needed`,
+      WAIT_NUDGE:     `${shortAddress(args.propertyAddress)} · Update required`,
       DECLINE:        shortAddress(args.propertyAddress),
-      BUYER_FOUND:    `${shortAddress(args.propertyAddress)} · tap to review`,
-      CHAIN_DETACHED: `${shortAddress(args.propertyAddress)} · your chain has shortened`,
+      BUYER_FOUND:    `${shortAddress(args.propertyAddress)} · Review the updated chain`,
+      CHAIN_DETACHED: `${shortAddress(args.propertyAddress)} · Review the updated chain`,
     };
 
     const base = process.env.NEXTAUTH_URL ?? "";
@@ -252,11 +252,9 @@ export async function pushChainEvent(args: {
 }
 
 // A withdrawn file the user owned was just relisted with a new buyer.
-// LOCKED COPY (Ellis voice-pass, 2026-06-04; terminology sweep same
-// day — "round" → "sale" inside the body parens): "Sale relisted" /
-// "{address} is back on: {buyerName} is the new buyer (sale {round})."
-// MUST NOT be paraphrased — see notifyTransactionRelisted in
-// lib/services/notifications.ts for the matching rule.
+// Copy is kept in sync with the matching in-app notification in
+// notifyTransactionRelisted (lib/services/notifications.ts): if you change
+// one, change the other. (Ellis copy pass, 2026-11-11.)
 //
 // Recipient is the existing file owner (assignedUser on outsourced /
 // agentUser on self-managed). Caller passes the chosen userId in
@@ -275,8 +273,8 @@ export async function pushTransactionRelisted(args: {
 
     const base = process.env.NEXTAUTH_URL ?? "";
     await pushToUser(args.recipientUserId, {
-      title: "Sale relisted",
-      body:  `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (sale ${args.newRoundNumber}).`,
+      title: "Sale relisted with a new buyer",
+      body:  `${args.propertyAddress} · New buyer: ${args.newBuyerName} (sale ${args.newRoundNumber})`,
       url:   `${base}/agent/transactions/${args.transactionId}`,
     });
   } catch (err) {

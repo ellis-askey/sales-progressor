@@ -142,7 +142,7 @@ export async function sendClientPortalMessage(token: string, content: string): P
     if (prefs.push.clientChaseNote) {
       const dashUrl = `${process.env.NEXTAUTH_URL ?? ""}/agent/transactions/${tx.id}`;
       pushToUser(agentUserId, {
-        title: `${contact.name} replied`,
+        title: `New reply from ${contact.name}`,
         body:  content.length > 80 ? content.substring(0, 80) + "…" : content,
         url:   dashUrl,
       }).catch(() => {});

@@ -366,22 +366,22 @@ export async function confirmMilestoneAction(input: {
       // Unified exchange / completion / ready-to-exchange strings — same copy
       // fires regardless of which code path (agent confirm, claim wizard, or
       // client self-confirm). See PUSH_NOTIF_STRINGS doc for the approved set.
-      let title = "One step closer";
-      let body  = `${label}, done at ${short}.`;
+      let title = "Milestone completed";
+      let body: string | ((role: string | null) => string) = `${label} confirmed for ${short}.`;
 
       if (code === "VM19" || code === "PM26") {
         title = "Contracts exchanged!";
-        body  = `${short}. The sale is now legally binding. Congratulations.`;
+        body  = `Contracts have been exchanged on ${short}. Congratulations!`;
       } else if (code === "VM20" || code === "PM27") {
-        title = "It's completed!";
-        body  = `${short} is yours. Congratulations on your move.`;
+        title = "Completion confirmed!";
+        body  = (role) => `Your ${role === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`;
       } else if (code === "VM18" || code === "PM25") {
         title = "Ready to exchange";
-        body  = `Everything's in place at ${short}. Exchange is next.`;
+        body  = `${short} is ready for exchange. Contracts haven't been exchanged yet.`;
       } else if (input.eventDate) {
         const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-        title = `Date confirmed: ${short}`;
-        body  = `${label} booked for ${fmtDate}`;
+        title = `${label} confirmed`;
+        body  = `${short} · Scheduled for ${fmtDate}`;
       }
 
       await pushToTransaction(input.transactionId, {
@@ -1373,15 +1373,15 @@ export async function confirmExchangeReconciliationAction(input: {
 
     // Unified exchange / completion strings — matches Site 8 + the portal
     // confirm path; see PUSH_NOTIF_STRINGS for the approved set.
-    let title = "One step closer";
-    let body  = `${label}, done at ${short}.`;
+    let title = "Milestone completed";
+    let body: string | ((role: string | null) => string) = `${label} confirmed for ${short}.`;
 
     if (code === "VM19" || code === "PM26") {
       title = "Contracts exchanged!";
-      body  = `${short}. The sale is now legally binding. Congratulations.`;
+      body  = `Contracts have been exchanged on ${short}. Congratulations!`;
     } else if (code === "VM20" || code === "PM27") {
-      title = "It's completed!";
-      body  = `${short} is yours. Congratulations on your move.`;
+      title = "Completion confirmed!";
+      body  = (role) => `Your ${role === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`;
     }
 
     await pushToTransaction(input.transactionId, { title, body, urlPath: "/progress" }).catch(() => {});

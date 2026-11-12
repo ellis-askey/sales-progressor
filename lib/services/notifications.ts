@@ -105,11 +105,11 @@ export async function markAllReadForUser(userId: string): Promise<number> {
  * agentUser on self-managed. Skip-gracefully cases (no assignee on
  * outsourced — withdrawn before SP claim) are the caller's responsibility.
  *
- * The bell string is LOCKED (Ellis voice-pass, 2026-06-04; terminology
- * sweep same day — "round" → "sale" inside parens). The renderer MUST
- * use the values from the payload verbatim, no paraphrase:
- *   title:  "Sale relisted"
- *   body:   "{address} is back on: {buyerName} is the new buyer (sale {roundNumber})."
+ * The bell string is kept in sync with the matching push in
+ * pushTransactionRelisted (lib/agent/push-events.ts): change both together.
+ * The renderer MUST use the pre-rendered payload values verbatim:
+ *   title:  "Sale relisted with a new buyer"
+ *   body:   "{address} · New buyer: {buyerName} (sale {roundNumber})"
  *
  * Operationally important: the relist action fires the outsource intro
  * email to the new buyer promising contact within two working days. If
@@ -133,8 +133,8 @@ export async function notifyTransactionRelisted(args: {
       newRoundNumber: args.newRoundNumber,
       // Pre-rendered strings so any renderer can use the locked copy
       // without re-stitching it from the parts (and accidentally drifting).
-      title: "Sale relisted",
-      body: `${args.propertyAddress} is back on: ${args.newBuyerName} is the new buyer (sale ${args.newRoundNumber}).`,
+      title: "Sale relisted with a new buyer",
+      body: `${args.propertyAddress} · New buyer: ${args.newBuyerName} (sale ${args.newRoundNumber})`,
     },
   });
 }

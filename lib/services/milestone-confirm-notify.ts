@@ -79,21 +79,21 @@ export async function sendMilestoneConfirmationNotifications(input: {
   const short = tx.propertyAddress.split(",")[0];
 
   // Push copy — identical strings + precedence to the Steps-tab block.
-  let title = "One step closer";
-  let body = `${label}, done at ${short}.`;
+  let title = "Milestone completed";
+  let body: string | ((role: string | null) => string) = `${label} confirmed for ${short}.`;
   if (code === "VM19" || code === "PM26") {
     title = "Contracts exchanged!";
-    body = `${short}. The sale is now legally binding. Congratulations.`;
+    body = `Contracts have been exchanged on ${short}. Congratulations!`;
   } else if (code === "VM20" || code === "PM27") {
-    title = "It's completed!";
-    body = `${short} is yours. Congratulations on your move.`;
+    title = "Completion confirmed!";
+    body = (role) => `Your ${role === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`;
   } else if (code === "VM18" || code === "PM25") {
     title = "Ready to exchange";
-    body = `Everything's in place at ${short}. Exchange is next.`;
+    body = `${short} is ready for exchange. Contracts haven't been exchanged yet.`;
   } else if (eventDate) {
     const fmtDate = new Date(eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    title = `Date confirmed: ${short}`;
-    body = `${label} booked for ${fmtDate}`;
+    title = `${label} confirmed`;
+    body = `${short} · Scheduled for ${fmtDate}`;
   }
 
   // Backfill guard (Ellis #60): a past-dated exchange/completion is a catch-up,

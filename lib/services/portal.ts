@@ -1408,21 +1408,21 @@ export async function portalCompleteMilestone(input: {
   }))?.propertyAddress.split(",")[0] ?? "Your file";
   // Unified exchange / completion / ready-to-exchange strings — matches
   // confirmMilestoneAction and confirmExchangeReconciliationAction.
-  let pushTitle = "One step closer";
-  let pushBody = `${label}, done at ${short}.`;
+  let pushTitle = "Milestone completed";
+  let pushBody: string | ((role: string | null) => string) = `${label} confirmed for ${short}.`;
   if (def.code === "VM19" || def.code === "PM26") {
     pushTitle = "Contracts exchanged!";
-    pushBody = `${short}. The sale is now legally binding. Congratulations.`;
+    pushBody = `Contracts have been exchanged on ${short}. Congratulations!`;
   } else if (def.code === "VM20" || def.code === "PM27") {
-    pushTitle = "It's completed!";
-    pushBody = `${short} is yours. Congratulations on your move.`;
+    pushTitle = "Completion confirmed!";
+    pushBody = (role) => `Your ${role === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`;
   } else if (def.code === "VM18" || def.code === "PM25") {
     pushTitle = "Ready to exchange";
-    pushBody = `Everything's in place at ${short}. Exchange is next.`;
+    pushBody = `${short} is ready for exchange. Contracts haven't been exchanged yet.`;
   } else if (input.eventDate) {
     const fmtDate = new Date(input.eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    pushTitle = `Date confirmed: ${short}`;
-    pushBody = `${label} booked for ${fmtDate}`;
+    pushTitle = `${label} confirmed`;
+    pushBody = `${short} · Scheduled for ${fmtDate}`;
   }
   if (!isProvisionalBooking) {
     pushToTransaction(contact.propertyTransactionId, {
@@ -1673,10 +1673,10 @@ export async function releaseProvisionalBooking(input: {
   // Portal push to the other contacts, now that the date is confirmed.
   const short = tx?.propertyAddress?.split(",")[0] ?? "Your file";
   const pushBody = effectiveEventDate
-    ? `${label} booked for ${effectiveEventDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`
-    : `${label}, confirmed at ${short}.`;
+    ? `${short} · Scheduled for ${effectiveEventDate.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`
+    : `${short} · Confirmation received`;
   pushToTransaction(input.transactionId, {
-    title: `Date confirmed: ${short}`,
+    title: `${label} confirmed`,
     body: pushBody,
     urlPath: "/progress",
   }).catch(() => {});
@@ -1794,7 +1794,7 @@ export async function logPortalMilestoneConfirm(
     // getMilestoneCopy(milestoneCode).label; falls back to milestoneLabel
     // (MilestoneDefinition.name) when no portal copy exists for the code.
     pushToUser(ringUserId, {
-      title: `${contactName} confirmed: ${portalLabel}`,
+      title: `${contactName} confirmed ${portalLabel}`,
       body:  shortAddress,
       url:   dashUrl,
     }).catch(() => {});
@@ -2049,32 +2049,32 @@ export async function logPortalMilestoneConfirm(
   // contacts fallback uses the more neutral "one step closer" frame. The
   // exchange / completion / ready-to-exchange / date-confirmed branches all
   // unify with the agent-flow strings per Flag 2 of the voice-check doc.
-  let confirmTitle = "Thanks, that's confirmed";
-  let confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} just moved a step forward.`;
-  let otherTitle   = "One step closer";
-  let otherBody    = `Your move just progressed. Tap to see the latest.`;
+  let confirmTitle = "Thanks for confirming!";
+  let confirmBody  = `We've recorded your update for ${short}.`;
+  let otherTitle   = "Milestone completed";
+  let otherBody    = `${milestoneLabel} confirmed for ${short}.`;
 
   if (isExchange) {
     confirmTitle = "Contracts exchanged!";
-    confirmBody  = `${short}. The sale is now legally binding. Congratulations.`;
+    confirmBody  = `Contracts have been exchanged on ${short}. Congratulations!`;
     otherTitle   = "Contracts exchanged!";
-    otherBody    = `${short}. The sale is now legally binding. Congratulations.`;
+    otherBody    = `Contracts have been exchanged on ${short}. Congratulations!`;
   } else if (isCompletion) {
-    confirmTitle = "It's completed!";
-    confirmBody  = `${short} is yours. Congratulations on your move.`;
-    otherTitle   = "It's completed!";
-    otherBody    = `${short} is yours. Congratulations on your move.`;
+    confirmTitle = "Completion confirmed!";
+    confirmBody  = `Your ${confirmingRole === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`;
+    otherTitle   = "Completion confirmed!";
+    otherBody    = confirmBody; // per-recipient below for completion (each side gets its own word)
   } else if (isReadyToExchange) {
     confirmTitle = "Ready to exchange";
-    confirmBody  = `Everything's in place at ${short}. Exchange is next.`;
+    confirmBody  = `${short} is ready for exchange. Contracts haven't been exchanged yet.`;
     otherTitle   = "Ready to exchange";
-    otherBody    = `Everything's in place at ${short}. Exchange is next.`;
+    otherBody    = `${short} is ready for exchange. Contracts haven't been exchanged yet.`;
   } else if (eventDate) {
     const fmtDate = new Date(eventDate).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    confirmTitle = `Date confirmed: ${short}`;
-    confirmBody  = `${milestoneLabel} booked for ${fmtDate}`;
-    otherTitle   = `Date confirmed: ${short}`;
-    otherBody    = `${milestoneLabel} booked for ${fmtDate}`;
+    confirmTitle = `${milestoneLabel} confirmed`;
+    confirmBody  = `${short} · Scheduled for ${fmtDate}`;
+    otherTitle   = `${milestoneLabel} confirmed`;
+    otherBody    = `${short} · Scheduled for ${fmtDate}`;
   }
 
   if (confirmingContact?.portalToken) {
@@ -2091,7 +2091,9 @@ export async function logPortalMilestoneConfirm(
   for (const other of otherPushContacts) {
     pushToContact(other.id, {
       title: otherTitle,
-      body:  otherBody,
+      body:  isCompletion
+        ? `Your ${other.roleType === "vendor" ? "sale" : "purchase"} of ${short} is complete. Congratulations!`
+        : otherBody,
       url: `${base}/portal/${other.portalToken!}/progress`,
     }).catch(() => {});
   }

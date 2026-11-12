@@ -213,8 +213,8 @@ export async function nudgeCheckpoint(input: {
   });
   if (!contact?.portalToken) return { delivered: 0 };
   const res = await pushToContact(contact.id, {
-    title: "A quick confirmation needed",
-    body: cp.label,
+    title: "Confirmation needed",
+    body: `Please confirm: ${cp.label}`,
     url: `/portal/${contact.portalToken}`,
   });
   await prisma.checkpoint.update({ where: { id: cp.id }, data: { lastNudgedAt: new Date() } });

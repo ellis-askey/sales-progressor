@@ -106,7 +106,14 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
 
 export async function pushToTransaction(
   transactionId: string,
-  payload: Omit<PushPayload, "url"> & { urlPath: string },
+  payload: Omit<PushPayload, "url" | "body"> & {
+    urlPath: string;
+    // Usually one string sent to every contact. Pass a function to vary the body
+    // by the recipient's side — e.g. the completion notice reads "your sale" to
+    // the seller and "your purchase" to the buyer. It receives each contact's
+    // roleType ("vendor" / "purchaser"), so one send stays correct for both.
+    body: string | ((roleType: string | null) => string);
+  },
   // When provided, only push to these contacts (the explicit share audience).
   // Omitted/empty = every contact on the file (legacy behaviour).
   only?: string[]
@@ -114,13 +121,14 @@ export async function pushToTransaction(
   const audience = only && only.length ? new Set(only) : null;
   const contacts = (await prisma.contact.findMany({
     where: { propertyTransactionId: transactionId },
-    select: { id: true, portalToken: true },
+    select: { id: true, portalToken: true, roleType: true },
   })).filter((c) => !audience || audience.has(c.id));
 
   await Promise.allSettled(
     contacts.map((c) =>
       pushToContact(c.id, {
-        ...payload,
+        title: payload.title,
+        body: typeof payload.body === "function" ? payload.body(c.roleType) : payload.body,
         url: c.portalToken ? `/portal/${c.portalToken}${payload.urlPath}` : "/",
       })
     )

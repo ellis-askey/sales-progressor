@@ -92,7 +92,7 @@ async function postSignedSideUpdate(opts: {
   for (const c of contacts) {
     if (!c.portalToken) continue;
     pushToContact(c.id, {
-      title: `New update: ${opts.addressShort}`,
+      title: `New update for ${opts.addressShort}`,
       body,
       url: `/portal/${c.portalToken}/updates`,
     }).catch(() => {});
