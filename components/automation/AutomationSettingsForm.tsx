@@ -615,7 +615,7 @@ function ChaseEmailPreview({ code, side, active }: { code: string; side: Side; a
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, fontSize: 13, color: "var(--agent-text-muted)" }}>
             {state === "loading" || state === "idle" ? "Rendering the exact email…"
-              : state === "notchase" ? "This step just waits — we don't chase it, so no email is sent to your client."
+              : state === "notchase" ? "This step just waits. We don't chase it, so no email is sent to your client."
               : "Couldn't load the preview. Try again in a moment."}
           </div>
         )}
