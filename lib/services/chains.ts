@@ -682,39 +682,55 @@ export async function getChainV2(
   // Falls back to the viewer's identity key if they have no claimed file here.
   // (#chain-checkins, shared-on-outsourced)
   let viewerSideKey: string | null = null;
-  let ownLink: (typeof chain.links)[number] | null = null;
+  // Every link the viewer OWNS under their scope — not just one. A viewer can
+  // hold more than one file in a chain: TSP progressing two, an agency self-
+  // progressing two, an external business with two for one agency, or a mix
+  // (an in-house file + an outsourced file in the same chain). Each of our files
+  // prefills its own neighbours, so we collect them all. (critique #287)
+  let ownLinks: (typeof chain.links)[number][] = [];
   if (viewer) {
-    ownLink = chain.links.find((l) => {
+    const viewerOwns = (l: (typeof chain.links)[number]) => {
       const tx = l.transaction;
       if (!tx) return false;
-      if (viewer.scope.kind === "all") return tx.progressionBusinessId == null; // TSP's own files
+      // Superadmin (platform) sees every file; for the prefill it behaves like
+      // admin (all) — our non-external-business book. Without listing "platform"
+      // here it fell through to the agency branch below and, with a null agencyId,
+      // matched nothing, so superadmins got NO prefill at all (the #287 bug —
+      // regular agency / progressor / admin views already worked).
+      if (viewer.scope.kind === "all" || viewer.scope.kind === "platform") return tx.progressionBusinessId == null;
       if (viewer.scope.kind === "assigned") return tx.assignedUserId === viewer.userId;
       if (viewer.scope.kind === "business") return tx.progressionBusinessId === viewer.scope.businessId;
       return !!viewer.agencyId && tx.agencyId === viewer.agencyId; // agency staff
-    }) ?? null;
-    viewerSideKey = ownLink?.transaction?.agencyId ? agencySideKey(ownLink.transaction.agencyId) : noteSideKey(viewer);
+    };
+    ownLinks = chain.links.filter(viewerOwns);
+    // Primary own file drives the chase-log side key (unchanged single-file behaviour).
+    const primary = ownLinks[0] ?? null;
+    viewerSideKey = primary?.transaction?.agencyId ? agencySideKey(primary.transaction.agencyId) : noteSideKey(viewer);
   }
+  const ownLinkIds = new Set(ownLinks.map((l) => l.id));
 
-  // Prefill the two adjacent nodes' shared side from the viewer's own file's real
-  // solicitors (an info-only, editable default — not stored until edited). The
-  // node ABOVE (our seller's onward purchase, lower position per positions.ts)
-  // takes our vendor solicitor as ITS buyer; the node BELOW (our buyer's related
-  // sale, higher position) takes our purchaser solicitor as ITS seller.
+  // Prefill each neighbour's shared side from the adjacent OWNED file's real
+  // solicitors (an info-only, editable default — not stored until edited). For
+  // each of our files: the node ABOVE (our seller's onward purchase, lower
+  // position per positions.ts) takes our vendor solicitor as ITS buyer; the node
+  // BELOW (our buyer's related sale, higher position) takes our purchaser
+  // solicitor as ITS seller. A neighbour we also own is skipped — we hold the
+  // real thing there, so it's never a prefill target.
+  const mkNote = (
+    firm: { id: string; name: string } | null | undefined,
+    contact: { id: string; name: string; phone: string | null; email: string | null } | null | undefined,
+  ): ChainNodeSolicitorNote | null =>
+    firm?.name ? { firmId: firm.id, contactId: contact?.id ?? null, firm: firm.name, handler: contact?.name ?? null, phone: contact?.phone ?? null, email: contact?.email ?? null, prefilled: true } : null;
   const solPrefill = new Map<string, { buyer?: ChainNodeSolicitorNote; seller?: ChainNodeSolicitorNote }>();
-  if (ownLink) {
-    const otx = ownLink.transaction;
-    const mkNote = (
-      firm: { id: string; name: string } | null | undefined,
-      contact: { id: string; name: string; phone: string | null; email: string | null } | null | undefined,
-    ): ChainNodeSolicitorNote | null =>
-      firm?.name ? { firmId: firm.id, contactId: contact?.id ?? null, firm: firm.name, handler: contact?.name ?? null, phone: contact?.phone ?? null, email: contact?.email ?? null, prefilled: true } : null;
+  for (const own of ownLinks) {
+    const otx = own.transaction;
     const vendorNote = mkNote(otx?.vendorSolicitorFirm, otx?.vendorSolicitorContact);
     const purchaserNote = mkNote(otx?.purchaserSolicitorFirm, otx?.purchaserSolicitorContact);
-    const sameBranch = (x: (typeof chain.links)[number]) => (x.branchKey ?? "") === (ownLink!.branchKey ?? "");
-    const above = chain.links.find((x) => sameBranch(x) && x.position === ownLink!.position - 1);
-    const below = chain.links.find((x) => sameBranch(x) && x.position === ownLink!.position + 1);
-    if (above && vendorNote) solPrefill.set(above.id, { buyer: vendorNote });
-    if (below && purchaserNote) solPrefill.set(below.id, { ...(solPrefill.get(below.id) ?? {}), seller: purchaserNote });
+    const sameBranch = (x: (typeof chain.links)[number]) => (x.branchKey ?? "") === (own.branchKey ?? "");
+    const above = chain.links.find((x) => sameBranch(x) && x.position === own.position - 1);
+    const below = chain.links.find((x) => sameBranch(x) && x.position === own.position + 1);
+    if (above && !ownLinkIds.has(above.id) && vendorNote) solPrefill.set(above.id, { ...(solPrefill.get(above.id) ?? {}), buyer: vendorNote });
+    if (below && !ownLinkIds.has(below.id) && purchaserNote) solPrefill.set(below.id, { ...(solPrefill.get(below.id) ?? {}), seller: purchaserNote });
   }
 
   // Closed-loop chain arc (2026-06-05): detect "this chain used to be
@@ -971,7 +987,7 @@ export async function getChainV2(
       const savedSol = viewerSideKey ? (rawSolicitors ?? []).filter((s) => s.sideKey === viewerSideKey) : [];
       const toSolNote = (s: (typeof savedSol)[number]): ChainNodeSolicitorNote => ({ firmId: s.firmId ?? null, contactId: s.contactId ?? null, firm: s.firmName, handler: s.handlerName ?? null, phone: s.handlerPhone ?? null, email: s.handlerEmail ?? null, prefilled: false });
       const pf = solPrefill.get(l.id);
-      const isOwnLink = !!ownLink && ownLink.id === l.id;
+      const isOwnLink = ownLinkIds.has(l.id);
       const solicitors: ChainNodeSolicitors = (isOwnLink || !viewer)
         ? { buyer: null, seller: null }
         : {
