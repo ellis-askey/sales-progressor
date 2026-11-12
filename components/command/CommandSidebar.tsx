@@ -115,6 +115,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "System",
     items: [
       { href: "/command/health", label: "System status", Icon: HeartPulse },
+      { href: "/command/updates", label: "Platform updates", Icon: Megaphone },
       { href: "/command/critique", label: "Critique", Icon: Camera },
       { href: "/command/activity", label: "Activity", Icon: Activity },
       { href: "/command/audit", label: "Audit log", Icon: Shield },

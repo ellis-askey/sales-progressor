@@ -4265,6 +4265,64 @@ model SystemSetting {
   updatedBy String?
 }
 
+// ── Platform Updates / "What's new" (Phase 1: founder-managed, Command Centre
+// only). A small curated feed the founder publishes to tell users what's new,
+// improved or moved. EVERY row is born Hidden (status = draft) and only the
+// founder (superadmin) can create/edit/publish/hide/delete via /command/updates.
+// The user-facing agent page + visibility rules land in Phase 2; nothing here is
+// agent-reachable yet. technicalSummary is internal context ONLY and is never
+// served to users. sourceShas is reserved for the Phase 3 deploy-capture assist.
+enum PlatformUpdateCategory {
+  new_feature
+  improvement
+  moved
+}
+
+enum PlatformUpdateStatus {
+  draft
+  published
+}
+
+enum PlatformUpdateAudience {
+  everyone
+  agency_staff
+  progression_business
+  tsp_internal
+}
+
+model PlatformUpdate {
+  id                 String                 @id @default(cuid())
+  title              String // user-facing published headline
+  body               String                 @db.Text // user-facing published copy
+  category           PlatformUpdateCategory @default(improvement)
+  status             PlatformUpdateStatus   @default(draft) // Hidden by default — never auto-published
+  audience           PlatformUpdateAudience @default(everyone)
+  // The date shown to users + the ordering key. Set when first published (if not
+  // already chosen), freely editable. Null while an unpublished draft.
+  publishedAt        DateTime?
+  // Optional screenshot — object path in the PRIVATE "platform-update-images"
+  // bucket, read via a signed URL. Never a public URL.
+  screenshotPath     String?
+  screenshotFilename String?
+  linkUrl            String? // optional "take me there" destination
+  // Internal only — raw change context for the founder while writing the real
+  // copy. NEVER returned to any user-facing surface.
+  technicalSummary   String?                @db.Text
+  // Reserved for Phase 3: the deploy SHAs that fed this entry (dedup + trace).
+  sourceShas         String[]               @default([])
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  createdById        String?
+  createdByEmail     String?
+  publishedById      String?
+  publishedByEmail   String?
+
+  // The agent read-path (Phase 2) filters by status=published + audience,
+  // ordered by publishedAt desc.
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
 // Review state for the Command Centre Email Catalogue (/command/emails). One row
 // per catalogued email specimen once a superadmin has reviewed + OK'd it.
 // contentHash is a hash of the email rendered at the canonical scenario, so a
