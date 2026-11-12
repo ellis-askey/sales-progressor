@@ -367,6 +367,12 @@ type Props = {
   // the hero/earnings, and its id is sent as progressionBusinessId. A 0/1-length
   // list leaves behaviour exactly as before (server resolves the single primary).
   progressors?: ProgressorOption[];
+  // Outsourced-sunset master switch (server-resolved from OUTSOURCED_INTAKE_ENABLED).
+  // False once TSP's own intake is gated off: the "Send to us" option is then hidden
+  // for an agency whose only destination would be TSP. An agency with an external
+  // progressor (progressors.length >= 1) keeps "Send to them" regardless. Defaults
+  // true, so omitting it preserves today's behaviour exactly.
+  outsourcingToTspAllowed?: boolean;
   // Progressor (owner or team member) creating a sale for one of their clients.
   // They pick which client agency the sale is for and who to assign it to, in the
   // flow. The file is always outsourced to their business (no self-progress toggle).
@@ -385,7 +391,7 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, inHouseProgressionEnabled, inHouseProgressors, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, progressors = [], isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
+export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBrokerDefaultFee, initialDrafts, allMilestoneDefinitions, showPortalPrompt, defaultProgressedBy, isDirector, currentUserId, assignableAgents, inHouseProgressionEnabled, inHouseProgressors, showDemoHero, feeTier, legacyOutsourcedFeePence, withinTrial, clientAgencyId, progressorName = null, progressorFeeModel = null, progressors = [], outsourcingToTspAllowed = true, isProgressorCreate = false, clientAgencies = [], businessMembers = [], needsCard = false, salesNotice = null, publishableKey = "", cardGatePreview = null }: Props) {
   const { toast } = useAgentToast();
   const router = useRouter();
 
@@ -1579,7 +1585,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             ensureDraft={ensureDraft}
             showMemoFooter={flowState === "extracted"}
             onChangeFile={handleChangeFile}
-            canOutsource={!clientAgencyId && !isProgressorCreate}
+            canOutsource={!clientAgencyId && !isProgressorCreate && (outsourcingToTspAllowed || progressors.length >= 1)}
             progressorName={effectiveProgressorName}
             hasExternalProgressor={progressors.length >= 1}
           />

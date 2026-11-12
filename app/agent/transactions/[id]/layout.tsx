@@ -27,7 +27,7 @@ import { isTerminalSale } from "@/lib/transactions/status";
 import { totalHoldMs } from "@/lib/services/hold-duration";
 import { fileProgressorLabel } from "@/lib/progression/identity";
 import { getProgressorsForAgency, resolveBusinessOwner } from "@/lib/services/progression-clients";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
 
@@ -242,16 +242,21 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   // can, resolve the agency's inviting progressor so the handover modal reads
   // "Hand to {progressor}" and routes there; null (no progressor / flag off)
   // keeps the unchanged "hand to TSP" wording and routing.
-  const canAgentHandOver =
+  const canHandOverBase =
     session.user.role === "director" && transaction.serviceType === "self_managed" && transaction.status === "active";
   // All progressors the agency works with (for the handover picker when 2+). The
   // single-progressor name drives the unchanged "Hand to {name}" copy; a 2+ agency
   // leaves the name null (generic copy) and the modal shows a picker instead.
   const handoverProgressors =
-    canAgentHandOver && progressionBusinessesEnabled() && session.user.agencyId
+    canHandOverBase && progressionBusinessesEnabled() && session.user.agencyId
       ? await getProgressorsForAgency(session.user.agencyId)
       : [];
   const handoverProgressorName = handoverProgressors.length === 1 ? handoverProgressors[0].name : null;
+  // Outsourced-sunset master switch: once TSP's own intake is gated off, a director
+  // can no longer hand a file to TSP's team. Handing to an EXTERNAL progressor
+  // (handoverProgressors) stays available; flag ON (default) is unchanged. The
+  // server action re-checks, so this only hides the now-dead pill.
+  const canAgentHandOver = canHandOverBase && (outsourcedIntakeEnabled() || handoverProgressors.length > 0);
 
   // The progression business OWNER that runs this file can hand it back to the
   // agency (outsourced -> self-progress). Agents can't take a file back; only the

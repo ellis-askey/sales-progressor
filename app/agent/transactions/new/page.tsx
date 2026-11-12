@@ -7,6 +7,7 @@ import { deriveDefaultProgressedBy } from "@/lib/agency/default-progressed-by";
 import { listAssignableAgentsForAgency, listInHouseProgressors } from "@/lib/services/agency-team";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getClientAgenciesForBusiness, getBusinessMembersForAssign } from "@/lib/services/progression-clients";
 import { getProgressorsForAgency } from "@/lib/progression/inviting";
+import { outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { getBusinessFirstChargePreview } from "@/lib/progression/business-stripe";
 import { resolveBusinessSaleGate } from "@/lib/progression/business-sale-gate";
 
@@ -94,7 +95,18 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
   // client of. When 2+, the New Sale flow shows a per-sale "which progressor"
   // picker (invitingProgressor above stays the primary for the single case).
   const agencyProgressors = session.user.agencyId ? await getProgressorsForAgency(session.user.agencyId) : [];
-  const defaultProgressedBy = isProgressorCreate
+  // Outsourced-sunset master switch. When TSP's own intake is gated off and this
+  // agency has no external progressor route (invitingProgressor / agencyProgressors),
+  // the "Send to us" option is hidden — so a "progressor" default would strand the
+  // form on a hidden option. A progression-business create, or an agency with an
+  // external progressor, is unaffected (that routing stays open). Flag ON (default)
+  // leaves everything exactly as before.
+  const outsourcingToTspAllowed = outsourcedIntakeEnabled();
+  const canOfferOutsourcing =
+    isProgressorCreate || !!invitingProgressor || agencyProgressors.length > 0 || outsourcingToTspAllowed;
+  const defaultProgressedBy = !canOfferOutsourcing
+    ? "agent"
+    : isProgressorCreate
     ? "progressor" // a progression business IS the progressor; no self-progress option
     : invitingProgressor
       ? "progressor"
@@ -319,6 +331,7 @@ export default async function AgentNewSaleV2Page({ searchParams }: { searchParam
           progressorName={invitingProgressor?.name ?? null}
           progressorFeeModel={invitingProgressor?.feeModel ?? null}
           progressors={agencyProgressors}
+          outsourcingToTspAllowed={outsourcingToTspAllowed}
           isProgressorCreate={isProgressorCreate}
           clientAgencies={progressorClientAgencies}
           businessMembers={progressorMembers}
