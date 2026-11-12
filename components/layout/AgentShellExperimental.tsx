@@ -38,6 +38,8 @@ import { PullToRefresh } from "@/components/agent/PullToRefresh";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { FounderProvider } from "@/components/layout/FounderGate";
 import { QuickActionDock } from "@/components/quick-dock/QuickActionDock";
+import { ShellGlassProvider, useShellGlass } from "@/lib/agent/shell-glass";
+import { ShellGlassLabToggle } from "@/components/layout/ShellGlassLab";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { getNavBadgeCountsAction } from "@/app/actions/nav-badges";
@@ -49,8 +51,6 @@ import "@/app/agent/styles/shell-experimental.css";
 
 type ShellKind = "drawers" | "compact";
 const STORE_KEY = "agx-shell";
-
-const GLASS_TINT = { dark: "rgba(34,37,50,0.58)", light: "rgba(255,255,255,0.64)" } as const;
 
 // Same material + fallback conditions as the bottom QuickActionDock: iOS / Safari
 // / Firefox can't run the refraction filter, so they get the frosted blur.
@@ -164,6 +164,9 @@ export function AgentShellExperimental(props: AgentShellProps) {
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><DesignLabToggle /></div>
       )}
+      {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
+        <div className="hidden md:block"><ShellGlassLabToggle /></div>
+      )}
       <AgentBell initialClearedAt={agentBellClearedAt} />
       <UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} isBusinessMember={isBusinessMember} />
     </div>
@@ -222,6 +225,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   );
 
   return (
+    <ShellGlassProvider>
     <div className="agent-shell-root agx-root" data-theme="custom" data-shell={shell}>
       {shell === "drawers"
         ? <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} />
@@ -248,6 +252,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
     </div>
+    </ShellGlassProvider>
   );
 }
 
@@ -255,8 +260,15 @@ export function AgentShellExperimental(props: AgentShellProps) {
 // bottom QuickActionDock). Module-scoped so its identity is stable across renders
 // (an inner component would remount the LiquidGlass canvas every render).
 function AgxGlass({ fallback, isDark, radius = 20, className = "", children, ...rest }: HTMLAttributes<HTMLDivElement> & { fallback: boolean; isDark: boolean; radius?: number; children: ReactNode }) {
-  if (fallback) return <div className={`agx-frost ${className}`} style={{ borderRadius: radius }} {...rest}>{children}</div>;
-  return <LiquidGlass radius={radius} thickness={14} displace={42} aberration={4} tint={GLASS_TINT[isDark ? "dark" : "light"]} className={className} {...rest}>{children}</LiquidGlass>;
+  // Live knobs from the Shell Glass Lab (Ellis-only tuner). Defaults === the
+  // shipped look, so untouched this renders exactly as before.
+  const { settings } = useShellGlass();
+  const r = Math.round(radius * settings.radiusScale);
+  if (fallback) {
+    const bf = `blur(${settings.frostBlur}px) saturate(190%)`;
+    return <div className={`agx-frost ${className}`} style={{ borderRadius: r, backdropFilter: bf, WebkitBackdropFilter: bf }} {...rest}>{children}</div>;
+  }
+  return <LiquidGlass radius={r} blur={settings.blur} thickness={settings.thickness} displace={settings.displace} aberration={settings.aberration} tint={isDark ? settings.tintDark : settings.tintLight} className={className} {...rest}>{children}</LiquidGlass>;
 }
 
 type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode };
@@ -270,7 +282,12 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
     const prev = document.activeElement as HTMLElement | null;
     panelRef.current?.querySelector<HTMLElement>("a,button,input,[tabindex]")?.focus();
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setNavOpen(false); } };
-    const onDown = (e: MouseEvent) => { if (panelRef.current && !panelRef.current.contains(e.target as Node) && !handleRef.current?.contains(e.target as Node)) setNavOpen(false); };
+    const onDown = (e: MouseEvent) => {
+      // Keep the drawer open while the Shell Glass Lab is in use — it's portalled
+      // to <body>, so a click inside it would otherwise read as "outside".
+      if ((e.target as HTMLElement).closest?.("[data-shell-glass-lab]")) return;
+      if (panelRef.current && !panelRef.current.contains(e.target as Node) && !handleRef.current?.contains(e.target as Node)) setNavOpen(false);
+    };
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("mousedown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("mousedown", onDown, true); (prev ?? handleRef.current)?.focus?.(); };
@@ -309,7 +326,10 @@ function CompactChrome({ menuOpen, setMenuOpen, fallback, isDark, controls, navP
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); btnRef.current?.focus(); } };
-    const onDown = (e: MouseEvent) => { if (regionRef.current && !regionRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    const onDown = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest?.("[data-shell-glass-lab]")) return;
+      if (regionRef.current && !regionRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("mousedown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("mousedown", onDown, true); };
