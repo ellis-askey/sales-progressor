@@ -6,6 +6,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { ChaseComposer, type ChaseAttachment, type SigStyle } from "@/components/chase/ChaseComposer";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
@@ -196,6 +197,7 @@ export function ChaseDrawer({
   onChaseSent,
   enquiry,
 }: ChaseDrawerProps) {
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the Generate/Regenerate controls when off
   const isMulti = Array.isArray(milestones) && milestones.length > 1;
   const effectiveChaseCount = isMulti
     ? Math.max(...milestones!.map((m) => m.chaseCount))
@@ -1252,7 +1254,8 @@ export function ChaseDrawer({
 
           {/* Message area */}
           <div style={{ flex: 1, padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-            {/* Generate button */}
+            {/* Generate button — hidden when the AI master switch is off (#291) */}
+            {aiOn && (
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
@@ -1263,6 +1266,7 @@ export function ChaseDrawer({
                 ? <><CircleNotch size={15} className="animate-spin" />Generating…</>
                 : <><Sparkle size={15} weight="fill" />Generate message</>}
             </button>
+            )}
 
             {isHtmlEmpty(message) && !isGenerating && (
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.45 }}>
@@ -1301,6 +1305,7 @@ export function ChaseDrawer({
                 recipient / channel / tone. */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <p className="agent-section-label agent-section-label-plain" style={{ margin: 0 }}>Message</p>
+              {aiOn && (
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -1315,6 +1320,7 @@ export function ChaseDrawer({
               >
                 <ArrowsClockwise size={13} weight="bold" className={isGenerating ? "animate-spin" : undefined} /> Regenerate
               </button>
+              )}
             </div>
 
             <ChaseComposer

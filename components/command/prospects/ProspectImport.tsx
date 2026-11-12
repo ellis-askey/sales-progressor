@@ -6,6 +6,7 @@ import {
   createImportBatchAction, processNextImportItemAction, getImportBatchAction, retryImportItemAction,
 } from "@/app/actions/prospects";
 import type { ImportBatchView } from "@/lib/command/prospects";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending: { label: "Queued", cls: "bg-neutral-800 text-neutral-400 border-neutral-700" },
@@ -24,6 +25,9 @@ export function ProspectImport() {
   const [error, setError] = useState<string | null>(null);
   const [background, setBackground] = useState(false);
   const cancelled = useRef(false);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   async function runLoop(batchId: string) {
     setRunning(true);

@@ -6,6 +6,7 @@ import { Sparkle, ArrowRight } from "lucide-react";
 import { refreshOpportunitiesAction, setOpportunityStatusAction } from "@/app/actions/brand-opportunities";
 import { OPPORTUNITY_KIND_LABELS, DRAFTABLE_KINDS } from "@/lib/command/content/opportunity-kinds";
 import { ClaimBadge } from "@/components/command/content/ClaimBadge";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Brand opportunities (docs/active/content-brand/SPEC.md, Phase 2.1). Higher-
 // level reputation moves, not single posts: positions, articles, series, press,
@@ -35,6 +36,7 @@ export function OpportunitiesList({ board }: { board: Board }) {
   const [tab, setTab] = useState<Tab>("open");
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
 
   function refresh() {
     setNote(null);
@@ -82,14 +84,16 @@ export function OpportunitiesList({ board }: { board: Board }) {
         </div>
         <div className="ml-auto flex items-center gap-3">
           {note && <span className="text-[11px] text-neutral-500">{note}</span>}
-          <button
-            onClick={refresh}
-            disabled={pending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-50"
-          >
-            <Sparkle size={13} className={pending ? "animate-pulse" : ""} />
-            {pending ? "Thinking…" : "Refresh"}
-          </button>
+          {aiOn && (
+            <button
+              onClick={refresh}
+              disabled={pending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-50"
+            >
+              <Sparkle size={13} className={pending ? "animate-pulse" : ""} />
+              {pending ? "Thinking…" : "Refresh"}
+            </button>
+          )}
         </div>
       </div>
 

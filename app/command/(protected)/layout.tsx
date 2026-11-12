@@ -10,6 +10,8 @@ import { STEP_UP_MAX_AGE_MS, SESSION_HARD_MAX_MS } from "@/lib/command/config";
 import { cookies, headers } from "next/headers";
 import { CommandSidebar } from "@/components/command/CommandSidebar";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
+import { AiEnabledProvider } from "@/components/ai/AiEnabledProvider";
+import { aiEnabled } from "@/lib/ai/enabled";
 import type { Session } from "next-auth";
 import type { CommandMode, CommandPreferences } from "@/lib/command/scope";
 
@@ -73,6 +75,7 @@ export default async function CommandProtectedLayout({
   const prefs = user.commandPreferences as CommandPreferences | null;
   const savedMode: CommandMode = prefs?.mode ?? "combined";
   const savedAgencyIds: string[] = prefs?.agencyIds ?? [];
+  const aiOn = await aiEnabled(); // AI master switch (#291): mirror to command AI components
 
   return (
     <div
@@ -94,7 +97,7 @@ export default async function CommandProtectedLayout({
             content takes the full width; extra top padding clears the fixed
             Menu button. */}
         <div className="cmd-content px-4 pt-14 pb-8 lg:p-8 max-w-6xl">
-          <PageFadeIn>{children}</PageFadeIn>
+          <PageFadeIn><AiEnabledProvider enabled={aiOn}>{children}</AiEnabledProvider></PageFadeIn>
         </div>
       </main>
     </div>

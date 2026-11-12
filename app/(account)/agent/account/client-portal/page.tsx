@@ -7,6 +7,7 @@
 import { notFound } from "next/navigation";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { ClientPortalSettings } from "@/components/account/client-portal/ClientPortalSettings";
@@ -22,6 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function AccountClientPortalPage() {
   const { session } = await resolveAgentSession();
   if (session.user.role !== "director" || !session.user.agencyId) notFound();
+  const aiOn = await aiEnabled(); // AI master switch (#291)
 
   const agency = await prisma.agency.findUnique({
     where: { id: session.user.agencyId },
@@ -66,7 +68,7 @@ export default async function AccountClientPortalPage() {
           />
           <div style={{ marginTop: 20, borderTop: "1px solid var(--agent-border-subtle)", paddingTop: 16 }}>
             <AiExplainerToggle initial={agency?.aiExplainEmailEnabled ?? true} />
-            <AiExplainerTryIt />
+            {aiOn && <AiExplainerTryIt />}
           </div>
         </AccountCard>
       </div>

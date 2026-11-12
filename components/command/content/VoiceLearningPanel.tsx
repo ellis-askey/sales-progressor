@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkle, X } from "lucide-react";
 import { refreshVoiceProfileAction, dismissVoiceCharacteristicAction } from "@/app/actions/voice-learning";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Learned voice (docs/active/content-brand/SPEC.md, Phase 3.3). What we've picked
 // up from how Ellis edits AI drafts. Inspectable and correctable: he can remove
@@ -24,6 +25,9 @@ export function VoiceLearningPanel({ initial, minEdits }: { initial: Profile; mi
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   const enough = initial.totalEdits >= minEdits;
 

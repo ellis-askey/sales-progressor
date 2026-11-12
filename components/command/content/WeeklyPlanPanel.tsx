@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkle } from "lucide-react";
 import { refreshWeeklyPlanAction } from "@/app/actions/content-settings";
 import { pillarLabel } from "@/lib/command/content/pillars";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Proposed week (docs/active/content-brand/SPEC.md, Phase 5.2). A short, varied
 // week the system proposes from the brand + inbox + balance. Ellis drafts the
@@ -24,6 +25,9 @@ export function WeeklyPlanPanel({ plan, generatedAt }: { plan: PlanItem[]; gener
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   function refresh() {
     setNote(null);

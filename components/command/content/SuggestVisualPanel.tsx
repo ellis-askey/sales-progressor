@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Image as ImageIcon } from "lucide-react";
 import { treatmentLabel } from "@/lib/command/content/platforms";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Media treatment suggestion (docs/active/content-brand/SPEC.md, Phase 4.2).
 // Recommends a visual treatment + a branded-card headline, previews it with the
@@ -16,6 +17,9 @@ export function SuggestVisualPanel({ text }: { text: string }) {
   const [error, setError] = useState<string | null>(null);
   const [s, setS] = useState<Suggestion | null>(null);
   const [copied, setCopied] = useState(false);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   async function suggest() {
     setBusy(true);

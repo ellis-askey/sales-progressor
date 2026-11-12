@@ -21,6 +21,7 @@ import type { ChainNodeSolicitors } from "@/lib/services/chains";
 import { ChainStepTicks } from "@/components/chain/ChainStepTicks";
 import { chainStepsPercent } from "@/lib/chain/check-in-steps";
 import { User, Phone, EnvelopeSimple, Briefcase, PencilSimple, Plus } from "@phosphor-icons/react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 
 // The primary call-to-action for a row, mirroring the Timeline's status-driven
@@ -214,13 +215,14 @@ export type ChainMapActions = {
 
 function RowMenu({ item, actions }: { item: ChainMapPanelItem; actions: ChainMapActions }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the AI "Chase agent" menu row when off
 
   const rows: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (item.canEdit && actions.onEdit) rows.push({ label: "Edit details", onClick: () => actions.onEdit!(item.id) });
   if (item.canAddOnward && actions.onAddOnward) rows.push({ label: "Add onward purchase", onClick: () => actions.onAddOnward!(item.id) });
   if (item.canMoveUp && actions.onMoveUp) rows.push({ label: "Move up", onClick: () => actions.onMoveUp!(item.id) });
   if (item.canMoveDown && actions.onMoveDown) rows.push({ label: "Move down", onClick: () => actions.onMoveDown!(item.id) });
-  if (item.chaseDir && actions.onChase) rows.push({ label: "Chase agent", onClick: () => actions.onChase!(item.id) });
+  if (item.chaseDir && actions.onChase && aiOn) rows.push({ label: "Chase agent", onClick: () => actions.onChase!(item.id) });
   if (item.canUploadPhoto && actions.onUploadPhoto) rows.push({ label: item.photoUrl ? "Change photo" : "Add photo", onClick: () => fileRef.current?.click() });
   if (item.canEdit && actions.onCopyShare) rows.push({ label: "Copy share link", onClick: () => actions.onCopyShare!(item.id) });
   if (item.canEdit && item.hasShareLink && actions.onRevokeShare) rows.push({ label: "Revoke share link", onClick: () => actions.onRevokeShare!(item.id) });

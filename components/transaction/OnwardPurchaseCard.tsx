@@ -55,6 +55,7 @@ import type {
 } from "@/lib/services/onward";
 import { DateField } from "@/components/ui/DateField";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { VENDOR_SECTIONS, PURCHASER_SECTIONS } from "@/lib/milestone-sections";
@@ -167,6 +168,7 @@ function OnwardStepRow({
   onUndo: (code: string) => Promise<boolean>;
   onChase: (code: string, name: string) => void;
 }) {
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the "Chase agent" AI entry when off
   const [armed, setArmed] = useState(false);
   const [date, setDate] = useState("");
   const [desktop, setDesktop] = useState(false);
@@ -252,7 +254,7 @@ function OnwardStepRow({
                   {armed ? "Save reported" : "Confirm"}
                 </Button>
               </div>
-              {!armed && isFarSide && (
+              {aiOn && !armed && isFarSide && (
                 <button type="button" onClick={() => onChase(step.code, step.name)} className="agent-link"
                   style={{ fontSize: 11, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", color: SECONDARY }}>
                   Chase agent
@@ -468,6 +470,7 @@ export function OnwardPurchaseCard({
     return "an earlier step";
   }
 
+  const aiMasterOn = useAiEnabled(); // AI master switch (#291): gate the neighbour-chase drawer
   const [view, setView] = useState<OnwardTrackerView>(initialView);
   // Manual pending flag (not useTransition): the onward actions call
   // revalidateTx, which re-renders the heavy Overview panel. A transition would
@@ -994,7 +997,7 @@ export function OnwardPurchaseCard({
   // "Chase the neighbour agent" — far sides only, now per-step (the link sits on
   // each unlocked-but-incomplete step in the list above). The drawer resolves the
   // stub agent above/below server-side and drafts the ask about the chosen step.
-  const chaseDrawer = chaseStep ? (
+  const chaseDrawer = (aiMasterOn && chaseStep) ? (
     <ChaseNeighbourDrawer
       transactionId={transactionId}
       direction={chaseDir}

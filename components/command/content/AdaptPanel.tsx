@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { platformLabel, treatmentLabel } from "@/lib/command/content/platforms";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Platform adaptation panel (docs/active/content-brand/SPEC.md, Phase 4.1). One
 // core post, adapted for LinkedIn / Instagram / Facebook on demand. Each version
@@ -16,6 +17,9 @@ export function AdaptPanel({ draftId, text }: { draftId: string; text: string })
   const [error, setError] = useState<string | null>(null);
   const [adaptations, setAdaptations] = useState<Adaptation[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   async function adapt() {
     setBusy(true);

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { DraftEntry } from "@/components/transactions-v2/types";
@@ -193,6 +194,7 @@ type Props = {
 
 export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDeleteDraft, parseError = null }: Props) {
   const isSolid = useSolidMode();
+  const aiOn = useAiEnabled(); // AI master switch (#291): hide the memo-AI entry when off
   const { surfaceClass, tag, picked } = useCardSurface("new-sale-drop-memo", "New sale · Drop a memo", "");
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -316,15 +318,15 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         }),
       }}
     >
-      {/* Breathing AI dot */}
-      <div style={{
+      {/* Breathing AI dot — hidden when the AI master switch is off (#291) */}
+      {aiOn && <div style={{
         width: 8,
         height: 8,
         borderRadius: "50%",
         background: "var(--agent-coral-deep)",
         animation: "agent-pulse-dot 2.4s ease-in-out infinite",
         marginBottom: 20,
-      }} />
+      }} />}
 
       {/* Headline */}
       <h2 style={{
@@ -349,11 +351,12 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         transition: "opacity 200ms",
         opacity: dragOver ? 0 : 1,
       }}>
-        {dragOver ? " " : "Drop a memo, paste it (⌘V), or screenshot an email."}
+        {dragOver ? " " : aiOn ? "Drop a memo, paste it (⌘V), or screenshot an email." : "Fill in the sale details to get started."}
       </p>
 
       {/* Action buttons */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {aiOn && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -362,11 +365,12 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
         >
           Drop a memo of sale
         </button>
+        )}
 
         <button
           type="button"
           onClick={onFillManually}
-          className="agent-btn agent-btn-secondary agent-btn-lg"
+          className={aiOn ? "agent-btn agent-btn-secondary agent-btn-lg" : "agent-btn agent-btn-primary agent-btn-lg"}
           style={{ width: "100%", borderRadius: 14, justifyContent: "center" }}
         >
           Fill in manually

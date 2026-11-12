@@ -24,6 +24,7 @@ import type { ProspectStatus } from "@prisma/client";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { formatUKPhone } from "@/lib/utils/address";
 import { DateField } from "@/components/ui/DateField";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 function fmtDateTime(d: Date | null): string {
   if (!d) return "—";
@@ -48,6 +49,7 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
   const [panel, setPanel] = useState<null | "note" | "contact" | "edit" | "call" | "followup" | "lost" | "email" | "invite" | "convert" | "group">(null);
   const [researching, setResearching] = useState(false);
   const [researchErr, setResearchErr] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,9 +137,11 @@ export function ProspectDrawer({ id: initialId, onClose }: { id: string; onClose
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
               <StatusChanger current={d.status} onChange={(s) => startTransition(async () => { await changeProspectStatusAction(id, s); after(); })} disabled={pending} />
-              <button onClick={runResearch} disabled={researching} title="Research this agency from the web and fill gaps" className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 transition-colors disabled:opacity-40">
-                {researching ? "Researching…" : "Research"}
-              </button>
+              {aiOn && (
+                <button onClick={runResearch} disabled={researching} title="Research this agency from the web and fill gaps" className="text-xs px-2.5 py-1 rounded-md bg-violet-950 text-violet-300 border border-violet-900 hover:bg-violet-900 transition-colors disabled:opacity-40">
+                  {researching ? "Researching…" : "Research"}
+                </button>
+              )}
               <ActionBtn onClick={() => setPanel(panel === "email" ? null : "email")} active={panel === "email"}>Email</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "invite" ? null : "invite")} active={panel === "invite"}>Send invitation</ActionBtn>
               <ActionBtn onClick={() => setPanel(panel === "call" ? null : "call")} active={panel === "call"}>Log call</ActionBtn>

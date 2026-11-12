@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { X, Plus, CheckCircle, Circle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { setChainCompleteAction } from "@/app/actions/chain-intel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
@@ -247,6 +248,7 @@ export function ChainView({
   // Bulk-invite footer bar — registered in the Design Lab (no baseline, so it's
   // unchanged until a variant is picked).
   const inviteBarTag = useGlassTag("chain-invite-bar", "Chain · invite bar");
+  const aiOn = useAiEnabled(); // AI master switch (#291): gate the neighbour-chase drawer
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
@@ -1802,7 +1804,7 @@ export function ChainView({
     </div>
   );
 
-  const chaseNeighbourDrawer = chaseNeighbour ? (
+  const chaseNeighbourDrawer = (aiOn && chaseNeighbour) ? (
     <ChaseNeighbourDrawer
       transactionId={transactionId}
       direction={chaseNeighbour.direction}

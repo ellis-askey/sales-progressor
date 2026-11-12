@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle, CircleNotch } from "@phosphor-icons/react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendDraftClientUpdateAction } from "@/app/actions/draft-update";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -53,8 +54,11 @@ export function ChaseSentOffers({ ctx, onFinish }: { ctx: SentOffersCtx; onFinis
 
   const sameWord = ctx.chasedSide === "vendor" ? "seller" : "buyer";
   const oppWord = ctx.chasedSide === "vendor" ? "buyer" : "seller";
+  const aiOn = useAiEnabled(); // AI master switch (#291): no AI follow-up offers when off
 
   useEffect(() => {
+    // AI off: skip the follow-up draft entirely and finish — the chase was already sent.
+    if (!aiOn) { onFinish(); return; }
     let alive = true;
     (async () => {
       try {

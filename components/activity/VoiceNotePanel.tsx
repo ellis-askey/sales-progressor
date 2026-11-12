@@ -6,6 +6,7 @@
 // which reuses the same actions the agent uses by hand. See docs/active/log-an-update/SPEC.md.
 
 import { useEffect, useRef, useState } from "react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { applyVoiceUpdateAction } from "@/app/actions/voice-update";
 import type { VoicePlan, PlanMilestone } from "@/lib/voice-update/plan";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -26,6 +27,7 @@ export function VoiceNotePanel({
   contacts: ClientContact[];
   onDone: (summary: { milestones: number; todos: number; sends: number; enquiry: boolean }) => void;
 }) {
+  const aiOn = useAiEnabled(); // AI master switch (#291)
   const [phase, setPhase] = useState<Phase>("record");
   const [transcript, setTranscript] = useState("");
   const [recording, setRecording] = useState(false);
@@ -214,6 +216,8 @@ export function VoiceNotePanel({
   }
 
   // ---- render ----
+  // AI master switch (#291): the whole panel is an AI pipeline — hide it when off.
+  if (!aiOn) return null;
   if (phase === "working") {
     return (
       <div className="lum-fade" style={{ textAlign: "center", padding: "40px 10px" }}>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { findAgentsAction, getBatchesProspectsAction, publishCampaignAction, updateFoundProspectAction, type FoundRow } from "@/app/actions/outreach";
 import { processNextImportItemAction } from "@/app/actions/prospects";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // "Find agents" on an approved experiment, end to end on one screen:
 //   1. Search an area for UK estate agents we don't already hold.
@@ -38,6 +39,7 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [restoring, setRestoring] = useState(false);
+  const aiOn = useAiEnabled();
 
   const storageKey = `sp_outreach_batches_${experimentId}`;
   function persistBatches(ids: string[]) {
@@ -68,6 +70,8 @@ export function FindAgentsPanel({ experimentId }: { experimentId: string }) {
       .catch(() => setRestoring(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (!aiOn) return null;
 
   async function run() {
     setPhase("searching");

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PURPOSES, ANGLE_TYPES, FORMATS } from "@/lib/command/content/create-taxonomy";
 import { Composer } from "@/components/command/content/Composer";
 import { ClaimBadge } from "@/components/command/content/ClaimBadge";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Guided creation flow (docs/active/content-brand/SPEC.md, Phase 1.4). Source ->
 // Purpose -> Angle -> Format, then generate. The post is only written once the
@@ -33,6 +34,9 @@ export function CreateFlow({ initialSource, presetAngles = [], inboxItemId, clai
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [chosenVariant, setChosenVariant] = useState<1 | 2>(1);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   const ready = source.trim() && purposeId && point.trim() && formatId;
 

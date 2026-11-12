@@ -7,6 +7,7 @@ import { PROSPECT_SOURCES, PROSPECT_STATUSES, SOURCE_LABEL, STATUS_LABEL, STATUS
 import { ProspectDrawer } from "./ProspectDrawer";
 import type { ProspectListRow } from "@/lib/command/prospects";
 import { formatUKPhone } from "@/lib/utils/address";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 function fmt(d: Date | null): string {
   if (!d) return "—";
@@ -351,6 +352,7 @@ function AddForm({ onDone }: { onDone: () => void }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [research, setResearch] = useState(false);
+  const aiOn = useAiEnabled();
   const [f, setF] = useState({
     agencyName: "", source: "cold", branch: "", location: "", postcode: "", website: "", phone: "", generalEmail: "", notes: "",
     contactName: "", contactJobTitle: "", contactEmail: "", contactPhone: "",
@@ -392,10 +394,12 @@ function AddForm({ onDone }: { onDone: () => void }) {
         <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Phone</span><input value={f.contactPhone} onChange={set("contactPhone")} onBlur={(e) => { if (e.target.value.trim()) setF((p) => ({ ...p, contactPhone: formatUKPhone(e.target.value) })); }} className={inputCls} /></label>
       </div>
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Notes / context</span><textarea value={f.notes} onChange={set("notes")} rows={2} className={inputCls} /></label>
-      <label className="flex items-center gap-2 text-[11px] text-neutral-400">
-        <input type="checkbox" checked={research} onChange={(e) => setResearch(e.target.checked)} />
-        Research this one now (fills gaps from the web, uses AI credit and takes about a minute)
-      </label>
+      {aiOn && (
+        <label className="flex items-center gap-2 text-[11px] text-neutral-400">
+          <input type="checkbox" checked={research} onChange={(e) => setResearch(e.target.checked)} />
+          Research this one now (fills gaps from the web, uses AI credit and takes about a minute)
+        </label>
+      )}
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex items-center gap-2">
         <button onClick={submit} disabled={pending || !f.agencyName.trim()} className="text-xs px-3 py-1.5 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-900 hover:bg-emerald-900 transition-colors disabled:opacity-40">{pending ? (research ? "Adding + researching…" : "Adding…") : "Add prospect"}</button>

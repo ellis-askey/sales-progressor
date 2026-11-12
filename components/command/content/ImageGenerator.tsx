@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 type Tab = "text-card" | "chart" | "ai";
 type Variant = "dark" | "light";
@@ -45,6 +46,7 @@ export function ImageGenerator() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
 
   const textCardUrl = buildTextCardUrl(cardText, cardVariant, cardLogo);
   const chartUrl = buildChartUrl(chartMetric, chartVariant);
@@ -283,14 +285,16 @@ export function ImageGenerator() {
 
           {aiError && <p className="text-xs text-red-400">{aiError}</p>}
 
-          <button
-            type="button"
-            onClick={generateAiImage}
-            disabled={aiLoading}
-            className="text-sm px-5 py-2 bg-neutral-200 text-neutral-900 rounded-lg font-medium hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {aiLoading ? "Generating… (~15s)" : "Generate image"}
-          </button>
+          {aiOn && (
+            <button
+              type="button"
+              onClick={generateAiImage}
+              disabled={aiLoading}
+              className="text-sm px-5 py-2 bg-neutral-200 text-neutral-900 rounded-lg font-medium hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {aiLoading ? "Generating… (~15s)" : "Generate image"}
+            </button>
+          )}
 
           {aiUrl && (
             <PreviewCard

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { runProgressionAgent, createProductionAgentDeps } from "@/lib/agent/progression-agent";
+import { aiEnabled } from "@/lib/ai/enabled";
 
 // Read each newly captured inbound (Outlook) email and run the progression
 // agent in SHADOW MODE. The agent is now the single source of truth for
@@ -14,6 +15,9 @@ import { runProgressionAgent, createProductionAgentDeps } from "@/lib/agent/prog
 // so each is processed once. Called from the outlook-sync cron.
 
 export async function interpretNewInboundEmails(limit = 30): Promise<{ interpreted: number; proposed: number }> {
+  // AI master switch (#291): the only non-cron AI entry — skip cleanly when off
+  // (the progression agent would otherwise throw AiDisabledError at the model).
+  if (!(await aiEnabled())) return { interpreted: 0, proposed: 0 };
   const msgs = await prisma.outboundMessage.findMany({
     where: {
       type: "inbound",

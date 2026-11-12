@@ -7,11 +7,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { runStrategyCycleAction, type GenerateProposalResult } from "@/app/actions/outreach";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 export function GenerateProposalButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<GenerateProposalResult | null>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   function run() {
     setResult(null);

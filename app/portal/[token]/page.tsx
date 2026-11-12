@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getPortalData, getPortalMilestones, getPortalTimeline, getPortalTeam, getPortalSurveyQuotes, portalOwnSideScope, portalOtherSideScope } from "@/lib/services/portal";
 import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
 import { getPortalBrokerCard } from "@/lib/services/broker-card";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { PortalBrokerCard } from "@/components/portal/PortalBrokerCard";
 import { resolveProviderAvailability } from "@/lib/services/provider-availability";
 import type { TimelineEntry } from "@/lib/services/portal";
@@ -718,7 +719,8 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const showComingUp       = comingUp.length > 0 && !hasCompleted;
   const showImportantDates = keyDates.length > 0;
   const showGuidance       = stage === "completed" ? true : tips.length > 0;
-  const showExplain        = !hasCompleted && transaction.portalDisplay.aiExplainEmail;
+  const aiMasterOn         = await aiEnabled();
+  const showExplain        = !hasCompleted && transaction.portalDisplay.aiExplainEmail && aiMasterOn;
 
   const MOVABLE_KEYS = ["survey-quote","survey-status","providers","mortgage-broker","costs","team","coming-up","important-dates","guidance","explain-email","feedback","latest-updates"] as const;
   const MOVABLE_LABELS: Record<string, string> = {

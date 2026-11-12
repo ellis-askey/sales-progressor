@@ -9,6 +9,7 @@ import { detectAiTells } from "@/lib/command/content/ai-tell";
 import { AdaptPanel } from "@/components/command/content/AdaptPanel";
 import { SuggestVisualPanel } from "@/components/command/content/SuggestVisualPanel";
 import { DateField } from "@/components/ui/DateField";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Premium composer (docs/active/content-brand/SPEC.md, Phase 3.1). The post
 // dominates. A calm toolbar of substance-steering AI actions, a low-to-high
@@ -40,6 +41,7 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduledNote, setScheduledNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const aiOn = useAiEnabled();
 
   const over = text.length > charLimit;
   const tells = useMemo(() => detectAiTells(text), [text]);
@@ -166,8 +168,8 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
         className="w-full resize-y rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3.5 text-[15px] leading-relaxed text-neutral-100 focus:border-blue-600/50 focus:outline-none"
       />
 
-      {/* AI-tell detector */}
-      {tells.length > 0 && (
+      {/* AI-tell detector — its "Clean it up" hits the AI refine endpoint (#291) */}
+      {aiOn && tells.length > 0 && (
         <div className="rounded-lg border border-amber-900/50 bg-amber-950/10 px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-amber-300">This reads a bit AI</span>
@@ -190,26 +192,28 @@ export function Composer({ draftId, variantNum, initialText, charLimit, onDiscar
       )}
 
       {/* AI actions */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {REFINE_ACTIONS.map((a) => (
+      {aiOn && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {REFINE_ACTIONS.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => refine(a.id)}
+              disabled={busy || pending}
+              className="rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-[11.5px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-40"
+            >
+              {a.label}
+            </button>
+          ))}
           <button
-            key={a.id}
-            onClick={() => refine(a.id)}
+            onClick={() => refine("explain_changes")}
             disabled={busy || pending}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-[11.5px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-40"
+            className="rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium text-neutral-500 transition-colors hover:text-neutral-300 disabled:opacity-40"
           >
-            {a.label}
+            Explain what changed
           </button>
-        ))}
-        <button
-          onClick={() => refine("explain_changes")}
-          disabled={busy || pending}
-          className="rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium text-neutral-500 transition-colors hover:text-neutral-300 disabled:opacity-40"
-        >
-          Explain what changed
-        </button>
-        {busy && <span className="text-[11px] text-neutral-500">Working…</span>}
-      </div>
+          {busy && <span className="text-[11px] text-neutral-500">Working…</span>}
+        </div>
+      )}
 
       {changed && (
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-[12px] leading-relaxed text-neutral-400">

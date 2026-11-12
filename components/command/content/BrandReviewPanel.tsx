@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkle } from "lucide-react";
 import { refreshBrandReviewAction } from "@/app/actions/brand-strategy";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Brand review (docs/active/content-brand/SPEC.md, Phase 2.3). The latest AI read
 // of where Ellis's brand stands: lean into / getting overused / breakout /
@@ -34,6 +35,9 @@ export function BrandReviewPanel({ initial }: { initial: Review | null }) {
   const [review, setReview] = useState<Review | null>(initial);
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   function refresh() {
     setNote(null);

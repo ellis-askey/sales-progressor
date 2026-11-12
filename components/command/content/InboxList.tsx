@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkle, ArrowRight } from "lucide-react";
 import { refreshInboxAction, setInboxItemStatusAction } from "@/app/actions/content-inbox";
 import { ClaimBadge } from "@/components/command/content/ClaimBadge";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 // Content inbox (docs/active/content-brand/SPEC.md, Phase 1.3). The list of real
 // things worth talking about, each with why it's interesting, a few genuinely
@@ -60,6 +61,7 @@ export function InboxList({ board }: { board: Board }) {
   const [tab, setTab] = useState<Tab>("fresh");
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
 
   function refresh() {
     setNote(null);
@@ -97,14 +99,16 @@ export function InboxList({ board }: { board: Board }) {
         </div>
         <div className="ml-auto flex items-center gap-3">
           {note && <span className="text-[11px] text-neutral-500">{note}</span>}
-          <button
-            onClick={refresh}
-            disabled={pending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-50"
-          >
-            <Sparkle size={13} className={pending ? "animate-pulse" : ""} />
-            {pending ? "Finding…" : "Refresh"}
-          </button>
+          {aiOn && (
+            <button
+              onClick={refresh}
+              disabled={pending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-neutral-300 transition-colors hover:border-neutral-600 hover:text-neutral-100 disabled:opacity-50"
+            >
+              <Sparkle size={13} className={pending ? "animate-pulse" : ""} />
+              {pending ? "Finding…" : "Refresh"}
+            </button>
+          )}
         </div>
       </div>
 

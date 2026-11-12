@@ -5,6 +5,7 @@ import { useState, useRef } from "react";
 import type { Channel } from "@/lib/command/content/channels";
 import type { Tone } from "@/lib/command/content/tones";
 import { DraftVariantPanel } from "@/components/command/content/DraftVariantPanel";
+import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 
 interface GeneratedDraft {
   draftId: string;
@@ -37,6 +38,9 @@ export function DraftComposer({ channels, tones, pendingTopics }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<GeneratedDraft | null>(null);
   const draftRef = useRef<HTMLDivElement>(null);
+  const aiOn = useAiEnabled();
+
+  if (!aiOn) return null;
 
   const selectedChannel = channels.find((c) => c.id === channelId) ?? channels[0];
 
