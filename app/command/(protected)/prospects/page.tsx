@@ -7,6 +7,7 @@ import {
   type ProspectFilter, type FollowUpBucket, type ProspectDataFilter, type DataGapCounts,
 } from "@/lib/command/prospects";
 import { ProspectsBoard } from "@/components/command/prospects/ProspectsBoard";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { ProspectPipeline } from "@/components/command/prospects/ProspectPipeline";
 import { FollowUpQueue } from "@/components/command/prospects/FollowUpQueue";
 import { ProspectInsights } from "@/components/command/prospects/ProspectInsights";
@@ -50,6 +51,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const view = parseView(sp.view);
   const bucket = parseBucket(sp.bucket);
+  const aiOn = await aiEnabled(); // AI master switch (#291): the "Import" view is AI research only
   const filter: ProspectFilter = { q: sp.q, status: parseStatus(sp.status), source: parseSource(sp.source), data: parseData(sp.data) };
 
   const summary = await getProspectSummary();
@@ -85,7 +87,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
 
       {/* View tabs */}
       <div className="flex flex-wrap gap-1.5">
-        {(["all", "pipeline", "followups", "insights", "import"] as View[]).map((v) => (
+        {(["all", "pipeline", "followups", "insights", ...(aiOn ? (["import"] as View[]) : [])] as View[]).map((v) => (
           <Link key={v} href={href({ view: v === "all" ? undefined : v })} className={pill(v === view)}>
             {v === "all" ? "All prospects" : v === "pipeline" ? "Pipeline" : v === "followups" ? "Follow-ups" : v === "insights" ? "Insights" : "Import"}
           </Link>

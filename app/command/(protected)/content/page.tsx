@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getContentOverview } from "@/lib/command/content/overview";
 import { Section, KpiCard, InsightCard, TrackingDisabled } from "@/components/command/ui/primitives";
+import { aiEnabled } from "@/lib/ai/enabled";
 
 // Content overview (docs/active/content-brand/SPEC.md, Phase 1.5). The landing
 // for the Content area: a compact, honest operational summary, a single primary
@@ -21,6 +22,7 @@ function agoLabel(d: Date | null): string {
 
 export default async function ContentOverviewPage() {
   const o = await getContentOverview(new Date());
+  const aiOn = await aiEnabled(); // AI master switch (#291): hide the AI "Create" CTA when off
 
   const quiet = o.published.last28 === 0;
 
@@ -33,12 +35,14 @@ export default async function ContentOverviewPage() {
             What&rsquo;s worth saying, and where things stand. Start from something real.
           </p>
         </div>
-        <Link
-          href="/command/content/create"
-          className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-500"
-        >
-          Create something
-        </Link>
+        {aiOn && (
+          <Link
+            href="/command/content/create"
+            className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-500"
+          >
+            Create something
+          </Link>
+        )}
       </div>
 
       <Section title="Where things stand">

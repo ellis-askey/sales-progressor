@@ -88,6 +88,7 @@ export default async function CommandProtectedLayout({
         savedAgencyIds={savedAgencyIds}
         adminEmail={(session as Session).user?.email ?? ""}
         showBackToAdmin={isHybridSuperadmin}
+        aiOn={aiOn}
       />
       <main
         className="flex-1 overflow-y-auto"

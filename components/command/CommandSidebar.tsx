@@ -305,12 +305,14 @@ export function CommandSidebar({
   savedAgencyIds,
   adminEmail,
   showBackToAdmin = false,
+  aiOn = true,
 }: {
   agencies: Agency[];
   savedMode: CommandMode;
   savedAgencyIds: string[];
   adminEmail: string;
   showBackToAdmin?: boolean;
+  aiOn?: boolean;
 }) {
   const pathname = usePathname();
   // Below lg (1024) the sidebar is an off-canvas drawer behind a Menu button —
@@ -378,6 +380,8 @@ export function CommandSidebar({
               {section.label}
             </p>
             {section.items.map(({ href, label, Icon, soon, exact }) => {
+              // AI master switch (#291): the Create page is AI-only — no dead link when off.
+              if (href === "/command/content/create" && !aiOn) return null;
               const isActive = exact
                 ? pathname === href
                 : pathname === href || pathname.startsWith(href + "/");

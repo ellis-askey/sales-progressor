@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { commandDb } from "@/lib/command/prisma";
 import { CreateFlow } from "@/components/command/content/CreateFlow";
+import { aiEnabled } from "@/lib/ai/enabled";
 
 // Guided creation flow (docs/active/content-brand/SPEC.md, Phase 1.4). Reachable
 // blank, or seeded from an inbox item (?item=) or a saved thought (?thought=).
@@ -27,6 +28,24 @@ export default async function CreatePage({
   searchParams: Promise<{ item?: string; thought?: string; opp?: string }>;
 }) {
   const sp = await searchParams;
+
+  // AI master switch (#291): the whole creation flow is AI — show an empty state
+  // rather than a dead header when it's off.
+  if (!(await aiEnabled())) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-100">Create</h1>
+          <p className="mt-1 max-w-xl text-[13px] text-neutral-500">
+            Content creation uses AI, which is currently turned off. Turn it back on from Settings &rarr; AI features.
+          </p>
+        </div>
+        <Link href="/command/settings" className="inline-block text-xs text-blue-400 transition-colors hover:text-blue-300">
+          Open Settings &rarr;
+        </Link>
+      </div>
+    );
+  }
 
   let initialSource = "";
   let presetAngles: PresetAngle[] = [];

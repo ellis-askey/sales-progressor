@@ -4,6 +4,7 @@ import { getContentSettings } from "@/lib/command/content/settings";
 import { getPublishingStatus } from "@/lib/command/content/publishing";
 import { CalendarBoard } from "@/components/command/content/CalendarBoard";
 import { WeeklyPlanPanel } from "@/components/command/content/WeeklyPlanPanel";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { AutopilotSettings } from "@/components/command/content/AutopilotSettings";
 import { Section, TrackingDisabled } from "@/components/command/ui/primitives";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function CalendarPage() {
   const [pipeline, settings] = await Promise.all([getPipeline(), getContentSettings()]);
   const publishing = getPublishingStatus();
+  const aiOn = await aiEnabled(); // AI master switch (#291): hide the AI "Proposed week" section when off
 
   return (
     <div className="space-y-8">
@@ -32,12 +34,14 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
+      {aiOn && (
       <Section title="Proposed week" subtitle="A short, varied week from your brand, inbox and recent balance.">
         <WeeklyPlanPanel
           plan={settings.weeklyPlan}
           generatedAt={settings.weeklyPlanAt ? settings.weeklyPlanAt.toISOString() : null}
         />
       </Section>
+      )}
 
       <Section title="Pipeline" subtitle="Ready to published. Schedule by date; scheduling reminds you when a post is due.">
         <CalendarBoard pipeline={pipeline} />

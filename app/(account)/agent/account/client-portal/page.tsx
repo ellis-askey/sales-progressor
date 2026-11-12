@@ -66,10 +66,14 @@ export default async function AccountClientPortalPage() {
             }}
             exampleKeyDates={examplePreviewKeyDates()}
           />
+          {/* AI email explainer — the whole section (toggle + try-it) is gated,
+              since the per-agency toggle is meaningless when AI is globally off (#291). */}
+          {aiOn && (
           <div style={{ marginTop: 20, borderTop: "1px solid var(--agent-border-subtle)", paddingTop: 16 }}>
             <AiExplainerToggle initial={agency?.aiExplainEmailEnabled ?? true} />
-            {aiOn && <AiExplainerTryIt />}
+            <AiExplainerTryIt />
           </div>
+          )}
         </AccountCard>
       </div>
     </>

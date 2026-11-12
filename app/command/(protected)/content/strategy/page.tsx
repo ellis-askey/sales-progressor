@@ -5,6 +5,7 @@ import { getLatestReview } from "@/lib/command/content/strategy-review";
 import { ContentBalance } from "@/components/command/content/ContentBalance";
 import { QuarterFocusEditor } from "@/components/command/content/QuarterFocusEditor";
 import { BrandReviewPanel } from "@/components/command/content/BrandReviewPanel";
+import { aiEnabled } from "@/lib/ai/enabled";
 import { Section } from "@/components/command/ui/primitives";
 
 // Content strategy (docs/active/content-brand/SPEC.md, Phase 2.2 + 2.3). The
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function StrategyPage() {
   const [balance, profile, review] = await Promise.all([getBalance(), getBrandProfile(), getLatestReview()]);
+  const aiOn = await aiEnabled(); // AI master switch (#291): hide the AI "Brand review" section when off
 
   return (
     <div className="space-y-8">
@@ -46,6 +48,7 @@ export default async function StrategyPage() {
         <ContentBalance balance={balance} />
       </Section>
 
+      {aiOn && (
       <Section
         title="Brand review"
         subtitle="A PR consultant's read of where your brand stands and where to lean next."
@@ -66,6 +69,7 @@ export default async function StrategyPage() {
           }
         />
       </Section>
+      )}
     </div>
   );
 }

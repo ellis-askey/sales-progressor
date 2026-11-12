@@ -3,6 +3,7 @@ import { commandDb } from "@/lib/command/prisma";
 import { VOICE_QUESTIONS } from "@/lib/command/content/voice-questions";
 import { getVoiceProfile, MIN_EDITS } from "@/lib/command/content/voice-learning";
 import { VoiceLearningPanel } from "@/components/command/content/VoiceLearningPanel";
+import { aiEnabled } from "@/lib/ai/enabled";
 import {
   addVoiceSampleAction,
   deleteVoiceSampleAction,
@@ -19,6 +20,7 @@ export default async function VoicePage({
     commandDb.voiceSample.findMany({ orderBy: { createdAt: "desc" } }),
     getVoiceProfile(),
   ]);
+  const aiOn = await aiEnabled(); // AI master switch (#291): hide the AI "Learned from your edits" section when off
 
   const answeredKeys = new Set(
     samples.filter((s) => s.sampleType === "qa_response").map((s) => s.questionKey)
@@ -39,7 +41,8 @@ export default async function VoicePage({
         </Link>
       </div>
 
-      {/* Learned from your edits */}
+      {/* Learned from your edits — AI; hidden when the master switch is off (#291) */}
+      {aiOn && (
       <section className="space-y-4">
         <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
           Learned from your edits
@@ -54,6 +57,7 @@ export default async function VoicePage({
           minEdits={MIN_EDITS}
         />
       </section>
+      )}
 
       {/* Q&A answers */}
       <section className="space-y-4">
