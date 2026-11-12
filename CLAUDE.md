@@ -6,7 +6,7 @@
 > **Current product facts live in [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) — read it first.**
 > Pricing, roles, permissions, access scopes, business types, surfaces, tech stack, feature-flag state and launch stage are maintained there, each with a code anchor. Where any inline description in this file disagrees with PRODUCT_TRUTH or the code, **PRODUCT_TRUTH and the code win** — surface the contradiction (Law 6), don't rely on the older inline text. This file holds the durable Laws, process and conventions.
 
-Last updated: 2026-11-01 (product-facts authority moved to [docs/PRODUCT_TRUTH.md](docs/PRODUCT_TRUTH.md); inline facts corrected to point there. Laws unchanged. Phase 0 of the discipline migration is complete — see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md).)
+Last updated: 2026-11-07 (added **"The quality bar for new and approved UI"** to the UI-preservation section, founder-approved — target is Apple-grade clarity: clean through craft not emptiness, discoverable, light+dark as peers, compose-before-assemble, reject-the-mediocre-first-attempt; plus a per-zone **latitude** rule (full autonomy on `/dev`, build-then-react on forward Liquid Glass, ask-first only to change a shipped page's appearance) to end the every-change-waits-on-approval bottleneck. Visual system stays Liquid Glass; this is the execution bar it must clear. Prior entry: 2026-11-02 established the **TSP Liquid Glass** forward design system — [docs/reference/design-system/](docs/reference/design-system/README.md), showroom `/dev/design-system`, kit `components/liquid/`; Law 14 amended by founder approval to make it the forward authority while the production catalogue governs un-migrated pages; UI-preservation rescoped. Prior entry: 2026-11-01 product-facts authority moved to [docs/PRODUCT_TRUTH.md](docs/PRODUCT_TRUTH.md); Phase 0 of the discipline migration complete — see [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md).)
 
 ---
 
@@ -47,7 +47,7 @@ Each role uses a distinct surface. Do not mix them:
 | Surface | URL | Roles allowed | Brand |
 |---|---|---|---|
 | **Marketing site** | `thesalesprogressor.co.uk` | Public | Dark navy + coral hero, glass cards |
-| **Agent app** | `portal.thesalesprogressor.co.uk/agent/*` | `director`, `negotiator` | Warm cream + coral + glass |
+| **Agent app** | `portal.thesalesprogressor.co.uk/agent/*` | `director`, `negotiator` | Iridescent WebGL AppBackground + coral + frosted glass (cream = theme neutrals; see PRODUCT_TRUTH §8) |
 | **Internal staff** | Internal staff (`admin`, `sales_progressor`, `superadmin`) run inside the **agent app** (`/agent/*`), differentiated by a per-session visibility mode. `/dashboard` and `/admin` redirect in. The file view is `/agent/transactions/[id]`. `AppShell` is now **legacy** (remaining use: `app/admin/migrate`); there is no `/transactions/[id]` route. See [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) §4. | `admin`, `sales_progressor`, `superadmin` | Agent-app light look (`AgentShell`); legacy `AppShell` dark backdrop where still used |
 | **Command Centre** | `portal.thesalesprogressor.co.uk/command/*` | `superadmin` only | Utilitarian dark, hairline borders, no glass, no photography (layout inline in `app/command/(protected)/layout.tsx`) |
 | **Buyer/seller portal** | `portal.thesalesprogressor.co.uk/portal/[token]` | Token-authenticated visitors | Light, clean, mobile-first |
@@ -144,9 +144,12 @@ The Command Centre has no separate shell component. Its layout is assembled inli
 
 When working on a topic, read the relevant doc BEFORE writing code. If a doc and the codebase contradict, surface the contradiction in your response — do not silently pick one.
 
+Before proposing or implementing changes, verify relevant documentation against the current implementation. Where they differ, identify whether the document describes current behaviour, an intended requirement or a historical decision. Do not automatically treat either the code or documentation as correct. Present the discrepancy and obtain explicit approval before changing either.
+
 | Topic | Source of truth |
 |---|---|
 | **Current product facts** (pricing, roles, permissions, access scopes, business types, surfaces, tech stack, feature-flag state, launch stage) | [`docs/PRODUCT_TRUTH.md`](docs/PRODUCT_TRUTH.md) — **read first for any factual question** |
+| **Forward UI** — any new UI, component, or approved page redesign (visual design, materials, tokens, motion, component choice, UI writing) | [`docs/reference/design-system/`](docs/reference/design-system/README.md) — **the forward visual source of truth (TSP Liquid Glass)**. Supersedes the older visual docs below for new/approved work; those stay authoritative for un-migrated production pages only. Showroom: `/dev/design-system`. |
 | **The discipline migration roadmap** (what's being remediated next) | [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) |
 | **Deferred polish backlog** (decisions on what gets fixed, grandfathered, or deferred) | [`docs/POLISH_TBD.md`](docs/POLISH_TBD.md) |
 | **Component catalog** (closed list of canonical primitives + to-extract + grandfathered) | [`docs/reference/COMPONENT_LIBRARY_CATALOG.md`](docs/reference/COMPONENT_LIBRARY_CATALOG.md) |
@@ -164,8 +167,8 @@ When working on a topic, read the relevant doc BEFORE writing code. If a doc and
 | Milestone engine state machine | `docs/MILESTONES_SPEC_v1.md` |
 | Milestone weights and gating | `docs/MILESTONES_WEIGHTS_v1.md` |
 | Command Centre product spec | `docs/admin/ADMIN_01_SPEC.md` (and ADMIN_02–10 for subsystems) |
-| Visual design (agent app) | `docs/VISUAL_DIRECTION.md` |
-| Active package being built | `docs/active/package-d/scope.md` (current — others under `docs/active/`) |
+| Visual design (agent app) — **un-migrated production pages only**; new UI → the Forward-UI row above | `docs/VISUAL_DIRECTION.md` |
+| Active work in flight | see `docs/active/` (per-arc status varies; confirm against code before relying on any one spec) |
 | Manual ops tasks (founder side) | `docs/active/ELLIS_MANUAL_TODO.md` |
 | Technical debt | `docs/active/TODO.md` |
 | Bug log | `docs/POST_LAUNCH_FIXES.md` |
@@ -236,7 +239,7 @@ For internal staff: agencyId filtering doesn't apply. `sales_progressor` scoped 
 
 **A query that doesn't have a clear access model is a tenant isolation hole.** No exceptions outside `/app/command/*` (which uses `commandDb` with explicit superadmin context).
 
-**Enforcement:** automated test asserts every list endpoint goes through the access scope helper. Pre-commit hook flags new `findFirst({ where: { ..., agencyId: ... } })` patterns that don't use the helper.
+**Enforcement:** automated test (`__tests__/multi-tenant/access-scope-coverage.test.ts`, run by jest in CI) asserts every list endpoint goes through the access scope helper. **Outstanding enforcement gap:** the pre-commit grep for new `findFirst({ where: { ..., agencyId: ... } })` patterns is **not yet implemented**; until it lands, this is held by the CI test above plus code review. Building the grep requires separate approval.
 
 ## Law 8 — Command Centre isolation
 
@@ -254,7 +257,7 @@ Three distinct visual surfaces for logged-in users. Never mix tokens between the
 
 | Surface | Shell | Visual system |
 |---|---|---|
-| Agent app | [`AgentShell`](components/layout/AgentShell.tsx) | Warm cream, coral primary `#FF6B4A`, glass cards, humanist sans-serif |
+| Agent app | [`AgentShell`](components/layout/AgentShell.tsx) | Iridescent WebGL AppBackground + frosted-glass cards, coral primary `#FF6B4A`, humanist sans-serif (cream = theme neutrals, not the identity; forward UI follows TSP Liquid Glass — `docs/reference/design-system/`). See PRODUCT_TRUTH §8. |
 | Internal dashboard | [`AppShell`](components/layout/AppShell.tsx) | Dark photo backdrop with near-black overlay, glass sidebar |
 | Command Centre | Inline in [`app/command/(protected)/layout.tsx`](app/command/(protected)/layout.tsx) | Utilitarian dark `#0a0a0a`, hairline borders `#262626`, blue accent `#2563eb`, solid surfaces (no glass), Lucide icons |
 
@@ -306,12 +309,14 @@ If a feature lands in a later phase, **the seam is real**: the service exists, t
 
 **Why:** the half-built dashed-box pattern is the single biggest reason features feel less complete than they should. We don't ship "coming soon" — we ship working seams.
 
-**Enforcement:** pre-commit grep sweep for:
+**Enforcement:** held by code review today; the patterns below are the manual checklist. **Outstanding enforcement gap:** a pre-commit grep sweep for these is **not yet implemented** (building it requires separate approval):
 - `onClick={() => {}}` and `onClick={() => undefined}` (literal no-ops)
 - `// TODO: wire up` / `// TODO: implement` in committed code
 - `disabled` props paired with `title="Coming soon"` or similar
 
 ## Law 14 — Every UI element is a library component
+
+**Scope note (read first for new Liquid Glass UI):** the Amendment at the end of this Law reverses the default below for `components/liquid/**`, which the forward [`docs/reference/design-system/INVENTORY.md`](docs/reference/design-system/INVENTORY.md) governs — not the closed catalogue. The paragraph below applies to **production / un-migrated** work.
 
 If a pattern exists in [components/ui/](components/ui/), you use it. If a pattern doesn't exist but is duplicated elsewhere in `components/<domain>/`, you propose adding it to [docs/reference/COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md) **before** building. Never roll a new primitive without writing down what it is first.
 
@@ -319,7 +324,9 @@ Domain-specific components stay in their domain folder, but the domain folder mu
 
 **Exception:** the grandfather rule (Law 19) allows existing duplicate patterns to remain in place until their surface comes up for remediation.
 
-**Enforcement:** pre-commit hook checks new files in `components/<domain>/` against the catalog's "to-extract" list — if a canonical primitive exists for the pattern, the commit is blocked.
+**Enforcement:** held by code review against the catalog. **Outstanding enforcement gap:** the pre-commit hook that would check new `components/<domain>/` files against the catalog's "to-extract" list (blocking when a canonical primitive already exists) is **not yet implemented** (building it requires separate approval).
+
+**Amendment (2026-11-02, founder-approved).** The closed catalogue governs the **current production** system. Work in `components/liquid/**` and `app/dev/**` is the **forward Liquid Glass** system and is catalogued in [`docs/reference/design-system/INVENTORY.md`](docs/reference/design-system/INVENTORY.md) instead, not this closed catalog. **Approved components are the default, not a creative ceiling** — discovering or designing a genuinely better component is encouraged: it enters the laboratory (`/dev/design-system`), is verified, and is promoted to the approved library on founder review. The pre-commit hook **excludes `components/liquid/**`**. This governs visuals only — it never licenses changes to functionality, logic, permissions, workflows or data (those remain protected everywhere).
 
 ## Law 15 — Scripts must justify
 
@@ -390,7 +397,7 @@ Grandfathered items are reviewed quarterly. They either get bumped to active mig
 - No hard-coded demo addresses in user-facing copy outside seed files and Playwright tests.
 - Strings that inject names use the standard interpolation: `{address}`, `{name}`, `{firstName}`.
 
-**Enforcement:** pre-commit grep sweep for known demo strings outside whitelisted directories (`scripts/seed-*`, `__tests__/`, `e2e/`).
+**Enforcement:** held by code review. **Outstanding enforcement gap:** a pre-commit grep sweep for known demo strings outside whitelisted directories (`scripts/seed-*`, `__tests__/`, `e2e/`) is **not yet implemented** (building it requires separate approval).
 
 ## Law 21 — Voice gate on user-facing strings
 
@@ -424,24 +431,44 @@ Overrides for a single PR exist in genuine emergencies:
 - Override logged in [docs/LAW_OVERRIDES.md](docs/LAW_OVERRIDES.md).
 - Reviewed at the next quarterly review. If overrides for a given law exceed 2 in a quarter, the law itself is reviewed.
 
-Pre-commit hooks ship in **warn-only mode for two weeks** after introduction. If zero false positives in that window, they flip to block mode.
+Pre-commit hooks currently run in **warn-only mode by default** (soft checks print a warning and the commit proceeds); they block only when `PHASE5_ENFORCE=1` is set, and the naive-name-split and focus-ring checks always block. The hooks are **not version-controlled** (installed opt-in via `scripts/hooks/install.sh`), so a fresh clone may have none. Flipping the soft checks to block by default is a pending decision.
 
 ---
 
 # UI preservation — production UI is the primary visual reference
 
-The shipped production UI is the result of months of deliberate visual decisions and is the **primary visual reference** for all UI work. [components/ui/](components/ui/), [COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md), [DESIGN_TOKENS.md](docs/reference/DESIGN_TOKENS.md) and the other design docs are **supporting references** — patterns to reach for in new work. They are **not** permission to replace a working design, and a screen is never "wrong" merely because it predates them or uses a legacy class.
+The shipped production UI is the result of months of deliberate visual decisions and is the **primary visual reference** for all UI work. [components/ui/](components/ui/), [COMPONENT_LIBRARY_CATALOG.md](docs/reference/COMPONENT_LIBRARY_CATALOG.md), [DESIGN_TOKENS.md](docs/reference/DESIGN_TOKENS.md) and the other design docs are **supporting references for un-migrated production pages**. (For **new** UI and approved Liquid Glass redesigns, the forward design system — [`docs/reference/design-system/`](docs/reference/design-system/README.md) — is the reference instead, per point 4 below and the Forward-UI carve-out.) They are **not** permission to replace a working design, and a screen is never "wrong" merely because it predates them or uses a legacy class.
 
 This section sets the default stance — **preserve, don't standardise** — within which the Laws are applied. It amends no Law.
+
+> **Forward-UI carve-out (2026-11-02, founder-approved).** This preservation stance protects the **functionality of everything** and the **appearance of un-migrated production pages**. It does **not** constrain the forward visual language: **new UI and founder-approved page redesigns follow TSP Liquid Glass** ([`docs/reference/design-system/`](docs/reference/design-system/README.md)), not the old production aesthetic. A production page's appearance only changes when that page is individually approved for migration (per the Stage A–G workflow). Functionality, logic, permissions, workflows and data stay protected regardless. **Protected foundations** (do not regress without founder sign-off): the `/dev/updates-glass` prototype (visual/layout benchmark), the slab-lens optical material (`components/liquid/LiquidLens.tsx`), the spring physics (`components/liquid/lib/spring.ts`), and the TSP coral accent — see [`docs/reference/design-system/INVENTORY.md`](docs/reference/design-system/INVENTORY.md) and its [Definition of Done](docs/reference/design-system/WORKFLOW.md). **Impeccable is advisory** for Liquid Glass work — it never overrides this direction or imposes generic styling.
 
 1. **Preserve existing visual treatments** unless the founder explicitly requests a change. In doubt, match what ships.
 2. **Legacy or non-canonical is not a reason to migrate.** A bespoke modal, an `agent-glass` card, a hand-rolled button, or a treatment that differs from the documented canonical one stays as-is unless migration is explicitly approved. Laws 14 and 18 and the catalog's "to extract" lists govern *new* work and *approved* remediation — they are not a standing mandate to standardise shipped screens.
 3. **No global visual changes without explicit, specific approval** — no app-wide change to buttons, cards, modals, drawers, typography, spacing, colour, shadow, radius or motion, and no component migration or redesign, without the founder signing off on that specific change. (A sweep is also a Law 16 violation.)
-4. **New UI follows the nearest shipping pattern** — copy the most relevant existing production screen, not a doc or a canonical primitive the surrounding screens don't actually use.
+4. **New UI follows the nearest shipping pattern** *for in-place tweaks to un-migrated pages* — copy the most relevant existing production screen, not a doc or a canonical primitive the surrounding screens don't actually use. **For new pages and approved Liquid Glass redesigns this is reversed:** follow the forward design system ([`docs/reference/design-system/`](docs/reference/design-system/README.md)), not the old production screens.
 5. **Scoped changes stay scoped** — when improving an area, change only what was requested; don't re-token or "tidy" adjacent code as a side effect (reinforces Law 5).
 6. **Flag visual-regression risk before implementing** — for any change that could alter a shipped treatment, name what would change, first.
 7. **Impeccable is advisory** — its design hook and critiques are a quality check, not a redesign trigger. Findings on existing production UI are surfaced, not acted on; established visual decisions are preserved unless the founder instructs otherwise. A craft-floor rule that conflicts with a deliberate brand decision (e.g. the coral card accent) is an intentional exception, not a defect.
 8. **Preserve behaviour** — existing application logic and behaviour are not changed as part of visual work unless separately approved.
+
+## The quality bar for new and approved UI (2026-11-07, founder-approved)
+
+The target is **Apple-grade clarity** — first-party macOS / iOS craft (Mail, Reminders, Finder), not generic SaaS. This bar governs all `/dev` prototypes, new surfaces, and founder-approved redesigns. It raises the *execution* standard; it does **not** relax the preservation rules for shipped, un-migrated pages, and it never licenses changes to functionality, logic, permissions, workflows or data. The forward **visual system** remains TSP Liquid Glass (which is itself Apple-aligned — Apple's own current language is Liquid Glass); this section is the **quality bar that work in that system must clear**, not a replacement for it.
+
+1. **Clean through craft, not emptiness.** Restraint is Apple's *confidence*, not timidity. "Too generic / too safe / could be any SaaS" is a defect, exactly like "too busy." Never answer timidness with minimalism — answer it with more considered type, spacing, material, hierarchy and motion. An empty screen is not Apple, it is just empty.
+2. **Discoverable.** Affordances are obvious. Nothing important hides behind a hover or a guess. What is interactive looks interactive.
+3. **Light and dark are both first-class.** Every new or approved surface designs *both* themes as peers — dark is composed and verified on its own, never a naive inversion of light. A single-theme surface is a deliberate, justified exception, not a default.
+4. **Compose before you assemble.** Decide the whole-screen composition and its point of view *before* choosing controls. Assembling primitives into a competent layout is the failure mode that produced months of disappointing UI; it is explicitly not the goal.
+5. **Reject the mediocre first attempt.** For substantial UI, explore 2–3 materially different *rendered* directions, compare them as pixels at the sizes they ship at, and discard the weak ones before refining. A clean automated audit is not evidence of visual quality.
+
+**Latitude** (to end the pattern where every improvement waits on founder sign-off):
+
+- **`/dev` prototypes:** full autonomy. Build the strong, finished version; the founder reacts to the *rendered result*, not to a plan.
+- **Forward Liquid Glass work:** build-then-react. Take the ambitious version to a rendered state across both themes, then review.
+- **Shipped, un-migrated production pages:** ask first only before changing their *appearance*. Functionality, logic, permissions, workflows and data stay protected everywhere, always.
+
+**Impeccable** stays advisory on shipped production UI (point 7 above). On new and approved work, its craft floor is a bar to **clear**, not merely a check to pass.
 
 ---
 

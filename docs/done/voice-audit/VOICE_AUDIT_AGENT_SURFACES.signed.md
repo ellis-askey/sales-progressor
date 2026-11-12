@@ -1,7 +1,7 @@
 # Voice audit — agent-facing surfaces — SIGNED
 
 **Status:** Signed off 2026-06-05. Applied in one sweep commit (see git log for SHA).
-**Method note:** From code, not memory. Walked every in-scope production agent page + every component they render + every outbound-email template + every push and bell call site. Citations are file:line. This file is the record of decisions; the unmarked original audit lives at [docs/VOICE_AUDIT_AGENT_SURFACES.md](docs/VOICE_AUDIT_AGENT_SURFACES.md).
+**Method note:** From code, not memory. Walked every in-scope production agent page + every component they render + every outbound-email template + every push and bell call site. Citations are file:line. This file is the record of decisions; the unmarked original audit lives at [VOICE_AUDIT_AGENT_SURFACES.md](VOICE_AUDIT_AGENT_SURFACES.md).
 
 > Marked decisions: ✅ applied · ✏️ applied with revised replacement · ❌ rejected (with reason) · 🔒 locked, no action.
 

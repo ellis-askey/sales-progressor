@@ -2,6 +2,8 @@
 
 Status: **PLAN ONLY — not built.** Drafted 2026-09-02. Audit-backed.
 
+> **Update — IMPLEMENTED (flagged 2026-11-12 audit).** The guided demo experience described here has since been built and is live; it is referenced by code at `app/actions/demo-tour.ts`, `components/transaction/demo-tour/*`, `lib/services/demo-sale.ts`, and `prisma/schema.prisma`. The "PLAN ONLY — not built" line above is historical. This document is retained as the implementation specification; verify current behaviour against that code.
+
 This plan designs a guided walkthrough of the demo sale that feels like **TSP briefly taking a new agent through one of their real sales** — the interface moves around them, the product itself is the demonstration. Not a modal of paragraphs, not tooltip bubbles, not a slideshow.
 
 It is written on top of a four-part forensic audit of the current code. Every architectural claim below is cited to `file:line`. The headline finding: **before any tour is built, the demo has to be made (a) safe and (b) rich enough on three tabs that currently render empty.** Sections 2 and 3 prove that; the tour design assumes those two fixes ship first.

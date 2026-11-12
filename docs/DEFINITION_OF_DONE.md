@@ -10,7 +10,7 @@ Every commit and every component checks against this list. The six commit-level 
 
 1. **`npx tsc --noEmit` is clean.** EXIT 0, every commit. No "I'll fix the type errors next commit" — fix them now.
 2. **Staging branch first, master second.** Convention: `merge: X → staging` then `merge: X → master` as separate commits. Never both at once.
-3. **Migrations apply to staging before code reaches master.** CLAUDE.md Rule 3. No exceptions.
+3. **Migrations apply to staging before code reaches master.** CLAUDE.md Law 3. No exceptions.
 4. **Verification harness with explicit pass count for any data-shape change.** "29/29 pass" / "32/32 PASS" — quote the number in the commit message. No "tests pass" without a count.
 5. **Dry-run → review → apply → re-dry-run zero** for any prod data script. Section-2 backfill, retro-pass-3-stranded-relists, Hiranya stamping all followed this exact pattern.
 6. **Backfill + write-path in lockstep.** A write-site change ships with its backfill in the same PR. Locked phrase: `0636564 feat(buyer-round): OutboundMessage rule refined — write path + backfill in lockstep`.
@@ -22,8 +22,8 @@ Every commit and every component checks against this list. The six commit-level 
 7. **Voice sweep before client-facing strings land.** Single commit, "strings only, tsc clean, single commit". Review format: file + line per string, not the full diff. See [VOICE.md](reference/VOICE.md) and [CONVENTIONS.md](CONVENTIONS.md).
 8. **Browser walkthrough on a staging fixture** before merging to master for any UX-affecting change. Chain arc demanded F1–F5; buyer-round arc demanded the Emily relist fixture.
 9. **Self-resetting fixtures.** Seeds wipe their previous output before re-seeding. Pattern: `purgeFixtureChains()` in `seed-chain-closed-loop-fixtures.ts`. No piling-up of orphan rows between runs.
-10. **One concern per PR.** CLAUDE.md Rule 5. Bundled commits are explicitly labelled ("polish + X"); the default is single-concern.
-11. **Show raw evidence, not interpretation, when stakes are high.** CLAUDE.md Rule 10. Quote the file, show the query output, paste the Sentry trace.
+10. **One concern per PR.** CLAUDE.md Law 5. Bundled commits are explicitly labelled ("polish + X"); the default is single-concern.
+11. **Show raw evidence, not interpretation, when stakes are high.** CLAUDE.md Law 10. Quote the file, show the query output, paste the Sentry trace.
 12. **No prod credentials in repo, transcript, or chat.** Post-incident discipline (2026-06-04). See `docs/active/incident-2026-06-04-credential-exposure.md`.
 13. **Token lockstep.** Any commit that changes a CSS token (in `globals.css`, `themes.css`, or `agent-system.css`) updates [`design/tokens.ts`](../design/tokens.ts) in the same commit. `tokens.ts` stays a read-only mirror — never imported by components.
 
@@ -53,7 +53,7 @@ These have been enforced verbally across sessions for months. Listed here so the
 
 - **Diff-summary-only review format** for voice sweeps. Response format is "file and line per string", not the full diff.
 - **"I'll stop here, fix and reseed"** protocol when a walkthrough finds a bug. Stop the walk → fix → reseed → re-deploy → resume.
-- **Sentry-first debugging.** Share the actual error (Sentry, console, server log), not a guess. "I think it's X" is not acceptable when X is checkable. See CLAUDE.md Rule 10.
+- **Sentry-first debugging.** Share the actual error (Sentry, console, server log), not a guess. "I think it's X" is not acceptable when X is checkable. See CLAUDE.md Law 10.
 - **Structured-return-not-throw for server actions.** Next.js wraps Server Action throws in a generic digest in prod, stripping structured payloads. For user-actionable failures, return a discriminated result; only throw for unexpected. Discovered during the milestone prereq fix (commit `5d0941d`).
 - **Wipe-and-reseed fixture semantics.** Per-fixture cleanup for closed-loop test data; leave-alone for shared / pre-existing rows.
 

@@ -5,6 +5,8 @@
 **Depends on:** ADMIN_02 (`OutboundMessage`), ADMIN_04 (Outbound Log shows posts)
 **Implements:** the `/command/content` tab + the publishing pipeline
 
+> **Superseded (flagged 2026-11-12 audit).** The `ContentStream` model and `lib/command/publishers/` here were never built. Content shipped as a multi-platform system: `lib/command/content/*`, governed by `docs/active/content-brand/SPEC.md`. Read as a historical proposal.
+
 ---
 
 ## 1. Goals

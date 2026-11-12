@@ -1,5 +1,7 @@
 # Chain Feature — Overview
 
+> **Superseded v1 overview (flagged 2026-11-12 audit).** The chain system has expanded significantly beyond this original overview. It now spans 7 models (`prisma/schema.prisma` ~L2997+) and ~23 modules in `lib/chain/`, with whole feature areas this overview never mentions — withdrawal cascade, per-side (`sideKey`) privacy, chain completeness, neighbour broadcast, "share latest" / full-chain email, and node solicitors. Some components named below are now legacy. Read this as the original scope only; verify current scope against `lib/chain/` and `components/chain/`.
+
 ## What we're building
 
 A chain visibility and collaboration layer for property transactions. An agent who creates a sale can stub out the other links in the property chain (above and below their sale) with the agent contact details for each link. Each stub gets an invite email. When the receiving agent clicks the invite, they create an account (or log in) and "claim" their position — at which point the stub becomes a real, live `PropertyTransaction` in their own dashboard.

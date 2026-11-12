@@ -305,6 +305,6 @@ Patterns that appeared **3 or more times** across surfaces. Each warrants a row 
 
 ## How to action this
 
-1. Mark up this file with ✅ / ✏️ next to each row and any custom replacement text. Save as `docs/VOICE_AUDIT_AGENT_SURFACES.signed.md`.
+1. Mark up this file with ✅ / ✏️ next to each row and any custom replacement text. Save as `docs/done/voice-audit/VOICE_AUDIT_AGENT_SURFACES.signed.md`.
 2. One sweep commit applies every approved row. No code is touched until the marked-up copy lands.
 3. The `PUSH_NOTIF_STRINGS.md` voice-pass + the recurring-offenders additions to `VOICE_GUIDELINES.md` should land **before** the sweep, so the sweep's replacements have a stable source-of-truth.

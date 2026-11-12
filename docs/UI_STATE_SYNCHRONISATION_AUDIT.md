@@ -5,6 +5,8 @@
 **Scope:** Every user mutation across the agent app, buyer/seller portal, solicitor short-link, and Command Centre, and every visible piece of UI derived from the data those mutations change.
 **Method:** Static tracing of actions, API routes, services, client components, contexts, layouts, and revalidation calls. Eight parallel investigators, one per domain, then reconciled. Findings that could not be proven statically are marked **NEEDS RUNTIME VERIFICATION**.
 
+> **Superseded (flagged 2026-11-12 audit).** This 2026-09-07 audit is materially stale; several flagship findings have since been fixed. It is superseded by [`docs/audits/IMMEDIATE_UI_STATE_FEEDBACK_AUDIT.md`](audits/IMMEDIATE_UI_STATE_FEEDBACK_AUDIT.md), which reflects current code. Retained for historical context (still cited from code as the RC1/RC2 root-cause record).
+
 ---
 
 ## 1. Executive summary

@@ -55,12 +55,12 @@ These are files that tell the AI assistant (or a future developer) what to do, i
 
 - **[`docs/MILESTONES_SPEC_v1.md`](docs/MILESTONES_SPEC_v1.md)** — Milestone engine state machine, predecessors, gating behaviour. Source of truth for the milestone arc.
 - **[`docs/MILESTONES_WEIGHTS_v1.md`](docs/MILESTONES_WEIGHTS_v1.md)** (175 lines) — Progress calculation. Per-side dynamic denominators, edge cases. Cited from every progress-related fix.
-- **[`docs/reference/PRODUCT_TRUTH.md`](docs/reference/PRODUCT_TRUTH.md)** (205 lines) — What the system actually does. Includes a "misconceptions" section listing claims **not** to write into marketing copy.
+- **[`docs/reference/MARKETING_GROUNDING_SNAPSHOT.md`](docs/reference/MARKETING_GROUNDING_SNAPSHOT.md)** (205 lines) — What the system actually does. Includes a "misconceptions" section listing claims **not** to write into marketing copy.
 - **[`docs/reference/AGENT_SECURITY.md`](docs/reference/AGENT_SECURITY.md)** (99 lines) — Data isolation rules for `/agent/*` routes. Verified-safe patterns table, checklist, common pitfalls.
 
 ### Per-arc rule pockets
 
-- **[`docs/active/package-d/scope.md`](docs/active/package-d/scope.md)** (322 lines) — Hard scope boundaries: "what is OUT" (line 26+), access-model matrix, anti-drift rules (line 289+), per-package Definition of Done (line 303–316).
+- **[`docs/done/package-d/scope.md`](docs/done/package-d/scope.md)** (322 lines) — Hard scope boundaries: "what is OUT" (line 26+), access-model matrix, anti-drift rules (line 289+), per-package Definition of Done (line 303–316).
 - **[`docs/active/relist-feature/prod-release-runbook.md`](docs/active/relist-feature/prod-release-runbook.md)** — Step-by-step prod cutover for buyer-round arc. Explicit verification step between every action ("Every step has an explicit verification step that gates the next. Do not collapse them.")
 - **[`docs/admin/README.md`](docs/admin/README.md)** (100 lines) — Command Centre conventions: all schema via Prisma migrations on staging first, all CC code under `lib/command/` + `app/command/`, all queries use `commandDb`, all meaningful actions write `AdminAuditLog`, every automation starts in shadow mode.
 

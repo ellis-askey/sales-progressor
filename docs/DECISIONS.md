@@ -97,7 +97,7 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 
 ## (Recurring, pre-2026-05) · process · Staging migration first, then master commit.
 
-**Why:** CLAUDE.md Rule 3. Production never gets a migration that hasn't run on staging.
+**Why:** CLAUDE.md Law 3. Production never gets a migration that hasn't run on staging.
 **Decision:** `npx prisma migrate deploy` on staging → verify → merge to master → migration runs on prod via deploy pipeline.
 **Source:** CLAUDE.md and every migration commit since launch.
 
@@ -111,7 +111,7 @@ A running log of decisions made once and re-applied across arcs. Append new entr
 
 **Why:** "I think it's X" wastes time when X is checkable in 30 seconds.
 **Decision:** for architectural/security/schema questions, quote the file or paste the Sentry trace. Save interpretation for after evidence is on screen.
-**Source:** CLAUDE.md Rule 10. Enforced verbally every Sentry handover.
+**Source:** CLAUDE.md Law 10. Enforced verbally every Sentry handover.
 
 ## 2026-09-16 · responsive · Shell tiers + container-query rule locked; account shell stays on its own breakpoint.
 

@@ -1,5 +1,7 @@
 # Chain Feature — Data Model
 
+> **Outdated model description (flagged 2026-11-12 audit).** The entities and schema line references below are stale. `PropertyChain` / `ChainLink` are no longer at the cited lines (they are ~L2997+ in `prisma/schema.prisma`), the live model adds several further Chain* tables, and `ChainLink` has gained many fields not described here. Do **not** follow the "inspect lines 647–671" instruction below — verify the current models directly by searching `prisma/schema.prisma` for the Chain* models.
+
 ## Existing schema (read first)
 
 Inspect `prisma/schema.prisma` lines 647–671 for the current `PropertyChain` and `ChainLink` models, and line 179 for the `PropertyTransaction` relationship. Do not assume the existing structure matches what's described below — verify first, then extend.

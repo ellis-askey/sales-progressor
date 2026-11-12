@@ -2,7 +2,9 @@
 
 **Version:** 1.1 (Canonical)
 **Last updated:** 2026-09-08 (added §11.1 — provisional buyer confirmation of PM6 / PM9)
-**Status:** Source of truth. The live system aligns to this document, not the other way around.
+**Status:** Canonical specification of *intended* milestone behaviour. Where the live system and this document disagree, treat it as an unresolved conflict to be surfaced and ruled on (per `docs/PRODUCT_TRUTH.md` §5), not as proof that either side is automatically correct.
+
+> **Drift notice (2026-11-12 audit — recorded, not resolved):** This v1.1 spec predates the shipped enquiries rework. The live engine has 48 milestone rows (38 active, 10 retired) plus a seller milestone VM21 ("All enquiries satisfied") not described here; VM11–VM15 and PM15–PM19 are retired in code (weight 0, never created) but are documented below as live, exchange-blocking steps. Verify any milestone definition against `prisma/seed.ts` and `lib/milestone-prerequisites.ts` before relying on this spec. The PM7 prerequisite difference is tracked as an open conflict in `docs/PRODUCT_TRUTH.md` §5.
 
 ---
 
@@ -17,7 +19,7 @@ This document is the canonical specification for the milestone system. It define
 - How exchange readiness is derived
 - How progress is calculated
 
-When the live system disagrees with this document, the document is correct and the system is the bug. All future milestone-related work uses this as the single reference.
+When the live system disagrees with this document, do not assume either side is correct: surface the discrepancy and obtain a ruling before changing code or spec. This document remains the reference for *intended* behaviour; `docs/PRODUCT_TRUTH.md` §5 tracks the open conflicts.
 
 ---
 
@@ -110,9 +112,11 @@ Each milestone has at most ONE predecessor (the "previous milestone"). When the 
 
 Some milestones have **no predecessor** — they are immediately Available when the file is created. These are listed below in §7.
 
+> **Note — two distinct "predecessor" concepts.** Availability gating (Locked → Available) is driven by DIRECT_PREREQUISITES in lib/milestone-prerequisites.ts (the code source of truth). The separate predecessorCode column on each MilestoneDefinition (seeded in prisma/seed.ts) is used for analytics: lib/command/timeframes.ts measures each step's duration since its predecessorCode. The two can legitimately differ — e.g. PM7 has no availability prerequisite, but its stored predecessorCode is PM4 for the timeframe grid. Do not "sync" them without checking timeframes.ts: changing predecessorCode changes Command Centre stage-duration medians.
+
 ### 5.1 Cross-side dependencies are deliberately loose
 
-The system does NOT enforce strict cross-side gates on most milestones. Example: PM7 (Buyer's solicitor received the draft contract pack) is unlocked by PM4 (Buyer paid money on account), NOT by VM7 (Seller's solicitor issued the draft contract pack), even though logically VM7 must precede PM7 in the real world.
+The system does NOT enforce strict cross-side gates on most milestones. Example: PM7 (Buyer's solicitor received the draft contract pack) has no availability prerequisite at all — it can be confirmed independently, and it reflects VM7 (Seller's solicitor issued the draft contract pack) as a single real-world handover confirmable from either side. It is deliberately not gated on PM4 (money on account): a buyer who has genuinely received the pack must never be blocked from recording it. The money-on-account gate instead sits on PM8 (searches ordered). Founder decisions 2026-09-17 and 2026-10-20; see `lib/milestone-prerequisites.ts`.
 
 Why? Because in practice the buyer often hears about delivery before the seller side knows the pack was sent. The agent uses the buyer-side completion to chase the seller side. Strict cross-side gates would prevent users from logging what they actually know.
 

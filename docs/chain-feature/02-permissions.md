@@ -1,5 +1,7 @@
 # Chain Feature — Permissions
 
+> **Superseded-pending-review (2026-11-12 audit):** This permissions model predates the chain rework. The live privacy model is per-side (`sideKey`) gating in `lib/chain/intel.ts`, and the single `stubNotes` field was superseded by the per-side `ChainLinkEntry` diary. Some helper signatures in "Server-side enforcement" below no longer match `lib/chain/permissions.ts` / `lib/chain/stub-permissions.ts`. Recorded, not reconciled — verify against those modules before relying on this doc. Whether "notes private to the originator only" remains the intended rule, or the per-side model supersedes it, is a founder decision.
+
 ## Roles
 
 For chain operations, users have one of these roles relative to a specific `ChainLink`:

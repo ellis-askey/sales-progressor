@@ -4,6 +4,8 @@
 **Scope:** Complete chain feature implementation audit  
 **Methodology:** Codebase analysis of data models, services, API routes, UI components, and workflows
 
+> **Dated snapshot — 2026-05-19 (flagged 2026-11-12 audit).** Several "blocker" gaps surfaced here (withdrawal cascade, invite-token expiry, chain-mate broadcast) have since been closed, and some file/line references have moved. Verify each item against current code before treating it as open.
+
 ---
 
 ## 1. DATA MODEL

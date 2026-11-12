@@ -5,6 +5,8 @@
 **Date:** 2026-05-19  
 **Scope:** Every gap from inventory §6 + completeness matrix. Strategy only — no implementation plans.
 
+> **Dated snapshot — 2026-05-19 (flagged 2026-11-12 audit).** Several "blocker" gaps here (withdrawal cascade, invite-token expiry, chain-mate broadcast) have since been closed, and some file/line references have moved. Verify each item against current code before treating it as open.
+
 ---
 
 ## Clarification 1 — Decline Flow (Resolved)

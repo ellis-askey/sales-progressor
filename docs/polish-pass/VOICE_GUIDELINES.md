@@ -154,7 +154,7 @@ If a term appears on this list and sounds wrong in context, flag it in Stage 3 r
 
 - **No "Congratulations" / "Congrats" anywhere.** The user knows what exchange / completion means.
 - **No exclamation marks anywhere.** Already listed under tone calibration; restated here so the email + push sub-sections inherit it explicitly.
-- These bans apply to **agent-facing** strings (every surface listed in `docs/VOICE_AUDIT_AGENT_SURFACES.md`). The **portal-facing register** (push notifications to buyers/sellers, portal emails, portal UI) may use a deliberately warmer tone — that register is owned by the portal pass, not this doc. If you're writing copy that fires to the portal audience, follow the portal voice doc, not this one.
+- These bans apply to **agent-facing** strings (every surface listed in `docs/done/voice-audit/VOICE_AUDIT_AGENT_SURFACES.md`). The **portal-facing register** (push notifications to buyers/sellers, portal emails, portal UI) may use a deliberately warmer tone — that register is owned by the portal pass, not this doc. If you're writing copy that fires to the portal audience, follow the portal voice doc, not this one.
 
 ### Em dash as a prose joiner — banned (added 2026-06-05, agent voice sweep, option B)
 

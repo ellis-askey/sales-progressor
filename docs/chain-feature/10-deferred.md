@@ -1,5 +1,7 @@
 # Chain Feature — Deferred to v1.1+
 
+> **Partly implemented since (flagged 2026-11-12 audit).** Several features listed below as deferred have since shipped — notably the withdrawal cascade, chain-member notifications, forked/branched chains, and neighbour (chain-mate) broadcast. The "no code reads/writes these fields" notes are no longer true for those. Before treating anything here as unbuilt, verify against `lib/chain/` (e.g. `withdrawal.ts`, `split.ts`, `funnel.ts`) and the `drain-withdrawal-notifications` / `drain-chain-neighbour-updates` crons.
+
 These are out of scope for v1 but the data model must support them. This document lists what's deferred and what hooks the v1 schema includes to make later implementation tractable.
 
 ## Withdraw cascade

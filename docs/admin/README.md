@@ -4,6 +4,25 @@ This is the spec for the founder-only command centre, surfaced at `/command`. El
 
 **Note:** The existing `/admin` route is the internal progressor admin (different surface, different scope). The command centre is a separate, parallel surface that does not touch any existing admin code.
 
+## Current state (2026-11-12 audit)
+
+The ADMIN_0X docs below were written as phased build prompts; the set has since partly shipped, partly shipped differently, and partly not at all. Current mapping:
+
+| Doc | Status | Where it really lives |
+|---|---|---|
+| ADMIN_01 | Built **differently** | nav redesigned 2026-08-13 → `components/command/CommandSidebar.tsx` |
+| ADMIN_02 | Built as specified | `prisma/schema.prisma`, `lib/command/events/write.ts` |
+| ADMIN_03 | Built, **dispersed** | `lib/command/*-analytics`, `experiment-metric-defs` |
+| ADMIN_04 | Built | `/command/outbound`, `OutboundMessage` |
+| ADMIN_05 | **Superseded** | `lib/command/content/*` + `docs/active/content-brand/SPEC.md` (no `ContentStream`/`publishers`) |
+| ADMIN_06 | Built | `app/command/(protected)/layout.tsx`, `lib/command/{session,totp}` |
+| ADMIN_07 | Built, **different path** | `lib/services/insight/` (not `lib/command/insights/`); weekly review uses Opus |
+| ADMIN_08 | Built | `/command/experiments` |
+| ADMIN_09 | **Not built** | placeholder page |
+| ADMIN_10 | Page not built; PostHog wrapper built | `lib/analytics/*` |
+
+The "`superadmin` role does not currently exist" note below is stale — it exists and gates `/command`.
+
 ## Status — post-discovery (2026-05-01)
 
 ADMIN_00 discovery completed. Key findings that affected the docs:

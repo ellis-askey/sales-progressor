@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
 import {
   getMonthlyAiImageSpendPence,
@@ -13,6 +16,11 @@ const COST_PER_IMAGE_PENCE = 5;
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !hasSuperAdminPowers(session)) {
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => ({})) as {
     prompt?: string;
     variant?: string;

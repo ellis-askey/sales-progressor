@@ -5,6 +5,8 @@
 **Depends on:** ADMIN_00 discovery report
 **Implemented by:** ADMIN_02 (data) → ADMIN_03 (metrics) → this doc (UI)
 
+> **Superseded (flagged 2026-11-12 audit).** The 14-tab IA in §4 was replaced by the operator-nav redesign of 2026-08-13. Live structure: `components/command/CommandSidebar.tsx`; see `docs/audits/COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13.md`. Read §4 as historical.
+
 ---
 
 ## 1. What this is

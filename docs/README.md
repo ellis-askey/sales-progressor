@@ -7,6 +7,7 @@ Where to find what. If you can't find something here, check git log — older ar
 ## Bootstrap
 
 - [`../CLAUDE.md`](../CLAUDE.md) — every session reads this first. Role architecture, multi-tenancy model, hard rules.
+- [`PRODUCT_TRUTH.md`](PRODUCT_TRUTH.md) — the single authoritative source for current product facts (pricing, roles, access scopes, business types, surfaces, stack, flags, launch stage). Read first for any factual question.
 - [`../README.md`](../README.md) — GitHub front page.
 
 ---
@@ -32,9 +33,6 @@ Anything currently being built, or a checklist that gets ticked off over time.
 - [`active/ELLIS_MANUAL_TODO.md`](active/ELLIS_MANUAL_TODO.md) — founder ops checklist (env vars, DPAs, decisions, blockers).
 - [`active/TODO.md`](active/TODO.md) — technical debt + future-sprint items.
 - [`active/portal-document-sharing-spec.md`](active/portal-document-sharing-spec.md) — Documents tab on portal — upload, categorise, notify.
-- [`active/package-d/`](active/package-d/) — outsourced workflow build (the "Known gap" in CLAUDE.md).
-  - [`scope.md`](active/package-d/scope.md) — pre-build spec.
-  - [`outsourced-workflow-audit.md`](active/package-d/outsourced-workflow-audit.md) — current-state audit.
 - [`active/drawers-modals/`](active/drawers-modals/) — drawer/modal standardisation audit.
   - [`audit.md`](active/drawers-modals/audit.md) — every drawer + modal in the agent app.
   - Locked design system relocated to [`reference/MODAL_DRAWER_SYSTEM.md`](reference/MODAL_DRAWER_SYSTEM.md) (2026-06-07).
@@ -59,6 +57,9 @@ Historical record of completed arcs. Each folder holds all docs from that arc to
 - [`done/refresh-reports/`](done/refresh-reports/) — page-refresh shipped reports (analytics, completions, reminders, my-files).
 - [`done/mobile-stages/`](done/mobile-stages/) — mobile responsive arc (3 stages + audit + screenshots/).
 - [`done/retention-emails/`](done/retention-emails/) — retention email system (phase 0 + implementation).
+- [`done/package-d/`](done/package-d/) — outsourced workflow build (shipped 2026-05-03; the access-scope helper at `lib/security/access-scope.ts`).
+  - [`scope.md`](done/package-d/scope.md) — build spec.
+  - [`outsourced-workflow-audit.md`](done/package-d/outsourced-workflow-audit.md) — current-state audit.
 
 ---
 
@@ -66,7 +67,7 @@ Historical record of completed arcs. Each folder holds all docs from that arc to
 
 Background docs that inform decisions but aren't themselves changing.
 
-- [`reference/PRODUCT_TRUTH.md`](reference/PRODUCT_TRUTH.md) — what the codebase actually does (grounding for marketing).
+- [`reference/MARKETING_GROUNDING_SNAPSHOT.md`](reference/MARKETING_GROUNDING_SNAPSHOT.md) — **dated marketing-grounding snapshot** (not the authority; some facts are stale). For current product facts use [`PRODUCT_TRUTH.md`](PRODUCT_TRUTH.md) at the top of `docs/`.
 - [`reference/MARKETING_BRIEF.md`](reference/MARKETING_BRIEF.md) — marketing site brief.
 - [`reference/DATA_PROCESSING_OVERVIEW.md`](reference/DATA_PROCESSING_OVERVIEW.md) — personal-data inventory.
 - [`reference/AGENT_SECURITY.md`](reference/AGENT_SECURITY.md) — agency data isolation rules.

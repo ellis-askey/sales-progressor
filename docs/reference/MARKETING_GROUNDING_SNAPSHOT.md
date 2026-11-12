@@ -2,6 +2,8 @@
 
 *Codebase audit — read-only. Written for the founder to use as a reference when drafting marketing copy and onboarding emails. All claims below are grounded in the actual code.*
 
+> **Superseded / dated snapshot (flagged 2026-11-12 audit):** This is an older marketing-grounding codebase audit and is **not** the authoritative product-facts document. Some facts here are stale (e.g. it predates the VM21 / enquiries-rework milestone changes and the current Haiku/Opus/Sonnet model map). The single authoritative source is [`../PRODUCT_TRUTH.md`](../PRODUCT_TRUTH.md) (top of `docs/`). Kept for its marketing-copy framing; verify any fact against the authority before use.
+
 ---
 
 ## 1. Elevator pitch

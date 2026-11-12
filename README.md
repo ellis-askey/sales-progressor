@@ -1,4 +1,4 @@
-# Sales Progressor — Sprint 1
+# Sales Progressor
 
 Transaction management platform for residential property sales.
 
@@ -6,7 +6,7 @@ Transaction management platform for residential property sales.
 
 ## Stack
 
-- **Next.js 15** (App Router)
+- **Next.js 16** (App Router)
 - **TypeScript**
 - **Tailwind CSS**
 - **Prisma** + **PostgreSQL**

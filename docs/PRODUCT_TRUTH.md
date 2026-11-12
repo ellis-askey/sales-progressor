@@ -23,7 +23,7 @@
 
 ## 1. Business model and the three business types
 
-The most-confused area historically. There are **three distinct kinds of business** on the platform. **[verified]** — `lib/security/access-scope.ts:19-88`, `prisma/schema.prisma` (`ProgressionBusiness`, `User.agencyId`, `User.progressionBusinessId`).
+The most-confused area historically. There are **three distinct kinds of business** on the platform. **[verified]** — `lib/security/access-scope.ts:19-24, 46-91`, `prisma/schema.prisma` (`ProgressionBusiness`, `User.agencyId`, `User.progressionBusinessId`).
 
 | Business type | Who they are | `agencyId` | `progressionBusinessId` | How they see files |
 |---|---|---|---|---|
@@ -57,7 +57,7 @@ Do **not** describe self-managed as a £59 paid tier.
 
 ## 3. Roles and permissions
 
-**Six platform roles.** **[verified]** `prisma/schema.prisma:641-648` — `enum UserRole { superadmin, admin, sales_progressor, director, negotiator, viewer }`.
+**Six platform roles.** **[verified]** `prisma/schema.prisma:686-693` — `enum UserRole { superadmin, admin, sales_progressor, director, negotiator, viewer }`.
 
 | Role | Who | `agencyId` | Notes |
 |---|---|---|---|
@@ -68,19 +68,19 @@ Do **not** describe self-managed as a £59 paid tier.
 | `superadmin` | founder | null | everything admin can do + the Command Centre |
 | `viewer` | parked/read-only state | varies | net-new OAuth users pre-signup, pending join-requesters, soft-removed members; **blocked from all mutating API calls. This role IS live** — correcting the older "not in production use" claim |
 
-**Separate per-business role dimension:** `enum ProgressionBusinessRole { owner, progressor }` on `User.progressionBusinessRole`. **[verified]** `schema.prisma:429-432`. An external owner sees the whole business book; a member sees own-assigned unless granted see-all.
+**Separate per-business role dimension:** `enum ProgressionBusinessRole { owner, progressor }` on `User.progressionBusinessRole`. **[verified]** `schema.prisma:460-463`. An external owner sees the whole business book; a member sees own-assigned unless granted see-all.
 
 **Hybrid admin (founder):** an email allowlist grants the founder admin/superadmin powers while keeping `role = sales_progressor`, so the daily progressor UX stays intact. **[verified]** `access-scope.ts:55-62`; commit `b2295c03`.
 
 ### Access scopes — five shapes (not three)
 
-`getAccessScope(session)` returns one of **five** shapes. **[verified]** `lib/security/access-scope.ts:19-24, 43-88`:
+`getAccessScope(session)` returns one of **five** shapes. **[verified]** `lib/security/access-scope.ts:19-24, 46-91`:
 
 - `{ kind: "agency", agencyIds }` — director / negotiator / viewer → their one agency.
 - `{ kind: "business", businessId }` — external progression-business member (owner or see-all) → their business book.
 - `{ kind: "assigned", userId }` — TSP progressor, or an external member without see-all → own assigned files.
 - `{ kind: "all" }` — admin → every TSP file (`TSP_ONLY_TX_WHERE`), never an external business's.
-- `{ kind: "platform" }` — superadmin/founder → every file including external books. In **lists** it behaves like `all` (TSP files only); its extra reach is single-file (opening a specific file from the Command Centre). `access-scope.ts:108-114`.
+- `{ kind: "platform" }` — superadmin/founder → every file including external books. In **lists** it behaves like `all` (TSP files only); its extra reach is single-file (opening a specific file from the Command Centre). `scopeTransactionWhere` (`access-scope.ts:123`, lists) and `scopeOwnershipWhere` (`:165`, single-file).
 
 `admin` and `superadmin` are **no longer the same scope** (`all` vs `platform`). Query helpers: `scopeTransactionWhere`, `scopeOwnershipWhere`, `scopeChaseTaskWhere`, `scopeReminderLogWhere`, plus the boolean `canReadTransaction`. Multi-tenant safety is Law 7 in CLAUDE.md; this is the current shape of the model it refers to.
 

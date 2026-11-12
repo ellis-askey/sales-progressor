@@ -1,5 +1,7 @@
 # Sales Progressor Migration — Build Plan
 
+> **Status: FROZEN (flagged 2026-11-12 audit).** Last updated 2026-07-01. The canonical-primitives migration described here (Phases 0–6) is superseded for forward UI by the TSP Liquid Glass system (`docs/reference/design-system/`, CLAUDE.md). Treat the phase statuses below as a historical snapshot, not current "what's next"; verify against code and `docs/PRODUCT_TRUTH.md` before resuming any phase.
+
 The source of truth for **what's being remediated, in what order, and what the gate is for each phase**. Updated weekly as phases complete. Referenced by [CLAUDE.md](../CLAUDE.md) Laws section and [reference/COMPONENT_LIBRARY_CATALOG.md](reference/COMPONENT_LIBRARY_CATALOG.md).
 
 This document is the answer to "what's next?" for the next ~6 months of remediation work, **interleaved with feature work** (locked at Phase 0 sign-off — no feature freeze).

@@ -61,7 +61,7 @@
 2. **Apply to staging first** — `npx prisma migrate deploy` against staging DB. Verify the schema change and any side effects.
 3. **Backfill + write-path in lockstep.** If the migration adds a column or table that needs population, ship the backfill script and the write-path update in the same PR.
 4. **Dry-run any backfill.** Read-only first pass that reports how many rows would change, what the diff looks like. Review. Apply. Re-dry-run shows zero.
-5. **Then merge to master.** CLAUDE.md Rule 3.
+5. **Then merge to master.** CLAUDE.md Law 3.
 6. **Verification harness** with explicit pass count for any data-shape change. Quote the number in the commit message.
 
 ---
@@ -104,7 +104,7 @@ Pattern observed: Section 2 backfill, retro-pass-3-stranded-relists, Hiranya sta
 1. **Share the actual error** — Sentry trace, console output, server log. Not "I think it's…".
 2. **Quote the file and line** the error points to.
 3. **State the hypothesis explicitly**, then test it.
-4. **Don't guess at architecture** when the stakes are high (security, role, schema). Show raw evidence — CLAUDE.md Rule 10.
+4. **Don't guess at architecture** when the stakes are high (security, role, schema). Show raw evidence — CLAUDE.md Law 10.
 
 ---
 

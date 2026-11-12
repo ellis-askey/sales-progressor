@@ -1,5 +1,7 @@
 # WhatsApp Integration — living implementation doc
 
+> **Status: superseded for the current build (flagged 2026-11-12 audit).** This describes the Baileys bridge and states the Cloud API was "ruled out". A Meta Cloud API integration has since shipped (`lib/integrations/whatsapp-cloud/`) alongside the bridge, governed by `docs/active/whatsapp-rebuild/REBUILD_PLAN.md`. Treat this as the V1-bridge record only; verify current behaviour against that code and plan.
+
 Last updated: 2026-08-22 (LIVE on prod: bridge paired + capturing; auto-matching working. V2 build plan below, agreed with founder, not yet built.)
 
 **Owner:** Ellis. **Status:** Bridge deployed on Railway, paired to +447508862929, capturing
