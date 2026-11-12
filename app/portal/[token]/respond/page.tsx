@@ -79,7 +79,7 @@ export default async function PortalRespondPage({
   const defs = codes.length > 0
     ? await prisma.milestoneDefinition.findMany({
         where: { code: { in: codes } },
-        select: { id: true, code: true, name: true },
+        select: { id: true, code: true, name: true, eventDateRequired: true },
       })
     : [];
   const completions = defs.length > 0
@@ -108,6 +108,9 @@ export default async function PortalRespondPage({
         milestoneDefinitionId: def.id,
         label: copy.label,
         description: copy.description ?? "",
+        // PM6/PM9 (survey + lender valuation) must capture the booked date — the
+        // confirm control requires it rather than offering it as optional.
+        eventDateRequired: def.eventDateRequired,
         expectedDate: comp.expectedDate ? comp.expectedDate.toISOString() : null,
         // who drives the DIY/NUDGE branching of the per-row controls. Sourced
         // from portal-copy (single source of truth — same field the digest

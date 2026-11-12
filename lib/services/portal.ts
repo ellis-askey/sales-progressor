@@ -1134,6 +1134,16 @@ export async function logPortalView(token: string): Promise<void> {
 // bottom-sheet renders graceful explanatory copy instead of a generic 500.
 export const PORTAL_AGENT_ONLY_ERROR = "AGENT_ONLY_MILESTONE";
 
+// A provisional booking (survey PM9 / lender valuation PM6) requires the booked
+// date — the whole point of the step is to capture WHEN it's happening so our
+// side can confirm access. The in-portal confirm sheets enforce this, but the
+// chase "respond" page historically let a client tap "Yes, this is already
+// done" with the date left blank, landing a dateless booking in the hold pile.
+// This is the server backstop so no confirm path (current, future, or crafted)
+// can complete a provisional booking without a date. Thrown to the action
+// wrappers, which surface it as a structured { reason: "date_required" } result.
+export const PORTAL_DATE_REQUIRED_ERROR = "BOOKING_DATE_REQUIRED";
+
 // Terminal/dead transaction states. A client must not be able to drive live
 // milestone actions (confirm / mark-not-required / unmark) on a sale that has
 // been withdrawn or has already completed: doing so fires client emails and the
@@ -1282,6 +1292,14 @@ export async function portalCompleteMilestone(input: {
   // there (releaseProvisionalBooking) releases these. See the booking reminders
   // plan (docs/active/booking-reminders/00-plan.md).
   const isProvisionalBooking = def.code === "PM6" || def.code === "PM9";
+
+  // Server backstop: a provisional booking cannot be confirmed without its date.
+  // def.eventDateRequired is true for PM6/PM9; the in-portal sheets block an
+  // empty date client-side, but the chase respond page did not — so enforce it
+  // here too. Surfaced to the UI as a structured "date_required" result.
+  if (isProvisionalBooking && def.eventDateRequired && !input.eventDate) {
+    throw new Error(PORTAL_DATE_REQUIRED_ERROR);
+  }
 
   // Atomic primary + bilateral counterpart + exchange-date sync
   const completion = await prisma.$transaction(async (ptx) => {

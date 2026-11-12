@@ -36,6 +36,8 @@ type Item = {
   milestoneDefinitionId: string;
   label: string;
   description: string;
+  // PM6/PM9: the booked date is mandatory on confirm (not optional).
+  eventDateRequired: boolean;
   expectedDate: string | null;
   who: Who;
 };
@@ -110,6 +112,13 @@ export function RespondList({
   }
 
   function handleConfirm(item: Item) {
+    // Survey / lender valuation (PM6/PM9): the booked date is mandatory — the
+    // step exists to capture WHEN it's happening so our side can confirm access.
+    // Mirrors the in-portal confirm sheets and the server backstop.
+    if (item.eventDateRequired && !dateInput) {
+      setError("Please enter the date it's booked for.");
+      return;
+    }
     setSubmittingCode(item.milestoneCode);
     setError(null);
     startTransition(async () => {
@@ -120,7 +129,10 @@ export function RespondList({
           milestoneDefinitionId: item.milestoneDefinitionId,
           eventDate: dateInput || null,
         });
-        if (!result.ok && result.reason === "agent_only") {
+        if (!result.ok && result.reason === "date_required") {
+          // Server backstop fired (empty date slipped through). Prompt inline.
+          setError("Please enter the date it's booked for.");
+        } else if (!result.ok && result.reason === "agent_only") {
           // Defence-in-depth: A6 + page-loader should have filtered. If we
           // still got here, look up the per-code explanation and render it
           // in place of the row controls.
@@ -375,7 +387,9 @@ export function RespondList({
                       {activeMode === "confirm" && (
                         <>
                           <p style={{ fontSize: 13, color: P.textMuted, margin: "0 0 10px", lineHeight: 1.5 }}>
-                            {isDiy ? "When did this happen? (optional)" : "When did you hear back? (optional)"}
+                            {item.eventDateRequired
+                              ? "When is it booked for?"
+                              : isDiy ? "When did this happen? (optional)" : "When did you hear back? (optional)"}
                           </p>
                           <DateField
                             value={dateInput}

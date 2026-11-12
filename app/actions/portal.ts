@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
-import { portalCompleteMilestone, portalMarkNotRequired, portalUnmarkNotRequired, PORTAL_AGENT_ONLY_ERROR } from "@/lib/services/portal";
+import { portalCompleteMilestone, portalMarkNotRequired, portalUnmarkNotRequired, PORTAL_AGENT_ONLY_ERROR, PORTAL_DATE_REQUIRED_ERROR } from "@/lib/services/portal";
 import { sendClientPortalMessage, sendProgressorPortalReply } from "@/lib/services/portal-messages";
 import { prisma } from "@/lib/prisma";
 import { recordPortalEvent } from "@/lib/services/portal-events";
@@ -22,7 +22,8 @@ import { confirmCheckpoint } from "@/lib/services/checkpoints";
 // gracefully instead of treating it as a server error.
 export type PortalConfirmResult =
   | { ok: true }
-  | { ok: false; reason: "agent_only" };
+  | { ok: false; reason: "agent_only" }
+  | { ok: false; reason: "date_required" };
 
 export async function portalConfirmMilestoneAction(input: {
   token: string;
@@ -54,6 +55,11 @@ export async function portalConfirmMilestoneAction(input: {
     // error path for genuine failures — invalid token, prereq guard, etc.).
     if (err instanceof Error && err.message === PORTAL_AGENT_ONLY_ERROR) {
       return { ok: false, reason: "agent_only" };
+    }
+    // Provisional booking confirmed with no date — surface it so the UI can
+    // ask for the date inline rather than showing a generic error.
+    if (err instanceof Error && err.message === PORTAL_DATE_REQUIRED_ERROR) {
+      return { ok: false, reason: "date_required" };
     }
     throw err;
   }
