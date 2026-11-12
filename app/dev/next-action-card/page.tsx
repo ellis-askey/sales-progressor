@@ -77,13 +77,13 @@ const STATES: State[] = [
   // deliberately NOT added — see the plan. Only chases + confirmations ship.
   { key: "confirm", group: "Confirmation you owe", label: "Survey to confirm",
     note: "A survey the client booked on their portal, sitting in your hold pile. It outranks any chase, so it's the hero. The real Confirm button opens a date + keys panel.",
-    render: () => card({ title: "Confirm the survey booking", description: "A client logged a survey on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
+    render: () => card({ title: "Confirm the survey booking", description: "A client has added a survey through their portal. Check the date and access arrangements, then confirm to notify everyone involved.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
   { key: "confirm-valuation", group: "Confirmation you owe", label: "Valuation to confirm",
     note: "The lender-valuation variant (PM6).",
-    render: () => card({ title: "Confirm the valuation booking", description: "A client logged a lender valuation on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 20 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
+    render: () => card({ title: "Confirm the valuation booking", description: "A client has added a lender valuation through their portal. Check the date and access arrangements, then confirm to notify everyone involved.", dueLabel: "Booked for 20 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop }) },
   { key: "confirm-queue", group: "Confirmation you owe", label: "Confirmation + chases below",
     note: "When you owe a confirmation AND have chases, the confirmation is the hero and the chases drop into Up next.",
-    render: () => card({ title: "Confirm the survey booking", description: "A client logged a survey on their portal. Check the date and access, then confirm and we'll let everyone know.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop, belowActions: upNextSlot }) },
+    render: () => card({ title: "Confirm the survey booking", description: "A client has added a survey through their portal. Check the date and access arrangements, then confirm to notify everyone involved.", dueLabel: "Booked for 18 Nov", dueTone: "coral", icon: "confirm", primaryLabel: "Confirm", onPrimary: noop, secondaryLabel: "View reminders", onSecondary: noop, belowActions: upNextSlot }) },
 ];
 
 export default function NextActionCardDevPage() {

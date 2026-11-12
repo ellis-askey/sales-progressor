@@ -395,13 +395,24 @@ export async function OverviewPanel({
   // awaitingBookingConfirmation). It's a concrete thing to action, so it outranks
   // any chase — the card shows it as the hero. Scoped to the active round so a
   // fallen-through buyer's stale row can't surface on a relisted file.
+  //
+  // Already-past bookings are deliberately NOT heroed here: the card has no
+  // silent "Log it" path, so confirming one would email clients about a visit
+  // that's already gone. Those stay on the hub's "Surveys & valuations to
+  // confirm" card, which offers the correct past-date handling. The card only
+  // heroes a booking still to come, or one with no date logged yet (the dateless
+  // case still needs a confirmation). Day-granularity in UTC to match the hub.
+  const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const pendingBookingConfirmation = await prisma.milestoneCompletion.findFirst({
     where: {
       transactionId: transaction.id,
       awaitingBookingConfirmation: true,
       state: "complete",
       milestoneDefinition: { code: { in: ["PM6", "PM9"] } },
-      ...(activeRound?.id ? { OR: [{ buyerRoundId: activeRound.id }, { buyerRoundId: null }] } : {}),
+      AND: [
+        { OR: [{ eventDate: null }, { eventDate: { gte: startOfTodayUTC } }] },
+        ...(activeRound?.id ? [{ OR: [{ buyerRoundId: activeRound.id }, { buyerRoundId: null }] }] : []),
+      ],
     },
     orderBy: { eventDate: "asc" },
     select: { milestoneDefinitionId: true, eventDate: true, milestoneDefinition: { select: { code: true } } },

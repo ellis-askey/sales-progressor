@@ -328,10 +328,14 @@ export function ConfirmPanel({
   row,
   busy,
   onConfirm,
+  blockPast = false,
 }: {
   row: BookingConfirmRow;
   busy: boolean;
   onConfirm: (keyCollectionRequired: boolean, eventDate: string | null) => void;
+  // Surfaces without the ▾ "Log it / Desktop" menu (the Overview card) can't
+  // safely confirm a past date, so they set this to block it and point at the hub.
+  blockPast?: boolean;
 }) {
   const [keys, setKeys] = useState(false);
   const [date, setDate] = useState<string>(row.eventDateISO ?? "");
@@ -363,7 +367,9 @@ export function ConfirmPanel({
           "will attend / access arranged" visit for a date that's already gone. */}
       {isPast && (
         <p style={{ margin: 0, fontSize: 11.5, color: "#b45309", lineHeight: 1.4 }}>
-          This date has passed. If it was a remote/desktop valuation or already happened, use the ▾ menu (Desktop valuation / Log it, don&apos;t email) so we don&apos;t email clients about a visit that&apos;s in the past.
+          {blockPast
+            ? "This date has passed. To log a visit that's already taken place without emailing clients, use the Surveys & valuations to confirm card on your hub."
+            : <>This date has passed. If it was a remote/desktop valuation or already happened, use the ▾ menu (Desktop valuation / Log it, don&apos;t email) so we don&apos;t email clients about a visit that&apos;s in the past.</>}
         </p>
       )}
 
@@ -371,7 +377,7 @@ export function ConfirmPanel({
         <button
           type="button"
           onClick={() => onConfirm(keys, date || null)}
-          disabled={busy || !date}
+          disabled={busy || !date || (blockPast && isPast)}
           className="agent-btn agent-btn-sm agent-btn-color-primary"
           style={{ minWidth: 140 }}
         >

@@ -182,7 +182,7 @@ function ConfirmationHero({
     <div>
       <NextActionCard
         title={`Confirm the ${noun} booking`}
-        description={`A client logged a ${longNoun} on their portal. Check the date and access, then confirm and we'll let everyone know.`}
+        description={`A client has added a ${longNoun} through their portal. Check the date and access arrangements, then confirm to notify everyone involved.`}
         dueLabel={confirmation.eventDateISO ? `Booked for ${formatDate(confirmation.eventDateISO)}` : "Waiting for you to confirm"}
         dueTone="coral"
         icon="confirm"
@@ -194,7 +194,7 @@ function ConfirmationHero({
       />
       {open && (
         <div style={{ marginTop: 10, border: "0.5px solid var(--agent-border-default)", borderRadius: 12, background: "var(--agent-surface-elevated)" }}>
-          <ConfirmPanel row={row} busy={busy} onConfirm={onConfirm} />
+          <ConfirmPanel row={row} busy={busy} onConfirm={onConfirm} blockPast />
         </div>
       )}
     </div>
