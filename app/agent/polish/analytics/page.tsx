@@ -47,7 +47,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown } from "@/components/icons/ph-ssr";
+import { CaretDown } from "@phosphor-icons/react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
 import { KpiSparkline } from "@/components/analytics/KpiSparkline";
