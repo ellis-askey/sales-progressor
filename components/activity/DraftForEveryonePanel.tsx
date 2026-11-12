@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendDraftClientUpdateAction, saveDraftNoteAction } from "@/app/actions/draft-update";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { ClientPreviewStack, UpdatePreviewCard, type ClientPreviewItem } from "@/components/client-preview/ClientPreview";
 
 type ClientContact = { id: string; name: string; roleType: string };
 type CardKey = "seller" | "buyer" | "note";
@@ -274,8 +275,20 @@ export function DraftForEveryonePanel({
     }
   }
 
+  // Live "what the client will see" preview — one floating toast per side that
+  // has a draft, showing the real portal update card. Flashes "Sent" as a box
+  // collapses away. Reads existing state only; sending is untouched.
+  const previewItems: ClientPreviewItem[] = [];
+  if (sellers.length && sellerText !== null && !removed.has("seller")) {
+    previewItems.push({ key: "seller", title: `In ${firstName(sellers[0]?.name ?? "the seller")}'s portal`, sent: exiting.has("seller") ? "Sent" : null, content: <UpdatePreviewCard content={sellerText} /> });
+  }
+  if (buyers.length && buyerText !== null && !removed.has("buyer")) {
+    previewItems.push({ key: "buyer", title: `In ${firstName(buyers[0]?.name ?? "the buyer")}'s portal`, sent: exiting.has("buyer") ? "Sent" : null, content: <UpdatePreviewCard content={buyerText} /> });
+  }
+
   return (
     <div className="agent-reveal-in" style={{ padding: "12px 14px" }}>
+      <ClientPreviewStack items={previewItems} offsetBottom={92} zIndex={1600} />
       {/* Title + cancel live on the composer row above — not repeated here. */}
       {/* The fact */}
       <p style={{ ...labelStyle, marginBottom: 5 }}>The update, in your own words</p>

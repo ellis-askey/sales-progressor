@@ -15,6 +15,7 @@ import {
   nudgeCheckpointAction,
   archiveCheckpointAction,
 } from "@/app/actions/checkpoints";
+import { ClientPreviewStack, CheckpointPreviewCard, type ClientPreviewItem } from "@/components/client-preview/ClientPreview";
 
 type Audience = "none" | "vendor" | "purchaser" | "both";
 type Party = "vendor" | "purchaser" | "agent";
@@ -137,8 +138,20 @@ export function CheckpointsPanel({
     ...(hasVendor && hasPurchaser ? [{ v: "both" as Audience, label: "Both", key: "both" }] : []),
   ];
 
+  // Live "what the client will see" preview while adding a checkpoint — the real
+  // portal "Things to confirm" card, so it's clear what lands in their portal.
+  const cpPreview: ClientPreviewItem[] = adding && label.trim()
+    ? [{ key: "checkpoint", title: "In their “Things to confirm”", sent: null, content: (
+        <CheckpointPreviewCard
+          label={label.trim()}
+          neededBy={target ? new Date(`${target}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null}
+        />
+      ) }]
+    : [];
+
   return (
     <GlassCard glassId="overview-checkpoints" label="Overview · Checkpoints" defaultVariant="v05" style={{ borderRadius: 14 }}>
+      <ClientPreviewStack items={cpPreview} offsetBottom={92} />
       <div style={{ padding: "14px 16px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: items.length ? 4 : 0 }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Checkpoints</span>

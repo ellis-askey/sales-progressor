@@ -84,7 +84,7 @@ export function PortalThingsToConfirm({
     <>
       <PortalGlassCard glassId="things-to-confirm" label="Things to confirm" defaultVariant="v05" className="overflow-hidden">
         <div className="px-5 pt-4 pb-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: P.primary }}>{frameLabel}</p>
+          <p className="text-[12px] font-bold tracking-[0.01em]" style={{ color: P.primary }}>{frameLabel}</p>
         </div>
 
         {open.map((cp) => (
