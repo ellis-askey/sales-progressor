@@ -1,105 +1,111 @@
 "use client";
-// Shell Glass Lab — live-tunable settings for the EXPERIMENTAL agent shell's
-// canvas glass (the floating capsule / left drawer / compact bar, all rendered
-// by AgxGlass → LiquidGlass). Ellis-only, desktop-only: a personal preview tool
-// to dial the Apple-refraction knobs and then tell us what to bake into
-// AgentShellExperimental.tsx (the hardcoded LiquidGlass props + GLASS_TINT).
+// Shell Glass Lab · live-tunable glass for the EXPERIMENTAL agent shell's chrome
+// (the floating capsule / left drawer / compact bar, rendered by AgxGlass).
+// Ellis-only, desktop-only: dial a look, then tell us what to bake into
+// AgentShellExperimental.tsx.
 //
-// Deliberately NOT the lib/glass pick/recipe engine — that drives the PRODUCTION
-// shell's CSS `nav-topbar`/`nav-sidebar` surfaces. The experimental shell paints
-// with the LiquidGlass canvas instead, whose knobs are displace/thickness/
-// aberration/tint, not CSS blur/background. This store maps 1:1 onto those props.
+// This covers the ACTUAL "set ways of doing glass" from the /dev pages · which
+// span THREE engines, not one:
+//   · canvas · <LiquidGlass>  (quick-dock/LiquidGlass): displacement + chromatic
+//     aberration. The shipped shell look + the design-system Card/Panel/Raised ramp.
+//   · lens   · <LiquidLens>   (components/liquid): SVG slab-lens optics. The
+//     glass-foundry V0/V1 looks. Knobs are strength + a thickness MULTIPLIER.
+//   · css    · flat CSS materials (.agx-mat-frost/clear/edge), ported verbatim
+//     from glass-foundry's V2/V3/V4 (.gf-frost/.gf-clear/.gf-edge).
 //
-// Persistence is localStorage only (like the shell switcher `agx-shell`) — it's a
-// personal preview, no DB, no schema. SSR starts from the shipped defaults so
-// first paint matches today; the saved tweak settles in after mount.
+// A "material" is one named look; selecting it loads its full recipe, which the
+// sliders then fine-tune. Persistence is localStorage only (personal preview, no
+// DB). SSR starts from the shipped defaults so first paint matches today.
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 
+export type ShellGlassEngine = "canvas" | "lens" | "css";
+export type ShellGlassMaterial =
+  | "lg-shipped" | "lg-card" | "lg-panel" | "lg-raised" | "lg-strong"
+  | "lens-v0" | "lens-v1"
+  | "css-frost" | "css-clear" | "css-edge";
+
+export function engineOf(m: ShellGlassMaterial): ShellGlassEngine {
+  if (m.startsWith("lens-")) return "lens";
+  if (m.startsWith("css-")) return "css";
+  return "canvas";
+}
+/** "css-frost" → "frost" (the .agx-mat-<key> class suffix). */
+export function cssKeyOf(m: ShellGlassMaterial): "frost" | "clear" | "edge" {
+  return (m.startsWith("css-") ? m.slice(4) : "frost") as "frost" | "clear" | "edge";
+}
+
 export type ShellGlassSettings = {
-  /** residual frost blur layered on the refraction, px (LiquidGlass `blur`) */
-  blur: number;
-  /** displacement strength — how hard the rim bends the backdrop (`displace`) */
-  displace: number;
-  /** thickness of the refracting rim band, px (`thickness`) */
-  thickness: number;
-  /** chromatic-aberration spread, px — 0 = off (`aberration`) */
-  aberration: number;
-  /** multiplier applied to each surface's own corner radius (1 = shipped) */
-  radiusScale: number;
-  /** frosted-fallback blur for Safari/Firefox/iOS, px (`.agx-frost`) */
-  frostBlur: number;
-  /** glass body tint for light theme — rgba() string (alpha = the "fade") */
-  tintLight: string;
-  /** glass body tint for dark theme — rgba() string */
-  tintDark: string;
+  /** Which named look is active (also picks the render engine). */
+  material: ShellGlassMaterial;
+  // ── canvas (LiquidGlass) ──
+  blur: number;        // residual frost blur, px
+  displace: number;    // displacement strength (the bend)
+  thickness: number;   // refracting rim band, px
+  aberration: number;  // chromatic spread, px (0 = off)
+  // ── lens (LiquidLens) ──
+  lensStrength: "soft" | "strong";
+  lensThickness: number;    // rim MULTIPLIER (~0.1–4), NOT px
+  lensDisplacement: number; // displacement override; 0 = auto (engine default)
+  lensBlur: number;         // extra blur on the lens, px
+  // ── shared ──
+  radiusScale: number;      // ×corner radius (1 = shipped)
+  tintLight: string;        // rgba() · alpha is the "fade" (canvas + lens)
+  tintDark: string;         // rgba()
+  frostBlur: number;        // Safari/Firefox/iOS fallback blur, px
 };
 
-// The shipped look, verbatim from AgentShellExperimental.tsx. Reset returns here,
-// and an untouched export reads back exactly what's live in production today.
-export const SHELL_GLASS_DEFAULTS: ShellGlassSettings = {
-  blur: 1.5, // LiquidGlass default (AgxGlass doesn't pass one today)
-  displace: 42,
-  thickness: 14,
-  aberration: 4,
+// Field defaults used to fill any gap when a material only specifies some knobs.
+const BASE: Omit<ShellGlassSettings, "material"> = {
+  blur: 1.5, displace: 42, thickness: 14, aberration: 4,
+  lensStrength: "strong", lensThickness: 1.3, lensDisplacement: 0, lensBlur: 0,
   radiusScale: 1,
+  tintLight: "rgba(255, 255, 255, 0.64)", tintDark: "rgba(34, 37, 50, 0.58)",
   frostBlur: 30,
-  tintLight: "rgba(255, 255, 255, 0.64)",
-  tintDark: "rgba(34, 37, 50, 0.58)",
 };
 
-// One-tap morph looks — the /dev/glass-foundry treatments translated into
-// LiquidGlass params, so Ellis can A/B the different "ways of doing glass".
-export type ShellGlassPreset = { id: string; label: string; note: string; settings: ShellGlassSettings };
-export const SHELL_GLASS_PRESETS: ShellGlassPreset[] = [
-  {
-    id: "shipped",
-    label: "Shipped",
-    note: "Today's live look.",
-    settings: SHELL_GLASS_DEFAULTS,
-  },
-  {
-    id: "refined",
-    label: "Refined refraction",
-    note: "LiquidGlass's own tuning: deeper bend, wider rim (dev V1).",
-    settings: { ...SHELL_GLASS_DEFAULTS, blur: 1.5, displace: 58, thickness: 18, aberration: 4 },
-  },
-  {
-    id: "clear",
-    label: "Clear glass",
-    note: "High translucency, minimal frost (dev V3).",
-    settings: { ...SHELL_GLASS_DEFAULTS, blur: 0.5, displace: 36, thickness: 12, aberration: 3, tintLight: "rgba(255, 255, 255, 0.42)", tintDark: "rgba(34, 37, 50, 0.40)" },
-  },
-  {
-    id: "frosted",
-    label: "Frosted vibrancy",
-    note: "Strong blur, soft bend (dev V2).",
-    settings: { ...SHELL_GLASS_DEFAULTS, blur: 5, displace: 20, thickness: 10, aberration: 2, tintLight: "rgba(255, 255, 255, 0.74)", tintDark: "rgba(34, 37, 50, 0.66)" },
-  },
-  {
-    id: "edge",
-    label: "Edge-lit thin",
-    note: "Near-clear centre, bright refractive rim (dev V4).",
-    settings: { ...SHELL_GLASS_DEFAULTS, blur: 1, displace: 66, thickness: 8, aberration: 7, tintLight: "rgba(255, 255, 255, 0.50)", tintDark: "rgba(34, 37, 50, 0.48)" },
-  },
+// Each named look = BASE + its defining knobs, verbatim from the /dev pages.
+export type ShellGlassMaterialDef = { id: ShellGlassMaterial; label: string; engine: ShellGlassEngine; note: string; settings: ShellGlassSettings };
+const mk = (id: ShellGlassMaterial, label: string, note: string, over: Partial<ShellGlassSettings>): ShellGlassMaterialDef =>
+  ({ id, label, engine: engineOf(id), note, settings: { material: id, ...BASE, ...over } });
+
+export const SHELL_GLASS_MATERIALS: ShellGlassMaterialDef[] = [
+  // ── canvas · LiquidGlass ──────────────────────────────────────────────────
+  mk("lg-shipped", "Liquid Glass · Shipped", "Today's live shell look.", {}),
+  mk("lg-card", "Liquid Glass · Card", "Soft, barely refracting (design-system Card).", { displace: 30, thickness: 14, aberration: 1, tintLight: "rgba(255, 255, 255, 0.52)", tintDark: "rgba(32, 35, 47, 0.44)" }),
+  mk("lg-panel", "Liquid Glass · Panel", "Mid refraction (design-system Panel).", { displace: 46, thickness: 12, aberration: 4, tintLight: "rgba(255, 255, 255, 0.56)", tintDark: "rgba(26, 29, 40, 0.50)" }),
+  mk("lg-raised", "Liquid Glass · Raised", "Thick, strong aberration · hero/floating (design-system Raised).", { displace: 70, thickness: 18, aberration: 10, tintLight: "rgba(255, 255, 255, 0.74)", tintDark: "rgba(38, 41, 54, 0.66)" }),
+  mk("lg-strong", "Liquid Glass · Strong lens", "The showy draggable lens (dev/liquid-glass).", { blur: 1, displace: 120, thickness: 30, aberration: 10, tintLight: "rgba(255, 255, 255, 0.05)", tintDark: "rgba(255, 255, 255, 0.05)" }),
+  // ── lens · LiquidLens (slab optics) ───────────────────────────────────────
+  mk("lens-v0", "Slab lens V0 · Current", "The shipping slab lens (foundry V0).", { lensStrength: "strong", lensThickness: 1.3, lensDisplacement: 0, tintLight: "rgba(255, 255, 255, 0.12)", tintDark: "rgba(255, 255, 255, 0.06)" }),
+  mk("lens-v1", "Slab lens V1 · Refined", "Deeper refined displacement (foundry V1).", { lensStrength: "strong", lensThickness: 1.6, lensDisplacement: 120, tintLight: "rgba(255, 255, 255, 0.05)", tintDark: "rgba(255, 255, 255, 0.05)" }),
+  // ── css · flat materials ──────────────────────────────────────────────────
+  mk("css-frost", "CSS V2 · Frosted vibrancy", "Strong blur + saturation, no refraction (foundry V2).", {}),
+  mk("css-clear", "CSS V3 · Clear glass", "High translucency, minimal blur (foundry V3).", {}),
+  mk("css-edge", "CSS V4 · Edge-lit thin", "Near-clear centre, bright refractive rim (foundry V4).", {}),
 ];
+
+export const SHELL_GLASS_DEFAULTS: ShellGlassSettings =
+  SHELL_GLASS_MATERIALS.find((m) => m.id === "lg-shipped")!.settings;
+
+export function materialDef(id: ShellGlassMaterial): ShellGlassMaterialDef {
+  return SHELL_GLASS_MATERIALS.find((m) => m.id === id) ?? SHELL_GLASS_MATERIALS[0];
+}
 
 type Ctx = {
   settings: ShellGlassSettings;
-  /** Patch one or more fields (live). Persists in background. */
   patch: (p: Partial<ShellGlassSettings>) => void;
-  /** Apply a named preset wholesale. */
-  applyPreset: (p: ShellGlassPreset) => void;
-  /** Back to the shipped defaults. */
+  applyMaterial: (id: ShellGlassMaterial) => void;
   reset: () => void;
 };
 
 const STORE_KEY = "agx-glass";
+const MATERIAL_IDS = new Set(SHELL_GLASS_MATERIALS.map((m) => m.id));
 
 const ShellGlassCtx = createContext<Ctx>({
   settings: SHELL_GLASS_DEFAULTS,
   patch: () => {},
-  applyPreset: () => {},
+  applyMaterial: () => {},
   reset: () => {},
 });
 
@@ -108,22 +114,26 @@ function clampNum(v: unknown, fb: number, lo: number, hi: number): number {
 }
 function sanitise(raw: unknown): ShellGlassSettings {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const rgba = (v: unknown, fb: string) =>
-    typeof v === "string" && /^rgba?\(/i.test(v.trim()) ? v.trim() : fb;
+  const rgba = (v: unknown, fb: string) => (typeof v === "string" && /^rgba?\(/i.test(v.trim()) ? v.trim() : fb);
+  const material = (MATERIAL_IDS.has(o.material as ShellGlassMaterial) ? o.material : "lg-shipped") as ShellGlassMaterial;
   return {
-    blur: clampNum(o.blur, SHELL_GLASS_DEFAULTS.blur, 0, 24),
-    displace: clampNum(o.displace, SHELL_GLASS_DEFAULTS.displace, 0, 140),
-    thickness: clampNum(o.thickness, SHELL_GLASS_DEFAULTS.thickness, 2, 48),
-    aberration: clampNum(o.aberration, SHELL_GLASS_DEFAULTS.aberration, 0, 24),
-    radiusScale: clampNum(o.radiusScale, SHELL_GLASS_DEFAULTS.radiusScale, 0.3, 2),
-    frostBlur: clampNum(o.frostBlur, SHELL_GLASS_DEFAULTS.frostBlur, 0, 80),
-    tintLight: rgba(o.tintLight, SHELL_GLASS_DEFAULTS.tintLight),
-    tintDark: rgba(o.tintDark, SHELL_GLASS_DEFAULTS.tintDark),
+    material,
+    blur: clampNum(o.blur, BASE.blur, 0, 24),
+    displace: clampNum(o.displace, BASE.displace, 0, 140),
+    thickness: clampNum(o.thickness, BASE.thickness, 2, 48),
+    aberration: clampNum(o.aberration, BASE.aberration, 0, 24),
+    lensStrength: o.lensStrength === "soft" ? "soft" : "strong",
+    lensThickness: clampNum(o.lensThickness, BASE.lensThickness, 0.1, 4),
+    lensDisplacement: clampNum(o.lensDisplacement, BASE.lensDisplacement, 0, 180),
+    lensBlur: clampNum(o.lensBlur, BASE.lensBlur, 0, 12),
+    radiusScale: clampNum(o.radiusScale, BASE.radiusScale, 0.3, 2),
+    tintLight: rgba(o.tintLight, BASE.tintLight),
+    tintDark: rgba(o.tintDark, BASE.tintDark),
+    frostBlur: clampNum(o.frostBlur, BASE.frostBlur, 0, 80),
   };
 }
 
 export function ShellGlassProvider({ children }: { children: React.ReactNode }) {
-  // SSR + first paint: shipped look (no flash). localStorage settles in after mount.
   const [settings, setSettings] = useState<ShellGlassSettings>(SHELL_GLASS_DEFAULTS);
 
   useEffect(() => {
@@ -136,37 +146,22 @@ export function ShellGlassProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const persist = useCallback((next: ShellGlassSettings) => {
-    try {
-      window.localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   }, []);
 
   const patch = useCallback(
     (p: Partial<ShellGlassSettings>) =>
-      setSettings((prev) => {
-        const next = sanitise({ ...prev, ...p });
-        persist(next);
-        return next;
-      }),
+      setSettings((prev) => { const next = sanitise({ ...prev, ...p }); persist(next); return next; }),
     [persist],
   );
-  const applyPreset = useCallback(
-    (preset: ShellGlassPreset) =>
-      setSettings(() => {
-        const next = sanitise(preset.settings);
-        persist(next);
-        return next;
-      }),
+  const applyMaterial = useCallback(
+    (id: ShellGlassMaterial) =>
+      setSettings(() => { const next = sanitise(materialDef(id).settings); persist(next); return next; }),
     [persist],
   );
-  const reset = useCallback(() => {
-    setSettings(SHELL_GLASS_DEFAULTS);
-    persist(SHELL_GLASS_DEFAULTS);
-  }, [persist]);
+  const reset = useCallback(() => { setSettings(SHELL_GLASS_DEFAULTS); persist(SHELL_GLASS_DEFAULTS); }, [persist]);
 
-  const value = useMemo(() => ({ settings, patch, applyPreset, reset }), [settings, patch, applyPreset, reset]);
+  const value = useMemo(() => ({ settings, patch, applyMaterial, reset }), [settings, patch, applyMaterial, reset]);
   return <ShellGlassCtx.Provider value={value}>{children}</ShellGlassCtx.Provider>;
 }
 

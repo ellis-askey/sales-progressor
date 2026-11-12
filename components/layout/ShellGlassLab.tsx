@@ -1,11 +1,11 @@
 "use client";
-// Shell Glass Lab — Ellis-only, desktop-only live tuner for the EXPERIMENTAL
-// shell's canvas glass (floating capsule / left drawer / compact bar). Edits the
-// LiquidGlass knobs through useShellGlass(); every surface updates live. Save is
-// not "bake" — it persists the personal preview to localStorage and copies a
-// readable settings block so Ellis can tell us exactly what to bake into
-// AgentShellExperimental.tsx. Mirrors the Design Lab drawer's look so the two
-// Ellis tools feel like siblings. 2026-11-12.
+// Shell Glass Lab · Ellis-only, desktop-only live tuner for the EXPERIMENTAL
+// shell's chrome glass (floating capsule / left drawer / compact bar). Lets Ellis
+// pick any of the real /dev "set ways of doing glass" (across the LiquidGlass
+// canvas, LiquidLens slab, and CSS material engines), fine-tune it live via
+// useShellGlass(), and copy a readable settings block to tell us what to bake
+// into AgentShellExperimental.tsx. Save = persist the personal preview (localStorage),
+// NOT an app-wide bake. Mirrors the Design Lab drawer's look. 2026-11-12.
 
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -13,8 +13,10 @@ import { Blend, X, RotateCcw, Copy, Check } from "lucide-react";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import {
   useShellGlass,
-  SHELL_GLASS_PRESETS,
+  SHELL_GLASS_MATERIALS,
   SHELL_GLASS_DEFAULTS,
+  engineOf,
+  type ShellGlassEngine,
   type ShellGlassSettings,
 } from "@/lib/agent/shell-glass";
 
@@ -38,26 +40,48 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
-// The exact block Ellis copies to us. Diff-friendly; names the bake targets.
+const ENGINE_LABEL: Record<ShellGlassEngine, string> = {
+  canvas: "Liquid Glass · canvas",
+  lens: "Slab lens · SVG",
+  css: "CSS material",
+};
+
+// The exact block Ellis copies to us · engine-aware, names the bake target.
 function exportText(s: ShellGlassSettings): string {
-  const same = (k: keyof ShellGlassSettings) => s[k] === SHELL_GLASS_DEFAULTS[k];
-  const changed = (Object.keys(SHELL_GLASS_DEFAULTS) as (keyof ShellGlassSettings)[]).filter((k) => !same(k));
-  return [
-    "Shell Glass Lab · experimental shell (canvas glass)",
-    "Bake into components/layout/AgentShellExperimental.tsx:",
+  const engine = engineOf(s.material);
+  const def = SHELL_GLASS_MATERIALS.find((m) => m.id === s.material);
+  const radiusNote = `radius ×${s.radiusScale} (cap/compact 19 → ${Math.round(19 * s.radiusScale)}, drawer 24 → ${Math.round(24 * s.radiusScale)}, panel 20 → ${Math.round(20 * s.radiusScale)})`;
+  const head = [
+    "Shell Glass Lab · experimental shell",
+    `Material: ${def?.label ?? s.material}  (engine: ${ENGINE_LABEL[engine]})`,
+    "Bake into components/layout/AgentShellExperimental.tsx (AgxGlass):",
     "",
-    `  AgxGlass → LiquidGlass:`,
-    `    blur=${s.blur}  displace=${s.displace}  thickness=${s.thickness}  aberration=${s.aberration}`,
-    `    radius ×${s.radiusScale}  (cap/compact 19 → ${Math.round(19 * s.radiusScale)}, drawer 24 → ${Math.round(24 * s.radiusScale)}, panel 20 → ${Math.round(20 * s.radiusScale)})`,
-    "",
-    `  GLASS_TINT:`,
-    `    light: "${s.tintLight}"`,
-    `    dark:  "${s.tintDark}"`,
-    "",
-    `  .agx-frost fallback (shell-experimental.css): backdrop-filter blur(${s.frostBlur}px)`,
-    "",
-    changed.length ? `  Changed vs shipped: ${changed.join(", ")}` : "  (unchanged from shipped defaults)",
-  ].join("\n");
+  ];
+  let body: string[];
+  if (engine === "canvas") {
+    body = [
+      `  <LiquidGlass blur={${s.blur}} displace={${s.displace}} thickness={${s.thickness}} aberration={${s.aberration}} />`,
+      `  ${radiusNote}`,
+      `  tint light: "${s.tintLight}"`,
+      `  tint dark:  "${s.tintDark}"`,
+      `  frost fallback blur: ${s.frostBlur}px`,
+    ];
+  } else if (engine === "lens") {
+    body = [
+      `  Switch AgxGlass to <LiquidLens>:`,
+      `  <LiquidLens strength="${s.lensStrength}" thickness={${s.lensThickness}}${s.lensDisplacement ? ` displacement={${s.lensDisplacement}}` : ""}${s.lensBlur ? ` blur={${s.lensBlur}}` : ""} />`,
+      `  ${radiusNote}`,
+      `  tint light: "${s.tintLight}"`,
+      `  tint dark:  "${s.tintDark}"`,
+    ];
+  } else {
+    body = [
+      `  Render a CSS-material div: className "agx-mat agx-mat-${s.material.slice(4)}"`,
+      `  (fixed recipe in app/agent/styles/shell-experimental.css · foundry ${s.material.slice(4)})`,
+      `  ${radiusNote}`,
+    ];
+  }
+  return [...head, ...body].join("\n");
 }
 
 export function ShellGlassLabToggle() {
@@ -71,18 +95,7 @@ export function ShellGlassLabToggle() {
         aria-label="Open Shell Glass Lab"
         data-shell-glass-lab
         className="agent-chip-hover"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          border: "1px solid transparent",
-          background: "transparent",
-          color: "#5b8cff",
-          cursor: "pointer",
-        }}
+        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 8, border: "1px solid transparent", background: "transparent", color: "#5b8cff", cursor: "pointer" }}
       >
         <Blend size={15} />
       </button>
@@ -92,9 +105,10 @@ export function ShellGlassLabToggle() {
 }
 
 function ShellGlassLabDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { settings, patch, applyPreset, reset } = useShellGlass();
+  const { settings, patch, applyMaterial, reset } = useShellGlass();
   const { isDark } = useDarkMode();
   const [copied, setCopied] = useState(false);
+  const engine = engineOf(settings.material);
 
   useEffect(() => {
     if (!open) return;
@@ -125,6 +139,7 @@ function ShellGlassLabDrawer({ open, onClose }: { open: boolean; onClose: () => 
     : { panel: "#ffffff", rowBg: "#fbfbfc", text: "#0f172a", sub: "#64748b", faint: "#94a3b8", border: "rgba(15,23,42,0.08)", borderOn: "rgba(91,140,255,0.30)", chip: "#ffffff", input: "#ffffff", headerGrad: "linear-gradient(180deg, rgba(91,140,255,0.04), transparent)" };
 
   const isDefault = (Object.keys(SHELL_GLASS_DEFAULTS) as (keyof ShellGlassSettings)[]).every((k) => settings[k] === SHELL_GLASS_DEFAULTS[k]);
+  const engines: ShellGlassEngine[] = ["canvas", "lens", "css"];
 
   if (!open || typeof document === "undefined") return null;
 
@@ -135,13 +150,7 @@ function ShellGlassLabDrawer({ open, onClose }: { open: boolean; onClose: () => 
         role="dialog"
         aria-label="Shell Glass Lab"
         data-shell-glass-lab
-        style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, width: 380, maxWidth: "100vw",
-          background: c.panel, borderLeft: `1px solid ${c.border}`,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.12)", zIndex: 9999,
-          display: "flex", flexDirection: "column",
-          animation: "shell-glass-lab-in 220ms cubic-bezier(0.16,1,0.3,1)",
-        }}
+        style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 390, maxWidth: "100vw", background: c.panel, borderLeft: `1px solid ${c.border}`, boxShadow: "-8px 0 32px rgba(0,0,0,0.12)", zIndex: 9999, display: "flex", flexDirection: "column", animation: "shell-glass-lab-in 220ms cubic-bezier(0.16,1,0.3,1)" }}
       >
         {/* Header */}
         <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "16px 20px", borderBottom: `0.5px solid ${c.border}`, background: c.headerGrad }}>
@@ -156,48 +165,70 @@ function ShellGlassLabDrawer({ open, onClose }: { open: boolean; onClose: () => 
         </header>
 
         <div style={{ flex: 1, overflow: "auto", padding: "14px 16px" }}>
-          {/* Preset chips */}
-          <p style={{ margin: "0 0 7px", fontSize: 11, fontWeight: 700, color: c.sub, textTransform: "uppercase", letterSpacing: "0.06em" }}>Morph style</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-            {SHELL_GLASS_PRESETS.map((p) => {
-              const on = (Object.keys(p.settings) as (keyof ShellGlassSettings)[]).every((k) => settings[k] === p.settings[k]);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => applyPreset(p)}
-                  title={p.note}
-                  style={{ padding: "6px 11px", fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? c.borderOn : c.border}`, background: on ? "rgba(91,140,255,0.12)" : c.chip, color: on ? "#5b8cff" : c.text }}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-          <p style={{ margin: "0 0 16px", fontSize: 10.5, color: c.faint, fontStyle: "italic" }}>Open the left drawer (edge handle) to see the nav surface update too.</p>
-
-          {/* Core knobs */}
-          <Slider c={c} label="Blur (residual frost)" value={settings.blur} min={0} max={24} step={0.5} onChange={(v) => patch({ blur: v })} fmt={(v) => `${v}px`} />
-          <Slider c={c} label="Displacement (bend)" value={settings.displace} min={0} max={140} step={1} onChange={(v) => patch({ displace: v })} fmt={(v) => `${Math.round(v)}`} />
-          <Slider c={c} label="Rim thickness" value={settings.thickness} min={2} max={48} step={1} onChange={(v) => patch({ thickness: v })} fmt={(v) => `${Math.round(v)}px`} />
-          <Slider c={c} label="Chromatic aberration" value={settings.aberration} min={0} max={24} step={1} onChange={(v) => patch({ aberration: v })} fmt={(v) => (v === 0 ? "off" : `${Math.round(v)}px`)} />
-          <Slider c={c} label="Corner radius" value={settings.radiusScale} min={0.3} max={2} step={0.05} onChange={(v) => patch({ radiusScale: v })} fmt={(v) => `${v.toFixed(2)}×`} />
-
-          {/* Tint — colour + fade, per theme */}
-          <div style={{ margin: "6px 0 2px", paddingTop: 12, borderTop: `0.5px solid ${c.border}` }}>
-            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#5b8cff", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tint &amp; fade</p>
-            <TintRow c={c} label="☀ Light theme" value={settings.tintLight} onChange={(v) => patch({ tintLight: v })} />
-            <TintRow c={c} label="🌙 Dark theme" value={settings.tintDark} onChange={(v) => patch({ tintDark: v })} />
-            <p style={{ margin: "2px 0 0", fontSize: 10.5, color: c.faint, fontStyle: "italic" }}>You&rsquo;re previewing <b style={{ color: c.sub }}>{isDark ? "dark" : "light"}</b>. Flip the theme to see the other.</p>
-          </div>
-
-          {/* Fallback (secondary) */}
-          <details style={{ marginTop: 16 }}>
-            <summary style={{ fontSize: 11, fontWeight: 600, color: c.sub, cursor: "pointer", padding: "6px 2px" }}>Frosted fallback (Safari / Firefox / iOS)</summary>
-            <div style={{ padding: "8px 2px 2px" }}>
-              <Slider c={c} label="Fallback blur" value={settings.frostBlur} min={0} max={80} step={1} onChange={(v) => patch({ frostBlur: v })} fmt={(v) => `${Math.round(v)}px`} />
+          {/* Material picker · grouped by engine (the real /dev "set ways") */}
+          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: c.sub, textTransform: "uppercase", letterSpacing: "0.06em" }}>Material</p>
+          {engines.map((eng) => (
+            <div key={eng} style={{ marginBottom: 10 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: c.faint, letterSpacing: "0.04em" }}>{ENGINE_LABEL[eng]}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {SHELL_GLASS_MATERIALS.filter((m) => m.engine === eng).map((m) => {
+                  const on = settings.material === m.id;
+                  return (
+                    <button key={m.id} type="button" onClick={() => applyMaterial(m.id)} title={m.note}
+                      style={{ padding: "6px 11px", fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? c.borderOn : c.border}`, background: on ? "rgba(91,140,255,0.12)" : c.chip, color: on ? "#5b8cff" : c.text }}>
+                      {m.label.replace(/^.*· /, "")}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </details>
+          ))}
+          <p style={{ margin: "2px 0 16px", fontSize: 10.5, color: c.faint, fontStyle: "italic" }}>Open the left drawer (edge handle) to see the nav surface update too.</p>
+
+          {/* Engine-specific knobs */}
+          <div style={{ paddingTop: 12, borderTop: `0.5px solid ${c.border}` }}>
+            {engine === "canvas" && (<>
+              <Slider c={c} label="Blur (residual frost)" value={settings.blur} min={0} max={24} step={0.5} onChange={(v) => patch({ blur: v })} fmt={(v) => `${v}px`} />
+              <Slider c={c} label="Displacement (bend)" value={settings.displace} min={0} max={140} step={1} onChange={(v) => patch({ displace: v })} fmt={(v) => `${Math.round(v)}`} />
+              <Slider c={c} label="Rim thickness" value={settings.thickness} min={2} max={48} step={1} onChange={(v) => patch({ thickness: v })} fmt={(v) => `${Math.round(v)}px`} />
+              <Slider c={c} label="Chromatic aberration" value={settings.aberration} min={0} max={24} step={1} onChange={(v) => patch({ aberration: v })} fmt={(v) => (v === 0 ? "off" : `${Math.round(v)}px`)} />
+            </>)}
+
+            {engine === "lens" && (<>
+              <Seg c={c} label="Strength" value={settings.lensStrength} options={[{ v: "soft", label: "Soft" }, { v: "strong", label: "Strong" }]} onChange={(v) => patch({ lensStrength: v })} />
+              <Slider c={c} label="Lens thickness (rim)" value={settings.lensThickness} min={0.1} max={4} step={0.1} onChange={(v) => patch({ lensThickness: v })} fmt={(v) => `${v.toFixed(1)}×`} />
+              <Slider c={c} label="Displacement override" value={settings.lensDisplacement} min={0} max={180} step={1} onChange={(v) => patch({ lensDisplacement: v })} fmt={(v) => (v === 0 ? "auto" : `${Math.round(v)}`)} />
+              <Slider c={c} label="Lens blur" value={settings.lensBlur} min={0} max={12} step={0.5} onChange={(v) => patch({ lensBlur: v })} fmt={(v) => (v === 0 ? "off" : `${v}px`)} />
+            </>)}
+
+            {engine === "css" && (
+              <p style={{ margin: "0 0 4px", fontSize: 11.5, color: c.sub, lineHeight: 1.5 }}>
+                This is a <b style={{ color: c.text }}>fixed CSS recipe</b> · its blur, tint and rim are baked into the stylesheet. Only corner radius applies. Switch to a Liquid Glass or Slab lens material to tune blur, tint &amp; fade.
+              </p>
+            )}
+
+            <Slider c={c} label="Corner radius" value={settings.radiusScale} min={0.3} max={2} step={0.05} onChange={(v) => patch({ radiusScale: v })} fmt={(v) => `${v.toFixed(2)}×`} />
+          </div>
+
+          {/* Tint & fade · canvas + lens only */}
+          {engine !== "css" && (
+            <div style={{ margin: "6px 0 2px", paddingTop: 12, borderTop: `0.5px solid ${c.border}` }}>
+              <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#5b8cff", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tint &amp; fade</p>
+              <TintRow c={c} label="☀ Light theme" value={settings.tintLight} onChange={(v) => patch({ tintLight: v })} />
+              <TintRow c={c} label="🌙 Dark theme" value={settings.tintDark} onChange={(v) => patch({ tintDark: v })} />
+              <p style={{ margin: "2px 0 0", fontSize: 10.5, color: c.faint, fontStyle: "italic" }}>You&rsquo;re previewing <b style={{ color: c.sub }}>{isDark ? "dark" : "light"}</b>. Flip the theme to see the other.</p>
+            </div>
+          )}
+
+          {/* Fallback (secondary) · canvas + lens */}
+          {engine !== "css" && (
+            <details style={{ marginTop: 16 }}>
+              <summary style={{ fontSize: 11, fontWeight: 600, color: c.sub, cursor: "pointer", padding: "6px 2px" }}>Frosted fallback (Safari / Firefox / iOS)</summary>
+              <div style={{ padding: "8px 2px 2px" }}>
+                <Slider c={c} label="Fallback blur" value={settings.frostBlur} min={0} max={80} step={1} onChange={(v) => patch({ frostBlur: v })} fmt={(v) => `${Math.round(v)}px`} />
+              </div>
+            </details>
+          )}
         </div>
 
         {/* Footer */}
@@ -225,6 +256,26 @@ function Slider({ c, label, value, min, max, step, onChange, fmt }: {
         <span style={{ color: c.text, fontVariantNumeric: "tabular-nums" }}>{fmt(value)}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#5b8cff", cursor: "pointer" }} />
+    </div>
+  );
+}
+
+function Seg<T extends string>({ c, label, value, options, onChange }: {
+  c: Record<string, string>; label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 13 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: c.sub, marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex", gap: 3, padding: 3, borderRadius: 9, background: c.rowBg, border: `0.5px solid ${c.border}` }}>
+        {options.map((o) => {
+          const on = value === o.v;
+          return (
+            <button key={o.v} type="button" onClick={() => onChange(o.v)} style={{ flex: 1, padding: "6px 4px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, background: on ? "#5b8cff" : "transparent", color: on ? "#fff" : c.sub }}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

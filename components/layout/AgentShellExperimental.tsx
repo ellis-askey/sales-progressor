@@ -24,6 +24,7 @@ import {
   List, X, Plus, ArrowsClockwise, ClockCounterClockwise,
 } from "@phosphor-icons/react";
 import { LiquidGlass } from "@/components/quick-dock/LiquidGlass";
+import { LiquidLens } from "@/components/liquid/LiquidLens";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { DesignLabToggle } from "@/components/glass/DesignLabToggle";
 import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
@@ -38,7 +39,7 @@ import { PullToRefresh } from "@/components/agent/PullToRefresh";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { FounderProvider } from "@/components/layout/FounderGate";
 import { QuickActionDock } from "@/components/quick-dock/QuickActionDock";
-import { ShellGlassProvider, useShellGlass } from "@/lib/agent/shell-glass";
+import { ShellGlassProvider, useShellGlass, engineOf, cssKeyOf } from "@/lib/agent/shell-glass";
 import { ShellGlassLabToggle } from "@/components/layout/ShellGlassLab";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
@@ -263,12 +264,23 @@ function AgxGlass({ fallback, isDark, radius = 20, className = "", children, ...
   // Live knobs from the Shell Glass Lab (Ellis-only tuner). Defaults === the
   // shipped look, so untouched this renders exactly as before.
   const { settings } = useShellGlass();
+  const engine = engineOf(settings.material);
   const r = Math.round(radius * settings.radiusScale);
+  const tint = isDark ? settings.tintDark : settings.tintLight;
+
+  // CSS materials (foundry V2/V3/V4) are pure CSS — work everywhere, no fallback branch.
+  if (engine === "css") {
+    return <div className={`agx-mat agx-mat-${cssKeyOf(settings.material)} ${className}`} style={{ borderRadius: r }} {...rest}>{children}</div>;
+  }
+  // Canvas + slab-lens both degrade to the frosted blur on iOS/Safari/Firefox.
   if (fallback) {
     const bf = `blur(${settings.frostBlur}px) saturate(190%)`;
     return <div className={`agx-frost ${className}`} style={{ borderRadius: r, backdropFilter: bf, WebkitBackdropFilter: bf }} {...rest}>{children}</div>;
   }
-  return <LiquidGlass radius={r} blur={settings.blur} thickness={settings.thickness} displace={settings.displace} aberration={settings.aberration} tint={isDark ? settings.tintDark : settings.tintLight} className={className} {...rest}>{children}</LiquidGlass>;
+  if (engine === "lens") {
+    return <LiquidLens radius={r} strength={settings.lensStrength} thickness={settings.lensThickness} displacement={settings.lensDisplacement || undefined} blur={settings.lensBlur} tint={tint} className={className} {...rest}>{children}</LiquidLens>;
+  }
+  return <LiquidGlass radius={r} blur={settings.blur} thickness={settings.thickness} displace={settings.displace} aberration={settings.aberration} tint={tint} className={className} {...rest}>{children}</LiquidGlass>;
 }
 
 type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode };
