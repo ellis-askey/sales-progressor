@@ -176,6 +176,10 @@ export function ComposeEmailModal({
   const [subject, setSubject] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const pendingBodyRef = useRef<string | null>(null);
+  // Debounce timer for the character count. Reading the body + re-rendering on
+  // every keystroke is what made typing feel laggy on slower setups, so the
+  // count is recomputed a beat after typing pauses instead (see onEditorInput).
+  const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Voice typing — dictation streams into the body at the caret; Refine tidies
   // the result afterwards. Hidden where the browser has no SpeechRecognition.
   // appendBeforeSelector keeps dictation in the body (above the signature) when
@@ -188,6 +192,8 @@ export function ComposeEmailModal({
   // unmounts to clean itself up. Stop any active recording when the drawer
   // closes, or a left-running session leaks and breaks the next open.
   useEffect(() => { if (!open) dictation.stop(); }, [open, dictation.stop]);
+  // Clear any pending character-count timer on unmount.
+  useEffect(() => () => { if (countTimerRef.current) clearTimeout(countTimerRef.current); }, []);
   // True while the greeting line should auto-follow the To recipients. Turned
   // off for the prefilled flow (surveyor email), which seeds its own greeting.
   const autoGreetRef = useRef(true);
@@ -427,7 +433,16 @@ export function ComposeEmailModal({
   }, [autoPlace, ctx]);
 
   function updateCount() { setCharCount((editorRef.current?.innerText ?? "").replace(/\s+$/, "").length); }
-  function onEditorInput() { updateCount(); if (showRefined) setShowRefined(false); }
+  // Per keystroke we do NOT re-measure the body — reading innerText forces a
+  // layout pass and setCharCount re-renders the whole modal, which is what made
+  // typing feel laggy on older browsers / low memory / long emails. Recompute
+  // the count ~200ms after typing pauses instead; the only visible effect is the
+  // counter catching up a beat later. The body itself is read fresh on send.
+  function scheduleCount() {
+    if (countTimerRef.current) clearTimeout(countTimerRef.current);
+    countTimerRef.current = setTimeout(() => { countTimerRef.current = null; updateCount(); }, 200);
+  }
+  function onEditorInput() { scheduleCount(); if (showRefined) setShowRefined(false); }
 
   // "Share our latest" — drop the sale's progress block in just above the
   // signature, replacing any previous copy so a re-click refreshes rather than
