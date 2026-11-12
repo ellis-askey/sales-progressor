@@ -5,7 +5,8 @@
 // useDictation hook. Hidden entirely on browsers without SpeechRecognition.
 // Prototyped at /dev/voice-dictation.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import type { DictationControls } from "./useDictation";
 
 function MicIcon({ size = 18 }: { size?: number }) {
@@ -13,6 +14,40 @@ function MicIcon({ size = 18 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5" />
     </svg>
+  );
+}
+
+function InfoIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" />
+    </svg>
+  );
+}
+
+// The "i" beside the mic: tap for the spoken-command cheatsheet. Dictation
+// understands these words as punctuation / breaks (see applySpokenPunctuation).
+const TIP_WORDS = ["new line", "new paragraph", "full stop", "comma", "question mark", "exclamation mark"];
+
+function DictationTips() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <span ref={ref} style={{ display: "inline-flex" }}>
+      <button type="button" className="dm-info" aria-label="Dictation tips" title="Dictation tips"
+        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((v) => !v)}>
+        <InfoIcon />
+      </button>
+      <AnchoredPanel anchorRef={ref} open={open} onClose={() => setOpen(false)} placement="top-end" width={244} bare zIndex={2200}>
+        <div className="dm-tips">
+          <div className="dm-tips-h">Speak punctuation and breaks</div>
+          <p className="dm-tips-p">While dictating, just say the word:</p>
+          <ul className="dm-tips-list">
+            {TIP_WORDS.map((t) => <li key={t}>&ldquo;{t}&rdquo;</li>)}
+          </ul>
+        </div>
+      </AnchoredPanel>
+    </span>
   );
 }
 
@@ -89,8 +124,20 @@ function Waveform({ analyser, color, width, height }: { analyser: AnalyserNode |
 
 // One-time stylesheet for the control (keyframe + classes).
 const DM_CSS = `
+.dm-wrap{display:inline-flex;align-items:center;gap:1px;}
 .dm-mic{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;transition:background .15s ease;}
 .dm-mic:hover{background:color-mix(in srgb, currentColor 12%, transparent);}
+/* The "i" is quiet (muted, 60%) so it never competes with the mic in a toolbar,
+   lifting to the coral accent on hover. */
+.dm-info{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:var(--agent-text-muted,#9a8a7f);opacity:.6;transition:background .15s ease,opacity .15s ease,color .15s ease;}
+.dm-info:hover{background:color-mix(in srgb, currentColor 12%, transparent);opacity:1;color:var(--agent-coral-deep,#F04E2C);}
+/* Tips popover body-portals into .ui-pop (outside --agent-* scope), so colour
+   off --ui-ink like the other popovers do. */
+.dm-tips{padding:11px 13px;}
+.dm-tips-h{font-size:12px;font-weight:700;color:rgb(var(--ui-ink,45,24,16));margin-bottom:5px;}
+.dm-tips-p{margin:0 0 8px;font-size:11.5px;color:rgba(var(--ui-ink,45,24,16),.6);line-height:1.4;}
+.dm-tips-list{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:5px;}
+.dm-tips-list li{font-size:11px;font-weight:600;color:rgba(var(--ui-ink,45,24,16),.8);background:rgba(var(--ui-ink,45,24,16),.07);border-radius:6px;padding:3px 8px;}
 .dm-rec{display:inline-flex;align-items:center;gap:9px;}
 .dm-stop{position:relative;width:24px;height:24px;border-radius:50%;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .dm-stop-sq{width:8px;height:8px;border-radius:2.5px;background:#fff;}
@@ -147,9 +194,12 @@ export function DictationMic({
   }
 
   return (
-    <button type="button" className="dm-mic" style={{ color }} aria-label="Voice type" title="Voice type"
-      onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
-      <MicIcon size={size} />
-    </button>
+    <span className="dm-wrap">
+      <button type="button" className="dm-mic" style={{ color }} aria-label="Voice type" title="Voice type"
+        onMouseDown={(e) => e.preventDefault()} onClick={toggle}>
+        <MicIcon size={size} />
+      </button>
+      <DictationTips />
+    </span>
   );
 }

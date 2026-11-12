@@ -68,7 +68,9 @@ function CheckDot({ on }: { on: boolean }) {
   );
 }
 
-const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" };
+// Matches the main "Log an update" form's .lu-lab — soft sentence-case, not
+// all-caps — so every little label across the modal reads the same (critique #285).
+const labelStyle: React.CSSProperties = { fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-secondary)" };
 const cardStyle: React.CSSProperties = { border: "0.5px solid var(--agent-border-default)", borderRadius: 10, padding: "12px 14px", background: "var(--agent-surface-glass)" };
 
 // A side's editable update, its recipient toggles, and Send / Skip.
