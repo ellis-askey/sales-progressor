@@ -47,7 +47,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown } from "@/components/icons/ph-ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { VolumeBarChart, MonthlyMixChart } from "@/components/analytics/AnalyticsCharts";
 import { KpiSparkline } from "@/components/analytics/KpiSparkline";
@@ -55,7 +55,7 @@ import { SubmissionFunnel } from "@/components/analytics/SubmissionFunnel";
 import { SpeedGauge } from "@/components/analytics/SpeedGauge";
 import { ValueHeatTiles } from "@/components/analytics/ValueHeatTiles";
 import { FilesAtRiskPanel } from "@/components/analytics/FilesAtRiskPanel";
-import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
+import { LeaderboardTable, SALES_COLUMNS, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { SubmissionFunnelData, FilesAtRiskData } from "@/lib/services/analytics";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
 
@@ -170,9 +170,9 @@ const MOCK_FILES_AT_RISK_CLEAR: FilesAtRiskData = {
 };
 
 const MOCK_LEADERBOARD: LeaderboardRow[] = [
-  { id: "u1", name: "Sarah Chen",  role: "negotiator", submitted: 7, exchanged: 5, conversion: 71,  pipelineValue: 140_000_000, avgFee: 126_000, lockedFees: 525_000 },
-  { id: "u2", name: "Tom Wallace", role: "negotiator", submitted: 4, exchanged: 2, conversion: 50,  pipelineValue:  80_000_000, avgFee: 108_000, lockedFees: 180_000 },
-  { id: "u3", name: "Priya Mehta", role: "director",   submitted: 1, exchanged: 1, conversion: 100, pipelineValue:  20_000_000, avgFee: 132_000, lockedFees: 132_000 },
+  { id: "u1", name: "Sarah Chen",  role: "negotiator", values: { submitted: 7, exchanged: 5, conversion: 71,  pipelineValue: 140_000_000, avgFee: 126_000, lockedFees: 525_000 } },
+  { id: "u2", name: "Tom Wallace", role: "negotiator", values: { submitted: 4, exchanged: 2, conversion: 50,  pipelineValue:  80_000_000, avgFee: 108_000, lockedFees: 180_000 } },
+  { id: "u3", name: "Priya Mehta", role: "director",   values: { submitted: 1, exchanged: 1, conversion: 100, pipelineValue:  20_000_000, avgFee: 132_000, lockedFees: 132_000 } },
 ];
 
 const MOCK_REFERRAL_STATS = [
@@ -743,7 +743,7 @@ export default function AnalyticsPolishPage() {
                       Performance by team member · {periodLabel.toLowerCase()}
                     </p>
                   </div>
-                  <LeaderboardTable rows={MOCK_LEADERBOARD} currentUserId="u3" period={period} />
+                  <LeaderboardTable rows={MOCK_LEADERBOARD} columns={SALES_COLUMNS} nameHeader="Negotiator" currentUserId="u3" period={period} />
                 </div>
               )}
 

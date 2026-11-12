@@ -3,29 +3,43 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// A leaderboard column: the metric key into the row's `values`, its label, and
+// how to render the number. One config powers the sales board, another the
+// progression board — same table, same sorting, same look.
+export type LbFormat = "int" | "gbp" | "pct" | "days";
+export type LbColumn = { key: string; label: string; format: LbFormat };
+
 export type LeaderboardRow = {
   id: string;
   name: string;
   role: string;
-  submitted: number;
-  exchanged: number;
-  conversion: number | null;
-  pipelineValue: number;
-  avgFee: number | null;
-  lockedFees: number | null;
+  values: Record<string, number | null>;
 };
 
-type SortKey = "submitted" | "exchanged" | "conversion" | "pipelineValue" | "avgFee" | "lockedFees";
-type SortDir = "asc" | "desc";
+// ── Column sets ─────────────────────────────────────────────────────────────
 
-const SORT_COLS: { key: SortKey; label: string }[] = [
-  { key: "submitted",    label: "Submitted" },
-  { key: "exchanged",    label: "Exchanged" },
-  { key: "conversion",   label: "Conversion" },
-  { key: "pipelineValue", label: "Pipeline" },
-  { key: "avgFee",       label: "Avg fee" },
-  { key: "lockedFees",   label: "Locked in" },
+// Sales: credits each file to the person who agreed the sale (agentUser).
+export const SALES_COLUMNS: LbColumn[] = [
+  { key: "submitted",     label: "Submitted",  format: "int" },
+  { key: "exchanged",     label: "Exchanged",  format: "int" },
+  { key: "conversion",    label: "Conversion", format: "pct" },
+  { key: "pipelineValue", label: "Pipeline",   format: "gbp" },
+  { key: "avgFee",        label: "Avg fee",    format: "gbp" },
+  { key: "lockedFees",    label: "Locked in",  format: "gbp" },
 ];
+
+// Progression: credits each file to the person progressing it (assignedUser).
+// No fees — those belong to whoever agreed the sale, not the progressor.
+export const PROGRESSION_COLUMNS: LbColumn[] = [
+  { key: "progressing",   label: "Progressing", format: "int" },
+  { key: "exchanged",     label: "Exchanged",   format: "int" },
+  { key: "completed",     label: "Completed",   format: "int" },
+  { key: "speedDays",     label: "Avg speed",   format: "days" },
+  { key: "successRate",   label: "Success",     format: "pct" },
+  { key: "pipelineValue", label: "Pipeline",    format: "gbp" },
+];
+
+type SortDir = "asc" | "desc";
 
 const ROLE_LABEL: Record<string, string> = {
   director:         "Director",
@@ -39,13 +53,22 @@ function fmtGBP(pence: number): string {
   return `£${Math.round(p).toLocaleString("en-GB")}`;
 }
 
-function numVal(row: LeaderboardRow, key: SortKey, dir: SortDir): number {
-  const v = row[key as keyof LeaderboardRow] as number | null;
-  if (v === null) return dir === "desc" ? -Infinity : Infinity;
+function fmtCell(v: number | null, format: LbFormat): string {
+  if (v === null) return "—";
+  if (format === "int")  return String(v);
+  if (format === "pct")  return `${v}%`;
+  if (format === "days") return `${v}d`;
+  // gbp — a zero pipeline / fee reads as "—", not "£0"
+  return v === 0 ? "—" : fmtGBP(v);
+}
+
+function numVal(row: LeaderboardRow, key: string, dir: SortDir): number {
+  const v = row.values[key];
+  if (v === null || v === undefined) return dir === "desc" ? -Infinity : Infinity;
   return v;
 }
 
-function sorted(rows: LeaderboardRow[], key: SortKey, dir: SortDir): LeaderboardRow[] {
+function sorted(rows: LeaderboardRow[], key: string, dir: SortDir): LeaderboardRow[] {
   return [...rows].sort((a, b) => {
     const diff = numVal(a, key, dir) - numVal(b, key, dir);
     if (diff !== 0) return dir === "desc" ? -diff : diff;
@@ -61,37 +84,35 @@ function rowHref(userId: string, period: string): string {
 
 type Props = {
   rows: LeaderboardRow[];
+  columns: LbColumn[];
+  nameHeader: string;
   currentUserId: string;
   period: string;
+  defaultSortKey?: string;
 };
 
-export function LeaderboardTable({ rows, currentUserId, period }: Props) {
+export function LeaderboardTable({ rows, columns, nameHeader, currentUserId, period, defaultSortKey }: Props) {
   const router = useRouter();
-  const [sortKey, setSortKey] = useState<SortKey>("exchanged");
+  const initialKey = defaultSortKey && columns.some(c => c.key === defaultSortKey)
+    ? defaultSortKey
+    : (columns.find(c => c.key === "exchanged")?.key ?? columns[0]?.key ?? "");
+  const [sortKey, setSortKey] = useState<string>(initialKey);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  function handleSort(key: SortKey) {
-    if (key === sortKey) setSortDir(d => d === "desc" ? "asc" : "desc");
+  // Guard against a stale sortKey when the column set flips (sales ⟷ progression).
+  const activeKey = columns.some(c => c.key === sortKey) ? sortKey : initialKey;
+
+  function handleSort(key: string) {
+    if (key === activeKey) setSortDir(d => d === "desc" ? "asc" : "desc");
     else { setSortKey(key); setSortDir("desc"); }
   }
 
-  const rows2 = sorted(rows, sortKey, sortDir);
+  const rows2 = sorted(rows, activeKey, sortDir);
 
-  function fmtVal(row: LeaderboardRow): Record<SortKey, string> {
-    return {
-      submitted:     String(row.submitted),
-      exchanged:     String(row.exchanged),
-      conversion:    row.conversion !== null ? `${row.conversion}%` : "—",
-      pipelineValue: row.pipelineValue > 0 ? fmtGBP(row.pipelineValue) : "—",
-      avgFee:        row.avgFee     !== null ? fmtGBP(row.avgFee)      : "—",
-      lockedFees:    row.lockedFees !== null ? fmtGBP(row.lockedFees)  : "—",
-    };
-  }
-
-  const thStyle = (key: SortKey): React.CSSProperties => ({
+  const thStyle = (key: string): React.CSSProperties => ({
     padding: "9px 14px",
     fontSize: 11, fontWeight: 600,
-    color: sortKey === key ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
+    color: activeKey === key ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
     textAlign: "right", whiteSpace: "nowrap",
     cursor: "pointer", userSelect: "none",
   });
@@ -104,18 +125,17 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
           <thead>
             <tr style={{ background: "rgba(0,0,0,0.025)", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
               <th style={{ padding: "9px 14px", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", textAlign: "left", whiteSpace: "nowrap" }}>
-                Negotiator
+                {nameHeader}
               </th>
-              {SORT_COLS.map(({ key, label }) => (
+              {columns.map(({ key, label }) => (
                 <th key={key} style={thStyle(key)} onClick={() => handleSort(key)}>
-                  {label}{sortKey === key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+                  {label}{activeKey === key ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows2.map((row, i) => {
-              const vals = fmtVal(row);
               const isFirst = i === 0;
               return (
                 <tr
@@ -140,9 +160,9 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
                       <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: 4 }}>(you)</span>
                     )}
                   </td>
-                  {SORT_COLS.map(({ key }) => (
+                  {columns.map(({ key, format }) => (
                     <td key={key} style={{ padding: "11px 14px", fontSize: 12, color: "var(--agent-text-secondary)", textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-                      {vals[key]}
+                      {fmtCell(row.values[key] ?? null, format)}
                     </td>
                   ))}
                 </tr>
@@ -157,12 +177,12 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
         <div style={{ padding: "10px 16px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>Sort by</span>
           <select
-            value={sortKey}
-            onChange={e => { setSortKey(e.target.value as SortKey); setSortDir("desc"); }}
+            value={activeKey}
+            onChange={e => { setSortKey(e.target.value); setSortDir("desc"); }}
             className="glass-input"
             style={{ fontSize: 12, padding: "4px 8px", flex: 1 }}
           >
-            {SORT_COLS.map(({ key, label }) => (
+            {columns.map(({ key, label }) => (
               <option key={key} value={key}>{label}</option>
             ))}
           </select>
@@ -176,7 +196,6 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
         </div>
 
         {rows2.map((row, i) => {
-          const vals = fmtVal(row);
           const isFirst = i === 0;
           return (
             <div
@@ -200,12 +219,15 @@ export function LeaderboardTable({ rows, currentUserId, period }: Props) {
                 )}
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {SORT_COLS.map(({ key, label }) => (
-                  <div key={key}>
-                    <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: vals[key] === "—" ? "rgba(15,23,42,0.18)" : "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{vals[key]}</p>
-                  </div>
-                ))}
+                {columns.map(({ key, label, format }) => {
+                  const cell = fmtCell(row.values[key] ?? null, format);
+                  return (
+                    <div key={key}>
+                      <p style={{ margin: 0, fontSize: 10, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                      <p style={{ margin: "2px 0 0", fontSize: 14, fontWeight: 600, color: cell === "—" ? "rgba(15,23,42,0.18)" : "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{cell}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );

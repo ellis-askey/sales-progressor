@@ -15,7 +15,7 @@ import { AnalyticsNotifCta } from "@/components/analytics/AnalyticsNotifCta";
 import { ValueHeatTiles } from "@/components/analytics/ValueHeatTiles";
 import { SpeedGauge } from "@/components/analytics/SpeedGauge";
 import { MissingFeesList } from "@/components/analytics/MissingFeesList";
-import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
+import { LeaderboardTable, SALES_COLUMNS, PROGRESSION_COLUMNS, type LeaderboardRow } from "@/components/analytics/LeaderboardTable";
 import type { VolumeEntry } from "@/components/analytics/AnalyticsCharts";
 import type {
   SolicitorExchangeStat,
@@ -163,7 +163,6 @@ export function AnalyticsClientShell({
   kpiSparklines,
   filesAtRisk,
   noFeeFiles,
-  isDirector,
   currentUserId,
   filterUserId,
   selectedName,
@@ -277,9 +276,14 @@ export function AnalyticsClientShell({
     const completionRate = exchanged.length  > 0 ? Math.round((completed.length / exchanged.length) * 100) : null;
     const funnelData = buildFunnel(periodTx.length, exchanged.length, completed.length);
 
-    // Leaderboard
-    const leaderboardRows: LeaderboardRow[] = (() => {
-      if (!isDirector || filterUserId || team.length <= 1) return [];
+    // ── Leaderboards ───────────────────────────────────────────────────────
+    // Two views, same period window. Sales credits each file to whoever agreed
+    // it (agentUser); Progression credits whoever is progressing it
+    // (assignedUser). Availability is data-driven, not role-gated — the render
+    // only ever shows files the viewer can already see.
+
+    // Sales board — one row per agency team member.
+    const salesRows: LeaderboardRow[] = team.length > 1 ? (() => {
       const byUser = new Map<string, Tx[]>();
       for (const t of periodTx) {
         const uid = t.agentUser?.id;
@@ -293,18 +297,70 @@ export function AnalyticsClientShell({
         const submitted     = userTxs.length;
         const exc           = userExchanged.length;
         return {
-          id:            member.id,
-          name:          member.name,
-          role:          member.role,
-          submitted,
-          exchanged:     exc,
-          conversion:    submitted > 0 ? Math.round((exc / submitted) * 100) : null,
-          pipelineValue: userTxs.filter(t => !t.hasExchanged && !t.hasCompleted).reduce((s, t) => s + (t.purchasePrice ?? 0), 0),
-          avgFee:        userFees.length > 0 ? Math.round(userFees.reduce((a, b) => a + b, 0) / userFees.length) : null,
-          lockedFees:    userFeeEx.length  > 0 ? userFeeEx.reduce((a, b) => a + b, 0) : null,
+          id:   member.id,
+          name: member.name,
+          role: member.role,
+          values: {
+            submitted,
+            exchanged:     exc,
+            conversion:    submitted > 0 ? Math.round((exc / submitted) * 100) : null,
+            pipelineValue: userTxs.filter(t => !t.hasExchanged && !t.hasCompleted).reduce((s, t) => s + (t.purchasePrice ?? 0), 0),
+            avgFee:        userFees.length > 0 ? Math.round(userFees.reduce((a, b) => a + b, 0) / userFees.length) : null,
+            lockedFees:    userFeeEx.length  > 0 ? userFeeEx.reduce((a, b) => a + b, 0) : null,
+          },
         };
       });
+    })() : [];
+
+    // Progression roster — distinct people a visible file is assigned to. This
+    // is how in-house (CM ≠ progressor) and external progression businesses see
+    // their own team, independent of the agency negotiator list.
+    const progressorRoster = (() => {
+      const m = new Map<string, { id: string; name: string; role: string }>();
+      for (const t of transactions) if (t.assignedUser) m.set(t.assignedUser.id, t.assignedUser);
+      return [...m.values()];
     })();
+
+    // Progression board — one row per progressor.
+    const progressionRows: LeaderboardRow[] = progressorRoster.length > 1 ? (() => {
+      const byUser = new Map<string, Tx[]>();
+      for (const t of periodTx) {
+        const uid = t.assignedUser?.id;
+        if (uid) { if (!byUser.has(uid)) byUser.set(uid, []); byUser.get(uid)!.push(t); }
+      }
+      return progressorRoster.map((p) => {
+        const userTxs       = byUser.get(p.id) ?? [];
+        const userExchanged = userTxs.filter(t => t.hasExchanged);
+        const exc           = userExchanged.length;
+        // Success = exchanged out of files that reached a settled outcome
+        // (exchanged, or withdrawn without ever exchanging). Still-live files
+        // don't count against the rate.
+        const withdrawn     = userTxs.filter(t => t.status === "withdrawn" && !t.hasExchanged).length;
+        const settled       = exc + withdrawn;
+        // Speed = avg days from file created to exchange, for this person's
+        // exchanged files in the window.
+        const speedPool     = userExchanged.filter(t => t.exchangedAt);
+        const speedDays     = speedPool.length > 0
+          ? Math.round(speedPool.reduce((s, t) => s + (new Date(t.exchangedAt!).getTime() - new Date(t.createdAt).getTime()) / 86400000, 0) / speedPool.length)
+          : null;
+        return {
+          id:   p.id,
+          name: p.name,
+          role: p.role,
+          values: {
+            progressing:   userTxs.filter(t => t.status === "active").length,
+            exchanged:     exc,
+            completed:     userTxs.filter(t => t.hasCompleted).length,
+            speedDays,
+            successRate:   settled > 0 ? Math.round((exc / settled) * 100) : null,
+            pipelineValue: userTxs.filter(t => t.status === "active").reduce((s, t) => s + (t.purchasePrice ?? 0), 0),
+          },
+        };
+      });
+    })() : [];
+
+    const salesAvailable       = salesRows.length > 1;
+    const progressionAvailable = progressionRows.length > 1;
 
     return {
       periodTx, exchanged, completed,
@@ -314,9 +370,10 @@ export function AnalyticsClientShell({
       thisMonthForecastTx, thisMonthFees, thisMonthFeePence, thisMonthLabel,
       referredTxs, inPipelineTxs, dueTxs, inPipelinePence, duePence, noFeeReferralCount,
       speedToExchange, barEntries, chartTitle, periodLabel, periodWord,
-      exchangeRate, completionRate, funnelData, leaderboardRows,
+      exchangeRate, completionRate, funnelData,
+      salesRows, progressionRows, salesAvailable, progressionAvailable,
     };
-  }, [transactions, team, period, isDirector, filterUserId]);
+  }, [transactions, team, period, filterUserId]);
 
   const {
     periodTx, exchanged, completed,
@@ -326,10 +383,19 @@ export function AnalyticsClientShell({
     thisMonthForecastTx, thisMonthFees, thisMonthFeePence, thisMonthLabel,
     referredTxs, inPipelineTxs, dueTxs, inPipelinePence, duePence, noFeeReferralCount,
     speedToExchange, barEntries, chartTitle, periodLabel, periodWord,
-    exchangeRate, completionRate, funnelData, leaderboardRows,
+    exchangeRate, completionRate, funnelData,
+    salesRows, progressionRows, salesAvailable, progressionAvailable,
   } = stats;
 
-  const showLeaderboard = isDirector && !filterUserId && team.length > 1;
+  // Leaderboard view toggle. Default to Sales where available, else Progression
+  // (an external progression business only ever has the progression board).
+  const [boardView, setBoardView] = useState<"sales" | "progression">("sales");
+  const boardViewEffective: "sales" | "progression" =
+    boardView === "progression" && progressionAvailable ? "progression"
+    : salesAvailable ? "sales"
+    : "progression";
+  const showLeaderboard = !filterUserId && (salesAvailable || progressionAvailable);
+  const showBoardToggle = salesAvailable && progressionAvailable;
   const noFeeTransactionCount = noFeeFiles.length;
 
   return (
@@ -688,14 +754,49 @@ export function AnalyticsClientShell({
       {/* ── Team leaderboard ───────────────────────────────────────────────── */}
       {showLeaderboard && (
         <GlassCard glassId="analytics-list-card" label="Analytics · List card" defaultVariant="v05" data-bloom style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Team leaderboard</p>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-              Performance by team member · {periodLabel.toLowerCase()}
-            </p>
+          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>Team leaderboard</p>
+              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
+                {boardViewEffective === "progression"
+                  ? "Progression throughput by team member"
+                  : "Sales performance by team member"} · {periodLabel.toLowerCase()}
+              </p>
+            </div>
+            {showBoardToggle && (
+              <div role="tablist" aria-label="Leaderboard view" style={{ display: "inline-flex", padding: 2, borderRadius: 10, background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-default)", flexShrink: 0 }}>
+                {([
+                  { key: "sales", label: "Sales" },
+                  { key: "progression", label: "Progression" },
+                ] as const).map(({ key, label }) => {
+                  const active = boardViewEffective === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setBoardView(key)}
+                      style={{
+                        padding: "5px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+                        fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+                        transition: "background 0.12s, color 0.12s",
+                        background: active ? "var(--agent-coral)" : "transparent",
+                        color: active ? "#fff" : "var(--agent-text-muted)",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <LeaderboardTable
-            rows={leaderboardRows}
+            rows={boardViewEffective === "progression" ? progressionRows : salesRows}
+            columns={boardViewEffective === "progression" ? PROGRESSION_COLUMNS : SALES_COLUMNS}
+            nameHeader={boardViewEffective === "progression" ? "Progressor" : "Negotiator"}
+            defaultSortKey="exchanged"
             currentUserId={currentUserId}
             period={period}
           />

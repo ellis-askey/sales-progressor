@@ -72,14 +72,24 @@ export default async function AgentAnalyticsPage({
   const vis = isInternalStaff
     ? resolveInternalVisibility(session.user.id, session.user.role, hasAdminPowers(session), session.user.progressionBusinessId, session.user.progressionBusinessRole, session.user.canViewAllFiles)
     : await resolveAgentVisibility(session.user.id, session.user.agencyId);
-  const effectiveVis = isDirector && filterUserId
+  // Drill-down (?user=) from a leaderboard row. Directors always; see-all
+  // non-directors too, so the board they can now see is clickable. Guarded to
+  // agency viewers (agencyId present) — the constructed scope ANDs agencyId, so
+  // a foreign ?user= matches nothing outside the tenant (Law 7 backstop).
+  const effectiveVis = (isDirector || vis.seeAll) && filterUserId && session.user.agencyId
     ? { userId: filterUserId, agencyId: session.user.agencyId, seeAll: false, firmName: null }
     : vis;
 
+  // Team roster powers the Sales leaderboard. Fetch it for directors (as before)
+  // and for any non-director who can see the whole agency book (canViewAllFiles)
+  // — the board only ever shows files that viewer can already see, so no new data
+  // exposure. The Progression board needs no team (its roster comes from the
+  // files' assignedUser), so external progression owners don't need this.
+  const canSeeTeamBoard = (isDirector || vis.seeAll) && !!session.user.agencyId;
   const pageNow = new Date();
   const [transactions, team, solicitorStats, monthlyActivity, kpiSparklines, filesAtRisk, referralStats, brokerReferralStats] = await Promise.all([
     getAgentTransactions(effectiveVis),
-    isDirector ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
+    canSeeTeamBoard ? getAgencyTeam(session.user.agencyId, vis.firmName) : Promise.resolve([]),
     getSolicitorExchangeStats(effectiveVis),
     getMonthlyActivity(effectiveVis),
     getKpiTrendsForAgency(effectiveVis, { start: new Date(0), end: pageNow }),
