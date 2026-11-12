@@ -91,7 +91,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
   const [globalEsc, setGlobalEsc] = useState(initialEscalateAfter);
   // Cadence preview: "pulse" (the heartbeat) or "calendar" (weeks laid out).
   // Shared across every step so flipping it once sticks while you browse.
-  const [cadenceView, setCadenceView] = useState<"pulse" | "calendar">("pulse");
+  const [cadenceView, setCadenceView] = useState<"pulse" | "calendar" | "email">("pulse");
   const [chaseEmailsEnabled, setChaseEmailsEnabled] = useState(initialChaseEmailsEnabled);
   const [profile, setProfile] = useState<PresetKey>("steady");
   const [sideFilter, setSideFilter] = useState<Side>("vendor");
@@ -300,7 +300,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                             <div className="ct-ed-card">
                               {s.enabled ? (
                                 <>
-                                  <CadenceView grace={s.grace} repeat={s.repeat} esc={escOf(s)} view={cadenceView} onView={setCadenceView} />
+                                  <CadenceView grace={s.grace} repeat={s.repeat} esc={escOf(s)} view={cadenceView} onView={setCadenceView} code={s.code} side={s.side} />
                                   <div className="ct-ctrls">
                                     <Ctrl label="First nudge" unit="working days after it's due">
                                       <Stepper value={s.grace} onChange={(n) => patch(s.code, { grace: n })} min={MIN_GRACE} max={30} />
@@ -535,12 +535,14 @@ function CadenceCalendar({ grace, repeat, esc }: { grace: number; repeat: number
 // Wraps the pulse + calendar with a discreet view switch and a crossfade (the
 // inactive view fades out while the active fades in; the box height animates so
 // nothing jumps). View choice is lifted to the form so it's shared across steps.
-function CadenceView({ grace, repeat, esc, view, onView }: { grace: number; repeat: number; esc: number; view: "pulse" | "calendar"; onView: (v: "pulse" | "calendar") => void }) {
+type CadenceViewKind = "pulse" | "calendar" | "email";
+function CadenceView({ grace, repeat, esc, view, onView, code, side }: { grace: number; repeat: number; esc: number; view: CadenceViewKind; onView: (v: CadenceViewKind) => void; code: string; side: Side }) {
   const pulseRef = useRef<HTMLDivElement | null>(null);
   const calRef = useRef<HTMLDivElement | null>(null);
+  const emailRef = useRef<HTMLDivElement | null>(null);
   const [h, setH] = useState<number | undefined>(undefined);
   useLayoutEffect(() => {
-    const el = view === "pulse" ? pulseRef.current : calRef.current;
+    const el = view === "pulse" ? pulseRef.current : view === "calendar" ? calRef.current : emailRef.current;
     if (el) setH(el.offsetHeight);
   }, [view, grace, repeat, esc]);
   return (
@@ -553,6 +555,9 @@ function CadenceView({ grace, repeat, esc, view, onView }: { grace: number; repe
           <button type="button" className={`ct-cv-btn${view === "calendar" ? " on" : ""}`} aria-pressed={view === "calendar"} title="Calendar view" onClick={() => onView("calendar")}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
           </button>
+          <button type="button" className={`ct-cv-btn${view === "email" ? " on" : ""}`} aria-pressed={view === "email"} title="See the client's email" onClick={() => onView("email")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
+          </button>
         </div>
       </div>
       <div className="ct-cadence-box" style={{ height: h }}>
@@ -562,6 +567,58 @@ function CadenceView({ grace, repeat, esc, view, onView }: { grace: number; repe
         <div ref={calRef} className={`ct-cadence-layer${view === "calendar" ? " show" : ""}`} aria-hidden={view !== "calendar"}>
           <CadenceCalendar grace={grace} repeat={repeat} esc={esc} />
         </div>
+        <div ref={emailRef} className={`ct-cadence-layer${view === "email" ? " show" : ""}`} aria-hidden={view !== "email"}>
+          <ChaseEmailPreview code={code} side={side} active={view === "email"} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The real client-chase email for this step, fetched + rendered exactly as it
+// would send (agency branding + any edited subject/intro/outro). Lazy: only
+// fetches once this step's email view is first opened.
+function ChaseEmailPreview({ code, side, active }: { code: string; side: Side; active: boolean }) {
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "notchase" | "error">("idle");
+  const [html, setHtml] = useState("");
+  const [source, setSource] = useState<"custom" | "default">("default");
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!active || started.current) return;
+    started.current = true;
+    setState("loading");
+    const sideParam = side === "vendor" ? "seller" : "buyer";
+    fetch(`/api/agent/chases/preview?code=${encodeURIComponent(code)}&side=${sideParam}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.chaseable === false) { setState("notchase"); return; }
+        if (d?.html) { setHtml(d.html); setSource(d.source === "custom" ? "custom" : "default"); setState("ready"); }
+        else setState("error");
+      })
+      .catch(() => setState("error"));
+  }, [active, code, side]);
+
+  return (
+    <div style={{ padding: "4px 2px 2px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "0 2px 8px" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>What your client gets when we chase them</span>
+        {state === "ready" && (
+          <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, color: source === "custom" ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", background: source === "custom" ? "rgba(var(--agent-coral-rgb),0.12)" : "var(--agent-surface-subtle)" }}>
+            {source === "custom" ? "Your customised copy" : "Our default copy"}
+          </span>
+        )}
+      </div>
+      <div style={{ height: 452, borderRadius: 12, overflow: "hidden", border: "1px solid var(--agent-border-subtle)", background: "#f5f5f5", position: "relative" }}>
+        {state === "ready" ? (
+          <iframe title="Client chase email preview" srcDoc={html} sandbox="" style={{ width: "100%", height: "100%", border: "none", display: "block" }} />
+        ) : (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, fontSize: 13, color: "var(--agent-text-muted)" }}>
+            {state === "loading" || state === "idle" ? "Rendering the exact email…"
+              : state === "notchase" ? "This step just waits — we don't chase it, so no email is sent to your client."
+              : "Couldn't load the preview. Try again in a moment."}
+          </div>
+        )}
       </div>
     </div>
   );
