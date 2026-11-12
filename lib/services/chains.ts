@@ -1462,6 +1462,14 @@ export async function createChainV2(input: CreateChainInput): Promise<ChainV2> {
     }
 
     return newChain.id;
+  }, {
+    // Raise the interactive-transaction limit from Prisma's 5s default. The work
+    // here is only a few small inserts, but on serverless the Supabase pooler can
+    // briefly be slow to respond, and the 5s default was timing out legitimate
+    // chain creations (Sentry JAVASCRIPT-NEXTJS-1X). maxWait gives a little more
+    // room to acquire a pooled connection before the clock starts.
+    timeout: 20_000,
+    maxWait: 10_000,
   });
 
   return (await getChainV2(chain))!;
