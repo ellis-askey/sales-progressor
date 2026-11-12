@@ -171,32 +171,30 @@ export function Stage1Fields({
           Tenure
           <FieldIndicator source={memoSources.tenure} valid={!!tenure} />
         </SectionLabel>
+        {/* Three choices. "Share of freehold" IS a leasehold behind the scenes
+            (tenure = leasehold + the flag) — identical to picking Leasehold and
+            ticking share-of-freehold on the file's Property card afterwards. */}
         <div style={{ display: "flex", gap: 10 }}>
           <Pill
             label="Freehold"
             note="Management pack not required"
             selected={tenure === "freehold"}
-            onClick={() => { onTenureChange("freehold"); onEdit("tenure"); }}
+            onClick={() => { onTenureChange("freehold"); onIsShareOfFreeholdChange(false); onEdit("tenure"); }}
           />
           <Pill
             label="Leasehold"
             note="Management pack required"
-            selected={tenure === "leasehold"}
-            onClick={() => { onTenureChange("leasehold"); onEdit("tenure"); }}
+            selected={tenure === "leasehold" && !isShareOfFreehold}
+            onClick={() => { onTenureChange("leasehold"); onIsShareOfFreeholdChange(false); onEdit("tenure"); }}
+          />
+          <Pill
+            label="Share of freehold"
+            note="Leaseholders own the freehold"
+            selected={tenure === "leasehold" && isShareOfFreehold}
+            onClick={() => { onTenureChange("leasehold"); onIsShareOfFreeholdChange(true); onEdit("tenure"); }}
           />
         </div>
         <FieldHint source={memoSources.tenure} />
-        {tenure === "leasehold" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={isShareOfFreehold}
-              onChange={(e) => onIsShareOfFreeholdChange(e.target.checked)}
-              style={{ width: 14, height: 14, accentColor: "var(--agent-coral-deep)", cursor: "pointer", flexShrink: 0 }}
-            />
-            <span style={{ fontSize: 13, color: "var(--nv2-text-primary)" }}>Share of freehold</span>
-          </label>
-        )}
       </div>
 
       {/* Purchase type */}

@@ -113,9 +113,13 @@ const EMPTY: FileSetupSummary = {
 };
 
 function tenureLabel(tenure: Tenure | null, isShareOfFreehold: boolean): string | null {
-  if (!tenure) return null;
+  // Share of freehold is stored as leasehold + the flag, so the flag must be
+  // checked FIRST (matches the quote-flow / solicitor-portal helpers). Before
+  // this, a share-of-freehold file showed as plain "Leasehold" here.
+  if (isShareOfFreehold) return "Share of freehold";
+  if (tenure === "freehold") return "Freehold";
   if (tenure === "leasehold") return "Leasehold";
-  return isShareOfFreehold ? "Share of freehold" : "Freehold";
+  return null;
 }
 function methodLabel(pt: PurchaseType | null): string | null {
   if (!pt) return null;
