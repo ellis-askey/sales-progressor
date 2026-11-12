@@ -14,7 +14,7 @@
 // add-contact-and-invite flow, surfaced where the agent can see the portal. When
 // the file has no portal clients yet (e.g. a just-claimed sale), the card leads.
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -69,6 +69,78 @@ export function ClientPortalPreview({
     }
   }, [activeClient]);
 
+  // ── Mobile "Full screen" / immerse ──
+  // On a phone the handset frame is a mock-of-a-mock: it wastes the screen the
+  // agent actually has. "Full screen" zooms the SAME live portal up to fill the
+  // viewport (a FLIP from the frame's rect, so the content grows rather than
+  // reloading — the iframe node never moves, so it never re-fetches). Desktop
+  // keeps the handset. Does nothing to the client's file; it's still a window.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const on = () => setIsMobile(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  const [immersed, setImmersed] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const framedRect = useRef<DOMRect | null>(null);
+
+  function enterImmerse() {
+    if (frameRef.current) framedRect.current = frameRef.current.getBoundingClientRect();
+    setImmersed(true);
+  }
+  function exitImmerse() {
+    const el = frameRef.current;
+    if (!el || reduced || !framedRect.current) { setImmersed(false); return; }
+    // Reverse FLIP: from the current fullscreen rect back down to the frame.
+    const last = el.getBoundingClientRect();
+    const f = framedRect.current;
+    el.style.transformOrigin = "top left";
+    el.style.transition = "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)";
+    el.style.transform = `translate(${f.left - last.left}px, ${f.top - last.top}px) scale(${f.width / last.width}, ${f.height / last.height})`;
+    const done = (e: TransitionEvent) => {
+      if (e.propertyName !== "transform") return;
+      el.removeEventListener("transitionend", done);
+      el.style.transition = "";
+      el.style.transform = "";
+      el.style.transformOrigin = "";
+      setImmersed(false);
+    };
+    el.addEventListener("transitionend", done);
+  }
+
+  // Forward FLIP: the frame has just flipped to fixed/fullscreen (its last rect),
+  // so invert back to where it was framed, then release to grow into place.
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!immersed || !el || !framedRect.current || reduced) return;
+    const f = framedRect.current;
+    const last = el.getBoundingClientRect();
+    el.style.transformOrigin = "top left";
+    el.style.transition = "none";
+    el.style.transform = `translate(${f.left - last.left}px, ${f.top - last.top}px) scale(${f.width / last.width}, ${f.height / last.height})`;
+    void el.offsetWidth; // commit the inverted start before animating
+    el.style.transition = "transform 440ms cubic-bezier(0.22, 1, 0.36, 1)";
+    el.style.transform = "none";
+  }, [immersed, reduced]);
+
+  // Lock the page behind the overlay; Escape exits.
+  useEffect(() => {
+    if (!immersed) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") exitImmerse(); };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immersed]);
+
   // ── Empty: no portal clients yet. Lead with the invite card. ──
   if (clients.length === 0) {
     return (
@@ -99,76 +171,113 @@ export function ClientPortalPreview({
               that: a dropdown, since 3+ names truncate into uselessness. Role
               reads from the avatar colour (seller blue / buyer green) — no
               "Seller"/"Buyer" text next to names. */}
-          {useDropdown && (
-            <ClientSwitcherDropdown clients={clients} active={active} onSelect={setActive} reduced={reduced} />
-          )}
-          {clients.length > 1 && !useDropdown && (
-            <div
-              role="tablist"
-              aria-label="Choose a client"
-              style={{
-                position: "relative",
-                display: "flex",
-                gap: 2,
-                padding: 4,
-                borderRadius: 999,
-                background: "var(--agent-surface-sunken, rgba(120,120,130,0.10))",
-                border: "1px solid var(--agent-border-subtle)",
-                maxWidth: 390,
-                margin: "0 auto 16px",
-              }}
-            >
-              {ind && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: 4,
-                    bottom: 4,
-                    left: ind.left,
-                    width: ind.width,
-                    borderRadius: 999,
-                    background: "var(--agent-surface-elevated, #fff)",
-                    boxShadow: "0 1px 3px rgba(15,23,42,0.16)",
-                    transition: reduced ? "none" : "left 260ms cubic-bezier(0.16,1,0.3,1), width 260ms cubic-bezier(0.16,1,0.3,1)",
-                  }}
-                />
+          {/* Switcher + (mobile) the "Full screen" control to its right. The row
+              centres the pair; each switcher drops its own auto-margin so the
+              button sits flush beside it. On a single-client file there's no
+              switcher, so the button stands alone, still centred. */}
+          {(useDropdown || clients.length > 1 || (isMobile && !!activeClient)) && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+              {useDropdown && (
+                <ClientSwitcherDropdown clients={clients} active={active} onSelect={setActive} reduced={reduced} embedded />
               )}
-              {clients.map((c, i) => {
-                const on = i === active;
-                return (
-                  <button
-                    key={c.id}
-                    ref={(el) => { btnRefs.current[i] = el; }}
-                    role="tab"
-                    aria-selected={on}
-                    onClick={() => setActive(i)}
-                    style={{
-                      position: "relative",
-                      zIndex: 1,
-                      flex: 1,
-                      minWidth: 0,
-                      border: 0,
-                      background: "transparent",
-                      cursor: "pointer",
-                      padding: "6px 12px",
-                      borderRadius: 999,
-                      fontFamily: "inherit",
-                      fontSize: 13.5,
-                      fontWeight: 700,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 7,
-                      color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-                      transition: "color 180ms ease",
-                    }}
-                  >
-                    <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={20} />
-                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                  </button>
-                );
-              })}
+              {clients.length > 1 && !useDropdown && (
+                <div
+                  role="tablist"
+                  aria-label="Choose a client"
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    gap: 2,
+                    padding: 4,
+                    borderRadius: 999,
+                    background: "var(--agent-surface-sunken, rgba(120,120,130,0.10))",
+                    border: "1px solid var(--agent-border-subtle)",
+                    maxWidth: 390,
+                  }}
+                >
+                  {ind && (
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: 4,
+                        bottom: 4,
+                        left: ind.left,
+                        width: ind.width,
+                        borderRadius: 999,
+                        background: "var(--agent-surface-elevated, #fff)",
+                        boxShadow: "0 1px 3px rgba(15,23,42,0.16)",
+                        transition: reduced ? "none" : "left 260ms cubic-bezier(0.16,1,0.3,1), width 260ms cubic-bezier(0.16,1,0.3,1)",
+                      }}
+                    />
+                  )}
+                  {clients.map((c, i) => {
+                    const on = i === active;
+                    return (
+                      <button
+                        key={c.id}
+                        ref={(el) => { btnRefs.current[i] = el; }}
+                        role="tab"
+                        aria-selected={on}
+                        onClick={() => setActive(i)}
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          flex: 1,
+                          minWidth: 0,
+                          border: 0,
+                          background: "transparent",
+                          cursor: "pointer",
+                          padding: "6px 12px",
+                          borderRadius: 999,
+                          fontFamily: "inherit",
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 7,
+                          color: on ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
+                          transition: "color 180ms ease",
+                        }}
+                      >
+                        <ContactAvatar contact={{ name: c.name, roleType: c.roleType }} size={20} />
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {isMobile && activeClient && (
+                <button
+                  type="button"
+                  onClick={enterImmerse}
+                  className="cpp-immerse-btn"
+                  aria-label="View the portal full screen"
+                  title="Full screen"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    flexShrink: 0,
+                    padding: "8px 13px",
+                    borderRadius: 999,
+                    border: "1px solid var(--agent-border-subtle)",
+                    background: "var(--agent-surface-elevated, #fff)",
+                    boxShadow: "0 1px 3px rgba(15,23,42,0.10)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    color: "var(--agent-text-primary)",
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                  </svg>
+                  Full screen
+                </button>
+              )}
             </div>
           )}
 
@@ -190,70 +299,136 @@ export function ClientPortalPreview({
             </p>
           )}
 
-          {/* Phone frame — the real portal in an iframe, sized like a handset. */}
+          {/* Phone frame — the real portal in an iframe, sized like a handset.
+              When immersed the SAME wrapper becomes fixed/fullscreen (the FLIP
+              above grows it into place); the bezel and notch fall away. */}
           {activeClient && (
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <div
-                style={{
-                  position: "relative",
-                  width: 390,
-                  maxWidth: "100%",
-                  padding: 12,
-                  borderRadius: 52,
-                  background: "linear-gradient(160deg, #16171b, #050506)",
-                  boxShadow: "0 28px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
-                }}
-              >
-                <div
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: 20,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 128,
-                    height: 26,
-                    borderRadius: 999,
-                    background: "#050506",
-                    zIndex: 3,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "relative",
-                    borderRadius: 40,
-                    overflow: "hidden",
-                    background: "#f6f8fc",
-                    height: "min(78vh, 812px)",
-                  }}
-                >
-                  {!loaded && (
-                    <div
-                      aria-hidden
-                      style={{ position: "absolute", inset: 0, zIndex: 2, display: "grid", placeItems: "center", background: "#f6f8fc" }}
-                    >
-                      <div
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: "50%",
-                          border: "3px solid rgba(15,23,42,0.14)",
-                          borderTopColor: "rgba(15,23,42,0.45)",
-                          animation: reduced ? "none" : "cpp-spin 0.8s linear infinite",
-                        }}
-                      />
-                    </div>
-                  )}
-                  <iframe
-                    key={activeClient.token}
-                    src={`/portal/${activeClient.token}`}
-                    title={`Client portal preview for ${activeClient.name}`}
-                    onLoad={() => setLoaded(true)}
-                    style={{ display: "block", width: "100%", height: "100%", border: 0 }}
+            <>
+              {/* Backdrop + exit live OUTSIDE the frame so the FLIP transform
+                  never scales them. Tapping either leaves full screen. */}
+              {immersed && (
+                <>
+                  <div
+                    aria-hidden
+                    onClick={exitImmerse}
+                    style={{
+                      position: "fixed",
+                      inset: 0,
+                      background: "rgba(5,6,8,0.62)",
+                      zIndex: 2147482999,
+                      animation: reduced ? "none" : "cpp-backdrop-in 320ms ease",
+                    }}
                   />
+                  <button
+                    type="button"
+                    onClick={exitImmerse}
+                    aria-label="Exit full screen"
+                    style={{
+                      position: "fixed",
+                      top: "max(14px, env(safe-area-inset-top, 14px))",
+                      right: "max(14px, env(safe-area-inset-right, 14px))",
+                      zIndex: 2147483001,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      border: "none",
+                      background: "rgba(10,12,16,0.60)",
+                      color: "#fff",
+                      display: "grid",
+                      placeItems: "center",
+                      cursor: "pointer",
+                      WebkitBackdropFilter: "blur(6px)",
+                      backdropFilter: "blur(6px)",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.32)",
+                      animation: reduced ? "none" : "cpp-backdrop-in 360ms ease",
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </>
+              )}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div
+                  ref={frameRef}
+                  style={
+                    immersed
+                      ? {
+                          position: "fixed",
+                          inset: 0,
+                          width: "100vw",
+                          height: "100dvh",
+                          maxWidth: "none",
+                          padding: 0,
+                          borderRadius: 0,
+                          background: "#f6f8fc",
+                          boxShadow: "none",
+                          zIndex: 2147483000,
+                        }
+                      : {
+                          position: "relative",
+                          width: 390,
+                          maxWidth: "100%",
+                          padding: 12,
+                          borderRadius: 52,
+                          background: "linear-gradient(160deg, #16171b, #050506)",
+                          boxShadow: "0 28px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
+                        }
+                  }
+                >
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: 20,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 128,
+                      height: 26,
+                      borderRadius: 999,
+                      background: "#050506",
+                      zIndex: 3,
+                      display: immersed ? "none" : "block",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      borderRadius: immersed ? 0 : 40,
+                      overflow: "hidden",
+                      background: "#f6f8fc",
+                      height: immersed ? "100%" : "min(78vh, 812px)",
+                    }}
+                  >
+                    {!loaded && (
+                      <div
+                        aria-hidden
+                        style={{ position: "absolute", inset: 0, zIndex: 2, display: "grid", placeItems: "center", background: "#f6f8fc" }}
+                      >
+                        <div
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: "50%",
+                            border: "3px solid rgba(15,23,42,0.14)",
+                            borderTopColor: "rgba(15,23,42,0.45)",
+                            animation: reduced ? "none" : "cpp-spin 0.8s linear infinite",
+                          }}
+                        />
+                      </div>
+                    )}
+                    <iframe
+                      key={activeClient.token}
+                      src={`/portal/${activeClient.token}`}
+                      title={`Client portal preview for ${activeClient.name}`}
+                      onLoad={() => setLoaded(true)}
+                      style={{ display: "block", width: "100%", height: "100%", border: 0 }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -267,9 +442,14 @@ export function ClientPortalPreview({
       <style>{`
         @keyframes cpp-spin { to { transform: rotate(360deg); } }
         @keyframes cpp-dd-in { 0% { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.97); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+        @keyframes cpp-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
         .cpp-dd-item { transition: background-color 130ms ease; }
         .cpp-dd-item:hover { background-color: var(--agent-hover-tint, rgba(255,255,255,0.65)); }
         .cpp-dd-trigger:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
+        .cpp-immerse-btn { transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+        .cpp-immerse-btn:hover { background-color: var(--agent-hover-tint, rgba(255,255,255,0.65)); box-shadow: 0 2px 6px rgba(15,23,42,0.14); }
+        .cpp-immerse-btn:active { transform: scale(0.97); }
+        .cpp-immerse-btn:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
         @media (prefers-reduced-motion: reduce) {
           .cpp-dd-menu { animation: none !important; }
         }
@@ -286,17 +466,21 @@ function ClientSwitcherDropdown({
   active,
   onSelect,
   reduced,
+  embedded = false,
 }: {
   clients: PortalPreviewClient[];
   active: number;
   onSelect: (i: number) => void;
   reduced: boolean;
+  // In the switcher row the parent flex handles centring + spacing, so drop the
+  // standalone auto-margin. Defaults off so any other caller keeps the old look.
+  embedded?: boolean;
 }) {
   const current = clients[active];
   if (!current) return null;
 
   return (
-    <div style={{ width: "fit-content", margin: "0 auto 16px" }}>
+    <div style={{ width: "fit-content", margin: embedded ? 0 : "0 auto 16px" }}>
       <Popover
         preset="menu"
         placement="bottom-start"
