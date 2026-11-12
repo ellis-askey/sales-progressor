@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { recordEvent } from "@/lib/command/events/write";
 import { createTransaction, checkOutsourcedHandoverReadiness, handoverReadinessMessage, buildChaseRuleSnapshot } from "@/lib/services/transactions";
 import { wouldMixOutsourcing, alertOutsourcingMix, type OutsourcingKind } from "@/lib/progression/outsourcing-mix";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { resolveBusinessOwner, resolveBusinessMember, getInvitingProgressor, getProgressorsForAgency } from "@/lib/services/progression-clients";
 import { parseFeeModel } from "@/lib/progression/client-fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
@@ -299,6 +299,27 @@ export async function createTransactionAction(input: {
       // Single (or zero) progressor — unchanged behaviour (the primary, or null).
       invitingProgressorBusinessId = progressors[0]?.businessId ?? null;
     }
+  }
+
+  // Outsourced-sunset master switch. A new agent->TSP sale is the ONLY path this
+  // gate closes: an agency agent (isAgent) sending a new file to be progressed
+  // (progressedBy=progressor) with no external progressor resolved (clientCreate and
+  // invitingProgressorBusinessId both absent → the destination is TSP, a null
+  // progressionBusinessId). Routing to an EXTERNAL progression business stays open
+  // (that's the kept/grown model); admin migration imports are exempt. This is the
+  // server backstop — the new-sale form hides the "Send to us" option when the switch
+  // is off, so this only catches a crafted or page-was-open-before-the-flip submit.
+  if (
+    isAgent &&
+    resolvedProgressedBy === "progressor" &&
+    !clientCreate &&
+    !invitingProgressorBusinessId &&
+    !hasMigrationOverride &&
+    !outsourcedIntakeEnabled()
+  ) {
+    throw new Error(
+      "Sending a sale to our team to progress is no longer available. You can progress it yourself, and we'll be introducing a way to hand files to a progression partner soon.",
+    );
   }
 
   // Universal solicitor invariant (founder decision 2026-09-18): a firm may
@@ -2015,6 +2036,20 @@ export async function switchServiceTypeAction(
       handoverBusinessId = progressors[0]?.businessId ?? null;
     }
     handoverAgencyId = session.user.agencyId;
+  }
+
+  // Outsourced-sunset master switch. A director handing a file to TSP's own team
+  // (isAgentHandover with no external progressor resolved → handoverBusinessId null
+  // → TSP) is closed when the switch is off. Handing to an EXTERNAL progressor
+  // (handoverBusinessId set) stays open, and admin servicing switches
+  // (isAdmin → not isAgentHandover) are unaffected. The file-page pill is hidden when
+  // off; this is the server backstop for a crafted/stale request.
+  if (isAgentHandover && target === "outsourced" && !handoverBusinessId && !outsourcedIntakeEnabled()) {
+    return {
+      ok: false,
+      error:
+        "Handing a sale to our team to progress is no longer available. We'll be introducing a way to hand files to a progression partner soon.",
+    };
   }
 
   // The progressor must have a rate card for this agency before taking a handed-over
