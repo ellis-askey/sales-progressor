@@ -686,6 +686,17 @@ export async function getChaseTimeline(
       .filter((s): s is NextSend => s != null)
       .filter((s) => !(anyLaneStillAuto && s.handedToTeam));
 
+    // Row date = the SOONEST upcoming chase across BOTH lanes (solicitor +
+    // client), so the list's little date matches the "Up next" panel. Previously
+    // this used only the client log's nextDueDate and hid an earlier solicitor
+    // chase: a management-pack step showed the client date (3 Dec) while the
+    // solicitor nudge was actually due sooner (26 Nov). ISO strings sort
+    // chronologically. (critique #300)
+    const soonestSendAt = nextSends
+      .map((s) => s.dueAt)
+      .filter((d): d is string => !!d)
+      .sort()[0] ?? null;
+
     return {
       id: log.id,
       title: stripChase(rule.name),
@@ -698,7 +709,7 @@ export async function getChaseTimeline(
       manualChases,
       totalChases,
       lastChasedAt: task?.lastChasedAt?.toISOString() ?? null,
-      nextDueAt: log.status === "active" ? (laterDate(log.nextDueDate, clientHold) as Date).toISOString() : null,
+      nextDueAt: soonestSendAt ?? (log.status === "active" ? (laterDate(log.nextDueDate, clientHold) as Date).toISOString() : null),
       nextIsAutomated,
       escalatesAfter: rule.escalateAfterChases,
       escalated,
