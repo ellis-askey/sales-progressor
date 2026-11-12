@@ -22,6 +22,7 @@ const STAGE_CODES = [
   "VM7", "PM7",   // draft pack
   "PM8", "PM13",  // searches
   "PM14", "PM20", // enquiries
+  "PM22", "VM17", "PM23", // contracts (buyer's contracts issued -> both sides signed)
   "VM18", "PM25", "VM19", // exchange
   "VM20",         // completion
 ] as const;

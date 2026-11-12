@@ -37,7 +37,7 @@ function exchangeDateOf(r: PipelineRow): Date | null {
 // when it's past the middle of the journey (enquiries onward) AND not high-risk;
 // AT-RISK (shaky) when it's early-stage or flagged. Stage comes from the same
 // engine the board uses (decorated onto the row as boardStage).
-const ADVANCED = new Set<DisplayStageKey>(["enquiries", "exchange", "completion"]);
+const ADVANCED = new Set<DisplayStageKey>(["enquiries", "contracts", "exchange", "completion"]);
 function isLikely(r: PipelineRow): boolean {
   const advanced = r.boardStage ? ADVANCED.has(r.boardStage) : false;
   return advanced && riskLevelForRow(r) !== "high";

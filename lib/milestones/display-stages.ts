@@ -30,6 +30,11 @@
 //   - Enquiries   = begins when initial enquiries are raised (PM14),
 //                   done when the buyer's solicitor confirms ALL
 //                   enquiries satisfied (PM20, covers follow-up rounds).
+//   - Contracts   = begins when the buyer's solicitor issues contracts to the
+//                   buyer (PM22) — buyer-driven on purpose, so a seller signing
+//                   early (VM16/VM17) doesn't start it. Done when both sides have
+//                   signed and returned their contracts (VM17 / PM23). The deposit
+//                   (PM24) is not a stage gate — see the def below.
 //   - Exchange    = begins when either solicitor confirms readiness
 //                   (VM18 / PM25), done on exchange (VM19).
 //   - Completion  = the completion event itself (VM20).
@@ -43,7 +48,7 @@
 // Component fails at render (2026-07-03 outage). The client-side strip
 // looks up the icon from its own map keyed by DisplayStageKey.
 
-export type DisplayStageKey = "instructed" | "draft_pack" | "finances" | "searches" | "enquiries" | "exchange" | "completion";
+export type DisplayStageKey = "instructed" | "draft_pack" | "finances" | "searches" | "enquiries" | "contracts" | "exchange" | "completion";
 
 // Funding route for the Finances stage. A mortgage file tracks it through the
 // engine (PM5 -> PM11); both cash routes have no mortgage steps and show the
@@ -68,6 +73,17 @@ export const DISPLAY_STAGES: DisplayStageDef[] = [
   { key: "finances",   name: "Finances",   entryCodes: ["PM5"],          exitCodes: ["PM11"] },
   { key: "searches",   name: "Searches",   entryCodes: ["PM8"],          exitCodes: ["PM13"] },
   { key: "enquiries",  name: "Enquiries",  entryCodes: ["PM14"],         exitCodes: ["PM20"] },
+  // Contracts — the signing phase that sits between enquiries and exchange.
+  // ENTRY is buyer-driven (PM22, buyer's solicitor issues contracts to the buyer)
+  // and deliberately NOT the seller codes: a seller's solicitor sometimes issues
+  // (VM16) and the seller signs (VM17) very early, which must NOT light the stage
+  // — contracts only genuinely start once the buyer's are issued, after enquiries
+  // are satisfied (founder, 2026-11-11). EXIT is both sides signed and returned
+  // (VM17 / PM23). The deposit (PM24) is intentionally NOT a stage exit: it's
+  // not-required on cash-from-proceeds, and gating on it would make those files
+  // read "skipped" rather than complete — it stays a Steps-tab step in the
+  // exchange run-up.
+  { key: "contracts",  name: "Contracts",  entryCodes: ["PM22"],         exitCodes: ["VM17", "PM23"] },
   { key: "exchange",   name: "Exchange",   entryCodes: ["VM18", "PM25"], exitCodes: ["VM19"] },
   { key: "completion", name: "Completion", entryCodes: ["VM20"],         exitCodes: ["VM20"] },
 ];

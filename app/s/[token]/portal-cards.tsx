@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, House, FileText, Coins, MagnifyingGlass, ChatText, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { Check, House, FileText, Coins, MagnifyingGlass, ChatText, NotePencil, ArrowsLeftRight, Key, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import type { ResolvedStage, DisplayStageKey } from "@/lib/milestones/display-stages";
 import { PortalGlassCard } from "@/components/portal/PortalGlassCard";
 import { ProgressStripScroller } from "./ProgressStripScroller";
@@ -71,6 +71,7 @@ const STAGE_ICON: Record<DisplayStageKey, React.ReactNode> = {
   finances: <Coins size={15} weight="regular" />,
   searches: <MagnifyingGlass size={15} weight="regular" />,
   enquiries: <ChatText size={15} weight="regular" />,
+  contracts: <NotePencil size={15} weight="regular" />,
   exchange: <ArrowsLeftRight size={15} weight="regular" />,
   completion: <Key size={15} weight="regular" />,
 };

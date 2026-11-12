@@ -355,6 +355,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const enquiriesDone  = isMilestoneCompleteByCode("PM20");
   const exchangeDone   = isMilestoneCompleteByCode(side === "vendor" ? "VM19" : "PM26");
   const completionDone = isMilestoneCompleteByCode(side === "vendor" ? "VM20" : "PM27");
+  // Contracts phase (buyer-driven, sits after enquiries): "started" only once the
+  // buyer's solicitor issues contracts to the buyer (PM22) — a seller's solicitor
+  // sometimes issues + the seller signs very early (VM16/VM17), which must NOT
+  // read as "at contract stage". Done when both sides have signed and returned
+  // (VM17/PM23). The deposit (PM24) isn't a gate here, matching display-stages.
+  const contractsIssued = isMilestoneCompleteByCode("PM22");
+  const contractsDone =
+    isMilestoneCompleteByCode("VM17") && isMilestoneCompleteByCode("PM23");
 
   // First non-complete tile → active. Others → pending (or complete).
   // Stage config. Pills are the short right-side label; descriptions
@@ -477,6 +485,31 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
         "Your enquiries were answered",
       ),
       completeDate: dateForCode("PM20"),
+    },
+    {
+      key: "contracts",
+      label: "Contracts",
+      complete: contractsDone,
+      // Don't-mislead: "In progress" only once the buyer's contracts are actually
+      // issued (PM22). Until then it reads "Not started" even when it's the active
+      // tile — a seller signing early must never surface as "at contract stage".
+      activeText: contractsIssued ? "In progress" : "Not started",
+      pendingText: "Pending",
+      completeText: "Completed",
+      // Buyer's solicitor issues contracts after enquiries settle; both sides then
+      // sign and return (the buyer also transfers the deposit).
+      descPending: "Contracts will be issued to sign once enquiries are settled",
+      descActive: contractsIssued
+        ? pick(
+            "Your contract is ready to sign and return",
+            "Your contract is ready to sign and return, and your deposit to transfer",
+          )
+        : "Your solicitor is preparing your contract to sign",
+      descComplete: pick(
+        "You signed and returned your contract",
+        "Your contract is signed and your deposit is in",
+      ),
+      completeDate: dateForCode(side === "vendor" ? "VM17" : "PM23"),
     },
     {
       key: "exchange",

@@ -47,6 +47,7 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
       finances: "pending",
       searches: "pending",
       enquiries: "pending",
+      contracts: "pending",
       exchange: "pending",
       completion: "pending",
     });
@@ -94,8 +95,11 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
   });
 
   test("readiness confirmed: Exchange shows in progress; exchanged: complete", () => {
-    const base = ["VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20"];
+    // base carries the file through contracts (PM22 issued, both sides signed)
+    // so the Contracts stage is complete and Exchange is the live frontier.
+    const base = ["VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20", "PM22", "VM17", "PM23"];
     const ready = statusMap(resolveDisplayStages(rows(...base, "VM18"), NO_FORECAST));
+    expect(ready.contracts).toBe("complete");
     expect(ready.exchange).toBe("in_progress");
 
     const exchanged = statusMap(resolveDisplayStages(rows(...base, "VM18", "VM19"), NO_FORECAST));
@@ -106,7 +110,7 @@ describe("resolveDisplayStages — entry/exit honesty model", () => {
   test("everything done: all complete, nothing active or up next", () => {
     const s = statusMap(
       resolveDisplayStages(
-        rows("VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20", "VM18", "VM19", "VM20"),
+        rows("VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20", "PM22", "VM17", "PM23", "VM18", "VM19", "VM20"),
         NO_FORECAST,
       ),
     );
@@ -180,6 +184,39 @@ describe("resolveDisplayStages — skipped (not_required) stages", () => {
       NO_FORECAST,
     );
     expect(stages.find((s) => s.key === "searches")?.status).not.toBe("up_next");
+  });
+});
+
+// Contracts (2026-11-11) — buyer-driven stage between enquiries and exchange.
+// Begins only when the buyer's solicitor issues contracts (PM22), so a seller
+// signing their own copy early (VM16/VM17) must NOT start it. Done when both
+// sides have signed and returned (VM17/PM23); the deposit is not a stage gate.
+describe("resolveDisplayStages — Contracts stage", () => {
+  const throughEnquiries = ["VM1", "PM1", "VM7", "PM7", "PM5", "PM11", "PM8", "PM13", "PM14", "PM20"];
+
+  test("enquiries done, nothing else: Contracts up next, Exchange pending", () => {
+    const s = statusMap(resolveDisplayStages(rows(...throughEnquiries), NO_FORECAST));
+    expect(s.enquiries).toBe("complete");
+    expect(s.contracts).toBe("up_next");
+    expect(s.exchange).toBe("pending");
+  });
+
+  test("seller signs early (VM17) but buyer's contracts not issued: Contracts NOT in progress", () => {
+    const s = statusMap(resolveDisplayStages(rows(...throughEnquiries, "VM17"), NO_FORECAST));
+    expect(s.contracts).not.toBe("in_progress");
+    expect(s.contracts).toBe("up_next");
+  });
+
+  test("buyer's contracts issued (PM22): Contracts in progress", () => {
+    const s = statusMap(resolveDisplayStages(rows(...throughEnquiries, "PM22"), NO_FORECAST));
+    expect(s.contracts).toBe("in_progress");
+    expect(s.exchange).toBe("pending");
+  });
+
+  test("both sides signed (VM17/PM23): Contracts complete, Exchange up next", () => {
+    const s = statusMap(resolveDisplayStages(rows(...throughEnquiries, "PM22", "VM17", "PM23"), NO_FORECAST));
+    expect(s.contracts).toBe("complete");
+    expect(s.exchange).toBe("up_next");
   });
 });
 

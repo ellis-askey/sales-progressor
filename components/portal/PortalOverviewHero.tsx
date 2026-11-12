@@ -115,7 +115,7 @@ function formatStatus(s: string): { label: string; tone: PortalPillTone } {
 
 // Small circular progress ring for the hero. SVG stroke-dasharray trick.
 // 96px outer diameter to match the mock's proportion.
-function HeroRing({ percent, stepNumber, showNumber = true }: { percent: number; stepNumber: number; showNumber?: boolean }) {
+function HeroRing({ percent, stepNumber, stepTotal, showNumber = true }: { percent: number; stepNumber: number; stepTotal: number; showNumber?: boolean }) {
   const size = 96;
   const stroke = 6;
   const r = (size - stroke) / 2;
@@ -156,7 +156,7 @@ function HeroRing({ percent, stepNumber, showNumber = true }: { percent: number;
           color: P.textPrimary,
         }}>
           <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: P.textPrimary, textShadow: "0 1px 4px rgba(255,255,255,0.75)" }}>{stepNumber}</span>
-          <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500, textShadow: "0 1px 3px rgba(255,255,255,0.75)" }}>of 6</span>
+          <span style={{ fontSize: 10, color: P.textSecondary, marginTop: 2, fontWeight: 500, textShadow: "0 1px 3px rgba(255,255,255,0.75)" }}>of {stepTotal}</span>
         </div>
       )}
     </div>
@@ -569,7 +569,7 @@ export function PortalOverviewHero({
             gap: 10,
             flexShrink: 0,
           }}>
-            <HeroRing percent={percent} stepNumber={currentStepNumber} showNumber={showProgressNumber} />
+            <HeroRing percent={percent} stepNumber={currentStepNumber} stepTotal={tiles.length} showNumber={showProgressNumber} />
             <div style={{ textAlign: "center" }}>
               <p style={{
                 margin: 0,

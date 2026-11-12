@@ -102,6 +102,10 @@ const NEXT_PHRASE: Record<DisplayStageKey, string> = {
   finances: "waiting on the mortgage offer",
   searches: "waiting on search results",
   enquiries: "working through enquiries",
+  // contracts/exchange/completion are past the chain-share keep-out (GATING_ORDER
+  // caps at enquiries), so these phrases aren't surfaced — the Next-up line says
+  // "ready to exchange" once enquiries are through. Kept for type completeness.
+  contracts: "ready to exchange",
   exchange: "ready to exchange",
   completion: "ready to exchange",
 };
