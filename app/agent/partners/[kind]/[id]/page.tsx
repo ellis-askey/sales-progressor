@@ -17,7 +17,7 @@ import {
   getBrokerReferralStats,
   getBrokerReferralStatsForScope,
 } from "@/lib/services/analytics";
-import { CaretLeft, ArrowSquareOut, Bank } from "@/components/icons/ph-ssr";
+import { CaretLeft, ArrowSquareOut, Bank } from "@phosphor-icons/react/dist/ssr";
 
 type FileRow = { id: string; propertyAddress: string; status: string; role?: "vendor" | "purchaser" | "both"; isReferral: boolean; createdAt: Date };
 
