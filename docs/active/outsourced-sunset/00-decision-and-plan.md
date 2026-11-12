@@ -190,6 +190,21 @@ every decision below as it's made.
   (the £59/£39/£5 business seat model already exists and is LIVE). Three decisions
   pushed to the founder before Week 2 (see `01-audit-inventory.md` §★): scope of the
   £50 fee; whether external businesses/trials are in-scope; broker-fallback timing.
+- 2026-11-12 — **Week 2 built (staging, not pushed): intake gate + flat-£50 billing,
+  both behind one switch `OUTSOURCED_INTAKE_ENABLED` (defaults ON → byte-identical to
+  today).** Intake gate: server (`createTransactionAction`, `switchServiceTypeAction`)
+  + UI hide (new-sale toggle, file-page "Switch to TSP" pill). Billing: new pricing
+  version `2027-01_flat_fifty`, stamped on new sales only when the switch is off;
+  `computeFee` returns a flat £50 for those; the exchange trigger bills a flat-fifty
+  self-managed file; `freeReason` no longer stamps `permanent_free_self` under the new
+  model. Readers threaded: accrual, running total, reversal, lifetime. **One flip =
+  intake closed + £50 pricing live, nothing retroactive.** Commits 8a483c21, aea5bc0b,
+  d61db1b0 (+ docs 6b0771de). **Billing follow-ups (next):** CC revenue forecasting
+  (`lib/command/revenue.ts` — 4 sites still value flat-fifty at £0), `retention.ts`
+  free-value, and the agent-facing earnings/plan-terms presentation (`EarningsBuilder`,
+  `PlanTermsCollapsed`, `MetricsStrip`, billing page) + the per-sale "mark free" CC
+  control. NOTE: £50 pricing is tied to the SAME switch as intake (the New-Year flip),
+  per founder "built behind the switch exactly like this".
 - 2026-11-12 — **Three decisions resolved (founder):**
   (1) **£50/exchange is flat and universal** — every agent exchange, no bands, no auto-
   free. Old £250–£350 gated off (not deleted); existing outsourced tail bills at current
