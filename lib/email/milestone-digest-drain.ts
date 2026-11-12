@@ -133,6 +133,11 @@ export function decideSendForGroup<T extends { payload: unknown }>(
 
 export async function drainMilestoneDigests(): Promise<DrainResult> {
   const now = new Date();
+  // Bank-holiday / Christmas close-down handling is done at ENQUEUE time: the
+  // row's scheduledFor is rolled past those days (see sendRichMilestoneEmails in
+  // lib/services/portal.ts), so nothing is ever due here on a closed day. The
+  // drain is deliberately NOT gated — gating it would hold rows whose age-out
+  // clock then dead-letters them when the drain resumes. Weekends still send.
   const due = await prisma.outboundEmailQueue.findMany({
     where: {
       emailType: "MILESTONE_CONFIRMATION",

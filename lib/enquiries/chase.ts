@@ -25,7 +25,7 @@ import { solicitorCcForAgency } from "@/lib/services/solicitor-cc";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
-import { addWorkingDays } from "@/lib/emails/working-hours";
+import { addWorkingDays, isHolidayOrClosureDay } from "@/lib/emails/working-hours";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { buildEnquiryChaseEmail } from "./chase-email";
@@ -108,7 +108,7 @@ export async function runEnquiryChaseCron(now: Date): Promise<{
   if (!(await isChaseEnabled())) return { enabled: false, considered: 0, sent: 0, escalated: 0 };
   // Solicitors don't work weekends; the cron schedule is 1-5 but this covers
   // manual / ad-hoc triggers too.
-  if (!isWeekdayLondon(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
+  if (!isWeekdayLondon(now) || isHolidayOrClosureDay(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
 
   const trackers = await prisma.enquiryTracker.findMany({
     // Only chase live files. A withdrawn / on-hold / completed sale keeps its

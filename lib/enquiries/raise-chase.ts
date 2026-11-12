@@ -22,6 +22,7 @@ import { resolveEmailTheme, type EmailThemeInput } from "@/lib/email/brand-theme
 import { signSolicitorToken } from "@/lib/solicitor-confirm/token";
 import { loadBusinessChaseGate, businessChaseAllows } from "@/lib/services/progressor-chase-prefs";
 import { isChaseEnabled, isWeekdayLondon, baseUrl } from "./chase";
+import { isHolidayOrClosureDay } from "@/lib/emails/working-hours";
 import { raiseChaseDecision } from "./raise-chase-decision";
 import { buildRaiseBuyerEmail, buildRaiseSolicitorEmail } from "./raise-chase-email";
 import { logChaseSend, logEnquiryChaseComm } from "./chase-log";
@@ -40,7 +41,7 @@ export async function runRaiseChaseCron(now: Date): Promise<{
   skippedWeekend?: boolean;
 }> {
   if (!(await isChaseEnabled())) return { enabled: false, considered: 0, sent: 0, escalated: 0 };
-  if (!isWeekdayLondon(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
+  if (!isWeekdayLondon(now) || isHolidayOrClosureDay(now)) return { enabled: true, considered: 0, sent: 0, escalated: 0, skippedWeekend: true };
 
   const chases = await prisma.enquiryRaiseChase.findMany({
     // Live files only. A withdrawn / on-hold / completed sale keeps no live

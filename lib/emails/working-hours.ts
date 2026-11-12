@@ -13,45 +13,16 @@
 //   - Otherwise → return the start of the next working day at 09:00 London
 //     (handles BST/GMT transitions correctly via Intl.DateTimeFormat).
 //
-// Bank holidays are maintained as a static list of YYYY-MM-DD strings.
-// The list MUST be kept current; mid-year, the gov.uk feed at
-// https://www.gov.uk/bank-holidays.json is authoritative. We do not pull
-// the feed at runtime — that adds an outbound dependency to the scheduling
-// path and a stale-cache failure mode that's hard to detect. Annual manual
-// refresh is cheap and explicit.
-
-// England & Wales bank holidays — current + next two years.
-// Source: https://www.gov.uk/bank-holidays.json (england-and-wales division).
-// Add new years as they're announced; remove past years opportunistically.
-const BANK_HOLIDAYS: ReadonlySet<string> = new Set([
-  // 2026
-  "2026-01-01", // New Year's Day
-  "2026-04-03", // Good Friday
-  "2026-04-06", // Easter Monday
-  "2026-05-04", // Early May bank holiday
-  "2026-05-25", // Spring bank holiday
-  "2026-08-31", // Summer bank holiday
-  "2026-12-25", // Christmas Day
-  "2026-12-28", // Boxing Day (substitute — 26th is a Saturday)
-  // 2027
-  "2027-01-01", // New Year's Day
-  "2027-03-26", // Good Friday
-  "2027-03-29", // Easter Monday
-  "2027-05-03", // Early May bank holiday
-  "2027-05-31", // Spring bank holiday
-  "2027-08-30", // Summer bank holiday
-  "2027-12-27", // Christmas Day (substitute — 25th is a Saturday)
-  "2027-12-28", // Boxing Day (substitute — 26th is a Sunday)
-  // 2028
-  "2028-01-03", // New Year's Day (substitute — 1st is a Saturday)
-  "2028-04-14", // Good Friday
-  "2028-04-17", // Easter Monday
-  "2028-05-01", // Early May bank holiday
-  "2028-05-29", // Spring bank holiday
-  "2028-08-28", // Summer bank holiday
-  "2028-12-25", // Christmas Day
-  "2028-12-26", // Boxing Day
-]);
+// Bank holidays AND closure windows (the Christmas shutdown) now live in one
+// shared place — lib/dates/closed-days.ts — so this module, the send window,
+// the fee/prediction dates and the direct senders all agree on which days the
+// office is closed. A working day here is Mon–Fri, not a bank holiday, and not
+// inside a closure window.
+import {
+  BANK_HOLIDAYS_ENG_WALES,
+  isHolidayOrClosureKey,
+  isClosureKey,
+} from "@/lib/dates/closed-days";
 
 const WORKING_HOURS_OPEN  = 9;   // 09:00 London
 const WORKING_HOURS_CLOSE = 17;  // 17:00 London
@@ -91,12 +62,27 @@ function londonDateKey(d: Date): string {
   }).format(d);
 }
 
-// A "working day" = Monday–Friday AND not on the bank-holiday list.
-function isWorkingDay(d: Date): boolean {
+// A "working day" = Monday–Friday AND not a bank holiday AND not inside a
+// closure window (the Christmas shutdown). London calendar throughout.
+export function isWorkingDay(d: Date): boolean {
   const { weekday } = londonParts(d);
   if (weekday === 0 || weekday === 6) return false; // Sun/Sat
-  if (BANK_HOLIDAYS.has(londonDateKey(d))) return false;
+  if (isHolidayOrClosureKey(londonDateKey(d))) return false;
   return true;
+}
+
+// True when `d` falls inside a closure window (the Christmas shutdown), judged
+// on the London calendar. Used by senders that normally run on days a plain
+// working-day check would allow (e.g. the Saturday weekly update) but must
+// still fall silent over the shutdown.
+export function isClosureDay(d: Date = new Date()): boolean {
+  return isClosureKey(londonDateKey(d));
+}
+
+// True when `d` is a bank holiday OR inside a closure window (not weekends).
+// Used by the 24/7 senders that should also respect bank holidays.
+export function isHolidayOrClosureDay(d: Date = new Date()): boolean {
+  return isHolidayOrClosureKey(londonDateKey(d));
 }
 
 // London Mon–Fri check (weekday only). Matches the chase crons' Vercel
@@ -149,7 +135,7 @@ function londonHourAsUTC(year: number, month: number, day: number, londonHour: n
 // guards against a malformed BANK_HOLIDAYS table swallowing every day).
 function nextWorkingDayAt9am(from: Date): Date {
   let cursor = new Date(from.getTime());
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 20; i++) {
     cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
     if (isWorkingDay(cursor)) {
       const { year, month, day } = londonParts(cursor);
@@ -215,7 +201,23 @@ export function workingDaysBetween(from: Date, to: Date): number {
  */
 export function rollToWorkingDay(d: Date): Date {
   let cursor = new Date(d);
-  for (let i = 0; i < 14 && !isWorkingDay(cursor); i++) {
+  for (let i = 0; i < 20 && !isWorkingDay(cursor); i++) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return cursor;
+}
+
+/**
+ * Rolls a date forward past bank holidays and closure windows ONLY — weekends
+ * are deliberately left intact, preserving the time of day. For the 24/7
+ * transactional sends (milestone confirmations) that SHOULD still reach a client
+ * on a weekend (they react to the client's own action) but must not land on a
+ * bank holiday or over the Christmas close-down. Rolling the stored send date
+ * (rather than gating the drain) keeps the queue's retry age-out clock correct.
+ */
+export function rollPastHolidayOrClosure(d: Date): Date {
+  let cursor = new Date(d);
+  for (let i = 0; i < 20 && isHolidayOrClosureKey(londonDateKey(cursor)); i++) {
     cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
   }
   return cursor;
@@ -258,5 +260,5 @@ export const __test__ = {
   isWorkingDay,
   londonDateKey,
   nextWorkingDayAt9am,
-  BANK_HOLIDAYS,
+  BANK_HOLIDAYS: BANK_HOLIDAYS_ENG_WALES,
 };

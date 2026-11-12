@@ -9,6 +9,7 @@ import { sendChainEmail, sendEmail, isUserEmailSuppressed, isContactEmailSuppres
 import { recordEvent } from "@/lib/command/events/write";
 import { AGENT_COMPOSE_TYPE, type ComposeQueuePayload } from "@/lib/email/compose-queue";
 import { storeOutboundEmailAttachments } from "@/lib/integrations/mail/outbound-attachments";
+import { isHolidayOrClosureKey } from "@/lib/dates/closed-days";
 
 // ─── Business-hours scheduling ─────────────────────────────────────────────────
 
@@ -38,11 +39,25 @@ function getLondonParts(d: Date) {
   };
 }
 
-function nextWeekdayAfter(d: Date): { year: number; month: number; day: number } {
+// London "YYYY-MM-DD" key for the shared closed-day lookup.
+function londonKeyOf(parts: { year: number; month: number; day: number }): string {
+  return `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+// Is the business open on the London day these parts describe — Mon–Fri, not a
+// bank holiday, not inside a closure window (the Christmas shutdown)?
+function isOpenLondonDay(parts: { year: number; month: number; day: number; weekday: string }): boolean {
+  if (["Sat", "Sun"].includes(parts.weekday)) return false;
+  return !isHolidayOrClosureKey(londonKeyOf(parts));
+}
+
+// The next open business day strictly after `d`: skips weekends, bank holidays
+// AND closure windows. Bounded generously to clear the longest shutdown.
+function nextOpenDayAfter(d: Date): { year: number; month: number; day: number } {
   let candidate = new Date(d.getTime() + 24 * 60 * 60 * 1000);
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 20; i++) {
     const parts = getLondonParts(candidate);
-    if (!["Sat", "Sun"].includes(parts.weekday)) {
+    if (isOpenLondonDay(parts)) {
       return { year: parts.year, month: parts.month, day: parts.day };
     }
     candidate = new Date(candidate.getTime() + 24 * 60 * 60 * 1000);
@@ -71,15 +86,15 @@ export function scheduleForBusinessHours(now: Date): Date {
   const OPEN = 8;
   const CLOSE = 19;
   const parts = getLondonParts(now);
-  const isWeekday = !["Sat", "Sun"].includes(parts.weekday);
+  const openToday = isOpenLondonDay(parts); // Mon–Fri, not a bank holiday, not a closure day
 
-  if (isWeekday && parts.hour >= OPEN && parts.hour < CLOSE) return now;
+  if (openToday && parts.hour >= OPEN && parts.hour < CLOSE) return now;
 
   let target: { year: number; month: number; day: number };
-  if (!isWeekday || parts.hour >= CLOSE) {
-    target = nextWeekdayAfter(now);
+  if (!openToday || parts.hour >= CLOSE) {
+    target = nextOpenDayAfter(now);
   } else {
-    // Weekday before OPEN — use today at 08:00
+    // Open day, before 08:00 — use today at 08:00
     target = { year: parts.year, month: parts.month, day: parts.day };
   }
   return getLondon8amUTC(target.year, target.month, target.day);

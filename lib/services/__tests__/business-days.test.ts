@@ -30,11 +30,13 @@ describe("rollToBusinessDay", () => {
   it("Sunday rolls to Monday", () => {
     expect(ymd(rollToBusinessDay(local(2026, 10, 25)))).toBe("2026-10-26");
   });
-  it("a bank holiday rolls past the whole cluster (Christmas 2026 → the 29th)", () => {
-    // 25 Dec (BH Fri) → 26 Sat → 27 Sun → 28 (BH Mon) → 29 Tue.
-    expect(ymd(rollToBusinessDay(local(2026, 12, 25)))).toBe("2026-12-29");
-    // Saturday 26th rolls the same way.
-    expect(ymd(rollToBusinessDay(local(2026, 12, 26)))).toBe("2026-12-29");
+  it("a predicted date rolls past the whole Christmas close-down (2026 → 4 Jan)", () => {
+    // The close-down (23 Dec–3 Jan) now counts as non-working for a date shown
+    // to a client, so a prediction anywhere in the cluster rolls to the first
+    // working day back, Mon 4 Jan. (Before the shutdown rule this stopped at the
+    // 29th; a completion there is impossible, hence the change.)
+    expect(ymd(rollToBusinessDay(local(2026, 12, 25)))).toBe("2027-01-04");
+    expect(ymd(rollToBusinessDay(local(2026, 12, 26)))).toBe("2027-01-04");
   });
   it("substitute-day holidays are respected (3 Jan 2028 New Year sub → 4 Jan)", () => {
     expect(ymd(rollToBusinessDay(local(2028, 1, 1)))).toBe("2028-01-04"); // Sat 1st → Sun → BH Mon 3rd → Tue 4th

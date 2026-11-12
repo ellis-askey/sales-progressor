@@ -13,6 +13,7 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { startExchangeDayAction, cancelExchangeDayAction } from "@/app/actions/exchange-day";
 import { DateField } from "@/components/ui/DateField";
+import { isHolidayOrClosureKey } from "@/lib/dates/closed-days";
 
 function toDateInput(iso: string | null): string {
   return iso ? new Date(iso).toISOString().slice(0, 10) : "";
@@ -62,11 +63,16 @@ export function ExchangeDayControl({
   const [startOpen, setStartOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [lockNoteOpen, setLockNoteOpen] = useState(false);
+  const [closedNoteOpen, setClosedNoteOpen] = useState(false);
   const [date, setDate] = useState(toDateInput(completionDate));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Local "today" (en-CA formats as YYYY-MM-DD) for the min attribute + guard.
   const todayStr = new Date().toLocaleDateString("en-CA");
+  // Exchange day is a TODAY action: it asks both solicitors to exchange now. On
+  // a weekend, bank holiday or over the Christmas close-down there's no one to
+  // complete, so the control is shown but not usable — same treatment as locked.
+  const closedToday = [0, 6].includes(new Date().getDay()) || isHolidayOrClosureKey(todayStr);
 
   async function doStart() {
     if (!date) { setError("Please set the agreed completion date."); return; }
@@ -149,6 +155,35 @@ export function ExchangeDayControl({
               style={{ fontSize: 10.5, lineHeight: 1.4, color: "var(--agent-text-muted)", textAlign: "center", maxWidth: 150 }}
             >
               Opens once enquiries are satisfied.
+            </span>
+          )}
+        </span>
+      ) : closedToday ? (
+        // Non-working day (weekend / bank holiday / Christmas close-down):
+        // desaturated and not usable, with a tap-to-read reason for touch.
+        <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-describedby={closedNoteOpen ? `xd-closed-note-${transactionId}` : undefined}
+            title="Exchange day can only be started on a working day"
+            onClick={() => setClosedNoteOpen((v) => !v)}
+            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              cursor: "not-allowed", opacity: 0.6, filter: "grayscale(0.35)",
+            }}
+          >
+            Start exchange day
+            <Lock size={12} weight="bold" />
+          </button>
+          {closedNoteOpen && (
+            <span
+              id={`xd-closed-note-${transactionId}`}
+              role="status"
+              style={{ fontSize: 10.5, lineHeight: 1.4, color: "var(--agent-text-muted)", textAlign: "center", maxWidth: 170 }}
+            >
+              Not a working day. You can start exchange day again on the next working day.
             </span>
           )}
         </span>

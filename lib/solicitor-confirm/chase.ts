@@ -9,7 +9,7 @@ import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { resolveAgentSignatureForFile } from "@/lib/email/agent-signature-for-file";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
-import { addWorkingDays } from "@/lib/emails/working-hours";
+import { addWorkingDays, isHolidayOrClosureDay } from "@/lib/emails/working-hours";
 import { toUKDateStr } from "@/lib/utils";
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide, solicitorStepLabel, type SolicitorSide } from "./codes";
@@ -761,7 +761,7 @@ export async function runSolicitorChaseCron(now: Date): Promise<{
   // Belt-and-braces day-of-week guard. Vercel cron is already 0 9 * * 1-5
   // but this covers manual / ad-hoc invocations too. Weekend sends to
   // solicitors would look sloppy — solicitors don't work Sat/Sun.
-  if (!isWeekdayLondon(now)) {
+  if (!isWeekdayLondon(now) || isHolidayOrClosureDay(now)) {
     return { enabled: true, groups: 0, sent: 0, escalated: 0, skippedWeekend: true };
   }
 

@@ -4,6 +4,7 @@
 import type { ClientType, Tenure, PurchaseType, FeeVatTreatment } from "@prisma/client";
 import { computeFee } from "@/lib/billing/fee";
 import { pooledCompletionRaw } from "@/lib/milestones/progress-percent";
+import { isBankHolidayKey, isHolidayOrClosureKey } from "@/lib/dates/closed-days";
 
 // ─── VAT helpers ───────────────────────────────────────────────────────────────
 // Income is stated ex VAT: VAT is collected for HMRC, never the agency's income.
@@ -348,24 +349,8 @@ export function computeEffectiveStartDate(
 // England & Wales bank holidays. Exchange/completion cannot happen on these, so
 // a predicted or target date must roll off them just like a weekend.
 //
-// Static list (the source, https://www.gov.uk/bank-holidays.json, needs a live
-// network call we don't want inside a synchronous date helper). Predictions are
-// only ever weeks-to-months out, so a few years ahead is plenty. EXTEND THIS
-// before the last year listed runs out — otherwise late-in-range dates silently
-// stop being holiday-aware (they still roll off weekends). England & Wales only;
-// Scotland / NI differ, and conveyancing here is E&W-dominant.
-const UK_BANK_HOLIDAYS_ENG_WALES = new Set<string>([
-  // 2026
-  "2026-01-01", "2026-04-03", "2026-04-06", "2026-05-04", "2026-05-25",
-  "2026-08-31", "2026-12-25", "2026-12-28",
-  // 2027
-  "2027-01-01", "2027-03-26", "2027-03-29", "2027-05-03", "2027-05-31",
-  "2027-08-30", "2027-12-27", "2027-12-28",
-  // 2028
-  "2028-01-03", "2028-04-14", "2028-04-17", "2028-05-01", "2028-05-29",
-  "2028-08-28", "2028-12-25", "2028-12-26",
-]);
-
+// Bank holidays come from the one shared calendar now (previously a duplicate
+// list here). Local-date keys (these predictions are whole-day, TZ-insensitive).
 function toLocalIsoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -373,10 +358,22 @@ function toLocalIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// Weekend + bank holiday. Used by the file-aging metric (businessDaysSince):
+// aging deliberately keeps counting through a closure, so a file that went quiet
+// before the Christmas break still reads as stale in January.
 function isBusinessDay(d: Date): boolean {
   const day = d.getDay(); // 0 = Sunday, 6 = Saturday (local)
   if (day === 0 || day === 6) return false;
-  return !UK_BANK_HOLIDAYS_ENG_WALES.has(toLocalIsoDate(d));
+  return !isBankHolidayKey(toLocalIsoDate(d));
+}
+
+// Weekend + bank holiday + closure window. Used only for a date we SHOW a client
+// (predicted exchange/completion): it must never land on a day nobody's working,
+// including over the Christmas close-down — a completion there is impossible.
+function isDeliverableBusinessDay(d: Date): boolean {
+  const day = d.getDay();
+  if (day === 0 || day === 6) return false;
+  return !isHolidayOrClosureKey(toLocalIsoDate(d));
 }
 
 // Exchange (and the 12-week target) never falls on a weekend or an England &
@@ -386,7 +383,8 @@ function isBusinessDay(d: Date): boolean {
 // the longest holiday cluster (Christmas/New Year) with room to spare.
 export function rollToBusinessDay(d: Date): Date {
   const x = new Date(d);
-  for (let i = 0; i < 14 && !isBusinessDay(x); i++) {
+  // Bound clears the longest cluster (the ~12-day Christmas close-down) with room.
+  for (let i = 0; i < 20 && !isDeliverableBusinessDay(x); i++) {
     x.setDate(x.getDate() + 1);
   }
   return x;

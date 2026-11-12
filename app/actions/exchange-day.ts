@@ -10,6 +10,7 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { prisma } from "@/lib/prisma";
 import { startExchangeDay, cancelExchangeDay } from "@/lib/services/exchange-day";
 import { toUKDateStr } from "@/lib/utils";
+import { isWorkingDay } from "@/lib/emails/working-hours";
 
 export type ExchangeDayResult = { ok: true } | { ok: false; error: string };
 
@@ -30,6 +31,12 @@ export async function startExchangeDayAction(input: {
 }): Promise<ExchangeDayResult> {
   const { session, ok } = await guard(input.transactionId);
   if (!ok) return { ok: false, error: "File not found or not in your scope." };
+  // Exchange day asks both solicitors to exchange today, so it can only begin on
+  // a working day — not a weekend, bank holiday or over the Christmas close-down.
+  // The button is faded out on those days; this is the defence-in-depth guard.
+  if (!isWorkingDay(new Date())) {
+    return { ok: false, error: "Exchange day can only be started on a working day." };
+  }
   // A completion date in the past is never valid (completion is on/after
   // exchange). Client validates too; this is the defence-in-depth guard.
   if (input.completionDate && toUKDateStr(new Date(input.completionDate)) < toUKDateStr(new Date())) {

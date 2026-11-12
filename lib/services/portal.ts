@@ -46,7 +46,7 @@ import {
   decideCompletionPackTiming,
 } from "@/lib/services/exchange-completion-rules";
 import { extractFirstName, greetingFirstName } from "@/lib/contacts/displayName";
-import { rollToWorkingDay } from "@/lib/emails/working-hours";
+import { rollToWorkingDay, rollPastHolidayOrClosure } from "@/lib/emails/working-hours";
 import { completeMilestone } from "@/lib/services/milestones";
 import { notifyPortalMilestoneConfirmed, notifyOutsourcedMilestoneConfirmed } from "@/lib/services/notifications";
 import { maybeSendBookingDiaryEmail } from "@/lib/services/booking-reminders";
@@ -2794,9 +2794,12 @@ async function sendRichMilestoneEmails(
         recipientEmail: c.email,
         recipientContactId: c.id,
         payload: payload as unknown as Record<string, unknown>,
-        // NOT routed through scheduleForBusinessHours — transactional
-        // client emails fire 24/7 within the batching window.
-        scheduledFor: new Date(Date.now() + delayMs),
+        // NOT routed through scheduleForBusinessHours — transactional client
+        // emails fire 24/7 within the batching window, INCLUDING weekends. But
+        // they must not land on a bank holiday or over the Christmas close-down,
+        // so roll the send date past those days only (weekends stay). Rolling
+        // the date keeps the queue's retry age-out correct across the shutdown.
+        scheduledFor: rollPastHolidayOrClosure(new Date(Date.now() + delayMs)),
       }).catch(() => {});
       // Queue path does NOT write to sideLog. The comms-log entry is
       // written by drainMilestoneDigests at send-time so the activity

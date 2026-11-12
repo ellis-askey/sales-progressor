@@ -10,6 +10,7 @@ import { resolveEmailTheme } from "@/lib/email/brand-theme";
 import { buildGreeting } from "@/lib/portal-copy";
 import { buildClientNarrative } from "@/lib/services/client-narrative";
 import { resolveWeeklyUpdateContent, type WeeklyUpdateContent } from "@/lib/agency-email/templates";
+import { isClosureDay } from "@/lib/emails/working-hours";
 
 function escWeekly(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -28,6 +29,11 @@ function interpWeekly(t: string, vars: { firstName: string; address: string; rol
 }
 
 export async function sendClientWeeklyUpdates(agencyId: string): Promise<number> {
+  // The weekly update is the one send that deliberately runs on a Saturday, so
+  // it can't use the working-day check. But it must still fall silent over the
+  // Christmas close-down — otherwise it would email clients on 26 Dec / 2 Jan.
+  if (isClosureDay(new Date())) return 0;
+
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
 
   // Agency-level opt-out governs the agency's OWN files (self-progressed / TSP).
