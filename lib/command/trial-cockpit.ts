@@ -1050,3 +1050,66 @@ export async function getTrialOverview(agencyId: string, trial: TrialConfig): Pr
     idleFiles,
   };
 }
+
+// ── Chains tab: neighbour-stub contact completeness ──────────────────────────
+// Every unclaimed chain stub (a neighbour property not on the platform) sitting
+// on one of the agency's ACTIVE files' chains, with how complete its contact
+// details are, so TSP can fill the gaps from the Command Centre and help the
+// agency populate their chains. (critique #299)
+export type TrialChainStub = {
+  linkId: string;
+  stubAddress: string | null;
+  agencyName: string | null;
+  agentName: string | null;
+  agentEmail: string | null;
+  agentPhone: string | null;
+  onChainWith: string[]; // the agency's own file addresses on the same chain
+};
+export type TrialChains = {
+  stubs: TrialChainStub[];
+  totalStubs: number;
+  completeStubs: number; // name + email + phone all present
+};
+
+export async function getTrialChains(agencyId: string): Promise<TrialChains> {
+  // The agency's ACTIVE files that sit on a chain.
+  const files = await commandDb.propertyTransaction.findMany({
+    where: { agencyId, status: "active", chainLinkId: { not: null } },
+    select: { propertyAddress: true, chainLink: { select: { chainId: true } } },
+  });
+  const chainToFiles = new Map<string, string[]>();
+  for (const f of files) {
+    const cid = f.chainLink?.chainId;
+    if (!cid) continue;
+    const arr = chainToFiles.get(cid);
+    if (arr) arr.push(f.propertyAddress);
+    else chainToFiles.set(cid, [f.propertyAddress]);
+  }
+  const chainIds = [...chainToFiles.keys()];
+  if (chainIds.length === 0) return { stubs: [], totalStubs: 0, completeStubs: 0 };
+
+  // Unclaimed neighbour stubs on those chains (no on-platform file behind them).
+  const links = await commandDb.chainLink.findMany({
+    where: {
+      chainId: { in: chainIds },
+      transactionId: null,
+      OR: [{ stubPropertyAddress: { not: null } }, { stubAgencyName: { not: null } }],
+    },
+    select: {
+      id: true, chainId: true, stubPropertyAddress: true, stubAgencyName: true,
+      stubAgentName: true, stubAgentEmail: true, stubAgentPhone: true,
+    },
+    orderBy: { stubPropertyAddress: "asc" },
+  });
+  const stubs: TrialChainStub[] = links.map((l) => ({
+    linkId: l.id,
+    stubAddress: l.stubPropertyAddress,
+    agencyName: l.stubAgencyName,
+    agentName: l.stubAgentName,
+    agentEmail: l.stubAgentEmail,
+    agentPhone: l.stubAgentPhone,
+    onChainWith: chainToFiles.get(l.chainId) ?? [],
+  }));
+  const completeStubs = stubs.filter((s) => s.agentName && s.agentEmail && s.agentPhone).length;
+  return { stubs, totalStubs: stubs.length, completeStubs };
+}
