@@ -65,11 +65,11 @@ export async function getLifetimeMetrics(agencyId: string): Promise<LifetimeMetr
       exchangedAt: { not: null },
       OR: [{ freeOnExchange: true }, { firstOutsourcedFree: true }],
     },
-    select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
+    select: { serviceType: true, priceAtExchange: true, purchasePrice: true, pricingVersion: true },
   });
   let savedViaTrialLifetimePence = 0;
   for (const t of trials) {
-    const fee = computeFee(t.serviceType, t.priceAtExchange ?? t.purchasePrice, vat, feeOverride);
+    const fee = computeFee(t.serviceType, t.priceAtExchange ?? t.purchasePrice, vat, feeOverride, t.pricingVersion);
     savedViaTrialLifetimePence += fee.totalPence;
   }
 

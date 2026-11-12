@@ -105,6 +105,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
           serviceTypeAtExchange: true,
           priceAtExchange: true,
           firstOutsourcedFree: true,
+          pricingVersion: true,
         },
       });
       const billedIds = new Set(billedTxns.map((t) => t.id));
@@ -142,7 +143,7 @@ export async function accrueInvoicesForCurrentMonth(now: Date = new Date()): Pro
         // self_managed<->outsourced switch can't wipe/add the fee on this
         // already-exchanged file. Fall back to live type for rows exchanged
         // before the snapshot existed.
-        const fee = computeFee(t.serviceTypeAtExchange ?? t.serviceType, t.priceAtExchange, agencyVat, feeOverride);
+        const fee = computeFee(t.serviceTypeAtExchange ?? t.serviceType, t.priceAtExchange, agencyVat, feeOverride, t.pricingVersion);
         // First outsourced file free (D3/D4): the sale bills its band, but the
         // line nets to £0 with a clear "first file free" label. The band value
         // stays recoverable from freeReason + priceAtExchange for reporting.

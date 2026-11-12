@@ -30,6 +30,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { isTspBusiness } from "@/lib/progression/business";
+import { isFlatFiftyVersion } from "@/lib/billing/pricing-version";
 
 export const EXCHANGE_CODES = new Set(["VM19", "PM26"]);
 
@@ -44,7 +45,7 @@ export async function maybeStampExchange(
 
   const txn = await db.propertyTransaction.findUnique({
     where: { id: transactionId },
-    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true, progressionBusinessId: true, isMigrated: true, businessPerSaleChargedAt: true },
+    select: { freeOnExchange: true, purchasePrice: true, isDemo: true, serviceType: true, agencyId: true, progressionBusinessId: true, isMigrated: true, businessPerSaleChargedAt: true, pricingVersion: true },
   });
   if (!txn) return; // defensive — completeMilestone shouldn't fire on a missing row
 
@@ -101,7 +102,13 @@ export async function maybeStampExchange(
   // 2b. Self-progress is free (2026-08 model). A sale the agency runs itself
   // exchanges but is never billed — decided here by service type, so it holds
   // regardless of the frozen freeOnExchange stamp (which pre-dates this model).
-  if (txn.serviceType === "self_managed") return;
+  //
+  // Outsourced-sunset exception: a flat-fifty file (stamped after the switch
+  // flipped) bills £50 per exchange even when self-managed, so it must NOT take
+  // this free early-return — it falls through to "bill normally" below, where
+  // accrual values it at the flat fee via its pricingVersion. freeOnExchange
+  // (the manual per-sale free grant) is still honoured at step 2 below.
+  if (txn.serviceType === "self_managed" && !isFlatFiftyVersion(txn.pricingVersion)) return;
 
   // 2. Trial files exchange but don't bill
   if (txn.freeOnExchange) return;
@@ -125,7 +132,7 @@ export async function maybeStampExchange(
   //    (they zero the band fee for a flagged file), so no CreditNote is needed
   //    and nothing double-counts. The giveaway's value stays recoverable from
   //    freeReason + priceAtExchange for reporting.
-  if (txn.serviceType === "outsourced") {
+  if (txn.serviceType === "outsourced" && !isFlatFiftyVersion(txn.pricingVersion)) {
     // Legacy fixed-fee agencies are grandfathered OUT of the first-outsourced-
     // free giveaway: their contract charges the fixed fee from their first
     // outsourced sale (matches the legacy Charges/Free-sales override in

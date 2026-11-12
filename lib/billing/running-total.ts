@@ -98,6 +98,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       priceAtExchange: true,
       billedAtExchange: true,
       firstOutsourcedFree: true,
+      pricingVersion: true,
     },
     orderBy: { billedAtExchange: "asc" },
   });
@@ -112,7 +113,7 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
   for (const r of rows) {
     // BILL-001: fee basis frozen at exchange so the running total matches the
     // issued invoice even if the service type is switched post-exchange.
-    const fee = computeFee(r.serviceTypeAtExchange ?? r.serviceType, r.priceAtExchange, vat, feeOverride);
+    const fee = computeFee(r.serviceTypeAtExchange ?? r.serviceType, r.priceAtExchange, vat, feeOverride, r.pricingVersion);
     // First outsourced file free (D3/D4): bills its band but nets to £0 with a
     // clear "first file free" label, matching the durable invoice. Keeps the
     // live director total correct regardless of whether the accrual cron has run.
@@ -146,13 +147,13 @@ export async function getCurrentMonthRunningTotal(agencyId: string, now: Date = 
       freeOnExchange: true,
       exchangedAt: { gte: start, lt: end },
     },
-    select: { serviceType: true, priceAtExchange: true, purchasePrice: true },
+    select: { serviceType: true, priceAtExchange: true, purchasePrice: true, pricingVersion: true },
   });
   let trialValuePence = 0;
   for (const r of trialRows) {
     // priceAtExchange isn't set for trial files (PR 3 stops at exchangedAt for them),
     // so fall back to purchasePrice for the "would have charged" estimate.
-    const fee = computeFee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, vat, feeOverride);
+    const fee = computeFee(r.serviceType, r.priceAtExchange ?? r.purchasePrice, vat, feeOverride, r.pricingVersion);
     trialValuePence += fee.totalPence;
   }
 

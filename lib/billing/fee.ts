@@ -17,6 +17,7 @@
 // flippable via a single config field on Agency.
 
 import type { ClientType, ServiceType } from "@prisma/client";
+import { isFlatFiftyVersion, FLAT_EXCHANGE_FEE_PENCE } from "@/lib/billing/pricing-version";
 
 // Self-progress is free under the 2026-08 model (was £59 inclusive). A sale an
 // agency runs itself is never charged — decided by service type below, not the
@@ -68,7 +69,16 @@ function grossFee(
   serviceType: ServiceType,
   priceAtExchangePence: number | null,
   agencyOverride: AgencyFeeOverride,
+  pricingVersion?: string | null,
 ): { totalPence: number; kind: FeeKind; bandLabel: string } {
+  // Outsourced-sunset model: a flat £50 per exchange for every agent sale,
+  // regardless of service type, sale price, or legacy fee tier. Only files
+  // stamped with the flat-fifty pricing version (new sales created after the
+  // switch flips) take this path; everything else falls through to the
+  // unchanged band/self-progress logic below.
+  if (isFlatFiftyVersion(pricingVersion)) {
+    return { totalPence: FLAT_EXCHANGE_FEE_PENCE, kind: "in_house_fee", bandLabel: "Per exchange" };
+  }
   if (serviceType === "self_managed") {
     // Self-progress is free. Kept as a real £0 branch so every computeFee
     // caller — billing accrual, the live running total, and revenue reporting
@@ -124,8 +134,13 @@ export function computeFee(
   priceAtExchangePence: number | null,
   vat: VatInput = null,
   agencyOverride: AgencyFeeOverride = null,
+  // The sale's frozen pricing version. Omitted (undefined) = the pre-flat-fifty
+  // behaviour, byte-identical to before — so a caller that doesn't yet pass it
+  // keeps charging the old bands / free-self. Pass the file's pricingVersion to
+  // value a post-flip sale at the flat £50.
+  pricingVersion?: string | null,
 ): FeeResult {
-  const { totalPence, kind, bandLabel } = grossFee(serviceType, priceAtExchangePence, agencyOverride);
+  const { totalPence, kind, bandLabel } = grossFee(serviceType, priceAtExchangePence, agencyOverride, pricingVersion);
 
   const vatActive = vat !== null && vat.vatRegisteredAt !== null && vat.vatRateBps !== null && vat.vatRateBps > 0;
   if (!vatActive) {

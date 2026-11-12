@@ -15,8 +15,8 @@ import { stampTrialState } from "@/lib/services/trial";
 import { assertCanCreateFile } from "@/lib/billing/payment-block";
 import { isTspBusiness } from "@/lib/progression/business";
 import { businessBillingActive, BillingSetupRequiredError } from "@/lib/progression/business-stripe";
-import { progressionBillingCollectEnabled } from "@/lib/progression/flags";
-import { CURRENT_PRICING_VERSION } from "@/lib/billing/pricing-version";
+import { progressionBillingCollectEnabled, outsourcedIntakeEnabled } from "@/lib/progression/flags";
+import { CURRENT_PRICING_VERSION, PRICING_VERSION_FLAT_FIFTY } from "@/lib/billing/pricing-version";
 import { recordEvent } from "@/lib/command/events/write";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -1234,8 +1234,17 @@ export async function createTransaction(input: CreateTransactionInput) {
       // one (decided at exchange, not here). Demo files are never billed and
       // stay unlabelled. pricingVersion freezes the rules this sale was made
       // under so a future reprice never touches it.
-      freeReason: !input.isDemo && (input.progressedBy ?? "progressor") === "agent" ? "permanent_free_self" : null,
-      pricingVersion: CURRENT_PRICING_VERSION,
+      //
+      // Outsourced-sunset: once the master switch is off, new sales are stamped
+      // the flat-£50 version so they bill £50 at exchange (free-self is retired);
+      // while the switch is on, they keep the current free-self version — so this
+      // is byte-identical to today until the single flip. In-flight sales keep
+      // whatever they were stamped with: nothing is retroactive.
+      freeReason:
+        outsourcedIntakeEnabled() && !input.isDemo && (input.progressedBy ?? "progressor") === "agent"
+          ? "permanent_free_self"
+          : null,
+      pricingVersion: outsourcedIntakeEnabled() ? CURRENT_PRICING_VERSION : PRICING_VERSION_FLAT_FIFTY,
       // When it becomes outsourced, stamp the SP waiting clock. Anchored to
       // createdAt (like assignedAt) so backdated files measure from the right moment.
       outsourcedAt: (input.progressedBy ?? "progressor") === "agent" ? null : (input.createdAt ?? new Date()),

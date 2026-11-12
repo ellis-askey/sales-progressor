@@ -52,6 +52,7 @@ export async function handleExchangeReversal(
       exchangedAt: true,
       billedAtExchange: true,
       priceAtExchange: true,
+      pricingVersion: true,
       agency: {
         select: {
           vatRegisteredAt: true,
@@ -117,7 +118,7 @@ export async function handleExchangeReversal(
   const feeOverride = txn.agency
     ? { feeTier: txn.agency.feeTier, legacyOutsourcedFeePence: txn.agency.legacyOutsourcedFeePence }
     : null;
-  const fee = computeFee(txn.serviceType, txn.priceAtExchange, vat, feeOverride);
+  const fee = computeFee(txn.serviceType, txn.priceAtExchange, vat, feeOverride, txn.pricingVersion);
   const today = new Date().toISOString().slice(0, 10);
   await db.creditNote.create({
     data: {
