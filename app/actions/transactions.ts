@@ -1751,6 +1751,11 @@ export async function reassignAgentAction(transactionId: string, newAgentUserId:
   if (!session.user.agencyId) {
     throw new Error("Forbidden: caller has no agency");
   }
+  // Guard: a file must always have an owner — reassigning to "nobody" is what
+  // left files ownerless-and-hidden before. Never allow an empty target.
+  if (!newAgentUserId?.trim()) {
+    throw new Error("Pick an owner to reassign to.");
+  }
   if (session.user.role !== "director") {
     // In-house progression agencies let any CM/progressor change the owner (the
     // originating client manager), per the "anyone can, if it's logged" rule.
