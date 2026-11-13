@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureDbConnection } from "@/lib/prisma";
 
 // Wrap a cron job's work so the System status page can show whether it ran and
 // succeeded. Records a JobRun on start, stamps success + finish on completion,
@@ -10,6 +10,14 @@ import { prisma } from "@/lib/prisma";
 // logged as a run):
 //   return runJob("signals", async () => { ...work...; return NextResponse.json(...); });
 export async function runJob<T>(jobName: string, fn: () => Promise<T>): Promise<T> {
+  // Ride out a transient "pooler full" blip before any work begins — most often
+  // a deploy cutover, when the old and new servers are briefly both live and
+  // together exceed the connection ceiling, and the scheduled job happens to
+  // fire right then. Warming the connection with a short retry absorbs that
+  // few-second window instead of failing the whole run. A genuinely saturated
+  // pool still surfaces the error below, exactly as before.
+  await ensureDbConnection().catch(() => {});
+
   let jobRunId: string | null = null;
   try {
     const jr = await prisma.jobRun.create({ data: { jobName } });
