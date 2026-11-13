@@ -168,6 +168,11 @@ export function AgentShellExperimental(props: AgentShellProps) {
         </div>
       </div>
       <div className="agx-side-body">
+        {/* All / Mine file-view toggle — on mobile only (desktop keeps it in the
+            top bar). Sits between the brand and the New sale / Migrate CTAs. */}
+        {canToggleViewAll && (
+          <div className="md:hidden agx-mobile-view"><ViewModeToggle initialMode={fileViewMode} /></div>
+        )}
         {SHOW_MIGRATE_SALE_NAV && canMigrateSale && (() => {
           const isMigrate = pathname.startsWith("/agent/transactions/migrate");
           return (
@@ -238,7 +243,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
         <FounderProvider value={isFounderDock}>{children}</FounderProvider>
       </main>
 
-      <QuickActionDock />
+      <QuickActionDock isFounder={isFounderDock} />
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
@@ -300,7 +305,6 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
       <div className="agx-cap-wrap">
         <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cap${searching ? " agx-cap--searching" : ""}`}>
           <div className="agx-cap-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
-          <span className="agx-sep agx-hide-on-search" />
           {controls}
         </AgxGlass>
       </div>

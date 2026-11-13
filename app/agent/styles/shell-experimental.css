@@ -43,7 +43,8 @@
 /* ── Floating drawers: capsule · handle · scrim · drawer ───────────────────── */
 .agx-cap-wrap { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 45; max-width: calc(100vw - 40px); }
 .agx-cap { display: inline-flex; align-items: center; gap: 10px; padding: 7px 11px; }
-.agx-cap-search { width: min(420px, 42vw); }
+/* Divider removed (Ellis, 2026-11-13) — the reclaimed space goes to the search. */
+.agx-cap-search { width: min(452px, 44vw); }
 
 .agx-edge-handle {
   position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 44;
@@ -100,6 +101,8 @@
 .agx-nav-div { height: 0.5px; background: var(--agent-border-subtle); margin: 6px 0; }
 .agx-recents { display: flex; flex-direction: column; gap: 2px; }
 .agx-recents-title { margin: 0 0 4px 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--agent-text-muted); }
+/* Mobile All/Mine toggle inside the drawer (desktop keeps it in the top bar). */
+.agx-mobile-view { margin: 0 0 6px; padding-bottom: 8px; border-bottom: 0.5px solid var(--agent-border-subtle); }
 
 /* ── Shell switcher (personal preview control) ────────────────────────────── */
 .agx-switcher {
@@ -162,6 +165,30 @@
 .agx-cap .agent-chip-hover,
 .agx-cap .agent-chip-hover:hover:not(:disabled),
 .agx-cap .agent-chip-hover:active:not(:disabled) { border-color: transparent !important; }
+
+/* ── Notification bell inside the capsule ──────────────────────────────────────
+   The unread count was an oversized solid badge sitting over the bell, which
+   read as a pressed / "clicked" state. Tuck a smaller badge into the very corner
+   with a hairline ring so it separates cleanly from the bell instead of
+   overlapping it. Scoped to the capsule; the production shell is untouched. */
+.agx-cap button[aria-label="Updates"] > span {
+  min-width: 14px !important;
+  height: 14px !important;
+  font-size: 8.5px !important;
+  top: -5px !important;
+  right: -5px !important;
+  box-shadow: 0 0 0 2px var(--agent-surface-glass, rgba(255, 255, 255, 0.72)) !important;
+}
+:root[data-theme="dark"] .agx-cap button[aria-label="Updates"] > span {
+  box-shadow: 0 0 0 2px var(--agent-surface-glass, rgba(25, 29, 40, 0.72)) !important;
+}
+/* On mobile the bell lives in the search-collapse wrapper, whose overflow:hidden
+   (needed only while that control is collapsing) would clip the corner badge.
+   Let it show at rest; clip only while searching. */
+@media (max-width: 1023px) {
+  .agx-cap .agx-hide-on-search { overflow: visible; }
+  .agx-cap--searching .agx-hide-on-search { overflow: hidden; }
+}
 
 /* ── Tablet / mobile top-bar optimisation (Ellis, 2026-11-12) ──────────────────
    Span the width so search + the account pill sit flush (no centered-overflow
