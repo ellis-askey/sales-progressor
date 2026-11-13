@@ -84,7 +84,12 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const role = session.user.role as UserRole;
   const displayName = userName ?? session.user.name ?? "";
   const isInternalStaff = role === "admin" || role === "sales_progressor";
-  const isFounderDock = (session.user.email ?? "").toLowerCase().trim() === "ellis@thesalesprogressor.co.uk";
+  // Floating dock + draggable New note / New email, released to ALL users (founder
+  // sign-off, 2026-11-13): both open as draggable floating windows and the dock
+  // becomes the single entry point (the top-right New note / New email buttons
+  // self-hide via FounderProvider). To re-gate, restore:
+  //   (session.user.email ?? "").toLowerCase().trim() === "ellis@thesalesprogressor.co.uk"
+  const isFounderDock = true;
 
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
   const navGroups = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
