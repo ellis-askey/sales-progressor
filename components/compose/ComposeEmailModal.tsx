@@ -107,7 +107,7 @@ export type ComposeSaleHint = { line1: string; location: string; photoUrl?: stri
 
 export function ComposeEmailModal({
   open, onClose, onCloseStart, elevated = false, shareSummaryHtml, onComposeFullChain, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
-  chainAgents, onNeedAgentEmail, autoPlace,
+  chainAgents, chainSolicitors, onNeedAgentEmail, autoPlace,
   frame = "modal", minimized = false, stackIndex = 0, onMinimize, onRestore,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
@@ -138,6 +138,9 @@ export function ComposeEmailModal({
   // placement checklist. No-email agents call onNeedAgentEmail to open the chain
   // edit drawer; autoPlace drops a just-added agent into the field they chose.
   chainAgents?: { linkId: string; name: string; email: string | null; image: string | null; address: string }[] | null;
+  // Second chain group: the on-file solicitors (same shape; always have an email).
+  // Rendered under a "Solicitors" eyebrow beneath "Chain agents" in the dropdown.
+  chainSolicitors?: { linkId: string; name: string; email: string | null; image: string | null; address: string }[] | null;
   onNeedAgentEmail?: (linkId: string, field: "to" | "cc" | "bcc") => void;
   autoPlace?: { email: string; name: string; field: "to" | "cc" | "bcc" } | null;
 }) {
@@ -592,28 +595,32 @@ export function ComposeEmailModal({
               // Chain mode: the dropdown IS the chain's agents (not the sale's
               // buyers / sellers / solicitors). A no-email agent opens the chain
               // edit drawer on the agent-email field; once saved they're auto-added.
-              if (chainAgents) {
-                const avail = chainAgents.filter((a) => {
-                  if (a.email && agentFieldOf(a.email) !== null) return false;
-                  if (!q0) return true;
-                  return a.name.toLowerCase().includes(q0) || (a.email ?? "").toLowerCase().includes(q0) || a.address.toLowerCase().includes(q0);
-                });
-                const showFreeC = q0.includes("@") && !chainAgents.some((a) => (a.email ?? "").toLowerCase() === q0);
-                if (!avail.length && !showFreeC) {
-                  return <div style={{ padding: "14px 12px", fontSize: 12.5, color: "var(--agent-text-muted)", textAlign: "center" }}>{chainAgents.length === 0 ? "No other agents in this chain yet." : "All chain agents added."}</div>;
+              if (chainAgents || chainSolicitors) {
+                type ChainRec = { linkId: string; name: string; email: string | null; image: string | null; address: string };
+                const notAdded = (a: ChainRec) => !(a.email && agentFieldOf(a.email) !== null);
+                const matchQ = (a: ChainRec) => !q0 || a.name.toLowerCase().includes(q0) || (a.email ?? "").toLowerCase().includes(q0) || a.address.toLowerCase().includes(q0);
+                const availA = (chainAgents ?? []).filter((a) => notAdded(a) && matchQ(a));
+                const availS = (chainSolicitors ?? []).filter((a) => notAdded(a) && matchQ(a));
+                const combined = [...(chainAgents ?? []), ...(chainSolicitors ?? [])];
+                const showFreeC = q0.includes("@") && !combined.some((a) => (a.email ?? "").toLowerCase() === q0);
+                if (!availA.length && !availS.length && !showFreeC) {
+                  return <div style={{ padding: "14px 12px", fontSize: 12.5, color: "var(--agent-text-muted)", textAlign: "center" }}>{combined.length === 0 ? "No agents or solicitors in this chain yet." : "Everyone in the chain's been added."}</div>;
                 }
+                const chainRow = (a: ChainRec) => (
+                  <button key={`${a.linkId}:${a.email ?? a.name}`} type="button" className="cem-mi" onClick={() => {
+                    if (!a.email) { onNeedAgentEmail?.(a.linkId, name); setOpenField(null); return; }
+                    placeChainAgent(a.email, a.name, name); setFieldQuery(""); setOpenField(null);
+                  }}>
+                    <ContactAvatar contact={{ name: a.name, roleType: "agent" }} size={26} image={a.image ?? undefined} />
+                    <span className="cem-nm"><span className="cem-n">{a.name}</span><span className="cem-r" style={a.email ? undefined : { color: "var(--agent-coral-deep)", fontWeight: 600 }}>{a.email ?? "Add email →"}</span></span>
+                  </button>
+                );
                 return (
                   <>
-                    {avail.length > 0 && <div className="cem-mgroup">Chain agents</div>}
-                    {avail.map((a) => (
-                      <button key={a.linkId} type="button" className="cem-mi" onClick={() => {
-                        if (!a.email) { onNeedAgentEmail?.(a.linkId, name); setOpenField(null); return; }
-                        placeChainAgent(a.email, a.name, name); setFieldQuery(""); setOpenField(null);
-                      }}>
-                        <ContactAvatar contact={{ name: a.name, roleType: "agent" }} size={26} image={a.image ?? undefined} />
-                        <span className="cem-nm"><span className="cem-n">{a.name}</span><span className="cem-r" style={a.email ? undefined : { color: "var(--agent-coral-deep)", fontWeight: 600 }}>{a.email ?? "Add email →"}</span></span>
-                      </button>
-                    ))}
+                    {availA.length > 0 && <div className="cem-mgroup">Chain agents</div>}
+                    {availA.map(chainRow)}
+                    {availS.length > 0 && <div className="cem-mgroup">Solicitors</div>}
+                    {availS.map(chainRow)}
                     {showFreeC && (
                       <button className="cem-mi" onClick={() => addFree(name, fieldQuery.trim())}>
                         <RecAvatar rec={null} size={26} />

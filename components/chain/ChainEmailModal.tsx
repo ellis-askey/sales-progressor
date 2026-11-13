@@ -61,6 +61,7 @@ export function ChainEmailModal({
 }) {
   const { toast } = useAgentToast();
   const [agents, setAgents] = useState<ChainEmailAgent[]>([]);
+  const [solicitors, setSolicitors] = useState<ChainEmailAgent[]>([]);
   const [prefill, setPrefill] = useState<ComposePrefill | null>(null);
   const [shareHtml, setShareHtml] = useState<string | null>(null);
   const [canFullChain, setCanFullChain] = useState(false);
@@ -73,6 +74,7 @@ export function ChainEmailModal({
   // the fetch paths).
   function applyDraft(draft: ChainEmailDraft) {
     setAgents(draft.agents);
+    setSolicitors(draft.solicitors);
     setChainId(draft.chainId);
     setShareHtml(draft.shareSummaryHtml);
     setCanFullChain(draft.canComposeFullChain);
@@ -124,6 +126,7 @@ export function ChainEmailModal({
     void buildChainEmailDraft(transactionId).then((res) => {
       if (cancelled || !res.ok) return;
       setAgents(res.draft.agents);
+      setSolicitors(res.draft.solicitors);
       setPending((p) => {
         if (!p) return null;
         const a = res.draft.agents.find((x) => x.linkId === p.linkId);
@@ -151,6 +154,7 @@ export function ChainEmailModal({
       }
       prefill={prefill}
       chainAgents={agents.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
+      chainSolicitors={solicitors.map((a) => ({ linkId: a.linkId, name: a.name, email: a.email, image: a.image, address: a.address }))}
       onNeedAgentEmail={handleNeedAgentEmail}
       autoPlace={autoPlace}
     />

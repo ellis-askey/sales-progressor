@@ -19,8 +19,9 @@ import { chainEmailSubject } from "@/lib/chain/chain-email";
 import { splitComposeAddress } from "@/lib/services/compose-recipients";
 import { buildSaleShareSummary } from "@/lib/chain/share-summary";
 import { chainQuestionsFor, chainReportFor } from "@/lib/chain/chain-questions";
-import { listCheckInsForScope } from "@/lib/services/chains";
+import { listCheckInsForScope, getChainForTransactionV2 } from "@/lib/services/chains";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import type { IntelViewer } from "@/lib/chain/intel";
 
 // "Compose full chain email" is founder-only while it's tested on prod (2026-11-09).
 // Gate the button (canComposeFullChain) AND the action itself on this address.
@@ -61,6 +62,10 @@ export type ChainEmailDraft = {
   chainId: string;
   subject: string;
   agents: ChainEmailAgent[];
+  // The chain's solicitors — a SECOND recipient group in the composer. Built from
+  // the viewer's per-node solicitor notes + their own file's solicitors (which
+  // surface as prefills on the adjacent nodes), deduped by email.
+  solicitors: ChainEmailAgent[];
   // "Share our latest" — the factual progress block for OUR sale (null if it
   // can't be built). The composer drops it in on demand; never auto-inserted.
   shareSummaryHtml: string | null;
@@ -179,6 +184,38 @@ export async function buildChainEmailDraft(
     });
   }
 
+  // Solicitors — the second recipient group. Reuse the chain read that already
+  // applies per-viewer visibility (your private neighbour notes + your own file's
+  // solicitors, which surface as prefills on the adjacent nodes). Flatten every
+  // node's buyer/seller solicitor and DEDUPE by email — a firm acts on a sale AND
+  // its onward purchase, so it would otherwise appear twice.
+  const viewer: IntelViewer = {
+    userId: session.user.id,
+    role: session.user.role,
+    agencyId: session.user.agencyId ?? null,
+    businessId: session.user.progressionBusinessId ?? null,
+    scope,
+  };
+  const chainV2 = await getChainForTransactionV2(transactionId, session.user.id, viewer);
+  const solByEmail = new Map<string, ChainEmailAgent>();
+  for (const l of chainV2?.links ?? []) {
+    for (const note of [l.solicitors?.buyer, l.solicitors?.seller]) {
+      const email = note?.email?.trim();
+      if (!email) continue;
+      const key = email.toLowerCase();
+      if (solByEmail.has(key)) continue;
+      solByEmail.set(key, {
+        linkId: l.id,
+        name: note!.handler?.trim() || note!.firm?.trim() || "Solicitor",
+        email,
+        address: l.stubPropertyAddress ?? "",
+        image: null,
+        editing: null,
+      });
+    }
+  }
+  const solicitors = [...solByEmail.values()];
+
   const shareInner = await summaryPromise;
   return {
     ok: true,
@@ -187,6 +224,7 @@ export async function buildChainEmailDraft(
       chainId,
       subject: chainEmailSubject(firstLines),
       agents,
+      solicitors,
       shareSummaryHtml: shareInner ? `<div data-cem-share="1">${shareInner}</div>` : null,
       canComposeFullChain: canComposeFullChainEmail(session.user.email),
     },
