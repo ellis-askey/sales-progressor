@@ -5,7 +5,12 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { resolveAgentVisibility } from "@/lib/services/agent";
-import { getSolicitorFirmDetail, getSolicitorFirmDetailForScope } from "@/lib/services/solicitors";
+import {
+  getSolicitorFirmDetail, getSolicitorFirmDetailForScope,
+  getSolicitorFirmActivity, getSolicitorFirmActivityForScope,
+  getAgencyFirmNote,
+} from "@/lib/services/solicitors";
+import { getSolicitorFirmMetrics, getSolicitorFirmMetricsForScope } from "@/lib/services/solicitor-metrics";
 import { SolicitorProfileView } from "@/components/agent/partners/SolicitorProfileView";
 import { getBrokerFirmDetail, getBrokerFirmDetailForScope } from "@/lib/services/brokers";
 import type { BrokerFirmFileRow } from "@/lib/services/brokers";
@@ -59,7 +64,10 @@ export default async function PartnerFirmDetailPage({
 
   // ── Solicitor: the redesigned profile (Phase B) ──────────────────────────
   if (kind === "solicitor") {
-    const [detail, exchangeStats, referrals] = await Promise.all([
+    // Agency viewers only: whether this firm is recommended (+ its default fee)
+    // and the agency's private note. Director/admin may edit both.
+    const canManageFirm = isAgent && (session.user.role === "director" || session.user.role === "admin");
+    const [detail, exchangeStats, referrals, metrics, activity, firmNote] = await Promise.all([
       isAgent ? getSolicitorFirmDetail(vis!, id) : getSolicitorFirmDetailForScope(scope, id),
       (isAgent ? getSolicitorExchangeStats(vis!) : getSolicitorExchangeStatsForScope(scope)).catch(() => []),
       // Referral income — director (agency) / admin-powers (internal) only. Same
@@ -67,6 +75,13 @@ export default async function PartnerFirmDetailPage({
       showIncome
         ? (isAgent ? getReferralStats(session.user.agencyId) : getReferralStatsForScope(scope)).catch(() => [])
         : Promise.resolve([]),
+      // Phase-C performance metrics (draft pack, enquiries, exchange rate, timings,
+      // trend), scoped to the viewer's visible files.
+      (isAgent ? getSolicitorFirmMetrics(vis!, id) : getSolicitorFirmMetricsForScope(scope, id)).catch(() => null),
+      // Firm-wide recent activity across the viewer's files for this firm.
+      (isAgent ? getSolicitorFirmActivity(vis!, id) : getSolicitorFirmActivityForScope(scope, id)).catch(() => []),
+      // Agency-private firm note (agency viewers only).
+      isAgent && session.user.agencyId ? getAgencyFirmNote(session.user.agencyId, id).catch(() => null) : Promise.resolve(null),
     ]);
     if (!detail) notFound();
     const ex = exchangeStats.find((s) => s.firmId === id);
@@ -78,12 +93,15 @@ export default async function PartnerFirmDetailPage({
     // "Recommended" is per-agency (AgencyRecommendedSolicitor); internal staff
     // have no agency, so no recommended status is shown for them.
     let recommendedStatus: "recommended" | "not_recommended" | null = null;
+    let recommendedFeePence: number | null = null;
+    let recommendedFeeVat = "plus";
     if (isAgent && session.user.agencyId) {
       const rec = await prisma.agencyRecommendedSolicitor.findFirst({
         where: { agencyId: session.user.agencyId, solicitorFirmId: id },
-        select: { id: true },
+        select: { id: true, defaultReferralFeePence: true, defaultReferralFeeVat: true },
       });
       recommendedStatus = rec ? "recommended" : "not_recommended";
+      if (rec) { recommendedFeePence = rec.defaultReferralFeePence; recommendedFeeVat = rec.defaultReferralFeeVat; }
     }
     return (
       <SolicitorProfileView
@@ -93,7 +111,13 @@ export default async function PartnerFirmDetailPage({
         files={detail.files}
         exchange={exchange}
         income={income}
+        metrics={metrics}
+        activity={activity}
+        firmNote={firmNote}
         recommendedStatus={recommendedStatus}
+        recommendedFeePence={recommendedFeePence}
+        recommendedFeeVat={recommendedFeeVat}
+        canManageFirm={canManageFirm}
         canAddContact
       />
     );

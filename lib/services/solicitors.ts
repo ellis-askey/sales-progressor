@@ -3,6 +3,23 @@ import type { AgentVisibility } from "./agent";
 import type { Prisma, TransactionStatus } from "@prisma/client";
 import { scopeTransactionWhere, type AccessScope } from "@/lib/security/access-scope";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
+import { getMilestonesForTransaction } from "@/lib/services/milestones";
+import { resolveDisplayStages, type ResolvedStage } from "@/lib/milestones/display-stages";
+
+const STAGE_RESOLVE_CAP = 30; // active files we resolve a live stage for per firm
+
+// The stage the file is in right now, read exactly as the file-page timeline
+// strip reads it (resolveDisplayStages) — not invented status logic.
+function currentStageLabel(stages: ResolvedStage[]): string {
+  const inProgress = stages.filter((s) => s.status === "in_progress");
+  if (inProgress.length > 0) return inProgress[inProgress.length - 1].name;
+  const upNext = stages.find((s) => s.status === "up_next");
+  if (upNext) return upNext.name;
+  if (stages.length > 0 && stages.every((s) => s.status === "complete")) return "Completing";
+  const complete = stages.filter((s) => s.status === "complete");
+  if (complete.length > 0) return complete[complete.length - 1].name;
+  return "Getting started";
+}
 
 export type SolicitorContactWithFiles = {
   id: string;
@@ -133,6 +150,10 @@ export type FirmFileRow = {
   conveyancerName: string | null;
   // Signed thumbnail URL (null when the agent hasn't uploaded a property photo).
   photoUrl: string | null;
+  // The live stage the file is in, read exactly as the file-page timeline strip
+  // reads it (resolveDisplayStages). Null for completed/withdrawn files (their
+  // status pill already says it) and for active files beyond the resolve cap.
+  stageLabel: string | null;
 };
 
 export type FirmContactRow = {
@@ -142,6 +163,7 @@ export type FirmContactRow = {
   email: string | null;
   secondaryEmail: string | null;
   image: string | null;
+  role: string | null; // job title, e.g. "Conveyancer" / "Assistant"
   // Active (active + on_hold) files this handler is working at this firm.
   activeFileCount: number;
 };
@@ -164,17 +186,18 @@ export async function getSolicitorFirmDetail(vis: AgentVisibility, firmId: strin
       ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
       : { agencyId: vis.agencyId }
     : { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
-  return solicitorFirmDetailFromWhere(baseWhere, firmId);
+  return solicitorFirmDetailFromWhere(baseWhere, firmId, vis.agencyId ?? null);
 }
 
 /** Solicitor firm detail scoped for internal staff (access-scope aware). */
 export async function getSolicitorFirmDetailForScope(scope: AccessScope, firmId: string): Promise<SolicitorFirmDetail | null> {
-  return solicitorFirmDetailFromWhere(scopeTransactionWhere(scope), firmId);
+  return solicitorFirmDetailFromWhere(scopeTransactionWhere(scope), firmId, null);
 }
 
 async function solicitorFirmDetailFromWhere(
   baseWhere: Prisma.PropertyTransactionWhereInput,
   firmId: string,
+  agencyId: string | null,
 ): Promise<SolicitorFirmDetail | null> {
   const [firm, transactions] = await Promise.all([
     prisma.solicitorFirm.findUnique({
@@ -184,7 +207,7 @@ async function solicitorFirmDetailFromWhere(
         name: true,
         handlers: {
           orderBy: { name: "asc" },
-          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true, image: true },
+          select: { id: true, name: true, phone: true, email: true, secondaryEmail: true, image: true, role: true },
         },
       },
     }),
@@ -206,6 +229,11 @@ async function solicitorFirmDetailFromWhere(
         vendorSolicitorContactId: true,
         purchaserSolicitorContactId: true,
         photoStoragePath: true,
+        // Forecast inputs for the live-stage read (resolveDisplayStages).
+        expectedExchangeDate: true,
+        overridePredictedDate: true,
+        completionDate: true,
+        purchaseType: true,
       },
     }),
   ]);
@@ -235,8 +263,41 @@ async function solicitorFirmDetailFromWhere(
       createdAt: tx.createdAt,
       conveyancerName: contactId ? handlerName.get(contactId) ?? null : null,
       photoUrl: tx.photoStoragePath ? photoMap.get(tx.photoStoragePath) ?? null : null,
+      stageLabel: null,
     };
   });
+
+  // Live stage per active/on-hold file, read the same way the file page reads it
+  // (round-scoped milestone rows → display stages). Bounded to STAGE_RESOLVE_CAP
+  // files and resolved in parallel; completed/withdrawn files keep their status
+  // pill and no stage. Each resolution degrades to null on failure — the row
+  // still shows, just without a stage.
+  const txById = new Map(transactions.map((t) => [t.id, t] as const));
+  const resolvable = files.filter((f) => f.status === "active" || f.status === "on_hold").slice(0, STAGE_RESOLVE_CAP);
+  await Promise.all(
+    resolvable.map(async (f) => {
+      try {
+        const tx = txById.get(f.id);
+        if (!tx) return;
+        const { vendor, purchaser } = await getMilestonesForTransaction(f.id, agencyId);
+        const rows = [...vendor, ...purchaser];
+        if (rows.length === 0) return;
+        f.stageLabel = currentStageLabel(
+          resolveDisplayStages(
+            rows,
+            {
+              expectedExchangeDate: tx.expectedExchangeDate ?? null,
+              overridePredictedDate: tx.overridePredictedDate ?? null,
+              targetCompletionDate: tx.completionDate ?? null,
+            },
+            tx.purchaseType ?? null,
+          ),
+        );
+      } catch {
+        // leave stageLabel null — the row still renders with its status pill
+      }
+    }),
+  );
 
   const contacts: FirmContactRow[] = firm.handlers.map((h) => ({
     id: h.id,
@@ -245,10 +306,94 @@ async function solicitorFirmDetailFromWhere(
     email: h.email,
     secondaryEmail: h.secondaryEmail,
     image: h.image,
+    role: h.role,
     activeFileCount: activeByContact.get(h.id) ?? 0,
   }));
 
   return { id: firm.id, name: firm.name, contacts, files };
+}
+
+// ── Firm-wide recent activity ────────────────────────────────────────────────
+export type FirmActivityItem = {
+  id: string;
+  at: Date;
+  type: "email" | "call" | "note" | "message";
+  title: string;
+  detail: string | null;
+  propertyAddress: string;
+  transactionId: string;
+};
+
+function firmActivityBaseWhere(vis: AgentVisibility): Prisma.PropertyTransactionWhereInput {
+  return vis.seeAll
+    ? vis.firmName
+      ? { agencyId: vis.agencyId, agentUser: { firmName: vis.firmName } }
+      : { agencyId: vis.agencyId }
+    : { OR: [{ agentUserId: vis.userId }, { assignedUserId: vis.userId }] };
+}
+
+export async function getSolicitorFirmActivity(vis: AgentVisibility, firmId: string): Promise<FirmActivityItem[]> {
+  return firmActivityFromWhere(firmActivityBaseWhere(vis), vis.agencyId ?? null, firmId);
+}
+export async function getSolicitorFirmActivityForScope(scope: AccessScope, firmId: string): Promise<FirmActivityItem[]> {
+  return firmActivityFromWhere(scopeTransactionWhere(scope), null, firmId);
+}
+
+async function firmActivityFromWhere(
+  baseWhere: Prisma.PropertyTransactionWhereInput,
+  agencyId: string | null,
+  firmId: string,
+): Promise<FirmActivityItem[]> {
+  // The firm's visible files (scoped — so never another agency's files for this
+  // shared firm). Addresses are joined back onto each activity row.
+  const txs = await prisma.propertyTransaction.findMany({
+    where: {
+      ...baseWhere,
+      status: { not: "draft" as TransactionStatus },
+      OR: [{ vendorSolicitorFirmId: firmId }, { purchaserSolicitorFirmId: firmId }],
+    },
+    select: { id: true, propertyAddress: true },
+  });
+  if (txs.length === 0) return [];
+  const addr = new Map(txs.map((t) => [t.id, t.propertyAddress] as const));
+
+  const rows = await prisma.outboundMessage.findMany({
+    where: {
+      transactionId: { in: [...addr.keys()] },
+      type: { in: ["outbound", "inbound", "internal_note"] },
+      // Progression-business private notes stay hidden from the owning agency.
+      ...(agencyId !== null ? { businessOnly: false } : {}),
+      method: { not: "whatsapp" },
+      // Drop automated chase-bookkeeping notes (shown only in the Chase timeline).
+      NOT: { AND: [{ isAutomated: true }, { chaseTaskId: null }] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { id: true, type: true, method: true, content: true, createdAt: true, transactionId: true, subject: true },
+  });
+
+  return rows
+    .filter((r): r is typeof r & { transactionId: string } => r.transactionId !== null)
+    .map((r) => {
+      const firstLine = (r.content ?? "").split("\n")[0].trim();
+      const detail = firstLine ? (firstLine.length > 90 ? firstLine.slice(0, 90).trimEnd() + "…" : firstLine) : null;
+      let type: FirmActivityItem["type"] = "note";
+      let title = r.subject?.trim() || "Note added";
+      if (r.method === "email") { type = "email"; title = r.type === "inbound" ? "Email received" : "Email sent"; }
+      else if (r.method === "phone") { type = "call"; title = "Call logged"; }
+      else if (r.method === "sms") { type = "message"; title = "Text logged"; }
+      else if (r.method === "voicemail") { type = "call"; title = "Voicemail logged"; }
+      return { id: r.id, at: r.createdAt, type, title, detail, propertyAddress: addr.get(r.transactionId) ?? "", transactionId: r.transactionId };
+    });
+}
+
+/** An agency's private internal note about a shared solicitor firm (or null). */
+export async function getAgencyFirmNote(agencyId: string, firmId: string): Promise<string | null> {
+  const row = await prisma.agencyFirmNote.findUnique({
+    where: { agencyId_solicitorFirmId: { agencyId, solicitorFirmId: firmId } },
+    select: { note: true },
+  });
+  return row?.note ?? null;
 }
 
 // Removed getSolicitorDirectory (2026-10-09): dead, with no callers. It listed

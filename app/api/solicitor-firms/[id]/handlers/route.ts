@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   const { id } = await params;
-  const { name, phone, email, secondaryEmail } = await req.json();
+  const { name, role, phone, email, secondaryEmail } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
 
   const contactError = validateHandlerContact(phone, email);
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: {
       firmId: id,
       name: titleCase(name.trim()),
+      role: role?.trim() || null,
       phone: phone?.trim() || null,
       email: email?.trim().toLowerCase() || null,
     },

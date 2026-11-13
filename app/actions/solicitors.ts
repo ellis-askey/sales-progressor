@@ -39,6 +39,26 @@ export async function removeRecommendedSolicitorAction(solicitorFirmId: string) 
   revalidatePath("/agent/solicitors");
 }
 
+// Internal, agency-private note about a (shared) solicitor firm. Director/admin
+// only; scoped to the viewer's agency; empty note removes the row. Never
+// portal-visible (it lives on the per-agency join table, not OutboundMessage).
+export async function saveAgencyFirmNoteAction(solicitorFirmId: string, note: string) {
+  const session = await requireSession();
+  requireDirector(session.user.role);
+  if (!session.user.agencyId) throw new Error("No agency");
+  const trimmed = note.trim();
+  if (!trimmed) {
+    await db.agencyFirmNote.deleteMany({ where: { agencyId: session.user.agencyId, solicitorFirmId } });
+  } else {
+    await db.agencyFirmNote.upsert({
+      where: { agencyId_solicitorFirmId: { agencyId: session.user.agencyId, solicitorFirmId } },
+      create: { agencyId: session.user.agencyId, solicitorFirmId, note: trimmed, updatedById: session.user.id, updatedByEmail: session.user.email ?? null },
+      update: { note: trimmed, updatedById: session.user.id, updatedByEmail: session.user.email ?? null },
+    });
+  }
+  revalidatePath(`/agent/partners/solicitor/${solicitorFirmId}`);
+}
+
 export async function createAndRecommendSolicitorAction(name: string) {
   const session = await requireSession();
   requireDirector(session.user.role);
