@@ -54,8 +54,7 @@ export type FloatingWindowProps = {
   children: ReactNode;
 };
 
-const MARGIN = 18;   // gap kept from the viewport edge when clamping / snapping
-const SNAP = 36;     // drop within this many px of an edge → snap flush to it
+const MARGIN = 18;   // gap kept from the viewport edge when clamping
 const CHIP_H = 46;   // minimised chip height (drives the stack offset)
 
 // Effective on-screen width: the requested width, but never wider than the
@@ -194,15 +193,10 @@ export function FloatingWindow({
     if (!p) return;
     const w = effWidth(width);
     const h = winRef.current?.offsetHeight ?? 440;
-    const vpW = window.innerWidth, vpH = window.innerHeight;
-    // Dropped near the left / right edge → dock full-height to that side rail.
-    if (p.x <= MARGIN + SNAP) { setDocked("left"); setPos(p); saveSaved(kind, { x: p.x, y: p.y, dock: "left" }); return; }
-    if (p.x >= vpW - w - MARGIN - SNAP) { setDocked("right"); setPos(p); saveSaved(kind, { x: p.x, y: p.y, dock: "right" }); return; }
-    // Otherwise stay free; snap flush to the top / bottom edge if dropped near it.
-    let { x, y } = p;
-    if (y <= MARGIN + SNAP) y = MARGIN;
-    else if (y >= vpH - h - MARGIN - SNAP) y = vpH - h - MARGIN;
-    const np = clampPos({ x, y }, w, h);
+    // No snap-to-edge / side-rail docking (founder, 2026-11-13): the window stays
+    // exactly where it's dropped, only clamped so it can't leave the viewport.
+    setDocked(null);
+    const np = clampPos(p, w, h);
     setPos(np);
     saveSaved(kind, { x: np.x, y: np.y, dock: null });
   }
