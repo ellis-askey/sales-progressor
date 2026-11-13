@@ -8,6 +8,7 @@
 // See docs/active/in-house-progression/00-spec.md.
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { assignUserAction } from "@/app/actions/transactions";
 import type { AssignableAgent } from "@/lib/services/agency-team";
 
@@ -24,6 +25,7 @@ export function AssignProgressorControl({
   currentAssignedName,
   progressors,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<string>(currentAssignedUserId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,9 @@ export function AssignProgressorControl({
     startTransition(async () => {
       try {
         await assignUserAction(transactionId, picked || null);
+        // The hero lives in the file LAYOUT; revalidateTx targets the page, not
+        // the layout, so refresh the current route to update it without a reload.
+        router.refresh();
         setOpen(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not update the progressor");

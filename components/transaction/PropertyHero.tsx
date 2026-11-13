@@ -754,17 +754,21 @@ export function PropertyHero({
                 the hero just renders whatever it's given. */}
             {inHouseProgressor ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 16, minWidth: 0, flexWrap: "wrap" }}>
-                {assignedUserName && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-                    <span style={{ flexShrink: 0 }}>
+                {/* Always render the CM slot (matches the Progressor slot below):
+                    an ownerless file shows "Not assigned yet", not a blank. */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                  <span style={{ flexShrink: 0 }}>
+                    {assignedUserName ? (
                       <UserAvatar user={{ name: assignedUserName, image: assignedUserImage }} size={32} />
-                    </span>
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.25 }}>{assignedUserName}</span>
-                      <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>Client manager</span>
-                    </span>
+                    ) : (
+                      <span aria-hidden style={{ width: 32, height: 32, borderRadius: 999, background: "var(--agent-surface-overlay)", color: "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontStyle: "italic", flexShrink: 0 }}>?</span>
+                    )}
                   </span>
-                )}
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: assignedUserName ? "var(--agent-text-primary)" : "var(--agent-text-muted)", lineHeight: 1.25 }}>{assignedUserName ?? "Not assigned yet"}</span>
+                    <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)" }}>Client manager</span>
+                  </span>
+                </span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                   <span style={{ flexShrink: 0 }}>
                     {inHouseProgressorName ? (

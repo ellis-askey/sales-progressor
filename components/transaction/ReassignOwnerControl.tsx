@@ -11,6 +11,7 @@
 // re-check role (relies on the server action to enforce).
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { reassignAgentAction } from "@/app/actions/transactions";
 import type { AssignableAgent } from "@/lib/services/agency-team";
@@ -30,6 +31,7 @@ export function ReassignOwnerControl({
   currentUserId,
   assignableAgents,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<string>(currentAgentUserId ?? currentUserId);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,9 @@ export function ReassignOwnerControl({
     startTransition(async () => {
       try {
         await reassignAgentAction(transactionId, picked);
+        // The hero lives in the file LAYOUT; the action revalidates the page, not
+        // the layout, so refresh the current route to update it without a reload.
+        router.refresh();
         setOpen(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not reassign");
