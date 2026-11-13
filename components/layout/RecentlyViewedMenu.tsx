@@ -10,8 +10,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ClockCounterClockwise, CaretDown, House } from "@phosphor-icons/react";
+import { ClockCounterClockwise, CaretDown } from "@phosphor-icons/react";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
 
 type FileMeta = { id: string; address: string; photoUrl: string | null };
 
@@ -77,10 +78,7 @@ export function RecentlyViewedMenu({ userId }: { userId: string }) {
           return (
             <Link key={e.id} href={`/agent/transactions/${e.id}`} unstable_dynamicOnHover role="menuitem" className="rvm-row"
               style={{ transitionDelay: open ? `${60 + i * 36}ms` : "0ms" }} onClick={() => setOpen(false)}>
-              <span className="rvm-thumb">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {m?.photoUrl ? <img src={m.photoUrl} alt="" /> : <House size={16} weight="fill" />}
-              </span>
+              <PropertyThumb photoUrl={m?.photoUrl ?? null} size={40} />
               <span className="rvm-row-text">
                 <span className="rvm-row-l1">{l1}</span>
                 {l2 && <span className="rvm-row-l2">{l2}</span>}
@@ -123,9 +121,6 @@ export function RecentlyViewedMenu({ userId }: { userId: string }) {
           transition: opacity .26s cubic-bezier(.2,.8,.2,1), transform .26s cubic-bezier(.2,.8,.2,1), background .12s; }
         .rvm-card[data-open="1"] .rvm-row { opacity: 1; transform: none; }
         .rvm-row:hover { background: rgba(var(--rvm-ink), 0.07); }
-        .rvm-thumb { position: relative; width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0; overflow: hidden; display: grid; place-items: center;
-          background: var(--agent-surface-overlay); color: var(--agent-text-muted); }
-        .rvm-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .rvm-row-text { flex: 1; min-width: 0; }
         .rvm-row-l1 { display: block; font-size: 13px; font-weight: 600; color: var(--agent-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .rvm-row-l2 { display: block; font-size: 11.5px; color: var(--agent-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
