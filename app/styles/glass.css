@@ -543,6 +543,16 @@
   -webkit-backdrop-filter: blur(8px) !important;
   backdrop-filter: blur(8px) !important;
 }
+/* The property-chain link cards (overview chain card) put a thin-glass frost
+   inset (v04) over each property photo. Tagging the OUTER chain card
+   (data-glass-id="overview-chain", so it's Lab-editable) turned the inset into a
+   nested [data-glass-id], so the strip above removed its blur and the photo
+   showed straight through. Re-assert the v04 frost for this inset only (same
+   fix as nav-search), scoped so nothing else changes. */
+[data-glass-id="chain-link-frost"].glass-v04 {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
 /* v00 (agent current baseline) has no blur or shadow to begin with, so
    this rule is a no-op for it. When cards are all-v00, nothing changes. */
 
