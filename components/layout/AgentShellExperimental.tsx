@@ -31,6 +31,7 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { RecentlyViewedMenu } from "@/components/layout/RecentlyViewedMenu";
 import { ViewModeToggle } from "@/components/layout/ViewModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
@@ -196,7 +197,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
         <div className="agx-nav-div" />
         <AgentNavRail items={navGroups.secondary} pathname={pathname} onNavigate={onNavigate} />
         {recentlyViewed.length > 0 && (
-          <div className="agx-recents">
+          <div className="agx-recents lg:hidden">
             <div className="agx-nav-div" />
             <p className="agx-recents-title">Recently viewed</p>
             {recentlyViewed.map((entry) => {
@@ -234,7 +235,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   return (
     <ShellGlassProvider>
     <div className="agent-shell-root agx-root" data-theme="custom" data-shell="drawers">
-      <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
+      <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} leadingControl={<div className="hidden lg:block agx-hide-on-search"><RecentlyViewedMenu userId={session.user.id} /></div>} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
 
       <AppPathRecorder />
       <PullToRefresh />
@@ -278,10 +279,10 @@ function AgxGlass({ fallback, isDark, radius = 20, className = "", children, ...
   return <LiquidGlass radius={r} blur={settings.blur} thickness={settings.thickness} displace={settings.displace} aberration={settings.aberration} tint={tint} className={className} {...rest}>{children}</LiquidGlass>;
 }
 
-type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode; searching: boolean; onSearchOpenChange: (v: boolean) => void };
+type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; leadingControl?: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode; searching: boolean; onSearchOpenChange: (v: boolean) => void };
 
 // ── Floating drawers ──────────────────────────────────────────────────────────
-function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPanel, searching, onSearchOpenChange }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void }) {
+function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, leadingControl, navPanel, searching, onSearchOpenChange }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -304,6 +305,7 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, navPan
     <>
       <div className="agx-cap-wrap">
         <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cap${searching ? " agx-cap--searching" : ""}`}>
+          {leadingControl}
           <div className="agx-cap-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
           {controls}
         </AgxGlass>
