@@ -20,6 +20,7 @@
 // Redesigned first-exchange hero template. The old buildFirstExchange below is
 // superseded and no longer dispatched.
 import { buildFirstExchange as buildFirstExchangeHero } from "../first-exchange";
+import { outsourcedIntakeEnabled } from "@/lib/progression/flags";
 
 export type RetentionEmailResult = {
   subject: string;
@@ -258,6 +259,24 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   const { firstName, ctaUrl = "", unsubscribeUrl = "" } = vars;
   const subject = "Welcome to Sales Progressor";
 
+  // Outsourced-sunset: with TSP intake gated off, the welcome copy drops the "first
+  // outsourced sale on us / let our team run it" promise for the flat-£50 story. The
+  // on-branch reproduces today's exact strings so the switch-on render is byte-
+  // identical. Switch on (default) = unchanged.
+  const outsourcedOn = outsourcedIntakeEnabled();
+  const feat1 = outsourcedOn
+    ? { t: "Self-progress is free", s: "No subscription. No charge per sale." }
+    : { t: "Simple pricing", s: "£50 per exchange, nothing else." };
+  const feat2 = outsourcedOn
+    ? { t: "Your first outsourced sale is on us", s: "Let our team run it for you." }
+    : { t: "Pay on completion", s: "You only pay when a sale exchanges." };
+  const introLine = outsourcedOn
+    ? "Whether you’re here to manage your own sales or you’d like a hand with the progression, it’s great to have you with us."
+    : "However you work, it’s great to have you with us.";
+  const pricingLine = outsourcedOn
+    ? "The platform is free to use, and if you’d like us to take care of a sale for you, your first one is on us."
+    : "The platform is free to use. You only pay £50 when a sale completes, so it costs you nothing until the sale is paying you too.";
+
   // Single baked hero ("Welcome to Sales Progressor.") for all breakpoints.
   const hero = `<img src="${EMAIL_ASSET}/hero-welcome-full.png" alt="Welcome to Sales Progressor." style="display:block;width:100%;max-width:100%;border:0;">`;
 
@@ -273,22 +292,22 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   // table cells) — so each breakpoint uses the layout that actually centres there.
   const wfeatures = `<div class="wf-desk" style="${PEACH}padding:24px 6px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;width:100%;"><tr>
-      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;">${wcol("icon-pound-line.png", "Self-progress is free", "No subscription. No charge per sale.")}</td>
-      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-people-line.png", "Your first outsourced sale is on us", "Let our team run it for you.")}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;">${wcol("icon-pound-line.png", feat1.t, feat1.s)}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-people-line.png", feat2.t, feat2.s)}</td>
       <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-home-line.png", "Everything in one place", "Track, chase and complete with ease.")}</td>
     </tr></table>
   </div>
   <div class="wf-mob" style="display:none;${PEACH}padding:26px 18px;">
-    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-pound-line.png", "Self-progress is free", "No subscription. No charge per sale.")}</div>
-    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-people-line.png", "Your first outsourced sale is on us", "Let our team run it for you.")}</div>
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-pound-line.png", feat1.t, feat1.s)}</div>
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-people-line.png", feat2.t, feat2.s)}</div>
     <div style="text-align:center;">${wcol("icon-home-line.png", "Everything in one place", "Track, chase and complete with ease.")}</div>
   </div>`;
 
   const body = [
     `<tr><td style="padding:22px 2px 0;font-family:${FONT_STACK};font-size:15.5px;line-height:1.6;color:#374151;">
       <p style="margin:0 0 16px;">Welcome to TSP ${firstName} 👋</p>
-      <p style="margin:0 0 16px;">Whether you’re here to manage your own sales or you’d like a hand with the progression, it’s great to have you with us.</p>
-      <p style="margin:0 0 16px;">The platform is free to use, and if you’d like us to take care of a sale for you, your first one is on us.</p>
+      <p style="margin:0 0 16px;">${introLine}</p>
+      <p style="margin:0 0 16px;">${pricingLine}</p>
       <p style="margin:0;">We’re always working to make TSP better, so if there’s something you’d love to see, just let us know. We’d genuinely love to hear from you.</p>
     </td></tr>`,
     `<tr><td style="padding:24px 0 0;">${wfeatures}</td></tr>`,
@@ -328,9 +347,9 @@ export function buildActivationDay1(vars: TemplateVars): RetentionEmailResult {
   const text = [
     `Welcome to TSP ${firstName} 👋`,
     ``,
-    `Whether you’re here to manage your own sales or you’d like a hand with the progression, it’s great to have you with us.`,
+    introLine,
     ``,
-    `The platform is free to use, and if you’d like us to take care of a sale for you, your first one is on us.`,
+    pricingLine,
     ``,
     `We’re always working to make TSP better, so if there’s something you’d love to see, just let us know. We’d genuinely love to hear from you.`,
     ``,
@@ -448,6 +467,26 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const addr = rawAddress.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const subject = "Your sale is now connected";
 
+  // Outsourced-sunset: same gating as the welcome email. On-branches reproduce
+  // today's exact strings (note the html uses curly quotes, the text straight) so
+  // switch-on stays byte-identical.
+  const outsourcedOn = outsourcedIntakeEnabled();
+  const feat1 = outsourcedOn
+    ? { t: "Self-progress is free", s: "No subscription. No charge per sale." }
+    : { t: "Simple pricing", s: "£50 per exchange, nothing else." };
+  const feat2 = outsourcedOn
+    ? { t: "Your first outsourced sale is on us", s: "Let our team run it for you." }
+    : { t: "Pay on completion", s: "You only pay when a sale exchanges." };
+  const connectedPricingHtml = outsourcedOn
+    ? "Your account is yours to keep, and self-progressing is completely free. If you’d rather we take care of a sale for you, your first one is on us."
+    : "Your account is yours to keep. You only pay £50 when a sale completes, nothing before.";
+  const connectedPricingText = outsourcedOn
+    ? "Your account is yours to keep, and self-progressing is completely free. If you'd rather we take care of a sale for you, your first one is on us."
+    : "Your account is yours to keep. You only pay £50 when a sale completes, nothing before.";
+  const featSummary = outsourcedOn
+    ? "Self-progress is free. Your first outsourced sale is on us. Everything in one place."
+    : "£50 per exchange. You only pay when a sale completes. Everything in one place.";
+
   // Desktop: title + sub-line overlaid on the left of the art. Mobile / tablet:
   // the baked image (title in the art), no HTML title or sub-line.
   const subLine = hasAddress
@@ -475,14 +514,14 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
   const PEACH = "background:#FDF0EA;background:linear-gradient(180deg,#FEF4EF 0%,#FBE6DC 100%);border:1px solid #FBE1D5;border-radius:16px;box-shadow:0 2px 12px rgba(216,90,53,0.07);";
   const wfeatures = `<div class="wf-desk" style="${PEACH}padding:24px 6px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;width:100%;"><tr>
-      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;">${wcol("icon-pound-line.png", "Self-progress is free", "No subscription. No charge per sale.")}</td>
-      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-people-line.png", "Your first outsourced sale is on us", "Let our team run it for you.")}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;">${wcol("icon-pound-line.png", feat1.t, feat1.s)}</td>
+      <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-people-line.png", feat2.t, feat2.s)}</td>
       <td valign="top" width="33.33%" style="text-align:center;padding:0 10px;border-left:1px solid #F3DACE;">${wcol("icon-home-line.png", "Everything in one place", "Track, chase and complete with ease.")}</td>
     </tr></table>
   </div>
   <div class="wf-mob" style="display:none;${PEACH}padding:26px 18px;">
-    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-pound-line.png", "Self-progress is free", "No subscription. No charge per sale.")}</div>
-    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-people-line.png", "Your first outsourced sale is on us", "Let our team run it for you.")}</div>
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-pound-line.png", feat1.t, feat1.s)}</div>
+    <div style="text-align:center;padding-bottom:24px;">${wcol("icon-people-line.png", feat2.t, feat2.s)}</div>
     <div style="text-align:center;">${wcol("icon-home-line.png", "Everything in one place", "Track, chase and complete with ease.")}</div>
   </div>`;
 
@@ -496,7 +535,7 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
       </div>
     </td></tr>`,
     `<tr><td style="padding:22px 2px 0;font-family:${FONT_STACK};font-size:15.5px;line-height:1.6;color:#374151;">
-      <p style="margin:0;">Your account is yours to keep, and self-progressing is completely free. If you’d rather we take care of a sale for you, your first one is on us.</p>
+      <p style="margin:0;">${connectedPricingHtml}</p>
     </td></tr>`,
     `<tr><td style="padding:24px 0 0;">${wfeatures}</td></tr>`,
     `<tr><td style="padding:18px 0 0;">
@@ -536,9 +575,9 @@ export function buildClaimWelcome(vars: TemplateVars): RetentionEmailResult {
     ``,
     `Open your sale: ${ctaUrl}`,
     ``,
-    `Your account is yours to keep, and self-progressing is completely free. If you'd rather we take care of a sale for you, your first one is on us.`,
+    connectedPricingText,
     ``,
-    `Self-progress is free. Your first outsourced sale is on us. Everything in one place.`,
+    featSummary,
     ``,
     `Need a hand getting started? Just reply to this email.`,
     ``,

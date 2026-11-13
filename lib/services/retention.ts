@@ -16,6 +16,7 @@
 import { createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendAgentEmail } from "@/lib/email/agent-log";
+import { outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   buildRetentionEmail,
@@ -450,7 +451,11 @@ export async function runRetentionEmailSweep(): Promise<SweepResult> {
   }
 
   // ── Priority 2: send_to_us_drop_21d ────────────────────────────────────────
-  {
+  // Outsourced-sunset: this is a "send us another sale" win-back. With TSP intake
+  // gated off we stop soliciting new outsourcing, so the whole block is skipped.
+  // Existing outsourced files are still serviced; we just don't chase for more.
+  // Switch on (default) = unchanged.
+  if (outsourcedIntakeEnabled()) {
     const emailKey: RetentionEmailKey = "send_to_us_drop_21d";
     const cutoff21d = days(21);
 
