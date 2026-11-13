@@ -152,7 +152,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><DesignLabToggle /></div>
       )}
-      <span className="agx-hide-on-search" style={{ display: "inline-flex" }}><AgentBell initialClearedAt={agentBellClearedAt} /></span>
+      <span className="agx-hide-on-search agx-bell" style={{ display: "inline-flex" }}><AgentBell initialClearedAt={agentBellClearedAt} /></span>
       <UserDropdown session={session} role={role} userName={displayName} userImage={userImage} isBusinessOwner={showClientsNav} isBusinessMember={isBusinessMember} />
     </div>
   );

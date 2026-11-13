@@ -18,8 +18,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 // The most recently touched window sits on top. Module-level so the two windows
-// (one email, one note) share a single z-ramp.
+// (one email, one note) share a single z-ramp. Capped so it never climbs above
+// the experimental shell's nav drawer + scrim (z 2000+), which must cover it.
 let Z_TOP = 1300;
+const Z_MAX = 1900;
+function nextZ(): number { Z_TOP = Math.min(Z_TOP + 1, Z_MAX); return Z_TOP; }
 
 type Pos = { x: number; y: number };
 
@@ -53,9 +56,18 @@ const MARGIN = 18;   // gap kept from the viewport edge when clamping / snapping
 const SNAP = 36;     // drop within this many px of an edge → snap flush to it
 const CHIP_H = 46;   // minimised chip height (drives the stack offset)
 
+// Effective on-screen width: the requested width, but never wider than the
+// viewport allows (so it doesn't overflow on narrow screens / small breakpoints).
+function effWidth(width: number): number {
+  if (typeof window === "undefined") return width;
+  return Math.max(280, Math.min(width, window.innerWidth - MARGIN * 2));
+}
+
+// Storage key is versioned (…2) so earlier builds' saved positions (which could
+// be parked off-screen bottom-right) are discarded; everyone re-centres.
 function loadPos(kind: string): Pos | null {
   try {
-    const raw = window.localStorage.getItem(`floatwin:${kind}`);
+    const raw = window.localStorage.getItem(`floatwin2:${kind}`);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Pos>;
     if (typeof p?.x === "number" && typeof p?.y === "number") return { x: p.x, y: p.y };
@@ -63,7 +75,7 @@ function loadPos(kind: string): Pos | null {
   return null;
 }
 function savePos(kind: string, p: Pos) {
-  try { window.localStorage.setItem(`floatwin:${kind}`, JSON.stringify(p)); } catch { /* ignore */ }
+  try { window.localStorage.setItem(`floatwin2:${kind}`, JSON.stringify(p)); } catch { /* ignore */ }
 }
 
 function clampPos(p: Pos, w: number, h: number): Pos {
@@ -95,25 +107,34 @@ export function FloatingWindow({
 }: FloatingWindowProps) {
   const winRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Pos | null>(null);
-  const [z, setZ] = useState<number>(() => ++Z_TOP);
+  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  const [z, setZ] = useState<number>(() => nextZ());
   const [confirmClose, setConfirmClose] = useState(false);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
-  // Initial placement: last-saved spot for this kind, else lower-right, above
-  // where the dock sits. Measured after first paint so we can use real height.
+  // Initial placement: last-saved spot for this kind, else CENTRED (matching the
+  // old modal). Centre on an estimated tall-ish height so a composer that grows
+  // as its content loads stays roughly centred instead of drifting off-screen.
   useEffect(() => {
-    const h = winRef.current?.offsetHeight ?? 440;
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const def: Pos = { x: vw - width - MARGIN, y: Math.max(MARGIN, vh - h - 92) };
-    setPos(clampPos(loadPos(kind) ?? def, width, h));
+    const w = effWidth(width);
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+    const estH = Math.min(vpH * 0.84, 680);
+    const h = winRef.current?.offsetHeight || estH;
+    // Centre (matching the old modal). The note cascades a touch off the email so
+    // that, with both open, the second window doesn't sit exactly on the first.
+    const off = kind === "note" ? 30 : 0;
+    const def: Pos = { x: Math.round((vpW - w) / 2) + off, y: Math.max(MARGIN, Math.round((vpH - estH) / 2) + off) };
+    setPos(clampPos(loadPos(kind) ?? def, w, h));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep the window on-screen when the viewport resizes.
+  // Keep the window on-screen + re-clamp its width when the viewport resizes.
   useEffect(() => {
     function onResize() {
+      setVw(window.innerWidth);
+      const w = effWidth(width);
       const h = winRef.current?.offsetHeight ?? 440;
-      setPos((p) => (p ? clampPos(p, width, h) : p));
+      setPos((p) => (p ? clampPos(p, w, h) : p));
     }
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -128,7 +149,7 @@ export function FloatingWindow({
     return () => clearTimeout(t);
   }, [closing, onExited]);
 
-  const bringToFront = useCallback(() => setZ(++Z_TOP), []);
+  const bringToFront = useCallback(() => setZ(nextZ()), []);
 
   function onBarPointerDown(e: React.PointerEvent) {
     // Don't start a drag from the title-bar buttons.
@@ -141,7 +162,7 @@ export function FloatingWindow({
   function onBarPointerMove(e: React.PointerEvent) {
     if (!drag.current) return;
     const h = winRef.current?.offsetHeight ?? 440;
-    setPos(clampPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy }, width, h));
+    setPos(clampPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy }, effWidth(width), h));
   }
   function onBarPointerUp(e: React.PointerEvent) {
     if (!drag.current) return;
@@ -150,14 +171,15 @@ export function FloatingWindow({
     // Snap flush to any edge the window was dropped close to.
     setPos((p) => {
       if (!p) return p;
+      const w = effWidth(width);
       const h = winRef.current?.offsetHeight ?? 440;
-      const vw = window.innerWidth, vh = window.innerHeight;
+      const vpW = window.innerWidth, vpH = window.innerHeight;
       let { x, y } = p;
       if (x <= MARGIN + SNAP) x = MARGIN;
-      else if (x >= vw - width - MARGIN - SNAP) x = vw - width - MARGIN;
+      else if (x >= vpW - w - MARGIN - SNAP) x = vpW - w - MARGIN;
       if (y <= MARGIN + SNAP) y = MARGIN;
-      else if (y >= vh - h - MARGIN - SNAP) y = vh - h - MARGIN;
-      const np = clampPos({ x, y }, width, h);
+      else if (y >= vpH - h - MARGIN - SNAP) y = vpH - h - MARGIN;
+      const np = clampPos({ x, y }, w, h);
       savePos(kind, np);
       return np;
     });
@@ -166,6 +188,10 @@ export function FloatingWindow({
   function onWinAnimEnd(e: React.AnimationEvent) {
     if (closing && e.target === e.currentTarget) onExited?.();
   }
+
+  // Width actually rendered: never wider than the viewport allows (tracks vw so
+  // it re-clamps on resize / at small breakpoints).
+  const renderWidth = Math.max(280, Math.min(width, vw - MARGIN * 2));
 
   // The window and the minimised chip are BOTH kept in the tree; we only toggle
   // which is shown. Crucially the window content (children) stays mounted while
@@ -178,7 +204,7 @@ export function FloatingWindow({
         data-fw-theme={theme}
         data-theme={scopeTokens ? theme : undefined}
         data-closing={closing ? "1" : undefined}
-        style={{ left: pos?.x ?? -9999, top: pos?.y ?? -9999, width, zIndex: z, visibility: pos ? "visible" : "hidden", display: minimized ? "none" : undefined }}
+        style={{ left: pos?.x ?? -9999, top: pos?.y ?? -9999, width: renderWidth, zIndex: z, visibility: pos ? "visible" : "hidden", display: minimized ? "none" : undefined }}
         role="dialog"
         aria-label={title}
         aria-hidden={minimized || undefined}
