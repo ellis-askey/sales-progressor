@@ -9,10 +9,10 @@ import { commandDb } from "@/lib/command/prisma";
 export const dynamic = "force-dynamic";
 
 const ROUTE: Record<string, { label: string; cls: string; note: string }> = {
-  outlook_reply: { label: "Native Outlook reply", cls: "bg-[#0f2e1d] text-[#6ee7b7] border-[#14532d]", note: "Threaded into an existing Outlook conversation — Stage 3 working." },
+  outlook_reply: { label: "Native Outlook reply", cls: "bg-[#0f2e1d] text-[#6ee7b7] border-[#14532d]", note: "Threaded into an existing Outlook conversation. Stage 3 working." },
   outlook_new: { label: "New Outlook thread", cls: "bg-[#102236] text-[#93c5fd] border-[#1e3a5f]", note: "First email of a conversation, sent via Outlook." },
   mailbox_smtp: { label: "Own mailbox (SMTP)", cls: "bg-neutral-800 text-neutral-300 border-neutral-700", note: "Sent through the agent's own (non-Outlook) mailbox." },
-  standard: { label: "Standard send", cls: "bg-[#3a2a0f] text-[#fcd34d] border-[#854d0e]", note: "Went out via SendGrid — this is also what a Graph fall-back looks like." },
+  standard: { label: "Standard send", cls: "bg-[#3a2a0f] text-[#fcd34d] border-[#854d0e]", note: "Went out via SendGrid. This is also what a Graph fall-back looks like." },
 };
 function routeInfo(r: string | null) {
   return (r && ROUTE[r]) || { label: r ?? "—", cls: "bg-neutral-800 text-neutral-400 border-neutral-700", note: "" };
