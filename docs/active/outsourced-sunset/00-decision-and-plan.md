@@ -205,6 +205,15 @@ every decision below as it's made.
   `PlanTermsCollapsed`, `MetricsStrip`, billing page) + the per-sale "mark free" CC
   control. NOTE: £50 pricing is tied to the SAME switch as intake (the New-Year flip),
   per founder "built behind the switch exactly like this".
+- 2026-11-13 — **In-app copy gating (#1) BUILT (staging, not pushed).** All behind the
+  switch, byte-identical when on. B onboarding (`4a89e07c`): welcome modal/tour show
+  self-progress framing when off. A emails (`7dbc037e`): welcome + sale-connected drop
+  the outsourced promise; the "send us another sale" win-back stops dispatching. C
+  pricing presentation (`3f48f294`): Plan & terms / metrics strip / new-sale earnings
+  read the flat-£50 model. **Verification guide written: `02-verification-guide.md`**
+  (the December walk-through — every visible change, where to look, before/after). One
+  carve-out: the billing-page Payment-method block ("send to TSP's own team") is left
+  for the billing-engine **card-requirement** decision (logic, not copy).
 - 2026-11-13 — **`/outsource` reclassified to the marketing bucket (founder).** It's a
   public, no-auth COLD-OUTREACH landing page (`portal.thesalesprogressor.co.uk/outsource`),
   not linked anywhere in the app — reached only via links in outreach emails. So it's
