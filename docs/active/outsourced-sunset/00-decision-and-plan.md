@@ -205,6 +205,15 @@ every decision below as it's made.
   `PlanTermsCollapsed`, `MetricsStrip`, billing page) + the per-sale "mark free" CC
   control. NOTE: £50 pricing is tied to the SAME switch as intake (the New-Year flip),
   per founder "built behind the switch exactly like this".
+- 2026-11-13 — **Billing follow-ups done (staging, not pushed):** CC revenue
+  forecasting now values flat-fifty files at £50 (pricingVersion threaded through all
+  7 `lib/command/revenue.ts` computeFee sites, commit 61660a16); and the per-sale
+  **"mark free" CC control** is built (commit 17d636b5) — `setSaleFreeOnExchangeAction`
+  + `MarkFreeToggle` in the agency sales table, shown only on flat-fifty files,
+  refusing already-billed files. Boardwalk's existing 41 are pre-flip free-self
+  (already £0); the grant is for comping post-flip £50 sales. **Remaining Workstream B
+  billing: agent-facing presentation** (EarningsBuilder / PlanTermsCollapsed /
+  MetricsStrip / billing page still narrate £250–£350) — gated with the marketing copy.
 - 2026-11-12 — **Three decisions resolved (founder):**
   (1) **£50/exchange is flat and universal** — every agent exchange, no bands, no auto-
   free. Old £250–£350 gated off (not deleted); existing outsourced tail bills at current
