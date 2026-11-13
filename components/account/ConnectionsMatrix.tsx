@@ -30,11 +30,11 @@ type ImapStatus = { configured: boolean; connections: ImapConn[] };
 type WaStatus = { configured: boolean; connection: { status: string } | null };
 
 const CAPS: { key: string; title: string; sub: string; Icon: typeof EnvelopeSimple }[] = [
-  { key: "send", title: "Send and receive emails", sub: "Manage every sale email inside Sales Progressor", Icon: PaperPlaneTilt },
-  { key: "sendown", title: "Send from your own address", sub: "Clients see your address, not ours, via your domain or inbox", Icon: IdentificationBadge },
-  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups", Icon: ArrowsClockwise },
-  { key: "capture", title: "Capture client conversations", sub: "Store and track messages against the right sale", Icon: ChatCircleText },
-  { key: "timeline", title: "A complete sale timeline", sub: "Emails, notes and messages in one place", Icon: ListChecks },
+  { key: "send", title: "Send and receive emails", sub: "Manage all your sale emails in one place.", Icon: PaperPlaneTilt },
+  { key: "sendown", title: "Send from your own address", sub: "Clients receive emails from your address, not ours.", Icon: IdentificationBadge },
+  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups.", Icon: ArrowsClockwise },
+  { key: "capture", title: "Capture client conversations", sub: "Keep client emails organised against the right sale.", Icon: ChatCircleText },
+  { key: "timeline", title: "Complete sale timeline", sub: "Every email, message and note in one place.", Icon: ListChecks },
 ];
 const CHANNELS: { key: ChannelKey; name: string; sub: string }[] = [
   { key: "outlook", name: "Outlook", sub: "Email" },
@@ -69,7 +69,7 @@ function TickCell({ state }: { state: Cell }) {
   return <span className={`${base} border border-dashed border-gray-300 text-gray-300`} aria-label="Available once connected"><Check size={15} weight="bold" /></span>;
 }
 
-export function ConnectionsMatrix() {
+export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?: boolean }) {
   const [outlook, setOutlook] = useState<OutlookStatus | null>(null);
   const [imap, setImap] = useState<ImapStatus | null>(null);
   const [wa, setWa] = useState<WaStatus | null>(null);
@@ -104,7 +104,15 @@ export function ConnectionsMatrix() {
       if (ch === "outlook") return outlookOn ? "on" : "off";
       return imapOn ? (imapSends && !imapReadIssue ? "on" : "partial") : "off";
     }
-    if (cap === "chase" || cap === "sendown") {
+    if (cap === "sendown") {
+      if (ch === "whatsapp") return "na";
+      if (ch === "outlook") return outlookOn ? "on" : "off";
+      // A verified domain lets you send from your own branded address even with
+      // no inbox connected, so it lights this row independently.
+      if (domainVerified) return "on";
+      return imapOn ? (imapSends ? "on" : "partial") : "off";
+    }
+    if (cap === "chase") {
       if (ch === "whatsapp") return "na";
       if (ch === "outlook") return outlookOn ? "on" : "off";
       return imapOn ? (imapSends ? "on" : "partial") : "off";
@@ -134,8 +142,9 @@ export function ConnectionsMatrix() {
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       {/* Header row */}
       <div className="grid grid-cols-[minmax(0,1fr)_repeat(3,86px)] items-stretch border-b border-gray-200 bg-gray-50/60 sm:grid-cols-[minmax(0,1fr)_repeat(3,132px)]">
-        <div className="flex items-center px-4 py-4 sm:px-5">
-          <span className="text-[14px] font-bold tracking-tight text-gray-900">What it enables</span>
+        <div className="flex flex-col justify-center px-4 py-4 sm:px-5">
+          <span className="text-[14px] font-bold tracking-tight text-gray-900">What you&rsquo;ll unlock</span>
+          <span className="mt-1 text-[12px] leading-snug text-gray-500">Connect an email provider below to enable these features.</span>
         </div>
         {CHANNELS.map((c) => {
           const st = headStatus(c.key);

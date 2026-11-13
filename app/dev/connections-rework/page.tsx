@@ -21,6 +21,7 @@ import { useRef, useState, type ReactNode } from "react";
 import {
   OutlookLogo, GmailLogo, YahooLogo, ICloudLogo, ZohoLogo, ExpLogo, GenericMailLogo,
 } from "@/components/account/provider-logos";
+import { PaperPlaneTilt, IdentificationBadge, ArrowsClockwise, ChatCircleText, ListChecks } from "@phosphor-icons/react";
 
 type ChannelKey = "outlook" | "email" | "whatsapp";
 type TileKey = "gmail" | "yahoo" | "icloud" | "zoho" | "exp" | "other";
@@ -31,11 +32,12 @@ type EmailInbox = { id: string; email: string; provider: TileKey; reading: "on" 
 type Wa = { status: "off" | "connected"; phone?: string };
 type CellState = "na" | "off" | "partial" | "on";
 
-const CAPS: { key: string; title: string; sub: string }[] = [
-  { key: "send", title: "Send and receive emails", sub: "Manage all sale emails within TSP" },
-  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups" },
-  { key: "capture", title: "Capture client conversations", sub: "Store and track messages against the right sale" },
-  { key: "timeline", title: "A complete sale timeline", sub: "Emails, notes and messages in one place" },
+const CAPS: { key: string; title: string; sub: string; Icon: typeof PaperPlaneTilt }[] = [
+  { key: "send", title: "Send and receive emails", sub: "Manage all your sale emails in one place.", Icon: PaperPlaneTilt },
+  { key: "sendown", title: "Send from your own address", sub: "Clients receive emails from your address, not ours.", Icon: IdentificationBadge },
+  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups.", Icon: ArrowsClockwise },
+  { key: "capture", title: "Capture client conversations", sub: "Keep client emails organised against the right sale.", Icon: ChatCircleText },
+  { key: "timeline", title: "Complete sale timeline", sub: "Every email, message and note in one place.", Icon: ListChecks },
 ];
 const CHANNELS: { key: ChannelKey; name: string; sub: string }[] = [
   { key: "outlook", name: "Outlook", sub: "Email" },
@@ -43,9 +45,9 @@ const CHANNELS: { key: ChannelKey; name: string; sub: string }[] = [
   { key: "whatsapp", name: "WhatsApp", sub: "Client conversations" },
 ];
 const DISCONNECTED_BULLETS: Record<ChannelKey, string[]> = {
-  outlook: ["Email sending & receiving", "Automatic chasing", "Sale timeline integration"],
-  email: ["Send from your connected inbox", "Automatic chasing", "Replies captured on the file", "Sale timeline integration"],
-  whatsapp: ["Your WhatsApp, linked as a device", "Capture group chats for your sales", "Save client messages against the right file", "Full conversation history and timeline"],
+  outlook: ["Send and receive emails through Outlook", "Automatically chase outstanding updates", "Save replies to the correct sale", "Keep your sale timeline up to date"],
+  email: ["Send emails from your own address", "Automatically chase outstanding updates", "Save replies to the correct sale", "Keep your sale timeline up to date"],
+  whatsapp: ["Connect using WhatsApp's linked devices", "Capture conversations from your property groups", "Save messages to the correct sale", "Keep group conversations on your sale timeline"],
 };
 const TILES: { key: TileKey; label: string; logo: (s: number) => ReactNode }[] = [
   { key: "gmail", label: "Gmail", logo: (s) => <GmailLogo size={s} /> },
@@ -88,6 +90,7 @@ export default function ConnectionsReworkPage() {
   const [email, setEmail] = useState<EmailInbox[]>([]);
   const [wa, setWa] = useState<Wa>({ status: "off" });
   const [autoTodos, setAutoTodos] = useState(false);
+  const [dnsVerified, setDnsVerified] = useState(false);
   const [flow, setFlow] = useState<ChannelKey | null>(null);
   const [manage, setManage] = useState<ChannelKey | null>(null);
   const [toast, setToast] = useState<{ key: string; text: string } | null>(null);
@@ -101,6 +104,7 @@ export default function ConnectionsReworkPage() {
 
   function cell(cap: string, ch: ChannelKey): CellState {
     if (cap === "send") { if (ch === "whatsapp") return "na"; if (ch === "outlook") return outlook.length ? "on" : "off"; return email.length ? (emailHealth === "on" ? "on" : "partial") : "off"; }
+    if (cap === "sendown") { if (ch === "whatsapp") return "na"; if (ch === "outlook") return outlook.length ? "on" : "off"; if (dnsVerified) return "on"; return email.length ? (emailSends ? "on" : "partial") : "off"; }
     if (cap === "chase") { if (ch === "whatsapp") return "na"; if (ch === "outlook") return outlook.length ? "on" : "off"; return email.length ? (emailSends ? "on" : "partial") : "off"; }
     if (cap === "capture") { if (ch !== "whatsapp") return "na"; return wa.status === "connected" ? "on" : "off"; }
     if (ch === "outlook") return outlook.length ? "on" : "off";
@@ -148,7 +152,7 @@ export default function ConnectionsReworkPage() {
         {/* ── Capability matrix ─────────────────────────────────────────────── */}
         <section className="cxr-matrix">
           <div className="cxr-mrow cxr-mhead">
-            <div className="cxr-mlabel"><span className="cxr-meyebrow">What it enables</span></div>
+            <div className="cxr-mlabel"><span className="cxr-meyebrow">What you&rsquo;ll unlock</span><span className="cxr-meyebrow-sub">Connect an email provider below to enable these features.</span></div>
             {CHANNELS.map((c) => {
               const st = headStatus(c.key);
               return (
@@ -162,7 +166,7 @@ export default function ConnectionsReworkPage() {
           </div>
           {CAPS.map((cap) => (
             <div key={cap.key} className={`cxr-mrow ${rowAchieved(cap.key) ? "achieved" : ""}`}>
-              <div className="cxr-mlabel"><span className="cxr-cap-title">{cap.title}</span><span className="cxr-cap-sub">{cap.sub}</span></div>
+              <div className="cxr-mlabel cxr-mlabel-ico"><span className="cxr-capicon"><cap.Icon size={15} weight="bold" /></span><div><span className="cxr-cap-title">{cap.title}</span><span className="cxr-cap-sub">{cap.sub}</span></div></div>
               {CHANNELS.map((c) => <div key={c.key} className="cxr-mcell"><Tick state={cell(cap.key, c.key)} /></div>)}
             </div>
           ))}
@@ -212,6 +216,30 @@ export default function ConnectionsReworkPage() {
               </>
             ) : <Bullets channel="whatsapp" onConnect={() => setFlow("whatsapp")} />}
           </ConnCard>
+        </section>
+
+        {/* ── Demo controls (prototype only) ───────────────────────────────── */}
+        <section className="cxr-demo">
+          <div className="cxr-demo-head">
+            <span className="cxr-demo-t">Demo controls</span>
+            <span className="cxr-demo-sub">Toggle states and watch the matrix above react</span>
+          </div>
+          <div className="cxr-demo-grid">
+            {[
+              { label: "Outlook linked", on: outlook.length > 0, toggle: () => setOutlook((o) => o.length ? [] : [{ id: nid(), email: "ellis@kingsagency.co.uk" }]) },
+              { label: "Email provider connected", on: email.length > 0, toggle: () => setEmail((e) => e.length ? [] : [{ id: nid(), email: "ellis@kingsagency.co.uk", provider: "zoho" as TileKey, reading: "on" as const, sending: "on" as const }]) },
+              { label: "Email sending on", on: emailSends, disabled: email.length === 0, toggle: () => setEmail((e) => e.map((x) => ({ ...x, sending: x.sending === "on" ? "off" : "on" }))) },
+              { label: "Email reading limited", on: email.some((e) => e.reading === "limited"), disabled: email.length === 0, toggle: () => setEmail((e) => e.map((x) => ({ ...x, reading: x.reading === "limited" ? "on" : "limited" }))) },
+              { label: "WhatsApp connected", on: wa.status === "connected", toggle: () => setWa((w) => w.status === "connected" ? { status: "off" } : { status: "connected", phone: "+44 7508 862929" }) },
+              { label: "Domain verified (DNS)", on: dnsVerified, toggle: () => setDnsVerified((v) => !v) },
+            ].map((t) => (
+              <div key={t.label} className={`cxr-demo-row ${t.disabled ? "dim" : ""}`}>
+                <span>{t.label}</span>
+                <button role="switch" aria-checked={t.on} className={`cxr-switch ${t.on ? "on" : ""}`} disabled={t.disabled} onClick={t.toggle}><span /></button>
+              </div>
+            ))}
+          </div>
+          <p className="cxr-demo-note">Domain verified lights &ldquo;Send from your own address&rdquo; on its own, since a verified domain lets you send from your branded address without connecting an inbox. Turning email sending off (while connected) drops the email ticks to amber.</p>
         </section>
       </div>
 
@@ -628,4 +656,21 @@ const CSS = `
 
 @media (max-width:820px){.cxr-cards{grid-template-columns:1fr}}
 @media (max-width:720px){.cxr-mrow{grid-template-columns:minmax(0,1fr) 72px 72px 72px}.cxr-mcol-sub,.cxr-cdot{display:none}.cxr-rec-h,.cxr-rec-r{grid-template-columns:56px 1fr}.cxr-rec-h span:last-child,.cxr-rec-r span:last-child{display:none}}
+
+/* matrix: header sub + per-row icon chips */
+.cxr-meyebrow-sub{display:block;margin-top:4px;font-size:11.5px;font-weight:500;color:var(--muted)}
+.cxr-mlabel-ico{display:flex;align-items:flex-start;gap:12px}
+.cxr-capicon{flex-shrink:0;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--card2);color:var(--muted);border:1px solid var(--line2);margin-top:1px}
+
+/* demo controls (prototype only) */
+.cxr-demo{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.cxr-demo-head{display:flex;flex-direction:column;margin-bottom:14px}
+.cxr-demo-t{font-size:15px;font-weight:700}
+.cxr-demo-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.cxr-demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.cxr-demo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card2);font-size:13px;font-weight:600}
+.cxr-demo-row.dim{opacity:.5}
+.cxr-demo-row .cxr-switch:disabled{cursor:not-allowed}
+.cxr-demo-note{margin:12px 0 0;font-size:11.5px;color:var(--muted);line-height:1.5}
+@media (max-width:620px){.cxr-demo-grid{grid-template-columns:1fr}}
 `;

@@ -51,10 +51,10 @@ export default async function AccountConnectionsPage({
     <>
       <AccountPageHeader
         title="Connections"
-        subtitle="Connect your inbox so replies from solicitors and clients are matched to the right sale and saved on the file. We only read emails relating to your sales, and you can disconnect at any time."
+        subtitle="Connect your inbox to automatically match emails from solicitors and clients to the correct sale. We only access emails related to your sales, and you can disconnect at any time."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <ConnectionsMatrix />
+        <ConnectionsMatrix domainVerified={domainVerified} />
 
         <AccountCard
           icon={<EnvelopeSimple size={18} weight="bold" />}
