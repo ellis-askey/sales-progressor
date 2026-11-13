@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
-import { CaretDown } from "@/components/icons/ph";
+import { CaretDown } from "@phosphor-icons/react";
 import { AnimatedTick } from "@/components/ui/AnimatedTick";
 
 export type PlanTermsCollapsedProps = {

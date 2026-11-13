@@ -8,7 +8,7 @@
 // quieter size. Context, not hero. The building invoice below carries
 // the visual weight.
 
-import { CreditCard, ArrowsLeftRight, Gift, Receipt } from "@/components/icons/ph";
+import { CreditCard, ArrowsLeftRight, Gift, Receipt } from "@phosphor-icons/react";
 import { useCountUp } from "@/lib/hooks/useCountUp";
 
 export type MetricsStripProps = {
