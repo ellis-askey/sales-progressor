@@ -624,7 +624,16 @@ export async function getActivityTimeline(
       const r = typeof raw === "string" ? raw.trim() : "";
       return r && r !== (c.content ?? "").trim() ? r : null;
     })(),
-    conversationId: c.type === "inbound" ? (c.conversationId ?? null) : null,
+    // Thread key (Stage 4): group a conversation by its root message so SENT
+    // emails and their replies show together, not just inbound. The References
+    // root is the stable thread id across every client; fall back to this
+    // message's own Message-ID (it IS the root of its thread) and finally to the
+    // Outlook conversation id. Email only — notes/WhatsApp never carry these, so
+    // they stay ungrouped. A non-threaded outbound email has none of these → null
+    // (unchanged: it doesn't group).
+    conversationId: c.method === "email"
+      ? ((c.emailReferences?.match(/<[^>]+>/)?.[0]) ?? c.internetMessageId ?? c.conversationId ?? null)
+      : null,
     aiRead: (() => {
       if (c.type !== "inbound") return null;
       const read = (c.providerWebhookData as { read?: { summary?: string; suggestions?: EmailSuggestion[]; dismissed?: number[] } } | null)?.read;
