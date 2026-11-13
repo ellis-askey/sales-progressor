@@ -11,7 +11,7 @@ import { AgentPwaPing } from "@/components/agent/AgentPwaPing";
 import { resolveAgentSession } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { computeNavBadgeCounts } from "@/lib/agent/nav-badges";
-import { progressionBusinessesEnabled } from "@/lib/progression/flags";
+import { progressionBusinessesEnabled, outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { canMigrateSale } from "@/lib/agency-features/migrate-sale";
 import { resolveBusinessMember, businessHasClients } from "@/lib/services/progression-clients";
 import { getProgressorWelcomeState } from "@/lib/services/progressor-chase-prefs";
@@ -201,7 +201,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
         )}
         {selfManagedWelcomePrefs && (
           <SelfManagedWelcomeModal
-            agencyModeProfile={agencyModeProfile ?? "self_progressed"}
+            agencyModeProfile={outsourcedIntakeEnabled() ? (agencyModeProfile ?? "self_progressed") : "self_progressed"}
             userName={userName}
             initialPrefs={selfManagedWelcomePrefs}
             themeMode={themeMode}
