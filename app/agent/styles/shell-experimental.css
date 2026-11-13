@@ -157,6 +157,12 @@
 .agx-side-foot { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 2px 2px; margin-top: 6px; border-top: 0.5px solid var(--agent-border-subtle); }
 .agx-side-foot-label { font-size: 11px; font-weight: 600; color: var(--agent-text-muted); }
 
+/* Control chips in the floating bar: match the production topbar — no border at
+   rest, hover or active (the icon still lifts to coral), at every width. */
+.agx-cap .agent-chip-hover,
+.agx-cap .agent-chip-hover:hover:not(:disabled),
+.agx-cap .agent-chip-hover:active:not(:disabled) { border-color: transparent !important; }
+
 /* ── Tablet / mobile top-bar optimisation (Ellis, 2026-11-12) ──────────────────
    Span the width so search + the account pill sit flush (no centered-overflow
    "detached pill"); plus a bespoke search mode — tapping search widens the field
@@ -166,6 +172,9 @@
   .agx-cap-wrap { left: 12px; right: 12px; transform: none; max-width: none; }
   .agx-cap { display: flex; width: 100%; }
   .agx-cap-search { flex: 1; width: auto; min-width: 0; }
+  /* Refresh: icon only (it still spins when pressed); drop the "As of HH:MM" text. */
+  .agx-asof-txt { display: none; }
+  .agx-asof { padding-left: 7px; padding-right: 7px; }
 
   .agx-cmd-wrap { left: 12px; right: 12px; transform: none; width: auto; }
 

@@ -21,7 +21,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ReactNode, type HTMLAttributes } from "react";
 import type { UserRole } from "@prisma/client";
 import {
-  List, X, Plus, ArrowsClockwise, ClockCounterClockwise,
+  List, X, Plus, ArrowsClockwise, ClockCounterClockwise, Moon,
 } from "@phosphor-icons/react";
 import { LiquidGlass } from "@/components/quick-dock/LiquidGlass";
 import { LiquidLens } from "@/components/liquid/LiquidLens";
@@ -95,7 +95,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const [fallback, setFallback] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);  // mobile/tablet: top bar collapses to search + pill while searching
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
-  const { isDark } = useDarkMode(themeMode);
+  const { isDark, setDark } = useDarkMode(themeMode);
 
   // Detect the Safari/Firefox/iOS frost fallback after mount.
   useEffect(() => { setFallback(detectFallback()); }, []);
@@ -143,9 +143,11 @@ export function AgentShellExperimental(props: AgentShellProps) {
         <span style={{ display: "inline-flex", animation: refreshing ? "agent-spin 700ms linear infinite" : undefined }}><ArrowsClockwise size={13} /></span>
         <span className="agx-asof-txt" suppressHydrationWarning>{`As of ${formatAgentTime(refreshedAt)}`}</span>
       </button>
-      {/* Aurora + the Labs are desktop-only. Theme moved to the drawer/menu footer
-          (navPanel) so the top bar stays lean on tablet/mobile, and collapses to
+      {/* Theme: a button in the top bar on desktop (as the production shell has
+          always had it). On tablet/mobile it's hidden here and lives in the drawer
+          instead. Aurora + the Labs stay desktop-only. The bar also collapses to
           just search + the account pill while searching. */}
+      <div className="hidden md:block"><ThemeModeToggle initialMode={themeMode} /></div>
       <div className="hidden md:block"><AuroraOpacityControl initialOpacity={backgroundOpacity} /></div>
       {session.user.email && DESIGN_LAB_EMAILS.has(session.user.email) && (
         <div className="hidden md:block"><DesignLabToggle /></div>
@@ -204,11 +206,22 @@ export function AgentShellExperimental(props: AgentShellProps) {
           </div>
         )}
       </div>
-      {/* Theme lives here now (moved off the top bar) — the drawer/menu is the
-          nav + settings home at every width on this shell. */}
-      <div className="agx-side-foot">
-        <span className="agx-side-foot-label">Appearance</span>
-        <ThemeModeToggle initialMode={themeMode} />
+      {/* Theme on tablet/mobile lives here in the drawer (desktop uses the top-bar
+          button). Matches the production sidebar's "Dark mode" label + pill. */}
+      <div className="agx-side-foot md:hidden">
+        <button
+          type="button"
+          onClick={() => setDark(!isDark)}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          aria-pressed={isDark}
+          style={{ display: "flex", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, gap: 10 }}
+        >
+          <Moon weight={isDark ? "fill" : "regular"} style={{ width: 16, height: 16, flexShrink: 0, color: isDark ? "var(--agent-coral)" : "var(--agent-text-muted)", transition: "color 200ms" }} />
+          <span style={{ flex: 1, textAlign: "left", fontSize: 13, fontWeight: 500, color: isDark ? "var(--agent-text-primary)" : "var(--agent-text-secondary)" }}>Dark mode</span>
+          <span style={{ width: 36, height: 20, borderRadius: 10, flexShrink: 0, background: isDark ? "var(--agent-coral-deep)" : "var(--agent-border-strong)", position: "relative", transition: "background 200ms" }}>
+            <span style={{ position: "absolute", top: 3, left: isDark ? 19 : 3, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 200ms", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+          </span>
+        </button>
       </div>
     </>
   );
