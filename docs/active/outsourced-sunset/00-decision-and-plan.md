@@ -205,6 +205,18 @@ every decision below as it's made.
   `PlanTermsCollapsed`, `MetricsStrip`, billing page) + the per-sale "mark free" CC
   control. NOTE: £50 pricing is tied to the SAME switch as intake (the New-Year flip),
   per founder "built behind the switch exactly like this".
+- 2026-11-13 — **`/outsource` reclassified to the marketing bucket (founder).** It's a
+  public, no-auth COLD-OUTREACH landing page (`portal.thesalesprogressor.co.uk/outsource`),
+  not linked anywhere in the app — reached only via links in outreach emails. So it's
+  prospect-facing marketing, not an in-app surface: it ships/dies with the website +
+  outreach work (Christmas/growth), NOT with the in-app copy gating (#1).
+- 2026-11-13 — **In-app copy gating (#1) scope FIXED (founder).** Gate behind the
+  switch, copy/visibility only, external-SP copy untouched: (a) welcome + re-engagement
+  emails (drop "first outsourced free / let our team run it"), (b) onboarding modal +
+  tour (self-progress framing when off), (c) agent billing + pricing presentation
+  (£50-per-exchange story instead of £250–£350 / "first sale free" / "send to TSP's
+  team"). The new £50 copy to be drafted + founder-approved mid-build before commit.
+  Excludes `/outsource` (now marketing bucket).
 - 2026-11-13 — **Billing follow-ups done (staging, not pushed):** CC revenue
   forecasting now values flat-fifty files at £50 (pricingVersion threaded through all
   7 `lib/command/revenue.ts` computeFee sites, commit 61660a16); and the per-sale
