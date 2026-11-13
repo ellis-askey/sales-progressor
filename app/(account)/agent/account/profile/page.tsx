@@ -8,15 +8,11 @@
 // Sections (in render order):
 //   1. My profile        — ProfileFormPlain (clone of ProfileForm)
 //   2. Branch theme      — ThemePickerPlain (reuses original tile renderers)
-//   3. Sending addresses — SendingAddressesSection (reused as-is, same
-//                          component used by /agent/settings; its
-//                          router.replace target now points here)
+//   3. Sending addresses — a pointer to Connections, which is now the single
+//                          home for sending-address management (moved there
+//                          2026-11-13, alongside inbox + WhatsApp)
 //   4. Account           — AccountDangerZonePlain (data export + delete,
 //                          danger zone at the bottom)
-//
-// searchParams: ?verified=1 lands here when an email-link verification
-// succeeds (verify-link API redirect target). Passed to
-// SendingAddressesSection as initialVerified for the success banner.
 //
 // The legacy /agent/settings page continues to render the same four
 // sections (plus team/automation/etc.) until Stage 4 retire.
@@ -28,7 +24,7 @@ import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
 import { AppColourStudioLive } from "@/components/account/v2/AppColourStudioLive";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
-import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
+import Link from "next/link";
 import { getSignatureImageUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
@@ -37,13 +33,8 @@ import { resolveEmailSignature } from "@/lib/email/signature";
 import { detectSignatureSource } from "@/lib/email/signature-source";
 import { Palette, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
 
-export default async function AccountProfilePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ verified?: string }>;
-}) {
+export default async function AccountProfilePage() {
   const session = await requireSession();
-  const { verified } = await searchParams;
 
   const userRecord = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -77,19 +68,6 @@ export default async function AccountProfilePage({
     source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
   };
 
-  // Is the user's own email domain authenticated? If so, they ALREADY send from
-  // their own address (chases, portal invites, manual emails all resolve off the
-  // verified domain), so the Sending-addresses section shouldn't push the
-  // per-address code step — that only matters for someone WITHOUT domain auth.
-  const userDomain = session.user.email?.split("@")[1]?.toLowerCase() ?? null;
-  const domainVerified = !!(
-    session.user.agencyId && userDomain &&
-    (await prisma.verifiedDomain.findFirst({
-      where: { agencyId: session.user.agencyId, domain: userDomain, status: "verified" },
-      select: { id: true },
-    }))
-  );
-
   const colourCard = (
     <AccountCard
       icon={<Palette size={18} weight="bold" />}
@@ -106,7 +84,13 @@ export default async function AccountProfilePage({
       title="Sending addresses"
       subtitle="Send emails to clients directly from your own work email address."
     >
-      <SendingAddressesSection initialVerified={verified === "1"} domainVerified={domainVerified} ownAddress={session.user.email ?? undefined} />
+      <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
+        Sending addresses now live under{" "}
+        <Link href="/agent/account/connections" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
+          Connections
+        </Link>
+        , alongside your inbox and WhatsApp.
+      </p>
     </AccountCard>
   );
 

@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
           const built = buildDomainAuth({
             firstName: userEmail.user.name?.trim() ? extractFirstName(userEmail.user.name) : "there",
             domain: domain.domain,
-            fixUrl: `${process.env.NEXTAUTH_URL}/agent/account/profile`,
+            fixUrl: `${process.env.NEXTAUTH_URL}/agent/account/connections`,
           });
           await sendAgentEmail({
             to: userEmail.user.email,

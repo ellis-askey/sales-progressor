@@ -16,12 +16,10 @@ export async function GET(req: NextRequest) {
     return new NextResponse(`Verification failed: ${result.error}`, { status: 400 });
   }
 
-  // Redirect to the Account/Profile page with success flag — the new home
-  // for sending-address management (migrated from /agent/settings during
-  // the Account-area arc). The old /agent/settings page no longer receives
-  // verify-success callbacks; users who started the flow there land in the
-  // new Profile tab on completion, which is the intentional migration nudge.
+  // Redirect to the Connections page with success flag — sending-address
+  // management now lives there (consolidated onto Connections, 2026-11-13),
+  // so the verify-success banner shows where the section actually is.
   return NextResponse.redirect(
-    new URL("/agent/account/profile?verified=1", req.nextUrl.origin)
+    new URL("/agent/account/connections?verified=1", req.nextUrl.origin)
   );
 }

@@ -12,16 +12,40 @@ import { notFound } from "next/navigation";
 import { AccountConnectionsCard } from "@/components/account/AccountConnectionsCard";
 import { ImapConnectionCard } from "@/components/account/ImapConnectionCard";
 import { WhatsAppConnectionCard } from "@/components/account/WhatsAppConnectionCard";
+import { ConnectionsMatrix } from "@/components/account/ConnectionsMatrix";
+import { ConnectionsCardsRow } from "@/components/account/ConnectionsCardsRow";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { SendingAddressesSection } from "@/components/verified-emails/SendingAddressesSection";
 import { canUseWhatsAppConnect } from "@/lib/integrations/whatsapp/connect-access";
+import { prisma } from "@/lib/prisma";
+import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr";
 
-export default async function AccountConnectionsPage() {
+export default async function AccountConnectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ verified?: string }>;
+}) {
   const session = await requireSession();
   const role = session.user.role;
   // Agency agents as before; external progression-business members also reach
   // this page for the WhatsApp link (pivot 2026-10-18) — email connection
   // cards below stay for all (same inbox-matching value for a business).
   if (role !== "director" && role !== "negotiator" && !(await canUseWhatsAppConnect(session))) notFound();
+
+  // Sending-address management lives here now (consolidated onto Connections,
+  // 2026-11-13). ?verified=1 lands here when an email verification link
+  // succeeds. domainVerified lets the section reassure (rather than push the
+  // per-address code step) when the user already sends from their own domain.
+  const { verified } = await searchParams;
+  const userDomain = session.user.email?.split("@")[1]?.toLowerCase() ?? null;
+  const domainVerified = !!(
+    session.user.agencyId && userDomain &&
+    (await prisma.verifiedDomain.findFirst({
+      where: { agencyId: session.user.agencyId, domain: userDomain, status: "verified" },
+      select: { id: true },
+    }))
+  );
 
   return (
     <>
@@ -30,27 +54,36 @@ export default async function AccountConnectionsPage() {
         subtitle="Connect your inbox so replies from solicitors and clients are matched to the right sale and saved on the file. We only read emails relating to your sales, and you can disconnect at any time."
       />
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <Suspense
-          fallback={
-            <div className="rounded-xl border border-gray-200 bg-white p-5 text-[13px] text-gray-500">
-              Loading…
-            </div>
-          }
+        <ConnectionsMatrix />
+
+        <AccountCard
+          icon={<EnvelopeSimple size={18} weight="bold" />}
+          title="Sending addresses"
+          subtitle="Send emails to clients directly from your own work email address."
         >
-          <AccountConnectionsCard />
-        </Suspense>
+          <SendingAddressesSection
+            initialVerified={verified === "1"}
+            domainVerified={domainVerified}
+            ownAddress={session.user.email ?? undefined}
+            homeHref="/agent/account/connections"
+          />
+        </AccountCard>
 
-        <ImapConnectionCard />
-
-        <div id="whatsapp" style={{ scrollMarginTop: 80 }}>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>WhatsApp</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-            Link your WhatsApp so your property group chats are saved to the right sale. We only read
-            your &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you can
-            disconnect at any time.
-          </p>
-        </div>
-        <WhatsAppConnectionCard />
+        <ConnectionsCardsRow
+          outlook={
+            <Suspense
+              fallback={
+                <div className="rounded-xl border border-gray-200 bg-white p-5 text-[13px] text-gray-500">
+                  Loading…
+                </div>
+              }
+            >
+              <AccountConnectionsCard />
+            </Suspense>
+          }
+          email={<ImapConnectionCard />}
+          whatsapp={<WhatsAppConnectionCard />}
+        />
       </div>
     </>
   );

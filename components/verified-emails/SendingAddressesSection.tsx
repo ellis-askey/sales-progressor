@@ -32,7 +32,7 @@ type Step =
   | { type: "inbox-verify"; email: string }
   | { type: "success"; email: string };
 
-export function SendingAddressesSection({ initialVerified, domainVerified, ownAddress }: { initialVerified?: boolean; domainVerified?: boolean; ownAddress?: string }) {
+export function SendingAddressesSection({ initialVerified, domainVerified, ownAddress, homeHref = "/agent/account/connections" }: { initialVerified?: boolean; domainVerified?: boolean; ownAddress?: string; homeHref?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ type: "list" });
   const [emails, setEmails] = useState<VerifiedEmail[]>([]);
@@ -55,9 +55,9 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
       // /agent/account/profile page funnels users into the new home. The
       // old settings page remains fully functional otherwise; this is a
       // deliberate one-way migration nudge on success.
-      router.replace("/agent/account/profile");
+      router.replace(homeHref);
     }
-  }, [loadEmails, initialVerified, router]);
+  }, [loadEmails, initialVerified, router, homeHref]);
 
   async function startAddEmail() {
     setLoading(true);
