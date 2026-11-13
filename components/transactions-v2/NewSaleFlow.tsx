@@ -1757,6 +1757,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 progressorName={effectiveProgressorName}
                 progressorFeeModel={effectiveProgressorFeeModel}
                 hasExternalProgressor={progressors.length >= 1}
+                outsourcingToTspAllowed={outsourcingToTspAllowed}
               />
             ) : intel.state === "success" && intel.data ? (
               <PropertyDossier

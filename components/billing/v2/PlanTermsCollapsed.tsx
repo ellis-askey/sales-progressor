@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { termsDisplayName, type TermsSection } from "@/lib/billing/terms-sections";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { AnimatedTick } from "@/components/ui/AnimatedTick";
 
 export type PlanTermsCollapsedProps = {
@@ -23,9 +23,13 @@ export type PlanTermsCollapsedProps = {
   // present, the "Outsourced" column shows THEIR rate(s) rather than TSP's own
   // £250/300/350 — because the agency pays the company directly, not TSP.
   progressors?: { name: string; rate: string }[];
+  // Outsourced-sunset: false once TSP intake is gated off → the plan reads the flat
+  // £50-per-exchange model instead of free-self + £250/300/350. Defaults true, so
+  // omitting it is byte-identical to today.
+  outsourcedIntakeOn?: boolean;
 };
 
-export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollapsedProps) {
+export function PlanTermsCollapsed({ agreed, progressors = [], outsourcedIntakeOn = true }: PlanTermsCollapsedProps) {
   const [open, setOpen] = useState(false);
   const hasProgressors = progressors.length > 0;
 
@@ -53,10 +57,18 @@ export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollap
               fontWeight: 500,
             }}
           >
-            Self-progress
+            {outsourcedIntakeOn ? "Self-progress" : "Per exchange"}
           </div>
-          <div style={{ marginTop: 4, color: "#1f9d6b", fontWeight: 600 }}>Free</div>
+          {outsourcedIntakeOn ? (
+            <div style={{ marginTop: 4, color: "#1f9d6b", fontWeight: 600 }}>Free</div>
+          ) : (
+            <>
+              <div style={{ marginTop: 4, color: "#111827", fontWeight: 600 }}>£50 per exchange</div>
+              <div style={{ marginTop: 2, fontSize: 11.5, color: "#6b7280" }}>You only pay when a sale completes. No subscription, no tiers.</div>
+            </>
+          )}
         </div>
+        {(outsourcedIntakeOn || hasProgressors) && (
         <div>
           <div
             style={{
@@ -85,6 +97,7 @@ export function PlanTermsCollapsed({ agreed, progressors = [] }: PlanTermsCollap
             </>
           )}
         </div>
+        )}
       </div>
 
       {hasProgressors && (

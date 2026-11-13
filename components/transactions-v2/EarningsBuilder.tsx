@@ -69,6 +69,7 @@ function Row({ label, value, tone }: { label: React.ReactNode; value: React.Reac
 export function EarningsBuilder({
   fields, onUpdate, feeTier, legacyOutsourcedFeePence, withinTrial, allMilestoneDefinitions,
   progressorName = null, progressorFeeModel = null, hasExternalProgressor = false,
+  outsourcingToTspAllowed = true,
 }: {
   fields: FormFields;
   onUpdate: (u: Partial<FormFields>) => void;
@@ -84,6 +85,10 @@ export function EarningsBuilder({
   // never a TSP file, so the TSP "Sent to us / first sale free" economics never
   // apply; before a progressor is picked (multi), the cost is held, not "Free".
   hasExternalProgressor?: boolean;
+  // Outsourced-sunset: false once TSP intake is gated off. The self-progress "Free"
+  // cost row (no longer true under the flat-£50 model) is hidden, and the "first sale
+  // on us" line never shows. Defaults true = unchanged.
+  outsourcingToTspAllowed?: boolean;
 }) {
   const { surfaceClass, tag } = useCardSurface("new-sale-file-worth", "New sale · File worth", "agent-glass");
   const price = fields.purchasePricePence;
@@ -170,13 +175,18 @@ export function EarningsBuilder({
         {solRef > 0 && <Row label="Solicitor referral" value={`+${fmt(solRef)}`} tone="income" />}
         {brokRef > 0 && <Row label="Broker referral" value={`+${fmt(brokRef)}`} tone="income" />}
         {onwardBrokRef > 0 && <Row label="Seller's broker referral" value={`+${fmt(onwardBrokRef)}`} tone="income" />}
-        <Row
-          label={costLabel}
-          value={feeNotSet ? "Fee not set" : outsourcedUnpicked ? "Choose a progressor" : progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
-          tone={feeNotSet || outsourcedUnpicked ? "muted" : progressionCost > 0 ? "cost" : "muted"}
-        />
+        {/* Outsourced-sunset: a self-progress file is no longer "Free" (£50 per
+            exchange, billed separately), so when intake is gated off we drop the
+            per-sale cost row for it; external-progressor sales still show their cost. */}
+        {(outsourcingToTspAllowed || outsourced) && (
+          <Row
+            label={costLabel}
+            value={feeNotSet ? "Fee not set" : outsourcedUnpicked ? "Choose a progressor" : progressionCost > 0 ? `−${fmt(progressionCost)}` : "Free"}
+            tone={feeNotSet || outsourcedUnpicked ? "muted" : progressionCost > 0 ? "cost" : "muted"}
+          />
+        )}
         {/* "First sale free" is a TSP offer — never for an external-progressor sale. */}
-        {outsourced && !toProgressor && !hasExternalProgressor && withinTrial && feeTier !== "free" && (
+        {outsourcingToTspAllowed && outsourced && !toProgressor && !hasExternalProgressor && withinTrial && feeTier !== "free" && (
           <p style={{ margin: "-2px 0 0", fontSize: 11, color: "var(--agent-coral-deep)", lineHeight: 1.4 }}>
             Your first sale is on us
           </p>

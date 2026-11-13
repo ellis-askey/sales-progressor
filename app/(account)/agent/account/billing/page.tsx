@@ -20,6 +20,7 @@ import { getCurrentMonthRunningTotal } from "@/lib/billing/running-total";
 import { getLifetimeMetrics } from "@/lib/billing/lifetime";
 import { getActiveTermsVersion } from "@/lib/billing/acknowledgement";
 import { applyAgencyTermsOverrides } from "@/lib/billing/terms-sections";
+import { outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { billingMonthRange } from "@/lib/billing/period";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { RedesignedDisclosure } from "@/components/billing/hub/RedesignedDisclosure";
@@ -242,6 +243,7 @@ export default async function AccountBillingPage() {
           trialExchangeCountLifetime={lifetime.trialExchangeCountLifetime}
           billedLifetimePence={lifetime.billedLifetimePence}
           invoiceCount={historyRowsForUI.length}
+          outsourcedIntakeOn={outsourcedIntakeEnabled()}
         />
 
         <AccountCard>
@@ -277,6 +279,7 @@ export default async function AccountBillingPage() {
           <AccountCard>
             <PlanTermsCollapsed
               progressors={progressors}
+              outsourcedIntakeOn={outsourcedIntakeEnabled()}
               agreed={
                 terms
                   ? {

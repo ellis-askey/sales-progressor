@@ -8,7 +8,7 @@
 // quieter size. Context, not hero. The building invoice below carries
 // the visual weight.
 
-import { CreditCard, ArrowsLeftRight, Gift, Receipt } from "@phosphor-icons/react";
+import { CreditCard, ArrowsLeftRight, Gift, Receipt } from "@/components/icons/ph";
 import { useCountUp } from "@/lib/hooks/useCountUp";
 
 export type MetricsStripProps = {
@@ -20,6 +20,9 @@ export type MetricsStripProps = {
   trialExchangeCountLifetime: number;
   billedLifetimePence: number;
   invoiceCount?: number;
+  // Outsourced-sunset: false once TSP intake is gated off → the sub-labels drop the
+  // outsourced/self-progress split for the flat-£50 model. Defaults true.
+  outsourcedIntakeOn?: boolean;
 };
 
 function pounds(p: number): string {
@@ -105,14 +108,14 @@ export function MetricsStrip(props: MetricsStripProps) {
         label="This month"
         display={thisMonth}
         format={poundsTwoDp}
-        sub={`${props.outsourcedThisMonth} outsourced exchange${props.outsourcedThisMonth === 1 ? "" : "s"}`}
+        sub={(props.outsourcedIntakeOn ?? true) ? `${props.outsourcedThisMonth} outsourced exchange${props.outsourcedThisMonth === 1 ? "" : "s"}` : `${props.exchangesThisMonth} exchange${props.exchangesThisMonth === 1 ? "" : "s"} this month`}
       />
       <StatCard
         icon={<ArrowsLeftRight size={22} weight="bold" />}
         label="Exchanges this month"
         display={exchanges}
         format={(n) => Math.round(n).toString()}
-        sub={`${props.outsourcedThisMonth} outsourced · ${props.inHouseThisMonth} self-progress`}
+        sub={(props.outsourcedIntakeOn ?? true) ? `${props.outsourcedThisMonth} outsourced · ${props.inHouseThisMonth} self-progress` : "£50 per exchange"}
       />
       <StatCard
         icon={<Gift size={22} weight="bold" />}
