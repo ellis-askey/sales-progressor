@@ -314,14 +314,19 @@ export async function drainOutboundQueue(): Promise<{
       if (claim.count === 0) { skipped++; continue; }
       const p = record.payload as unknown as ComposeQueuePayload;
       try {
-        await sendEmail({
+        const composeSendRes = await sendEmail({
           to: p.to, cc: p.cc, bcc: p.bcc, subject: p.subject, text: p.text, html: p.html,
           from: p.from, replyTo: p.replyTo,
           attachments: p.attachments?.map((a) => ({ content: a.content, filename: a.filename, type: a.type, disposition: "attachment" })),
           emailType: "agent_compose",
           // Threading resolved at schedule time (Stage 2+): thread the delayed send.
           messageId: p.outboundMessageId, inReplyTo: p.inReplyTo, references: p.references,
+          replyToConversationId: p.replyToConversationId,
         });
+        const composeConversationId =
+          composeSendRes && typeof composeSendRes === "object" && "outlookConversationId" in composeSendRes
+            ? (composeSendRes as { outlookConversationId?: string | null }).outlookConversationId ?? (p.replyToConversationId ?? null)
+            : (p.replyToConversationId ?? null);
         const sentAtNow = new Date();
         await prisma.outboundEmailQueue.update({ where: { id: record.id }, data: { sentAt: sentAtNow } });
         // File the sent attachments onto the property (same as send-now), and
@@ -346,6 +351,7 @@ export async function drainOutboundQueue(): Promise<{
             recipientEmails: p.recipientEmails ?? [],
             inReplyTo: p.inReplyTo ?? null,
             emailReferences: p.references ?? null,
+            conversationId: p.outboundMessageId ? composeConversationId : null, // Stage 3 (Outlook sends only)
           },
         }).catch((e: unknown) => console.error(`[compose mirror] failed id=${record.id}`, e));
         console.log(`[EMAIL_SENT] type=AGENT_COMPOSE to=${p.to.join(",")}`);

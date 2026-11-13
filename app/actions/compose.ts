@@ -160,14 +160,18 @@ export async function sendComposedEmail(input: {
   // and only when it genuinely belongs to this sale.
   let inReplyTo: string | undefined;
   let references: string | undefined;
+  let replyToConversationId: string | null | undefined;
   if (outboundMessageId && input.continueFromMessageId) {
     const parent = await prisma.outboundMessage.findFirst({
       where: { transactionId: input.transactionId, internetMessageId: input.continueFromMessageId },
-      select: { internetMessageId: true, emailReferences: true },
+      select: { internetMessageId: true, emailReferences: true, conversationId: true },
     });
     if (parent?.internetMessageId) {
       inReplyTo = parent.internetMessageId;
       references = parent.emailReferences ? `${parent.emailReferences} ${parent.internetMessageId}` : parent.internetMessageId;
+      // Stage 3: if the prior email went via a connected Outlook mailbox we also
+      // have its Outlook conversation — reuse it so this send threads natively.
+      replyToConversationId = parent.conversationId;
     }
   }
 
@@ -208,6 +212,7 @@ export async function sendComposedEmail(input: {
       inReplyTo,
       references,
       recipientEmails: recipientEmailsLower,
+      replyToConversationId,
     };
     try {
       await enqueueComposedEmail(payload, scheduledAt);
@@ -219,8 +224,15 @@ export async function sendComposedEmail(input: {
   }
 
   // ── Send now. ───────────────────────────────────────────────────────────────
+  // When the send routes through a connected Outlook mailbox, sendEmail returns
+  // the Outlook conversation id; we remember it so a later email threads natively
+  // (Stage 3). Null on the SendGrid / SMTP routes.
+  let outlookConversationId: string | null = replyToConversationId ?? null;
   try {
-    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId, inReplyTo, references });
+    const sendRes = await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId, inReplyTo, references, replyToConversationId });
+    if (sendRes && typeof sendRes === "object" && "outlookConversationId" in sendRes) {
+      outlookConversationId = (sendRes as { outlookConversationId?: string | null }).outlookConversationId ?? outlookConversationId;
+    }
   } catch (e) {
     console.error("[compose] send failed", e);
     return { ok: false, error: "Couldn't send the email. Please try again." };
@@ -280,6 +292,7 @@ export async function sendComposedEmail(input: {
           recipientEmails: recipientEmailsLower,
           inReplyTo: inReplyTo ?? null,
           emailReferences: references ?? null,
+          conversationId: outlookConversationId, // Stage 3 (Outlook sends only)
         },
       }).catch((e) => console.error("[compose] anchor log failed", e));
     } else if (outboundMessageId) {
@@ -304,6 +317,7 @@ export async function sendComposedEmail(input: {
           recipientEmails: recipientEmailsLower,
           inReplyTo: inReplyTo ?? null,
           emailReferences: references ?? null,
+          conversationId: outlookConversationId, // Stage 3 (Outlook sends only)
         },
       }).catch((e) => console.error("[compose] chain thread-anchor failed", e));
     }
@@ -339,6 +353,8 @@ export async function sendComposedEmail(input: {
         recipientEmails: recipientEmailsLower,
         inReplyTo: inReplyTo ?? null,
         emailReferences: references ?? null,
+        // Stage 3: the Outlook conversation (connected-mailbox sends only).
+        conversationId: outlookConversationId,
       },
     });
   }

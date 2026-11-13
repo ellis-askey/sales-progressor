@@ -178,7 +178,7 @@ function swapAddress(from: string, newAddress: string): string {
 
 type MailboxRouteAttempt =
   | { routed: false }
-  | { routed: true; sent: true }
+  | { routed: true; sent: true; outlookConversationId?: string | null }
   | { routed: true; sent: false; fallbackFrom: string; fallbackReplyTo: string };
 
 async function tryMailboxRoute(msg: {
@@ -193,6 +193,7 @@ async function tryMailboxRoute(msg: {
   messageId?: string;
   inReplyTo?: string;
   references?: string;
+  replyToConversationId?: string | null;
   attachments?: EmailAttachment[];
 }): Promise<MailboxRouteAttempt> {
   const addr = bareEmailAddress(msg.from);
@@ -210,8 +211,12 @@ async function tryMailboxRoute(msg: {
         const outcome = await sendViaOutlookGraph(conn, {
           from: msg.from, to: msg.to, cc: msg.cc, bcc: msg.bcc, replyTo: msg.replyTo,
           subject: msg.subject, text: msg.text, html: msg.html, attachments: msg.attachments,
+          replyToConversationId: msg.replyToConversationId,
+          // Threaded sends (they carry a stamped Message-ID) use the draft+send
+          // path so we can remember the Outlook conversation for next time.
+          captureConversation: !!msg.messageId,
         });
-        if (outcome.ok) return { routed: true, sent: true };
+        if (outcome.ok) return { routed: true, sent: true, outlookConversationId: outcome.conversationId };
         console.warn(`[email] outlook send failed for ${addr} (${outcome.error}) — falling back`);
       }
     } catch (err) {
@@ -279,6 +284,7 @@ export async function sendEmail({
   messageId,
   inReplyTo,
   references,
+  replyToConversationId,
   audienceBucket,
   outboundMessageId,
 }: {
@@ -321,6 +327,11 @@ export async function sendEmail({
   // email under the previous one. Omit both → a brand-new conversation (default).
   inReplyTo?: string;
   references?: string;
+  // Email threading (Stage 3): continue this Outlook conversation when the send
+  // routes through a connected Microsoft mailbox (Graph rewrites the Message-ID,
+  // so the conversation is the only reliable thread key for that route). Ignored
+  // on the SendGrid / SMTP routes, which thread via the headers above.
+  replyToConversationId?: string | null;
   // Like queueId, but joins SendGrid events straight to an OutboundMessage
   // (the activity-feed row) for delivery-status writes — for DIRECT sends that
   // don't go through the queue (weekly updates, milestone confirms). The webhook
@@ -358,9 +369,12 @@ export async function sendEmail({
   // the composer's multi-To / Bcc sends go straight to SendGrid, which handles
   // recipient arrays natively.
   const route: MailboxRouteAttempt = toList.length === 1 && !(bcc && bcc.length)
-    ? await tryMailboxRoute({ ...msg, to: toList[0], bcc: undefined, messageId, inReplyTo, references, attachments })
+    ? await tryMailboxRoute({ ...msg, to: toList[0], bcc: undefined, messageId, inReplyTo, references, replyToConversationId, attachments })
     : { routed: false };
-  if (route.routed && route.sent) return;
+  // When a connected Outlook mailbox sent it, surface the conversation id so the
+  // caller can remember it and a later email can thread into the same Outlook
+  // conversation (Stage 3). Other callers just ignore the return, as before.
+  if (route.routed && route.sent) return { outlookConversationId: route.outlookConversationId ?? null };
   const sendFrom = route.routed && !route.sent ? route.fallbackFrom : msg.from;
   const sendReplyTo = route.routed && !route.sent ? route.fallbackReplyTo : msg.replyTo;
 
