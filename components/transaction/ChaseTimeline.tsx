@@ -6,17 +6,15 @@
 // Client, manual, solicitor, enquiry + exchange tracks. See
 // docs/active/chase-consolidation/00-spec.md.
 
-import { useMemo, useState } from "react";
-import {
-  CalendarBlank, PaperPlaneTilt, Robot, User, WarningCircle, CheckCircle,
-  PauseCircle, XCircle, ArrowBendDownRight, Clock, ArrowRight, CaretLeft, CaretRight,
-} from "@phosphor-icons/react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Clock, ArrowRight, CaretLeft, CaretRight, PauseCircle } from "@phosphor-icons/react";
 import type {
-  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventKind, ChaseDelivery, ChasePauseState, NextSend,
+  ChaseThread, ChaseThreadState, ChaseTimelineStats, ChaseThreadEvent, ChaseEventCategory, ChaseActor, ChaseDelivery, ChasePauseState, NextSend,
 } from "@/lib/services/chase-timeline";
 import { NextChaseControl } from "@/components/transaction/NextChaseControl";
 import { RescheduleChaseControl } from "@/components/transaction/RescheduleChaseControl";
 import { Pill } from "@/components/ui/Pill";
+import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
@@ -38,15 +36,24 @@ const STATE_META: Record<ChaseThreadState, { label: string; color: string; rgb: 
   cancelled:       { label: "Stopped",          color: "var(--agent-text-muted)", rgb: "148,163,184" },
 };
 
-const EVENT_META: Record<ChaseEventKind, { color: string; Icon: typeof PaperPlaneTilt }> = {
-  scheduled:    { color: "var(--agent-text-muted)", Icon: CalendarBlank },
-  auto_chase:   { color: "var(--agent-info)",       Icon: Robot },
-  manual_chase: { color: "var(--agent-primary)",    Icon: PaperPlaneTilt },
-  handed:       { color: "var(--agent-warning)",    Icon: ArrowBendDownRight },
-  escalated:    { color: "var(--agent-danger)",     Icon: WarningCircle },
-  snoozed:      { color: "var(--agent-text-muted)", Icon: PauseCircle },
-  resolved:     { color: "var(--agent-success)",    Icon: CheckCircle },
-  cancelled:    { color: "var(--agent-text-muted)", Icon: XCircle },
+// Category → inline icon + accent colour. "auto" is the future-send paper-plane
+// (same blue as an email). Icons mirror the approved /dev mock.
+type Cat = ChaseEventCategory | "auto";
+const CAT_ICON: Record<Cat, ReactNode> = {
+  email: <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m4 7 8 6 8-6" /></>,
+  auto: <path d="m3 10 18-7-7 18-3-8-8-3zm8 3L21 3" />,
+  team: <path d="M5 5v5a4 4 0 0 0 4 4h10m-5-5 5 5-5 5" />,
+  danger: <><circle cx="12" cy="12" r="8" /><path d="M12 8v5m0 3h.01" /></>,
+  success: <path d="m6 12 4 4 8-8" />,
+  milestone: <path d="m6 12 4 4 8-8" />,
+  movement: <path d="M4 8h15m-4-4 4 4-4 4m5 4H5m4-4-4 4 4 4" />,
+  calendar: <><rect x="4" y="6" width="16" height="14" rx="3" /><path d="M8 4v4m8-4v4M4 10h16" /></>,
+  hold: <path d="M9 7v10m6-10v10" />,
+};
+const CAT_COLOR: Record<Cat, string> = {
+  email: "var(--agent-info)", auto: "var(--agent-info)", team: "var(--agent-warning)",
+  danger: "var(--agent-danger)", success: "var(--agent-success)", milestone: "var(--agent-success)",
+  movement: "#0E8C86", calendar: "var(--agent-text-muted)", hold: "var(--agent-text-muted)",
 };
 
 const DELIVERY_META: Record<Exclude<ChaseDelivery, null>, { label: string; color: string }> = {
@@ -55,6 +62,29 @@ const DELIVERY_META: Record<Exclude<ChaseDelivery, null>, { label: string; color
   opened:    { label: "Opened",    color: "var(--agent-success)" },
   bounced:   { label: "Bounced",   color: "var(--agent-danger)" },
 };
+
+// Actor identity — avatar (photo or colour-coded SVG fallback) + full name + role.
+function ActorIdentity({ actor }: { actor: ChaseActor }) {
+  if (actor.kind === "system") {
+    return (
+      <div className="ct-actor">
+        <span className="ct-sysav" aria-hidden><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" /></svg></span>
+        <div className="ct-who"><span className="ct-who-name">Autopilot</span></div>
+      </div>
+    );
+  }
+  return (
+    <div className="ct-actor">
+      {actor.side === "agent"
+        ? <UserAvatar user={{ name: actor.name }} size={30} />
+        : <ContactAvatar contact={{ name: actor.name, roleType: actor.side }} size={30} art />}
+      <div className="ct-who">
+        <span className="ct-who-name">{actor.name}</span>
+        <span className="ct-who-role">{actor.role}</span>
+      </div>
+    </div>
+  );
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function fmtDate(iso: string): string {
@@ -184,53 +214,31 @@ function nextLabel(t: ChaseThread): string {
 }
 
 // ── detail: one event row ────────────────────────────────────────────────────
-function EventRow({ ev, last, label, onOpenEmail }: { ev: ChaseThreadEvent; last: boolean; label: string; onOpenEmail: (id: string, label: string) => void }) {
-  const m = EVENT_META[ev.kind];
+export function EventRow({ ev, last, label, onOpenEmail }: { ev: ChaseThreadEvent; last: boolean; label: string; onOpenEmail: (id: string, label: string) => void }) {
   const dm = ev.delivery ? DELIVERY_META[ev.delivery] : null;
   const openable = !!ev.sentEmailId;
-  const inner = (
-    <>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{ev.title}</span>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDateTime(ev.at)}</span>
-      </div>
-      {ev.detail && <p style={{ fontSize: 12, color: "var(--agent-text-secondary)", margin: "2px 0 0", lineHeight: 1.4 }}>{ev.detail}</p>}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-        {ev.actor && <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{ev.actor}</span>}
-        {dm && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: dm.color }}>
-            <span style={{ width: 5, height: 5, borderRadius: 999, background: dm.color }} />{dm.label}
-          </span>
-        )}
-        {openable && (
-          <span className="chase-ev-hint" style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
-            <span className="chase-ev-hint-text">Open email</span>
-            <span className="chase-ev-hint-arrow" aria-hidden> →</span>
-          </span>
-        )}
-      </div>
-    </>
-  );
   return (
-    <div style={{ display: "flex", gap: 12 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: `1.5px solid ${m.color}` }}>
-          <m.Icon size={15} weight="bold" color={m.color} />
-        </div>
-        {!last && <div style={{ width: 2, flex: 1, minHeight: 18, background: "var(--agent-border-subtle)", marginTop: 2 }} />}
+    <div className="ct-row" style={{ "--kind": CAT_COLOR[ev.category] } as React.CSSProperties}>
+      <div className="ct-lead">
+        <span className="ct-ic"><svg viewBox="0 0 24 24" aria-hidden="true">{CAT_ICON[ev.category]}</svg></span>
+        {!last && <span className="ct-rail" />}
       </div>
-      {openable ? (
-        <button
-          type="button"
-          onClick={() => onOpenEmail(ev.sentEmailId as string, label)}
-          className="chase-ev-open"
-          style={{ flex: 1, paddingBottom: last ? 0 : 18, minWidth: 0, textAlign: "left", background: "none", border: "none", font: "inherit", cursor: "pointer", padding: last ? "0" : "0 0 18px", margin: 0 }}
-        >
-          {inner}
-        </button>
-      ) : (
-        <div style={{ flex: 1, paddingBottom: last ? 0 : 18, minWidth: 0 }}>{inner}</div>
-      )}
+      <div className="ct-body">
+        <div className="ct-head"><h4 className="ct-title">{ev.title}</h4></div>
+        {ev.subject && <p className="ct-sub">{ev.subject}</p>}
+        {ev.detail && <p className="ct-p">{ev.detail}</p>}
+        {ev.note && <p className="ct-note"><strong>{ev.note.label}</strong>{ev.note.text}</p>}
+        {ev.actor && <ActorIdentity actor={ev.actor} />}
+      </div>
+      <div className="ct-right">
+        <span className="ct-date">{fmtDateTime(ev.at)}</span>
+        {dm && <span className="ct-status" style={{ color: dm.color }}>{dm.label}</span>}
+        {openable && (
+          <button type="button" className="ct-view" onClick={() => onOpenEmail(ev.sentEmailId as string, label)}>
+            View email <span aria-hidden="true"> →</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -286,7 +294,7 @@ function EscalationPath({ thread }: { thread: ChaseThread }) {
   );
 }
 
-function SectionLabel({ children, noMargin }: { children: React.ReactNode; noMargin?: boolean }) {
+export function SectionLabel({ children, noMargin }: { children: React.ReactNode; noMargin?: boolean }) {
   return <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", marginBottom: noMargin ? 0 : 8 }}>{children}</div>;
 }
 
@@ -394,35 +402,91 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
 }
 
 // ── detail: a future (predicted) node for the unified timeline ────────────────
-function FutureRow({ send }: { send: NextSend }) {
-  const isSol = send.lane === "solicitor";
-  const accent = isSol ? "#0E8C86" : "var(--agent-info)";
+export function FutureRow({ send }: { send: NextSend }) {
   const held = isHeldFarOut(send.dueAt);
+  // recipientLabel is "Role · Name" for a client, or just "Buyer's solicitor".
+  const parts = send.recipientLabel.split(" · ");
+  const name = parts.length === 2 ? parts[1] : `the ${send.recipientLabel.toLowerCase()}`;
+  const roleSub = parts.length === 2 ? parts[0] : null;
+  const cat: Cat = held ? "hold" : send.handedToTeam ? "team" : send.isAutomated ? "auto" : "team";
+  const pill = held ? "On hold" : send.handedToTeam || !send.isAutomated ? "For your team" : "Automatic";
+  const pillTone: "muted" | "info" | "warning" = held ? "muted" : send.isAutomated && !send.handedToTeam ? "info" : "warning";
+  const body = held
+    ? "Waiting for replies to enquiries."
+    : send.handedToTeam ? (roleSub ? `${roleSub} · In your work queue` : "In your work queue") : roleSub;
+  const dateLabel = held || send.handedToTeam || !send.dueAt
+    ? null
+    : send.isAutomated ? `Due ${fmtDate(send.dueAt)}` : `Reminder on ${fmtDate(send.dueAt)}`;
   return (
-    <div style={{ display: "flex", gap: 12 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--agent-surface-elevated)", border: `1.5px dashed ${accent}` }}>
-          <PaperPlaneTilt size={14} weight="bold" color={accent} />
-        </div>
-        <div style={{ width: 2, flex: 1, minHeight: 18, background: "var(--agent-border-subtle)", marginTop: 2 }} />
+    <div className="ct-row" style={{ "--kind": CAT_COLOR[cat] } as React.CSSProperties}>
+      <div className="ct-lead">
+        <span className="ct-ic dashed"><svg viewBox="0 0 24 24" aria-hidden="true">{CAT_ICON[cat]}</svg></span>
+        <span className="ct-rail" />
       </div>
-      <div style={{ flex: 1, paddingBottom: 18, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-            {held ? send.recipientLabel : send.handedToTeam ? `${send.recipientLabel} · with your team` : `Next: chase ${send.recipientLabel}`}
-          </span>
-          {held
-            ? <Pill glass dot size="sm" tone="muted">On hold</Pill>
-            : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: accent, padding: "1px 6px", borderRadius: 6, background: isSol ? "rgba(14,140,134,0.12)" : "rgba(var(--agent-info-rgb),0.12)" }}>Upcoming</span>}
-          {send.dueAt && !held && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", marginLeft: "auto", whiteSpace: "nowrap" }}>{fmtDate(send.dueAt)}</span>}
+      <div className="ct-body">
+        <div className="ct-head">
+          <h4 className="ct-title">Follow up with {name}</h4>
+          <Pill glass dot size="sm" tone={pillTone}>{pill}</Pill>
         </div>
-        <p style={{ fontSize: 12, color: "var(--agent-text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
-          {held ? "Waiting on replies to enquiries before this can send." : send.isAutomated ? "Autopilot will send this automatically." : "A reminder for your team to send."}
-        </p>
+        {body && <p className="ct-p">{body}</p>}
       </div>
+      {dateLabel && <div className="ct-right"><span className="ct-date">{dateLabel}</span></div>}
     </div>
   );
 }
+
+// Hover/motion CSS for the timeline rows + up-next cards. Exported so the
+// /dev/chase-timeline-rows harness renders the rows with identical affordances.
+export const TIMELINE_CSS = `.chase-upnext-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease}
+        .chase-upnext-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,23,42,0.06)}
+        .chase-thread-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease,background .14s ease}
+        .chase-thread-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(15,23,42,0.05)}
+        .chase-pager-btn{transition:background .14s ease,border-color .14s ease,color .14s ease}
+        .chase-pager-btn:not(:disabled):hover{background:var(--agent-surface-nested,var(--agent-surface-elevated));border-color:var(--agent-border-default);color:var(--agent-text-primary)}
+        .chase-pager-btn:not(:disabled):active{transform:translateY(0.5px)}
+        .chase-pager-btn:focus-visible{outline:2px solid var(--agent-primary);outline-offset:1px}
+        /* Open-email hint on a sent row: text darkens on hover; the arrow fades in
+           but its space is reserved, so "Open email" never shifts. */
+        .chase-ev-hint-text{color:var(--agent-coral-deep);opacity:.68;transition:opacity .15s ease}
+        .chase-ev-hint-arrow{color:var(--agent-coral-deep);opacity:0;transition:opacity .15s ease}
+        .chase-ev-open:hover .chase-ev-hint-text{opacity:1}
+        .chase-ev-open:hover .chase-ev-hint-arrow{opacity:1}
+        .chase-ev-open:focus-visible{outline:2px solid var(--agent-primary);outline-offset:2px;border-radius:6px}
+        @media (prefers-reduced-motion:reduce){.chase-upnext-card,.chase-pager-btn{transition:none}}
+        /* Unified timeline rows (new design) */
+        .ct-stack{container-type:inline-size}
+        .ct-row{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:12px;--kind:var(--agent-text-muted)}
+        .ct-row.ct-up{background:color-mix(in srgb,var(--kind) 8%,transparent);border-radius:12px;padding:8px 10px;margin:2px 0}
+        .ct-lead{display:flex;flex-direction:column;align-items:center}
+        .ct-ic{width:28px;height:28px;flex:none;margin-top:-1px;border-radius:50%;display:grid;place-items:center;background:var(--agent-surface-elevated);border:1.5px solid var(--kind);color:var(--kind)}
+        .ct-ic.dashed{border-style:dashed}
+        .ct-ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+        .ct-rail{width:2px;flex:1;min-height:16px;margin-top:3px;background:var(--agent-border-subtle)}
+        .ct-body{min-width:0;padding-bottom:18px}
+        .ct-row.ct-up .ct-body{padding-bottom:0}
+        .ct-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+        .ct-title{font-size:14px;font-weight:600;letter-spacing:-.012em;line-height:1.35;color:var(--agent-text-primary);margin:0}
+        .ct-p{font-size:12.5px;color:var(--agent-text-secondary);margin:3px 0 0;line-height:1.42}
+        .ct-sub{font-size:12.5px;color:var(--agent-text-muted);margin:3px 0 0;line-height:1.42;font-style:italic;overflow-wrap:anywhere}
+        .ct-note{margin:6px 0 0;border-left:2px solid var(--agent-border-strong);background:color-mix(in srgb,var(--agent-text-primary) 4%,transparent);border-radius:0 6px 6px 0;padding:5px 9px;font-size:12.5px;color:var(--agent-text-secondary)}
+        .ct-note strong{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--agent-text-muted);margin-bottom:1px;font-weight:700}
+        .ct-actor{display:flex;align-items:center;gap:9px;margin-top:9px}
+        .ct-who{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+        .ct-who-name{font-size:12.5px;font-weight:600;color:var(--agent-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .ct-who-role{font-size:11px;color:var(--agent-text-muted)}
+        .ct-sysav{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--agent-text-primary) 7%,transparent);color:var(--agent-text-muted)}
+        .ct-sysav svg{width:14px;height:14px;fill:currentColor;stroke:none}
+        .ct-right{grid-column:2;display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;font-size:11.5px;color:var(--agent-text-muted);font-variant-numeric:tabular-nums}
+        .ct-status{display:inline-flex;align-items:center;gap:5px;font-weight:650}
+        .ct-status:before{content:"";width:5px;height:5px;border-radius:999px;background:currentColor}
+        .ct-view{display:inline-flex;align-items:center;background:none;border:none;padding:0;margin:0;font:inherit;cursor:pointer;color:var(--agent-coral-deep);font-weight:700;white-space:nowrap}
+        .ct-view:hover{text-decoration:underline}
+        .ct-view:focus-visible{outline:2px solid var(--agent-primary);outline-offset:2px;border-radius:5px}
+        .ct-row.ct-up .ct-date{font-weight:650;color:var(--agent-text-secondary)}
+        @container (min-width:460px){
+          .ct-row:has(.ct-right){grid-template-columns:28px minmax(0,1fr) 150px}
+          .ct-right{grid-column:3;grid-row:1;flex-direction:column;align-items:flex-end;gap:7px;margin-top:1px;text-align:right;white-space:nowrap}
+        }`;
 
 // ── detail pane ──────────────────────────────────────────────────────────────
 function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThread; transactionId: string; onOpenEmail: (id: string, label: string) => void }) {
@@ -439,22 +503,7 @@ function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThr
 
   return (
     <div>
-      <style>{`.chase-upnext-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease}
-        .chase-upnext-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,23,42,0.06)}
-        .chase-thread-card{transition:transform .16s cubic-bezier(0.22,1,0.36,1),box-shadow .16s ease,background .14s ease}
-        .chase-thread-card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(15,23,42,0.05)}
-        .chase-pager-btn{transition:background .14s ease,border-color .14s ease,color .14s ease}
-        .chase-pager-btn:not(:disabled):hover{background:var(--agent-surface-nested,var(--agent-surface-elevated));border-color:var(--agent-border-default);color:var(--agent-text-primary)}
-        .chase-pager-btn:not(:disabled):active{transform:translateY(0.5px)}
-        .chase-pager-btn:focus-visible{outline:2px solid var(--agent-primary);outline-offset:1px}
-        /* Open-email hint on a sent row: text darkens on hover; the arrow fades in
-           but its space is reserved, so "Open email" never shifts. */
-        .chase-ev-hint-text{color:var(--agent-coral-deep);opacity:.68;transition:opacity .15s ease}
-        .chase-ev-hint-arrow{color:var(--agent-coral-deep);opacity:0;transition:opacity .15s ease}
-        .chase-ev-open:hover .chase-ev-hint-text{opacity:1}
-        .chase-ev-open:hover .chase-ev-hint-arrow{opacity:1}
-        .chase-ev-open:focus-visible{outline:2px solid var(--agent-primary);outline-offset:2px;border-radius:6px}
-        @media (prefers-reduced-motion:reduce){.chase-upnext-card,.chase-pager-btn{transition:none}}`}</style>
+      <style>{TIMELINE_CSS}</style>
 
       {/* State pill removed here — the "Up next" card above the email now carries
           the state as its "Auto-chasing · N of M nudges" line, so a header pill
@@ -473,7 +522,7 @@ function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThr
       {/* Timeline — upcoming (dashed) flowing into what's happened */}
       <div style={{ marginBottom: isExchange ? 0 : 22 }}>
         <SectionLabel>Timeline</SectionLabel>
-        <div>
+        <div className="ct-stack">
           {futureSends.map((s, i) => <FutureRow key={`f${i}`} send={s} />)}
           {thread.events.map((ev, i) => (
             <EventRow key={i} ev={ev} last={i === thread.events.length - 1} label={thread.trackLabel} onOpenEmail={onOpenEmail} />

@@ -29,7 +29,11 @@ import { raiseChaseNextNudgeAt, raiseChaseEscalateAt, raiseChaseTargetNext } fro
 // reuses the canonical resolveConfirmer so it names the agent, the solicitor
 // firm, a helper, or the client(s), consistent with the updates feed. Null when
 // nobody is attributed (an automatic/system close).
-function confirmerLabel(
+// Who confirmed a step, as a timeline actor (avatar + name + role). Reuses the
+// canonical resolveConfirmer so it names the agent, the solicitor firm, a helper,
+// or the client(s), consistent with the updates feed. Null when nobody is
+// attributed (an automatic/system close).
+function confirmerActor(
   completion:
     | {
         confirmedByPortal: boolean;
@@ -42,15 +46,35 @@ function confirmerLabel(
     | undefined,
   sideContacts: { id: string; name: string; isPrincipal: boolean }[],
   side: "vendor" | "purchaser",
-): string | null {
+): ChaseActor | null {
   if (!completion) return null;
   const { confirmer, principals } = resolveConfirmer(completion, sideContacts);
+  const clientRole = side === "vendor" ? "Seller" : "Buyer";
+  const solRole = side === "vendor" ? "Seller’s solicitor" : "Buyer’s solicitor";
   if (!confirmer) return null;
-  if (confirmer.kind === "agent") return confirmer.name;
-  if (confirmer.kind === "solicitor") return confirmer.firm;
-  if (confirmer.kind === "helper") return confirmer.name;
+  if (confirmer.kind === "agent") return { kind: "person", name: confirmer.name, side: "agent", role: "Your team" };
+  if (confirmer.kind === "solicitor") return { kind: "person", name: confirmer.firm, side: "solicitor", role: solRole };
+  if (confirmer.kind === "helper") return { kind: "person", name: confirmer.name, side, role: clientRole };
   const names = principals.map((p) => p.name).filter(Boolean);
-  return names.length ? names.join(" & ") : side === "vendor" ? "The seller" : "The buyer";
+  return { kind: "person", name: names.length ? names.join(" & ") : side === "vendor" ? "The seller" : "The buyer", side, role: clientRole };
+}
+
+// Prettify a stored UserRole into a sentence-case title for the actor line.
+function prettyRole(role: string | null | undefined): string {
+  if (!role) return "Your team";
+  const map: Record<string, string> = {
+    director: "Director", negotiator: "Negotiator", sales_progressor: "Sales progressor",
+    admin: "Admin", superadmin: "Admin", viewer: "Viewer",
+  };
+  if (map[role]) return map[role];
+  const s = role.replace(/_/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+// The person who sent a manual chase — resolved name (from createdById) + role.
+function senderActor(createdById: string | null, createdByRole: string | null, nameById: Map<string, string>): ChaseActor {
+  const name = (createdById && nameById.get(createdById)) || "Your team";
+  return { kind: "person", name, role: prettyRole(createdByRole), side: "agent" };
 }
 
 // (The private Mon-Fri-only addWorkingDays that lived here ignored bank
@@ -89,12 +113,28 @@ export type ChaseEventKind =
 
 export type ChaseDelivery = "sent" | "delivered" | "opened" | "bounced" | null;
 
+// Visual category — drives the row's icon + accent colour, independent of the
+// lifecycle `kind`. "email"/"auto" = a send, "team" = handover, "movement" = an
+// enquiry hand-off, "milestone" = the exchange, etc.
+export type ChaseEventCategory =
+  | "email" | "team" | "danger" | "success" | "milestone" | "movement" | "calendar" | "hold";
+
+// The person attributed to an event, shown as an avatar + full name + role. A
+// `system` actor is Autopilot (no person). Null = no attribution (scheduling,
+// movements, process events).
+export type ChaseActor =
+  | { kind: "system" }
+  | { kind: "person"; name: string; role: string; side: "agent" | "vendor" | "purchaser" | "solicitor" };
+
 export type ChaseThreadEvent = {
   at: string; // ISO — serialisable for the client component
   kind: ChaseEventKind;
+  category: ChaseEventCategory;
   title: string;
   detail?: string;
-  actor?: string; // "By Sales Progressor (Ellis)", "System", etc.
+  subject?: string; // email subject, rendered italic beneath the title
+  note?: { label: string; text: string }; // a labelled note block (outstanding items, etc.)
+  actor?: ChaseActor | null;
   delivery?: ChaseDelivery;
   ordinal?: { n: number; of: number; by: "auto" | "you" };
   // The stored OutboundMessage this event sent, when there's a true-to-inbox copy
@@ -102,6 +142,8 @@ export type ChaseThreadEvent = {
   // movements, resolved) and on legacy sends with no saved message.
   sentEmailId?: string;
 };
+
+const SYSTEM_ACTOR: ChaseActor = { kind: "system" };
 
 export type ChaseThread = {
   id: string; // reminderLogId
@@ -276,7 +318,7 @@ export async function getChaseTimeline(
     }),
     prisma.outboundMessage.findMany({
       where: { transactionId, purpose: "chase", isAutomated: false },
-      select: { id: true, chaseTaskId: true, createdAt: true, recipientName: true, deliveredAt: true, openedAt: true, subject: true, createdByRole: true },
+      select: { id: true, chaseTaskId: true, createdAt: true, recipientName: true, deliveredAt: true, openedAt: true, subject: true, createdById: true, createdByRole: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.solicitorChaseState.findMany({
@@ -379,6 +421,14 @@ export async function getChaseTimeline(
 
   const buyerName = contacts.find((c) => c.roleType === "purchaser" && isActiveRoundContact(c, tx.activeBuyerRoundId))?.name ?? "the buyer";
   const sellerName = contacts.find((c) => c.roleType === "vendor")?.name ?? "the seller";
+
+  // Resolve the names of whoever sent each manual chase (for the actor line).
+  const senderIds = Array.from(new Set(chaseMsgs.map((m) => m.createdById).filter((x): x is string => !!x)));
+  const senderNameById = new Map<string, string>();
+  if (senderIds.length) {
+    const users = await prisma.user.findMany({ where: { id: { in: senderIds } }, select: { id: true, name: true } });
+    for (const u of users) senderNameById.set(u.id, u.name);
+  }
 
   // Index client-chase state + manual messages by the thread they belong to.
   const clientByCode = new Map<string, (typeof clientStates)[number]>();
@@ -559,29 +609,31 @@ export async function getChaseTimeline(
       ? (side === "vendor" ? "Seller's solicitor" : "Buyer's solicitor")
       : (side === "vendor" ? "Seller" : "Buyer");
 
+    // Who the chase is for, capitalised for use at the start of a line.
+    const forLabel = track === "solicitor" ? trackLabel : clientName;
+
     // ── Events (most-recent first) ──
     const events: ChaseThreadEvent[] = [];
     events.push({
       at: log.createdAt.toISOString(),
       kind: "scheduled",
-      title: "Chase scheduled",
+      category: "calendar",
+      title: `Chase scheduled for ${waitingOn}`,
       detail: rule.graceDays
-        ? `Waiting on ${waitingOn}. If we don't hear back, we'll follow up in ${rule.graceDays} working day${rule.graceDays === 1 ? "" : "s"}.`
-        : `Waiting on ${waitingOn}.`,
-      actor: "System",
+        ? `If there’s no reply, follow-up is due in ${rule.graceDays} working day${rule.graceDays === 1 ? "" : "s"}.`
+        : "Waiting for confirmation of the milestone.",
     });
 
     // Auto-chases from the owning lane (client or solicitor state, capped at 2).
-    // Delivery detail on the auto lane is deferred (opens not tracked there).
     if (autoState && autoState.chaseCount > 0) {
       const autoDates = [autoState.firstChasedAt, autoState.chaseCount >= 2 ? autoState.lastChasedAt : null].filter(Boolean) as Date[];
       autoDates.forEach((d, i) => {
         events.push({
           at: d.toISOString(),
           kind: "auto_chase",
-          title: `Auto-chased ${waitingOn}`,
-          detail: "Reminder email sent automatically.",
-          actor: "System",
+          category: "email",
+          title: `Chase emailed to ${waitingOn}`,
+          actor: SYSTEM_ACTOR,
           delivery: "sent",
           ordinal: { n: i + 1, of: Math.min(autoState.chaseCount, cap), by: "auto" },
           sentEmailId: matchAutoSentEmail(d, false),
@@ -591,9 +643,10 @@ export async function getChaseTimeline(
         events.push({
           at: autoState.lastChasedAt.toISOString(),
           kind: "handed",
-          title: "Autopilot done, handed to your team",
-          detail: `${track === "solicitor" ? "Solicitor" : "Client"} auto-chase reached its limit of ${cap}. Now in your work queue.`,
-          actor: "System",
+          category: "team",
+          title: "Chase handed to your team",
+          detail: `${forLabel} · Automatic chase limit reached after ${cap} emails.`,
+          actor: SYSTEM_ACTOR,
         });
       }
     }
@@ -604,9 +657,10 @@ export async function getChaseTimeline(
       events.push({
         at: m.createdAt.toISOString(),
         kind: "manual_chase",
-        title: `You chased ${waitingOn}`,
-        detail: m.subject ?? undefined,
-        actor: m.createdByRole ? `By ${m.createdByRole}` : "Manual chase",
+        category: "email",
+        title: `Chase emailed to ${waitingOn}`,
+        subject: m.subject ?? undefined,
+        actor: senderActor(m.createdById, m.createdByRole, senderNameById),
         delivery: m.openedAt ? "opened" : m.deliveredAt ? "delivered" : "sent",
         ordinal: { n: i + 1, of: msgs.length, by: "you" },
         sentEmailId: m.id,
@@ -617,9 +671,10 @@ export async function getChaseTimeline(
       events.push({
         at: task.escalatedAt.toISOString(),
         kind: "escalated",
-        title: "Escalated to file owner",
-        detail: `${manualChases} chase${manualChases === 1 ? "" : "s"} by the team with no response.`,
-        actor: task.escalatedBy?.name ? `By ${task.escalatedBy.name}` : "System",
+        category: "danger",
+        title: "Escalated to the file owner",
+        detail: `No reply after ${manualChases} team chase${manualChases === 1 ? "" : "s"}.`,
+        actor: task.escalatedBy?.name ? { kind: "person", name: task.escalatedBy.name, side: "agent", role: "Your team" } : SYSTEM_ACTOR,
       });
     }
     if (state === "completed") {
@@ -627,20 +682,20 @@ export async function getChaseTimeline(
       const sideContacts = contacts
         .filter((c) => (side === "vendor" ? c.roleType === "vendor" : c.roleType === "purchaser") && isActiveRoundContact(c, tx.activeBuyerRoundId))
         .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
-      const who = confirmerLabel(comp, sideContacts, side);
       events.push({
         at: (comp?.completedAt ?? log.updatedAt).toISOString(),
         kind: "resolved",
-        title: "Confirmed",
-        detail: who ? `Confirmed by ${who}. Chase closed.` : "Confirmed. Chase closed.",
-        actor: who ? undefined : "System",
+        category: "success",
+        title: "Milestone confirmed",
+        detail: "Chase closed.",
+        actor: confirmerActor(comp, sideContacts, side),
       });
     }
     if (state === "cancelled") {
-      events.push({ at: log.updatedAt.toISOString(), kind: "cancelled", title: "Stopped", detail: log.statusReason ?? "Chase no longer needed.", actor: "System" });
+      events.push({ at: log.updatedAt.toISOString(), kind: "cancelled", category: "hold", title: "Chase stopped", detail: log.statusReason ?? "The milestone was completed separately." });
     }
     if (snoozeAt) {
-      events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`, detail: (track === "solicitor" ? sol?.statusReason : log.statusReason) ?? "A date was provided.", actor: "System" });
+      events.push({ at: snoozeAt.toISOString(), kind: "snoozed", category: "calendar", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`, detail: (track === "solicitor" ? sol?.statusReason : log.statusReason) ?? undefined });
     }
 
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -733,8 +788,8 @@ export async function getChaseTimeline(
     const n = raiseChase.nudgeCount;
     const state: ChaseThreadState = closed ? "completed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
     const events: ChaseThreadEvent[] = [{
-      at: raiseChase.openedAt.toISOString(), kind: "scheduled", title: "Chase opened",
-      detail: "Chasing to get enquiries raised, from when searches were ordered.", actor: "System",
+      at: raiseChase.openedAt.toISOString(), kind: "scheduled", category: "calendar", title: "Follow-up started for initial enquiries",
+      detail: "Waiting for the buyer’s solicitor to raise enquiries.",
     }];
     // One row per nudge that actually sent (ChaseSend records). Falls back to a
     // single synthesised row for legacy files predating ChaseSend logging.
@@ -742,21 +797,23 @@ export async function getChaseTimeline(
     if (raiseSends.length > 0) {
       raiseSends.forEach((cs, i) => {
         const tgt = cs.recipient === "buyer" ? "the buyer" : buyerSolLabel;
+        const detail = cs.recipientName
+          ? (cs.recipient === "buyer" ? `To ${cs.recipientName}.` : `To ${cs.recipientName}, buyer’s solicitor.`)
+          : `To ${tgt}.`;
         events.push({
-          at: cs.sentAt.toISOString(), kind: "auto_chase",
-          title: `Nudged ${tgt} to get enquiries raised`,
-          detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
-          actor: "System", delivery: cs.openedAt ? "opened" : "sent",
+          at: cs.sentAt.toISOString(), kind: "auto_chase", category: "email",
+          title: "Initial enquiries chased", detail,
+          actor: SYSTEM_ACTOR, delivery: cs.openedAt ? "opened" : "sent",
           ordinal: { n: i + 1, of: raiseSends.length, by: "auto" },
           sentEmailId: matchAutoSentEmail(cs.sentAt, true),
         });
       });
     } else if (raiseChase.lastNudgedAt && n > 0) {
       const tgt = raiseChase.lastTarget === "buyer" ? "the buyer" : buyerSolLabel;
-      events.push({ at: raiseChase.lastNudgedAt.toISOString(), kind: "auto_chase", title: `Nudged ${tgt} to get enquiries raised`, detail: `${n} nudge${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+      events.push({ at: raiseChase.lastNudgedAt.toISOString(), kind: "auto_chase", category: "email", title: "Initial enquiries chased", detail: `To ${tgt}.`, actor: SYSTEM_ACTOR, delivery: "sent", ordinal: { n, of: n, by: "auto" } });
     }
-    if (raiseChase.escalatedAt) events.push({ at: raiseChase.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries still not raised after repeated nudges.", actor: "System" });
-    if (raiseChase.closedAt) events.push({ at: raiseChase.closedAt.toISOString(), kind: "resolved", title: "Enquiries raised", detail: "The reply loop takes over from here.", actor: "System" });
+    if (raiseChase.escalatedAt) events.push({ at: raiseChase.escalatedAt.toISOString(), kind: "escalated", category: "danger", title: "Escalated to the file owner", detail: "Initial enquiries were still outstanding after repeated follow-ups.", actor: SYSTEM_ACTOR });
+    if (raiseChase.closedAt) events.push({ at: raiseChase.closedAt.toISOString(), kind: "resolved", category: "success", title: "Initial enquiries raised", detail: "Now waiting for replies." });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
     // Predict the upcoming nudge (date + who) and the escalation deadline, so the
     // raise chase shows the same "Up next" card as milestone chases.
@@ -816,8 +873,9 @@ export async function getChaseTimeline(
     const n = et.chaseCount;
     const state: ChaseThreadState = closed ? "completed" : esc ? "escalated" : n > 0 ? "auto_chasing" : "scheduled";
     const events: ChaseThreadEvent[] = [{
-      at: et.openedAt.toISOString(), kind: "scheduled", title: "Enquiries opened",
-      detail: et.outstandingNote ? `Waiting on: ${et.outstandingNote}` : "Enquiries raised, awaiting replies.", actor: "System",
+      at: et.openedAt.toISOString(), kind: "scheduled", category: "calendar", title: "Tracking started for enquiry replies",
+      detail: et.outstandingNote ? undefined : "Waiting for replies to the initial enquiries.",
+      note: et.outstandingNote ? { label: "Outstanding", text: et.outstandingNote } : undefined,
     }];
     // One row per reply-loop chase that actually sent (per-send recipient, which
     // can differ from the current court); legacy fallback to the single row.
@@ -826,16 +884,15 @@ export async function getChaseTimeline(
       replySends.forEach((cs, i) => {
         const chasedWho = cs.recipient === "seller_solicitor" ? sellerSolLabel : buyerSolLabel;
         events.push({
-          at: cs.sentAt.toISOString(), kind: "auto_chase",
-          title: `Chased ${chasedWho}`,
-          detail: cs.recipientName ? `Sent to ${cs.recipientName}.` : "Reminder email sent.",
-          actor: "System", delivery: cs.openedAt ? "opened" : "sent",
+          at: cs.sentAt.toISOString(), kind: "auto_chase", category: "email",
+          title: "Enquiry replies chased", detail: `To ${chasedWho}.`,
+          actor: SYSTEM_ACTOR, delivery: cs.openedAt ? "opened" : "sent",
           ordinal: { n: i + 1, of: replySends.length, by: "auto" },
           sentEmailId: matchAutoSentEmail(cs.sentAt, true),
         });
       });
     } else if (et.lastChasedAt && n > 0) {
-      events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", title: `Chased ${who}`, detail: `${n} chase${n === 1 ? "" : "s"} so far.`, actor: "System", delivery: "sent", ordinal: { n, of: n, by: "auto" } });
+      events.push({ at: et.lastChasedAt.toISOString(), kind: "auto_chase", category: "email", title: "Enquiry replies chased", detail: `To ${who}.`, actor: SYSTEM_ACTOR, delivery: "sent", ordinal: { n, of: n, by: "auto" } });
     }
     // Reply / handover movements — show the ball passing between the two
     // solicitors so a same-day chase + handover reads as the sequence it is
@@ -843,26 +900,28 @@ export async function getChaseTimeline(
     // buyer") rather than a contradiction (27 Whitebeam Close, 2026-10-19).
     const MOVE_TITLE: Record<string, string> = {
       raised: "Further enquiries raised",
-      replies_sent: "Replies sent",
-      replies_received: "Replies received",
-      partial_replies: "Some replies in",
-      correction: "Court corrected",
-      update: "Enquiries update",
+      replies_sent: "Replies to initial enquiries sent",
+      replies_received: "Enquiry replies received",
+      partial_replies: "Some enquiry replies received",
+      correction: "Enquiry responsibility corrected",
+      update: "Note added to enquiries",
     };
     for (const mv of et.movements) {
       if (mv.kind === "chased") continue; // chase sends already have their own rows above
       const progress = mv.kind === "replies_sent" || mv.kind === "replies_received";
+      const isNote = mv.kind === "update";
       events.push({
         at: mv.occurredAt.toISOString(),
         kind: progress ? "resolved" : "scheduled",
-        title: MOVE_TITLE[mv.kind] ?? "Enquiries update",
-        detail: mv.note || undefined,
-        actor: "System",
+        category: "movement",
+        title: MOVE_TITLE[mv.kind] ?? "Note added to enquiries",
+        detail: isNote ? undefined : (mv.note || undefined),
+        note: isNote && mv.note ? { label: "Note", text: mv.note } : undefined,
       });
     }
-    if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", title: "Escalated to file owner", detail: "Enquiries outstanding after repeated chases.", actor: "System" });
-    if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`, detail: "A date was provided.", actor: "System" });
-    if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", title: "Enquiries satisfied", detail: "All enquiries answered. Nothing left to chase.", actor: "System" });
+    if (et.escalatedAt) events.push({ at: et.escalatedAt.toISOString(), kind: "escalated", category: "danger", title: "Escalated to the file owner", detail: "Enquiries were still outstanding after repeated chases.", actor: SYSTEM_ACTOR });
+    if (snoozeAt) events.push({ at: snoozeAt.toISOString(), kind: "snoozed", category: "calendar", title: `Next chase moved to ${toUKDateStr(snoozeAt)}` });
+    if (et.closedAt) events.push({ at: et.closedAt.toISOString(), kind: "resolved", category: "success", title: "Enquiries satisfied", detail: "Enquiry follow-ups closed." });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
     // Predict the next reply-loop chase (to the solicitor holding the ball) + the
     // escalation deadline, matching the sender's cadence so the card is truthful.
@@ -921,33 +980,33 @@ export async function getChaseTimeline(
     events.push({
       at: startedAt.toISOString(),
       kind: "scheduled",
-      title: "Exchange day started",
-      detail: compDate ? `Aiming to exchange today, with completion agreed for ${compDate}.` : "Aiming to exchange contracts today.",
-      actor: "System",
+      category: "calendar",
+      title: `Exchange targeted for ${toUKDateStr(startedAt)}`,
+      detail: compDate ? `Completion agreed for ${compDate}.` : undefined,
     });
 
-    const emailEvent = (stamp: Date | null, title: string) => {
+    const emailEvent = (stamp: Date | null, title: string, to: string) => {
       if (!stamp) return;
-      events.push({ at: stamp.toISOString(), kind: "auto_chase", title, detail: "Sent automatically.", actor: "System", delivery: "sent" });
+      events.push({ at: stamp.toISOString(), kind: "auto_chase", category: "email", title, detail: to, actor: SYSTEM_ACTOR, delivery: "sent" });
     };
-    emailEvent(tx.exchangeDayMorningEmailAt, "Emailed both solicitors, morning check-in");
-    emailEvent(tx.exchangeDayClientMorningEmailAt, "Emailed the buyer and seller, what today means");
-    emailEvent(tx.exchangeDayClientAuthorityEmailAt, "Asked the buyer and seller for authority to exchange");
-    emailEvent(tx.exchangeDayMiddayEmailAt, "Emailed both solicitors, midday push");
-    emailEvent(tx.exchangeDayAfternoonEmailAt, "Emailed both solicitors, afternoon push");
+    emailEvent(tx.exchangeDayMorningEmailAt, "Morning exchange check-in sent", "To both solicitors.");
+    emailEvent(tx.exchangeDayClientMorningEmailAt, "Exchange day update sent", "To the buyer and seller.");
+    emailEvent(tx.exchangeDayClientAuthorityEmailAt, "Authority to exchange requested", "To the buyer and seller.");
+    emailEvent(tx.exchangeDayMiddayEmailAt, "Midday exchange follow-up sent", "To both solicitors.");
+    emailEvent(tx.exchangeDayAfternoonEmailAt, "Afternoon exchange follow-up sent", "To both solicitors.");
 
     // Authority given (only counts for the current activation).
     for (const c of contacts) {
       if ((c.roleType === "vendor" || c.roleType === "purchaser") && c.exchangeAuthorityGivenAt && c.exchangeAuthorityGivenAt >= startedAt) {
         const who = c.roleType === "vendor" ? "Seller" : "Buyer";
-        events.push({ at: c.exchangeAuthorityGivenAt.toISOString(), kind: "resolved", title: `${who} gave authority to exchange`, detail: `${c.name} confirmed we can proceed.`, actor: c.name });
+        events.push({ at: c.exchangeAuthorityGivenAt.toISOString(), kind: "resolved", category: "success", title: `${who} gave authority to exchange`, actor: { kind: "person", name: c.name, side: c.roleType, role: who } });
       }
     }
 
     if (exchanged && tx.exchangedAt) {
-      events.push({ at: tx.exchangedAt.toISOString(), kind: "resolved", title: "Exchanged", detail: "Contracts exchanged. Completion is next.", actor: "System" });
+      events.push({ at: tx.exchangedAt.toISOString(), kind: "resolved", category: "milestone", title: "Contracts exchanged", detail: compDate ? `Completion due ${compDate}.` : "Completion is next." });
     } else if (cancelledThisRun && tx.exchangeDayCancelledAt) {
-      events.push({ at: tx.exchangeDayCancelledAt.toISOString(), kind: "cancelled", title: "Exchange day ended", detail: "No longer aiming to exchange today.", actor: "System" });
+      events.push({ at: tx.exchangeDayCancelledAt.toISOString(), kind: "cancelled", category: "hold", title: "Exchange attempt ended", detail: "Contracts weren’t exchanged during this attempt." });
     }
 
     const emailStamps = [
@@ -1012,32 +1071,39 @@ export async function getChaseTimeline(
       : n > 0 ? "auto_chasing"
       : "scheduled";
     const who = side === "vendor" ? "the seller's solicitor" : "the buyer's solicitor";
+    const solLabel = side === "vendor" ? "Seller’s solicitor" : "Buyer’s solicitor";
 
     const events: ChaseThreadEvent[] = [{
-      at: row.createdAt.toISOString(), kind: "scheduled", title: "Chase scheduled",
-      detail: "Chasing the solicitor to confirm this step.", actor: "System",
+      at: row.createdAt.toISOString(), kind: "scheduled", category: "calendar", title: `Chase scheduled for ${who}`,
+      detail: "Waiting for confirmation of the milestone.",
     }];
     const autoDates = [row.firstChasedAt, n >= 2 ? row.lastChasedAt : null].filter(Boolean) as Date[];
     autoDates.forEach((d, i) => events.push({
-      at: d.toISOString(), kind: "auto_chase", title: `Auto-chased ${who}`,
-      detail: "Reminder email sent automatically.", actor: "System", delivery: "sent",
+      at: d.toISOString(), kind: "auto_chase", category: "email", title: `Chase emailed to ${who}`,
+      actor: SYSTEM_ACTOR, delivery: "sent",
       ordinal: { n: i + 1, of: Math.min(n, SOLICITOR_CHASE_CAP), by: "auto" },
     }));
     if (capped && !done && row.lastChasedAt) events.push({
-      at: row.lastChasedAt.toISOString(), kind: "handed", title: "Autopilot done, handed to your team",
-      detail: `Solicitor auto-chase reached its limit of ${SOLICITOR_CHASE_CAP}. Now in your work queue.`, actor: "System",
+      at: row.lastChasedAt.toISOString(), kind: "handed", category: "team", title: "Chase handed to your team",
+      detail: `${solLabel} · Automatic chase limit reached after ${SOLICITOR_CHASE_CAP} emails.`, actor: SYSTEM_ACTOR,
     });
     if (escalated && row.lastChasedAt) events.push({
-      at: row.lastChasedAt.toISOString(), kind: "escalated", title: "Escalated to file owner",
-      detail: "Solicitor unresponsive after repeated chases.", actor: "System",
+      at: row.lastChasedAt.toISOString(), kind: "escalated", category: "danger", title: "Escalated to the file owner",
+      detail: `${who.charAt(0).toUpperCase() + who.slice(1)} was unresponsive after repeated chases.`, actor: SYSTEM_ACTOR,
     });
-    if (done) events.push({
-      at: (row.resolvedAt ?? row.lastChasedAt ?? row.createdAt).toISOString(), kind: "resolved",
-      title: "Confirmed", detail: "Step confirmed. Chase closed.", actor: "System",
-    });
+    if (done) {
+      const sideContacts = contacts
+        .filter((c) => c.roleType === side && isActiveRoundContact(c, tx.activeBuyerRoundId))
+        .map((c) => ({ id: c.id, name: c.name, isPrincipal: c.isPrincipal }));
+      events.push({
+        at: (row.resolvedAt ?? row.lastChasedAt ?? row.createdAt).toISOString(), kind: "resolved", category: "success",
+        title: "Milestone confirmed", detail: "Chase closed.",
+        actor: confirmerActor(mc, sideContacts, side) ?? { kind: "person", name: solLabel, side: "solicitor", role: "Solicitor" },
+      });
+    }
     if (snoozeAt) events.push({
-      at: snoozeAt.toISOString(), kind: "snoozed", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`,
-      detail: row.statusReason ?? "A date was provided.", actor: "System",
+      at: snoozeAt.toISOString(), kind: "snoozed", category: "calendar", title: `Next chase moved to ${toUKDateStr(snoozeAt)}`,
+      detail: row.statusReason ?? undefined,
     });
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
