@@ -106,10 +106,14 @@ export function AddPhotoCircle({
   onClick,
   busy,
   size = 120,
+  bare = false,
 }: {
   onClick: () => void;
   busy: boolean;
   size?: number;
+  // Drop the coral gradient ring + halo and show a plain bordered circle — used
+  // on the File-setup tab where the founder wants no faded backer behind icons.
+  bare?: boolean;
 }) {
   const ring = Math.round(size * 0.62);
   const icon = Math.round(ring * 0.42);
@@ -139,12 +143,16 @@ export function AddPhotoCircle({
           width: ring,
           height: ring,
           borderRadius: "50%",
-          padding: 3,
+          padding: bare ? 0 : 3,
           display: "flex",
-          // Brand-adaptive: deep brand shade → a lighter mix of the base brand
-          // colour. color-mix keeps it tied to --agent-coral (the user's primary).
-          background: "linear-gradient(135deg, var(--agent-coral-deep), color-mix(in srgb, var(--agent-coral) 58%, #ffffff))",
-          boxShadow: "0 4px 14px rgba(var(--agent-coral-rgb), 0.28)",
+          // Bare: a plain hairline circle, no gradient/halo (File-setup). Default:
+          // brand-adaptive gradient ring + soft halo (the hero).
+          ...(bare
+            ? { background: "var(--agent-surface-elevated)", border: "1px solid var(--agent-border-default)" }
+            : {
+                background: "linear-gradient(135deg, var(--agent-coral-deep), color-mix(in srgb, var(--agent-coral) 58%, #ffffff))",
+                boxShadow: "0 4px 14px rgba(var(--agent-coral-rgb), 0.28)",
+              }),
         }}
       >
         <span style={{ width: "100%", height: "100%", borderRadius: "50%", background: "var(--agent-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--agent-coral-deep)" }}>

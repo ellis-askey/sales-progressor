@@ -49,7 +49,7 @@ export function PhotoSetupCard({
         </>
       ) : (
         <>
-          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={96} />
+          <AddPhotoCircle onClick={photo.triggerUpload} busy={photo.busy} size={96} bare />
           <p className="text-[13px] text-slate-900/55 max-w-[240px]">
             Add a photo to make this file easy to recognise.
           </p>

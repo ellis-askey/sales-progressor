@@ -57,6 +57,17 @@ export function PeoplePanel({
     return () => ro.disconnect();
   }, [measure]);
 
+  // Open a specific side on request — the File-setup "Add broker / solicitors"
+  // jump fires this so the agent lands on Professionals, not Clients (#300).
+  useEffect(() => {
+    function onOpen(e: Event) {
+      const side = (e as CustomEvent<Tab>).detail;
+      if (side === "clients" || side === "professionals") setTab(side);
+    }
+    window.addEventListener("sp_open_people_tab", onOpen);
+    return () => window.removeEventListener("sp_open_people_tab", onOpen);
+  }, []);
+
   return (
     <GlassCard glassId="overview-people" label="Overview · People" defaultVariant="v05" style={{ borderRadius: 12, overflow: "hidden" }}>
       {/* Toggle header — tabs left, optional action right */}
