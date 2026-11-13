@@ -141,8 +141,8 @@ export default async function AccountEmailsPage() {
           >
             <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
               Each team member can send from their own work email, so sending addresses are managed individually under{" "}
-              <Link href="/agent/account/profile" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
-                Profile
+              <Link href="/agent/account/connections" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
+                Connections
               </Link>{" "}
               → Sending addresses.
             </p>

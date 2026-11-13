@@ -389,19 +389,9 @@ export function ImapConnectionCard() {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
-          <EnvelopeSimple size={20} weight="bold" style={{ color: CORAL }} />
-        </div>
-
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">Every other provider</p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Choose your provider and connect using an app password. For providers we recognise, we can send your emails from
-                this address too.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2.5 pr-8">
+            <p className="text-sm font-semibold text-gray-900">Other email providers</p>
             {!loading && status && (
               <span
                 className={
@@ -414,6 +404,10 @@ export function ImapConnectionCard() {
               </span>
             )}
           </div>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
+            Connect your email using an app password. Supported providers can also send emails directly from
+            your address.
+          </p>
 
           <div className="mt-4">
             {loading ? (
@@ -573,14 +567,11 @@ export function ImapConnectionCard() {
                 {/* Connect form */}
                 <div className="space-y-3.5 rounded-lg border border-gray-200 bg-gray-50 p-3.5">
                   {/* Two-path guidance (Phase 4): verify a domain, or connect an inbox */}
-                  <p className="text-[12px] leading-relaxed text-gray-600">
-                    Two ways to send from your own address.{" "}
-                    <span className="font-semibold text-gray-800">Verify your domain</span> is best if you can edit your
-                    website&rsquo;s DNS (set that up on your Profile). Otherwise,{" "}
-                    <span className="font-semibold text-gray-800">connect your inbox</span> below with an app password: no DNS
-                    needed, and just as good for sending. We&rsquo;ll show your provider&rsquo;s exact steps and finish with a
-                    test email.
-                  </p>
+                  <div className="space-y-1.5 text-[12px] leading-relaxed text-gray-600">
+                    <p>There are two ways to send emails from your own address. Verify your domain, or connect your inbox below using an app password.</p>
+                    <p>No DNS changes are needed to connect your inbox. We&rsquo;ll guide you through the setup and send a test email to make sure everything works.</p>
+                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Choose your provider</p>
                   {/* Provider tiles */}
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                     {TILES.map((t) => {
@@ -718,11 +709,11 @@ export function ImapConnectionCard() {
                       className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--agent-coral,#FF6B4A)]"
                     />
                     <span className="w-full text-[12.5px] leading-relaxed text-gray-600">
-                      I agree that Sales Progressor can access emails relating to my sales, as explained in the{" "}
+                      I agree to Sales Progressor accessing emails related to my sales, as explained in the{" "}
                       <Link href="/privacy" className="underline" style={{ color: CORAL }}>
                         Privacy Policy
                       </Link>
-                      . I can disconnect my email at any time.
+                      . I can disconnect at any time.
                     </span>
                   </label>
 
@@ -743,8 +734,7 @@ export function ImapConnectionCard() {
                   <button
                     onClick={connect}
                     disabled={!canConnect}
-                    className="pbtn pbtn-press pbtn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-45"
-                    style={{ background: CORAL }}
+                    className="agent-btn agent-btn-md agent-btn-primary"
                   >
                     <EnvelopeSimple size={16} weight="bold" />
                     {connecting ? "Connecting…" : count > 0 ? "Connect another inbox" : "Connect my inbox"}
@@ -752,8 +742,8 @@ export function ImapConnectionCard() {
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">
-                  We only save emails that match one of your sales. Nothing else in your inbox is stored. Disconnecting
-                  stops all access.
+                  We only save emails that match your sales. Other inbox messages aren&rsquo;t stored, and disconnecting
+                  stops further access.
                 </p>
               </div>
             )}

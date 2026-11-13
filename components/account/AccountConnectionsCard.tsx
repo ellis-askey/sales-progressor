@@ -15,7 +15,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning } from "@phosphor-icons/react";
-import { OutlookLogo } from "./provider-logos";
 
 type Connection = { id: string; email: string; displayName: string | null };
 type Status = { configured: boolean; connections: Connection[] };
@@ -107,18 +106,9 @@ export function AccountConnectionsCard() {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-start gap-3">
-        <OutlookLogo size={40} />
-
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">Microsoft Outlook</p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Connect your work inbox to automatically save replies from solicitors and clients to the
-                correct sale. Emails you send will come directly from your Outlook account and appear in
-                your Sent Items.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2.5 pr-8">
+            <p className="text-sm font-semibold text-gray-900">Microsoft Outlook</p>
             {!loading && status && (
               <span
                 className={
@@ -131,6 +121,11 @@ export function AccountConnectionsCard() {
               </span>
             )}
           </div>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
+            Connect Outlook to automatically save emails from solicitors and clients to the correct sale.
+            Emails you send through Sales Progressor will come directly from your Outlook account and appear
+            in your Sent Items.
+          </p>
 
           {banner && <div className="mt-3">{banner}</div>}
 
@@ -200,15 +195,14 @@ export function AccountConnectionsCard() {
                       className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--agent-coral,#FF6B4A)]"
                     />
                     <span className="text-[12.5px] leading-relaxed text-gray-600">
-                      I agree that Sales Progressor can read emails relating to my sales and send emails on my
+                      I agree to Sales Progressor reading emails related to my sales and sending emails on my
                       behalf, as explained in the <Link href="/privacy" className="underline" style={{ color: CORAL }}>Privacy Policy</Link>. I can disconnect at any time.
                     </span>
                   </label>
                   <button
                     onClick={() => { window.location.href = "/api/integrations/outlook/connect"; }}
                     disabled={!consent}
-                    className="pbtn pbtn-press pbtn-primary mt-3 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-45"
-                    style={{ background: CORAL }}
+                    className="agent-btn agent-btn-md agent-btn-primary mt-3"
                   >
                     <EnvelopeSimple size={16} weight="bold" />
                     {count > 0 ? "Connect another inbox" : "Connect my inbox"}
@@ -216,8 +210,8 @@ export function AccountConnectionsCard() {
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">
-                  We only save emails that match one of your sales. Nothing else in your inbox is stored.
-                  Disconnecting stops all access.
+                  We only save emails that match your sales. Other inbox messages aren&rsquo;t stored, and
+                  disconnecting stops further access.
                 </p>
               </div>
             )}

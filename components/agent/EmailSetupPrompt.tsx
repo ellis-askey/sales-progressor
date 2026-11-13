@@ -73,7 +73,7 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Link
-            href="/agent/account/profile"
+            href="/agent/account/connections"
             className="agent-btn agent-btn-primary agent-btn-sm"
             style={{ textDecoration: "none" }}
           >

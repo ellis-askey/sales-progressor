@@ -24,14 +24,13 @@ import { ProfileFormPlain } from "@/components/account/v2/ProfileFormPlain";
 import { AppColourStudioLive } from "@/components/account/v2/AppColourStudioLive";
 import { AccountDangerZonePlain } from "@/components/account/v2/AccountDangerZonePlain";
 import { WritingStyleCard } from "@/components/account/v2/WritingStyleCard";
-import Link from "next/link";
 import { getSignatureImageUrl } from "@/lib/supabase-storage";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { EmailSignatureCard, type SignatureInitial } from "@/components/account/v2/EmailSignatureCard";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { detectSignatureSource } from "@/lib/email/signature-source";
-import { Palette, EnvelopeSimple, Database } from "@phosphor-icons/react/dist/ssr";
+import { Palette, Database } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AccountProfilePage() {
   const session = await requireSession();
@@ -78,22 +77,6 @@ export default async function AccountProfilePage() {
     </AccountCard>
   );
 
-  const sendingCard = (
-    <AccountCard
-      icon={<EnvelopeSimple size={18} weight="bold" />}
-      title="Sending addresses"
-      subtitle="Send emails to clients directly from your own work email address."
-    >
-      <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
-        Sending addresses now live under{" "}
-        <Link href="/agent/account/connections" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
-          Connections
-        </Link>
-        , alongside your inbox and WhatsApp.
-      </p>
-    </AccountCard>
-  );
-
   const accountCard = (
     <AccountCard
       icon={<Database size={18} weight="bold" />}
@@ -130,7 +113,6 @@ export default async function AccountProfilePage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {colourCard}
-          {sendingCard}
           {accountCard}
         </div>
       </div>

@@ -18,7 +18,7 @@
 // (white card, gray-200 hairlines, emerald ticks). No new tokens.
 
 import { useEffect, useState } from "react";
-import { EnvelopeSimple, WhatsappLogo, Check } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, Check, PaperPlaneTilt, IdentificationBadge, ArrowsClockwise, ChatCircleText, ListChecks } from "@phosphor-icons/react";
 import { OutlookLogo } from "./provider-logos";
 
 type ChannelKey = "outlook" | "email" | "whatsapp";
@@ -29,11 +29,12 @@ type ImapConn = { lastError: string | null; sendState: "sends" | "offer" | "doma
 type ImapStatus = { configured: boolean; connections: ImapConn[] };
 type WaStatus = { configured: boolean; connection: { status: string } | null };
 
-const CAPS: { key: string; title: string; sub: string }[] = [
-  { key: "send", title: "Send and receive emails", sub: "Manage all sale emails within TSP" },
-  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups" },
-  { key: "capture", title: "Capture client conversations", sub: "Store and track messages against the right sale" },
-  { key: "timeline", title: "A complete sale timeline", sub: "Emails, notes and messages in one place" },
+const CAPS: { key: string; title: string; sub: string; Icon: typeof EnvelopeSimple }[] = [
+  { key: "send", title: "Send and receive emails", sub: "Manage every sale email inside Sales Progressor", Icon: PaperPlaneTilt },
+  { key: "sendown", title: "Send from your own address", sub: "Clients see your address, not ours, via your domain or inbox", Icon: IdentificationBadge },
+  { key: "chase", title: "Automatic email chasing", sub: "Save time with automated follow-ups", Icon: ArrowsClockwise },
+  { key: "capture", title: "Capture client conversations", sub: "Store and track messages against the right sale", Icon: ChatCircleText },
+  { key: "timeline", title: "A complete sale timeline", sub: "Emails, notes and messages in one place", Icon: ListChecks },
 ];
 const CHANNELS: { key: ChannelKey; name: string; sub: string }[] = [
   { key: "outlook", name: "Outlook", sub: "Email" },
@@ -103,7 +104,7 @@ export function ConnectionsMatrix() {
       if (ch === "outlook") return outlookOn ? "on" : "off";
       return imapOn ? (imapSends && !imapReadIssue ? "on" : "partial") : "off";
     }
-    if (cap === "chase") {
+    if (cap === "chase" || cap === "sendown") {
       if (ch === "whatsapp") return "na";
       if (ch === "outlook") return outlookOn ? "on" : "off";
       return imapOn ? (imapSends ? "on" : "partial") : "off";
@@ -160,9 +161,14 @@ export function ConnectionsMatrix() {
           className="grid grid-cols-[minmax(0,1fr)_repeat(3,86px)] items-stretch border-t border-gray-100 sm:grid-cols-[minmax(0,1fr)_repeat(3,132px)]"
           style={!loading && rowAchieved(cap.key) ? { background: "linear-gradient(90deg,rgba(16,185,129,0.06),transparent 60%)" } : undefined}
         >
-          <div className="px-4 py-4 sm:px-5">
-            <span className="block text-[13.5px] font-semibold text-gray-900">{cap.title}</span>
-            <span className="mt-0.5 block text-[11.5px] text-gray-500">{cap.sub}</span>
+          <div className="flex items-start gap-3 px-4 py-3.5 sm:px-5">
+            <span className="mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
+              <cap.Icon size={15} weight="bold" />
+            </span>
+            <div className="min-w-0">
+              <span className="block text-[13.5px] font-semibold text-gray-900">{cap.title}</span>
+              <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">{cap.sub}</span>
+            </div>
           </div>
           {CHANNELS.map((c) => (
             <div key={c.key} className="grid place-items-center border-l border-gray-100 px-2 py-4">

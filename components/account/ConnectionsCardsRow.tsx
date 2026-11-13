@@ -32,12 +32,11 @@ type WaStatus = { configured?: boolean; connection: { status: string; phoneNumbe
 const CORAL = "var(--agent-coral, #FF6B4A)";
 
 const BULLETS: Record<ChannelKey, string[]> = {
-  outlook: ["Email sending & receiving", "Automatic chasing", "Sale timeline integration"],
-  email: ["Send from your connected inbox", "Automatic chasing", "Replies captured on the file", "Sale timeline integration"],
-  whatsapp: ["Your WhatsApp, linked as a device", "Capture group chats for your sales", "Save client messages against the right file", "Full conversation history and timeline"],
+  outlook: ["Send and receive emails through Outlook", "Automatically chase outstanding updates", "Save replies to the correct sale", "Keep your sale timeline up to date"],
+  email: ["Send emails from your own address", "Automatically chase outstanding updates", "Save replies to the correct sale", "Keep your sale timeline up to date"],
+  whatsapp: ["Connect using WhatsApp's linked devices", "Capture conversations from your property groups", "Save messages to the correct sale", "Keep group conversations on your sale timeline"],
 };
-const MODAL_TITLE: Record<ChannelKey, string> = { outlook: "Microsoft Outlook", email: "Email providers", whatsapp: "WhatsApp" };
-const CARD_NAME: Record<ChannelKey, string> = { outlook: "Microsoft Outlook", email: "Every other provider", whatsapp: "WhatsApp" };
+const CARD_NAME: Record<ChannelKey, string> = { outlook: "Microsoft Outlook", email: "Other email providers", whatsapp: "WhatsApp" };
 
 function ChannelLogo({ k }: { k: ChannelKey }) {
   if (k === "outlook") return <OutlookLogo size={38} />;
@@ -195,8 +194,7 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
           ) : (
             <button
               onClick={() => setOpen(k)}
-              className="pbtn pbtn-press pbtn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white"
-              style={{ background: CORAL }}
+              className="agent-btn agent-btn-md agent-btn-primary"
             >
               {k === "outlook" ? "Connect Outlook" : k === "email" ? "Connect email provider" : "Connect WhatsApp"}
             </button>
@@ -220,17 +218,14 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
           style={{ background: "rgba(15,15,15,0.45)", backdropFilter: "blur(3px)" }}
           onClick={closeModal}
         >
-          <div className="my-auto w-full max-w-[600px]" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-white/90">{MODAL_TITLE[open]}</span>
-              <button
-                onClick={closeModal}
-                aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
-              >
-                <X size={17} weight="bold" />
-              </button>
-            </div>
+          <div className="relative my-auto w-full max-w-[600px]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={closeModal}
+              aria-label="Close"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            >
+              <X size={18} weight="bold" />
+            </button>
             {hosted[open]}
           </div>
         </div>

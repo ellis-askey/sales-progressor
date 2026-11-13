@@ -33,8 +33,6 @@ type Status = {
   tasksApplicable: boolean;
 };
 
-const CORAL = "var(--agent-coral, #FF6B4A)";
-
 export function WhatsAppConnectionCard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,26 +129,19 @@ export function WhatsAppConnectionCard() {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50">
-          <WhatsappLogo size={20} weight="fill" style={{ color: CORAL }} />
-        </div>
-
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">WhatsApp</p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-gray-500">
-                Link your WhatsApp so your property group chats are saved to the right sale. We only read your
-                &ldquo;Sale of &hellip;&rdquo; and &ldquo;Purchase of &hellip;&rdquo; groups, never your one-to-one chats, and you
-                can disconnect at any time.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2.5 pr-8">
+            <p className="text-sm font-semibold text-gray-900">WhatsApp</p>
             {!loading && status && (
               <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${pill.cls}`}>
                 {pill.label}
               </span>
             )}
           </div>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
+            Connect WhatsApp to automatically save property group messages to the correct sale. Only matching
+            property groups are accessed. Your personal chats remain private.
+          </p>
 
           <div className="mt-4">
             {loading ? (
@@ -343,21 +334,19 @@ function ConsentView({
   return (
     <div className="space-y-4">
       <div className="space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3.5 text-[12.5px] leading-relaxed text-gray-600">
-        <p>Link your WhatsApp so your property group chats appear on the right sale, with nothing to copy across.</p>
+        <p>Connect WhatsApp to bring your property group conversations into Sales Progressor automatically.</p>
         <p>
-          <strong className="font-semibold text-gray-800">What appears on your files:</strong> Only messages from
-          groups named &ldquo;Sale of [address]&rdquo; or &ldquo;Purchase of [address]&rdquo; that match one of your live
-          sales. They&rsquo;ll appear on the property&rsquo;s timeline.
+          <strong className="font-semibold text-gray-800">What appears on your files:</strong> Messages from
+          groups named &ldquo;Sale of [address]&rdquo; or &ldquo;Purchase of [address]&rdquo; that match an active sale.
+          These appear in the property&rsquo;s activity timeline.
         </p>
         <p>
-          <strong className="font-semibold text-gray-800">What we never see:</strong> Your one-to-one chats or
-          groups that aren&rsquo;t linked to a property. We don&rsquo;t read, store or have access to them.
+          <strong className="font-semibold text-gray-800">What stays private:</strong> Your one-to-one
+          conversations and unrelated groups. We don&rsquo;t read, store or access their messages.
         </p>
         <p>
-          <strong className="font-semibold text-gray-800">How the link works:</strong> Your WhatsApp connects
-          as a linked device, just like WhatsApp Web. This is an unofficial connection, so
-          there is a small risk to your number. We only read messages and never send them, which helps
-          keep that risk low. You can disconnect at any time from this screen.
+          <strong className="font-semibold text-gray-800">How it works:</strong> WhatsApp connects as a linked
+          device, similar to WhatsApp Web. We only read messages, never send them. You can disconnect at any time.
         </p>
         <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
           <input
@@ -366,14 +355,13 @@ function ConsentView({
             onChange={(e) => setConsent(e.target.checked)}
             className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--agent-coral,#FF6B4A)]"
           />
-          <span className="text-gray-700">I understand and want to link my WhatsApp.</span>
+          <span className="text-gray-700">I understand and want to connect my WhatsApp.</span>
         </label>
       </div>
       <button
         onClick={startPairing}
         disabled={!consent || pairing}
-        className="pbtn pbtn-press pbtn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-45"
-        style={{ background: CORAL }}
+        className="agent-btn agent-btn-md agent-btn-primary"
       >
         <WhatsappLogo size={16} weight="fill" />
         {pairing ? "Getting your code…" : "Show my QR code"}

@@ -99,7 +99,7 @@ export function ComposeEmail({ transactionId, defaultTo = "", onSent, onCancel, 
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>No verified sending address</p>
           <p style={{ fontSize: 11, color: "var(--agent-warning)", marginTop: 2 }}>
             Go to{" "}
-            <a href="/agent/account/profile" className="agent-link" style={{ fontSize: 11, color: "var(--agent-warning)", textDecoration: "underline", textUnderlineOffset: 2 }}>Account → Sending addresses</a>
+            <a href="/agent/account/connections" className="agent-link" style={{ fontSize: 11, color: "var(--agent-warning)", textDecoration: "underline", textUnderlineOffset: 2 }}>Connections → Sending addresses</a>
             {" "}to verify a work email address before sending.
           </p>
         </div>

@@ -48,13 +48,13 @@ const STEPS: Step[] = [
   { label: "Add your first sale",            href: "/agent/transactions/new", progressKey: "hasSale" },
   { label: "Add client contact details",     href: "/agent/transactions", hrefDynamic: (id) => id ? `/agent/transactions/${id}` : "/agent/transactions", progressKey: "hasContactDetails" },
   { label: "Share the portal with a client", href: "/agent/comms",            progressKey: "hasContactEmail" },
-  { label: "Verify your email address",      href: "/agent/account/profile", progressKey: "hasVerifiedEmail" },
+  { label: "Verify your email address",      href: "/agent/account/connections", progressKey: "hasVerifiedEmail" },
   { label: "Add your phone number",          href: "/agent/account/profile", progressKey: "hasPhone" },
   { label: "Choose your branch theme",       href: "/agent/account/profile", progressKey: "hasThemeSet" },
   // Directors only: authenticating the agency's sending domain needs registrar
   // access, so we only show it to the person who can act on it. Ticks on the
   // same "ready" signal as the Command Centre agency-readiness view.
-  { label: "Send mail from your agency's domain", href: "/agent/account/profile", progressKey: "hasVerifiedSender", directorOnly: true },
+  { label: "Send mail from your agency's domain", href: "/agent/account/connections", progressKey: "hasVerifiedSender", directorOnly: true },
   // Directors and negotiators both handle their own files, so both connect an
   // inbox. Not directorOnly — shows to every agency user.
   { label: "Connect your email inbox", href: "/agent/account/connections", progressKey: "hasInboundConnected" },
