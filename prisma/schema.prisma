@@ -2549,6 +2549,13 @@ model OutboundMessage {
   // group (e.g. a chain's three solicitors). Empty on non-threaded / historic
   // rows and on non-email methods. Cc/Bcc are deliberately excluded.
   recipientEmails String[] @default([])
+  // Diagnostic (email-threading test period): which route a threaded send took —
+  // "outlook_reply" (native reply into an Outlook conversation), "outlook_new"
+  // (new Outlook thread), "mailbox_smtp" (the agent's own SMTP mailbox) or
+  // "standard" (SendGrid, incl. a Graph fall-back). Null on non-threaded rows.
+  // Surfaced in the Command Centre so the Outlook native-reply can be verified
+  // live. Safe to drop once threading is signed off.
+  threadSendRoute String?
 
   // Content â€” legacy fields kept for backward compat
   type                 CommType

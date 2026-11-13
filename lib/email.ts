@@ -176,9 +176,10 @@ function swapAddress(from: string, newAddress: string): string {
   return m && m[1].trim() ? `${m[1].trim()} <${newAddress}>` : newAddress;
 }
 
+type SendRoute = "outlook_reply" | "outlook_new" | "mailbox_smtp";
 type MailboxRouteAttempt =
   | { routed: false }
-  | { routed: true; sent: true; outlookConversationId?: string | null }
+  | { routed: true; sent: true; outlookConversationId?: string | null; route?: SendRoute }
   | { routed: true; sent: false; fallbackFrom: string; fallbackReplyTo: string };
 
 async function tryMailboxRoute(msg: {
@@ -216,7 +217,7 @@ async function tryMailboxRoute(msg: {
           // path so we can remember the Outlook conversation for next time.
           captureConversation: !!msg.messageId,
         });
-        if (outcome.ok) return { routed: true, sent: true, outlookConversationId: outcome.conversationId };
+        if (outcome.ok) return { routed: true, sent: true, outlookConversationId: outcome.conversationId, route: outcome.route };
         console.warn(`[email] outlook send failed for ${addr} (${outcome.error}) — falling back`);
       }
     } catch (err) {
@@ -252,7 +253,7 @@ async function tryMailboxRoute(msg: {
       references: msg.references,
       attachments: msg.attachments,
     });
-    if (outcome.ok) return { routed: true, sent: true };
+    if (outcome.ok) return { routed: true, sent: true, route: "mailbox_smtp" };
     console.warn(`[email] mailbox send failed for ${addr} (${outcome.error}) — falling back to SendGrid`);
   } catch (err) {
     console.warn(`[email] mailbox route errored for ${addr} — falling back to SendGrid`, err);
@@ -374,7 +375,7 @@ export async function sendEmail({
   // When a connected Outlook mailbox sent it, surface the conversation id so the
   // caller can remember it and a later email can thread into the same Outlook
   // conversation (Stage 3). Other callers just ignore the return, as before.
-  if (route.routed && route.sent) return { outlookConversationId: route.outlookConversationId ?? null };
+  if (route.routed && route.sent) return { outlookConversationId: route.outlookConversationId ?? null, sendRoute: route.route ?? null };
   const sendFrom = route.routed && !route.sent ? route.fallbackFrom : msg.from;
   const sendReplyTo = route.routed && !route.sent ? route.fallbackReplyTo : msg.replyTo;
 

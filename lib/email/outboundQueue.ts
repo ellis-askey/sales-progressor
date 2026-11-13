@@ -327,6 +327,10 @@ export async function drainOutboundQueue(): Promise<{
           composeSendRes && typeof composeSendRes === "object" && "outlookConversationId" in composeSendRes
             ? (composeSendRes as { outlookConversationId?: string | null }).outlookConversationId ?? (p.replyToConversationId ?? null)
             : (p.replyToConversationId ?? null);
+        const composeSendRoute =
+          composeSendRes && typeof composeSendRes === "object" && "sendRoute" in composeSendRes && (composeSendRes as { sendRoute?: string | null }).sendRoute
+            ? (composeSendRes as { sendRoute?: string | null }).sendRoute!
+            : (p.outboundMessageId ? "standard" : null);
         const sentAtNow = new Date();
         await prisma.outboundEmailQueue.update({ where: { id: record.id }, data: { sentAt: sentAtNow } });
         // File the sent attachments onto the property (same as send-now), and
@@ -352,6 +356,7 @@ export async function drainOutboundQueue(): Promise<{
             inReplyTo: p.inReplyTo ?? null,
             emailReferences: p.references ?? null,
             conversationId: p.outboundMessageId ? composeConversationId : null, // Stage 3 (Outlook sends only)
+            threadSendRoute: composeSendRoute, // diagnostic: which route this send took
           },
         }).catch((e: unknown) => console.error(`[compose mirror] failed id=${record.id}`, e));
         console.log(`[EMAIL_SENT] type=AGENT_COMPOSE to=${p.to.join(",")}`);

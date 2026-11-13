@@ -228,10 +228,18 @@ export async function sendComposedEmail(input: {
   // the Outlook conversation id; we remember it so a later email threads natively
   // (Stage 3). Null on the SendGrid / SMTP routes.
   let outlookConversationId: string | null = replyToConversationId ?? null;
+  // Diagnostic (test period): which route a threaded send actually took. Defaults
+  // to "standard" (SendGrid / fall-back) for a threaded send; a mailbox / Outlook
+  // route overrides it. Null for non-threaded sends.
+  let threadSendRoute: string | null = outboundMessageId ? "standard" : null;
   try {
     const sendRes = await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId, inReplyTo, references, replyToConversationId });
-    if (sendRes && typeof sendRes === "object" && "outlookConversationId" in sendRes) {
-      outlookConversationId = (sendRes as { outlookConversationId?: string | null }).outlookConversationId ?? outlookConversationId;
+    if (sendRes && typeof sendRes === "object") {
+      if ("outlookConversationId" in sendRes) {
+        outlookConversationId = (sendRes as { outlookConversationId?: string | null }).outlookConversationId ?? outlookConversationId;
+      }
+      const r = "sendRoute" in sendRes ? (sendRes as { sendRoute?: string | null }).sendRoute : null;
+      if (r) threadSendRoute = r;
     }
   } catch (e) {
     console.error("[compose] send failed", e);
@@ -293,6 +301,7 @@ export async function sendComposedEmail(input: {
           inReplyTo: inReplyTo ?? null,
           emailReferences: references ?? null,
           conversationId: outlookConversationId, // Stage 3 (Outlook sends only)
+          threadSendRoute, // diagnostic: which route this send took
         },
       }).catch((e) => console.error("[compose] anchor log failed", e));
     } else if (outboundMessageId) {
@@ -318,6 +327,7 @@ export async function sendComposedEmail(input: {
           inReplyTo: inReplyTo ?? null,
           emailReferences: references ?? null,
           conversationId: outlookConversationId, // Stage 3 (Outlook sends only)
+          threadSendRoute, // diagnostic: which route this send took
         },
       }).catch((e) => console.error("[compose] chain thread-anchor failed", e));
     }
@@ -355,6 +365,7 @@ export async function sendComposedEmail(input: {
         emailReferences: references ?? null,
         // Stage 3: the Outlook conversation (connected-mailbox sends only).
         conversationId: outlookConversationId,
+        threadSendRoute, // diagnostic: which route this send took
       },
     });
   }

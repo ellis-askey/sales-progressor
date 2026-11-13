@@ -62,9 +62,10 @@ export type OutlookSendMsg = {
 };
 
 // The Graph ids captured on a successful send, so a later email can continue the
-// same Outlook conversation. conversationId is stable across the thread.
+// same Outlook conversation. conversationId is stable across the thread. route is
+// the diagnostic label for which Outlook path was used.
 export type OutlookSendResult =
-  | { ok: true; conversationId?: string | null }
+  | { ok: true; conversationId?: string | null; route?: "outlook_reply" | "outlook_new" }
   | { ok: false; error: string };
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -155,6 +156,7 @@ export async function sendViaOutlookGraph(
   try {
     let draftId: string;
     let conversationId: string | null | undefined;
+    let route: "outlook_reply" | "outlook_new" = "outlook_new";
 
     if (msg.replyToConversationId) {
       // Find any message in the conversation to reply into. Any one works as the
@@ -182,6 +184,7 @@ export async function sendViaOutlookGraph(
             await fetch(`${GRAPH}/me/messages/${draftId}/attachments`, { method: "POST", headers, body: JSON.stringify(a) }).catch(() => {});
           }
         }
+        route = "outlook_reply";
       } else {
         // Couldn't locate the conversation (e.g. moved/deleted) — fall through to
         // a fresh draft so the email still goes out, just not threaded.
@@ -212,7 +215,7 @@ export async function sendViaOutlookGraph(
     }
 
     const send = await fetch(`${GRAPH}/me/messages/${draftId}/send`, { method: "POST", headers });
-    if (send.status === 202 || send.ok) return { ok: true, conversationId };
+    if (send.status === 202 || send.ok) return { ok: true, conversationId, route };
     await flagReconnectOn401(send.status);
     return { ok: false, error: `graph_${await graphCode(send)}` };
   } catch {

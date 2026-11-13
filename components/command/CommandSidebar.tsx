@@ -65,6 +65,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/businesses", label: "Businesses", Icon: Building2 },
       { href: "/command/files", label: "Files", Icon: FolderOpen },
       { href: "/command/outbound", label: "Messages", Icon: Send },
+      { href: "/command/email-threading", label: "Email threading", Icon: Mails },
       { href: "/command/proposals", label: "Proposed updates", Icon: Inbox },
       { href: "/command/whatsapp", label: "WhatsApp", Icon: MessageSquare },
     ],
