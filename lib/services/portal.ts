@@ -166,13 +166,6 @@ export type PortalMilestone = {
   confirmer: PortalMilestoneConfirmer | null;
 };
 
-export type PortalUpdate = {
-  id: string;
-  content: string;
-  createdAt: Date;
-  method: string | null;
-};
-
 // Send a client email, returning whether it ACTUALLY went out (audit P1-5).
 // Before this, synchronous client sends used `sendEmail(...).catch(() => {})` and
 // then recorded a "sent" comms row unconditionally, so a SendGrid rejection (or a
@@ -3817,34 +3810,3 @@ export async function getPortalViewDates(transactionId: string): Promise<Record<
   return result;
 }
 
-// Phase 1 commit 5 — round-scoped. Same rule as getPortalTimeline's message
-// arm: vendor sees all visibleToClient on the file; purchaser sees only
-// messages addressed to them, scoped to file-level or their own round.
-export async function getPortalUpdates(
-  transactionId: string,
-  side: "vendor" | "purchaser",
-  contactId: string,
-  opts: { buyerRoundId: string | null } = { buyerRoundId: null },
-): Promise<PortalUpdate[]> {
-  const where = side === "purchaser"
-    ? {
-        transactionId,
-        visibleToClient: true,
-        contactIds: { has: contactId },
-        OR: [{ buyerRoundId: null }, { buyerRoundId: opts.buyerRoundId }],
-      }
-    : { transactionId, visibleToClient: true };
-  return withRetry(async () => {
-    const rows = await prisma.outboundMessage.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      select: { id: true, content: true, method: true, createdAt: true, selfNoteActorContactId: true, selfNoteSelfText: true },
-    });
-    // Self-note swap: the actor reads "You updated…"; co-clients read the
-    // name-led form stored in `content`.
-    return rows.map(({ selfNoteActorContactId, selfNoteSelfText, ...u }) => ({
-      ...u,
-      content: selfNoteActorContactId === contactId && selfNoteSelfText ? selfNoteSelfText : u.content,
-    }));
-  });
-}
