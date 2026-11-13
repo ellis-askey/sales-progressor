@@ -224,4 +224,9 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null, frame
 // positioning + entrance animation, and fills the window.
 const NOTE_FLOAT_CSS = `
 .lu-sheet.lu-floating{ position:static; top:auto; left:auto; right:auto; bottom:auto; width:100%; max-width:none; max-height:none; height:100%; border:none; border-radius:0; box-shadow:none; transform:none; opacity:1; animation:none; background:transparent; }
+/* The floating window supplies the title bar, so the search step's own header is
+   hidden; give the "Which property is this about?" label breathing room under the
+   title bar (was flush at ~4px while the sides are inset 18px). Search-step only
+   (.lu-eyebrow isn't used in the log step). */
+.lu-sheet.lu-floating .lu-eyebrow{ margin-top:16px; }
 `;

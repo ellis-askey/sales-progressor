@@ -25,6 +25,8 @@ const Z_MAX = 1900;
 function nextZ(): number { Z_TOP = Math.min(Z_TOP + 1, Z_MAX); return Z_TOP; }
 
 type Pos = { x: number; y: number };
+// Docked full-height to a side rail, or null = free-floating.
+type Dock = "left" | "right" | null;
 
 export type FloatingWindowKind = "email" | "note";
 
@@ -63,19 +65,23 @@ function effWidth(width: number): number {
   return Math.max(280, Math.min(width, window.innerWidth - MARGIN * 2));
 }
 
-// Storage key is versioned (…2) so earlier builds' saved positions (which could
-// be parked off-screen bottom-right) are discarded; everyone re-centres.
-function loadPos(kind: string): Pos | null {
+// Persisted window placement: free position + whether it's docked to a side.
+// Key is versioned (…2) so earlier builds' positions (which could be parked
+// off-screen bottom-right) are discarded; everyone re-centres.
+type Saved = { x: number; y: number; dock: Dock };
+function loadSaved(kind: string): Saved | null {
   try {
     const raw = window.localStorage.getItem(`floatwin2:${kind}`);
     if (!raw) return null;
-    const p = JSON.parse(raw) as Partial<Pos>;
-    if (typeof p?.x === "number" && typeof p?.y === "number") return { x: p.x, y: p.y };
+    const p = JSON.parse(raw) as Partial<Saved>;
+    if (typeof p?.x === "number" && typeof p?.y === "number") {
+      return { x: p.x, y: p.y, dock: p.dock === "left" || p.dock === "right" ? p.dock : null };
+    }
   } catch { /* ignore malformed / unavailable storage */ }
   return null;
 }
-function savePos(kind: string, p: Pos) {
-  try { window.localStorage.setItem(`floatwin2:${kind}`, JSON.stringify(p)); } catch { /* ignore */ }
+function saveSaved(kind: string, s: Saved) {
+  try { window.localStorage.setItem(`floatwin2:${kind}`, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
 function clampPos(p: Pos, w: number, h: number): Pos {
@@ -107,24 +113,27 @@ export function FloatingWindow({
 }: FloatingWindowProps) {
   const winRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Pos | null>(null);
+  const [docked, setDocked] = useState<Dock>(null);
   const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
   const [z, setZ] = useState<number>(() => nextZ());
   const [confirmClose, setConfirmClose] = useState(false);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const lastPos = useRef<Pos | null>(null);
 
-  // Initial placement: last-saved spot for this kind, else CENTRED (matching the
+  // Initial placement: restore the saved spot / dock, else CENTRE (matching the
   // old modal). Centre on an estimated tall-ish height so a composer that grows
   // as its content loads stays roughly centred instead of drifting off-screen.
+  // The note cascades a touch off the email so two open windows don't coincide.
   useEffect(() => {
     const w = effWidth(width);
     const vpW = window.innerWidth, vpH = window.innerHeight;
     const estH = Math.min(vpH * 0.84, 680);
     const h = winRef.current?.offsetHeight || estH;
-    // Centre (matching the old modal). The note cascades a touch off the email so
-    // that, with both open, the second window doesn't sit exactly on the first.
     const off = kind === "note" ? 30 : 0;
     const def: Pos = { x: Math.round((vpW - w) / 2) + off, y: Math.max(MARGIN, Math.round((vpH - estH) / 2) + off) };
-    setPos(clampPos(loadPos(kind) ?? def, w, h));
+    const saved = loadSaved(kind);
+    if (saved?.dock) setDocked(saved.dock);
+    setPos(clampPos(saved ? { x: saved.x, y: saved.y } : def, w, h));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -154,35 +163,48 @@ export function FloatingWindow({
   function onBarPointerDown(e: React.PointerEvent) {
     // Don't start a drag from the title-bar buttons.
     if ((e.target as HTMLElement).closest("[data-fw-nodrag]")) return;
-    if (!pos) return;
     bringToFront();
-    drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y };
+    let start: Pos;
+    if (docked) {
+      // Un-dock: begin a free drag from the window's current on-screen position.
+      const rect = winRef.current?.getBoundingClientRect();
+      start = { x: rect?.left ?? MARGIN, y: rect?.top ?? MARGIN };
+      setDocked(null);
+      setPos(start);
+    } else {
+      if (!pos) return;
+      start = pos;
+    }
+    lastPos.current = start;
+    drag.current = { dx: e.clientX - start.x, dy: e.clientY - start.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function onBarPointerMove(e: React.PointerEvent) {
     if (!drag.current) return;
     const h = winRef.current?.offsetHeight ?? 440;
-    setPos(clampPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy }, effWidth(width), h));
+    const np = clampPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy }, effWidth(width), h);
+    lastPos.current = np;
+    setPos(np);
   }
   function onBarPointerUp(e: React.PointerEvent) {
     if (!drag.current) return;
     drag.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    // Snap flush to any edge the window was dropped close to.
-    setPos((p) => {
-      if (!p) return p;
-      const w = effWidth(width);
-      const h = winRef.current?.offsetHeight ?? 440;
-      const vpW = window.innerWidth, vpH = window.innerHeight;
-      let { x, y } = p;
-      if (x <= MARGIN + SNAP) x = MARGIN;
-      else if (x >= vpW - w - MARGIN - SNAP) x = vpW - w - MARGIN;
-      if (y <= MARGIN + SNAP) y = MARGIN;
-      else if (y >= vpH - h - MARGIN - SNAP) y = vpH - h - MARGIN;
-      const np = clampPos({ x, y }, w, h);
-      savePos(kind, np);
-      return np;
-    });
+    const p = lastPos.current ?? pos;
+    if (!p) return;
+    const w = effWidth(width);
+    const h = winRef.current?.offsetHeight ?? 440;
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+    // Dropped near the left / right edge → dock full-height to that side rail.
+    if (p.x <= MARGIN + SNAP) { setDocked("left"); setPos(p); saveSaved(kind, { x: p.x, y: p.y, dock: "left" }); return; }
+    if (p.x >= vpW - w - MARGIN - SNAP) { setDocked("right"); setPos(p); saveSaved(kind, { x: p.x, y: p.y, dock: "right" }); return; }
+    // Otherwise stay free; snap flush to the top / bottom edge if dropped near it.
+    let { x, y } = p;
+    if (y <= MARGIN + SNAP) y = MARGIN;
+    else if (y >= vpH - h - MARGIN - SNAP) y = vpH - h - MARGIN;
+    const np = clampPos({ x, y }, w, h);
+    setPos(np);
+    saveSaved(kind, { x: np.x, y: np.y, dock: null });
   }
 
   function onWinAnimEnd(e: React.AnimationEvent) {
@@ -192,6 +214,27 @@ export function FloatingWindow({
   // Width actually rendered: never wider than the viewport allows (tracks vw so
   // it re-clamps on resize / at small breakpoints).
   const renderWidth = Math.max(280, Math.min(width, vw - MARGIN * 2));
+
+  // Docked = pinned full-height to a side rail; otherwise free at pos.
+  const winStyle: React.CSSProperties = docked
+    ? {
+        left: docked === "left" ? MARGIN : undefined,
+        right: docked === "right" ? MARGIN : undefined,
+        top: MARGIN,
+        height: `calc(100dvh - ${MARGIN * 2}px)`,
+        maxHeight: `calc(100dvh - ${MARGIN * 2}px)`,
+        width: renderWidth,
+        zIndex: z,
+        display: minimized ? "none" : undefined,
+      }
+    : {
+        left: pos?.x ?? -9999,
+        top: pos?.y ?? -9999,
+        width: renderWidth,
+        zIndex: z,
+        visibility: pos ? "visible" : "hidden",
+        display: minimized ? "none" : undefined,
+      };
 
   // The window and the minimised chip are BOTH kept in the tree; we only toggle
   // which is shown. Crucially the window content (children) stays mounted while
@@ -204,7 +247,8 @@ export function FloatingWindow({
         data-fw-theme={theme}
         data-theme={scopeTokens ? theme : undefined}
         data-closing={closing ? "1" : undefined}
-        style={{ left: pos?.x ?? -9999, top: pos?.y ?? -9999, width: renderWidth, zIndex: z, visibility: pos ? "visible" : "hidden", display: minimized ? "none" : undefined }}
+        data-dock={docked ?? undefined}
+        style={winStyle}
         role="dialog"
         aria-label={title}
         aria-hidden={minimized || undefined}
@@ -285,6 +329,9 @@ const FW_CSS = `
 .fw-win[data-closing="1"]{ animation:fwOut .20s ease both; }
 @keyframes fwIn{ from{ opacity:0; transform:translateY(10px) scale(.985) } to{ opacity:1; transform:none } }
 @keyframes fwOut{ from{ opacity:1; transform:none } to{ opacity:0; transform:translateY(8px) scale(.985) } }
+/* Docked full-height to a side rail: flatten the corners that meet that edge. */
+.fw-win[data-dock="left"]{ border-top-left-radius:0; border-bottom-left-radius:0; }
+.fw-win[data-dock="right"]{ border-top-right-radius:0; border-bottom-right-radius:0; }
 
 /* Title bar — the drag handle. */
 .fw-bar{ flex-shrink:0; display:flex; align-items:center; gap:10px; padding:9px 10px 9px 14px; cursor:grab;

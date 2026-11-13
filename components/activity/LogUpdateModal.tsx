@@ -663,7 +663,10 @@ const CSS = `
 .lu-lab { font-size:11.5px; font-weight:600; color:var(--agent-text-secondary); margin-bottom:8px; }
 /* "What happened?" label + the dictation mic/tips on one row (matches the email modal). */
 .lu-lab-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; min-height:32px; }
-.lu-lab-row .lu-lab { margin-bottom:0; }
+/* The 32px mic/tips buttons set the row height; bottom-align the label so it sits
+   just above the textarea (the ~8px it would without the taller controls), while
+   the buttons stay centred. */
+.lu-lab-row .lu-lab { margin-bottom:0; align-self:flex-end; }
 
 .lu-prophead { display:flex; align-items:center; gap:11px; width:100%; padding:9px 11px; border:0.5px solid var(--agent-border-default); border-radius:12px; background:var(--agent-surface-elevated); font:inherit; text-align:left; transition:border-color .14s; }
 .lu-prophead[title]:hover { border-color:var(--agent-coral); }
