@@ -87,6 +87,11 @@ const ACCENT: Record<AgentToastType, string> = {
   error:   "var(--agent-danger)",
 };
 
+// Countdown-ring circumference (2π·15.5), matched to the @keyframes in
+// agent-system.css. The ring circles the icon and depletes over the toast's
+// duration, pausing on hover — it replaces the old bottom progress bar.
+const RING_C = 97.4;
+
 // ─── Individual toast item ─────────────────────────────────────────────────────
 
 const prefersReducedMotion =
@@ -151,19 +156,40 @@ function AgentToastItem({
           ? "opacity 200ms var(--agent-ease)"
           : "opacity 200ms cubic-bezier(0.0,0.0,0.2,1), transform 200ms cubic-bezier(0.0,0.0,0.2,1)",
         opacity:   visible && !exiting ? 1 : 0,
-        transform: prefersReducedMotion || (visible && !exiting) ? "translateX(0)" : "translateX(24px)",
+        transform: prefersReducedMotion || (visible && !exiting) ? "translateY(0)" : "translateY(16px)",
       }}
       className={isExitClass}
     >
       <div className={`agent-toast agent-toast-${item.type}`}>
-        {/* Icon circle */}
-        <div style={{
-          width: 28, height: 28, borderRadius: "50%",
-          background: bg,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          <IconComponent weight="fill" style={{ width: 16, height: 16, color }} />
+        {/* Icon circle + countdown ring (replaces the old bottom progress bar) */}
+        <div style={{ position: "relative", width: 28, height: 28, flexShrink: 0 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            background: bg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <IconComponent weight="fill" style={{ width: 16, height: 16, color }} />
+          </div>
+          {item.duration > 0 && item.duration < 1e9 && (
+            <svg
+              className="agent-toast-ring"
+              viewBox="0 0 34 34" width={34} height={34} aria-hidden
+              style={{ position: "absolute", top: -3, left: -3, transform: "rotate(-90deg)", pointerEvents: "none" }}
+            >
+              <circle cx="17" cy="17" r="15.5" fill="none" stroke={accentColor} strokeOpacity={0.2} strokeWidth="2" />
+              <circle
+                cx="17" cy="17" r="15.5" fill="none" stroke={accentColor} strokeWidth="2" strokeLinecap="round"
+                strokeDasharray={RING_C}
+                style={{
+                  animationName: "agent-toast-ring",
+                  animationDuration: `${item.duration}ms`,
+                  animationTimingFunction: "linear",
+                  animationFillMode: "forwards",
+                  animationPlayState: barPaused ? "paused" : "running",
+                }}
+              />
+            </svg>
+          )}
         </div>
 
         {/* Content */}
@@ -233,17 +259,6 @@ function AgentToastItem({
           <X style={{ width: 13, height: 13 }} />
         </button>
 
-        {/* Progress bar */}
-        {item.duration > 0 && item.duration < 1e9 && (
-          <div
-            className="agent-toast-progress-bar"
-            style={{
-              animationDuration:  `${item.duration}ms`,
-              animationPlayState: barPaused ? "paused" : "running",
-              background: accentColor,
-            }}
-          />
-        )}
       </div>
     </div>
   );

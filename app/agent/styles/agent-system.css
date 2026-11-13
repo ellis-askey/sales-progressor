@@ -2453,42 +2453,46 @@
 
   /* ── Toast ───────────────────────────────────────────────────────────────── */
 
+  /* Liquid-morph surface (founder pick, 2026-11-13 toast-lab): translucent glass
+     with a top-left lens highlight + bottom-right shade baked into the background,
+     a heavier blur, and no left accent bar — the type now reads from the icon +
+     its countdown ring. Light + dark tuned as peers. */
   .agent-toast {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-radius: var(--agent-radius-lg);
-    background: rgba(255, 255, 255, 0.88);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 0.5px solid var(--agent-glass-border);
-    border-top-color: var(--agent-glass-border-bright);
-    box-shadow: 0 8px 32px rgba(var(--agent-shadow-rgb), 0.10),
-                0 0 0 0.5px rgba(255, 255, 255, 0.40) inset;
+    border-radius: 16px;
+    background:
+      radial-gradient(130% 100% at 12% -10%, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0) 52%),
+      radial-gradient(120% 90% at 90% 120%, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 55%),
+      rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: blur(34px) saturate(190%);
+    backdrop-filter: blur(34px) saturate(190%);
+    border: 0.5px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 16px 50px rgba(var(--agent-shadow-rgb), 0.18),
+                0 0 0 0.5px rgba(255, 255, 255, 0.30) inset,
+                0 -8px 20px rgba(var(--agent-shadow-rgb), 0.06) inset;
     width: 360px;
     max-width: 360px;
-    border-left: 3px solid;
     position: relative;
     overflow: hidden;
   }
-  .agent-toast-success { border-left-color: var(--agent-success); }
-  .agent-toast-error   { border-left-color: var(--agent-danger);  }
-  .agent-toast-warning { border-left-color: var(--agent-warning); }
-  .agent-toast-info    { border-left-color: var(--agent-info);    }
-
-  .agent-toast-progress-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    height: 2px;
-    width: 100%;
-    transform-origin: left center;
-    animation-name: agent-toast-progress;
-    animation-timing-function: linear;
-    animation-fill-mode: forwards;
-    opacity: 0.55;
+  :root[data-theme="dark"] .agent-toast {
+    background:
+      radial-gradient(130% 100% at 12% -10%, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 52%),
+      radial-gradient(120% 90% at 90% 120%, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0) 55%),
+      rgba(40, 36, 48, 0.86);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5),
+                0 0 0 0.5px rgba(255, 255, 255, 0.14) inset,
+                0 -8px 20px rgba(0, 0, 0, 0.2) inset;
   }
+
+  /* Countdown ring around the icon (replaces the old bottom progress bar).
+     Circumference 2π·15.5 ≈ 97.4; the component sets the matching dasharray and
+     drives duration + hover-pause via inline animation props. */
+  @keyframes agent-toast-ring { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 97.4; } }
 
   @media (max-width: 480px) {
     .agent-toast {
@@ -2502,7 +2506,7 @@
       transition: opacity 200ms var(--agent-ease) !important;
       transform: none !important;
     }
-    .agent-toast-progress-bar { display: none; }
+    .agent-toast-ring circle { animation: none !important; }
   }
 
   /* ── Nav item (sidebar) ──────────────────────────────────────────────────── */
