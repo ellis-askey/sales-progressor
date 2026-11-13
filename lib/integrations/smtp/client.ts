@@ -75,6 +75,10 @@ export type SmtpMessage = {
   // Deterministic RFC Message-ID (see buildOutboundMessageId in lib/email.ts)
   // so inbound replies match this send exactly as they do for SendGrid sends.
   messageId?: string;
+  // Email-threading headers (Stage 2): continue an existing conversation by
+  // pointing at the previous message's Message-ID (+ the chain). Omit → new thread.
+  inReplyTo?: string;
+  references?: string;
   attachments?: SmtpAttachment[];
 };
 
@@ -100,6 +104,8 @@ function toMailOptions(msg: SmtpMessage): Mail.Options {
     // that's what stops a mailbox send being logged on the file twice (once at
     // send time, once when Sent capture scans it back in).
     messageId: msg.messageId ?? `<sp-mbx-${randomUUID()}@thesalesprogressor.co.uk>`,
+    ...(msg.inReplyTo ? { inReplyTo: msg.inReplyTo } : {}),
+    ...(msg.references ? { references: msg.references } : {}),
     ...(msg.attachments && msg.attachments.length
       ? {
           attachments: msg.attachments.map((a) => ({

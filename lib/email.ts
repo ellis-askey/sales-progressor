@@ -191,6 +191,8 @@ async function tryMailboxRoute(msg: {
   from: string;
   replyTo?: string;
   messageId?: string;
+  inReplyTo?: string;
+  references?: string;
   attachments?: EmailAttachment[];
 }): Promise<MailboxRouteAttempt> {
   const addr = bareEmailAddress(msg.from);
@@ -241,6 +243,8 @@ async function tryMailboxRoute(msg: {
       text: msg.text,
       html: msg.html,
       messageId: msg.messageId,
+      inReplyTo: msg.inReplyTo,
+      references: msg.references,
       attachments: msg.attachments,
     });
     if (outcome.ok) return { routed: true, sent: true };
@@ -273,6 +277,8 @@ export async function sendEmail({
   templateVersion,
   attachments,
   messageId,
+  inReplyTo,
+  references,
   audienceBucket,
   outboundMessageId,
 }: {
@@ -309,6 +315,12 @@ export async function sendEmail({
   // set it as the message's Message-ID header so an inbound reply can be matched
   // to this send. Omit → no header set, behaviour identical to before.
   messageId?: string;
+  // Email-threading headers (Stage 2). When continuing an existing conversation,
+  // inReplyTo = the previous message's Message-ID and references = the full chain
+  // of prior Message-IDs. Mail clients (Gmail, Outlook) use these to stack this
+  // email under the previous one. Omit both → a brand-new conversation (default).
+  inReplyTo?: string;
+  references?: string;
   // Like queueId, but joins SendGrid events straight to an OutboundMessage
   // (the activity-feed row) for delivery-status writes — for DIRECT sends that
   // don't go through the queue (weekly updates, milestone confirms). The webhook
@@ -346,12 +358,13 @@ export async function sendEmail({
   // the composer's multi-To / Bcc sends go straight to SendGrid, which handles
   // recipient arrays natively.
   const route: MailboxRouteAttempt = toList.length === 1 && !(bcc && bcc.length)
-    ? await tryMailboxRoute({ ...msg, to: toList[0], bcc: undefined, messageId, attachments })
+    ? await tryMailboxRoute({ ...msg, to: toList[0], bcc: undefined, messageId, inReplyTo, references, attachments })
     : { routed: false };
   if (route.routed && route.sent) return;
   const sendFrom = route.routed && !route.sent ? route.fallbackFrom : msg.from;
   const sendReplyTo = route.routed && !route.sent ? route.fallbackReplyTo : msg.replyTo;
 
+  const headers = buildEmailHeaders({ messageId, inReplyTo, references });
   return sgMail.send({
     ...msg,
     from: sendFrom,
@@ -359,8 +372,19 @@ export async function sendEmail({
     ...(attachments && attachments.length ? { attachments } : {}),
     ...(tags.categories ? { categories: tags.categories } : {}),
     ...(Object.keys(customArgs).length ? { customArgs } : {}),
-    ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
+    ...(headers ? { headers } : {}),
   });
+}
+
+// Message-ID / In-Reply-To / References as a header map for the send payload.
+// Returns undefined when none are set, so the payload is unchanged (no `headers`
+// key) for the common non-threaded send.
+function buildEmailHeaders(opts: { messageId?: string; inReplyTo?: string; references?: string }): Record<string, string> | undefined {
+  const h: Record<string, string> = {};
+  if (opts.messageId) h["Message-ID"] = opts.messageId;
+  if (opts.inReplyTo) h["In-Reply-To"] = opts.inReplyTo;
+  if (opts.references) h["References"] = opts.references;
+  return Object.keys(h).length ? h : undefined;
 }
 
 // Platform-level chain notification emails (withdrawal, exchange, completion, celebration).
