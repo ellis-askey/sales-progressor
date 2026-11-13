@@ -9,12 +9,15 @@
 // universal outage). Keeping the value + the check together on the server here
 // is what makes the gate safe.
 //
-// Currently EMPTY (shell off for everyone). Re-add the email below to switch the
-// experimental shell back on for that account once it is confirmed to render.
+// LIVE FOR ALL (founder sign-off, 2026-11-13). The experimental chrome is now
+// the default agent shell for every account. The allowlist below is retained
+// only as an instant rollback switch: to re-gate, restore the function body to
+//   return EXPERIMENTAL_SHELL_EMAILS.has((email ?? "").toLowerCase().trim());
 const EXPERIMENTAL_SHELL_EMAILS = new Set<string>([
   "ellis@thesalesprogressor.co.uk",
 ]);
+void EXPERIMENTAL_SHELL_EMAILS;
 
-export function usesExperimentalShell(email: string | null | undefined): boolean {
-  return EXPERIMENTAL_SHELL_EMAILS.has((email ?? "").toLowerCase().trim());
+export function usesExperimentalShell(_email: string | null | undefined): boolean {
+  return true;
 }
