@@ -319,6 +319,8 @@ export async function drainOutboundQueue(): Promise<{
           from: p.from, replyTo: p.replyTo,
           attachments: p.attachments?.map((a) => ({ content: a.content, filename: a.filename, type: a.type, disposition: "attachment" })),
           emailType: "agent_compose",
+          // Threading resolved at schedule time (Stage 2+): thread the delayed send.
+          messageId: p.outboundMessageId, inReplyTo: p.inReplyTo, references: p.references,
         });
         const sentAtNow = new Date();
         await prisma.outboundEmailQueue.update({ where: { id: record.id }, data: { sentAt: sentAtNow } });
@@ -338,6 +340,12 @@ export async function drainOutboundQueue(): Promise<{
             recipientEmail: p.to[0], recipientName: p.recipientName, ccEmails: p.ccEmails,
             createdById: p.createdById, createdByRole: p.createdByRole, visibleToClient: false, sentAt: sentAtNow,
             providerWebhookData: composeAttachmentMeta.length ? { attachments: composeAttachmentMeta } : undefined,
+            // Threading (Stage 2+): remember the Message-ID + To set + any link so
+            // this delayed send can be continued later, exactly like a send-now.
+            internetMessageId: p.outboundMessageId ?? null,
+            recipientEmails: p.recipientEmails ?? [],
+            inReplyTo: p.inReplyTo ?? null,
+            emailReferences: p.references ?? null,
           },
         }).catch((e: unknown) => console.error(`[compose mirror] failed id=${record.id}`, e));
         console.log(`[EMAIL_SENT] type=AGENT_COMPOSE to=${p.to.join(",")}`);

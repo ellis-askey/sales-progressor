@@ -340,6 +340,7 @@ export async function sendFromVerifiedAddress({
   text,
   html,
   replyTo,
+  messageId,
 }: {
   from: string;
   to: string;
@@ -347,6 +348,9 @@ export async function sendFromVerifiedAddress({
   text: string;
   html?: string;
   replyTo?: string;
+  // Email threading (Stage 2+): when provided, set as the Message-ID header so a
+  // later email can continue this one. Omit → no header (behaviour unchanged).
+  messageId?: string;
 }) {
   const sgMail = (await import("@sendgrid/mail")).default;
   sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
@@ -357,5 +361,6 @@ export async function sendFromVerifiedAddress({
     subject,
     text,
     html: html ?? text.replace(/\n/g, "<br>"),
+    ...(messageId ? { headers: { "Message-ID": messageId } } : {}),
   }));
 }

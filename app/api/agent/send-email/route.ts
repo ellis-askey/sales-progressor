@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { getVerifiedEmailForSending } from "@/lib/services/verified-emails";
 import { sendFromVerifiedAddress } from "@/lib/services/sendgrid";
-import { resolveSenderForTransaction } from "@/lib/email";
+import { resolveSenderForTransaction, buildOutboundMessageId } from "@/lib/email";
+import { isEmailThreadingEnabled } from "@/lib/email/threading";
+import { randomUUID } from "crypto";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
@@ -38,9 +40,17 @@ export async function POST(req: NextRequest) {
     const scope = getAccessScope(session);
     const tx = await prisma.propertyTransaction.findFirst({
       where: scopeOwnershipWhere(scope, transactionId),
-      select: { id: true, agency: { select: AGENCY_SIG_SELECT } },
+      select: { id: true, agencyId: true, agency: { select: AGENCY_SIG_SELECT } },
     });
     if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+
+    // Email threading (Stage 2+): stamp a Message-ID + remember the recipient so
+    // an email from this older composer can be continued. Gated on the FILE's
+    // agency; off by default → undefined → unchanged behaviour.
+    const outboundMessageId = isEmailThreadingEnabled(tx.agencyId)
+      ? buildOutboundMessageId(`verified-${randomUUID()}`)
+      : undefined;
+    const toLower = typeof to === "string" ? [to.toLowerCase()] : [];
 
     const { from: resolvedFrom, replyTo } = await resolveSenderForTransaction(transactionId, session.user);
     // Outsourced / internal send: a standardised in-house sign-off — never the
@@ -57,7 +67,7 @@ export async function POST(req: NextRequest) {
       phone: me?.directMobile ?? me?.phone ?? null,
     });
     const sentHtml = composeHtml(body, sig.html);
-    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: sentHtml, replyTo });
+    await sendFromVerifiedAddress({ from: resolvedFrom, to, subject, text: body + sig.text, html: sentHtml, replyTo, messageId: outboundMessageId });
 
     await prisma.outboundMessage.create({
       data: {
@@ -72,6 +82,8 @@ export async function POST(req: NextRequest) {
         recipientEmail: typeof to === "string" ? to : null,
         createdById: session.user.id,
         visibleToClient: false,
+        internetMessageId: outboundMessageId ?? null,
+        recipientEmails: toLower,
       },
     });
 
@@ -102,6 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   let txForSig: { progressionBusinessId: string | null; agencyId: string | null; agency: { name: string | null } | null } | null = null;
+  let agentOutboundMessageId: string | undefined;
   if (transactionId) {
     const scope = getAccessScope(session);
     txForSig = await prisma.propertyTransaction.findFirst({
@@ -109,6 +122,10 @@ export async function POST(req: NextRequest) {
       select: { progressionBusinessId: true, agencyId: true, agency: { select: { name: true } } },
     });
     if (!txForSig) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    // Email threading (Stage 2+): stamp + remember, gated on the file's agency.
+    if (isEmailThreadingEnabled(txForSig.agencyId)) {
+      agentOutboundMessageId = buildOutboundMessageId(`verified-${randomUUID()}`);
+    }
   }
 
   // On an external progression business's file, the sign-off follows the sender's
@@ -155,6 +172,7 @@ export async function POST(req: NextRequest) {
     text: body + sigText,
     html: sentHtml,
     replyTo: fromEmail,
+    messageId: agentOutboundMessageId,
   });
 
   await prisma.userVerifiedEmail.update({
@@ -176,6 +194,8 @@ export async function POST(req: NextRequest) {
         recipientEmail: typeof to === "string" ? to : null,
         createdById: session.user.id,
         visibleToClient: false,
+        internetMessageId: agentOutboundMessageId ?? null,
+        recipientEmails: typeof to === "string" ? [to.toLowerCase()] : [],
       },
     });
   }

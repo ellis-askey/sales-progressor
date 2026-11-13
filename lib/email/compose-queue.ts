@@ -30,6 +30,12 @@ export type ComposeQueuePayload = {
   ccEmails: string | null;
   recipientName: string | null;
   contactIds: string[];
+  // Email threading (Stage 2+): resolved at schedule time so the delayed send
+  // threads exactly like a send-now. All absent when threading is off.
+  outboundMessageId?: string;   // the stamped RFC Message-ID
+  inReplyTo?: string;           // the prior message's Message-ID (continue)
+  references?: string;          // the References chain (continue)
+  recipientEmails?: string[];   // full To set, lower-cased, for later matching
 };
 
 export async function enqueueComposedEmail(payload: ComposeQueuePayload, scheduledFor: Date): Promise<void> {

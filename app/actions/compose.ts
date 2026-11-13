@@ -203,6 +203,11 @@ export async function sendComposedEmail(input: {
       ccEmails,
       recipientName,
       contactIds,
+      // Threading resolved now, so the delayed send behaves like a send-now.
+      outboundMessageId,
+      inReplyTo,
+      references,
+      recipientEmails: recipientEmailsLower,
     };
     try {
       await enqueueComposedEmail(payload, scheduledAt);
