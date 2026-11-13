@@ -4,7 +4,7 @@
 //           and chaseCount increment on outbound chase comms.
 
 import { prisma } from "@/lib/prisma";
-import type { CommType, CommMethod } from "@prisma/client";
+import type { CommType, CommMethod, Prisma } from "@prisma/client";
 import type { EmailSuggestion } from "@/lib/services/email-read";
 import { pushToTransaction } from "@/lib/services/push";
 import { sendEmail } from "@/lib/email";
@@ -163,6 +163,90 @@ function stripPortalViewSide(content: string): string {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
+// Single source of truth for which OutboundMessage rows are visible in a file's
+// activity feed. Used by BOTH getActivityTimeline (the full feed) and
+// getLatestVisibleNote (the file-preview's focused note read) so the two can
+// never drift. Each clause and its rationale is documented at the original call
+// site inside getActivityTimeline:
+//   · businessOnly: progression-business-private notes hidden from the owning
+//     agency's staff (agencyId non-null ONLY for director/negotiator viewers).
+//   · NOT automated-chase bookkeeping internal_notes (they live in the chase
+//     timeline now).
+//   · WhatsApp excluded from the feed (its own surface) — null-safe so notes
+//     (method = null) are kept.
+//   · Round scoping: buyer-attributed comms scope to the active round; file-level
+//     (NULL buyerRound) rows pass if they post-date the active round.
+export function visibleCommsWhere(args: {
+  transactionId: string;
+  agencyId: string | null;
+  activeBuyerRoundId: string | null;
+  activeRoundCreatedAt: Date | null;
+}): Prisma.OutboundMessageWhereInput {
+  return {
+    transactionId: args.transactionId,
+    ...(args.agencyId !== null ? { businessOnly: false } : {}),
+    NOT: { type: "internal_note", isAutomated: true, chaseTaskId: null },
+    AND: [
+      { OR: [{ method: null }, { method: { not: "whatsapp" } }] },
+      ...(args.activeBuyerRoundId
+        ? [{
+            OR: [
+              {
+                buyerRoundId: null,
+                ...(args.activeRoundCreatedAt ? { createdAt: { gte: args.activeRoundCreatedAt } } : {}),
+              },
+              { buyerRoundId: args.activeBuyerRoundId },
+            ],
+          }]
+        : [{ buyerRoundId: null }]),
+    ],
+  };
+}
+
+export type LatestVisibleNote = { body: string; author: string | null; at: Date; isSetup: boolean };
+
+// The latest HUMAN internal note a viewer is permitted to see — the exact same
+// visibility rules as the activity feed (via visibleCommsWhere), narrowed to
+// non-automated internal_notes and read as a single row. Lightweight by design
+// (one indexed row, no milestones / portal messages / media signing) for the
+// All Files floating preview. Access is gated the same way getActivityTimeline
+// gates it: the owning-agency filter when agencyId is non-null; callers that
+// need stricter per-scope access check it first (file-preview via
+// getTransactionByScope). `isAutomated: false` matches the feed's own
+// human-note selection exactly.
+export async function getLatestVisibleNote(
+  transactionId: string,
+  agencyId: string | null,
+): Promise<LatestVisibleNote | null> {
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: agencyId ? { id: transactionId, agencyId } : { id: transactionId },
+    select: { activeBuyerRoundId: true, activeBuyerRound: { select: { createdAt: true } } },
+  });
+  if (!tx) return null;
+
+  const note = await prisma.outboundMessage.findFirst({
+    where: {
+      ...visibleCommsWhere({
+        transactionId,
+        agencyId,
+        activeBuyerRoundId: tx.activeBuyerRoundId,
+        activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+      }),
+      type: "internal_note",
+      isAutomated: false,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { content: true, createdAt: true, subject: true, senderLabel: true, createdBy: { select: { name: true } } },
+  });
+  if (!note) return null;
+  return {
+    body: note.content,
+    author: note.senderLabel ?? note.createdBy?.name ?? null,
+    at: note.createdAt,
+    isSetup: !!note.subject,
+  };
+}
+
 export async function getActivityTimeline(
   transactionId: string,
   agencyId: string | null,
@@ -273,48 +357,17 @@ export async function getActivityTimeline(
     // status-change internal_note doesn't leak through the "file-level"
     // branch. Legacy files (no active round) fall back to "all NULL".
     prisma.outboundMessage.findMany({
-      where: {
+      // Visibility rules (private businessOnly notes, automated-chase
+      // bookkeeping, WhatsApp exclusion, active-round scoping) are the single
+      // source of truth in visibleCommsWhere above — shared with the file-preview
+      // note read so the two can never drift. The behaviour is byte-identical to
+      // the former inline where; see that helper for the per-clause rationale.
+      where: visibleCommsWhere({
         transactionId,
-        // Progression-business private notes are hidden from the owning agency's
-        // staff. agencyId is non-null ONLY for director/negotiator viewers;
-        // internal staff and progression-business members pass null (they may
-        // see their own private notes). A no-op for every existing note, which
-        // all have businessOnly = false.
-        ...(agencyId !== null ? { businessOnly: false } : {}),
-        // Hide chase-engine bookkeeping notes ("Automated chase scheduled /
-        // moved / closed"). That lifecycle now lives in the chase timeline
-        // (components/transaction/ChaseTimeline.tsx), so the activity feed
-        // stays human comms + milestones + notes. Signature: an automated
-        // internal_note with no chaseTaskId. The fallback "handed back to
-        // agent" notes carry a chaseTaskId and stay — they're actionable.
-        NOT: { type: "internal_note", isAutomated: true, chaseTaskId: null },
-        // Two AND'd OR-groups (kept in an AND array so the two ORs don't
-        // collide on the same key).
-        AND: [
-          // WhatsApp is surfaced on its own surface, not the activity timeline
-          // (founder decision 2026-08-22). Exclude it — but NULL-SAFE: notes and
-          // most manual comms have method = NULL, and Prisma's `not` on a
-          // nullable column DROPS null rows (verified against the engine), which
-          // had been hiding every note from this feed since the whatsapp split.
-          // The explicit `method: null` arm keeps them in.
-          { OR: [{ method: null }, { method: { not: "whatsapp" } }] },
-          // Round scoping: buyer-attributed comms scope to the active round;
-          // file-level (NULL) rows pass if they post-date the active round.
-          ...(tx.activeBuyerRoundId
-            ? [{
-                OR: [
-                  {
-                    buyerRoundId: null,
-                    ...(tx.activeBuyerRound?.createdAt
-                      ? { createdAt: { gte: tx.activeBuyerRound.createdAt } }
-                      : {}),
-                  },
-                  { buyerRoundId: tx.activeBuyerRoundId },
-                ],
-              }]
-            : [{ buyerRoundId: null }]),
-        ],
-      },
+        agencyId,
+        activeBuyerRoundId: tx.activeBuyerRoundId,
+        activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+      }),
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: { select: { name: true, image: true } },

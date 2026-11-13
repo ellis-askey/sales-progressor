@@ -5816,6 +5816,36 @@ body[data-demo-file] [data-onboarding-checklist] {
 .jrn-seg.done { background: var(--agent-success); }
 .jrn-seg.cur { background: var(--agent-coral-deep); }
 
+/* ── All Files · redesign (2026-11-13): next-action cell, assignee avatar,
+   selected row, and the table's reflow when the floating preview is open. ─── */
+
+/* Next action — one concise line (icon + the honest next-step). See NextActionCell. */
+.files-next { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.files-next-txt { min-width: 0; font-size: 13px; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Assignee avatar in the Property cell (roles that had the Handled-by column);
+   full name on hover, full team in the preview. */
+.files-assignee { flex-shrink: 0; align-self: center; display: inline-flex; cursor: pointer; }
+
+/* Selected row — a calm coral wash + left accent, persisting over hover. */
+.files-row-card.files-row-selected,
+.files-row-grid.files-row-selected {
+  background: rgba(var(--agent-coral-rgb), 0.08);
+  box-shadow: inset 3px 0 0 var(--agent-coral-deep);
+}
+
+/* When the floating preview is open, the table reflows to the left of it (so the
+   list stays usable — its container-query card layout kicks in when narrow)
+   rather than hiding behind the panel. Desktop only; on tablet / mobile the
+   preview is a full-width overlay, so no inset. */
+@media (min-width: 1024px) {
+  .files-table--preview { margin-right: 552px; transition: margin-right 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .files-table--preview { transition: none; }
+}
+
 /* ── All Files · Recent column ───────────────────────────────────────────────
    Last contact per channel (call / email / WhatsApp), a bare icon + date on its
    own line. See ActivityVerbChip in TransactionRowView.tsx. */

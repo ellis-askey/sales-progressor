@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth, COL_LABEL } from "@/components/transactions/TransactionRowView";
+import { FloatingFilePreview } from "@/components/transactions/FloatingFilePreview";
 import type { TransactionRow, HealthRaw, FilesColumn, FilesTab } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
 
@@ -95,6 +96,8 @@ export function TransactionTable({
   // No separate top-level "Stalled first" toggle — the sort header does it.
   const [sortKey, setSortKey] = useState<SortKey>("lastActive");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Floating preview selection — walks the CURRENT sorted + filtered order.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -107,7 +110,16 @@ export function TransactionTable({
     }
   }
 
-  const sorted = sortTransactions(transactions, sortKey, sortDir);
+  const sorted = useMemo(() => sortTransactions(transactions, sortKey, sortDir), [transactions, sortKey, sortDir]);
+
+  // Selection over the on-screen order. If the selected file leaves the results
+  // (tab / search / filter change) the preview auto-closes — never leave an
+  // unrelated property open (founder adjustment, 2026-11-13).
+  const selectedIdx = selectedId ? sorted.findIndex((t) => t.id === selectedId) : -1;
+  const selectedRow = selectedIdx >= 0 ? sorted[selectedIdx] : null;
+  useEffect(() => {
+    if (selectedId && selectedIdx < 0) setSelectedId(null);
+  }, [selectedId, selectedIdx]);
 
   // Tab-aware columns — shared with TransactionRowView so header + rows match.
   const cols = filesColumns(statusFilter, showAssignedToColumn, showAgencyColumn);
@@ -126,12 +138,13 @@ export function TransactionTable({
   };
 
   return (
-    // Design Lab: `myfiles-table`. Default v03 (2026-08-09 page pass).
+    <>
+    {/* Design Lab: `myfiles-table`. Default v03 (2026-08-09 page pass). */}
     <GlassCard
       glassId="myfiles-table"
       label="My files · Table"
       defaultVariant="v05"
-      className={`files-table files-switch-${switchBucket}`}
+      className={`files-table files-switch-${switchBucket}${selectedRow ? " files-table--preview" : ""}`}
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10
@@ -198,8 +211,22 @@ export function TransactionTable({
           activeTab={statusFilter}
           showAgencyColumn={showAgencyColumn}
           showAssignedToColumn={showAssignedToColumn}
+          onSelect={setSelectedId}
+          selected={tx.id === selectedId}
         />
       ))}
     </GlassCard>
+
+    <FloatingFilePreview
+      row={selectedRow}
+      open={!!selectedRow}
+      basePath={basePath}
+      onClose={() => setSelectedId(null)}
+      onPrev={() => { if (selectedIdx > 0) setSelectedId(sorted[selectedIdx - 1].id); }}
+      onNext={() => { if (selectedIdx >= 0 && selectedIdx < sorted.length - 1) setSelectedId(sorted[selectedIdx + 1].id); }}
+      hasPrev={selectedIdx > 0}
+      hasNext={selectedIdx >= 0 && selectedIdx < sorted.length - 1}
+    />
+    </>
   );
 }

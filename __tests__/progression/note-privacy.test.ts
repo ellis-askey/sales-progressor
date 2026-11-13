@@ -18,12 +18,12 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     propertyTransaction: { findFirst: jest.fn(), update: jest.fn() },
     milestoneCompletion: { findMany: jest.fn(async () => []) },
-    outboundMessage: { findMany: jest.fn(async () => []), create: jest.fn(async (a: any) => ({ id: "m1", ...a.data })) },
+    outboundMessage: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null), create: jest.fn(async (a: any) => ({ id: "m1", ...a.data })) },
     portalMessage: { findMany: jest.fn(async () => []) },
   },
 }));
 
-import { getActivityTimeline, createCommunicationRecord } from "@/lib/services/comms";
+import { getActivityTimeline, getLatestVisibleNote, createCommunicationRecord } from "@/lib/services/comms";
 import { prisma } from "@/lib/prisma";
 import type { AccessScope } from "@/lib/security/access-scope";
 
@@ -65,6 +65,74 @@ describe("getActivityTimeline private-note filter", () => {
     await getActivityTimeline("tx1", null);
     const where = p.outboundMessage.findMany.mock.calls[0][0].where;
     expect(where.businessOnly).toBeUndefined();
+  });
+});
+
+// The file-preview's focused latest-note read. Same visibility rules as the feed
+// (shared via visibleCommsWhere), narrowed to the newest human internal_note.
+describe("getLatestVisibleNote (file-preview focused read)", () => {
+  const noteRow = {
+    content: "A human note",
+    createdAt: new Date("2026-11-10T10:00:00Z"),
+    subject: null,
+    senderLabel: null,
+    createdBy: { name: "Laura" },
+  };
+
+  beforeEach(() => {
+    p.outboundMessage.findFirst.mockResolvedValue(noteRow);
+  });
+
+  it("hides businessOnly notes from an owning-agency viewer (agencyId set)", async () => {
+    await getLatestVisibleNote("tx1", "ag_donna");
+    const where = p.outboundMessage.findFirst.mock.calls[0][0].where;
+    expect(where.businessOnly).toBe(false);
+    expect(where.type).toBe("internal_note");
+    expect(where.isAutomated).toBe(false);
+  });
+
+  it("keeps businessOnly notes for an internal / business-member viewer (agencyId null)", async () => {
+    await getLatestVisibleNote("tx1", null);
+    const where = p.outboundMessage.findFirst.mock.calls[0][0].where;
+    expect(where.businessOnly).toBeUndefined();
+  });
+
+  it("uses the SAME visibility gating as the activity feed (single source of truth)", async () => {
+    await getActivityTimeline("tx1", "ag_donna");
+    const feedWhere = p.outboundMessage.findMany.mock.calls[0][0].where;
+    await getLatestVisibleNote("tx1", "ag_donna");
+    const noteWhere = p.outboundMessage.findFirst.mock.calls[0][0].where;
+    // The focused read only ADDS the note-specific narrowing; strip it and the
+    // remaining shared clause must be byte-identical to the feed's.
+    const { type, isAutomated, ...sharedPart } = noteWhere;
+    expect(type).toBe("internal_note");
+    expect(isAutomated).toBe(false);
+    expect(sharedPart).toEqual(feedWhere);
+  });
+
+  it("fail-closes on cross-agency: returns null and never queries the note when the tx isn't visible", async () => {
+    p.propertyTransaction.findFirst.mockResolvedValueOnce(null);
+    const res = await getLatestVisibleNote("tx1", "ag_other");
+    expect(res).toBeNull();
+    expect(p.outboundMessage.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("selects the latest note (orderBy createdAt desc) and shapes it", async () => {
+    const res = await getLatestVisibleNote("tx1", "ag_donna");
+    expect(p.outboundMessage.findFirst.mock.calls[0][0].orderBy).toEqual({ createdAt: "desc" });
+    expect(res).toEqual({ body: "A human note", author: "Laura", at: noteRow.createdAt, isSetup: false });
+  });
+
+  it("prefers senderLabel (a solicitor-left note) as the author", async () => {
+    p.outboundMessage.findFirst.mockResolvedValueOnce({ ...noteRow, senderLabel: "Smith & Co" });
+    const res = await getLatestVisibleNote("tx1", "ag_donna");
+    expect(res?.author).toBe("Smith & Co");
+  });
+
+  it("returns null when there is no visible note", async () => {
+    p.outboundMessage.findFirst.mockResolvedValueOnce(null);
+    const res = await getLatestVisibleNote("tx1", "ag_donna");
+    expect(res).toBeNull();
   });
 });
 
