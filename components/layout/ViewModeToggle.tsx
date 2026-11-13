@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { updateFileViewMode } from "@/app/actions/agent-preferences";
 
-export function ViewModeToggle({ initialMode }: { initialMode: "all" | "mine" }) {
+export function ViewModeToggle({ initialMode, fullWidth = false }: { initialMode: "all" | "mine"; fullWidth?: boolean }) {
   const [mode, setMode] = useState<"all" | "mine">(initialMode);
   const [, start] = useTransition();
   const router = useRouter();
@@ -29,8 +29,9 @@ export function ViewModeToggle({ initialMode }: { initialMode: "all" | "mine" })
   return (
     <SegmentedSwitch
       size="sm"
+      fullWidth={fullWidth}
       ariaLabel="Show all files or just mine"
-      options={[{ id: "all", label: "All files" }, { id: "mine", label: "Just mine" }]}
+      options={[{ id: "all", label: "All" }, { id: "mine", label: "Mine" }]}
       value={mode}
       onChange={(id) => choose(id as "all" | "mine")}
     />

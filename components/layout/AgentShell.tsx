@@ -691,7 +691,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           </div>
           {canToggleViewAll && (
             <div style={{ marginTop: 12 }}>
-              <ViewModeToggle initialMode={fileViewMode} />
+              <ViewModeToggle initialMode={fileViewMode} fullWidth />
             </div>
           )}
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>

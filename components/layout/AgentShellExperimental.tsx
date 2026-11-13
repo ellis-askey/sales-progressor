@@ -177,7 +177,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
         {/* All / Mine file-view toggle — on mobile only (desktop keeps it in the
             top bar). Sits between the brand and the New sale / Migrate CTAs. */}
         {canToggleViewAll && (
-          <div className="md:hidden agx-mobile-view"><ViewModeToggle initialMode={fileViewMode} /></div>
+          <div className="md:hidden agx-mobile-view"><ViewModeToggle initialMode={fileViewMode} fullWidth /></div>
         )}
         {SHOW_MIGRATE_SALE_NAV && canMigrateSale && (() => {
           const isMigrate = pathname.startsWith("/agent/transactions/migrate");
