@@ -1,15 +1,15 @@
 "use client";
 
 // Inline address editing for the hero. The big address heading gets a pencil on
-// hover; click turns it into street / town / postcode inputs. Saving shows the
-// same "this file has X messages and Y steps logged at the old address" confirm
-// the drawer used (historical records keep the old address for the audit trail),
-// then saveAddressAction (logged server-side).
+// hover; click turns it into street / town / postcode inputs. Save commits
+// straight through saveAddressAction (logged server-side). No confirm step: a
+// rename only changes the single address field everywhere it's shown from now on
+// (past emails/steps already snapshot the old address), and it's reversible, so
+// the Save/Cancel pair is the only confirmation needed.
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { PencilSimple, X } from "@phosphor-icons/react";
-import { getAddressConsequencesAction, saveAddressAction } from "@/app/actions/transactions";
+import { PencilSimple } from "@phosphor-icons/react";
+import { saveAddressAction } from "@/app/actions/transactions";
 import { parseAddressParts } from "@/lib/utils/address";
 
 // County-aware split into { street, city, postcode } — line 1 holds the full
@@ -30,7 +30,6 @@ export function HeroAddressEdit({ transactionId, address, trailing }: { transact
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ commCount: number; milestoneCount: number } | null>(null);
 
   const parsed = parseAddress(address);
   const [street, setStreet] = useState(parsed.street);
@@ -60,31 +59,15 @@ export function HeroAddressEdit({ transactionId, address, trailing }: { transact
     setEditing(true);
   }
 
-  async function requestSave() {
+  async function save() {
     if (!changed) { setEditing(false); return; }
     setSaving(true);
     setError(null);
     try {
-      const c = await getAddressConsequencesAction(transactionId);
-      setConfirm(c);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't check the address");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function doSave() {
-    setSaving(true);
-    setError(null);
-    try {
       await saveAddressAction(transactionId, joined);
-      setConfirm(null);
       setEditing(false);
-      // Phase 4 (2026-09-18, PERF-03): no client refresh — saveAddressAction
-      // revalidates the file page, so its response already carries the
-      // re-render. The old router.refresh() fetched the same page a second
-      // time.
+      // PERF-03: no client refresh — saveAddressAction revalidates the file page,
+      // so its response already carries the re-render.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the address");
       setSaving(false);
@@ -127,7 +110,7 @@ export function HeroAddressEdit({ transactionId, address, trailing }: { transact
           className="glass-input agent-focus text-sm px-3 py-2 rounded-lg w-28" />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-        <button onClick={requestSave} disabled={!changed || saving} className="py-2 px-4 rounded-xl agent-btn-color-primary text-xs font-semibold transition-colors disabled:opacity-40">
+        <button onClick={save} disabled={!changed || saving} className="py-2 px-4 rounded-xl agent-btn-color-primary text-xs font-semibold transition-colors disabled:opacity-40">
           {saving ? "Saving…" : "Save"}
         </button>
         <button onClick={() => setEditing(false)} disabled={saving} className="py-2 px-4 rounded-xl text-xs text-slate-900/60 glass-subtle transition-colors disabled:opacity-40" style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
@@ -135,38 +118,6 @@ export function HeroAddressEdit({ transactionId, address, trailing }: { transact
         </button>
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
-
-      {confirm && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)" }} onClick={() => setConfirm(null)} />
-          <div style={{ position: "relative", zIndex: 1, background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 16, maxWidth: 380, width: "100%", padding: 24, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(15,23,42,0.85)", margin: 0 }}>Change address?</h3>
-              <button onClick={() => setConfirm(null)} className="agent-icon-btn agent-icon-btn-sm"><X size={14} weight="bold" /></button>
-            </div>
-            {(() => {
-              const commStr = confirm.commCount > 0 ? `${confirm.commCount} message${confirm.commCount !== 1 ? "s" : ""}` : null;
-              const msStr = confirm.milestoneCount > 0 ? `${confirm.milestoneCount} completed step${confirm.milestoneCount !== 1 ? "s" : ""}` : null;
-              const ps: CSSProperties = { fontSize: 13, color: "rgba(15,23,42,0.60)", marginBottom: 20, lineHeight: 1.6 };
-              return commStr || msStr ? (
-                <p style={ps}>This file has {commStr && <strong>{commStr}</strong>}{commStr && msStr && " and "}{msStr && <strong>{msStr}</strong>} logged at the current address. They&apos;ll keep the old address for the audit trail.</p>
-              ) : (
-                <p style={ps}>The address will update. Any historical records keep the old address for the audit trail.</p>
-              );
-            })()}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={doSave} disabled={saving} className="flex-1 py-2.5 rounded-xl agent-btn-color-primary text-sm font-semibold transition-colors disabled:opacity-40">
-                {saving ? "Saving…" : "Change address"}
-              </button>
-              <button onClick={() => setConfirm(null)} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm text-slate-900/60 glass-subtle transition-colors" style={{ border: "0.5px solid rgba(255,255,255,0.50)" }}>
-                Cancel
-              </button>
-            </div>
-            {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
