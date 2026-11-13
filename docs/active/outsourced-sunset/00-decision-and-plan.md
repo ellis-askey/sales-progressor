@@ -205,6 +205,10 @@ every decision below as it's made.
   `PlanTermsCollapsed`, `MetricsStrip`, billing page) + the per-sale "mark free" CC
   control. NOTE: £50 pricing is tied to the SAME switch as intake (the New-Year flip),
   per founder "built behind the switch exactly like this".
+- 2026-11-13 — **Scheduling (founder):** the **marketplace/intro** (Workstream B) and
+  the **billing-engine card requirement** (collect the £50) are both deferred to the
+  **Christmas shutdown / mid-December** build window. App-side new model is otherwise
+  complete. Paused here.
 - 2026-11-13 — **In-app copy gating (#1) BUILT (staging, not pushed).** All behind the
   switch, byte-identical when on. B onboarding (`4a89e07c`): welcome modal/tour show
   self-progress framing when off. A emails (`7dbc037e`): welcome + sale-connected drop
