@@ -353,7 +353,7 @@ function TrendCard({ trend }: { trend: SolicitorFirmMetrics["trend"] }) {
     <section className="sp-card agent-glass">
       <div className="sp-cardhead"><div><h2 className="sp-cardtitle">Exchange time trend</h2><p className="sp-cardsub">Average days to exchange, by month</p></div></div>
       {trend.length < 2 ? (
-        <div className="sp-empty">{trend.length === 0 ? "No exchanges yet to chart." : "Only one month of exchanges so far — a trend needs a little more history."}</div>
+        <div className="sp-empty">{trend.length === 0 ? "No exchanges yet to chart." : "Only one month of exchanges so far. A trend needs a little more history."}</div>
       ) : (
         <TrendChart points={trend} />
       )}
@@ -449,7 +449,7 @@ function FirmNoteCard({ firmId, initial, canEdit }: { firmId: string; initial: s
   return (
     <section className="sp-card agent-glass">
       <div className="sp-cardhead">
-        <div><h2 className="sp-cardtitle">Firm note</h2><p className="sp-cardsub">Internal — private to your team</p></div>
+        <div><h2 className="sp-cardtitle">Firm note</h2><p className="sp-cardsub">Internal &middot; private to your team</p></div>
         {canEdit && !editing && (
           <button type="button" className="sp-ghostbtn" onClick={() => setEditing(true)}><PencilSimple size={13} weight="bold" /> {hasNote ? "Edit" : "Add"}</button>
         )}
@@ -465,7 +465,7 @@ function FirmNoteCard({ firmId, initial, canEdit }: { firmId: string; initial: s
       ) : hasNote ? (
         <p className="sp-notebody">{initial}</p>
       ) : (
-        <div className="sp-empty">{canEdit ? "No note yet — add relationship notes only your team can see." : "No note recorded."}</div>
+        <div className="sp-empty">{canEdit ? "No note yet. Add relationship notes only your team can see." : "No note recorded."}</div>
       )}
     </section>
   );
@@ -503,7 +503,7 @@ function EditFirmPopup({ firmId, firmName, recommended, feePence, feeVat, onClos
   return (
     <PartnerPopup open onClose={onClose} title="Edit firm" subtitle={firmName} ariaLabel="Edit firm relationship settings">
       <div className="sp-form">
-        <p className="sp-editnote">These settings are your agency&rsquo;s only — they don&rsquo;t change the shared firm record.</p>
+        <p className="sp-editnote">These settings are your agency&rsquo;s only. They don&rsquo;t change the shared firm record.</p>
         <div className="sp-switchrow">
           <button type="button" role="switch" aria-checked={isRec} className={"sp-switch" + (isRec ? " on" : "")} onClick={() => setIsRec((v) => !v)} />
           <div style={{ flex: 1 }}>
