@@ -2543,6 +2543,12 @@ model OutboundMessage {
   recipientName   String?
   recipientEmail  String?
   recipientHandle String?
+  // Full To-recipient list (lower-cased) for email-threading match (Stage 2).
+  // recipientEmail holds only the first To; this holds every To address so the
+  // "continue conversation" whisper can recognise a prior email to the same
+  // group (e.g. a chain's three solicitors). Empty on non-threaded / historic
+  // rows and on non-email methods. Cc/Bcc are deliberately excluded.
+  recipientEmails String[] @default([])
 
   // Content â€” legacy fields kept for backward compat
   type                 CommType

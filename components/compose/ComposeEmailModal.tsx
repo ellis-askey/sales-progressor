@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
-import { PaperPlaneTilt } from "@phosphor-icons/react";
+import { PaperPlaneTilt, ArrowBendUpLeft, Check } from "@phosphor-icons/react";
 import { FloatingWindow } from "@/components/compose/FloatingWindow";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
@@ -24,15 +24,36 @@ import { useContentEditableDictation } from "@/components/dictation/useDictation
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   searchComposeSales, getComposeContextAction, sendComposedEmail,
-  listScheduledComposeEmailsAction, cancelScheduledComposeEmailAction,
+  listScheduledComposeEmailsAction, cancelScheduledComposeEmailAction, findContinuableThreadAction,
   type ComposeSaleResult, type ComposeContextWithPhoto, type ComposeAttachmentInput,
 } from "@/app/actions/compose";
+import type { ContinuableThread } from "@/lib/email/thread-continue";
 import type { ScheduledComposeRow } from "@/lib/email/compose-queue";
 import type { ComposeRecipient } from "@/lib/services/compose-recipients";
 
 type Field = "to" | "cc" | "bcc";
-type Token = { email: string; name: string; rec: ComposeRecipient | null };
+export type Token = { email: string; name: string; rec: ComposeRecipient | null };
 const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
+
+// ── Email-threading "continue conversation" whisper (Stage 2, treatment A) ───
+// A single, quiet, tappable line under the recipients. Shows ONLY when there's a
+// prior email to the same core group on this sale (continueCandidate != null).
+// Off until tapped; tapping arms the continue (and prefills the prior subject).
+function ContinueWhisper({ armed, label, onToggle }: { armed: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-pressed={armed}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: "none", cursor: "pointer",
+        padding: "2px 0", font: "inherit", fontSize: 11.5, marginTop: 4,
+        color: armed ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
+      {armed ? <Check size={12} weight="bold" /> : <ArrowBendUpLeft size={12} weight="regular" style={{ color: "var(--agent-text-tertiary)" }} />}
+      <span>{armed ? `Continuing your conversation from ${label}` : `Continue your conversation from ${label}`}</span>
+    </button>
+  );
+}
+// Short date for the whisper label, e.g. "11 Nov".
+function threadDateLabel(iso: string): string {
+  try { return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch { return ""; }
+}
 
 // Open the composer pre-filled (e.g. the survey "Email the surveyor" flow —
 // critique #211). To addresses may be free-typed (a surveyor not in the system);
@@ -109,6 +130,7 @@ export function ComposeEmailModal({
   open, onClose, onCloseStart, elevated = false, shareSummaryHtml, onComposeFullChain, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
   chainAgents, chainSolicitors, onNeedAgentEmail, autoPlace,
   frame = "modal", minimized = false, stackIndex = 0, onMinimize, onRestore,
+  devSeed,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
   // Chrome: "modal" (centred dialog, the default everywhere) or "floating" (a
@@ -143,6 +165,11 @@ export function ComposeEmailModal({
   chainSolicitors?: { linkId: string; name: string; email: string | null; image: string | null; address: string }[] | null;
   onNeedAgentEmail?: (linkId: string, field: "to" | "cc" | "bcc") => void;
   autoPlace?: { email: string; name: string; field: "to" | "cc" | "bcc" } | null;
+  // DEV-ONLY preview (inert in production — every real call site omits this).
+  // Skips the server fetch and renders the real modal with mock recipients +
+  // (optionally) a seeded continue-candidate, so the whisper can be judged in the
+  // real chrome without auth. See /dev/email-threading-prompt.
+  devSeed?: { ctx: ComposeContextWithPhoto; to: Token[]; subject: string; bodyHtml: string; candidate?: ContinuableThread | null } | null;
 }) {
   const { theme } = usePortalTheme();
   const { toast } = useAgentToast();
@@ -256,7 +283,12 @@ export function ComposeEmailModal({
   const [scheduledList, setScheduledList] = useState<ScheduledComposeRow[]>([]);
 
   function refreshScheduled() { listScheduledComposeEmailsAction().then(setScheduledList).catch(() => {}); }
-  useEffect(() => { if (open && !ctx) refreshScheduled(); }, [open, ctx]);
+  useEffect(() => { if (open && !ctx && !devSeed) refreshScheduled(); }, [open, ctx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Email threading (Stage 2): the prior conversation the current recipients
+  // could continue (null = whisper hidden), and whether the agent has armed it.
+  const [continueCandidate, setContinueCandidate] = useState<ContinuableThread | null>(null);
+  const [continueArmed, setContinueArmed] = useState(false);
 
   // reset on open/close
   useEffect(() => {
@@ -267,7 +299,20 @@ export function ComposeEmailModal({
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
     setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
     setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
+    setContinueCandidate(null); setContinueArmed(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
+    // DEV preview: seed the real modal with mock recipients/body (+ an optional
+    // continue-candidate) and skip the server fetch, so the whisper shows inside
+    // the real chrome without auth.
+    if (devSeed) {
+      autoGreetRef.current = false;
+      pendingBodyRef.current = devSeed.bodyHtml;
+      setTokens({ to: devSeed.to, cc: [], bcc: [] });
+      setSubject(devSeed.subject);
+      setContinueCandidate(devSeed.candidate ?? null);
+      setCtx(devSeed.ctx);
+      return;
+    }
     if (prefill) void selectSale(prefill.transactionId, prefill);
     else if (initialTransactionId) void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -275,7 +320,7 @@ export function ComposeEmailModal({
 
   // sale search (debounced-ish on each keystroke; server scopes the list)
   useEffect(() => {
-    if (!open || ctx) return;
+    if (!open || ctx || devSeed) return;
     let cancelled = false;
     searchComposeSales(query).then((r) => { if (!cancelled) setResults(r); }).catch(() => {});
     return () => { cancelled = true; };
@@ -304,6 +349,23 @@ export function ComposeEmailModal({
     else p.textContent = g;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens.to]);
+
+  // Email threading (Stage 2): does the current To group continue a prior
+  // conversation on this sale? Debounced; null (no match / threading off) keeps
+  // the whisper hidden. Skipped in dev preview (devSeed seeds the candidate).
+  useEffect(() => {
+    if (devSeed || !ctx) return;
+    const emails = tokens.to.map((t) => t.email).filter(Boolean);
+    if (emails.length === 0) { setContinueCandidate(null); setContinueArmed(false); return; }
+    let cancelled = false;
+    const id = setTimeout(() => {
+      findContinuableThreadAction(ctx.sale.id, emails)
+        .then((c) => { if (!cancelled) { setContinueCandidate(c); if (!c) setContinueArmed(false); } })
+        .catch(() => { if (!cancelled) { setContinueCandidate(null); setContinueArmed(false); } });
+    }, 350);
+    return () => { cancelled = true; clearTimeout(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens.to, ctx]);
 
   // Signature-style button (basic / logo / default): re-fetch the signature in
   // the chosen style and swap it in place, leaving the message untouched.
@@ -556,6 +618,9 @@ export function ComposeEmailModal({
               return { email: t.email, linkId: a && !a.linkId.startsWith("anchor-") ? a.linkId : null };
             })
           : undefined,
+        // Email threading (Stage 2): continue the matched conversation only when
+        // the agent armed the whisper. Null → a brand-new thread (the default).
+        continueFromMessageId: continueArmed && continueCandidate ? continueCandidate.inReplyTo : null,
       });
       if (res.ok) { toast.success(when ? `Scheduled for ${fmtWhen(when)}` : "Email sent"); requestClose(); }
       else setError(res.error);
@@ -747,6 +812,19 @@ export function ComposeEmailModal({
                 {field("to", "To", "Add people or type an email…")}
                 {showCc && <div style={{ marginTop: 9 }}>{field("cc", "Cc", "Add people…")}</div>}
                 {showBcc && <div style={{ marginTop: 9 }}>{field("bcc", "Bcc", "Add people…")}</div>}
+                {continueCandidate && (
+                  <ContinueWhisper
+                    armed={continueArmed}
+                    label={threadDateLabel(continueCandidate.sentAt)}
+                    onToggle={() => setContinueArmed((prev) => {
+                      const next = !prev;
+                      // On continue, prefill the prior subject (editable) so it
+                      // reads as one thread and threads reliably everywhere.
+                      if (next && continueCandidate.subject) setSubject(continueCandidate.subject);
+                      return next;
+                    })}
+                  />
+                )}
               </div>
 
 
@@ -1023,9 +1101,9 @@ const CEM_CSS = `
    (.enq-btn-primary2): one vertical coral→coral-deep gradient across BOTH
    halves, a top sheen, and a white hairline between them. Was two mismatched
    diagonal gradients (main fading to light pink, caret darker). */
-.cem-send-go{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 18px;height:40px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,var(--agent-coral) 0%,var(--agent-coral-deep) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
+.cem-send-go{border:none;cursor:pointer;color:#fff;font-family:inherit;font-size:14px;font-weight:650;padding:0 18px;height:40px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
 .cem-send-go:hover{filter:brightness(1.04)}.cem-send-go:disabled{opacity:.6;cursor:default}
-.cem-send-split{border:none;border-left:1px solid rgba(255,255,255,0.28);cursor:pointer;color:#fff;width:34px;height:40px;display:grid;place-items:center;font-size:11px;background:linear-gradient(180deg,var(--agent-coral) 0%,var(--agent-coral-deep) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
+.cem-send-split{border:none;border-left:1px solid rgba(255,255,255,0.28);cursor:pointer;color:#fff;width:34px;height:40px;display:grid;place-items:center;font-size:11px;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28);transition:filter .12s}
 .cem-send-split:hover{filter:brightness(1.04)}
 .cem-sched-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(61,122,184,0.1);border:1px solid rgba(61,122,184,0.3);color:var(--agent-info,#3D7AB8);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:600}
 .cem-sched-chip .cem-x{cursor:pointer;opacity:.7}.cem-sched-chip .cem-x:hover{opacity:1}

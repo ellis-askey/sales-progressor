@@ -13,6 +13,7 @@ import { getAccessScope, scopeTransactionWhere, scopeOwnershipWhere } from "@/li
 import { getComposeContext, splitComposeAddress, type ComposeContext } from "@/lib/services/compose-recipients";
 import { resolveSenderForTransaction, sendEmail, buildOutboundMessageId, type EmailAttachment } from "@/lib/email";
 import { isEmailThreadingEnabled } from "@/lib/email/threading";
+import { findContinuableThread, type ContinuableThread } from "@/lib/email/thread-continue";
 import { randomUUID } from "crypto";
 import { storeOutboundEmailAttachments } from "@/lib/integrations/mail/outbound-attachments";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
@@ -110,6 +111,11 @@ export async function sendComposedEmail(input: {
   // own file so nothing is lost. When present, the single default file log is
   // skipped. Cc/Bcc are never logged (visibility only).
   chainRecipients?: { email: string; linkId: string | null }[];
+  // Email threading (Stage 2): the Message-ID of a prior email on this sale the
+  // agent chose to continue (from the "continue conversation" whisper). When set
+  // and threading is on, this send threads under it. Ignored when threading is
+  // off. Validated server-side (must belong to this sale).
+  continueFromMessageId?: string | null;
 }): Promise<SendResult> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -144,6 +150,26 @@ export async function sendComposedEmail(input: {
   const outboundMessageId = isEmailThreadingEnabled(tx.agencyId)
     ? buildOutboundMessageId(`compose-${randomUUID()}`)
     : undefined;
+
+  // The To set (lower-cased) remembered on the row so a later email to the same
+  // group can be recognised. Stored only on threaded sends (empty otherwise).
+  const recipientEmailsLower = outboundMessageId ? to.map((e) => e.toLowerCase()) : [];
+
+  // Continue an existing conversation: re-derive the threading headers from the
+  // chosen prior message server-side (never trust client-supplied references),
+  // and only when it genuinely belongs to this sale.
+  let inReplyTo: string | undefined;
+  let references: string | undefined;
+  if (outboundMessageId && input.continueFromMessageId) {
+    const parent = await prisma.outboundMessage.findFirst({
+      where: { transactionId: input.transactionId, internetMessageId: input.continueFromMessageId },
+      select: { internetMessageId: true, emailReferences: true },
+    });
+    if (parent?.internetMessageId) {
+      inReplyTo = parent.internetMessageId;
+      references = parent.emailReferences ? `${parent.emailReferences} ${parent.internetMessageId}` : parent.internetMessageId;
+    }
+  }
 
   const { from, replyTo } = await resolveSenderForTransaction(input.transactionId, session.user);
   const attachments: EmailAttachment[] | undefined = input.attachments?.length
@@ -189,7 +215,7 @@ export async function sendComposedEmail(input: {
 
   // ── Send now. ───────────────────────────────────────────────────────────────
   try {
-    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId });
+    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId, inReplyTo, references });
   } catch (e) {
     console.error("[compose] send failed", e);
     return { ok: false, error: "Couldn't send the email. Please try again." };
@@ -245,8 +271,36 @@ export async function sendComposedEmail(input: {
           // Stage 1: the Message-ID we stamped on the send (Boardwalk-gated), so a
           // later email can thread to it. Null when threading is off (unchanged).
           internetMessageId: outboundMessageId ?? null,
+          // Stage 2: full To set + thread linkage (this row is the send's anchor).
+          recipientEmails: recipientEmailsLower,
+          inReplyTo: inReplyTo ?? null,
+          emailReferences: references ?? null,
         },
       }).catch((e) => console.error("[compose] anchor log failed", e));
+    } else if (outboundMessageId) {
+      // Threaded chain send where EVERY recipient is a chain link (so the loop
+      // above only wrote per-neighbour check-ins, no sent-email row). Threading
+      // needs one anchor carrying the Message-ID + the full To set, so a later
+      // chain email to this group can continue the thread. Only for threaded
+      // (Boardwalk) sends — non-threaded chain sends keep the old behaviour with
+      // no extra timeline row.
+      await prisma.outboundMessage.create({
+        data: {
+          transactionId: input.transactionId,
+          sentAt: new Date(),
+          type: "outbound", method: "email", channel: "email", purpose: "other",
+          contactIds,
+          content: `Email sent to ${to.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}\n\nSubject: ${subject}\n\n${text}`,
+          subject, bodyFormat: "html", sentEmailHtml: html, sentFromEmail: from,
+          recipientEmail: to[0], recipientName, ccEmails,
+          createdById: session.user.id, createdByRole: session.user.role, visibleToClient: false,
+          providerWebhookData: attachmentData,
+          internetMessageId: outboundMessageId,
+          recipientEmails: recipientEmailsLower,
+          inReplyTo: inReplyTo ?? null,
+          emailReferences: references ?? null,
+        },
+      }).catch((e) => console.error("[compose] chain thread-anchor failed", e));
     }
   } else {
     await prisma.outboundMessage.create({
@@ -275,6 +329,11 @@ export async function sendComposedEmail(input: {
         // Stage 1: the Message-ID we stamped on the send (Boardwalk-gated), so a
         // later email can thread to it. Null when threading is off (unchanged).
         internetMessageId: outboundMessageId ?? null,
+        // Stage 2: the full To set + thread linkage, so a later email to the same
+        // group can continue this conversation. Empty/null when threading is off.
+        recipientEmails: recipientEmailsLower,
+        inReplyTo: inReplyTo ?? null,
+        emailReferences: references ?? null,
       },
     });
   }
@@ -293,4 +352,20 @@ export async function cancelScheduledComposeEmailAction(id: string): Promise<{ o
   const session = await requireSession();
   const ok = await cancelScheduledComposeEmail(id, session.user.id);
   return { ok };
+}
+
+// ── Email threading (Stage 2): is there a conversation to continue? ───────────
+// Given the sale + who's currently in the To line, returns the prior email the
+// agent could continue (or null). Tenant-scoped; returns null when the sale
+// isn't the caller's, when threading is off for the agency, or when there's no
+// matching prior conversation — so the composer's whisper simply never shows.
+export async function findContinuableThreadAction(transactionId: string, toEmails: string[]): Promise<ContinuableThread | null> {
+  const session = await requireSession();
+  const scope = getAccessScope(session);
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(scope, transactionId),
+    select: { id: true, agencyId: true },
+  });
+  if (!tx) return null;
+  return findContinuableThread(transactionId, toEmails, tx.agencyId);
 }
