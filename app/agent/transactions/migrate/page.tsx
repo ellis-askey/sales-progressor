@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MigrateSaleFlow } from "@/components/transactions-v2/MigrateSaleFlow";
 import { canMigrateSale } from "@/lib/agency-features/migrate-sale";
-import { listAssignableAgentsForAgency } from "@/lib/services/agency-team";
+import { listAssignableAgentsForAgency, listInHouseProgressors } from "@/lib/services/agency-team";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,14 @@ export default async function MigrateSalePage() {
 
   const isDirector = session.user.role === "director";
 
-  const [recommendedFirms, preferredBrokerRow, assignableAgents, milestoneDefs] = await Promise.all([
+  // In-house progression: when the agency runs it, EVERY adder (not just
+  // directors) gets the CM + progressor pickers, matching New Sale.
+  const agencyRow = session.user.agencyId
+    ? await prisma.agency.findUnique({ where: { id: session.user.agencyId }, select: { inHouseProgressionEnabled: true } }).catch(() => null)
+    : null;
+  const inHouseProgressionEnabled = !!agencyRow?.inHouseProgressionEnabled;
+
+  const [recommendedFirms, preferredBrokerRow, assignableAgents, inHouseProgressors, milestoneDefs] = await Promise.all([
     Promise.resolve()
       .then(() => db.agencyRecommendedSolicitor?.findMany({ where: { agencyId: session.user.agencyId }, select: { solicitorFirmId: true, defaultReferralFeePence: true } }) ?? Promise.resolve([]))
       .then((rows: { solicitorFirmId: string; defaultReferralFeePence: number | null }[]) => rows.map((r) => ({ id: r.solicitorFirmId, defaultReferralFeePence: r.defaultReferralFeePence })))
@@ -36,8 +43,11 @@ export default async function MigrateSalePage() {
         },
       })
       .catch(() => null),
-    isDirector && session.user.agencyId
+    (isDirector || inHouseProgressionEnabled) && session.user.agencyId
       ? listAssignableAgentsForAgency(session.user.agencyId).catch(() => [])
+      : Promise.resolve([] as { id: string; name: string; role: string }[]),
+    inHouseProgressionEnabled && session.user.agencyId
+      ? listInHouseProgressors(session.user.agencyId).catch(() => [])
       : Promise.resolve([] as { id: string; name: string; role: string }[]),
     prisma.milestoneDefinition
       .findMany({ select: { id: true, code: true, name: true, side: true, orderIndex: true }, orderBy: { orderIndex: "asc" } })
@@ -71,6 +81,9 @@ export default async function MigrateSalePage() {
           milestoneDefs={milestoneDefs as { id: string; code: string; name: string; side: "vendor" | "purchaser"; orderIndex: number }[]}
           isDirector={isDirector}
           assignableAgents={assignableAgents as { id: string; name: string; role: string }[]}
+          inHouseProgressionEnabled={inHouseProgressionEnabled}
+          inHouseProgressors={inHouseProgressors as { id: string; name: string; role: string }[]}
+          currentUserId={session.user.id}
         />
       </div>
     </>

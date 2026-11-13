@@ -101,6 +101,9 @@ export function MigrateSaleFlow({
   milestoneDefs,
   isDirector,
   assignableAgents,
+  inHouseProgressionEnabled,
+  inHouseProgressors,
+  currentUserId,
 }: {
   recommendedFirms: RecommendedFirm[];
   preferredBroker: BrokerSelection | null;
@@ -108,9 +111,23 @@ export function MigrateSaleFlow({
   milestoneDefs: MilestoneDef[];
   isDirector: boolean;
   assignableAgents: { id: string; name: string; role: string }[];
+  inHouseProgressionEnabled: boolean;
+  inHouseProgressors: { id: string; name: string; role: string }[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const { toast } = useAgentToast();
+
+  // In-house progression: a progressor importing a sale is taking it on, so the
+  // "Who's progressing it?" picker defaults to THEM. A CM/director sees it empty
+  // ("Assign a progressor"). The CM picker defaults to the adder for everyone
+  // except a director (empty "Assign a CM"), and the server falls back to the
+  // adder when it's left blank — so a file is never ownerless.
+  const viewerIsProgressor = inHouseProgressionEnabled && inHouseProgressors.some((p) => p.id === currentUserId);
+  const initialFormFields = (): FormFields => ({
+    ...defaultFormFields("agent"),
+    inHouseProgressorId: viewerIsProgressor ? currentUserId : "",
+  });
 
   // Minted once per review session → makes the import idempotent against
   // double-submit / retry (the server resolves a repeat key to the same file).
@@ -119,7 +136,7 @@ export function MigrateSaleFlow({
   const today = todayISO(now);
 
   const [flowState, setFlowState] = useState<"hero" | "extracting" | "form">("hero");
-  const [formFields, setFormFields] = useState<FormFields>(() => defaultFormFields("agent"));
+  const [formFields, setFormFields] = useState<FormFields>(initialFormFields);
   const [extractedData, setExtractedData] = useState<ExtractedMemoData | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
@@ -257,6 +274,7 @@ export function MigrateSaleFlow({
         originalCreatedAt,
         progressedBy: formFields.progressedBy,
         assignToUserId: formFields.assignToUserId || null,
+        inHouseProgressorId: formFields.inHouseProgressorId || null,
         contacts,
         vendorSolicitorFirmId: formFields.vendorSolicitor?.firmId ?? null,
         vendorSolicitorContactId: formFields.vendorSolicitor?.contactId ?? null,
@@ -309,7 +327,7 @@ export function MigrateSaleFlow({
           <HeroCard
             drafts={[]}
             onFile={handleFile}
-            onFillManually={() => { setFormFields(defaultFormFields("agent")); setExtractedData(null); setFlowState("form"); }}
+            onFillManually={() => { setFormFields(initialFormFields()); setExtractedData(null); setFlowState("form"); }}
             onLoadDraft={() => {}}
             onDeleteDraft={() => {}}
             parseError={parseError}
@@ -393,17 +411,33 @@ export function MigrateSaleFlow({
             onRemoveStub={(id: string) => update({ chainStubs: formFields.chainStubs.filter((s) => s.id !== id) })}
           />
 
-          {isDirector && assignableAgents.length > 0 && (
-            <div className="agent-glass" style={{ padding: 16, borderRadius: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)" }}>Assign to</label>
-              <select
-                value={formFields.assignToUserId}
-                onChange={(e) => update({ assignToUserId: e.target.value })}
-                style={{ marginTop: 6, width: "100%", maxWidth: 320, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--agent-hairline, rgba(0,0,0,0.12))", background: "var(--agent-input-bg, rgba(255,255,255,0.6))" }}
-              >
-                <option value="">Me</option>
-                {assignableAgents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
-              </select>
+          {((isDirector || inHouseProgressionEnabled) && assignableAgents.length > 0) && (
+            <div className="agent-glass" style={{ padding: 16, borderRadius: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)" }}>Client manager</label>
+                <select
+                  value={formFields.assignToUserId}
+                  onChange={(e) => update({ assignToUserId: e.target.value })}
+                  style={{ marginTop: 6, width: "100%", maxWidth: 320, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--agent-hairline, rgba(0,0,0,0.12))", background: "var(--agent-input-bg, rgba(255,255,255,0.6))" }}
+                >
+                  <option value="">{isDirector ? "Assign a CM" : "Me"}</option>
+                  {assignableAgents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
+                </select>
+              </div>
+
+              {inHouseProgressionEnabled && inHouseProgressors.length > 0 && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)" }}>Progressor</label>
+                  <select
+                    value={formFields.inHouseProgressorId ?? ""}
+                    onChange={(e) => update({ inHouseProgressorId: e.target.value })}
+                    style={{ marginTop: 6, width: "100%", maxWidth: 320, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--agent-hairline, rgba(0,0,0,0.12))", background: "var(--agent-input-bg, rgba(255,255,255,0.6))" }}
+                  >
+                    <option value="">Assign a progressor</option>
+                    {inHouseProgressors.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 

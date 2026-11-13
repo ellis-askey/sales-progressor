@@ -77,8 +77,13 @@ export type MigrateSaleInput = {
   // Self-managed (agency progresses it) vs outsourced. Agencies migrating their
   // own book are normally self-managed.
   progressedBy?: "agent" | "progressor";
-  // Optional: assign the file to a specific agency agent (director/negotiator).
+  // Optional: assign the file to a specific agency agent (director/negotiator)
+  // as the owning CM. Blank falls back to the importer (never ownerless).
   assignToUserId?: string | null;
+  // Optional: assign an in-house progressor (assignedUserId). Only honoured when
+  // the agency runs in-house progression. null = decide later; a progressor
+  // importing is pre-selected client-side so the file lands with them.
+  inHouseProgressorId?: string | null;
   contacts: ContactInput[];
   vendorSolicitorFirmId?: string | null;
   vendorSolicitorContactId?: string | null;
@@ -216,6 +221,34 @@ export async function migrateBoardwalkSaleAction(input: MigrateSaleInput): Promi
     }
   }
 
+  // ─── Resolve the owning CM + in-house progressor ──────────────────────────
+  // Mirrors the New Sale action (transactions.ts). The CM is validated to this
+  // agency and ALWAYS ends up set (falls back to the importer) so a file is
+  // never ownerless. The progressor is validated to the agency's in-house pool;
+  // a progressor importing with no explicit pick takes it on themselves (the
+  // form pre-selects them, so that default is applied client-side — an explicit
+  // "decide later" arrives as null and is respected).
+  let resolvedAgentUserId = session.user.id;
+  if (input.assignToUserId) {
+    const target = await prisma.user.findUnique({ where: { id: input.assignToUserId }, select: { id: true, agencyId: true, role: true } });
+    if (!target || target.agencyId !== agencyId) return { ok: false, kind: "validation", message: "Cannot assign to a user outside your agency." };
+    if (target.role !== "director" && target.role !== "negotiator") return { ok: false, kind: "validation", message: "Cannot assign to a non-agent user." };
+    resolvedAgentUserId = target.id;
+  }
+
+  let resolvedAssignedUserId: string | undefined = undefined;
+  const importAgency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { inHouseProgressionEnabled: true } });
+  if (importAgency?.inHouseProgressionEnabled) {
+    if (input.inHouseProgressorId) {
+      const prog = await prisma.user.findUnique({ where: { id: input.inHouseProgressorId }, select: { id: true, agencyId: true, isInHouseProgressor: true } });
+      if (!prog || prog.agencyId !== agencyId || !prog.isInHouseProgressor) return { ok: false, kind: "validation", message: "Cannot assign: that user is not an in-house progressor in your agency." };
+      resolvedAssignedUserId = prog.id;
+    } else if (input.inHouseProgressorId === undefined) {
+      const creator = await prisma.user.findUnique({ where: { id: session.user.id }, select: { isInHouseProgressor: true, agencyId: true } });
+      if (creator?.isInHouseProgressor && creator.agencyId === agencyId) resolvedAssignedUserId = session.user.id;
+    }
+  }
+
   // ─── Create the file ──────────────────────────────────────────────────────
   // Always the caller's own agency — never a client-supplied id (tenant safety).
   let txId: string;
@@ -224,14 +257,11 @@ export async function migrateBoardwalkSaleAction(input: MigrateSaleInput): Promi
     const tx = await createTransaction({
       propertyAddress: normaliseAddressString(address),
       agencyId,
-      // Owning agent = the picked agency agent, else the importer (matches the
-      // normal add-sale default, transactions.ts effectiveAgentUserId). Without
-      // this the file is "ownerless" (agentUserId null) and drops out of every
-      // agent-scoped surface — the Reminders page, hub lanes, "managing this file".
-      agentUserId: input.assignToUserId ?? session.user.id,
-      // Self-managed agency import has no SP progressor; leave assignedUserId null
-      // (the "Assign to" pick sets the owning AGENT above, not an SP).
-      assignedUserId: undefined,
+      // Owning CM, resolved + validated above. Never null, so the file never
+      // drops out of agent-scoped surfaces (Reminders, hub lanes, "managing this").
+      agentUserId: resolvedAgentUserId,
+      // In-house progressor, resolved + validated above (undefined = none yet).
+      assignedUserId: resolvedAssignedUserId,
       progressedBy: input.progressedBy ?? "agent",
       createdAt: createdAtDate, // backdated start
       isMigrated: true,
