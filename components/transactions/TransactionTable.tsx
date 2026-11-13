@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth, COL_LABEL } from "@/components/transactions/TransactionRowView";
+import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth, colLabel } from "@/components/transactions/TransactionRowView";
 import { FloatingFilePreview } from "@/components/transactions/FloatingFilePreview";
+import { useIsFounder } from "@/components/layout/FounderGate";
 import type { TransactionRow, HealthRaw, FilesColumn, FilesTab } from "@/components/transactions/TransactionRowView";
 import type { TransactionStatus } from "@prisma/client";
 
@@ -96,6 +97,10 @@ export function TransactionTable({
   // No separate top-level "Stalled first" toggle — the sort header does it.
   const [sortKey, setSortKey] = useState<SortKey>("lastActive");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Founder preview gate (files redesign, 2026-11-13): the new rows + floating
+  // preview + click-to-select are shown to ellis@ only, for prod stress-testing;
+  // everyone else gets the classic table and its navigate-on-click behaviour.
+  const preview = useIsFounder();
   // Floating preview selection — walks the CURRENT sorted + filtered order.
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -122,7 +127,7 @@ export function TransactionTable({
   }, [selectedId, selectedIdx]);
 
   // Tab-aware columns — shared with TransactionRowView so header + rows match.
-  const cols = filesColumns(statusFilter, showAssignedToColumn, showAgencyColumn);
+  const cols = filesColumns(statusFilter, showAssignedToColumn, showAgencyColumn, preview);
   const gridCols = filesGridTemplate(cols);
 
   // Card ↔ grid switch bucket: the smallest container-query threshold that
@@ -144,7 +149,7 @@ export function TransactionTable({
       glassId="myfiles-table"
       label="My files · Table"
       defaultVariant="v05"
-      className={`files-table files-switch-${switchBucket}${selectedRow ? " files-table--preview" : ""}`}
+      className={`files-table files-switch-${switchBucket}${preview && selectedRow ? " files-table--preview" : ""}`}
       style={{ borderRadius: 20, overflow: "hidden" }}
     >
       {/* Header — desktop only. Token-driven background + border (was bg-white/10
@@ -161,7 +166,7 @@ export function TransactionTable({
         {(
           [
             { label: "Property", key: "property" as SortKey | null },
-            ...cols.map((c) => ({ label: COL_LABEL[c], key: COL_SORT[c] ?? null })),
+            ...cols.map((c) => ({ label: colLabel(c, preview), key: COL_SORT[c] ?? null })),
           ] as { label: string; key: SortKey | null }[]
         ).map(({ label, key }) =>
           key ? (
@@ -211,22 +216,24 @@ export function TransactionTable({
           activeTab={statusFilter}
           showAgencyColumn={showAgencyColumn}
           showAssignedToColumn={showAssignedToColumn}
-          onSelect={setSelectedId}
-          selected={tx.id === selectedId}
+          onSelect={preview ? setSelectedId : undefined}
+          selected={preview && tx.id === selectedId}
         />
       ))}
     </GlassCard>
 
-    <FloatingFilePreview
-      row={selectedRow}
-      open={!!selectedRow}
-      basePath={basePath}
-      onClose={() => setSelectedId(null)}
-      onPrev={() => { if (selectedIdx > 0) setSelectedId(sorted[selectedIdx - 1].id); }}
-      onNext={() => { if (selectedIdx >= 0 && selectedIdx < sorted.length - 1) setSelectedId(sorted[selectedIdx + 1].id); }}
-      hasPrev={selectedIdx > 0}
-      hasNext={selectedIdx >= 0 && selectedIdx < sorted.length - 1}
-    />
+    {preview && (
+      <FloatingFilePreview
+        row={selectedRow}
+        open={!!selectedRow}
+        basePath={basePath}
+        onClose={() => setSelectedId(null)}
+        onPrev={() => { if (selectedIdx > 0) setSelectedId(sorted[selectedIdx - 1].id); }}
+        onNext={() => { if (selectedIdx >= 0 && selectedIdx < sorted.length - 1) setSelectedId(sorted[selectedIdx + 1].id); }}
+        hasPrev={selectedIdx > 0}
+        hasNext={selectedIdx >= 0 && selectedIdx < sorted.length - 1}
+      />
+    )}
     </>
   );
 }

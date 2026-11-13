@@ -12,11 +12,12 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar } from "@/components/ui/Avatar";
-import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, PauseCircle, CheckCircle, Prohibit, WarningCircle } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateHoldReasonAction } from "@/app/actions/automation";
+import { useIsFounder } from "@/components/layout/FounderGate";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
@@ -40,18 +41,21 @@ export type FilesColumn =
   | "reached" | "withdrawnDate" | "reason"
   | "handled";
 
-// "Handled by" is no longer a table column (files redesign, 2026-11-13): who's
-// looking after the file now shows as a small avatar in the Property cell (roles
-// that previously saw the column) and in full in the floating preview panel. The
-// _showAssigned param is kept for signature compatibility with callers.
-export function filesColumns(tab: FilesTab, _showAssigned: boolean, _showAgency?: boolean): FilesColumn[] {
+// In the founder preview (files redesign, 2026-11-13) "Handled by" is no longer a
+// table column: who's looking after the file shows as a small avatar in the
+// Property cell and in full in the floating preview panel. For everyone else the
+// column is kept exactly as before (gated by `preview`).
+export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?: boolean, preview?: boolean): FilesColumn[] {
+  let cols: FilesColumn[];
   switch (tab) {
-    case "active":    return ["stage", "activity", "exchange"];
-    case "on_hold":   return ["stage", "review", "paused"];
-    case "completed": return ["soldfor", "exchanged", "completed"];
-    case "withdrawn": return ["reached", "withdrawnDate", "reason"];
-    default:          return ["stage", "activity", "keydate"]; // all + draft
+    case "active":    cols = ["stage", "activity", "exchange"]; break;
+    case "on_hold":   cols = ["stage", "review", "paused"]; break;
+    case "completed": cols = ["soldfor", "exchanged", "completed"]; break;
+    case "withdrawn": cols = ["reached", "withdrawnDate", "reason"]; break;
+    default:          cols = ["stage", "activity", "keydate"]; break; // all + draft
   }
+  if (showAssigned && !preview) cols.push("handled");
+  return cols;
 }
 
 // Grid track per column — activity / paused / reason flex, the rest fixed.
@@ -70,11 +74,19 @@ const COL_MIN: Record<FilesColumn, number> = {
 };
 // Card mini-labels (and the desktop header labels, via TransactionTable).
 export const COL_LABEL: Record<FilesColumn, string> = {
-  stage: "Progress", activity: "Next action", exchange: "Exchange",
+  stage: "Stage / Progress", activity: "Latest activity / Next step", exchange: "Exchange forecast",
   keydate: "Key date", review: "Due back", paused: "Paused",
   soldfor: "Sold for", exchanged: "Exchanged", completed: "Completed",
   reached: "Reached", withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
 };
+// The founder preview tightens three of the labels; everyone else sees the
+// strings above unchanged. Use colLabel() wherever a header / card label renders.
+const COL_LABEL_PREVIEW: Partial<Record<FilesColumn, string>> = {
+  stage: "Progress", activity: "Next action", exchange: "Exchange",
+};
+export function colLabel(col: FilesColumn, preview?: boolean): string {
+  return (preview && COL_LABEL_PREVIEW[col]) || COL_LABEL[col];
+}
 
 // Grid = flexible property column + one track per visible column.
 export function filesGridTemplate(cols: FilesColumn[]): string {
@@ -270,10 +282,28 @@ function ActivityVerbChip({ tx, mobile = false }: { tx: TransactionRow; mobile?:
   );
 }
 
+// Pace vs the 12-week target — a quiet icon + text (no pill), under the exchange
+// date. Shown in the classic (non-founder) exchange cell.
+function PaceLine({ pace }: { pace: NonNullable<NonNullable<TransactionRow["health"]>["pace"]> }) {
+  if (!pace) return null;
+  const cfg = {
+    ahead: { label: "Ahead of target", color: "var(--agent-success)", Icon: TrendUp },
+    on_track: { label: "On track", color: "#2563a8", Icon: TrendUp },
+    slightly_behind: { label: "Slightly behind", color: "var(--agent-warning)", Icon: Minus },
+    behind: { label: "Behind", color: "var(--agent-danger)", Icon: TrendDown },
+  }[pace];
+  const PI = cfg.Icon;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 650, color: cfg.color, marginTop: 4 }}>
+      <PI size={14} weight="bold" /> {cfg.label}
+    </span>
+  );
+}
+
 // Next action — one concise line (icon + the honest next-step), coloured by tone
 // so overdue / outstanding / normal read at a glance. Falls back to the activity
-// verb, then a calm "No action needed". (Files redesign 2026-11-13 — replaces the
-// older three-line activity chip in the row; the chip is kept for reference.)
+// verb, then a calm "No action needed". (Files redesign 2026-11-13, founder
+// preview only — replaces the older three-line activity chip in the row.)
 type NextTone = NonNullable<NonNullable<TransactionRow["health"]>["nextStep"]>["tone"];
 const NEXT_ICON: Record<NextTone, { Icon: typeof PaperPlaneTilt; color: string }> = {
   danger: { Icon: WarningCircle, color: "var(--agent-danger)" },
@@ -475,7 +505,7 @@ function longDateOrdinal(input: Date): string {
 // has exchanged, the predicted-exchange date and pace are history: the only forward
 // date is completion, so show that instead. No pace line (the risk pill already
 // reads a calm "Exchanged", so a "Behind" here would contradict it).
-function ExchangeCell({ tx }: { tx: TransactionRow }) {
+function ExchangeCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
   if (tx.exchangedAt) {
     return (
       <div>
@@ -486,8 +516,18 @@ function ExchangeCell({ tx }: { tx: TransactionRow }) {
       </div>
     );
   }
+  // Founder preview drops the pace line (the predicted date carries it); the
+  // classic cell keeps the pace line exactly as before.
+  if (preview) {
+    return (
+      <ExchangeTargetCell transactionId={tx.id} expectedExchangeDate={tx.expectedExchangeDate} overridePredictedDate={tx.overridePredictedDate ?? null} createdAt={tx.createdAt} />
+    );
+  }
   return (
-    <ExchangeTargetCell transactionId={tx.id} expectedExchangeDate={tx.expectedExchangeDate} overridePredictedDate={tx.overridePredictedDate ?? null} createdAt={tx.createdAt} />
+    <div>
+      <ExchangeTargetCell transactionId={tx.id} expectedExchangeDate={tx.expectedExchangeDate} overridePredictedDate={tx.overridePredictedDate ?? null} createdAt={tx.createdAt} />
+      {tx.health?.pace && <PaceLine pace={tx.health.pace} />}
+    </div>
   );
 }
 
@@ -682,11 +722,11 @@ function RowMarker({ tx, activeTab }: { tx: TransactionRow; activeTab?: FilesTab
   return null;
 }
 
-function renderCell(col: FilesColumn, tx: TransactionRow): ReactNode {
+function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): ReactNode {
   switch (col) {
     case "stage": return <StageCell tx={tx} />;
-    case "activity": return <NextActionCell tx={tx} />;
-    case "exchange": return <ExchangeCell tx={tx} />;
+    case "activity": return preview ? <NextActionCell tx={tx} /> : <ActivityVerbChip tx={tx} />;
+    case "exchange": return <ExchangeCell tx={tx} preview={preview} />;
     case "keydate": return <KeyDateCell tx={tx} />;
     case "review": return <ReviewCell tx={tx} />;
     case "paused": return <PausedCell tx={tx} />;
@@ -705,7 +745,7 @@ function renderCell(col: FilesColumn, tx: TransactionRow): ReactNode {
 // had the "Handled by" column (directors / internal / external progressors) a
 // small assignee avatar sits at the end, with the handler's name + role on hover;
 // the full team shows in the floating preview.
-function PropertyCell({ tx, activeTab, showAgency, showAssigned, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; compact?: boolean }) {
+function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; preview?: boolean; compact?: boolean }) {
   const { line, location } = splitAddress(tx.propertyAddress);
   const marker = <RowMarker tx={tx} activeTab={activeTab} />;
   const who = tx.assignedUser ?? tx.agentUser ?? null;
@@ -721,7 +761,7 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, compact }: { tx
         {location && <span className="files-town">{location}</span>}
         {showAgency && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
       </div>
-      {showAssigned && who && (
+      {showAssigned && preview && who && (
         <Tooltip
           placement="bottom-end"
           content={
@@ -772,7 +812,11 @@ export function TransactionRowView({
   // matches the header exactly. Cell CONTENT keys off this row's own status, so
   // a completed row on the "All" tab still shows a completion date and no risk.
   // Falls back to the full "all" column set for standalone consumers.
-  const cols = colsProp ?? filesColumns("all", showAssignedToColumn, showAgencyColumn);
+  // Founder preview gate (files redesign): founders get the new rows + floating
+  // preview; everyone else sees the classic table exactly as before. Reads the
+  // same ellis@-only flag the shell provides; defaults false outside a provider.
+  const preview = useIsFounder();
+  const cols = colsProp ?? filesColumns("all", showAssignedToColumn, showAgencyColumn, preview);
   const gridCols = filesGridTemplate(cols);
   const divider = !isLast ? "0.5px solid var(--agent-border-subtle)" : undefined;
   const rowTag = useGlassTag("files-row", "Files · row");
@@ -801,11 +845,11 @@ export function TransactionRowView({
         style={{ textDecoration: "none", borderBottom: divider }}
       >
         <div className="flex-1 px-4 py-4 min-w-0 space-y-3">
-          <PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} compact />
+          <PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview={preview} compact />
           {cols.map((col) => (
             <div key={col}>
-              <p style={{ margin: "0 0 5px", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{COL_LABEL[col]}</p>
-              {renderCell(col, tx)}
+              <p style={{ margin: "0 0 5px", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+              {renderCell(col, tx, preview)}
             </div>
           ))}
         </div>
@@ -822,9 +866,9 @@ export function TransactionRowView({
         {...rowTag.props}
         style={{ gridTemplateColumns: gridCols, textDecoration: "none", borderBottom: divider }}
       >
-        <div className="px-4 py-3.5 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} /></div>
+        <div className="px-4 py-3.5 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview={preview} /></div>
         {cols.map((col) => (
-          <div key={col} className="px-4 py-3.5 min-w-0">{renderCell(col, tx)}</div>
+          <div key={col} className="px-4 py-3.5 min-w-0">{renderCell(col, tx, preview)}</div>
         ))}
       </Link>
     </div>
