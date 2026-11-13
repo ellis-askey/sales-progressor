@@ -11,7 +11,9 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeTransactionWhere, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { getComposeContext, splitComposeAddress, type ComposeContext } from "@/lib/services/compose-recipients";
-import { resolveSenderForTransaction, sendEmail, type EmailAttachment } from "@/lib/email";
+import { resolveSenderForTransaction, sendEmail, buildOutboundMessageId, type EmailAttachment } from "@/lib/email";
+import { isEmailThreadingEnabled } from "@/lib/email/threading";
+import { randomUUID } from "crypto";
 import { storeOutboundEmailAttachments } from "@/lib/integrations/mail/outbound-attachments";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
@@ -135,6 +137,14 @@ export async function sendComposedEmail(input: {
   const html = sanitizeChaseBodyHtml(input.bodyHtml);
   const text = htmlToText(html);
 
+  // Stage 1 (email threading, Boardwalk-gated): stamp a stable RFC Message-ID on
+  // the send and remember it on the row, so a later email can continue this
+  // conversation. OFF for every agency by default → undefined here → the send +
+  // the stored row are byte-for-byte unchanged (no header, null threading key).
+  const outboundMessageId = isEmailThreadingEnabled(tx.agencyId)
+    ? buildOutboundMessageId(`compose-${randomUUID()}`)
+    : undefined;
+
   const { from, replyTo } = await resolveSenderForTransaction(input.transactionId, session.user);
   const attachments: EmailAttachment[] | undefined = input.attachments?.length
     ? input.attachments.map((a) => ({ content: a.contentBase64, filename: a.filename, type: a.type, disposition: "attachment" }))
@@ -179,7 +189,7 @@ export async function sendComposedEmail(input: {
 
   // ── Send now. ───────────────────────────────────────────────────────────────
   try {
-    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose" });
+    await sendEmail({ to, cc, bcc, subject, text, html, from, replyTo, attachments, emailType: "agent_compose", messageId: outboundMessageId });
   } catch (e) {
     console.error("[compose] send failed", e);
     return { ok: false, error: "Couldn't send the email. Please try again." };
@@ -232,6 +242,9 @@ export async function sendComposedEmail(input: {
           recipientEmail: nonNeighbour[0], recipientName, ccEmails,
           createdById: session.user.id, createdByRole: session.user.role, visibleToClient: false,
           providerWebhookData: attachmentData,
+          // Stage 1: the Message-ID we stamped on the send (Boardwalk-gated), so a
+          // later email can thread to it. Null when threading is off (unchanged).
+          internetMessageId: outboundMessageId ?? null,
         },
       }).catch((e) => console.error("[compose] anchor log failed", e));
     }
@@ -259,6 +272,9 @@ export async function sendComposedEmail(input: {
         createdByRole: session.user.role,
         visibleToClient: false,
         providerWebhookData: attachmentData,
+        // Stage 1: the Message-ID we stamped on the send (Boardwalk-gated), so a
+        // later email can thread to it. Null when threading is off (unchanged).
+        internetMessageId: outboundMessageId ?? null,
       },
     });
   }
