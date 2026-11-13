@@ -749,7 +749,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           "Log an update" triggers were retired in favour of this. On a file it
           opens straight onto that sale (QuickActionDock reads the route).
           FounderProvider stays (the Design Lab in LogUpdateModal gates on it). */}
-      <QuickActionDock />
+      <QuickActionDock isFounder={isFounderDock} />
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}

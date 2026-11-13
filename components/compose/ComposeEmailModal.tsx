@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
 import { PaperPlaneTilt } from "@phosphor-icons/react";
+import { FloatingWindow } from "@/components/compose/FloatingWindow";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
@@ -107,8 +108,15 @@ export type ComposeSaleHint = { line1: string; location: string; photoUrl?: stri
 export function ComposeEmailModal({
   open, onClose, onCloseStart, elevated = false, shareSummaryHtml, onComposeFullChain, initialTransactionId, initialToContactIds, prefill, initialSaleHint,
   chainAgents, onNeedAgentEmail, autoPlace,
+  frame = "modal", minimized = false, stackIndex = 0, onMinimize, onRestore,
 }: {
   open: boolean; onClose: () => void; initialTransactionId?: string | null;
+  // Chrome: "modal" (centred dialog, the default everywhere) or "floating" (a
+  // draggable, non-backdrop window — the founder quick-action dock). In floating
+  // mode the composer suppresses its own backdrop + coral header and renders
+  // inside <FloatingWindow>, which supplies the drag title bar / minimise / close.
+  frame?: "modal" | "floating"; minimized?: boolean; stackIndex?: number;
+  onMinimize?: () => void; onRestore?: () => void;
   // Fired the instant a close is requested (backdrop / X / Escape / post-send),
   // before the exit animation runs — lets a launcher (e.g. the chain drawer)
   // begin its own return motion in step with the composer's exit.
@@ -217,14 +225,16 @@ export function ComposeEmailModal({
     if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      e.preventDefault();
-      if (openField) setOpenField(null);
-      else requestClose();
+      // Escape always dismisses an open recipient dropdown. It closes the whole
+      // composer only in modal mode — a floating window is deliberately kept up
+      // across clicks/navigation, so Escape must not dismiss it.
+      if (openField) { e.preventDefault(); setOpenField(null); }
+      else if (frame === "modal") { e.preventDefault(); requestClose(); }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, openField, closing]);
+  }, [open, openField, closing, frame]);
 
   // refine (phase 3)
   const [refining, setRefining] = useState(false);
@@ -646,10 +656,9 @@ export function ComposeEmailModal({
     </div>
   );
 
-  return createPortal(
-    <div className={`cem-backdrop${elevated ? " cem-elevated" : ""}`} data-theme={theme} data-closing={closing ? "1" : undefined} style={elevated ? { zIndex: 2000 } : undefined} onClick={() => { if (openField) setOpenField(null); else requestClose(); }}>
-      <style>{CEM_CSS}</style>
-      <div className="cem-modal" role="dialog" aria-label="New email" data-closing={closing ? "1" : undefined} onAnimationEnd={onShellAnimEnd} onClick={(e) => e.stopPropagation()}>
+  const modalEl = (
+      <div className={`cem-modal${frame === "floating" ? " cem-floating" : ""}`} role="dialog" aria-label="New email" data-closing={closing ? "1" : undefined} onAnimationEnd={frame === "modal" ? onShellAnimEnd : undefined} onClick={(e) => e.stopPropagation()}>
+        {frame === "modal" && (
         <div className="cem-hdr">
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1>New email</h1>
@@ -657,6 +666,7 @@ export function ComposeEmailModal({
           </div>
           <button className="cem-xbtn" aria-label="Close" onClick={requestClose}>✕</button>
         </div>
+        )}
 
         <div className="cem-body">
           <div className="cem-row">
@@ -857,6 +867,36 @@ export function ComposeEmailModal({
           </div>
         )}
       </div>
+  );
+
+  if (frame === "floating") {
+    return createPortal(
+      <FloatingWindow
+        kind="email"
+        title="New email"
+        subtitle={ctx ? ctx.sale.line1 : (initialSaleHint?.line1 ?? "Choose a sale")}
+        theme={theme === "dark" ? "dark" : "light"}
+        width={640}
+        minimized={minimized}
+        stackIndex={stackIndex}
+        closing={closing}
+        onMinimize={onMinimize ?? (() => {})}
+        onRestore={onRestore ?? (() => {})}
+        onClose={requestClose}
+        onExited={() => { setClosing(false); onClose(); }}
+        scopeTokens
+      >
+        <style>{CEM_CSS}</style>
+        {modalEl}
+      </FloatingWindow>,
+      document.body,
+    );
+  }
+
+  return createPortal(
+    <div className={`cem-backdrop${elevated ? " cem-elevated" : ""}`} data-theme={theme} data-closing={closing ? "1" : undefined} style={elevated ? { zIndex: 2000 } : undefined} onClick={() => { if (openField) setOpenField(null); else requestClose(); }}>
+      <style>{CEM_CSS}</style>
+      {modalEl}
     </div>,
     document.body,
   );
@@ -877,6 +917,9 @@ const CEM_CSS = `
 .cem-backdrop[data-closing="1"]{animation:cemFadeout .24s ease both}
 .cem-modal{width:min(640px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;background:var(--agent-surface-elevated,#fff);border:1px solid rgba(255,255,255,0.5);border-top:2px solid var(--agent-coral-deep,#FF6B4A);border-radius:16px;box-shadow:0 24px 70px rgba(45,24,16,0.28);animation:cemModalin .34s cubic-bezier(.34,1.56,.64,1) both}
 .cem-modal[data-closing="1"]{animation:cemModalout .24s ease both}
+/* Floating frame (founder quick-action dock): FloatingWindow supplies the outer
+   frame + drag title bar, so the sheet de-chromes and fills it. */
+.cem-modal.cem-floating{width:100%;max-height:none;height:100%;border:none;border-radius:0;box-shadow:none;background:transparent;animation:none}
 @keyframes cemModalin{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes cemModalout{from{opacity:1;transform:none}to{opacity:0;transform:translateY(12px) scale(.985)}}
 @keyframes cemFadein{from{opacity:0}to{opacity:1}}

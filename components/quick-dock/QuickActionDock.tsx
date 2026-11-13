@@ -54,7 +54,7 @@ function useGlassFallback(): boolean {
   return fallback;
 }
 
-export function QuickActionDock() {
+export function QuickActionDock({ isFounder = false }: { isFounder?: boolean }) {
   const isDark = useIsDark();
   const fallback = useGlassFallback();
   const pathname = usePathname();
@@ -65,6 +65,13 @@ export function QuickActionDock() {
   const fileId = fileMatch && fileMatch[1] !== "migrate" && fileMatch[1] !== "new" ? fileMatch[1] : null;
   const [noteOpen, setNoteOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  // Founder floating windows (one email, one note). Each remembers whether it's
+  // minimised and the sale it was opened onto — FROZEN at open so navigating the
+  // app never re-targets the draft or wipes it. null = not open. These live on
+  // the dock, which sits in the persistent layout, so an open window survives
+  // page-to-page navigation.
+  const [emailWin, setEmailWin] = useState<{ min: boolean; fileId: string | null } | null>(null);
+  const [noteWin, setNoteWin] = useState<{ min: boolean; fileId: string | null } | null>(null);
   const [down, setDown] = useState(false);
   const lastY = useRef(0);
 
@@ -100,15 +107,31 @@ export function QuickActionDock() {
   // flicker when the sheet animates.
   const hidden = down && !noteOpen && !emailOpen;
 
+  // Founder: opening brings an existing window to front (un-minimises it);
+  // otherwise it opens onto the sale we're on right now, frozen for the life of
+  // the window. Non-founder: the classic modal, unchanged.
+  function openNote() {
+    if (isFounder) setNoteWin((w) => (w ? { ...w, min: false } : { min: false, fileId }));
+    else setNoteOpen(true);
+  }
+  function openEmail() {
+    if (isFounder) setEmailWin((w) => (w ? { ...w, min: false } : { min: false, fileId }));
+    else setEmailOpen(true);
+  }
+  // Stacking order for the minimised chips (bottom-right); email nearest the corner.
+  const minimisedOrder: ("email" | "note")[] = [];
+  if (emailWin?.min) minimisedOrder.push("email");
+  if (noteWin?.min) minimisedOrder.push("note");
+
   // Same buttons in both the refraction and fallback shells.
   const dockInner = (
     <>
-      <button className="ug-dock-btn" onClick={() => setNoteOpen(true)}>
+      <button className="ug-dock-btn" onClick={openNote}>
         <NotePencil weight="regular" />
         <span>New note</span>
       </button>
       <span className="ug-dock-sep" />
-      <button className="ug-dock-btn" onClick={() => setEmailOpen(true)}>
+      <button className="ug-dock-btn" onClick={openEmail}>
         <PaperPlaneTilt weight="regular" />
         <span>New email</span>
       </button>
@@ -136,8 +159,39 @@ export function QuickActionDock() {
         </LiquidGlass>
       )}
 
-      <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={fileId} />
-      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} />
+      {isFounder ? (
+        <>
+          {emailWin && (
+            <ComposeEmailModal
+              frame="floating"
+              open
+              initialTransactionId={emailWin.fileId}
+              minimized={emailWin.min}
+              stackIndex={minimisedOrder.indexOf("email")}
+              onMinimize={() => setEmailWin((w) => (w ? { ...w, min: true } : w))}
+              onRestore={() => setEmailWin((w) => (w ? { ...w, min: false } : w))}
+              onClose={() => setEmailWin(null)}
+            />
+          )}
+          {noteWin && (
+            <AddNoteModal
+              frame="floating"
+              open
+              initialTransactionId={noteWin.fileId}
+              minimized={noteWin.min}
+              stackIndex={minimisedOrder.indexOf("note")}
+              onMinimize={() => setNoteWin((w) => (w ? { ...w, min: true } : w))}
+              onRestore={() => setNoteWin((w) => (w ? { ...w, min: false } : w))}
+              onClose={() => setNoteWin(null)}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={fileId} />
+          <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} />
+        </>
+      )}
 
       <style>{QDOCK_CSS}</style>
     </div>

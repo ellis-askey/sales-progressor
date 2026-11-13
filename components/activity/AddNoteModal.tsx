@@ -17,13 +17,16 @@ import { getNoteContextAction, type NoteContext } from "@/app/actions/comms";
 import { LogUpdateModal, LOG_UPDATE_CSS } from "@/components/activity/LogUpdateModal";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { GlassLens } from "@/components/glass/GlassLens";
+import { FloatingWindow } from "@/components/compose/FloatingWindow";
+import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 // The minimal sale header the "log" step needs — from a search result OR the
 // file-context load (getNoteContextAction.property).
 type SaleHead = { id: string; line1: string; location: string; photoUrl: string | null };
 
-export function AddNoteModal({ open, onClose, initialTransactionId = null }: { open: boolean; onClose: () => void; initialTransactionId?: string | null }) {
+export function AddNoteModal({ open, onClose, initialTransactionId = null, frame = "modal", minimized = false, stackIndex = 0, onMinimize, onRestore }: { open: boolean; onClose: () => void; initialTransactionId?: string | null; frame?: "modal" | "floating"; minimized?: boolean; stackIndex?: number; onMinimize?: () => void; onRestore?: () => void }) {
   const { toast } = useAgentToast();
+  const { theme } = usePortalTheme();
   // Tag the sheet with the shared card id so its glass edits alongside the
   // Activity-tab modal's card. The Design Lab itself is Ellis-gated inside
   // LogUpdateModal (useIsFounder), so this tag is an inert data attribute for
@@ -68,11 +71,13 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null }: { o
 
   // Escape closes (matches the file's Log-an-update sheet).
   useEffect(() => {
-    if (!open) return;
+    // A floating window is deliberately kept open across clicks/navigation, so
+    // Escape must NOT close it (it isn't modal). Modal keeps Escape-to-close.
+    if (!open || frame === "floating") return;
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, close]);
+  }, [open, close, frame]);
 
   // Search your sales as you type (server scopes to your own sales).
   useEffect(() => {
@@ -106,19 +111,15 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null }: { o
 
   if (!open || typeof document === "undefined") return null;
 
-  return createPortal(
-    <>
-      <style dangerouslySetInnerHTML={{ __html: LOG_UPDATE_CSS }} />
-      <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Add a note" data-closing={closing ? "1" : undefined}>
-        <div className="lu-bg" onClick={close} />
+  const sheetEl = (
         <div
           {...gCard.props}
-          className={"lu-sheet" + (closing ? " lu-closing" : "") + (gCard.className ? " " + gCard.className : "")}
+          className={"lu-sheet" + (frame === "floating" ? " lu-floating" : "") + (closing ? " lu-closing" : "") + (gCard.className ? " " + gCard.className : "")}
           style={gCard.lens ? { background: "transparent", isolation: "isolate" } : undefined}
-          onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) finish(); }}
+          onAnimationEnd={frame === "modal" ? (e) => { if (closing && e.target === e.currentTarget) finish(); } : undefined}
         >
           {gCard.lens && <GlassLens radius={18} />}
-          <div className="lu-grab" />
+          {frame === "modal" && <div className="lu-grab" />}
           {step === "log" && ctx && picked ? (
             <LogUpdateModal
               embedded
@@ -135,12 +136,14 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null }: { o
             />
           ) : (
             <div className="lu-fade">
+              {frame === "modal" && (
               <div className="lu-head">
                 <h2 className="lu-title">Add a note</h2>
                 <button className="lu-ic lu-ic-x" onClick={close} aria-label="Close">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                 </button>
               </div>
+              )}
               <div className="lu-body">
                 <p className="lu-eyebrow">Which property is this about?</p>
                 <div className="anb-search">
@@ -173,11 +176,52 @@ export function AddNoteModal({ open, onClose, initialTransactionId = null }: { o
             </div>
           )}
         </div>
+  );
+
+  // Portal into the agent shell (not document.body) so the sheet inherits the
+  // [data-theme] --agent-* token scope in both light and dark. On body those
+  // tokens are undefined and the sheet renders transparent/unstyled.
+  const target = (document.querySelector(".agent-shell-root") as HTMLElement | null) || document.body;
+
+  if (frame === "floating") {
+    return createPortal(
+      <FloatingWindow
+        kind="note"
+        title="New note"
+        subtitle={picked ? picked.line1 : "Choose a sale"}
+        theme={theme === "dark" ? "dark" : "light"}
+        width={560}
+        minimized={minimized}
+        stackIndex={stackIndex}
+        closing={closing}
+        onMinimize={onMinimize ?? (() => {})}
+        onRestore={onRestore ?? (() => {})}
+        onClose={close}
+        onExited={finish}
+      >
+        <style dangerouslySetInnerHTML={{ __html: LOG_UPDATE_CSS }} />
+        <style dangerouslySetInnerHTML={{ __html: NOTE_FLOAT_CSS }} />
+        {sheetEl}
+      </FloatingWindow>,
+      target,
+    );
+  }
+
+  return createPortal(
+    <>
+      <style dangerouslySetInnerHTML={{ __html: LOG_UPDATE_CSS }} />
+      <div className="lu-ov" role="dialog" aria-modal="true" aria-label="Add a note" data-closing={closing ? "1" : undefined}>
+        <div className="lu-bg" onClick={close} />
+        {sheetEl}
       </div>
     </>,
-    // Portal into the agent shell (not document.body) so the sheet inherits the
-    // [data-theme] --agent-* token scope in both light and dark. On body those
-    // tokens are undefined and the sheet renders transparent/unstyled.
-    (document.querySelector(".agent-shell-root") as HTMLElement | null) || document.body,
+    target,
   );
 }
+
+// Floating frame (founder quick-action dock): FloatingWindow supplies the outer
+// frame + drag title bar, so the lu-sheet de-chromes, drops its centred absolute
+// positioning + entrance animation, and fills the window.
+const NOTE_FLOAT_CSS = `
+.lu-sheet.lu-floating{ position:static; top:auto; left:auto; right:auto; bottom:auto; width:100%; max-width:none; max-height:none; height:100%; border:none; border-radius:0; box-shadow:none; transform:none; opacity:1; animation:none; background:transparent; }
+`;
