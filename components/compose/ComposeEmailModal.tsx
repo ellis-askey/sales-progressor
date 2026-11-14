@@ -224,7 +224,9 @@ export function ComposeEmailModal({
   // appendBeforeSelector keeps dictation in the body (above the signature) when
   // the editor isn't focused, instead of landing below the signature block.
   const dictation = useContentEditableDictation(editorRef, {
-    appendBeforeSelector: "[data-cem-sig]",
+    // Land dictation in the message body — above the sign-off line when present,
+    // else above the signature. querySelector returns the first in DOM order.
+    appendBeforeSelector: "[data-cem-signoff], [data-cem-sig]",
     onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
   });
   // This modal stays mounted (open just toggles), so the dictation hook never
@@ -394,9 +396,18 @@ export function ComposeEmailModal({
       // below). Signature is fetched in the current style and wrapped so the
       // signature-style button can swap it in place.
       let sigHtml = `<p>Kind regards,</p><p>${c.fromEmail.replace(/\s*<[^>]+>$/, "")}</p>`;
+      // The app-owned sign-off line that heads the body, just above the signature.
+      // Stays empty on a fetch failure (the fallback sigHtml above already opens
+      // with "Kind regards,") and when the signature carries its own valediction
+      // (an image/custom signature → addSignOff false), so we never stack two.
+      let signOffLine = "";
       try {
         const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}&style=${sigStyle}`);
-        if (res.ok) { const j = await res.json(); if (j?.html) sigHtml = j.html; }
+        if (res.ok) {
+          const j = await res.json();
+          if (j?.html) sigHtml = j.html;
+          if (j?.addSignOff && j?.signOff) signOffLine = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
+        }
       } catch { /* fall back to the plain sign-off */ }
       // Pre-filled flow (e.g. the surveyor email): seed To (free-typed) + Cc
       // (matched to known recipients so the buyer keeps a real avatar), subject
@@ -415,7 +426,7 @@ export function ComposeEmailModal({
         });
         pendingBodyRef.current = pf.bodyHtml.includes("data-cem-sig")
           ? pf.bodyHtml
-          : `${pf.bodyHtml}<div data-cem-sig="1">${sigHtml}</div>`;
+          : `${pf.bodyHtml}${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`;
         setTokens({ to: toTokens, cc: ccTokens, bcc: [] });
         if (ccTokens.length) setShowCc(true);
         setSubject(pf.subject);
@@ -424,7 +435,7 @@ export function ComposeEmailModal({
       }
       // Greeting starts blank and fills in from the To recipients (critique #239).
       autoGreetRef.current = true;
-      pendingBodyRef.current = `<p><br></p><p><br></p><p><br></p><div data-cem-sig="1">${sigHtml}</div>`;
+      pendingBodyRef.current = `<p><br></p><p><br></p><p><br></p>${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`;
       // Pre-address to specific contacts (e.g. opened from Focus for one side) —
       // match the sale's recipients by contact id so they carry real avatars.
       const toTokens: Token[] = (toContactIds ?? [])
@@ -527,8 +538,10 @@ export function ComposeEmailModal({
   function insertShareSummary() {
     if (!shareSummaryHtml || !editorRef.current) return;
     editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
-    const sig = editorRef.current.querySelector("[data-cem-sig]");
-    if (sig) sig.insertAdjacentHTML("beforebegin", shareSummaryHtml);
+    // Drop the block in above the sign-off line when present, else above the
+    // signature, so it reads as part of the message, not after the valediction.
+    const anchor = editorRef.current.querySelector("[data-cem-signoff], [data-cem-sig]");
+    if (anchor) anchor.insertAdjacentHTML("beforebegin", shareSummaryHtml);
     else editorRef.current.insertAdjacentHTML("beforeend", shareSummaryHtml);
     setShareInserted(true);
     updateCount();
@@ -545,8 +558,8 @@ export function ComposeEmailModal({
       const html = await onComposeFullChain(emails);
       if (!html || !editorRef.current) return;
       editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
-      const sig = editorRef.current.querySelector("[data-cem-sig]");
-      if (sig) sig.insertAdjacentHTML("beforebegin", html);
+      const anchor = editorRef.current.querySelector("[data-cem-signoff], [data-cem-sig]");
+      if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
       else editorRef.current.insertAdjacentHTML("beforeend", html);
       setFullChainUsed(true);
       updateCount();

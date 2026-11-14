@@ -22,6 +22,8 @@ import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { buildInHouseSignoff } from "@/lib/email/in-house-signoff";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
+import { resolveSignOffPhrase } from "@/lib/email/resolve-sign-off";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 
 const AGENCY_SIG_SELECT = { name: true, logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true } as const;
 
@@ -57,7 +59,8 @@ export async function GET(req: NextRequest) {
       agency: tx.agency?.name ?? "",
       phone: me?.directMobile ?? me?.phone ?? null,
     });
-    return NextResponse.json({ kind: "inhouse", html: sig.html, mode: null, missing: [] });
+    const signOff = await resolveSignOffPhrase({ userId: session.user.id });
+    return NextResponse.json({ kind: "inhouse", html: sig.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(sig.html) });
   }
 
   // External progression business's file: mirror send-email's per-client branch —
@@ -77,7 +80,8 @@ export async function GET(req: NextRequest) {
         phone: me?.directMobile ?? me?.phone ?? null,
       },
     });
-    return NextResponse.json({ kind: "inhouse", html: cs.html, mode: null, missing: [] });
+    const signOff = await resolveSignOffPhrase({ userId: session.user.id, progressionBusinessId: tx.progressionBusinessId, agencyId: tx.agencyId });
+    return NextResponse.json({ kind: "inhouse", html: cs.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(cs.html) });
   }
 
   // Agent path: the personal signature resolved against the agent's OWN agency,
@@ -92,5 +96,6 @@ export async function GET(req: NextRequest) {
     fallbackName: session.user.name,
     signatureStyle,
   });
-  return NextResponse.json({ kind: "personal", html: sig.html, missing: sig.missing, mode: sig.mode });
+  const signOff = await resolveSignOffPhrase({ userId: session.user.id });
+  return NextResponse.json({ kind: "personal", html: sig.html, missing: sig.missing, mode: sig.mode, signOff, addSignOff: shouldAddSignOff(sig.html) });
 }
