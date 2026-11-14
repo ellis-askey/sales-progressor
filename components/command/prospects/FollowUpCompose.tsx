@@ -6,6 +6,23 @@ import { TEMPLATE_OPTIONS } from "@/lib/prospects/templates";
 
 const inputCls = "w-full text-xs bg-[#0a0a0a] border border-[#262626] rounded px-2.5 py-1.5 text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-[#2563eb]";
 
+// Public URL of the Ellis signature image the send path appends — mirrored here
+// so the preview shows exactly what the recipient sees.
+const SIGNATURE_URL = "https://portal.thesalesprogressor.co.uk/prospect-signature.png";
+
+// Recognised closers, so a draft that already signs off isn't given a second one.
+const SIGN_OFFS = ["kind regards", "best regards", "best wishes", "many thanks", "regards", "thanks", "warm regards", "warmest regards"];
+
+// Ensure the composed body ends with a sign-off (the signature image sits under
+// it on send). Leaves an existing closer alone; otherwise adds "Kind regards,".
+function ensureSignOff(text: string): string {
+  const t = (text ?? "").replace(/\s+$/, "");
+  if (!t) return t;
+  const lastLine = (t.split(/\n/).pop() ?? "").trim().toLowerCase().replace(/[,.!]+$/, "");
+  if (SIGN_OFFS.includes(lastLine)) return t;
+  return `${t}\n\nKind regards,`;
+}
+
 export function FollowUpCompose({ prospectId, defaultTo, disabled, disabledReason, onSent }: {
   prospectId: string; defaultTo: string | null; disabled: boolean; disabledReason?: string; onSent: () => void;
 }) {
@@ -22,7 +39,7 @@ export function FollowUpCompose({ prospectId, defaultTo, disabled, disabledReaso
     try {
       const r = await draftFollowUpAction(prospectId, templateKey);
       if (!to && r.to) setTo(r.to);
-      setSubject(r.subject); setBody(r.body); setAiGenerated(r.aiGenerated);
+      setSubject(r.subject); setBody(ensureSignOff(r.body)); setAiGenerated(r.aiGenerated);
     } catch {
       setError("Couldn't generate a draft. Write one, or try again.");
     } finally {
@@ -65,17 +82,24 @@ export function FollowUpCompose({ prospectId, defaultTo, disabled, disabledReaso
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Subject</span><input value={subject} onChange={(e) => setSubject(e.target.value)} className={inputCls} /></label>
       <label className="grid gap-1"><span className="text-[11px] text-neutral-500">Body</span><textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={inputCls} /></label>
 
-      {/* Signature preview — the same image lib/prospects/send.ts appends on send,
-          so the composer matches the sent email. Hidden gracefully until the
-          asset is provided (mirrors the email, which also references this URL). */}
+      {/* As-it-sends preview — the composed body (sign-off and all) with the Ellis
+          signature image straight underneath, on white like the real email, so
+          there are no surprises before sending. Mirrors lib/prospects/send.ts. */}
       <div className="space-y-1">
-        <p className="text-[11px] text-neutral-600">Signature added on send:</p>
-        <img
-          src="https://portal.thesalesprogressor.co.uk/prospect-signature.png"
-          alt="Ellis Askey, Operations Director, The Sales Progressor"
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
-          className="max-w-[280px] h-auto rounded border border-neutral-800"
-        />
+        <p className="text-[11px] text-neutral-600">Preview — this is how it sends:</p>
+        <div className="bg-white text-[#111] rounded border border-neutral-700 p-3 text-[13px] leading-relaxed">
+          <div style={{ whiteSpace: "pre-wrap" }}>
+            {body.trim() ? body : <span className="text-neutral-400">Your message will appear here.</span>}
+          </div>
+          <div className="mt-4">
+            <img
+              src={SIGNATURE_URL}
+              alt="Ellis Askey, Operations Director, The Sales Progressor"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              className="max-w-[280px] h-auto block"
+            />
+          </div>
+        </div>
       </div>
 
       <p className="text-[11px] text-neutral-600">Sent from ellis@thesalesprogressor.co.uk. Nothing sends until you press Send.</p>
