@@ -94,6 +94,11 @@ export function AgentShellExperimental(props: AgentShellProps) {
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount });
   const navGroups = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav);
   const SHOW_MIGRATE_SALE_NAV = true;
+  // Any section with a number waiting → the collapsed handle shows a dot, by the
+  // same rule as the per-section badges (critique #300). Deliberately a dot, not a
+  // rolled-up count: the sum could be double digits and there's no room on a 24px
+  // handle, and it keeps one visual language with the numbers inside.
+  const hasPendingWork = (badges.todo + badges.enquiries + badges.reminders + badges.chains + badges.completions) > 0;
 
   const [navOpen, setNavOpen] = useState(false);   // the left drawer
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
@@ -240,7 +245,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
   return (
     <ShellGlassProvider>
     <div className="agent-shell-root agx-root" data-theme="custom" data-shell="drawers">
-      <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} fallback={fallback} isDark={isDark} controls={topControls} leadingControl={<div className="hidden lg:block agx-hide-on-search"><RecentlyViewedMenu userId={session.user.id} /></div>} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
+      <DrawersChrome navOpen={navOpen} setNavOpen={setNavOpen} hasPendingWork={hasPendingWork} fallback={fallback} isDark={isDark} controls={topControls} leadingControl={<div className="hidden lg:block agx-hide-on-search"><RecentlyViewedMenu userId={session.user.id} /></div>} navPanel={navPanel} searching={searchOpen} onSearchOpenChange={setSearchOpen} />
 
       <AppPathRecorder />
       <PullToRefresh />
@@ -287,7 +292,7 @@ function AgxGlass({ fallback, isDark, radius = 20, className = "", children, ...
 type ChromeShared = { fallback: boolean; isDark: boolean; controls: ReactNode; leadingControl?: ReactNode; navPanel: (onNavigate?: () => void) => ReactNode; searching: boolean; onSearchOpenChange: (v: boolean) => void };
 
 // ── Floating drawers ──────────────────────────────────────────────────────────
-function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, leadingControl, navPanel, searching, onSearchOpenChange }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void }) {
+function DrawersChrome({ navOpen, setNavOpen, hasPendingWork, fallback, isDark, controls, leadingControl, navPanel, searching, onSearchOpenChange }: ChromeShared & { navOpen: boolean; setNavOpen: (v: boolean) => void; hasPendingWork: boolean }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -315,7 +320,10 @@ function DrawersChrome({ navOpen, setNavOpen, fallback, isDark, controls, leadin
           {controls}
         </AgxGlass>
       </div>
-      <button ref={handleRef} className="agx-edge-handle" type="button" aria-expanded={navOpen} aria-label="Open navigation" onClick={() => setNavOpen(true)}><List weight="bold" /></button>
+      <button ref={handleRef} className="agx-edge-handle" type="button" aria-expanded={navOpen} aria-label={hasPendingWork ? "Open navigation. Items need your attention" : "Open navigation"} onClick={() => setNavOpen(true)}>
+        <List weight="bold" />
+        {hasPendingWork && <span className="agx-edge-dot" aria-hidden />}
+      </button>
       {navOpen && <div className="agx-scrim" aria-hidden onClick={() => setNavOpen(false)} />}
       <div ref={panelRef} className={`agx-drawer${navOpen ? " open" : ""}`} role="dialog" aria-modal="true" aria-label="Navigation" aria-hidden={!navOpen}>
         <AgxGlass fallback={fallback} isDark={isDark} radius={24} className="agx-drawer-glass">
