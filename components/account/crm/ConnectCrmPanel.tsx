@@ -11,6 +11,7 @@ import { MagnifyingGlass, Check, ArrowRight, CalendarBlank } from "@phosphor-ico
 import type { CrmEntry } from "@/lib/crm/catalogue";
 import { otherKey } from "@/lib/crm/catalogue";
 import { requestCrmConnectionAction } from "@/app/actions/crm-connect";
+import { Button } from "@/components/ui/Button";
 
 const POPULAR = 6;
 const SUPPORT = "support@thesalesprogressor.co.uk";
@@ -74,15 +75,27 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
   const Tile = ({ c }: { c: CrmEntry }) => {
     const on = reqSet.has(c.key);
     const n = count(c);
+    const foot = (
+      <div className="ccrm-tile-foot">
+        <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency" : "agencies"}${on ? " · you're in" : ""}`}</span>
+        <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
+          {on ? (<><Check size={14} weight="bold" />Requested</>) : "Request"}
+        </button>
+      </div>
+    );
+    // Square icon logos get the icon beside the name; wide wordmarks get a banner.
+    if (c.square) {
+      return (
+        <div className={`ccrm-tile${on ? " on" : ""}`}>
+          <div className="ccrm-sqtop"><span className="ccrm-sqlogo"><Logo c={c} /></span><span className="ccrm-sqname">{c.name}</span></div>
+          {foot}
+        </div>
+      );
+    }
     return (
       <div className={`ccrm-tile${on ? " on" : ""}`}>
         <div className={`ccrm-plate${c.onDark ? " dark" : ""}`}><Logo c={c} /></div>
-        <div className="ccrm-tile-foot">
-          <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency" : "agencies"}${on ? " · you're in" : ""}`}</span>
-          <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
-            {on ? (<><Check size={14} weight="bold" />Requested</>) : "Request"}
-          </button>
-        </div>
+        {foot}
       </div>
     );
   };
@@ -113,9 +126,9 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
         <section>
           <div className="ccrm-sec-head">
             <h2 className="ccrm-sec-title">Popular CRMs</h2>
-            <button type="button" className="ccrm-viewall" onClick={() => setExpanded((e) => !e)}>
+            <Button variant="secondary" size="sm" onClick={() => setExpanded((e) => !e)}>
               {expanded ? "Show fewer" : "View all CRMs"} <ArrowRight size={15} weight="bold" style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform .25s ease" }} />
-            </button>
+            </Button>
           </div>
           <div className="ccrm-grid">{popular.map((c) => <Tile key={c.key} c={c} />)}</div>
           <div className="ccrm-more" data-open={expanded ? "1" : undefined}>
@@ -124,14 +137,14 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
         </section>
       )}
 
-      <a className="ccrm-concierge" href={`mailto:${SUPPORT}?subject=${encodeURIComponent("Connecting our CRM to Sales Progressor")}&body=${encodeURIComponent("Hi, we'd like help connecting our CRM to Sales Progressor so the two stay in step. Our CRM is: ")}`}>
+      <div className="ccrm-concierge">
         <span className="ccrm-concierge-ico"><CalendarBlank size={26} weight="regular" /></span>
         <div className="ccrm-concierge-body">
           <p className="ccrm-concierge-title">Don&rsquo;t want to wait?</p>
           <p className="ccrm-concierge-sub">We can help you get connected and bring your current sales into Sales Progressor today.</p>
         </div>
-        <span className="ccrm-concierge-cta">Talk to our team <ArrowRight size={15} weight="bold" /></span>
-      </a>
+        <a className="agent-btn agent-btn-primary agent-btn-md ccrm-concierge-cta" href={`mailto:${SUPPORT}?subject=${encodeURIComponent("Connecting our CRM to Sales Progressor")}&body=${encodeURIComponent("Hi, we'd like help connecting our CRM to Sales Progressor so the two stay in step. Our CRM is: ")}`}>Talk to our team <ArrowRight size={15} weight="bold" /></a>
+      </div>
 
       {toast && <div className={`ccrm-toast${toast.err ? " err" : ""}`} role="status"><Check size={15} weight="bold" />{toast.msg}</div>}
       <style>{CSS}</style>
@@ -147,8 +160,6 @@ const CSS = `
 .ccrm-search input::placeholder{ color:var(--mut); }
 .ccrm-sec-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; }
 .ccrm-sec-title{ margin:0; font-size:17px; font-weight:700; letter-spacing:-0.01em; }
-.ccrm-viewall{ display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--card); color:var(--accent); font:inherit; font-size:13px; font-weight:650; padding:8px 14px; border-radius:11px; cursor:pointer; transition:.16s; }
-.ccrm-viewall:hover{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .ccrm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:13px; }
 @media (max-width:820px){ .ccrm-grid{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:560px){ .ccrm-grid{ grid-template-columns:1fr; } }
@@ -158,6 +169,11 @@ const CSS = `
 .ccrm-plate{ width:100%; height:62px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 18px; overflow:hidden; }
 .ccrm-plate.dark{ background:#1b2230; border-color:rgba(255,255,255,0.1); }
 .ccrm-logo{ max-height:34px; max-width:100%; width:auto; object-fit:contain; display:block; }
+.ccrm-sqtop{ height:62px; display:flex; align-items:center; gap:13px; }
+.ccrm-sqlogo{ flex-shrink:0; width:50px; height:50px; border-radius:13px; background:#fff; border:1px solid rgba(0,0,0,0.05); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.ccrm-sqlogo .ccrm-logo{ max-width:36px; max-height:36px; }
+.ccrm-sqlogo .ccrm-fallback-name{ display:none; }
+.ccrm-sqname{ font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ccrm-fallback{ display:flex; align-items:center; gap:10px; }
 .ccrm-mono{ flex-shrink:0; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:750; }
 .ccrm-fallback-name{ font-size:15px; font-weight:700; color:#1a1a1c; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -173,13 +189,12 @@ const CSS = `
 .ccrm-noresult{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px; background:var(--card); border:1px dashed var(--line); border-radius:16px; }
 .ccrm-noresult-title{ margin:0; font-size:14.5px; font-weight:650; }
 .ccrm-noresult-sub{ margin:3px 0 0; font-size:13px; color:var(--mut); }
-.ccrm-concierge{ display:flex; align-items:center; gap:15px; margin-top:26px; padding:16px 18px; border-radius:16px; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--line); transition:.18s; }
-.ccrm-concierge:hover{ border-color:color-mix(in srgb, var(--accent) 32%, var(--line)); transform:translateY(-1px); }
+.ccrm-concierge{ display:flex; align-items:center; gap:15px; margin-top:26px; padding:16px 18px; border-radius:16px; color:inherit; background:var(--card); border:1px solid var(--line); }
 .ccrm-concierge-ico{ flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; color:var(--mut); }
 .ccrm-concierge-body{ flex:1; min-width:0; }
 .ccrm-concierge-title{ margin:0; font-size:15.5px; font-weight:700; }
 .ccrm-concierge-sub{ margin:3px 0 0; font-size:12.5px; color:var(--mut); }
-.ccrm-concierge-cta{ flex-shrink:0; display:inline-flex; align-items:center; gap:7px; background:var(--accent-fill); color:#fff; font-size:13px; font-weight:700; padding:11px 17px; border-radius:12px; white-space:nowrap; box-shadow:0 8px 18px color-mix(in srgb, var(--accent-fill) 32%, transparent); }
+.ccrm-concierge-cta{ flex-shrink:0; gap:7px; white-space:nowrap; text-decoration:none; }
 .ccrm-toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); display:inline-flex; align-items:center; gap:9px; max-width:calc(100vw - 32px); background:var(--ink); color:var(--card); font-size:13px; font-weight:550; padding:12px 18px; border-radius:999px; box-shadow:0 14px 40px rgba(10,12,22,0.3); z-index:60; animation:ccrm-rise .32s cubic-bezier(.2,.9,.3,1); }
 .ccrm-toast svg{ color:#5fe0a0; flex-shrink:0; }
 .ccrm-toast.err svg{ color:#ff8a7a; }

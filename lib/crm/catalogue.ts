@@ -28,10 +28,13 @@ export type CrmEntry = {
   /** the logo is a light/white mark made for dark backgrounds → sit it on a dark
    *  plate so it stays visible (the default plate is white). */
   onDark: boolean;
+  /** the logo is a square icon (not a wide wordmark) → lay the tile out with the
+   *  icon beside the CRM name, instead of a full-width banner. */
+  square: boolean;
 };
 
-function entry(key: string, name: string, mono: string, color: string, logoFile: string, opts: { seed?: number; onDark?: boolean } = {}): CrmEntry {
-  return { key, name, mono, color, logo: `/crm-logos/${logoFile}`, seed: opts.seed ?? 0, onDark: opts.onDark ?? false };
+function entry(key: string, name: string, mono: string, color: string, logoFile: string, opts: { seed?: number; onDark?: boolean; square?: boolean } = {}): CrmEntry {
+  return { key, name, mono, color, logo: `/crm-logos/${logoFile}`, seed: opts.seed ?? 0, onDark: opts.onDark ?? false, square: opts.square ?? false };
 }
 
 // Ordered by our current best guess at UK prevalence; the live page re-sorts by
@@ -41,7 +44,7 @@ export const CRM_CATALOGUE: CrmEntry[] = [
   entry("alto", "Alto", "Al", "#5a2ea6", "alto.png", { seed: 6 }),
   entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.png"),
   entry("street", "Street.co.uk", "St", "#0ea5a0", "street.png"),
-  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png"),
+  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png", { square: true }),
   entry("rex", "Rex", "Rx", "#0f9b8e", "rex.png", { onDark: true }),
   entry("apex27", "Apex27", "A2", "#5b5bf5", "apex27.png"),
   entry("loop", "Loop", "Lo", "#6b5cff", "loop.png", { seed: 4 }),
