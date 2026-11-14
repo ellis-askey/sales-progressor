@@ -13,7 +13,9 @@ Last updated: 2026-11-14
 **What shipped:** the agent "Connect your CRM" page (Account → Connect your CRM, directors + negotiators) + the Command Centre demand view (Command Centre → CRM requests). It's honest demand-capture (two-way CRM sync isn't built): "Request" saves a `CrmConnectionRequest` row; the Command Centre ranks demand. Critique #289.
 
 **Your manual steps:**
-1. **Logos.** Drop the CRM logos into `public/crm-logos/<key>.svg` (keys: `reapit, alto, jupix, street, dezrez, expertagent, agentpro, gnomen, rex, openview, vault, apex27, acquaint, tenninety, loop, mri`). Until a file exists each tile shows a monogram fallback automatically — no code change needed when they land. (SVG or high-res transparent PNG; if PNG, change the `logo` extension in `lib/crm/catalogue.ts`.)
+1. ~~**Logos.** Drop the CRM logos into `public/crm-logos/`.~~ **Done (2026-11-14):** 9 logos applied (Reapit, Alto, Jupix, Street, Expert Agent, Rex, Apex27, Loop, GNB). CRMs without a logo are now **hidden** from the page (founder decision). Two follow-ups if you want them shown:
+   - **Dezrez** — the file you sent (`dezrez.htm`) was a saved webpage, not an image. Send a real logo (PNG/SVG) and I'll add + unhide it.
+   - **Gnomen, AgentPro, Openview, Vault EA, Acquaint, 10ninety, MRI** — hidden (no logo supplied). Send logos to include any of them. (Agents can still request an unlisted CRM via the search box's "Request it anyway".)
 2. **Production database migration.** The new `CrmConnectionRequest` table is already applied to **staging**. For **production**, the migration `prisma/migrations/20261114170000_add_crm_connection_request/` applies on the next prod deploy's `prisma migrate deploy` (the standard prod path — no hand-apply).
 3. **Local dev restart.** The staging table exists, but the running local dev server holds the pre-change Prisma client in memory (Windows locked the engine during `prisma generate`, so the regenerated client is on disk but not loaded). **Restart the dev server** to exercise the page locally.
 

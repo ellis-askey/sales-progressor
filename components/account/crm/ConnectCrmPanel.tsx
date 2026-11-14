@@ -23,12 +23,17 @@ function grad(hex: string): string {
 
 function Logo({ c }: { c: CrmEntry }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <span className="ccrm-mono" style={{ background: grad(c.color) }}>{c.mono}</span>;
+  if (failed) {
+    return (
+      <span className="ccrm-fallback">
+        <span className="ccrm-mono" style={{ background: grad(c.color) }}>{c.mono}</span>
+        <span className="ccrm-fallback-name">{c.name}</span>
+      </span>
+    );
+  }
   return (
-    <span className="ccrm-logo-chip">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={c.logo} alt={c.name} onError={() => setFailed(true)} />
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="ccrm-logo" src={c.logo} alt={c.name} onError={() => setFailed(true)} />
   );
 }
 
@@ -71,7 +76,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
     const n = count(c);
     return (
       <div className={`ccrm-tile${on ? " on" : ""}`}>
-        <div className="ccrm-tile-id"><Logo c={c} /><span className="ccrm-name">{c.name}</span></div>
+        <div className="ccrm-plate"><Logo c={c} /></div>
         <div className="ccrm-tile-foot">
           <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency" : "agencies"}${on ? " · you're in" : ""}`}</span>
           <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
@@ -150,11 +155,11 @@ const CSS = `
 .ccrm-tile{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 15px 13px; display:flex; flex-direction:column; gap:15px; transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, border-color .18s ease; }
 .ccrm-tile:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(20,18,30,0.09); border-color:color-mix(in srgb, var(--accent) 26%, var(--line)); }
 .ccrm-tile.on{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
-.ccrm-tile-id{ display:flex; align-items:center; gap:11px; min-width:0; }
-.ccrm-mono{ flex-shrink:0; width:42px; height:42px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:750; box-shadow:0 4px 12px rgba(0,0,0,0.16); }
-.ccrm-logo-chip{ flex-shrink:0; width:42px; height:42px; border-radius:12px; background:#fff; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.12); }
-.ccrm-logo-chip img{ max-width:30px; max-height:30px; object-fit:contain; }
-.ccrm-name{ font-size:15.5px; font-weight:700; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ccrm-plate{ width:100%; height:58px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 16px; overflow:hidden; }
+.ccrm-logo{ max-height:30px; max-width:100%; width:auto; object-fit:contain; display:block; }
+.ccrm-fallback{ display:flex; align-items:center; gap:10px; }
+.ccrm-mono{ flex-shrink:0; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:750; }
+.ccrm-fallback-name{ font-size:15px; font-weight:700; color:#1a1a1c; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ccrm-tile-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .ccrm-count{ font-size:12px; color:var(--mut); font-variant-numeric:tabular-nums; }
 .ccrm-btn{ flex-shrink:0; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--accent); background:transparent; color:var(--accent); font:inherit; font-size:13px; font-weight:650; padding:8px 15px; border-radius:11px; cursor:pointer; transition:.16s; }
