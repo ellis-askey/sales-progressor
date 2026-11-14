@@ -125,7 +125,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
       )}
 
       <a className="ccrm-concierge" href={`mailto:${SUPPORT}?subject=${encodeURIComponent("Connecting our CRM to Sales Progressor")}&body=${encodeURIComponent("Hi, we'd like help connecting our CRM to Sales Progressor so the two stay in step. Our CRM is: ")}`}>
-        <span className="ccrm-concierge-ico"><CalendarBlank size={20} weight="regular" /></span>
+        <span className="ccrm-concierge-ico"><CalendarBlank size={26} weight="regular" /></span>
         <div className="ccrm-concierge-body">
           <p className="ccrm-concierge-title">Don&rsquo;t want to wait?</p>
           <p className="ccrm-concierge-sub">We can help you get connected and bring your current sales into Sales Progressor today.</p>
@@ -155,8 +155,8 @@ const CSS = `
 .ccrm-tile{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 15px 13px; display:flex; flex-direction:column; gap:15px; transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, border-color .18s ease; }
 .ccrm-tile:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(20,18,30,0.09); border-color:color-mix(in srgb, var(--accent) 26%, var(--line)); }
 .ccrm-tile.on{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
-.ccrm-plate{ width:100%; height:58px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 16px; overflow:hidden; }
-.ccrm-logo{ max-height:30px; max-width:100%; width:auto; object-fit:contain; display:block; }
+.ccrm-plate{ width:100%; height:62px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 18px; overflow:hidden; }
+.ccrm-logo{ max-height:34px; max-width:100%; width:auto; object-fit:contain; display:block; }
 .ccrm-fallback{ display:flex; align-items:center; gap:10px; }
 .ccrm-mono{ flex-shrink:0; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:750; }
 .ccrm-fallback-name{ font-size:15px; font-weight:700; color:#1a1a1c; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -174,7 +174,7 @@ const CSS = `
 .ccrm-noresult-sub{ margin:3px 0 0; font-size:13px; color:var(--mut); }
 .ccrm-concierge{ display:flex; align-items:center; gap:15px; margin-top:26px; padding:16px 18px; border-radius:16px; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--line); transition:.18s; }
 .ccrm-concierge:hover{ border-color:color-mix(in srgb, var(--accent) 32%, var(--line)); transform:translateY(-1px); }
-.ccrm-concierge-ico{ flex-shrink:0; width:40px; height:40px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--mut) 14%, transparent); color:var(--mut); }
+.ccrm-concierge-ico{ flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; color:var(--mut); }
 .ccrm-concierge-body{ flex:1; min-width:0; }
 .ccrm-concierge-title{ margin:0; font-size:15.5px; font-weight:700; }
 .ccrm-concierge-sub{ margin:3px 0 0; font-size:12.5px; color:var(--mut); }

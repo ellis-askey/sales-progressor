@@ -32,9 +32,9 @@ function entry(key: string, name: string, mono: string, color: string, logoFile:
 export const CRM_CATALOGUE: CrmEntry[] = [
   entry("reapit", "Reapit", "Re", "#16305c", "reapit.png"),
   entry("alto", "Alto", "Al", "#5a2ea6", "alto.png"),
-  entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.gif"),
-  entry("street", "Street.co.uk", "St", "#0ea5a0", "street.jpg"),
-  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.jpg"),
+  entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.png"),
+  entry("street", "Street.co.uk", "St", "#0ea5a0", "street.png"),
+  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png"),
   entry("rex", "Rex", "Rx", "#0f9b8e", "rex.png"),
   entry("apex27", "Apex27", "A2", "#5b5bf5", "apex27.png"),
   entry("loop", "Loop", "Lo", "#6b5cff", "loop.png"),
