@@ -98,10 +98,11 @@ export async function resolveEmailSignature(opts: {
   agency?: SignatureAgencyContext | null;
   fallbackName?: string | null;
   override?: { mode?: EmailSignatureMode; customHtml?: string | null };
-  // Per-message chase style (chase drawer toggle). "default" respects the
-  // sender's saved signature; "logo"/"basic" force the assembled block WITH or
-  // WITHOUT the agency logo band. Independent of `override` (settings preview).
-  signatureStyle?: "default" | "basic" | "logo";
+  // Per-message composer style. "default" respects the sender's saved signature;
+  // "basic"/"logo" force the assembled block WITHOUT / WITH the agency logo band;
+  // "image"/"custom" force those modes (so the picker can offer them even when
+  // they aren't the saved default). Independent of `override` (settings preview).
+  signatureStyle?: "default" | "basic" | "logo" | "image" | "custom";
 }): Promise<ResolvedSignature> {
   const user = await prisma.user.findUnique({
     where: { id: opts.userId },
@@ -118,8 +119,7 @@ export async function resolveEmailSignature(opts: {
   });
   const agency = opts.agency ?? null;
   const style = opts.signatureStyle ?? "default";
-  // "basic"/"logo" force the assembled block; "basic" drops the logo band.
-  const forceBasic = style === "basic" || style === "logo";
+  // Only "basic" drops the logo band; it's unused by the image/custom renderers.
   const agencyLogoBandHtml = style === "basic"
     ? ""
     : agencyLogoHeaderHtml({
@@ -137,8 +137,13 @@ export async function resolveEmailSignature(opts: {
     agencyName: agency?.name ?? "",
     agencyLogoBandHtml,
   };
+  const forcedMode: EmailSignatureMode | null =
+    style === "basic" || style === "logo" ? "BASIC"
+      : style === "image" ? "IMAGE"
+      : style === "custom" ? "CUSTOM"
+      : null;
   return renderResolvedSignature({
-    mode: forceBasic ? "BASIC" : (opts.override?.mode ?? user?.emailSignatureMode ?? "BASIC"),
+    mode: forcedMode ?? opts.override?.mode ?? user?.emailSignatureMode ?? "BASIC",
     sigInput,
     imageUrl: getSignatureImageUrl(user?.emailSignatureImagePath),
     customHtml:

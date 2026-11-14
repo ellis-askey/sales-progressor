@@ -16,20 +16,29 @@ export function buildInHouseSignoff(opts: {
   name: string;
   agency: string;
   phone?: string | null;
+  // Pre-rendered agency logo band (agencyLogoHeaderHtml). When present it replaces
+  // the plain agency-name text line — the "Logo" style for a per-client sign-off.
+  logoBandHtml?: string | null;
 }): { html: string; text: string } {
   const name = opts.name.trim();
   const agency = opts.agency.trim();
   const phone = opts.phone?.trim() || null;
+  const logoBand = opts.logoBandHtml?.trim() || null;
 
-  const agencyLineHtml = agency
+  // With a logo band the agency shows as its logo (below name + phone); without,
+  // the agency name renders as text, as before.
+  const agencyLineHtml = (!logoBand && agency)
     ? `\n  <div style="font-size:13px;font-weight:600;color:#374151;line-height:1.4;margin-top:2px;">${esc(agency)}</div>`
     : "";
   const phoneLineHtml = phone
     ? `\n  <div style="font-size:13px;color:#6b7280;line-height:1.4;margin-top:2px;">${esc(phone)}</div>`
     : "";
+  const logoBandHtml = logoBand
+    ? `\n  <div style="margin-top:12px;">${logoBand}</div>`
+    : "";
 
   const html = `<div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="font-size:14px;font-weight:700;color:#111827;line-height:1.4;">${esc(name)}</div>${agencyLineHtml}${phoneLineHtml}
+  <div style="font-size:14px;font-weight:700;color:#111827;line-height:1.4;">${esc(name)}</div>${agencyLineHtml}${phoneLineHtml}${logoBandHtml}
 </div>`;
 
   const textLines = [name];

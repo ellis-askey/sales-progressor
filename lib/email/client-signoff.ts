@@ -40,36 +40,56 @@ export interface ClientSignoffIdentity {
 // override; callers that always want a sign-off just use html/text.
 export type ClientSignoff = { html: string; text: string; custom: boolean };
 
+// Per-message style, mirroring the agent signature: "default" renders the saved
+// mode; "basic"/"logo" force the in-house block WITHOUT / WITH the client agency
+// logo; "image"/"custom" force those modes (offered only when one is set).
+export type ClientSignoffStyle = "default" | "basic" | "logo" | "image" | "custom";
+
 // Pure renderer (no DB) so the preview and the live send agree exactly.
 export function renderClientSignoff(data: {
   mode: EmailSignatureMode;
   imageUrl?: string | null;
   customHtml?: string | null;
   identity: ClientSignoffIdentity;
+  style?: ClientSignoffStyle;
+  // Pre-rendered client-agency logo band, used only by the "logo" style.
+  logoBandHtml?: string | null;
 }): ClientSignoff {
-  const { mode, imageUrl, customHtml, identity } = data;
-  const auto = buildInHouseSignoff({ name: identity.name, agency: identity.company, phone: identity.phone ?? null });
+  const { mode, imageUrl, customHtml, identity, style, logoBandHtml } = data;
+  // An explicit style forces a rendering; otherwise fall back to the saved mode.
+  const eff: EmailSignatureMode =
+    style === "basic" || style === "logo" ? "BASIC"
+      : style === "image" ? "IMAGE"
+      : style === "custom" ? "CUSTOM"
+      : mode;
+  const band = style === "logo" ? (logoBandHtml ?? null) : null;
+  const auto = buildInHouseSignoff({ name: identity.name, agency: identity.company, phone: identity.phone ?? null, logoBandHtml: band });
   const text = auto.text; // plain-text sign-off is always the auto block
 
-  if (mode === "IMAGE" && imageUrl) {
+  if (eff === "IMAGE" && imageUrl) {
     const alt = esc([identity.name, identity.company].filter(Boolean).join(", "));
     const html = `<div style="margin-top:14px;"><img src="${esc(imageUrl)}" alt="${alt}" style="max-width:100%;height:auto;display:block;" /></div>`;
     return { html, text, custom: true };
   }
-  if (mode === "CUSTOM" && customHtml && customHtml.trim()) {
+  if (eff === "CUSTOM" && customHtml && customHtml.trim()) {
     // customHtml is sanitised at save time; wrap, don't re-escape.
     return { html: `<div style="margin-top:14px;">${customHtml}</div>`, text, custom: true };
   }
-  return { html: auto.html, text: auto.text, custom: false }; // BASIC / nothing set
+  return { html: auto.html, text: auto.text, custom: false }; // BASIC (with/without logo)
 }
 
-// DB-backed resolver used by the live send path (chases + composed emails).
+// DB-backed resolver used by the live send path (chases + composed emails) and
+// the composer previews. `style` + `logoBandHtml` let a composer render a chosen
+// per-message variant; omitting them keeps the saved-mode behaviour (send path).
 export async function resolveClientSignoff(opts: {
   businessId: string | null;
   agencyId: string | null;
   identity: ClientSignoffIdentity;
+  style?: ClientSignoffStyle;
+  logoBandHtml?: string | null;
 }): Promise<ClientSignoff> {
-  const auto = buildInHouseSignoff({ name: opts.identity.name, agency: opts.identity.company, phone: opts.identity.phone ?? null });
+  const band = opts.style === "logo" ? (opts.logoBandHtml ?? null) : null;
+  const auto = buildInHouseSignoff({ name: opts.identity.name, agency: opts.identity.company, phone: opts.identity.phone ?? null, logoBandHtml: band });
   const fallback: ClientSignoff = { html: auto.html, text: auto.text, custom: false };
   if (!opts.businessId || !opts.agencyId) return fallback;
 
@@ -84,5 +104,7 @@ export async function resolveClientSignoff(opts: {
     imageUrl: getSignatureImageUrl(link.signatureImagePath),
     customHtml: link.signatureHtml,
     identity: opts.identity,
+    style: opts.style,
+    logoBandHtml: opts.logoBandHtml,
   });
 }
