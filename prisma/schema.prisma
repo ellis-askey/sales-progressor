@@ -571,6 +571,8 @@ model User {
   escalatedChaseTasks  ChaseTask[]           @relation("ChaseTaskEscalatedBy")
   communications       OutboundMessage[]     @relation("CommCreatedBy")
   sentPortalMessages   PortalMessage[]       @relation("PortalMessagesSentBy")
+  messagesSentNative   Message[]             @relation("MessageSenderUser")
+  messageReceipts      MessageReceipt[]      @relation("MessageReceiptUser")
   acknowledgedRelists  BuyerRound[]          @relation("BuyerRoundRelistAck")
   uploadedDocuments    TransactionDocument[] @relation("DocumentUploader")
 
@@ -1195,6 +1197,7 @@ model PropertyTransaction {
   chainLinks                       ChainLink[]                       @relation("ChainLinkToTransaction")
   chainLink                        ChainLink?                        @relation("TransactionActiveLink", fields: [chainLinkId], references: [id])
   portalMessages                   PortalMessage[]
+  conversations                    Conversation[]                    @relation("TransactionConversations")
   documents                        TransactionDocument[]
   flags                            TransactionFlag[]
   outsourcedAssignmentNotification OutsourcedAssignmentNotification?
@@ -1327,6 +1330,7 @@ model BuyerRound {
   milestoneCompletions MilestoneCompletion[]
   outboundMessages     OutboundMessage[]
   portalMessages       PortalMessage[]
+  conversations        Conversation[]        @relation("BuyerRoundConversations")
   documents            TransactionDocument[]
   reminderLogs         ReminderLog[]
   chaseTasks           ChaseTask[]
@@ -1548,6 +1552,8 @@ model Contact {
   transaction             PropertyTransaction      @relation(fields: [propertyTransactionId], references: [id], onDelete: Cascade)
   pushSubscriptions       PortalPushSubscription[]
   portalMessages          PortalMessage[]
+  messagesSentNative      Message[]                @relation("MessageSenderContact")
+  messageReceipts         MessageReceipt[]         @relation("MessageReceiptContact")
   documents               TransactionDocument[]
   outboundEmails          OutboundEmailQueue[]     @relation("OutboundEmailQueueRecipientContact")
   clientChaseStates       ClientChaseState[]
@@ -1670,6 +1676,142 @@ model PortalMessage {
 
   @@index([transactionId, contactId, createdAt])
   @@index([buyerRoundId])
+}
+
+// ─── Native messaging (pilot) ───────────────────────────────────────────────
+// Buyer/seller ⇄ staff conversations. ONE shared thread per property side (and
+// per active buyer round on the purchaser side), so joint buyers share the
+// buyer conversation and joint sellers share the seller conversation. Distinct
+// from PortalMessage above (the legacy per-contact /respond "leave a note",
+// left untouched). Message content + attachments live HERE in our own DB/
+// storage; the later real-time layer only ever carries message ids. Gated by
+// lib/agency-features/messages.ts — inert until a transaction id is added to the
+// pilot allowlist. No connection to chasing/milestone/auto-email logic.
+enum ConversationSide {
+  buyer
+  seller
+}
+
+enum MessageParticipantKind {
+  staff
+  client
+}
+
+enum MessageAttachmentKind {
+  image
+  pdf
+  doc
+}
+
+enum MessageAttachmentScanStatus {
+  pending
+  clean
+  blocked
+}
+
+model Conversation {
+  id            String           @id @default(cuid())
+  transactionId String
+  side          ConversationSide
+  // Set on the buyer side to the round the thread belongs to; NULL for seller
+  // conversations and legacy/no-round buyers. A relist starts a fresh buyer
+  // conversation; the prior round's thread stays isolated by this id.
+  buyerRoundId  String?
+
+  // Denormalised list-view helpers (kept fresh on send in a later phase).
+  lastMessageAt DateTime?
+  lastPreview   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transaction PropertyTransaction @relation("TransactionConversations", fields: [transactionId], references: [id], onDelete: Cascade)
+  buyerRound  BuyerRound?         @relation("BuyerRoundConversations", fields: [buyerRoundId], references: [id], onDelete: SetNull)
+
+  messages Message[]
+  receipts MessageReceipt[]
+
+  // "Exactly one conversation per side / per round" is enforced by TWO PARTIAL
+  // unique indexes in the migration SQL (Prisma cannot express a WHERE on
+  // @@unique), mirroring the MilestoneCompletion relist migration. A seller
+  // conversation may never carry a round (CHECK in the migration). These are
+  // plain indexes for the read shapes only.
+  @@index([transactionId, side])
+  @@index([buyerRoundId])
+}
+
+model Message {
+  id             String                 @id @default(cuid())
+  conversationId String
+  senderKind     MessageParticipantKind
+  // Exactly one of senderUserId / senderContactId is set, matching senderKind
+  // (CHECKs in the migration). SetNull on delete preserves the message as an
+  // anonymised record (retention) rather than destroying history.
+  senderUserId    String?
+  senderContactId String?
+  body            String
+  // Client-generated idempotency key for dedup + optimistic-send reconciliation.
+  // Never null; unique within a conversation.
+  clientMsgId     String
+
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUser    User?        @relation("MessageSenderUser", fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderContact Contact?     @relation("MessageSenderContact", fields: [senderContactId], references: [id], onDelete: SetNull)
+
+  attachments MessageAttachment[]
+
+  @@unique([conversationId, clientMsgId])
+  @@index([conversationId, createdAt])
+}
+
+model MessageAttachment {
+  id        String @id @default(cuid())
+  messageId String
+  // Supabase Storage OBJECT PATH (never a signed URL — those expire). Signed on
+  // render by a membership-checked endpoint in a later phase.
+  storagePath String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  kind        MessageAttachmentKind
+  // Quarantine-until-clean: not served to the other party until `clean`.
+  scanStatus  MessageAttachmentScanStatus @default(pending)
+  width       Int?
+  height      Int?
+
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model MessageReceipt {
+  id              String                 @id @default(cuid())
+  conversationId  String
+  participantKind MessageParticipantKind
+  // Exactly one of participantUserId / participantContactId is set (CHECK in the
+  // migration). Per-participant uniqueness is enforced by two partial unique
+  // indexes in the migration SQL.
+  participantUserId    String?
+  participantContactId String?
+
+  // Read cursor. lastReadAt drives unread counts; lastReadMessageId is the exact
+  // anchor (loose reference — no FK, compared by time).
+  lastReadAt        DateTime?
+  lastReadMessageId String?
+
+  updatedAt DateTime @updatedAt
+
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  participantUser    User?        @relation("MessageReceiptUser", fields: [participantUserId], references: [id], onDelete: Cascade)
+  participantContact Contact?     @relation("MessageReceiptContact", fields: [participantContactId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
 }
 
 model SolicitorFirm {
@@ -4153,6 +4295,28 @@ model AgencyEmailTemplate {
 
   @@unique([agencyId, templateKey, variant])
   @@index([agencyId])
+}
+
+// "Connect your CRM" demand capture (critique #289). An agency registers interest
+// in connecting a CRM (two-way sync, not yet built), so we can rank demand and
+// follow up. One row per agency per CRM. Ids are standalone (no FK) in the
+// lightweight style of CritiqueNote; agencyName / requestedByName are denormalised
+// so the Command Centre list needs no joins. crmKey is a catalogue key
+// (lib/crm/catalogue.ts) or "other:<slug>" for a free-text CRM we don't list.
+model CrmConnectionRequest {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  agencyId        String
+  agencyName      String?
+  crmKey          String
+  crmName         String
+  requestedById   String?
+  requestedByName String?
+  status          String   @default("requested") // requested | contacted | building | available
+
+  @@unique([agencyId, crmKey])
+  @@index([crmKey])
+  @@index([createdAt])
 }
 
 // Sales Progressor's OWN default copy for a Tier-2 automated email, editable

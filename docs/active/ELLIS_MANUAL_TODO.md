@@ -4,7 +4,22 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-11-12
+Last updated: 2026-11-14
+
+---
+
+## Connect your CRM — logos, prod migration, dev restart (2026-11-14)
+
+**What shipped:** the agent "Connect your CRM" page (Account → Connect your CRM, directors + negotiators) + the Command Centre demand view (Command Centre → CRM requests). It's honest demand-capture (two-way CRM sync isn't built): "Request" saves a `CrmConnectionRequest` row; the Command Centre ranks demand. Critique #289.
+
+**Your manual steps:**
+1. **Logos.** Drop the CRM logos into `public/crm-logos/<key>.svg` (keys: `reapit, alto, jupix, street, dezrez, expertagent, agentpro, gnomen, rex, openview, vault, apex27, acquaint, tenninety, loop, mri`). Until a file exists each tile shows a monogram fallback automatically — no code change needed when they land. (SVG or high-res transparent PNG; if PNG, change the `logo` extension in `lib/crm/catalogue.ts`.)
+2. **Production database migration.** The new `CrmConnectionRequest` table is already applied to **staging**. For **production**, the migration `prisma/migrations/20261114170000_add_crm_connection_request/` applies on the next prod deploy's `prisma migrate deploy` (the standard prod path — no hand-apply).
+3. **Local dev restart.** The staging table exists, but the running local dev server holds the pre-change Prisma client in memory (Windows locked the engine during `prisma generate`, so the regenerated client is on disk but not loaded). **Restart the dev server** to exercise the page locally.
+
+**Notes:**
+- Agents only: gated to `director` / `negotiator` with an `agencyId`. Counts are real (anonymous aggregate) with "Be the first to ask" before any; no seeded/fake numbers.
+- Logos are the only thing standing between this and finished.
 
 ---
 

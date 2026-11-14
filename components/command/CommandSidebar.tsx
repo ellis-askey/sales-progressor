@@ -68,6 +68,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/command/email-threading", label: "Email threading", Icon: Mails },
       { href: "/command/proposals", label: "Proposed updates", Icon: Inbox },
       { href: "/command/whatsapp", label: "WhatsApp", Icon: MessageSquare },
+      { href: "/command/crm-requests", label: "CRM requests", Icon: Link2 },
     ],
   },
   {
