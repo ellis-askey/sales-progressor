@@ -23,8 +23,9 @@ import { formatDate } from "@/lib/utils";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { JourneyBar } from "./JourneyBar";
-import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
+import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
 import { AddNoteModal } from "@/components/activity/AddNoteModal";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import { DISPLAY_STAGES } from "@/lib/milestones/display-stages";
 import { getFilePreviewExtras, type FilePreviewExtras } from "@/app/actions/file-preview";
 import type { TransactionRow } from "./TransactionRowView";
@@ -137,6 +138,9 @@ export function FloatingFilePreview({
   }, [open]);
 
   const [emailOpen, setEmailOpen] = useState(false);
+  // When a person's email button is used, carry the prefill (property + that
+  // person in To); the top "New email" action leaves it null (blank compose).
+  const [emailPrefill, setEmailPrefill] = useState<ComposePrefill | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
 
   // Retain the last row through the close animation — `row` clears the instant
@@ -253,9 +257,9 @@ export function FloatingFilePreview({
                     : extras?.reminder ? formatDate(new Date(extras.reminder.dueAt)) : (terminal ? "None" : "None scheduled")}
                   valueColor={extras?.reminder ? REMINDER_TONE[extras.reminder.state] : undefined} />}
             <InfoCard Icon={Target} label="Exchange forecast" value={exchangeValue} sub={exchangeSub} />
-            <InfoCard Icon={Flag} label="Outstanding" value={nextMilestone ?? "Nothing outstanding"} />
+            <InfoCard Icon={Flag} label="Next step" value={r.health?.nextStep?.text ?? nextMilestone ?? "Nothing outstanding"} />
             <InfoCard Icon={ListChecks} label="Progress"
-              value={stageIdx >= 0 ? `${stageIdx + 1} of ${total} milestones`
+              value={stageIdx >= 0 ? `${stageIdx + 1} of ${total} key steps`
                 : r.status === "completed" ? "Sale complete"
                 : r.status === "on_hold" ? "Paused"
                 : "Not started"} />
@@ -280,7 +284,20 @@ export function FloatingFilePreview({
                         </span>
                         <span className="ffp-person-actions">
                           {p.phone && <a className="ffp-ic ffp-ic-sm" href={`tel:${p.phone}`} aria-label={`Call ${p.name}`}><Phone size={15} weight="regular" /></a>}
-                          <a className="ffp-ic ffp-ic-sm" href={`mailto:${p.email}`} aria-label={`Email ${p.name}`}><EnvelopeSimple size={15} weight="regular" /></a>
+                          <button
+                            type="button"
+                            className="ffp-ic ffp-ic-sm"
+                            aria-label={`Email ${p.name}`}
+                            onClick={() => {
+                              setEmailPrefill({
+                                transactionId: r.id,
+                                to: [{ email: p.email, name: p.name }],
+                                subject: addr.line,
+                                bodyHtml: `<p>Hi ${extractFirstName(p.name)},</p><p><br></p>`,
+                              });
+                              setEmailOpen(true);
+                            }}
+                          ><EnvelopeSimple size={15} weight="regular" /></button>
                         </span>
                       </div>
                     );
@@ -294,7 +311,7 @@ export function FloatingFilePreview({
           <Link href={withFrom(`${basePath}/${r.id}`, basePath)} className="ffp-open" onClick={onClose}>
             <ArrowSquareOut size={16} weight="bold" /> Open property file
           </Link>
-          <button type="button" className="ffp-act" aria-label="New email" onClick={() => setEmailOpen(true)}><EnvelopeSimple size={17} weight="regular" /></button>
+          <button type="button" className="ffp-act" aria-label="New email" onClick={() => { setEmailPrefill(null); setEmailOpen(true); }}><EnvelopeSimple size={17} weight="regular" /></button>
           <button type="button" className="ffp-act" aria-label="Add note" onClick={() => setNoteOpen(true)}><NotePencil size={17} weight="regular" /></button>
         </div>
       </div>
@@ -306,7 +323,7 @@ export function FloatingFilePreview({
   return (
     <>
       {createPortal(panel, document.body)}
-      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={r.id} />
+      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={r.id} prefill={emailPrefill} elevated />
       <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={r.id} />
     </>
   );
@@ -351,47 +368,47 @@ const FFP_CSS = `
 .ffp-scroll{ flex:1; min-height:0; overflow-y:auto; padding:4px 20px 16px; display:flex; flex-direction:column; gap:16px; }
 .ffp-photo{ width:100%; height:188px; border-radius:16px; object-fit:cover; display:block; flex-shrink:0; }
 .ffp-head{ }
-.ffp-addr{ margin:0; font-size:22px; font-weight:750; letter-spacing:-0.02em; line-height:1.15; color:var(--agent-text-primary); }
-.ffp-town{ margin:3px 0 0; font-size:14px; color:var(--agent-text-secondary); }
+.ffp-addr{ margin:0; font-size:21px; font-weight:700; letter-spacing:-0.02em; line-height:1.15; color:var(--agent-text-primary); }
+.ffp-town{ margin:3px 0 0; font-size:13px; color:var(--agent-text-secondary); }
 
 .ffp-stage{ display:flex; align-items:center; gap:11px; padding-bottom:16px; border-bottom:0.5px solid var(--agent-border-subtle); }
 .ffp-stage-ic{ color:var(--agent-text-muted); flex-shrink:0; }
 .ffp-stage-bar{ flex:1; min-width:0; }
-.ffp-track{ display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:650; flex-shrink:0; }
-.ffp-muted{ font-size:12.5px; color:var(--agent-text-muted); }
-.ffp-stage-status{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:650; }
+.ffp-track{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; flex-shrink:0; }
+.ffp-muted{ font-size:11.5px; color:var(--agent-text-muted); }
+.ffp-stage-status{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; }
 
 .ffp-note-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:7px; }
-.ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--agent-text-secondary); }
-.ffp-note-when{ font-size:11.5px; color:var(--agent-text-muted); white-space:nowrap; flex-shrink:0; }
-.ffp-note-body{ margin:0; font-size:13.5px; line-height:1.55; color:var(--agent-text-primary); white-space:pre-wrap;
+.ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.ffp-note-when{ font-size:11px; color:var(--agent-text-muted); white-space:nowrap; flex-shrink:0; }
+.ffp-note-body{ margin:0; font-size:13px; line-height:1.55; color:var(--agent-text-primary); white-space:pre-wrap;
   display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
 .ffp-note-body.expanded{ -webkit-line-clamp:unset; display:block; overflow:visible; }
 .ffp-note-more{ margin:6px 0 0; padding:0; border:none; background:none; cursor:pointer; font-family:inherit;
-  font-size:12px; font-weight:650; color:var(--agent-coral-deep); }
+  font-size:11.5px; font-weight:700; color:var(--agent-coral-deep); }
 .ffp-note-more:hover{ text-decoration:underline; }
-.ffp-note-auth{ margin:6px 0 0; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
-.ffp-empty{ margin:0; font-size:12.5px; color:var(--agent-text-muted); }
+.ffp-note-auth{ margin:6px 0 0; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
+.ffp-empty{ margin:0; font-size:11.5px; color:var(--agent-text-muted); }
 
 .ffp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ffp-card{ display:flex; flex-direction:column; gap:3px; padding:12px 13px; border-radius:13px;
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
-.ffp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
-.ffp-card-val{ font-size:14px; font-weight:700; color:var(--agent-text-primary); line-height:1.25; }
+.ffp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.ffp-card-val{ font-size:14px; font-weight:600; color:var(--agent-text-primary); line-height:1.25; }
 .ffp-card-sub{ font-size:11.5px; color:var(--agent-text-muted); }
 
-.ffp-sec-lab{ margin:0 0 8px; font-size:12.5px; font-weight:700; color:var(--agent-text-secondary); }
+.ffp-sec-lab{ margin:0 0 8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
 .ffp-person{ display:flex; align-items:center; gap:11px; padding:7px 0; }
 .ffp-person-txt{ flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.2; }
-.ffp-person-name{ font-size:13.5px; font-weight:650; color:var(--agent-text-primary); }
-.ffp-person-role{ font-size:11.5px; color:var(--agent-text-muted); }
+.ffp-person-name{ font-size:14px; font-weight:600; color:var(--agent-text-primary); }
+.ffp-person-role{ font-size:11px; color:var(--agent-text-muted); }
 .ffp-person-actions{ display:inline-flex; gap:5px; }
 
 .ffp-actions{ flex-shrink:0; display:flex; align-items:center; gap:8px; padding:12px 16px 14px; border-top:0.5px solid var(--agent-border-subtle);
   background:var(--agent-surface-elevated, rgba(255,255,255,0.4)); }
 .ffp-root[data-night] .ffp-actions{ background:rgba(20,27,42,0.5); }
 .ffp-open{ flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; border-radius:12px;
-  text-decoration:none; font-size:14px; font-weight:650; color:#fff; cursor:pointer; border:none;
+  text-decoration:none; font-size:14px; font-weight:700; color:#fff; cursor:pointer; border:none;
   background:linear-gradient(180deg, var(--agent-coral,#FF8A65), var(--agent-coral-deep,#FF6B4A)); box-shadow:0 2px 8px rgba(var(--agent-coral-rgb),0.3); }
 .ffp-open:hover{ filter:brightness(1.03); }
 .ffp-act{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; cursor:pointer;

@@ -323,7 +323,7 @@ function NextActionCell({ tx }: { tx: TransactionRow }) {
   return (
     <span className="files-next">
       <Icon size={16} weight="regular" style={{ color, flexShrink: 0, marginTop: 1 }} />
-      <span className="files-next-txt" style={{ color: strong ? color : "var(--agent-text-primary)", fontWeight: strong ? 650 : 550 }}>{text}</span>
+      <span className="files-next-txt" style={{ color: strong ? color : "var(--agent-text-primary)", fontWeight: strong ? 700 : 600 }}>{text}</span>
     </span>
   );
 }
@@ -509,8 +509,8 @@ function ExchangeCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }
   if (tx.exchangedAt) {
     return (
       <div>
-        <p style={{ margin: "0 0 2px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>Completion scheduled</p>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>
+        <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>Completion scheduled</p>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
           {tx.completionDate ? longDateOrdinal(new Date(tx.completionDate)) : "To be confirmed"}
         </span>
       </div>
@@ -538,17 +538,17 @@ function ExchangeCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }
 function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
   const h = tx.health?.holdInfo;
   const caption = label && h ? (
-    <p style={{ margin: "0 0 2px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>{label}</p>
+    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>{label}</p>
   ) : null;
   if (!h || !h.review) return <div>{caption}<span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>{h ? "Not set" : "—"}</span></div>;
   if (h.reviewOverdue) return (
     <div>
       {caption}
-      <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</p>
+      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</p>
       <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-danger)" }}>was {formatDate(new Date(h.review))}</p>
     </div>
   );
-  return <div>{caption}<span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span></div>;
+  return <div>{caption}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span></div>;
 }
 
 // On-hold — how long + the typed reason, inline-editable (hover reveals a pencil).
@@ -557,7 +557,7 @@ function PausedCell({ tx }: { tx: TransactionRow }) {
   if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>&ndash;</span>;
   return (
     <div className="paused-cell">
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>{h.days} days</p>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{h.days} days</p>
       <PausedReason txId={tx.id} reason={h.reason ?? null} />
     </div>
   );
@@ -636,11 +636,11 @@ function PausedReason({ txId, reason: initial }: { txId: string; reason: string 
 function SoldForCell({ tx }: { tx: TransactionRow }) {
   const pence = tx.priceAtExchange ?? tx.purchasePrice ?? null;
   const txt = pence != null ? `£${Math.round(pence / 100).toLocaleString("en-GB")}` : "—";
-  return <span style={{ fontSize: 15, fontWeight: 750, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{txt}</span>;
+  return <span style={{ fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{txt}</span>;
 }
 
 function DateCell({ d }: { d?: Date | null }) {
-  return <span style={{ fontSize: 13, fontWeight: 650, color: "var(--agent-text-primary)" }}>{d ? formatDate(new Date(d)) : "—"}</span>;
+  return <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{d ? formatDate(new Date(d)) : "—"}</span>;
 }
 
 const WITHDRAWAL_CAT_COLOR: Record<string, string> = {
@@ -663,19 +663,29 @@ function ReasonCell({ tx }: { tx: TransactionRow }) {
 }
 
 // All-tab adaptive key date (status marker on the property cell disambiguates).
-function KeyDateCell({ tx }: { tx: TransactionRow }) {
-  if (tx.status === "active") return <ExchangeCell tx={tx} />;
+function KeyDateCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
+  if (tx.status === "active") return <ExchangeCell tx={tx} preview={preview} />;
   if (tx.status === "on_hold") return <ReviewCell tx={tx} label="Review due" />;
   if (tx.status === "completed") return <DateCell d={tx.completionDate} />;
   if (tx.status === "withdrawn") return <DateCell d={tx.updatedAt} />;
   return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
 }
 
-function StageCell({ tx }: { tx: TransactionRow }) {
+function StageCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>—</span>;
   // block=true + .files-stagecell CSS makes the bar fill its column (desktop) and
   // the full card width (mobile), instead of its fixed 210px (which overflowed).
-  return <div className="files-stagecell"><JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover></div>;
+  // Founder preview: the single health status (On track / Watch / At risk) sits
+  // directly under the step dashes, so the whole "how's it going" read is in one
+  // place — no duplicate badge by the address, no separate pace line.
+  return (
+    <div className="files-stagecell">
+      <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover>
+      {preview && tx.status === "active" && tx.health && (
+        <div style={{ marginTop: 6 }}><RiskBadgeWithPopover raw={tx.health} /></div>
+      )}
+    </div>
+  );
 }
 
 // Withdrawn files: how far the sale got before it fell through. Same six-stage
@@ -693,7 +703,7 @@ function ReachedCell({ tx }: { tx: TransactionRow }) {
   return (
     <span style={{ display: "block", width: "100%" }}>
       <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--agent-text-secondary)" }}>{name}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>{name}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{idx + 1} of {total}</span>
       </span>
       <span style={{ display: "flex", gap: 3 }}>
@@ -708,26 +718,30 @@ function ReachedCell({ tx }: { tx: TransactionRow }) {
 // One status/risk marker beside the address. On the single-status tabs the
 // status is the tab, so only the risk cue (active) is shown; on All it's the
 // status for non-active rows, else the risk cue.
-function RowMarker({ tx, activeTab }: { tx: TransactionRow; activeTab?: FilesTab }) {
+function RowMarker({ tx, activeTab, preview }: { tx: TransactionRow; activeTab?: FilesTab; preview?: boolean }) {
   const mark = (color: string, Icon: typeof PauseCircle, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color }}><Icon size={13} weight="fill" /> {label}</span>
   );
+  // Founder preview: the health status moved under the progress bar (StageCell),
+  // so it's suppressed here. Terminal status marks (on hold / completed /
+  // withdrawn) still show beside the address — those rows have no progress bar.
+  const riskBadge = preview || !tx.health ? null : <RiskBadgeWithPopover raw={tx.health} />;
   if (activeTab === "all") {
     if (tx.status === "on_hold") return mark("var(--agent-warning)", PauseCircle, "On hold");
     if (tx.status === "completed") return mark("#2563a8", CheckCircle, "Completed");
     if (tx.status === "withdrawn") return mark("#64748b", Prohibit, "Withdrawn");
-    return tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : null;
+    return riskBadge;
   }
-  if (activeTab === "active" || activeTab === undefined) return tx.health ? <RiskBadgeWithPopover raw={tx.health} /> : null;
+  if (activeTab === "active" || activeTab === undefined) return riskBadge;
   return null;
 }
 
 function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): ReactNode {
   switch (col) {
-    case "stage": return <StageCell tx={tx} />;
+    case "stage": return <StageCell tx={tx} preview={preview} />;
     case "activity": return preview ? <NextActionCell tx={tx} /> : <ActivityVerbChip tx={tx} />;
     case "exchange": return <ExchangeCell tx={tx} preview={preview} />;
-    case "keydate": return <KeyDateCell tx={tx} />;
+    case "keydate": return <KeyDateCell tx={tx} preview={preview} />;
     case "review": return <ReviewCell tx={tx} />;
     case "paused": return <PausedCell tx={tx} />;
     case "soldfor": return <SoldForCell tx={tx} />;
@@ -747,7 +761,7 @@ function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): Re
 // the full team shows in the floating preview.
 function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; preview?: boolean; compact?: boolean }) {
   const { line, location } = splitAddress(tx.propertyAddress);
-  const marker = <RowMarker tx={tx} activeTab={activeTab} />;
+  const marker = <RowMarker tx={tx} activeTab={activeTab} preview={preview} />;
   const who = tx.assignedUser ?? tx.agentUser ?? null;
   const whoRole = who ? jobTitleLabel(who.jobTitle) : undefined;
   return (
@@ -848,7 +862,7 @@ export function TransactionRowView({
           <PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview={preview} compact />
           {cols.map((col) => (
             <div key={col}>
-              <p style={{ margin: "0 0 5px", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+              <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
               {renderCell(col, tx, preview)}
             </div>
           ))}

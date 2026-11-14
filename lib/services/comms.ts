@@ -234,6 +234,10 @@ export async function getLatestVisibleNote(
       }),
       type: "internal_note",
       isAutomated: false,
+      // Skip portal-view log rows ("… viewed their client portal") — they're
+      // internal_notes but tell the agent nothing, so they'd otherwise dominate
+      // the preview's "Latest note". Same signal the Activity timeline hides.
+      content: { not: { contains: "viewed their client portal" } },
     },
     orderBy: { createdAt: "desc" },
     select: { content: true, createdAt: true, subject: true, senderLabel: true, createdBy: { select: { name: true } } },

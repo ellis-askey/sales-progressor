@@ -104,9 +104,12 @@ describe("getLatestVisibleNote (file-preview focused read)", () => {
     const noteWhere = p.outboundMessage.findFirst.mock.calls[0][0].where;
     // The focused read only ADDS the note-specific narrowing; strip it and the
     // remaining shared clause must be byte-identical to the feed's.
-    const { type, isAutomated, ...sharedPart } = noteWhere;
+    const { type, isAutomated, content, ...sharedPart } = noteWhere;
     expect(type).toBe("internal_note");
     expect(isAutomated).toBe(false);
+    // Note-specific narrowing: portal-view log rows ("… viewed their client
+    // portal") are excluded from the preview's latest note.
+    expect(content).toEqual({ not: { contains: "viewed their client portal" } });
     expect(sharedPart).toEqual(feedWhere);
   });
 
