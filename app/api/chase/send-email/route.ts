@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rateLimitJson(rateLimit), { status: 429 });
   }
 
-  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails, bodyHtml, attachments, signatureStyle, signOff } = await req.json();
+  const { chaseTaskId, transactionId, toEmail, toName, messageText, ccEmails, bodyHtml, attachments, signatureStyle, signOff, signOffInBody } = await req.json();
   if (!transactionId || !toEmail || !messageText) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -116,7 +116,11 @@ export async function POST(req: NextRequest) {
   // an image signature already has it). One sign-off, never two, never none.
   // See lib/email/sign-off.ts.
   const signOffPhrase = typeof signOff === "string" && signOff.trim() ? signOff.trim() : "Kind regards,";
-  const addSignOff = shouldAddSignOff(sig.html);
+  // When the caller already seeded the sign-off into the body (the chase drawer
+  // does, editable, matching New email), don't add a second one — just append the
+  // signature. Callers that don't set the flag (e.g. the Tasks reach-out modal)
+  // keep the original behaviour: the app adds the phrase when the signature has none.
+  const addSignOff = !signOffInBody && shouldAddSignOff(sig.html);
   const signOffHtml = addSignOff
     ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">${escapeHtmlBody(signOffPhrase)}</p>`
     : "";

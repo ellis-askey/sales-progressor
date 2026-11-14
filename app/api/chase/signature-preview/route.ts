@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
+import { resolveSignOffPhrase } from "@/lib/email/resolve-sign-off";
+import { shouldAddSignOff } from "@/lib/email/sign-off";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -48,7 +50,8 @@ export async function GET(req: NextRequest) {
         phone: me?.directMobile ?? me?.phone ?? null,
       },
     });
-    return NextResponse.json({ html: cs.html, missing: [], mode: null, name: session.user.name ?? null });
+    const signOff = await resolveSignOffPhrase({ userId: session.user.id, progressionBusinessId: tx.progressionBusinessId, agencyId: tx.agencyId });
+    return NextResponse.json({ html: cs.html, missing: [], mode: null, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(cs.html) });
   }
 
   // Same resolver the real send uses, so the drawer preview matches the send
@@ -60,5 +63,6 @@ export async function GET(req: NextRequest) {
     signatureStyle,
   });
 
-  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null });
+  const signOff = await resolveSignOffPhrase({ userId: session.user.id });
+  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(sig.html) });
 }

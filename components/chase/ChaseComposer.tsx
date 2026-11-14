@@ -8,11 +8,11 @@
 // enters the HTML; the server re-sanitises authoritatively on send.
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check } from "@phosphor-icons/react";
+import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check } from "@/components/icons/ph";
 
-// Per-message signature style shown in the toolbar (after the paperclip). The
-// sign-off phrase itself is edited in the preview; this picks how the signature
-// block below the message renders.
+// Per-message signature style shown in the toolbar (after the paperclip). This
+// picks how the signature block below the message renders (the sign-off phrase
+// itself lives in the editable message body, seeded like the New email composer).
 export type SigStyle = "default" | "basic" | "logo";
 const SIG_STYLES: { key: SigStyle; label: string; sub: string }[] = [
   { key: "basic", label: "Basic", sub: "Name & details, no logo" },

@@ -307,12 +307,41 @@ export function ChaseDrawer({
   // message holds the composer's HTML body; plain-text forms are derived on send.
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState<ChaseAttachment[]>([]);
-  // Note 4: the app owns the sign-off + signature. `signOff` is the editable
-  // valediction (default "Kind regards,"); `sigStyle` is the per-message
-  // Basic/Logo/Default toggle. Both ride the send payload; the preview mirrors
-  // exactly what goes out.
+  // The sign-off now lives in the editable message body (seeded there, like the
+  // New email composer), not a separate picker. `signOff` is the sender's saved
+  // default phrase (fetched below) and `addSignOff` is whether their signature
+  // lacks its own valediction (so an image/custom signature isn't double-signed).
+  // `sigStyle` is the per-message Basic/Logo/Default signature toggle.
   const [signOff, setSignOff] = useState("Kind regards,");
+  const [addSignOff, setAddSignOff] = useState(true);
   const [sigStyle, setSigStyle] = useState<SigStyle>("default");
+
+  // Fetch the file's default sign-off phrase + whether to add it, then seed it
+  // into an empty composer so it's visible and editable from the start. Enquiry
+  // mode keeps its own no-phrase behaviour (the solicitor-update send appends only
+  // the signature), so it's left untouched.
+  useEffect(() => {
+    if (enquiry) return;
+    let active = true;
+    fetch(`/api/chase/signature-preview?transactionId=${transactionId}&style=default`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!active || !d) return;
+        const phrase = typeof d.signOff === "string" && d.signOff.trim() ? d.signOff.trim() : "Kind regards,";
+        setSignOff(phrase);
+        setAddSignOff(!!d.addSignOff);
+        if (d.addSignOff) setMessage((prev) => (isHtmlEmpty(prev) ? `<p><br></p><p>${phrase}</p>` : prev));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [transactionId, enquiry]);
+
+  // Append the sender's sign-off to a freshly generated body. A no-op in enquiry
+  // mode or when the signature already carries its own valediction.
+  function appendSignOff(html: string): string {
+    if (enquiry || !addSignOff || !signOff) return html;
+    return `${html}<p>${signOff}</p>`;
+  }
   // Scroll anchor — after Generate we bring the subject to the top so the whole
   // draft (subject, message, sign-off) is in view at once.
   const composeTopRef = useRef<HTMLDivElement | null>(null);
@@ -672,7 +701,9 @@ export function ChaseDrawer({
       // line the model produced, lift the plain-text body into the editor as
       // HTML, and compare against generatedText for the "Edited" signal.
       const parsed = splitSubjectBody(data.generated);
-      const html = textToHtml(parsed.body);
+      // The model never writes the sign-off (the app owns it); append the chosen
+      // phrase so the body reads as the email that sends, editable in place.
+      const html = appendSignOff(textToHtml(parsed.body));
       setMessage(html);
       setGeneratedText(html);
       setGeneratedContext(data.context);
@@ -783,7 +814,9 @@ export function ChaseDrawer({
               bodyHtml: message,
               ccEmails: effectiveCc,
               signatureStyle: sigStyle,
-              signOff,
+              // The sign-off is already in the body (seeded + editable), so the
+              // route appends only the signature, not a second valediction.
+              signOffInBody: true,
               ...(emailAttachments ? { attachments: emailAttachments } : {}),
             }),
           });
@@ -820,9 +853,16 @@ export function ChaseDrawer({
     }
   }
 
-  // Body is empty when the composer holds no visible text. Attachments only ride
-  // on the real Send (a mailto link can't carry files).
-  const bodyEmpty = isHtmlEmpty(message);
+  // Body is empty when the composer holds no visible text. A composer holding
+  // only the seeded sign-off still counts as empty, so Send stays disabled until
+  // there's an actual message. Attachments only ride on the real Send (a mailto
+  // link can't carry files).
+  const messageCore = (() => {
+    if (enquiry || !signOff) return message;
+    const esc = signOff.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return message.replace(new RegExp(`\\s*<p[^>]*>\\s*${esc}\\s*</p>\\s*$`, "i"), "");
+  })();
+  const bodyEmpty = isHtmlEmpty(messageCore);
   const hasAttachments = attachments.length > 0;
 
   return createPortal(
@@ -1268,7 +1308,7 @@ export function ChaseDrawer({
             </button>
             )}
 
-            {isHtmlEmpty(message) && !isGenerating && (
+            {isHtmlEmpty(messageCore) && !isGenerating && (
               <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center", lineHeight: 1.45 }}>
                 We&apos;ll draft a chase based on this property, recipient and tone.
               </p>
@@ -1346,15 +1386,14 @@ export function ChaseDrawer({
               </div>
             )}
 
-            {/* Rendered sign-off, shown inline once there's a message so the
-                compose reads like the email that actually goes out. Shared with
-                the neighbour-chase drawer so the preview is identical. */}
+            {/* Signature block, shown inline once there's a message so the compose
+                reads like the email that actually goes out. The sign-off phrase
+                lives in the message body above. Shared with the neighbour-chase
+                drawer so the preview is identical. */}
             <ChaseSignaturePreview
               transactionId={transactionId}
-              visible={channel === "email" && !isHtmlEmpty(message)}
+              visible={channel === "email" && !isHtmlEmpty(messageCore)}
               sigStyle={sigStyle}
-              signOff={signOff}
-              onSignOffChange={setSignOff}
             />
           </div>
 
