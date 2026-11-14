@@ -8,7 +8,7 @@
 // enters the HTML; the server re-sanitises authoritatively on send.
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check } from "@/components/icons/ph";
+import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check } from "@phosphor-icons/react";
 import { AnchoredPanel } from "@/components/ui/Popover";
 
 // Per-message signature style shown in the toolbar (after the paperclip). This

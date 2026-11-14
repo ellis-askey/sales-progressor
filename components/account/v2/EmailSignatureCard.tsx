@@ -17,7 +17,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, saveSignOffAction, type SignatureTarget } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
 import { SIGN_OFF_CHOICES, normalizeSignOff } from "@/lib/email/sign-off";
-import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@/components/icons/ph";
+import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 
 export interface SignatureInitial {
   mode: EmailSignatureMode;
