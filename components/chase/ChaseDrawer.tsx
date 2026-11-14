@@ -9,6 +9,7 @@ import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, Care
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { ChaseComposer, type ChaseAttachment, type SigStyle } from "@/components/chase/ChaseComposer";
+import type { SignatureStyleOption } from "@/lib/email/signature-options";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { ChaseSentOffers, type SentOffersCtx } from "@/components/chase/ChaseSentOffers";
 import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
@@ -314,10 +315,10 @@ export function ChaseDrawer({
   // `sigStyle` is the per-message Basic/Logo/Default signature toggle.
   const [signOff, setSignOff] = useState("Kind regards,");
   const [addSignOff, setAddSignOff] = useState(true);
-  const [sigStyle, setSigStyle] = useState<SigStyle>("default");
-  // Whether the Basic/Logo/Default style picker applies to this file's signature.
-  // False for a per-client / in-house sign-off (no variants) — the picker hides.
-  const [styleApplies, setStyleApplies] = useState(true);
+  const [sigStyle, setSigStyle] = useState<SigStyle>("basic");
+  // The signature-style options for this file (Basic / Logo / Signature image /
+  // Custom), resolved per file. The picker shows only when there's more than one.
+  const [sigOptions, setSigOptions] = useState<SignatureStyleOption[]>([]);
 
   // Fetch the file's default sign-off phrase + whether to add it, then seed it
   // into an empty composer so it's visible and editable from the start. Enquiry
@@ -326,14 +327,15 @@ export function ChaseDrawer({
   useEffect(() => {
     if (enquiry) return;
     let active = true;
-    fetch(`/api/chase/signature-preview?transactionId=${transactionId}&style=default`)
+    fetch(`/api/chase/signature-preview?transactionId=${transactionId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!active || !d) return;
         const phrase = typeof d.signOff === "string" && d.signOff.trim() ? d.signOff.trim() : "Kind regards,";
         setSignOff(phrase);
         setAddSignOff(!!d.addSignOff);
-        setStyleApplies(d.styleApplies !== false);
+        if (Array.isArray(d.styleOptions)) setSigOptions(d.styleOptions);
+        if (d.selectedStyle) setSigStyle(d.selectedStyle);
         if (d.addSignOff) setMessage((prev) => (isHtmlEmpty(prev) ? `<p><br></p><p>${phrase}</p>` : prev));
       })
       .catch(() => {});
@@ -1398,7 +1400,8 @@ export function ChaseDrawer({
               onAttachmentsChange={setAttachments}
               charCount={htmlToText(message).length}
               sigStyle={sigStyle}
-              onSigStyleChange={channel === "email" && styleApplies ? changeSigStyle : undefined}
+              sigOptions={sigOptions}
+              onSigStyleChange={channel === "email" ? changeSigStyle : undefined}
             />
 
             {channel === "whatsapp" && attachments.length > 0 && (

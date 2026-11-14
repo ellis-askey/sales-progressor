@@ -23,11 +23,12 @@ function formatList(items: string[]): string {
 export function ChaseSignaturePreview({
   transactionId,
   visible,
-  sigStyle = "default",
+  sigStyle,
 }: {
   transactionId: string;
   visible: boolean;
-  // Per-message style from the composer toolbar (basic / logo / default).
+  // Per-message style from the composer toolbar. Omitted → the endpoint resolves
+  // the saved default.
   sigStyle?: SigStyle;
 }) {
   const [signature, setSignature] = useState<Sig | null>(null);
@@ -35,7 +36,7 @@ export function ChaseSignaturePreview({
   useEffect(() => {
     let active = true;
     const load = () => {
-      fetch(`/api/chase/signature-preview?transactionId=${transactionId}&style=${sigStyle}`)
+      fetch(`/api/chase/signature-preview?transactionId=${transactionId}${sigStyle ? `&style=${sigStyle}` : ""}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (active && d) setSignature(d as Sig); })
         .catch(() => {});

@@ -14,12 +14,10 @@ import { AnchoredPanel } from "@/components/ui/Popover";
 // Per-message signature style shown in the toolbar (after the paperclip). This
 // picks how the signature block below the message renders (the sign-off phrase
 // itself lives in the editable message body, seeded like the New email composer).
-export type SigStyle = "default" | "basic" | "logo";
-const SIG_STYLES: { key: SigStyle; label: string; sub: string }[] = [
-  { key: "basic", label: "Basic", sub: "Name & details, no logo" },
-  { key: "logo", label: "Logo", sub: "With the agency logo" },
-  { key: "default", label: "Default", sub: "Your saved signature" },
-];
+// The options are resolved per file by the preview endpoint (Basic / Logo /
+// Signature image / Custom), so the picker only ever offers what exists.
+import type { SignatureStyleKey, SignatureStyleOption } from "@/lib/email/signature-options";
+export type SigStyle = SignatureStyleKey;
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
 import { DictationMic } from "@/components/dictation/DictationMic";
 import { useContentEditableDictation } from "@/components/dictation/useDictation";
@@ -77,6 +75,7 @@ export function ChaseComposer({
   charCount,
   sigStyle,
   onSigStyleChange,
+  sigOptions,
 }: {
   valueHtml: string;
   onChangeHtml: (html: string) => void;
@@ -87,6 +86,9 @@ export function ChaseComposer({
   // Optional signature-style control (email chase only). Absent → no icon.
   sigStyle?: SigStyle;
   onSigStyleChange?: (s: SigStyle) => void;
+  // The style options for this file (Basic / Logo / Image / Custom). The picker
+  // shows only when there's more than one.
+  sigOptions?: SignatureStyleOption[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -248,7 +250,7 @@ export function ChaseComposer({
         </ToolButton>
         <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={(e) => addFiles(e.target.files)} />
 
-        {onSigStyleChange && (
+        {onSigStyleChange && (sigOptions?.length ?? 0) > 1 && (
           <>
             <span style={{ width: 1, height: 18, background: "var(--agent-border-subtle)", margin: "0 4px" }} />
             <div ref={sigAnchorRef} style={{ position: "relative" }}>
@@ -264,8 +266,8 @@ export function ChaseComposer({
                   borderRadius: 12, boxShadow: "0 14px 34px -16px rgba(0,0,0,0.5)", padding: 6,
                 }}>
                   <p style={{ margin: 0, padding: "4px 8px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Signature style</p>
-                  {SIG_STYLES.map((s) => {
-                    const selected = (sigStyle ?? "default") === s.key;
+                  {(sigOptions ?? []).map((s) => {
+                    const selected = sigStyle === s.key;
                     return (
                       <button
                         key={s.key}

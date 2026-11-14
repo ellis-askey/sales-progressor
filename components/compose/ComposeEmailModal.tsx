@@ -28,6 +28,7 @@ import {
   type ComposeSaleResult, type ComposeContextWithPhoto, type ComposeAttachmentInput,
 } from "@/app/actions/compose";
 import type { ContinuableThread } from "@/lib/email/thread-continue";
+import type { SignatureStyleKey, SignatureStyleOption } from "@/lib/email/signature-options";
 import type { ScheduledComposeRow } from "@/lib/email/compose-queue";
 import type { ComposeRecipient } from "@/lib/services/compose-recipients";
 
@@ -275,11 +276,12 @@ export function ComposeEmailModal({
   const preRefineRef = useRef<string | null>(null);
 
   // signature style (basic / logo / default), like the chase drawer
-  const [sigStyle, setSigStyle] = useState<"default" | "basic" | "logo">("default");
+  const [sigStyle, setSigStyle] = useState<SignatureStyleKey>("basic");
   const [sigMenuOpen, setSigMenuOpen] = useState(false);
-  // Whether the Basic/Logo/Default style picker applies to this file's signature.
-  // False for in-house / per-client sign-offs (no variants) — the picker hides.
-  const [styleApplies, setStyleApplies] = useState(true);
+  // The style options that apply to this file's signature (Basic / Logo /
+  // Signature image / Custom), resolved per file by the preview endpoint. The
+  // picker shows only when there's more than one to choose from.
+  const [sigOptions, setSigOptions] = useState<SignatureStyleOption[]>([]);
 
   // schedule (phase 2)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
@@ -302,7 +304,7 @@ export function ComposeEmailModal({
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
     setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
-    setShowRefined(false); preRefineRef.current = null; setSigStyle("default"); setSigMenuOpen(false);
+    setShowRefined(false); preRefineRef.current = null; setSigStyle("basic"); setSigOptions([]); setSigMenuOpen(false);
     setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
     setContinueCandidate(null); setContinueArmed(false);
     if (editorRef.current) editorRef.current.innerHTML = "";
@@ -374,7 +376,7 @@ export function ComposeEmailModal({
 
   // Signature-style button (basic / logo / default): re-fetch the signature in
   // the chosen style and swap it in place, leaving the message untouched.
-  async function changeSigStyle(s: "default" | "basic" | "logo") {
+  async function changeSigStyle(s: SignatureStyleKey) {
     setSigStyle(s); setSigMenuOpen(false);
     if (!ctx || !editorRef.current) return;
     try {
@@ -419,12 +421,15 @@ export function ComposeEmailModal({
       // (an image/custom signature → addSignOff false), so we never stack two.
       let signOffLine = "";
       try {
-        const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}&style=${sigStyle}`);
+        // No style param on the first load — the endpoint resolves the saved
+        // default and tells us which style that is + what options exist.
+        const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${id}`);
         if (res.ok) {
           const j = await res.json();
           if (j?.html) sigHtml = j.html;
           if (j?.addSignOff && j?.signOff) signOffLine = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
-          setStyleApplies(j?.styleApplies !== false);
+          if (Array.isArray(j?.styleOptions)) setSigOptions(j.styleOptions);
+          if (j?.selectedStyle) setSigStyle(j.selectedStyle);
         }
       } catch { /* fall back to the plain sign-off */ }
       // Pre-filled flow (e.g. the surveyor email): seed To (free-typed) + Cc
@@ -894,17 +899,17 @@ export function ComposeEmailModal({
                     <button className="cem-tb" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("createLink")}>🔗</button>
                     <button className="cem-tb" title="Attach a file" onMouseDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>📎</button>
                     <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onPickFiles} />
-                    {styleApplies && (
+                    {sigOptions.length > 1 && (
                     <span style={{ position: "relative", display: "inline-flex" }}>
                       <button className="cem-tb" title="Signature style" onMouseDown={(e) => e.preventDefault()} onClick={() => setSigMenuOpen((v) => !v)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M13 9.5h5M13 13h5M5.5 16c.4-1.2 1.6-1.9 3-1.9s2.6.7 3 1.9" /></svg>
                       </button>
                       {sigMenuOpen && (
                         <div className="cem-sigmenu" onMouseDown={(e) => e.preventDefault()}>
-                          {([["basic", "Basic", "Name & details, no logo"], ["logo", "Logo", "With the agency logo"], ["default", "Default", "Your saved signature"]] as const).map(([key, label, sub]) => (
-                            <button key={key} className="cem-si-sig" onClick={() => changeSigStyle(key)}>
-                              <span><span className="cem-sig-l">{label}</span><span className="cem-sig-s">{sub}</span></span>
-                              {sigStyle === key && <span className="cem-sig-ck">✓</span>}
+                          {sigOptions.map((opt) => (
+                            <button key={opt.key} className="cem-si-sig" onClick={() => changeSigStyle(opt.key)}>
+                              <span><span className="cem-sig-l">{opt.label}</span><span className="cem-sig-s">{opt.sub}</span></span>
+                              {sigStyle === opt.key && <span className="cem-sig-ck">✓</span>}
                             </button>
                           ))}
                         </div>
