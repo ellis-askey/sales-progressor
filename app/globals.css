@@ -825,25 +825,28 @@ body {
   font-family: "OpenDyslexic", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
 }
 
-/* Ambient background wash (was inline in PortalShell). Fixed full-viewport layer
-   behind everything; the hero photo masks to transparent at its foot so this shows
-   through seamlessly. EXPERIMENT (2026-11-14): a wave wallpaper per theme, in
-   evaluation — light = soft peach on cream, dark = navy/indigo. The base-colour
-   is kept as a matching fallback so nothing flashes before the image paints. */
+/* Ambient background wash (was inline in PortalShell). Light = the warm
+   peach/lavender/cyan blooms; dark = a deep ground with muted blue/coral/violet.
+   NOTE: the wave-wallpaper experiment is parked for now (hidden on request,
+   2026-11-14). To bring it back, see commit d8c6c6ca + the kept assets
+   public/portal-bg-light.webp and public/portal-bg-dark.webp. */
 .portal-ambient {
   position: fixed; inset: 0; z-index: -1;
-  background-color: #f7f1ea;
-  background-image: url(/portal-bg-light.webp);
-  background-size: cover;
-  background-position: center top;
+  background-color: #f6f8fc;
+  background-image:
+    radial-gradient(40% 28% at 50% -4%, rgba(56,225,255,0.16), transparent 70%),
+    radial-gradient(75% 55% at 8% 6%, rgba(255,188,168,0.28), transparent 72%),
+    radial-gradient(70% 50% at 92% 12%, rgba(196,180,255,0.26), transparent 72%),
+    radial-gradient(85% 60% at 50% 96%, rgba(255,208,176,0.30), transparent 75%);
   background-repeat: no-repeat;
 }
 [data-portal-theme="dark"] .portal-ambient {
   background-color: #0b0f14;
-  background-image: url(/portal-bg-dark.webp);
-  background-size: cover;
-  background-position: center top;
-  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(45% 30% at 50% -6%, rgba(56,140,255,0.20), transparent 70%),
+    radial-gradient(75% 55% at 8% 6%, rgba(255,122,92,0.13), transparent 72%),
+    radial-gradient(70% 50% at 92% 12%, rgba(150,120,255,0.17), transparent 72%),
+    radial-gradient(85% 60% at 50% 98%, rgba(70,55,110,0.22), transparent 78%);
 }
 
 /* Hide money on this device: the amount stays in the DOM but is blurred until
