@@ -77,24 +77,15 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
     const n = count(c);
     const foot = (
       <div className="ccrm-tile-foot">
-        <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency" : "agencies"}${on ? " · you're in" : ""}`}</span>
+        <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency request" : "agency requests"}${on ? " · you're in" : ""}`}</span>
         <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
           {on ? (<><Check size={14} weight="bold" />Requested</>) : "Request"}
         </button>
       </div>
     );
-    // Square icon logos get the icon beside the name; wide wordmarks get a banner.
-    if (c.square) {
-      return (
-        <div className={`ccrm-tile${on ? " on" : ""}`}>
-          <div className="ccrm-sqtop"><span className="ccrm-sqlogo"><Logo c={c} /></span><span className="ccrm-sqname">{c.name}</span></div>
-          {foot}
-        </div>
-      );
-    }
     return (
       <div className={`ccrm-tile${on ? " on" : ""}`}>
-        <div className={`ccrm-plate${c.onDark ? " dark" : ""}`}><Logo c={c} /></div>
+        <div className={`ccrm-plate${c.onDark ? " dark" : ""}`} style={c.plateBg ? { background: c.plateBg, borderColor: c.plateBg } : undefined}><Logo c={c} /></div>
         {foot}
       </div>
     );
@@ -168,12 +159,9 @@ const CSS = `
 .ccrm-tile.on{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
 .ccrm-plate{ width:100%; height:62px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 18px; overflow:hidden; }
 .ccrm-plate.dark{ background:#1b2230; border-color:rgba(255,255,255,0.1); }
-.ccrm-logo{ max-height:34px; max-width:100%; width:auto; object-fit:contain; display:block; }
-.ccrm-sqtop{ height:62px; display:flex; align-items:center; gap:13px; }
-.ccrm-sqlogo{ flex-shrink:0; width:50px; height:50px; border-radius:13px; background:#fff; border:1px solid rgba(0,0,0,0.05); display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.ccrm-sqlogo .ccrm-logo{ max-width:36px; max-height:36px; }
-.ccrm-sqlogo .ccrm-fallback-name{ display:none; }
-.ccrm-sqname{ font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* One logo height across every plate so the wall reads aligned, whatever each
+   plate's background colour is (set inline from the catalogue's plateBg). */
+.ccrm-logo{ max-height:36px; max-width:100%; width:auto; object-fit:contain; display:block; }
 .ccrm-fallback{ display:flex; align-items:center; gap:10px; }
 .ccrm-mono{ flex-shrink:0; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:750; }
 .ccrm-fallback-name{ font-size:15px; font-weight:700; color:#1a1a1c; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

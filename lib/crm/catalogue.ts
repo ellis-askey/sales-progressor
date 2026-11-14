@@ -28,27 +28,28 @@ export type CrmEntry = {
   /** the logo is a light/white mark made for dark backgrounds → sit it on a dark
    *  plate so it stays visible (the default plate is white). */
   onDark: boolean;
-  /** the logo is a square icon (not a wide wordmark) → lay the tile out with the
-   *  icon beside the CRM name, instead of a full-width banner. */
-  square: boolean;
+  /** some logos ship with a solid-colour background baked in → set the plate to
+   *  that same colour (sampled from the logo) so the logo fills the container
+   *  seamlessly. Empty = the default white plate. */
+  plateBg: string;
 };
 
-function entry(key: string, name: string, mono: string, color: string, logoFile: string, opts: { seed?: number; onDark?: boolean; square?: boolean } = {}): CrmEntry {
-  return { key, name, mono, color, logo: `/crm-logos/${logoFile}`, seed: opts.seed ?? 0, onDark: opts.onDark ?? false, square: opts.square ?? false };
+function entry(key: string, name: string, mono: string, color: string, logoFile: string, opts: { seed?: number; onDark?: boolean; plateBg?: string } = {}): CrmEntry {
+  return { key, name, mono, color, logo: `/crm-logos/${logoFile}`, seed: opts.seed ?? 0, onDark: opts.onDark ?? false, plateBg: opts.plateBg ?? "" };
 }
 
 // Ordered by our current best guess at UK prevalence; the live page re-sorts by
 // real demand, so this order only seeds ties. Every entry here has a logo file.
 export const CRM_CATALOGUE: CrmEntry[] = [
-  entry("reapit", "Reapit", "Re", "#16305c", "reapit.png", { seed: 2 }),
-  entry("alto", "Alto", "Al", "#5a2ea6", "alto.png", { seed: 6 }),
-  entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.png"),
+  entry("reapit", "Reapit", "Re", "#16305c", "reapit.png", { seed: 2, plateBg: "#fde5e5" }),
+  entry("alto", "Alto", "Al", "#5a2ea6", "alto.png", { seed: 6, plateBg: "#fce6df" }),
+  entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.png", { plateBg: "#ececec" }),
   entry("street", "Street.co.uk", "St", "#0ea5a0", "street.png"),
-  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png", { square: true }),
+  entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png", { plateBg: "#34aade" }),
   entry("rex", "Rex", "Rx", "#0f9b8e", "rex.png", { onDark: true }),
-  entry("apex27", "Apex27", "A2", "#5b5bf5", "apex27.png"),
-  entry("loop", "Loop", "Lo", "#6b5cff", "loop.png", { seed: 4 }),
-  entry("gnb", "GNB Property Software", "gnb", "#2f9e4e", "gnb.png"),
+  entry("apex27", "Apex27", "A2", "#5b5bf5", "apex27.png", { plateBg: "#3cdcd2" }),
+  entry("loop", "Loop", "Lo", "#6b5cff", "loop.png", { seed: 4, plateBg: "#dde1e9" }),
+  entry("gnb", "GNB Property Software", "gnb", "#2f9e4e", "gnb.png", { plateBg: "#e5efe4" }),
 ];
 
 export const CRM_BY_KEY: Record<string, CrmEntry> = Object.fromEntries(CRM_CATALOGUE.map((c) => [c.key, c]));
