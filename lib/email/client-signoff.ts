@@ -53,12 +53,12 @@ export function renderClientSignoff(data: {
 
   if (mode === "IMAGE" && imageUrl) {
     const alt = esc([identity.name, identity.company].filter(Boolean).join(", "));
-    const html = `<div style="margin-top:22px;"><img src="${esc(imageUrl)}" alt="${alt}" style="max-width:100%;height:auto;display:block;" /></div>`;
+    const html = `<div style="margin-top:14px;"><img src="${esc(imageUrl)}" alt="${alt}" style="max-width:100%;height:auto;display:block;" /></div>`;
     return { html, text, custom: true };
   }
   if (mode === "CUSTOM" && customHtml && customHtml.trim()) {
     // customHtml is sanitised at save time; wrap, don't re-escape.
-    return { html: `<div style="margin-top:22px;">${customHtml}</div>`, text, custom: true };
+    return { html: `<div style="margin-top:14px;">${customHtml}</div>`, text, custom: true };
   }
   return { html: auto.html, text: auto.text, custom: false }; // BASIC / nothing set
 }

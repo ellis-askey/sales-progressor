@@ -68,7 +68,7 @@ export function buildChaseSignatureHtml(input: ChaseSignatureInput): string {
 
   const agentTable = `<table cellpadding="0" cellspacing="0" border="0" style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><tr>${photoCell}<td style="vertical-align:top;"><div style="font-size:14px;font-weight:700;color:#111827;line-height:1.4;">${escapeHtml(input.agentName)}</div>${titleLine}${mobileLine}</td></tr></table>`;
 
-  return `<div style="margin-top:22px;border-top:1px solid #e5e7eb;padding-top:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${agentTable}${agencyBlock}</div>`;
+  return `<div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${agentTable}${agencyBlock}</div>`;
 }
 
 // Plain-text signature for the text/2 part of the email (non-HTML clients).

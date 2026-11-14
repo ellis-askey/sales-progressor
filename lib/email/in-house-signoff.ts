@@ -28,7 +28,7 @@ export function buildInHouseSignoff(opts: {
     ? `\n  <div style="font-size:13px;color:#6b7280;line-height:1.4;margin-top:2px;">${esc(phone)}</div>`
     : "";
 
-  const html = `<div style="margin-top:22px;border-top:1px solid #e5e7eb;padding-top:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  const html = `<div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="font-size:14px;font-weight:700;color:#111827;line-height:1.4;">${esc(name)}</div>${agencyLineHtml}${phoneLineHtml}
 </div>`;
 

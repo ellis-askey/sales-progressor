@@ -69,14 +69,14 @@ export function renderResolvedSignature(data: RenderSignatureData): ResolvedSign
 
   if (mode === "IMAGE" && imageUrl) {
     const alt = esc([sigInput.agentName, sigInput.agencyName].filter(Boolean).join(", "));
-    const html = `<div style="margin-top:22px;"><img src="${esc(imageUrl)}" alt="${alt}" style="max-width:100%;height:auto;display:block;" /></div>`;
+    const html = `<div style="margin-top:14px;"><img src="${esc(imageUrl)}" alt="${alt}" style="max-width:100%;height:auto;display:block;" /></div>`;
     return { mode: "IMAGE", html, text: buildChaseSignatureText(sigInput), missing: [] };
   }
 
   if (mode === "CUSTOM" && customHtml && customHtml.trim()) {
     // customHtml is sanitised at save time (see the custom-signature save path);
     // it is wrapped, not re-escaped, so pasted formatting is preserved.
-    const html = `<div style="margin-top:22px;">${customHtml}</div>`;
+    const html = `<div style="margin-top:14px;">${customHtml}</div>`;
     return { mode: "CUSTOM", html, text: buildChaseSignatureText(sigInput), missing: [] };
   }
 
