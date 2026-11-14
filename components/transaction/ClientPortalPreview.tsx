@@ -14,13 +14,16 @@
 // add-contact-and-invite flow, surfaced where the agent can see the portal. When
 // the file has no portal clients yet (e.g. a just-claimed sale), the card leads.
 
-import { useState, useEffect, useLayoutEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Popover } from "@/components/ui/Popover";
 import { inviteNewClientToPortalAction, resendPortalInviteAction } from "@/app/actions/portal-invite";
+import { createSpring, stepSpring, createFrameLoop, motionReduced } from "@/components/liquid/lib/spring";
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export type PortalPreviewClient = {
   id: string;
@@ -70,11 +73,10 @@ export function ClientPortalPreview({
   }, [activeClient]);
 
   // ── Mobile "Full screen" / immerse ──
-  // On a phone the handset frame is a mock-of-a-mock: it wastes the screen the
-  // agent actually has. "Full screen" zooms the SAME live portal up to fill the
-  // viewport (a FLIP from the frame's rect, so the content grows rather than
-  // reloading — the iframe node never moves, so it never re-fetches). Desktop
-  // keeps the handset. Does nothing to the client's file; it's still a window.
+  // On a phone the handset frame wastes the screen the agent actually has.
+  // "Full screen" grows the SAME live portal up to fill the viewport (see the
+  // spring-driven screen hero below; the iframe node never moves, so it never
+  // re-fetches). Desktop keeps the handset. It's still a read-only window.
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -84,52 +86,53 @@ export function ClientPortalPreview({
     return () => mq.removeEventListener("change", on);
   }, []);
 
-  const [immersed, setImmersed] = useState(false);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const framedRect = useRef<DOMRect | null>(null);
+  // The portal SCREEN (one iframe, mounted once, never reparented) lifts onto a
+  // fixed layer and a single progress spring grows it from the phone's screen rect
+  // to the full viewport; the bezel stays in place and its notch fades. Exit runs
+  // the same spring in reverse, so there's nothing to snap at either end. Geometry
+  // is resized (not transform-scaled), so the portal reflows as it grows rather
+  // than zooming. Spring defaults (0.5 / 0.12) are the founder-approved feel.
+  const [p, setP] = useState(0);             // 0 = framed, 1 = full screen
+  const [fixed, setFixed] = useState(false); // is the screen on the fixed layer?
+  const spring = useRef(createSpring(0.5, 0.12, 0));
+  const frame = useRef<ReturnType<typeof createFrameLoop> | null>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const startRect = useRef({ top: 0, left: 0, width: 0, height: 0 });
+  const endRect = useRef({ top: 0, left: 0, width: 0, height: 0 });
+
+  // One rAF loop driven by the progress spring. Settling back at 0 drops the
+  // screen out of the fixed layer and back into the phone.
+  useEffect(() => {
+    frame.current = createFrameLoop((dt) => {
+      const moving = stepSpring(spring.current, dt, false);
+      setP(spring.current.value);
+      if (!moving && spring.current.target === 0) setFixed(false);
+      return moving;
+    });
+    return () => frame.current?.stop();
+  }, []);
 
   function enterImmerse() {
-    if (frameRef.current) framedRect.current = frameRef.current.getBoundingClientRect();
-    setImmersed(true);
-  }
-  function exitImmerse() {
-    const el = frameRef.current;
-    if (!el || reduced || !framedRect.current) { setImmersed(false); return; }
-    // Reverse FLIP: from the current fullscreen rect back down to the frame.
-    const last = el.getBoundingClientRect();
-    const f = framedRect.current;
-    el.style.transformOrigin = "top left";
-    el.style.transition = "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)";
-    el.style.transform = `translate(${f.left - last.left}px, ${f.top - last.top}px) scale(${f.width / last.width}, ${f.height / last.height})`;
-    const done = (e: TransitionEvent) => {
-      if (e.propertyName !== "transform") return;
-      el.removeEventListener("transitionend", done);
-      el.style.transition = "";
-      el.style.transform = "";
-      el.style.transformOrigin = "";
-      setImmersed(false);
-    };
-    el.addEventListener("transitionend", done);
+    const slot = slotRef.current;
+    if (!slot) return;
+    const r = slot.getBoundingClientRect();
+    startRect.current = { top: r.top, left: r.left, width: r.width, height: r.height };
+    endRect.current = { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
+    setFixed(true);
+    if (motionReduced()) { spring.current.value = 1; spring.current.target = 1; setP(1); return; }
+    spring.current.target = 1;
+    frame.current?.start();
   }
 
-  // Forward FLIP: the frame has just flipped to fixed/fullscreen (its last rect),
-  // so invert back to where it was framed, then release to grow into place.
-  useLayoutEffect(() => {
-    const el = frameRef.current;
-    if (!immersed || !el || !framedRect.current || reduced) return;
-    const f = framedRect.current;
-    const last = el.getBoundingClientRect();
-    el.style.transformOrigin = "top left";
-    el.style.transition = "none";
-    el.style.transform = `translate(${f.left - last.left}px, ${f.top - last.top}px) scale(${f.width / last.width}, ${f.height / last.height})`;
-    void el.offsetWidth; // commit the inverted start before animating
-    el.style.transition = "transform 440ms cubic-bezier(0.22, 1, 0.36, 1)";
-    el.style.transform = "none";
-  }, [immersed, reduced]);
+  function exitImmerse() {
+    if (motionReduced()) { spring.current.value = 0; spring.current.target = 0; setP(0); setFixed(false); return; }
+    spring.current.target = 0;
+    frame.current?.start();
+  }
 
   // Lock the page behind the overlay; Escape exits.
   useEffect(() => {
-    if (!immersed) return;
+    if (!fixed) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") exitImmerse(); };
@@ -139,7 +142,7 @@ export function ClientPortalPreview({
       document.removeEventListener("keydown", onKey);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [immersed]);
+  }, [fixed]);
 
   // ── Empty: no portal clients yet. Lead with the invite card. ──
   if (clients.length === 0) {
@@ -300,13 +303,12 @@ export function ClientPortalPreview({
           )}
 
           {/* Phone frame — the real portal in an iframe, sized like a handset.
-              When immersed the SAME wrapper becomes fixed/fullscreen (the FLIP
-              above grows it into place); the bezel and notch fall away. */}
+              "Full screen" lifts the SAME screen onto the fixed layer and the
+              spring above grows it to fill the viewport; the bezel stays put. */}
           {activeClient && (
             <>
-              {/* Backdrop + exit live OUTSIDE the frame so the FLIP transform
-                  never scales them. Tapping either leaves full screen. */}
-              {immersed && (
+              {/* Backdrop + exit sit on the fixed layer and fade with progress. */}
+              {fixed && (
                 <>
                   <div
                     aria-hidden
@@ -316,7 +318,8 @@ export function ClientPortalPreview({
                       inset: 0,
                       background: "rgba(5,6,8,0.62)",
                       zIndex: 2147482999,
-                      animation: reduced ? "none" : "cpp-backdrop-in 320ms ease",
+                      opacity: p,
+                      pointerEvents: p > 0.4 ? "auto" : "none",
                     }}
                   />
                   <button
@@ -340,7 +343,8 @@ export function ClientPortalPreview({
                       WebkitBackdropFilter: "blur(6px)",
                       backdropFilter: "blur(6px)",
                       boxShadow: "0 2px 12px rgba(0,0,0,0.32)",
-                      animation: reduced ? "none" : "cpp-backdrop-in 360ms ease",
+                      opacity: p,
+                      pointerEvents: p > 0.4 ? "auto" : "none",
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -350,32 +354,17 @@ export function ClientPortalPreview({
                 </>
               )}
               <div style={{ display: "flex", justifyContent: "center" }}>
+                {/* Bezel — stays in flow; only the notch fades as we immerse. */}
                 <div
-                  ref={frameRef}
-                  style={
-                    immersed
-                      ? {
-                          position: "fixed",
-                          inset: 0,
-                          width: "100vw",
-                          height: "100dvh",
-                          maxWidth: "none",
-                          padding: 0,
-                          borderRadius: 0,
-                          background: "#f6f8fc",
-                          boxShadow: "none",
-                          zIndex: 2147483000,
-                        }
-                      : {
-                          position: "relative",
-                          width: 390,
-                          maxWidth: "100%",
-                          padding: 12,
-                          borderRadius: 52,
-                          background: "linear-gradient(160deg, #16171b, #050506)",
-                          boxShadow: "0 28px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
-                        }
-                  }
+                  style={{
+                    position: "relative",
+                    width: 390,
+                    maxWidth: "100%",
+                    padding: 12,
+                    borderRadius: 52,
+                    background: "linear-gradient(160deg, #16171b, #050506)",
+                    boxShadow: "0 28px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
+                  }}
                 >
                   <div
                     aria-hidden
@@ -389,42 +378,76 @@ export function ClientPortalPreview({
                       borderRadius: 999,
                       background: "#050506",
                       zIndex: 3,
-                      display: immersed ? "none" : "block",
+                      opacity: 1 - p,
+                      pointerEvents: "none",
                     }}
                   />
+                  {/* Screen slot — holds the phone's height while the screen is
+                      lifted onto the fixed layer, so the bezel never collapses. */}
                   <div
+                    ref={slotRef}
                     style={{
                       position: "relative",
-                      borderRadius: immersed ? 0 : 40,
+                      borderRadius: 40,
                       overflow: "hidden",
                       background: "#f6f8fc",
-                      height: immersed ? "100%" : "min(78vh, 812px)",
+                      height: "min(78vh, 812px)",
                     }}
                   >
-                    {!loaded && (
-                      <div
-                        aria-hidden
-                        style={{ position: "absolute", inset: 0, zIndex: 2, display: "grid", placeItems: "center", background: "#f6f8fc" }}
-                      >
-                        <div
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: "50%",
-                            border: "3px solid rgba(15,23,42,0.14)",
-                            borderTopColor: "rgba(15,23,42,0.45)",
-                            animation: reduced ? "none" : "cpp-spin 0.8s linear infinite",
-                          }}
-                        />
-                      </div>
+                    {fixed && (
+                      <div aria-hidden style={{ position: "absolute", inset: 0, background: "#0b0d12", opacity: 0.25 * p, pointerEvents: "none" }} />
                     )}
-                    <iframe
-                      key={activeClient.token}
-                      src={`/portal/${activeClient.token}`}
-                      title={`Client portal preview for ${activeClient.name}`}
-                      onLoad={() => setLoaded(true)}
-                      style={{ display: "block", width: "100%", height: "100%", border: 0 }}
-                    />
+                    {/* The screen itself: nested in the slot when framed; on the
+                        fixed layer, spring-grown to the viewport, when immersing. */}
+                    <div
+                      style={
+                        fixed
+                          ? {
+                              position: "fixed",
+                              top: lerp(startRect.current.top, endRect.current.top, p),
+                              left: lerp(startRect.current.left, endRect.current.left, p),
+                              width: lerp(startRect.current.width, endRect.current.width, p),
+                              height: lerp(startRect.current.height, endRect.current.height, p),
+                              borderRadius: 40 * (1 - p),
+                              overflow: "hidden",
+                              background: "#f6f8fc",
+                              zIndex: 2147483000,
+                              boxShadow: `0 ${40 * p}px ${90 * p}px -20px rgba(0,0,0,${0.45 * p})`,
+                            }
+                          : {
+                              position: "absolute",
+                              inset: 0,
+                              borderRadius: 40,
+                              overflow: "hidden",
+                              background: "#f6f8fc",
+                            }
+                      }
+                    >
+                      {!loaded && (
+                        <div
+                          aria-hidden
+                          style={{ position: "absolute", inset: 0, zIndex: 2, display: "grid", placeItems: "center", background: "#f6f8fc" }}
+                        >
+                          <div
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: "50%",
+                              border: "3px solid rgba(15,23,42,0.14)",
+                              borderTopColor: "rgba(15,23,42,0.45)",
+                              animation: reduced ? "none" : "cpp-spin 0.8s linear infinite",
+                            }}
+                          />
+                        </div>
+                      )}
+                      <iframe
+                        key={activeClient.token}
+                        src={`/portal/${activeClient.token}`}
+                        title={`Client portal preview for ${activeClient.name}`}
+                        onLoad={() => setLoaded(true)}
+                        style={{ display: "block", width: "100%", height: "100%", border: 0 }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -442,7 +465,6 @@ export function ClientPortalPreview({
       <style>{`
         @keyframes cpp-spin { to { transform: rotate(360deg); } }
         @keyframes cpp-dd-in { 0% { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.97); } 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
-        @keyframes cpp-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
         .cpp-dd-item { transition: background-color 130ms ease; }
         .cpp-dd-item:hover { background-color: var(--agent-hover-tint, rgba(255,255,255,0.65)); }
         .cpp-dd-trigger:focus-visible { outline: none; box-shadow: var(--agent-focus-ring); }
