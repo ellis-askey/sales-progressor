@@ -122,6 +122,8 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
     if (!open) return;
     if (scrollToSection === "solicitor" || scrollToSection === "agents") setActiveTab("settings");
     else if (scrollToSection === "information") setActiveTab("information");
+    // Top-nav fan: a section pill deep-links straight to its tab.
+    else if (scrollToSection === "documents" || scrollToSection === "settings" || scrollToSection === "customisation") setActiveTab(scrollToSection);
   }, [open, scrollToSection]);
 
   // Switching tabs starts you back at the top of the new tab (not where the

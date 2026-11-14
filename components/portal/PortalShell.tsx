@@ -1,19 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { List, House, ClockCounterClockwise, ChatCircle } from "@phosphor-icons/react/dist/ssr";
-import { P } from "./portal-ui";
 import { PortalMenuDrawer } from "./PortalMenuDrawer";
+import { PortalTopNav } from "./PortalTopNav";
+import { PortalBottomNav } from "./PortalBottomNav";
+import { PORTAL_NAV_CSS } from "./PortalNavGlass";
 import { PortalEditDrawer, type EditDrawerConfig } from "./PortalEditDrawer";
 import { PortalOnboardingToasts } from "./PortalOnboardingToasts";
 import { PortalPwaPing } from "./PortalPwaPing";
 import { PortalWelcomeSheet } from "./PortalWelcomeSheet";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { usePortalTimeTracking } from "@/lib/hooks/usePortalTimeTracking";
-import { usePortalPick } from "@/lib/glass/portal-context";
-import { classFor } from "@/lib/glass/variants";
 import { usePortalReadOnly } from "./PortalReadOnlyProvider";
 
 type Props = {
@@ -54,7 +52,7 @@ function GreetingText({ text }: { text: string }) {
       document.documentElement.getAttribute("data-portal-motion") === "reduced";
     setReduced(rm);
     // Let the cards land first, then start writing the greeting on.
-    const t = window.setTimeout(() => setRevealed(true), rm ? 0 : 320);
+    const t = window.setTimeout(() => setRevealed(true), rm ? 0 : 150);
     return () => window.clearTimeout(t);
   }, []);
   return (
@@ -93,11 +91,6 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // passive tracker (engaged-time, PWA ping, onboarding, first-visit welcome) so
   // viewing trips nothing. Interactive components handle their own guard.
   const readOnly = usePortalReadOnly();
-
-  // Design Lab: the two nav bars are tagged surfaces too, so a founder pick
-  // restyles them live. No pick → the current chrome.
-  const topNavPick = usePortalPick("portal-topnav");
-  const bottomNavPick = usePortalPick("portal-bottomnav");
 
   // Time-of-day greeting for the header. Computed client-side (after mount) so
   // it matches the viewer's local time without a hydration mismatch — until
@@ -156,6 +149,9 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
   // the underlying page changes but the drawer would linger without this.
   useEffect(() => { setMenuOpen(false); }, [pathname]);
 
+  // The top-nav fan taps a section pill → open the drawer to that tab.
+  const openMenuTo = (section: string) => { setMenuSection(section); setMenuEdit(false); setMenuOpen(true); };
+
   // Clear the home screen badge whenever the user opens the portal
   useEffect(() => {
     if ("clearAppBadge" in navigator) {
@@ -193,56 +189,18 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
           adding the app to their home screen. */}
       {!readOnly && <PortalPwaPing token={token} />}
 
-      {/* Top header. On the overview it floats OVER the property photo
-          (transparent, with a soft top scrim for legibility) so the image runs
-          to the very top; elsewhere it's a solid sticky bar. A picked glass
-          variant overrides the surface. Left: a time-of-day greeting. Right:
-          the agency name + the menu. */}
-      <div
-        className={`${isHome ? "fixed top-0 inset-x-0 z-30" : "sticky top-0 z-20"} ${classFor(topNavPick ?? "v04")}`}
-        data-glass-id="portal-topnav"
-        data-glass-label="Top nav bar"
-        data-glass-variant={topNavPick ?? "v04"}
-      >
-        <div className="max-w-lg mx-auto px-5 py-3">
-          <div className="flex items-center justify-between gap-3">
-            {/* Greeting (left) */}
-            <p
-              className="text-[17px] font-semibold truncate"
-              style={{ color: P.textPrimary, textShadow: isHome ? "0 1px 2px rgba(255,255,255,0.7)" : undefined }}
-            >
-              {greetingLabel && <GreetingText key={greetingLabel} text={greetingLabel} />}
-            </p>
-            {/* Menu (right). Agency name removed for now — it truncated the
-                greeting; it needs a new home elsewhere in the portal. */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              {/* Design Lab flask hidden 2026-08-16 (founder) — glass picks
-                  stay live; re-add <PortalDesignLab /> here to reopen the picker
-                  before we bake the final JSON. */}
-              {/* Hamburger — opens the menu drawer. Borderless, same 34px tap. */}
-              <button
-                type="button"
-                onClick={() => setMenuOpen(true)}
-                aria-label="Open menu"
-                aria-expanded={menuOpen}
-                className="pbtn-press"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  border: "none",
-                  background: "transparent",
-                  color: P.textPrimary,
-                  cursor: "pointer",
-                }}
-              >
-                <List size={18} weight="regular" />
-              </button>
-            </div>
-          </div>
+      {/* Top nav — T8 "expandable corner" (signed off in /dev/portal-preview).
+          On the overview it floats OVER the property photo (fixed) so the image
+          runs to the very top; elsewhere it's a sticky floating row. A greeting
+          pill on the left; a menu on the right that fans the drawer's sections
+          as matching glass pills. Bespoke glass (PortalNavGlass), not the Design
+          Lab variant. */}
+      <div className={isHome ? "fixed top-0 inset-x-0 z-30" : "sticky top-0 z-20"}>
+        <div className="max-w-lg mx-auto px-4 pt-3">
+          <PortalTopNav
+            greeting={greetingLabel ? <GreetingText key={greetingLabel} text={greetingLabel} /> : null}
+            onOpenMenu={openMenuTo}
+          />
         </div>
       </div>
 
@@ -305,103 +263,17 @@ export function PortalShell({ token, contactName, roleType, propertyAddress, vap
         </div>
       )}
 
-      {/* Bottom tab bar — Elevra-style (2026-08-09): blur backdrop
-          instead of solid white, hairline top border instead of rounded
-          shadow. Active tab shows a coral glow behind the icon + the
-          icon scales up gently. Same 3 tabs, same icons, same labels. */}
-      <nav
-        aria-label="Primary"
-        className={`fixed bottom-0 inset-x-0 z-20 ${classFor(bottomNavPick ?? "v04")}`}
-        data-glass-id="portal-bottomnav"
-        data-glass-label="Bottom nav bar"
-        data-glass-variant={bottomNavPick ?? "v04"}
-      >
-        <div className="max-w-lg mx-auto">
-          <ul className="grid grid-cols-3 px-2 py-1 m-0 list-none">
-            <li className="relative"><TabItem href={base}               active={isHome}     icon="home"     label="Overview" /></li>
-            <li className="relative"><TabItem href={`${base}/progress`} active={isProgress} icon="progress" label="Progress" /></li>
-            <li className="relative">
-              <TabItem href={`${base}/updates`}  active={isUpdates}  icon="updates"  label="Updates" />
-              {unreadCount > 0 && !isUpdates && (
-                <span
-                  aria-label={`${unreadCount} new`}
-                  className="absolute"
-                  style={{
-                    top: 3,
-                    right: "calc(50% - 20px)",
-                    minWidth: 16,
-                    height: 16,
-                    borderRadius: 9,
-                    background: P.primary,
-                    color: "#fff",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    display: "grid",
-                    placeItems: "center",
-                    padding: "0 4px",
-                    border: "2px solid var(--portal-cardBg, #fff)",
-                    pointerEvents: "none",
-                  }}
-                >
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </li>
-          </ul>
-          {/* iOS home-indicator inset */}
-          <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
-        </div>
+      {/* Bottom nav — B5 "magnify dock" (signed off in /dev/portal-preview): a
+          floating, centred glass pill clear of the home indicator. The current
+          page magnifies into a labelled pill with a lifted, glowing icon; the
+          others stay as icons. Real <Link> navigation + the unread badge are
+          preserved. The wrapper handles centring + the safe-area inset. */}
+      <nav aria-label="Primary" className="fixed bottom-0 inset-x-0 z-20 pnav-bottom-wrap">
+        <PortalBottomNav base={base} isHome={isHome} isProgress={isProgress} isUpdates={isUpdates} unreadCount={unreadCount} />
       </nav>
-    </div>
-  );
-}
 
-function TabItem({
-  href,
-  active,
-  icon,
-  label,
-}: {
-  href: string;
-  active: boolean;
-  icon: "home" | "progress" | "updates";
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl"
-    >
-      <span
-        className="inline-flex items-center justify-center rounded-full"
-        style={{
-          width: 32,
-          height: 32,
-          color: active ? P.primary : P.textMuted,
-          // Accent-hued glow behind the icon when active. Follows the
-          // client's chosen accent (--portal-primary) so it isn't stuck coral.
-          boxShadow: active
-            ? "0 0 24px color-mix(in srgb, var(--portal-primary, #FF6B4A) 35%, transparent)"
-            : "none",
-          transform: active ? "scale(1.1)" : "scale(1)",
-          transition: "transform 220ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms ease, box-shadow 200ms ease",
-        }}
-      >
-        {icon === "home"     && <House size={22} weight={active ? "fill" : "regular"} />}
-        {icon === "progress" && <ClockCounterClockwise size={22} weight={active ? "fill" : "regular"} />}
-        {icon === "updates"  && <ChatCircle size={22} weight={active ? "fill" : "regular"} />}
-      </span>
-      <span
-        className="text-[10px] font-semibold"
-        style={{
-          color: active ? P.primary : P.textMuted,
-          transition: "color 150ms ease",
-        }}
-      >
-        {label}
-      </span>
-    </Link>
+      <style>{PORTAL_NAV_CSS}</style>
+    </div>
   );
 }
 
