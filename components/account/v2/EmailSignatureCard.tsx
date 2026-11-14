@@ -14,9 +14,10 @@ import { useRouter } from "next/navigation";
 import type { EmailSignatureMode } from "@prisma/client";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, type SignatureTarget } from "@/app/actions/signature";
+import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, saveSignOffAction, type SignatureTarget } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
-import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { SIGN_OFF_CHOICES, normalizeSignOff } from "@/lib/email/sign-off";
+import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@/components/icons/ph";
 
 export interface SignatureInitial {
   mode: EmailSignatureMode;
@@ -25,6 +26,8 @@ export interface SignatureInitial {
   previewHtml: string;
   missing: string[];
   source: SignatureSource;
+  // The saved default sign-off phrase (the valediction above the signature).
+  signOff: string;
 }
 
 const SOURCE_OPTIONS: Array<{ value: SignatureSource; label: string }> = [
@@ -62,6 +65,7 @@ export function EmailSignatureCard({
   const imgQuery = target?.kind === "client" ? `?agencyId=${encodeURIComponent(target.agencyId)}` : "";
 
   const [mode, setMode] = useState<EmailSignatureMode>(initial.mode);
+  const [signOff, setSignOff] = useState<string>(normalizeSignOff(initial.signOff));
   const [imageUrl, setImageUrl] = useState<string | null>(initial.imageUrl);
   const [customHtml, setCustomHtml] = useState<string | null>(initial.customHtml);
   const [previewHtml, setPreviewHtml] = useState<string>(initial.previewHtml);
@@ -160,6 +164,17 @@ export function EmailSignatureCard({
     }
   }
 
+  async function chooseSignOff(next: string) {
+    const phrase = normalizeSignOff(next);
+    setSignOff(phrase);
+    setError("");
+    setStatus("saving");
+    const res = await saveSignOffAction(phrase, target);
+    setStatus(res.ok ? "saved" : "idle");
+    if (!res.ok) setError(res.error);
+    router.refresh();
+  }
+
   async function sendTest() {
     setSending(true);
     setError("");
@@ -222,6 +237,28 @@ export function EmailSignatureCard({
         .sig-test-btn:focus-visible{outline:2px solid var(--agent-coral,#FF6B4A);outline-offset:2px;}
         .sig-test-btn:disabled{cursor:default;}
       `}</style>
+
+      {/* Sign-off phrase — the valediction that heads every email the user
+          composes (New email + chase), sitting above the signature below. Owned
+          by the app and set here, so it's never baked into the signature itself.
+          Editable per email at send time; this is the saved default. */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18, padding: "13px 15px", borderRadius: 12, border: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))", background: "var(--agent-surface-glass, #fafafa)" }}>
+        <label htmlFor="sig-signoff" style={{ flex: "1 1 190px", minWidth: 0, cursor: "pointer" }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: "#111827" }}>Sign-off</span>
+          <span style={{ display: "block", fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+            Starts the emails you send, above your signature. No need to add it to the signature below.
+          </span>
+        </label>
+        <select
+          id="sig-signoff"
+          value={signOff}
+          onChange={(e) => chooseSignOff(e.target.value)}
+          className="account-input"
+          style={{ flexShrink: 0, fontSize: 14, fontWeight: 600, color: "#111827", padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", outline: "none", cursor: "pointer" }}
+        >
+          {SIGN_OFF_CHOICES.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
 
       {/* Mode selector — standard option-select treatment: brand-fill + tick on
           the chosen one, clean outline otherwise. Follows the agency colour. */}
@@ -329,7 +366,16 @@ export function EmailSignatureCard({
           <div
             className="sig-signature-preview"
             style={{ borderRadius: 10, border: "1px solid rgba(0,0,0,0.10)", background: "#fff", padding: 16, overflowX: "auto" }}
-            dangerouslySetInnerHTML={{ __html: previewHtml || "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>" }}
+            dangerouslySetInnerHTML={{
+              __html: previewHtml
+                // BASIC carries no sign-off of its own, so show the chosen phrase
+                // above it exactly as the email will read. An IMAGE signature
+                // already carries its own valediction, so it's left to stand alone.
+                ? (mode === "BASIC"
+                    ? `<p style="margin:0 0 10px;font-size:14px;color:#111827;line-height:1.5;">${signOff}</p>${previewHtml}`
+                    : previewHtml)
+                : "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>",
+            }}
           />
         </div>
       )}

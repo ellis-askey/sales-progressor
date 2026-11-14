@@ -407,6 +407,9 @@ model ProgressionBusinessClient {
   signatureMode      EmailSignatureMode @default(BASIC)
   signatureImagePath String?
   signatureHtml      String?
+  // The sign-off phrase for THIS client's emails, above the sign-off block.
+  // Mirrors User.emailSignOff but set per client agency. Default "Kind regards,".
+  signOff            String             @default("Kind regards,")
 
   // Archive (soft-remove) instead of deleting the link. A removed client drops off
   // the active Clients list and the new-sale picker, but the link row survives so
@@ -510,6 +513,11 @@ model User {
   emailSignatureMode       EmailSignatureMode       @default(BASIC)
   emailSignatureImagePath  String?
   emailSignatureHtml       String?
+  // The sign-off phrase that heads this user's own emails (New email, chase),
+  // sitting above the signature block. App-owned and editable per email; this is
+  // the saved default. One of the standard valedictions ("Kind regards," etc.).
+  // Added only when the signature doesn't already carry its own (lib/email/sign-off.ts).
+  emailSignOff             String                   @default("Kind regards,")
   canViewAllFiles          Boolean                  @default(false)
   // In-house progressor pool (Boardwalk, 2026-11): when true, this agency user can
   // be picked as the progressor on a self-managed sale (written to its

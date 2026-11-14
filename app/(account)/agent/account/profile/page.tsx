@@ -40,7 +40,7 @@ export default async function AccountProfilePage() {
     select: {
       phone: true, jobTitle: true, directMobile: true, agentPreferences: true, image: true,
       chaseVoiceProfile: true, chaseVoiceProfileBuiltAt: true,
-      emailSignatureMode: true, emailSignatureImagePath: true, emailSignatureHtml: true,
+      emailSignatureMode: true, emailSignatureImagePath: true, emailSignatureHtml: true, emailSignOff: true,
     },
   });
   const currentAppColour = getAppColour(userRecord?.agentPreferences);
@@ -65,6 +65,7 @@ export default async function AccountProfilePage() {
     previewHtml: sigPreview.html,
     missing: sigPreview.missing,
     source: detectSignatureSource(userRecord?.emailSignatureHtml ?? ""),
+    signOff: userRecord?.emailSignOff ?? "Kind regards,",
   };
 
   const colourCard = (

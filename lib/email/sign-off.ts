@@ -88,3 +88,16 @@ export function signatureHasSignOff(sig: string | null | undefined): boolean {
 export function shouldAddSignOff(sig: string | null | undefined): boolean {
   return !signatureHasSignOff(sig);
 }
+
+// The sign-off phrases a user can pick as their saved default for the emails they
+// compose (New email + chase). A small curated set — distinct from SIGN_OFFS
+// above, which is the broad recogniser used to avoid stacking two sign-offs.
+export const SIGN_OFF_CHOICES = ["Kind regards,", "Best regards,", "Best wishes,", "Many thanks,"] as const;
+export type SignOffChoice = (typeof SIGN_OFF_CHOICES)[number];
+
+// Coerce any stored/selected value to one of the allowed choices; anything
+// unexpected falls back to "Kind regards," so a sign-off is never blank.
+export function normalizeSignOff(input: string | null | undefined): string {
+  const v = (input ?? "").trim();
+  return (SIGN_OFF_CHOICES as readonly string[]).includes(v) ? v : "Kind regards,";
+}

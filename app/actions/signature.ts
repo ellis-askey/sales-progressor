@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { sanitizeSignatureHtml, MAX_SIGNATURE_HTML } from "@/lib/email/sanitize-signature";
 import { processSignatureImages } from "@/lib/email/signature-images";
 import { detectSignatureSource, normalizeBySource, type SignatureSource } from "@/lib/email/signature-source";
+import { normalizeSignOff } from "@/lib/email/sign-off";
 import { resolveEmailSignature } from "@/lib/email/signature";
 import { resolveAgencySender } from "@/lib/email/agency-sender";
 import { sendEmail } from "@/lib/email";
@@ -143,6 +144,29 @@ export async function applySignatureSourceAction(
   revalidatePath("/agent/account/profile");
   revalidatePath("/agent", "layout");
   return { ok: true, html: clean, source };
+}
+
+// Save the user's (or a client's) default sign-off phrase — the valediction that
+// heads the emails they compose, above the signature block. Coerced to one of the
+// allowed choices server-side so a bad value can never land. Per-user by default;
+// `target` routes it to a client agency's per-client sign-off (Clients page).
+export async function saveSignOffAction(
+  signOff: string,
+  target?: SignatureTarget,
+): Promise<{ ok: true; signOff: string } | { ok: false; error: string }> {
+  const phrase = normalizeSignOff(signOff);
+  if (target?.kind === "client") {
+    const ctx = await requireClientLink(target.agencyId);
+    if (!ctx) return { ok: false, error: "We couldn't find that client." };
+    await prisma.progressionBusinessClient.update({ where: { id: ctx.link.id }, data: { signOff: phrase } });
+    revalidatePath(`/agent/clients/${target.agencyId}`);
+    return { ok: true, signOff: phrase };
+  }
+  const session = await requireSession();
+  await prisma.user.update({ where: { id: session.user.id }, data: { emailSignOff: phrase } });
+  revalidatePath("/agent/account/profile");
+  revalidatePath("/agent", "layout");
+  return { ok: true, signOff: phrase };
 }
 
 export type SignaturePreview = { html: string; missing: string[]; mode: EmailSignatureMode };

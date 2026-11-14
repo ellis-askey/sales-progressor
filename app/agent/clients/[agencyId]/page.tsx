@@ -50,7 +50,7 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
   const [sigLink, ownerUser] = await Promise.all([
     prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: owner.businessId, agencyId } },
-      select: { signatureMode: true, signatureImagePath: true, signatureHtml: true },
+      select: { signatureMode: true, signatureImagePath: true, signatureHtml: true, signOff: true },
     }),
     prisma.user.findUnique({ where: { id: owner.userId }, select: { name: true, phone: true, directMobile: true } }),
   ]);
@@ -72,6 +72,7 @@ export default async function ClientAgencyPage({ params }: { params: Promise<{ a
     previewHtml: sigRendered.html,
     missing: [],
     source: detectSignatureSource(sigLink?.signatureHtml ?? ""),
+    signOff: sigLink?.signOff ?? "Kind regards,",
   };
 
   return (

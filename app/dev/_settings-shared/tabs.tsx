@@ -123,7 +123,7 @@ export function ProfileTab({ owner = false }: { owner?: boolean }) {
       <div style={changedNote}><Info size={14} weight="fill" /> Changed: email branding moved to the Emails tab (sending address stays here, since negotiators need it too).</div>
       <ProfileFormPlain initialName="Ellis Askey" initialEmail="ellis@example.com" initialPhone="" role="director" roleLabel={owner ? "Owner" : "Director"} hideRoleNote={owner} />
       <BrandColorPicker initialColor="#FF6B4A" />
-      <EmailSignatureCard initial={{ mode: "BASIC", imageUrl: null, customHtml: null, previewHtml: "<p style='font-size:13px;color:#374151;margin:0'>Ellis Askey<br/>Your agency</p>", missing: [], source: "other" }} />
+      <EmailSignatureCard initial={{ mode: "BASIC", imageUrl: null, customHtml: null, previewHtml: "<p style='font-size:13px;color:#374151;margin:0'>Ellis Askey<br/>Your agency</p>", missing: [], source: "other", signOff: "Kind regards," }} />
       <WritingStyleCard profile={null} builtAt={null} />
       <AccountDangerZonePlain userEmail="ellis@example.com" />
     </>
