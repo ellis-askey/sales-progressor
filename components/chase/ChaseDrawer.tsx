@@ -315,6 +315,9 @@ export function ChaseDrawer({
   const [signOff, setSignOff] = useState("Kind regards,");
   const [addSignOff, setAddSignOff] = useState(true);
   const [sigStyle, setSigStyle] = useState<SigStyle>("default");
+  // Whether the Basic/Logo/Default style picker applies to this file's signature.
+  // False for a per-client / in-house sign-off (no variants) — the picker hides.
+  const [styleApplies, setStyleApplies] = useState(true);
 
   // Fetch the file's default sign-off phrase + whether to add it, then seed it
   // into an empty composer so it's visible and editable from the start. Enquiry
@@ -330,6 +333,7 @@ export function ChaseDrawer({
         const phrase = typeof d.signOff === "string" && d.signOff.trim() ? d.signOff.trim() : "Kind regards,";
         setSignOff(phrase);
         setAddSignOff(!!d.addSignOff);
+        setStyleApplies(d.styleApplies !== false);
         if (d.addSignOff) setMessage((prev) => (isHtmlEmpty(prev) ? `<p><br></p><p>${phrase}</p>` : prev));
       })
       .catch(() => {});
@@ -341,6 +345,29 @@ export function ChaseDrawer({
   function appendSignOff(html: string): string {
     if (enquiry || !addSignOff || !signOff) return html;
     return `${html}<p>${signOff}</p>`;
+  }
+
+  // Changing the per-message signature style can change whether that signature
+  // carries its own valediction, so re-resolve it and sync the body's trailing
+  // sign-off: add it back when the new style has none, strip ours when it has one.
+  // Guards the rare "custom signature → Basic mid-compose leaves no sign-off" case.
+  async function changeSigStyle(s: SigStyle) {
+    setSigStyle(s);
+    if (enquiry) return;
+    try {
+      const r = await fetch(`/api/chase/signature-preview?transactionId=${transactionId}&style=${s}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const add = !!d.addSignOff;
+      const phrase = typeof d.signOff === "string" && d.signOff.trim() ? d.signOff.trim() : signOff;
+      setAddSignOff(add);
+      setSignOff(phrase);
+      setMessage((prev) => {
+        const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const stripped = prev.replace(new RegExp(`\\s*<p[^>]*>\\s*${esc}\\s*</p>\\s*$`, "i"), "");
+        return add ? `${stripped}<p>${phrase}</p>` : stripped;
+      });
+    } catch { /* keep the current style */ }
   }
   // Scroll anchor — after Generate we bring the subject to the top so the whole
   // draft (subject, message, sign-off) is in view at once.
@@ -1371,7 +1398,7 @@ export function ChaseDrawer({
               onAttachmentsChange={setAttachments}
               charCount={htmlToText(message).length}
               sigStyle={sigStyle}
-              onSigStyleChange={channel === "email" ? setSigStyle : undefined}
+              onSigStyleChange={channel === "email" && styleApplies ? changeSigStyle : undefined}
             />
 
             {channel === "whatsapp" && attachments.length > 0 && (
@@ -1386,13 +1413,13 @@ export function ChaseDrawer({
               </div>
             )}
 
-            {/* Signature block, shown inline once there's a message so the compose
-                reads like the email that actually goes out. The sign-off phrase
-                lives in the message body above. Shared with the neighbour-chase
-                drawer so the preview is identical. */}
+            {/* Signature block, always shown for the email channel so the compose
+                reads like the email that actually goes out from the moment it
+                opens (matching the New email composer). The sign-off phrase lives
+                in the message body above. Shared with the neighbour-chase drawer. */}
             <ChaseSignaturePreview
               transactionId={transactionId}
-              visible={channel === "email" && !isHtmlEmpty(messageCore)}
+              visible={channel === "email"}
               sigStyle={sigStyle}
             />
           </div>

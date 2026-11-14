@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
       },
     });
     const signOff = await resolveSignOffPhrase({ userId: session.user.id, progressionBusinessId: tx.progressionBusinessId, agencyId: tx.agencyId });
-    return NextResponse.json({ html: cs.html, missing: [], mode: null, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(cs.html) });
+    // Per-client sign-off is fixed — Basic/Logo/Default don't apply, hide the picker.
+    return NextResponse.json({ html: cs.html, missing: [], mode: null, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(cs.html), styleApplies: false });
   }
 
   // Same resolver the real send uses, so the drawer preview matches the send
@@ -64,5 +65,6 @@ export async function GET(req: NextRequest) {
   });
 
   const signOff = await resolveSignOffPhrase({ userId: session.user.id });
-  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(sig.html) });
+  // Agent's own signature has Basic/Logo/Default variants, so the picker applies.
+  return NextResponse.json({ html: sig.html, missing: sig.missing, mode: sig.mode, name: session.user.name ?? null, signOff, addSignOff: shouldAddSignOff(sig.html), styleApplies: true });
 }

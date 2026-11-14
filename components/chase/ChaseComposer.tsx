@@ -9,6 +9,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check } from "@/components/icons/ph";
+import { AnchoredPanel } from "@/components/ui/Popover";
 
 // Per-message signature style shown in the toolbar (after the paperclip). This
 // picks how the signature block below the message renders (the sign-off phrase
@@ -89,6 +90,7 @@ export function ChaseComposer({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const sigAnchorRef = useRef<HTMLDivElement>(null);
   const lastEmitted = useRef<string | null>(null);
   // Voice typing — streams into the chase body at the caret (same control as the
   // New email composer). Hidden where the browser has no SpeechRecognition.
@@ -249,44 +251,43 @@ export function ChaseComposer({
         {onSigStyleChange && (
           <>
             <span style={{ width: 1, height: 18, background: "var(--agent-border-subtle)", margin: "0 4px" }} />
-            <div style={{ position: "relative" }}>
+            <div ref={sigAnchorRef} style={{ position: "relative" }}>
               <ToolButton title="Signature style" active={sigMenuOpen} onMouseDown={(e) => { e.preventDefault(); setSigMenuOpen((v) => !v); }}>
                 <IdentificationCard size={17} weight={sigMenuOpen ? "fill" : "regular"} />
               </ToolButton>
-              {sigMenuOpen && (
-                <>
-                  <div onMouseDown={(e) => { e.preventDefault(); setSigMenuOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                  <div style={{
-                    position: "absolute", bottom: "calc(100% + 6px)", left: 0, zIndex: 41, minWidth: 196,
-                    background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)",
-                    borderRadius: 12, boxShadow: "0 14px 34px -16px rgba(0,0,0,0.5)", padding: 6,
-                  }}>
-                    <p style={{ margin: 0, padding: "4px 8px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Signature style</p>
-                    {SIG_STYLES.map((s) => {
-                      const selected = (sigStyle ?? "default") === s.key;
-                      return (
-                        <button
-                          key={s.key}
-                          type="button"
-                          onMouseDown={(e) => { e.preventDefault(); onSigStyleChange(s.key); setSigMenuOpen(false); }}
-                          className="chase-sig-opt"
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
-                            background: "transparent", border: `1px solid ${selected ? "var(--agent-coral-deep)" : "transparent"}`,
-                            borderRadius: 9, padding: "8px 10px", cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.label}</span>
-                            <span style={{ display: "block", fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 1 }}>{s.sub}</span>
-                          </span>
-                          {selected && <Check size={13} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+              {/* Smart-positioned panel (flips + shifts to stay on-screen), so it's
+                  never clipped off the edge of the narrow chase drawer. */}
+              <AnchoredPanel anchorRef={sigAnchorRef} open={sigMenuOpen} onClose={() => setSigMenuOpen(false)} placement="top-start" bare>
+                <div style={{
+                  minWidth: 196,
+                  background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)",
+                  borderRadius: 12, boxShadow: "0 14px 34px -16px rgba(0,0,0,0.5)", padding: 6,
+                }}>
+                  <p style={{ margin: 0, padding: "4px 8px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>Signature style</p>
+                  {SIG_STYLES.map((s) => {
+                    const selected = (sigStyle ?? "default") === s.key;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); onSigStyleChange(s.key); setSigMenuOpen(false); }}
+                        className="chase-sig-opt"
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+                          background: "transparent", border: `1px solid ${selected ? "var(--agent-coral-deep)" : "transparent"}`,
+                          borderRadius: 9, padding: "8px 10px", cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.label}</span>
+                          <span style={{ display: "block", fontSize: 10.5, color: "var(--agent-text-muted)", marginTop: 1 }}>{s.sub}</span>
+                        </span>
+                        {selected && <Check size={13} weight="bold" style={{ color: "var(--agent-coral-deep)", flexShrink: 0 }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </AnchoredPanel>
             </div>
           </>
         )}

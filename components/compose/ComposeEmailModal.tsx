@@ -277,6 +277,9 @@ export function ComposeEmailModal({
   // signature style (basic / logo / default), like the chase drawer
   const [sigStyle, setSigStyle] = useState<"default" | "basic" | "logo">("default");
   const [sigMenuOpen, setSigMenuOpen] = useState(false);
+  // Whether the Basic/Logo/Default style picker applies to this file's signature.
+  // False for in-house / per-client sign-offs (no variants) — the picker hides.
+  const [styleApplies, setStyleApplies] = useState(true);
 
   // schedule (phase 2)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
@@ -382,6 +385,20 @@ export function ComposeEmailModal({
       const sig = editorRef.current.querySelector("[data-cem-sig]");
       if (sig) sig.innerHTML = j.html;
       else editorRef.current.insertAdjacentHTML("beforeend", `<div data-cem-sig="1">${j.html}</div>`);
+      // Keep the sign-off line in step with the new style: a signature that
+      // carries its own valediction (addSignOff false) drops our phrase; one
+      // without (addSignOff true) gets it back — so a style switch never leaves
+      // the email with no sign-off, or two.
+      const existingPhrase = editorRef.current.querySelector("[data-cem-signoff]");
+      if (j.addSignOff && j.signOff) {
+        if (!existingPhrase) {
+          const sigDiv = editorRef.current.querySelector("[data-cem-sig]");
+          const phraseHtml = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
+          if (sigDiv) sigDiv.insertAdjacentHTML("beforebegin", phraseHtml);
+        }
+      } else if (existingPhrase) {
+        existingPhrase.remove();
+      }
       updateCount();
     } catch { /* keep the current signature */ }
   }
@@ -407,6 +424,7 @@ export function ComposeEmailModal({
           const j = await res.json();
           if (j?.html) sigHtml = j.html;
           if (j?.addSignOff && j?.signOff) signOffLine = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
+          setStyleApplies(j?.styleApplies !== false);
         }
       } catch { /* fall back to the plain sign-off */ }
       // Pre-filled flow (e.g. the surveyor email): seed To (free-typed) + Cc
@@ -876,6 +894,7 @@ export function ComposeEmailModal({
                     <button className="cem-tb" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("createLink")}>🔗</button>
                     <button className="cem-tb" title="Attach a file" onMouseDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>📎</button>
                     <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onPickFiles} />
+                    {styleApplies && (
                     <span style={{ position: "relative", display: "inline-flex" }}>
                       <button className="cem-tb" title="Signature style" onMouseDown={(e) => e.preventDefault()} onClick={() => setSigMenuOpen((v) => !v)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M13 9.5h5M13 13h5M5.5 16c.4-1.2 1.6-1.9 3-1.9s2.6.7 3 1.9" /></svg>
@@ -891,6 +910,7 @@ export function ComposeEmailModal({
                         </div>
                       )}
                     </span>
+                    )}
                     <span className="cem-tbspace" />
                     {aiOn && (
                       <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>

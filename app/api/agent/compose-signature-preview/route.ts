@@ -60,7 +60,9 @@ export async function GET(req: NextRequest) {
       phone: me?.directMobile ?? me?.phone ?? null,
     });
     const signOff = await resolveSignOffPhrase({ userId: session.user.id });
-    return NextResponse.json({ kind: "inhouse", html: sig.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(sig.html) });
+    // In-house block has no Basic/Logo/Default variants, so the style picker
+    // doesn't apply — the composer hides it.
+    return NextResponse.json({ kind: "inhouse", html: sig.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(sig.html), styleApplies: false });
   }
 
   // External progression business's file: mirror send-email's per-client branch —
@@ -81,7 +83,9 @@ export async function GET(req: NextRequest) {
       },
     });
     const signOff = await resolveSignOffPhrase({ userId: session.user.id, progressionBusinessId: tx.progressionBusinessId, agencyId: tx.agencyId });
-    return NextResponse.json({ kind: "inhouse", html: cs.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(cs.html) });
+    // The per-client sign-off is fixed (BASIC/IMAGE/CUSTOM set on the Clients
+    // page); the Basic/Logo/Default style picker doesn't apply, so hide it.
+    return NextResponse.json({ kind: "inhouse", html: cs.html, mode: null, missing: [], signOff, addSignOff: shouldAddSignOff(cs.html), styleApplies: false });
   }
 
   // Agent path: the personal signature resolved against the agent's OWN agency,
@@ -97,5 +101,6 @@ export async function GET(req: NextRequest) {
     signatureStyle,
   });
   const signOff = await resolveSignOffPhrase({ userId: session.user.id });
-  return NextResponse.json({ kind: "personal", html: sig.html, missing: sig.missing, mode: sig.mode, signOff, addSignOff: shouldAddSignOff(sig.html) });
+  // The agent's own signature has Basic/Logo/Default variants, so the picker applies.
+  return NextResponse.json({ kind: "personal", html: sig.html, missing: sig.missing, mode: sig.mode, signOff, addSignOff: shouldAddSignOff(sig.html), styleApplies: true });
 }
