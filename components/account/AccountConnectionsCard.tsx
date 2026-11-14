@@ -12,7 +12,7 @@
 // so this is where affirmative consent for mailbox reading is captured.
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning } from "@phosphor-icons/react";
 
@@ -33,6 +33,7 @@ const CORAL = "var(--agent-coral, #FF6B4A)";
 export function AccountConnectionsCard() {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function AccountConnectionsCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      router.replace("/agent/account/connections");
+      router.replace(pathname);
       await load();
     } finally {
       setRemovingId(null);

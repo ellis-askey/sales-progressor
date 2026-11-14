@@ -17,7 +17,7 @@
 // Light Account chrome (Law 9), matching AccountConnectionsCard / ImapConnectionCard
 // (white card, gray-200 hairlines, emerald ticks). No new tokens.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { EnvelopeSimple, WhatsappLogo, Check, PaperPlaneTilt, IdentificationBadge, ArrowsClockwise, ChatCircleText, ListChecks } from "@phosphor-icons/react";
 import { OutlookLogo } from "./provider-logos";
 
@@ -41,6 +41,14 @@ const CHANNELS: { key: ChannelKey; name: string; sub: string }[] = [
   { key: "email", name: "Email provider", sub: "Send from your address" },
   { key: "whatsapp", name: "WhatsApp", sub: "Client conversations" },
 ];
+// Progression variant: the member's inbox is about THEIR own emails (to agents /
+// solicitors), not the client-facing branded stream, so some rows are reworded.
+const PROG_SUB: Record<string, string> = {
+  send: "Keep emails with agents and solicitors saved against the right sale.",
+  sendown: "Agents receive your emails from your own address.",
+  capture: "Save your property WhatsApp group conversations against the right sale.",
+  timeline: "Every email, WhatsApp message and note in one place.",
+};
 
 function ChannelIcon({ k }: { k: ChannelKey }) {
   if (k === "outlook") return <OutlookLogo size={30} />;
@@ -69,34 +77,46 @@ function TickCell({ state }: { state: Cell }) {
   return <span className={`${base} border border-dashed border-gray-300 text-gray-300`} aria-label="Available once connected"><Check size={15} weight="bold" /></span>;
 }
 
-export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?: boolean }) {
+// Dev-only: inject fixed connection state so /dev pages can render the real
+// matrix byte-for-byte without live endpoints. Never passed in the real app.
+export type ConnectionsMatrixDemo = { outlookOn: boolean; imapOn: boolean; imapSends: boolean; imapReadIssue: boolean; waOn: boolean; waPending?: boolean };
+
+export function ConnectionsMatrix({ domainVerified = false, demo, variant = "agent", footer }: { domainVerified?: boolean; demo?: ConnectionsMatrixDemo; variant?: "agent" | "progression"; footer?: ReactNode }) {
   const [outlook, setOutlook] = useState<OutlookStatus | null>(null);
   const [imap, setImap] = useState<ImapStatus | null>(null);
   const [wa, setWa] = useState<WaStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let alive = true;
+  const load = useCallback(() => {
     Promise.allSettled([
       fetch("/api/integrations/outlook/status").then((r) => (r.ok ? r.json() : null)),
       fetch("/api/integrations/imap/status").then((r) => (r.ok ? r.json() : null)),
       fetch("/api/agent/whatsapp/status").then((r) => (r.ok ? r.json() : null)),
     ]).then(([o, i, w]) => {
-      if (!alive) return;
       if (o.status === "fulfilled") setOutlook(o.value);
       if (i.status === "fulfilled") setImap(i.value);
       if (w.status === "fulfilled") setWa(w.value);
       setLoading(false);
     });
-    return () => { alive = false; };
   }, []);
+  // Fetch on mount, and re-fetch when a connection changes in the card row below
+  // (it fires "sp:connections-changed" on modal close) so the ticks light up live.
+  useEffect(() => {
+    if (demo) { setLoading(false); return; }
+    load();
+    const onChanged = () => load();
+    window.addEventListener("sp:connections-changed", onChanged);
+    return () => window.removeEventListener("sp:connections-changed", onChanged);
+  }, [demo, load]);
 
-  const outlookOn = (outlook?.connections?.length ?? 0) > 0;
-  const imapOn = (imap?.connections?.length ?? 0) > 0;
-  const imapSends = (imap?.connections ?? []).some((c) => c.sendState === "sends" || c.sendState === "domain_covered");
-  const imapReadIssue = (imap?.connections ?? []).some((c) => !!c.lastError);
-  const waOn = wa?.connection?.status === "connected";
-  const waPending = wa?.connection?.status === "pending_qr";
+  const outlookCount = demo ? (demo.outlookOn ? 1 : 0) : (outlook?.connections?.length ?? 0);
+  const outlookOn = demo ? demo.outlookOn : outlookCount > 0;
+  const imapOn = demo ? demo.imapOn : (imap?.connections?.length ?? 0) > 0;
+  const imapSends = demo ? demo.imapSends : (imap?.connections ?? []).some((c) => c.sendState === "sends" || c.sendState === "domain_covered");
+  const imapReadIssue = demo ? demo.imapReadIssue : (imap?.connections ?? []).some((c) => !!c.lastError);
+  const waOn = demo ? demo.waOn : wa?.connection?.status === "connected";
+  const waPending = demo ? !!demo.waPending : wa?.connection?.status === "pending_qr";
+  const waUnreachable = demo ? false : wa?.connection?.status === "unreachable";
 
   function cell(cap: string, ch: ChannelKey): Cell {
     if (cap === "send") {
@@ -119,18 +139,18 @@ export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?:
     }
     if (cap === "capture") {
       if (ch !== "whatsapp") return "na";
-      return waOn ? "on" : "off";
+      return waOn ? "on" : waUnreachable ? "partial" : "off";
     }
     if (ch === "outlook") return outlookOn ? "on" : "off";
     if (ch === "email") return imapOn ? "on" : "off";
-    return waOn ? "on" : "off";
+    return waOn ? "on" : waUnreachable ? "partial" : "off";
   }
   const rowAchieved = (cap: string) => CHANNELS.some((c) => cell(cap, c.key) === "on");
 
   const headStatus = (ch: ChannelKey): { label: string; tone: "on" | "warn" | "off" } => {
-    if (ch === "outlook") return outlookOn ? { label: `${outlook!.connections.length} connected`, tone: "on" } : { label: "Not connected", tone: "off" };
+    if (ch === "outlook") return outlookOn ? { label: `${outlookCount} connected`, tone: "on" } : { label: "Not connected", tone: "off" };
     if (ch === "email") return !imapOn ? { label: "Not connected", tone: "off" } : (imapReadIssue || !imapSends) ? { label: "Needs attention", tone: "warn" } : { label: "Connected", tone: "on" };
-    return waOn ? { label: "Connected", tone: "on" } : waPending ? { label: "Waiting to scan", tone: "warn" } : { label: "Not connected", tone: "off" };
+    return waOn ? { label: "Connected", tone: "on" } : waUnreachable ? { label: "Can't check right now", tone: "warn" } : waPending ? { label: "Waiting to scan", tone: "warn" } : { label: "Not connected", tone: "off" };
   };
 
   const pillCls = (tone: "on" | "warn" | "off") =>
@@ -144,7 +164,7 @@ export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?:
       <div className="grid grid-cols-[minmax(0,1fr)_repeat(3,86px)] items-stretch border-b border-gray-200 bg-gray-50/60 sm:grid-cols-[minmax(0,1fr)_repeat(3,132px)]">
         <div className="flex flex-col justify-center px-4 py-4 sm:px-5">
           <span className="text-[14px] font-bold tracking-tight text-gray-900">What you&rsquo;ll unlock</span>
-          <span className="mt-1 text-[12px] leading-snug text-gray-500">Connect an email provider below to enable these features.</span>
+          <span className="mt-1 text-[12px] leading-snug text-gray-500">{variant === "progression" ? "Connect a provider below to enable these features." : "Connect an email provider below to enable these features."}</span>
         </div>
         {CHANNELS.map((c) => {
           const st = headStatus(c.key);
@@ -164,7 +184,7 @@ export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?:
       </div>
 
       {/* Capability rows */}
-      {CAPS.map((cap) => (
+      {CAPS.filter((cap) => !(variant === "progression" && cap.key === "chase")).map((cap) => (
         <div
           key={cap.key}
           className="grid grid-cols-[minmax(0,1fr)_repeat(3,86px)] items-stretch border-t border-gray-100 sm:grid-cols-[minmax(0,1fr)_repeat(3,132px)]"
@@ -176,7 +196,7 @@ export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?:
             </span>
             <div className="min-w-0">
               <span className="block text-[13.5px] font-semibold text-gray-900">{cap.title}</span>
-              <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">{cap.sub}</span>
+              <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">{variant === "progression" && PROG_SUB[cap.key] ? PROG_SUB[cap.key] : cap.sub}</span>
             </div>
           </div>
           {CHANNELS.map((c) => (
@@ -186,6 +206,7 @@ export function ConnectionsMatrix({ domainVerified = false }: { domainVerified?:
           ))}
         </div>
       ))}
+      {footer}
     </div>
   );
 }

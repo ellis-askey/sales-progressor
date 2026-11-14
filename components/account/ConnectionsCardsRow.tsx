@@ -93,7 +93,13 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
 
   // Close the modal and refresh the summary pills (the full card may have changed
   // what's connected while it was open).
-  const closeModal = useCallback(() => { setOpen(null); setLoading(true); load(); }, [load]);
+  const closeModal = useCallback(() => {
+    setOpen(null);
+    setLoading(true);
+    load();
+    // Tell the matrix above to refresh its ticks too, so they light up without a reload.
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("sp:connections-changed"));
+  }, [load]);
 
   // Escape closes the modal.
   useEffect(() => {
@@ -139,9 +145,11 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
         },
     whatsapp: waConn?.status === "connected"
       ? { connected: true, tone: "on", label: "Connected", summary: <span className="truncate">{waConn.phoneNumber ?? "Linked"}</span> }
-      : waConn?.status === "pending_qr"
-        ? { connected: false, tone: "warn", label: "Waiting to scan", summary: null }
-        : { connected: false, tone: "off", label: "Not connected", summary: null },
+      : waConn?.status === "unreachable"
+        ? { connected: true, tone: "warn", label: "Can't check right now", summary: <span className="truncate text-amber-700">We can&rsquo;t reach the link service just now.</span> }
+        : waConn?.status === "pending_qr"
+          ? { connected: false, tone: "warn", label: "Waiting to scan", summary: null }
+          : { connected: false, tone: "off", label: "Not connected", summary: null },
   };
 
   const hosted: Record<ChannelKey, ReactNode> = { outlook, email, whatsapp };
