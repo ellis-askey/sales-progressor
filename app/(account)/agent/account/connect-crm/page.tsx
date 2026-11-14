@@ -26,7 +26,7 @@ export default async function ConnectCrmPage() {
     <>
       <AccountPageHeader
         title="Connect your CRM"
-        subtitle="Keep your CRM and Sales Progressor in step, both ways. Mark a sale exchanged here and it updates there too, with no double entry. Tell us which CRM you use and we'll build the most-requested first."
+        subtitle="Connect your CRM to sync sale updates automatically, with no double entry. Tell us which CRM you use to help prioritise integrations."
       />
       <ConnectCrmPanel catalogue={CRM_CATALOGUE} counts={counts} requested={requested} />
     </>

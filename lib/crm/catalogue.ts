@@ -21,23 +21,30 @@ export type CrmEntry = {
   color: string;
   /** public path to the real logo */
   logo: string;
+  /** display-only starting count on the agent page (a nudge so a popular CRM
+   *  doesn't read "Be the first to ask" on day one). The Command Centre ignores
+   *  this and only ever shows real requests. */
+  seed: number;
+  /** the logo is a light/white mark made for dark backgrounds → sit it on a dark
+   *  plate so it stays visible (the default plate is white). */
+  onDark: boolean;
 };
 
-function entry(key: string, name: string, mono: string, color: string, logoFile: string): CrmEntry {
-  return { key, name, mono, color, logo: `/crm-logos/${logoFile}` };
+function entry(key: string, name: string, mono: string, color: string, logoFile: string, opts: { seed?: number; onDark?: boolean } = {}): CrmEntry {
+  return { key, name, mono, color, logo: `/crm-logos/${logoFile}`, seed: opts.seed ?? 0, onDark: opts.onDark ?? false };
 }
 
 // Ordered by our current best guess at UK prevalence; the live page re-sorts by
 // real demand, so this order only seeds ties. Every entry here has a logo file.
 export const CRM_CATALOGUE: CrmEntry[] = [
-  entry("reapit", "Reapit", "Re", "#16305c", "reapit.png"),
-  entry("alto", "Alto", "Al", "#5a2ea6", "alto.png"),
+  entry("reapit", "Reapit", "Re", "#16305c", "reapit.png", { seed: 2 }),
+  entry("alto", "Alto", "Al", "#5a2ea6", "alto.png", { seed: 6 }),
   entry("jupix", "Jupix", "Ju", "#1f9d55", "jupix.png"),
   entry("street", "Street.co.uk", "St", "#0ea5a0", "street.png"),
   entry("expertagent", "Expert Agent", "EA", "#2563c9", "expertagent.png"),
-  entry("rex", "Rex", "Rx", "#0f9b8e", "rex.png"),
+  entry("rex", "Rex", "Rx", "#0f9b8e", "rex.png", { onDark: true }),
   entry("apex27", "Apex27", "A2", "#5b5bf5", "apex27.png"),
-  entry("loop", "Loop", "Lo", "#6b5cff", "loop.png"),
+  entry("loop", "Loop", "Lo", "#6b5cff", "loop.png", { seed: 4 }),
   entry("gnb", "GNB Property Software", "gnb", "#2f9e4e", "gnb.png"),
 ];
 

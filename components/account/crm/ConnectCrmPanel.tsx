@@ -64,7 +64,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
     });
   }
 
-  const count = (c: CrmEntry) => (counts[c.key] ?? 0) + (reqSet.has(c.key) && !requested.includes(c.key) ? 1 : 0);
+  const count = (c: CrmEntry) => c.seed + (counts[c.key] ?? 0) + (reqSet.has(c.key) && !requested.includes(c.key) ? 1 : 0);
   const sorted = useMemo(() => [...catalogue].sort((a, b) => count(b) - count(a)), [catalogue, counts, reqSet]);
   const q = query.trim().toLowerCase();
   const results = q ? sorted.filter((c) => c.name.toLowerCase().includes(q)) : [];
@@ -76,7 +76,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
     const n = count(c);
     return (
       <div className={`ccrm-tile${on ? " on" : ""}`}>
-        <div className="ccrm-plate"><Logo c={c} /></div>
+        <div className={`ccrm-plate${c.onDark ? " dark" : ""}`}><Logo c={c} /></div>
         <div className="ccrm-tile-foot">
           <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency" : "agencies"}${on ? " · you're in" : ""}`}</span>
           <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
@@ -156,6 +156,7 @@ const CSS = `
 .ccrm-tile:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(20,18,30,0.09); border-color:color-mix(in srgb, var(--accent) 26%, var(--line)); }
 .ccrm-tile.on{ border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
 .ccrm-plate{ width:100%; height:62px; background:#fff; border:1px solid rgba(0,0,0,0.05); border-radius:12px; display:flex; align-items:center; justify-content:center; padding:0 18px; overflow:hidden; }
+.ccrm-plate.dark{ background:#1b2230; border-color:rgba(255,255,255,0.1); }
 .ccrm-logo{ max-height:34px; max-width:100%; width:auto; object-fit:contain; display:block; }
 .ccrm-fallback{ display:flex; align-items:center; gap:10px; }
 .ccrm-mono{ flex-shrink:0; width:36px; height:36px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:750; }
