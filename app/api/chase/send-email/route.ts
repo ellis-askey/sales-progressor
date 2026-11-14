@@ -11,6 +11,9 @@ import { resolveEmailSignature } from "@/lib/email/signature";
 import { resolveClientSignoff } from "@/lib/email/client-signoff";
 import { sanitizeChaseBodyHtml } from "@/lib/email/sanitize-signature";
 import { shouldAddSignOff } from "@/lib/email/sign-off";
+import { agencyLogoHeaderHtml } from "@/lib/email/logo-header";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
+import type { LogoScale, LogoAlign } from "@/lib/image/logo";
 import type { EmailAttachment } from "@/lib/email";
 
 // SendGrid caps a message at ~30MB; keep the base64 total well under that.
@@ -78,10 +81,14 @@ export async function POST(req: NextRequest) {
   // sign-off phrase (BASIC-family only — an image/custom signature carries its
   // own), then the signature. The preview (/api/chase/signature-preview) mirrors
   // this so what the agent sees is what goes out.
-  const resolvedStyle = signatureStyle === "basic" || signatureStyle === "logo" ? signatureStyle : "default";
+  const resolvedStyle =
+    signatureStyle === "basic" || signatureStyle === "logo" || signatureStyle === "image" || signatureStyle === "custom"
+      ? signatureStyle
+      : "default";
   // On an external progression business's file, follow the sender's PER-CLIENT
-  // sign-off for this client agency (falling back to the generic in-house block);
-  // otherwise the sender's own per-user signature, exactly as before.
+  // sign-off for this client agency (falling back to the generic in-house block),
+  // honouring the chosen style (incl. the client agency's logo); otherwise the
+  // sender's own per-user signature, exactly as before.
   let sig: { html: string; text: string };
   if (tx.progressionBusinessId) {
     const me = await prisma.user.findUnique({
@@ -96,6 +103,13 @@ export async function POST(req: NextRequest) {
         company: tx.agency?.name ?? "",
         phone: me?.directMobile ?? me?.phone ?? null,
       },
+      style: resolvedStyle,
+      logoBandHtml: agencyLogoHeaderHtml({
+        logoUrl: getAgencyLogoUrl(tx.agency?.logoPath),
+        tileColor: tx.agency?.logoTileColor,
+        scale: (tx.agency?.logoScale ?? null) as LogoScale | null,
+        align: (tx.agency?.logoAlign ?? null) as LogoAlign | null,
+      }),
     });
   } else {
     sig = await resolveEmailSignature({
