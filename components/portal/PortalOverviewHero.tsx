@@ -12,7 +12,7 @@
 // Completion is locked until exchange) lives on the page side and lands
 // here as pre-computed `text` values on each tile.
 
-import type { ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { Lock, Check, Shield, CaretRight, Calendar } from "@phosphor-icons/react/dist/ssr";
 import { P, PortalPill, type PortalPillTone } from "./portal-ui";
@@ -428,6 +428,20 @@ export function PortalOverviewHero({
   const tenureLabel = formatTenure(tenure);
   const purchaseTypeLabel = formatPurchaseType(purchaseType);
 
+  // Only fall back to the coral streetscape when there's genuinely no photo, or
+  // the real one fails to load — never flash it while a real photo is still on
+  // its way (the orange-house flicker Ellis spotted). The photo fades in once
+  // decoded; the ref/complete check covers cache hits that finish before onLoad.
+  const [photoReady, setPhotoReady] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const photoImgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    setPhotoReady(false);
+    setPhotoFailed(false);
+    if (photoImgRef.current?.complete && photoImgRef.current.naturalWidth > 0) setPhotoReady(true);
+  }, [photoUrl]);
+  const showFallback = !photoUrl || photoFailed;
+
   return (
     // Reveal host: exempt from the page's per-card rise so the image can fade
     // in place while the two cards below it rise (see .portal-reveal-* in CSS).
@@ -462,33 +476,40 @@ export function PortalOverviewHero({
         {/* Photo (or coral fallback if none). The mask fades the image itself
             to transparent toward the foot, so the fixed ambient shows through
             exactly as it does under the content below — no colour to mismatch. */}
-        {/* Fallback streetscape is the ALWAYS-ON base layer: it shows when there's
-            no photo, and also if a photo URL is present but fails to load (onError
-            hides the broken img, revealing this). The inline url() guards against
-            the themed --portal-hero-fallback var ever being unset (e.g. the agent
-            preview iframe, where the blank-hero bug was reported). */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute", inset: 0,
-            backgroundImage: "var(--portal-hero-fallback, url(/portal-hero-fallback.webp))",
-            backgroundSize: "cover",
-            backgroundPosition: "center 35%",
-            WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
-            maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
-          }}
-        />
-        {photoUrl && (
+        {/* Fallback streetscape — rendered ONLY when there's no photo, or a photo
+            URL is present but failed to load (photoFailed). It is deliberately NOT
+            drawn while a real photo is still loading, so an attached photo never
+            flashes the fallback first. The inline url() guards against the themed
+            --portal-hero-fallback var ever being unset (e.g. the agent preview
+            iframe, where the blank-hero bug was reported). */}
+        {showFallback && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute", inset: 0,
+              backgroundImage: "var(--portal-hero-fallback, url(/portal-hero-fallback.webp))",
+              backgroundSize: "cover",
+              backgroundPosition: "center 35%",
+              WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+              maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
+            }}
+          />
+        )}
+        {photoUrl && !photoFailed && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
+            ref={photoImgRef}
             src={photoUrl}
             alt=""
             aria-hidden
             fetchPriority="high"
             decoding="async"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onLoad={() => setPhotoReady(true)}
+            onError={() => setPhotoFailed(true)}
             style={{
               position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+              opacity: photoReady ? 1 : 0,
+              transition: "opacity 420ms ease",
               WebkitMaskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
               maskImage: "linear-gradient(180deg, #000 0%, #000 40%, transparent 96%)",
             }}
