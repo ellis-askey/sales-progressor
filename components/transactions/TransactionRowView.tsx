@@ -762,8 +762,11 @@ function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): Re
 function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; preview?: boolean; compact?: boolean }) {
   const { line, location } = splitAddress(tx.propertyAddress);
   const marker = <RowMarker tx={tx} activeTab={activeTab} preview={preview} />;
-  const who = tx.assignedUser ?? tx.agentUser ?? null;
-  const whoRole = who ? jobTitleLabel(who.jobTitle) : undefined;
+  // The people on the file: who added it (agent / client manager) + the
+  // progressor it's assigned to. Shown as a small avatar stack; deduped.
+  const rowPeople: { name: string; image: string | null; role: string | undefined }[] = [];
+  if (tx.agentUser) rowPeople.push({ name: tx.agentUser.name, image: tx.agentUser.image ?? null, role: jobTitleLabel(tx.agentUser.jobTitle) ?? "Agent" });
+  if (tx.assignedUser && tx.assignedUser.id !== tx.agentUser?.id) rowPeople.push({ name: tx.assignedUser.name, image: tx.assignedUser.image ?? null, role: jobTitleLabel(tx.assignedUser.jobTitle) ?? "Progressor" });
   return (
     <div className="files-id flex items-start gap-3 min-w-0">
       <PropertyThumb photoUrl={tx.photoUrl} size={46} />
@@ -775,18 +778,26 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compac
         {location && <span className="files-town">{location}</span>}
         {showAgency && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
       </div>
-      {showAssigned && preview && who && (
+      {showAssigned && preview && rowPeople.length > 0 && (
         <Tooltip
           placement="bottom-end"
           content={
             <>
-              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{who.name}</p>
-              {whoRole && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{whoRole}</p>}
+              {rowPeople.map((p, i) => (
+                <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{p.name}</p>
+                  {p.role && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>}
+                </div>
+              ))}
             </>
           }
         >
-          <span className="files-assignee" aria-label={`Handled by ${who.name}`}>
-            <UserAvatar user={{ name: who.name, image: who.image ?? null }} size={24} />
+          <span className="files-assignee" style={{ display: "inline-flex", flexShrink: 0 }} aria-label={`On the file: ${rowPeople.map((p) => p.name).join(", ")}`}>
+            {rowPeople.map((p, i) => (
+              <span key={i} style={{ marginLeft: i ? -8 : 0, borderRadius: "50%", boxShadow: "0 0 0 2px var(--agent-surface-elevated, #fff)" }}>
+                <UserAvatar user={{ name: p.name, image: p.image }} size={24} />
+              </span>
+            ))}
           </span>
         </Tooltip>
       )}

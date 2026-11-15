@@ -12,10 +12,12 @@
 // classes are the shared globals.
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Funnel, Check, ClockCountdown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { Popover } from "@/components/ui/Popover";
+import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDetailPanel, completionStatus } from "@/components/completions/CompletionDetailPanel";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
 
@@ -27,11 +29,16 @@ export type CompletedCompletionRow = {
   instructedAtIso: string | null;
   purchasePrice: number | null;
   agentFeeAmount: number | null;
+  agentFeePercent: number | null;
+  agentFeeIsVatInclusive: boolean | null;
   purchasers: string[];
   vendorSolicitorName: string | null;
   purchaserSolicitorName: string | null;
   agencyName?: string | null;
   assignedUserName?: string | null;
+  assignedUserImage?: string | null;
+  agentUserName?: string | null;
+  agentUserImage?: string | null;
   photoUrl?: string | null;
 };
 
@@ -71,11 +78,11 @@ function SortChevron({ active, dir }: { active: boolean; dir: SortDir }) {
 // ── the compact row ──────────────────────────────────────────────────────────
 function Row({
   id, photoUrl, address, priceStr, exchangedIso, completionIso, completionLabel,
-  statusLabel, statusColor, selected, onSelect,
+  trailing, selected, onSelect,
 }: {
   id: string; photoUrl?: string | null; address: string; priceStr: string | null;
   exchangedIso: string | null; completionIso: string | null; completionLabel: string;
-  statusLabel: string; statusColor: string; selected: boolean; onSelect: () => void;
+  trailing: React.ReactNode; selected: boolean; onSelect: () => void;
 }) {
   const [line1, town] = splitAddr(address);
   return (
@@ -102,8 +109,41 @@ function Row({
         <span className="cw-cell-lab">{completionLabel}</span>
         <span className="cw-cell-val">{fmtDate(completionIso)}</span>
       </span>
-      <span className="cw-status" style={{ color: statusColor }}>{statusLabel}</span>
+      <span className="cw-trail">{trailing}</span>
     </div>
+  );
+}
+
+// Completed-tab trailing cell: the fee, or "Set fee" which opens the canonical
+// property-file fee editor (AgentFeeInline) in a popover. For TSP/external the
+// fee is usually already set; agencies see their own commission.
+function CompletedFeeCell({ row, internal }: { row: CompletedCompletionRow; internal: boolean }) {
+  const router = useRouter();
+  if (row.agentFeeAmount != null || row.agentFeePercent != null) {
+    return <span className="cw-fee">{row.agentFeeAmount != null ? money(row.agentFeeAmount) : `${row.agentFeePercent}%`}</span>;
+  }
+  return (
+    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <Popover
+        preset="popover"
+        width={252}
+        placement="bottom-end"
+        trigger={<button type="button" className="cw-setfee">Set fee</button>}
+      >
+        {(close) => (
+          <AgentFeeInline
+            transactionId={row.id}
+            agentFeeAmount={row.agentFeeAmount}
+            agentFeePercent={row.agentFeePercent}
+            agentFeeIsVatInclusive={row.agentFeeIsVatInclusive}
+            purchasePrice={row.purchasePrice}
+            defaultEditing
+            onDone={() => { close(); router.refresh(); }}
+            label={internal ? "Agent fee" : "Your commission"}
+          />
+        )}
+      </Popover>
+    </span>
   );
 }
 
@@ -183,8 +223,10 @@ export function CompletionsWorkspace({
       ? {
           id: selectedCompleted.id, propertyAddress: selectedCompleted.propertyAddress,
           purchasePrice: selectedCompleted.purchasePrice, agentFeeAmount: selectedCompleted.agentFeeAmount,
-          agentFeePercent: null, agentFeeIsVatInclusive: null, purchasers: selectedCompleted.purchasers,
-          assignedUserName: selectedCompleted.assignedUserName ?? null, exchangedAtIso: selectedCompleted.exchangedAtIso,
+          agentFeePercent: selectedCompleted.agentFeePercent, agentFeeIsVatInclusive: selectedCompleted.agentFeeIsVatInclusive, purchasers: selectedCompleted.purchasers,
+          assignedUserName: selectedCompleted.assignedUserName ?? null, assignedUserImage: selectedCompleted.assignedUserImage ?? null,
+          agentUserName: selectedCompleted.agentUserName ?? null, agentUserImage: selectedCompleted.agentUserImage ?? null,
+          exchangedAtIso: selectedCompleted.exchangedAtIso,
           completionDateIso: selectedCompleted.completionDateIso,
           vendorSolicitorName: selectedCompleted.vendorSolicitorName, purchaserSolicitorName: selectedCompleted.purchaserSolicitorName,
           instructedAtIso: selectedCompleted.instructedAtIso,
@@ -292,7 +334,7 @@ export function CompletionsWorkspace({
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("price")}>Price<SortChevron active={sortCol === "price"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("exchanged")}>Exchanged<SortChevron active={sortCol === "exchanged"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("completion")}>{completionLabel}<SortChevron active={sortCol === "completion"} dir={sortDir} /></button>
-                <span className="cw-head-cell cw-head-status">Status</span>
+                <span className="cw-head-cell cw-head-status">{tab === "completed" ? "Fee" : "Status"}</span>
               </div>
               <div className="cw-list">
                 {tab === "active"
@@ -301,15 +343,14 @@ export function CompletionsWorkspace({
                       return (
                         <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                           priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
-                          statusLabel={st.label} statusColor={st.color}
+                          trailing={<span className="cw-status" style={{ color: st.color }}>{st.label}</span>}
                           selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                       );
                     })
                   : completedRows.map((f) => (
                       <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                         priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
-                        statusLabel={f.completionDateIso ? `Completed ${new Date(f.completionDateIso).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Completed"}
-                        statusColor="var(--agent-success)"
+                        trailing={<CompletedFeeCell row={f} internal={internal} />}
                         selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                     ))}
               </div>
@@ -392,7 +433,11 @@ button.cw-head-cell:hover .cw-chev{ opacity:0.55; }
 .cw-cell{ display:flex; flex-direction:column; min-width:0; line-height:1.2; }
 .cw-cell-lab{ display:none; }
 .cw-cell-val{ font-size:12.5px; font-weight:500; color:var(--agent-text-secondary); white-space:nowrap; }
-.cw-status{ font-size:12.5px; font-weight:700; text-align:right; white-space:nowrap; justify-self:end; font-variant-numeric:tabular-nums; }
+.cw-trail{ justify-self:end; display:flex; align-items:center; justify-content:flex-end; min-width:0; }
+.cw-status{ font-size:12.5px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cw-fee{ font-size:13.5px; font-weight:700; color:var(--agent-coral-deep); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.cw-setfee{ font-size:12.5px; font-weight:600; color:var(--agent-coral-deep); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; }
+.cw-setfee:hover{ text-decoration:underline; }
 
 /* Empty */
 .cw-empty{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:46px 24px; }
@@ -408,7 +453,7 @@ button.cw-head-cell:hover .cw-chev{ opacity:0.55; }
   .cw-row{ display:flex; flex-wrap:wrap; column-gap:14px; row-gap:7px; }
   .cw-thumb{ order:0; }
   .cw-id{ order:1; flex:1 1 auto; }
-  .cw-status{ order:2; justify-self:auto; }
+  .cw-trail{ order:2; justify-self:auto; }
   .cw-price{ order:3; }
   .cw-cell{ order:4; flex-direction:row; align-items:baseline; gap:5px; }
   .cw-cell-lab{ display:inline; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); font-weight:700; }

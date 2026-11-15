@@ -15,13 +15,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CaretLeft, CaretRight, X, CheckCircle, Circle, CalendarBlank, UsersThree,
-  Buildings, ArrowSquareOut, Flag, Scales, Timer,
+  Headset, ArrowSquareOut, Flag, Scales, Timer,
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
 import { DateMenu } from "@/components/completions/CompletionCardMenus";
 import { completeFileAction } from "@/app/actions/completions";
-import { ContactAvatar } from "@/components/ui/Avatar";
+import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { Popover } from "@/components/ui/Popover";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
@@ -147,7 +147,11 @@ export function CompletionDetailPanel({
   const elapsed = f.exchangedAtIso ? daysBetween(f.exchangedAtIso, new Date().toISOString()) : null;
   const exToCompDisplay = completed ? exToComp : (st.rel != null && st.rel < 0 ? elapsed : exToComp);
 
-  const agents = f.agencyName ?? f.assignedUserName ?? "Not recorded";
+  // The people on the file: who added it (agent / client manager) + the progressor
+  // looking after it. Deduped when they are the same person.
+  const people: { name: string; image: string | null; role: string }[] = [];
+  if (f.agentUserName) people.push({ name: f.agentUserName, image: f.agentUserImage ?? null, role: "Agent" });
+  if (f.assignedUserName && f.assignedUserName !== f.agentUserName) people.push({ name: f.assignedUserName, image: f.assignedUserImage ?? null, role: "Progressor" });
   const feeStr = fmtMoney(f.agentFeeAmount);
   const priceStr = f.purchasePrice != null ? "£" + Math.round(f.purchasePrice / 100).toLocaleString("en-GB") : null;
 
@@ -208,19 +212,27 @@ export function CompletionDetailPanel({
             <JourneyNode label="Completion" date={fmtTiny(f.completionDateIso)} state={compState} />
           </div>
 
-          {/* Stat cards */}
-          <div className="cdp-grid">
-            <div className="cdp-card">
-              <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
-              <span className="cdp-card-val" style={{ color: completed ? "var(--agent-text-primary)" : st.color }}>
-                {exToCompDisplay != null ? `${exToCompDisplay} days` : "—"}
-              </span>
-              <span className="cdp-card-sub">Target: 12-14 days</span>
-            </div>
-            <div className="cdp-card">
-              <span className="cdp-card-lab"><Buildings size={13} weight="regular" /> Agents</span>
-              <span className="cdp-card-val cdp-card-val--sm">{agents}</span>
-            </div>
+          {/* Exchange to completion */}
+          <div className="cdp-card">
+            <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
+            <span className="cdp-card-val" style={{ color: completed ? "var(--agent-text-primary)" : st.color }}>
+              {exToCompDisplay != null ? `${exToCompDisplay} days` : "—"}
+            </span>
+          </div>
+
+          {/* People — who added it (agent / client manager) + the progressor */}
+          <div className="cdp-people-card">
+            <span className="cdp-card-lab"><Headset size={13} weight="regular" /> People</span>
+            {people.length > 0 ? (
+              <div className="cdp-people">
+                {people.map((p, i) => (
+                  <div key={i} className="cdp-person">
+                    <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
+                    <span className="cdp-person-txt"><span className="cdp-person-name">{p.name}</span><span className="cdp-person-role">{p.role}</span></span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="cdp-people-empty">Not recorded</span>}
           </div>
 
           {/* Clients — a column, each with a colour-coded avatar */}

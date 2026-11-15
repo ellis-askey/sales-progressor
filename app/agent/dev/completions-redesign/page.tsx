@@ -43,7 +43,7 @@ function activeFiles(internal: boolean): CompletionFileRow[] {
     agentFeeIsVatInclusive: null, purchasers: [], assignedUserName: null, exchangedAtIso: null,
     completionDateIso: null, vendorSolicitorName: null, purchaserSolicitorName: null, photoUrl: null,
     internal, chainSize: 1, instructedAtIso: null, firstTimeBuyer: null, sellingRelated: null,
-    mortgageOfferExpiryIso: null, ...over,
+    mortgageOfferExpiryIso: null, agentUserName: "Daniel Okafor", ...over,
   });
   return [
     base({ id: "c1", propertyAddress: "27 Sion Hill, Clifton, Bristol, BS8 4BA", purchasePrice: 54_000_000, agentFeeAmount: 495_000,
@@ -77,11 +77,11 @@ function activeFiles(internal: boolean): CompletionFileRow[] {
 
 function completedFiles(): CompletedCompletionRow[] {
   return [
-    { id: "d1", propertyAddress: "9 Lansdown View, Bath, BA1 5EG", completionDateIso: iso(-3), exchangedAtIso: iso(-17), instructedAtIso: iso(-58), purchasePrice: 45_000_000, agentFeeAmount: 450_000, purchasers: ["Grace Whitmore"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harbour & Finch", assignedUserName: "Priya Nair" },
-    { id: "d2", propertyAddress: "44 Highfield Road, Bristol, BS6 6HB", completionDateIso: iso(-8), exchangedAtIso: iso(-21), instructedAtIso: iso(-64), purchasePrice: 51_000_000, agentFeeAmount: 510_000, purchasers: ["The Nortons"], vendorSolicitorName: "Oldfield Legal", purchaserSolicitorName: "Mallory & Co", assignedUserName: "Tom Beckett" },
-    { id: "d3", propertyAddress: "7 Weston Lane, Bath, BA1 4AN", completionDateIso: iso(-15), exchangedAtIso: iso(-31), instructedAtIso: iso(-72), purchasePrice: 38_000_000, agentFeeAmount: null, purchasers: ["Aiden Clarke"], vendorSolicitorName: "Stonegate", purchaserSolicitorName: "Quill & Bright", assignedUserName: "Priya Nair" },
-    { id: "d4", propertyAddress: "22 Cotham Brow, Bristol, BS6 6AR", completionDateIso: iso(-19), exchangedAtIso: iso(-30), instructedAtIso: iso(-69), purchasePrice: 62_500_000, agentFeeAmount: 625_000, purchasers: ["Mr & Mrs Farrell"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harrowell & Atkins", assignedUserName: "Tom Beckett" },
-    { id: "d5", propertyAddress: "3 Mendip Close, Frome, BA11 4DZ", completionDateIso: iso(-26), exchangedAtIso: iso(-39), instructedAtIso: iso(-80), purchasePrice: 30_500_000, agentFeeAmount: 305_000, purchasers: ["Hollie Grant"], vendorSolicitorName: "Westway Law", purchaserSolicitorName: "Gough Thorne", assignedUserName: "Priya Nair" },
+    { id: "d1", propertyAddress: "9 Lansdown View, Bath, BA1 5EG", completionDateIso: iso(-3), exchangedAtIso: iso(-17), instructedAtIso: iso(-58), purchasePrice: 45_000_000, agentFeeAmount: 450_000, agentFeePercent: null, agentFeeIsVatInclusive: false, purchasers: ["Grace Whitmore"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harbour & Finch", agentUserName: "Daniel Okafor", assignedUserName: "Priya Nair" },
+    { id: "d2", propertyAddress: "44 Highfield Road, Bristol, BS6 6HB", completionDateIso: iso(-8), exchangedAtIso: iso(-21), instructedAtIso: iso(-64), purchasePrice: 51_000_000, agentFeeAmount: 510_000, agentFeePercent: null, agentFeeIsVatInclusive: false, purchasers: ["The Nortons"], vendorSolicitorName: "Oldfield Legal", purchaserSolicitorName: "Mallory & Co", agentUserName: "Sofia Marchetti", assignedUserName: "Tom Beckett" },
+    { id: "d3", propertyAddress: "7 Weston Lane, Bath, BA1 4AN", completionDateIso: iso(-15), exchangedAtIso: iso(-31), instructedAtIso: iso(-72), purchasePrice: 38_000_000, agentFeeAmount: null, agentFeePercent: null, agentFeeIsVatInclusive: null, purchasers: ["Aiden Clarke"], vendorSolicitorName: "Stonegate", purchaserSolicitorName: "Quill & Bright", agentUserName: "Daniel Okafor", assignedUserName: "Priya Nair" },
+    { id: "d4", propertyAddress: "22 Cotham Brow, Bristol, BS6 6AR", completionDateIso: iso(-19), exchangedAtIso: iso(-30), instructedAtIso: iso(-69), purchasePrice: 62_500_000, agentFeeAmount: 625_000, agentFeePercent: null, agentFeeIsVatInclusive: false, purchasers: ["Mr & Mrs Farrell"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harrowell & Atkins", agentUserName: "Sofia Marchetti", assignedUserName: "Tom Beckett" },
+    { id: "d5", propertyAddress: "3 Mendip Close, Frome, BA11 4DZ", completionDateIso: iso(-26), exchangedAtIso: iso(-39), instructedAtIso: iso(-80), purchasePrice: 30_500_000, agentFeeAmount: 305_000, agentFeePercent: null, agentFeeIsVatInclusive: false, purchasers: ["Hollie Grant"], vendorSolicitorName: "Westway Law", purchaserSolicitorName: "Gough Thorne", agentUserName: "Daniel Okafor", assignedUserName: "Priya Nair" },
   ];
 }
 
