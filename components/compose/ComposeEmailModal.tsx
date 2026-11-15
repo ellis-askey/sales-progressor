@@ -1117,7 +1117,7 @@ const CEM_CSS = `
 .cem-em{font-size:11px;color:var(--agent-text-muted);flex-shrink:0;max-width:36%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-subject{width:100%;background:var(--agent-surface-elevated,#fff);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:550;color:var(--agent-text-primary);outline:none}
 .cem-editor-wrap{border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
-.cem-editor{min-height:150px;max-height:290px;overflow-y:auto;padding:13px 14px;font-size:13.5px;line-height:1.6;color:var(--agent-text-primary);outline:none;border-bottom:1px solid var(--agent-border-subtle)}
+.cem-editor{min-height:150px;max-height:290px;overflow-y:auto;padding:13px 14px;font-size:13px;line-height:1.6;color:var(--agent-text-primary);outline:none;border-bottom:1px solid var(--agent-border-subtle)}
 .cem-editor p{margin:0 0 10px}.cem-editor a{color:var(--agent-coral-deep)}
 .cem-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:5px;background:var(--agent-bg-paper,#FFFBF5)}
 .cem-tb{width:30px;height:30px;border:none;background:none;border-radius:7px;cursor:pointer;color:var(--agent-text-secondary);font-size:14px;display:grid;place-items:center;transition:background .12s,color .12s}

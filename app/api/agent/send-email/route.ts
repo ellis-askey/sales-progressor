@@ -17,7 +17,7 @@ const AGENCY_SIG_SELECT = { name: true, logoPath: true, logoTileColor: true, log
 function composeHtml(body: string, sigHtml: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const bodyHtml = esc(body).replace(/\r?\n/g, "<br>");
-  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${bodyHtml}${sigHtml}</div>`;
+  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#111827;line-height:1.6;">${bodyHtml}${sigHtml}</div>`;
 }
 
 export async function POST(req: NextRequest) {

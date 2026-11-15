@@ -136,10 +136,10 @@ export async function POST(req: NextRequest) {
   // keep the original behaviour: the app adds the phrase when the signature has none.
   const addSignOff = !signOffInBody && shouldAddSignOff(sig.html);
   const signOffHtml = addSignOff
-    ? `<p style="margin:22px 0 0;font-size:14px;color:#111827;line-height:1.6;">${escapeHtmlBody(signOffPhrase)}</p>`
+    ? `<p style="margin:22px 0 0;font-size:13px;color:#111827;line-height:1.6;">${escapeHtmlBody(signOffPhrase)}</p>`
     : "";
   const signOffText = addSignOff ? `\n\n${signOffPhrase}` : "";
-  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#111827;line-height:1.6;">${renderedBody}${signOffHtml}${sig.html}</div>`;
+  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#111827;line-height:1.6;">${renderedBody}${signOffHtml}${sig.html}</div>`;
 
   // Stable RFC Message-ID + full recipient/subject/time on the log row so the
   // mailbox ingestion can dedup this send instead of double-logging it when the
