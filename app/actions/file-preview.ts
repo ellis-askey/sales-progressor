@@ -15,6 +15,7 @@
 
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { getTransactionByScope } from "@/lib/services/transactions";
 import { getLatestVisibleNote } from "@/lib/services/comms";
@@ -106,7 +107,7 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
       const u = byId.get(uid);
       if (!u) continue;
       seen.add(uid);
-      people.push({ id: u.id, name: u.name, image: u.image, jobTitle: u.jobTitle, email: u.email, phone: u.phone, slot });
+      people.push({ id: u.id, name: u.name, image: getAvatarPublicUrl(u.image), jobTitle: u.jobTitle, email: u.email, phone: u.phone, slot });
     }
 
     // ── Clients (principal sellers + buyers) with contact details. Sellers

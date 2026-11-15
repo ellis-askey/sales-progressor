@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { TransactionStatus, Prisma } from "@prisma/client";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { roundScopedOR, contactRoundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
 import { detectPhase, feeExVat, calculateFileFeesPence, calculateProgressionFeePence } from "@/lib/services/fees";
 import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
@@ -372,10 +373,10 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         photoStoragePath: tx.photoStoragePath,
         agencyName:       tx.agency?.name ?? null,
         assignedUserName:     tx.assignedUser?.name ?? null,
-        assignedUserImage:    tx.assignedUser?.image ?? null,
+        assignedUserImage:    getAvatarPublicUrl(tx.assignedUser?.image),
         assignedUserJobTitle: tx.assignedUser?.jobTitle ?? null,
         agentUserName:        tx.agentUser?.name ?? null,
-        agentUserImage:       tx.agentUser?.image ?? null,
+        agentUserImage:       getAvatarPublicUrl(tx.agentUser?.image),
         agentUserJobTitle:    tx.agentUser?.jobTitle ?? null,
         serviceType:      tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
         inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,
@@ -526,10 +527,10 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     photoStoragePath: tx.photoStoragePath,
     agencyName:        tx.agency?.name ?? null,
     assignedUserName:     tx.assignedUser?.name ?? null,
-    assignedUserImage:    tx.assignedUser?.image ?? null,
+    assignedUserImage:    getAvatarPublicUrl(tx.assignedUser?.image),
     assignedUserJobTitle: tx.assignedUser?.jobTitle ?? null,
     agentUserName:        tx.agentUser?.name ?? null,
-    agentUserImage:       tx.agentUser?.image ?? null,
+    agentUserImage:       getAvatarPublicUrl(tx.agentUser?.image),
     agentUserJobTitle:    tx.agentUser?.jobTitle ?? null,
     serviceType:      tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
     inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,

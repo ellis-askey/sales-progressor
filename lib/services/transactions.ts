@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Tenure, PurchaseType } from "@prisma/client";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { rollToBusinessDay, calculateProgressionFeePence } from "@/lib/services/fees";
 import { parseFeeModel, calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { resolveSolicitorReferralVat, resolveBrokerReferralVat } from "@/lib/services/referral-vat";
@@ -422,6 +423,12 @@ export async function listTransactions(
         + (referralFeeNum ?? 0) + Number(tx.brokerReferralFee ?? 0) + Number(tx.onwardBrokerReferralFee ?? 0);
     return {
       ...rest,
+      // Normalise the handling team's photos the same way every other avatar
+      // surface does (bare bucket paths → public URL); rendering User.image raw
+      // 404s for anyone whose photo is a path, which is why TSP/outsourced
+      // progressor photos didn't show for internal staff.
+      agentUser: tx.agentUser ? { ...tx.agentUser, image: getAvatarPublicUrl(tx.agentUser.image) } : null,
+      assignedUser: tx.assignedUser ? { ...tx.assignedUser, image: getAvatarPublicUrl(tx.assignedUser.image) } : null,
       agentFeeAmount: agentFeeAmountNum,
       agentFeePercent: agentFeePercentNum,
       referralFee: referralFeeNum,
