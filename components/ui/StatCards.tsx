@@ -21,7 +21,7 @@ export type StatCardSpec = {
   // it across the client boundary, matching how every original tile passed icons.
   icon: ReactNode;
   tone: StatTone;
-  value: ReactNode; // pre-formatted by the caller (number, "£8k", "72%", "—")
+  value: ReactNode; // pre-formatted by the caller (number, "£8k", "72%", a dash)
   label: ReactNode;
   sub?: ReactNode; // optional small sub-line; accepts rich content (e.g. split spans)
   href?: string; // renders the card as a Link

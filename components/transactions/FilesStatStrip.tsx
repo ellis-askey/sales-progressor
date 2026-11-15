@@ -77,7 +77,7 @@ export function FilesStatStrip({
       sub: `${gbpCompact(sumFees(atRisk))} fees`,
       onClick: () => onToggle("risk"),
       active: selected.has("risk"),
-      ariaLabel: "At risk — toggle filter",
+      ariaLabel: "Toggle at-risk filter",
     },
     {
       key: "quiet",
@@ -88,7 +88,7 @@ export function FilesStatStrip({
       sub: `${gbpCompact(sumFees(goneQuiet))} fees`,
       onClick: () => onToggle("quiet"),
       active: selected.has("quiet"),
-      ariaLabel: "Gone quiet — toggle filter",
+      ariaLabel: "Toggle gone-quiet filter",
     },
   ];
 
