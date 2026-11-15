@@ -158,6 +158,32 @@ describe("sendStaffMessageAction: sending + conversation selection", () => {
   });
 });
 
+describe("sendStaffMessageAction: duplicate prevention (idempotent)", () => {
+  it("a retried send with the same clientMsgId upserts on the same key, never inserting a duplicate", async () => {
+    sessionAs("ellis");
+    txFound("round1");
+    conversationResolvesToNew("conv_b");
+    upsertReturns({ id: "m1", clientMsgId: "dup1", body: "hi" });
+
+    const first = await sendStaffMessageAction({ transactionId: "tx_pilot", side: "buyer", body: "hi", clientMsgId: "dup1" });
+    const second = await sendStaffMessageAction({ transactionId: "tx_pilot", side: "buyer", body: "hi", clientMsgId: "dup1" });
+
+    expect(first.ok && second.ok).toBe(true);
+    // Both go through upsert on the SAME compound key with an empty update; the
+    // DB @@unique([conversationId, clientMsgId]) guarantees a single row.
+    expect(p.message.upsert).toHaveBeenCalledTimes(2);
+    for (const call of p.message.upsert.mock.calls) {
+      expect(call[0]).toEqual(
+        expect.objectContaining({
+          where: { conversationId_clientMsgId: { conversationId: "conv_b", clientMsgId: "dup1" } },
+          update: {},
+        }),
+      );
+    }
+    if (first.ok && second.ok) expect(first.message.id).toBe(second.message.id);
+  });
+});
+
 describe("markStaffConversationReadAction: guard", () => {
   it("is a silent no-op for a non-pilot staff user", async () => {
     sessionAs("intruder");

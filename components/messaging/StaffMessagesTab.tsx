@@ -23,9 +23,14 @@ import {
   fetchStaffSideAction,
 } from "@/app/actions/messaging";
 import type { MessagingSide } from "@/lib/services/messaging/side";
-import type { StaffMessageView, StaffSideData } from "@/lib/services/messaging/types";
-
-type LocalMsg = StaffMessageView & { status?: "sending" | "failed" };
+import type { StaffSideData } from "@/lib/services/messaging/types";
+import {
+  type LocalMsg,
+  makeOptimistic,
+  reconcileSend,
+  markRetrying,
+  mergeServerMessages,
+} from "@/lib/services/messaging/client-state";
 
 const LONDON = "Europe/London";
 function fmtTime(iso: string): string {
@@ -92,6 +97,7 @@ export function StaffMessagesTab({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const openedRef = useRef(false);
 
   const activeMeta = metaFor(active);
   const activeMsgs = bySide[active];
@@ -110,15 +116,22 @@ export function StaffMessagesTab({
     async (side: MessagingSide) => {
       const res = await fetchStaffSideAction({ transactionId, side });
       if (!res.ok) return;
-      setBySide((prev) => {
-        const pending = prev[side].filter((m) => m.status === "sending" || m.status === "failed");
-        const serverIds = new Set(res.side.messages.map((m) => m.clientMsgId));
-        const stillPending = pending.filter((m) => !serverIds.has(m.clientMsgId));
-        return { ...prev, [side]: [...res.side.messages.map((m) => ({ ...m }) as LocalMsg), ...stillPending] };
-      });
+      setBySide((prev) => ({ ...prev, [side]: mergeServerMessages(prev[side], res.side.messages) }));
     },
     [transactionId],
   );
+
+  // Freshness on first open: the route payload may have been prefetched/cached
+  // (unstable_dynamicStaleTime=300), so refetch the active side once on mount so
+  // history + unread are current on entry. Event-driven refetches (focus /
+  // visibility / side switch) handle later updates; the ref guard keeps this to a
+  // single request.
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    void refresh(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // On mount + whenever the active side changes: mark read.
   useEffect(() => {
@@ -154,17 +167,17 @@ export function StaffMessagesTab({
   // ── sending ────────────────────────────────────────────────────────────────
   const doSend = useCallback(
     async (side: MessagingSide, body: string, clientMsgId: string) => {
-      const res = await sendStaffMessageAction({ transactionId, side, body, clientMsgId });
-      setBySide((prev) => ({
-        ...prev,
-        [side]: prev[side].map((m) =>
-          m.clientMsgId === clientMsgId
-            ? res.ok
-              ? { ...res.message, status: undefined }
-              : { ...m, status: "failed" as const }
-            : m,
-        ),
-      }));
+      try {
+        const res = await sendStaffMessageAction({ transactionId, side, body, clientMsgId });
+        const outcome = res.ok ? { ok: true as const, message: res.message } : { ok: false as const };
+        setBySide((prev) => ({ ...prev, [side]: reconcileSend(prev[side], clientMsgId, outcome) }));
+      } catch {
+        // Transport-level failure (network drop, aborted action). The DB write may
+        // or may not have landed; either way flip the bubble to Failed so Retry is
+        // offered. Retry reuses the same clientMsgId, so a landed write is never
+        // duplicated (idempotent upsert) and a refetch dedups a stuck bubble.
+        setBySide((prev) => ({ ...prev, [side]: reconcileSend(prev[side], clientMsgId, { ok: false }) }));
+      }
     },
     [transactionId],
   );
@@ -173,16 +186,7 @@ export function StaffMessagesTab({
     const body = drafts[active].trim();
     if (!body || !canSend) return;
     const clientMsgId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `tmp_${Date.now()}_${Math.round(Math.random() * 1e9)}`;
-    const optimistic: LocalMsg = {
-      id: clientMsgId,
-      clientMsgId,
-      body,
-      senderKind: "staff",
-      senderName: "You",
-      mine: true,
-      createdAt: new Date().toISOString(),
-      status: "sending",
-    };
+    const optimistic = makeOptimistic(clientMsgId, body, new Date().toISOString());
     setBySide((prev) => ({ ...prev, [active]: [...prev[active], optimistic] }));
     setDrafts((d) => ({ ...d, [active]: "" }));
     if (taRef.current) taRef.current.style.height = "auto";
@@ -190,10 +194,7 @@ export function StaffMessagesTab({
   }
 
   function retry(msg: LocalMsg) {
-    setBySide((prev) => ({
-      ...prev,
-      [active]: prev[active].map((m) => (m.clientMsgId === msg.clientMsgId ? { ...m, status: "sending" as const } : m)),
-    }));
+    setBySide((prev) => ({ ...prev, [active]: markRetrying(prev[active], msg.clientMsgId) }));
     void doSend(active, msg.body, msg.clientMsgId);
   }
 
