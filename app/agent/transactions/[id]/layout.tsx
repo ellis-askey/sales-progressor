@@ -64,6 +64,7 @@ import { DemoTourMount } from "@/components/transaction/demo-tour/DemoTourMount"
 import { ShellTimingBadge } from "@/components/transaction/ShellTimingBadge";
 import { TabTimingBadge } from "@/components/transaction/TabTimingBadge";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { canUseMessages, fileInMessagesPilot } from "@/lib/agency-features/messages";
 import { getStickyNotesForFile } from "@/lib/services/sticky-notes";
 import { StickyLayer } from "@/components/sticky/StickyLayer";
 
@@ -288,6 +289,11 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   const setupMatured = Date.now() - transaction.createdAt.getTime() > SETUP_DEMOTE_AFTER_MS;
   const setupTab = { key: "setup", label: "File setup", badge: 0, icon: "setup" };
 
+  // Native messaging (pilot): the Messages tab only renders for an allowlisted
+  // pilot staff user on an allowlisted pilot file (both fail-closed). Invisible
+  // to everyone else; the route itself also notFound()s off-pilot.
+  const showMessages = canUseMessages(session) && fileInMessagesPilot(transaction.id);
+
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
     ...(setupMatured ? [] : [setupTab]),
@@ -304,6 +310,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
     // numbers), so the conversations view is meaningful everywhere. The page
     // shows a guide-to-connect empty state when nothing's captured; the legacy
     // internal panel stays internal-only inside the page.
+    ...(showMessages ? [{ key: "messages", label: "Messages", icon: "messages" }] : []),
     { key: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
     // Client portal sits at the very end and STAYS there — even once File setup
     // demotes toward the end at 14 days, this remains the final tab (founder,
