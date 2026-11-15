@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CaretLeft, CaretRight, X, CheckCircle, Circle, Check, UsersThree,
-  Headset, ArrowSquareOut, Flag, Scales, Phone, EnvelopeSimple,
+  Headset, ArrowSquareOut, Flag, Scales, Phone, EnvelopeSimple, NotePencil,
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
@@ -26,6 +26,7 @@ import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { Popover } from "@/components/ui/Popover";
 import { getFilePreviewExtras, type FilePreviewExtras } from "@/app/actions/file-preview";
 import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
+import { AddNoteModal } from "@/components/activity/AddNoteModal";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
 
@@ -127,6 +128,7 @@ export function CompletionDetailPanel({
   const [extras, setExtras] = useState<FilePreviewExtras | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailPrefill, setEmailPrefill] = useState<ComposePrefill | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
   useEffect(() => {
     if (!open || !id) return;
     let live = true;
@@ -391,9 +393,51 @@ export function CompletionDetailPanel({
               <button type="button" className="cdp-ghost" onClick={() => setCompleting(false)}>Cancel</button>
             </div>
           )}
-          {!completing && (
+          {/* Completed files: Open file is the primary; the right slot is the
+              Set fee button (+ "No fee set" subtext) until a fee is set, then it
+              swaps to the email/note actions — same footprint, so the swap is
+              seamless. */}
+          {!completing && completed && (
             <div className="cdp-act-row">
-              {!completed && <DateMenu txId={f.id} currentIso={f.completionDateIso} hasDate={!!f.completionDateIso} />}
+              <Link href={withFrom(`${basePath}/${f.id}`, "/agent/completions")} className="cdp-primary cdp-primary--flex" onClick={onClose}>
+                <ArrowSquareOut size={16} weight="bold" /> Open file
+              </Link>
+              {!f.hideFeeEdit && (
+                feeStr ? (
+                  <div className="cdp-act-icons">
+                    <button type="button" className="cdp-iconbtn" aria-label="New email" onClick={() => { setEmailPrefill(null); setEmailOpen(true); }}><EnvelopeSimple size={17} weight="regular" /></button>
+                    <button type="button" className="cdp-iconbtn" aria-label="Add note" onClick={() => setNoteOpen(true)}><NotePencil size={17} weight="regular" /></button>
+                  </div>
+                ) : (
+                  <div className="cdp-fee-slot">
+                    <Popover
+                      preset="popover"
+                      width={252}
+                      placement="top-end"
+                      trigger={<button type="button" className="cdp-setfee">Set fee</button>}
+                    >
+                      {(close) => (
+                        <AgentFeeInline
+                          transactionId={f.id}
+                          agentFeeAmount={f.agentFeeAmount}
+                          agentFeePercent={f.agentFeePercent}
+                          agentFeeIsVatInclusive={f.agentFeeIsVatInclusive}
+                          purchasePrice={f.purchasePrice}
+                          defaultEditing
+                          onDone={() => { close(); router.refresh(); }}
+                          label={f.internal ? "Agent fee" : "Your commission"}
+                        />
+                      )}
+                    </Popover>
+                    <span className="cdp-setfee-sub">No fee set</span>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+          {!completing && !completed && (
+            <div className="cdp-act-row">
+              <DateMenu txId={f.id} currentIso={f.completionDateIso} hasDate={!!f.completionDateIso} />
               {!f.hideFeeEdit && (
                 <Popover
                   preset="popover"
@@ -431,6 +475,7 @@ export function CompletionDetailPanel({
     <>
       {createPortal(panel, document.body)}
       <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} prefill={emailPrefill} elevated />
+      <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={fileId} />
     </>
   );
 }
@@ -546,6 +591,22 @@ const CDP_CSS = `
 .cdp-fee-glance{ flex:1; font-size:12px; font-weight:600; color:var(--agent-text-muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cdp-open{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--agent-text-secondary); text-decoration:none; flex-shrink:0; }
 .cdp-open:hover{ color:var(--agent-coral-deep); }
+/* Completed footer: Open file primary (left) + a fee slot / email+note on the
+   right. Both right-side states are the SAME 96px width so the swap is seamless. */
+.cdp-primary--flex{ width:auto; flex:1; }
+.cdp-act-icons{ display:flex; gap:8px; flex-shrink:0; animation:cdpFade .25s ease; }
+.cdp-iconbtn{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; cursor:pointer;
+  border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary);
+  transition:border-color .15s, color .15s; }
+.cdp-iconbtn:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
+.cdp-fee-slot{ display:flex; flex-direction:column; gap:3px; width:96px; flex-shrink:0; animation:cdpFade .25s ease; }
+.cdp-setfee{ height:38px; border-radius:11px; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700;
+  border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary);
+  transition:border-color .15s, color .15s; }
+.cdp-setfee:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
+.cdp-setfee-sub{ font-size:10.5px; color:var(--agent-text-muted); text-align:center; line-height:1.1; }
+@keyframes cdpFade{ from{ opacity:0 } to{ opacity:1 } }
+@media (prefers-reduced-motion:reduce){ .cdp-act-icons,.cdp-fee-slot{ animation:none } }
 
 /* Tablet / mobile: full-width sheet, then bottom sheet. */
 @media (max-width:1023px){ .cdp-panel{ top:12px; right:12px; bottom:12px; left:12px; width:auto; } }
