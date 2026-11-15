@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClockCountdown, Plus, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import { ClockCountdown, Plus, ListChecks } from "@/components/icons/ph-ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
@@ -15,6 +15,7 @@ import { CompletionsMomentum } from "@/components/completions/CompletionsMomentu
 import { CompletionsTimeline, type TimelineDay } from "@/components/completions/CompletionsTimeline";
 import { CompletingTodayCard, type TodayFile } from "@/components/completions/CompletingTodayCard";
 import { CompletedSection } from "@/components/completions/CompletedSection";
+import { CompletionsWorkspace, type CompletedCompletionRow } from "@/components/completions/CompletionsWorkspace";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";
@@ -54,6 +55,10 @@ export default async function AgentCompletionsPage() {
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";
   const isAdmin = hasAdminPowers(session);
+  // Founder-gated redesign (Completions master-detail). On prod only ellis sees
+  // the new workspace; everyone else keeps the current grouped layout until the
+  // wider release. Gate widens by editing this one check (mirrors AgentShell).
+  const isFounder = (session.user.email ?? "").toLowerCase().trim() === "ellis@thesalesprogressor.co.uk";
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
   // Owner with a client already added -> empty-state CTA flips to "Add a sale" (#188).
   const ownerHasClients = isBusinessOwner && session.user.progressionBusinessId
@@ -157,6 +162,54 @@ export default async function AgentCompletionsPage() {
   // Other internal staff (TSP progressors, admin, viewer) never see it.
   const isBrandNew = files.length === 0 && completedFiles.length === 0 && (!isInternalStaff || isBusinessOwner);
 
+  // One mapping from a loaded file to the serialisable client row — shared by the
+  // founder workspace (flat list) and the current grouped list, so they never drift.
+  const toCompletionRow = (f: typeof files[number]): CompletionFileRow => ({
+    id:                    f.id,
+    propertyAddress:       f.propertyAddress,
+    purchasePrice:         f.purchasePrice ?? null,
+    agentFeeAmount:        f.agentFeeAmount ?? null,
+    agentFeePercent:       f.agentFeePercent ?? null,
+    agentFeeIsVatInclusive: f.agentFeeIsVatInclusive ?? null,
+    purchasers:            f.purchasers,
+    assignedUserName:      f.assignedUserName ?? null,
+    exchangedAtIso:        f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,
+    completionDateIso:     f.completionDate ? new Date(f.completionDate).toISOString() : null,
+    vendorSolicitorName:   f.vendorSolicitorName ?? null,
+    purchaserSolicitorName: f.purchaserSolicitorName ?? null,
+    agencyName:            isInternalStaff ? (f.agencyName ?? null) : undefined,
+    photoUrl:              signed(f.photoStoragePath),
+    internal:              isInternalStaff,
+    hideFeeEdit:           isProgressor,
+    chainSize:             f.chainSize,
+    instructedAtIso:       f.instructedAt ? new Date(f.instructedAt).toISOString() : null,
+    firstTimeBuyer:        f.firstTimeBuyer,
+    sellingRelated:        f.sellingRelated,
+    mortgageOfferExpiryIso: f.mortgageOfferExpiry ? new Date(f.mortgageOfferExpiry).toISOString() : null,
+    ...(isInternalStaff ? {
+      fundsInPlace:        f.fundsInPlace,
+      depositPence:        f.depositPence,
+      mortgagePence:       f.mortgagePence,
+      otherFundsPence:     f.otherFundsPence,
+      completionFundsSent: f.completionFundsSent,
+    } : {}),
+  });
+
+  // Founder workspace inputs: a flat list of active rows + the completed rows.
+  const activeRows: CompletionFileRow[] = files.map(toCompletionRow);
+  const completedRows: CompletedCompletionRow[] = completedFiles.map((f) => ({
+    id:                f.id,
+    propertyAddress:   f.propertyAddress,
+    completionDateIso: f.completionDate ? new Date(f.completionDate).toISOString() : null,
+    exchangedAtIso:    f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,
+    purchasePrice:     f.purchasePrice ?? null,
+    agentFeeAmount:    f.agentFeeAmount ?? null,
+    purchasers:        f.purchasers,
+    agencyName:        isInternalStaff ? (f.agencyName ?? null) : undefined,
+    assignedUserName:  f.assignedUserName ?? null,
+    photoUrl:          signed(f.photoStoragePath),
+  }));
+
   // Pre-compute groups with serialisable per-file data for the client component
   const completionGroups: CompletionGroup[] = ALL_GROUPS.flatMap(({ key, label }) => {
     const group = files.filter((f) => urgencyFor(f.completionDate) === key);
@@ -169,40 +222,9 @@ export default async function AgentCompletionsPage() {
     const missingFeeCount = group.filter((f) => f.viewerFeePence == null).length;
 
     /* OLD: server computed daysRel, daysLabel, daysColor (hex strings) and serialised into row.
-       Now computed client-side in CompletionFileRowView via computeDays() using CSS var tokens. */
-    const fileRows: CompletionFileRow[] = group.map((f) => ({
-        id:                    f.id,
-        propertyAddress:       f.propertyAddress,
-        purchasePrice:         f.purchasePrice ?? null,
-        agentFeeAmount:        f.agentFeeAmount ?? null,
-        agentFeePercent:       f.agentFeePercent ?? null,
-        agentFeeIsVatInclusive: f.agentFeeIsVatInclusive ?? null,
-        purchasers:            f.purchasers,
-        assignedUserName:      f.assignedUserName ?? null,
-        exchangedAtIso:        f.exchangedAt ? new Date(f.exchangedAt).toISOString() : null,
-        completionDateIso:     f.completionDate ? new Date(f.completionDate).toISOString() : null,
-        vendorSolicitorName:   f.vendorSolicitorName ?? null,
-        purchaserSolicitorName: f.purchaserSolicitorName ?? null,
-        agencyName:            isInternalStaff ? (f.agencyName ?? null) : undefined,
-        photoUrl:              signed(f.photoStoragePath),
-        // Completions hub: journey + buyer-entered context (funds gated to internal)
-        internal:              isInternalStaff,
-        // Progressors are blocked from editing commercial fees server-side, so
-        // don't offer them the inline editor — it could only ever fail.
-        hideFeeEdit:           isProgressor,
-        chainSize:             f.chainSize,
-        instructedAtIso:       f.instructedAt ? new Date(f.instructedAt).toISOString() : null,
-        firstTimeBuyer:        f.firstTimeBuyer,
-        sellingRelated:        f.sellingRelated,
-        mortgageOfferExpiryIso: f.mortgageOfferExpiry ? new Date(f.mortgageOfferExpiry).toISOString() : null,
-        ...(isInternalStaff ? {
-          fundsInPlace:        f.fundsInPlace,
-          depositPence:        f.depositPence,
-          mortgagePence:       f.mortgagePence,
-          otherFundsPence:     f.otherFundsPence,
-          completionFundsSent: f.completionFundsSent,
-        } : {}),
-      }));
+       Now computed client-side in CompletionFileRowView via computeDays() using CSS var tokens.
+       Row shape now comes from the shared toCompletionRow() above (deduped with the workspace). */
+    const fileRows: CompletionFileRow[] = group.map(toCompletionRow);
 
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
   });
@@ -218,7 +240,7 @@ export default async function AgentCompletionsPage() {
                          "Exchanged files, tracking to completion."
         }
       >
-        {statSegments.map(s => (
+        {!isFounder && statSegments.map(s => (
           <StatPill key={s.key} href={s.anchor} label={s.label} color={s.pillColor} />
         ))}
       </PageHeader>
@@ -341,8 +363,9 @@ export default async function AgentCompletionsPage() {
           </>
         )}
 
-        {/* Empty state — has completed history, or internal staff: the simpler card. */}
-        {files.length === 0 && !isBrandNew && (
+        {/* Empty state — has completed history, or internal staff: the simpler card.
+            Founder skips it: the workspace's own Active-tab empty + Completed tab cover it. */}
+        {files.length === 0 && !isBrandNew && !isFounder && (
           <div className="agent-glass-strong agent-empty-card" style={{ padding: "48px 24px", textAlign: "center" }}>
             <ClockCountdown
               size={32}
@@ -378,15 +401,22 @@ export default async function AgentCompletionsPage() {
         {/* Completing today — command card (only on days there are completions) */}
         {todayFiles.length > 0 && <CompletingTodayCard files={todayFiles} />}
 
+        {/* ── Founder redesign: master-detail workspace (Active / Completed tabs,
+            sort, filters, neutral-shaded selection + floating detail panel). It
+            replaces the grouped list, the week-ahead timeline and the completed
+            section below. Everyone else keeps those unchanged. ───────────────── */}
+        {isFounder && <CompletionsWorkspace active={activeRows} completed={completedRows} internal={isInternalStaff} />}
+
         {/* Week-ahead timeline */}
-        {timelineDays.length > 0 && <CompletionsTimeline days={timelineDays} />}
+        {!isFounder && timelineDays.length > 0 && <CompletionsTimeline days={timelineDays} />}
 
         {/* ── Groups (collapsible, all start collapsed) ───────────────────── */}
-        {completionGroups.length > 0 && (
+        {!isFounder && completionGroups.length > 0 && (
           <CompletionsGroupList groups={completionGroups} />
         )}
 
         {/* ── Completed history (collapsed, 3 most recent) ─────────────────── */}
+        {!isFounder && (
         <CompletedSection
           files={completedFiles.map((f) => ({
             id: f.id,
@@ -401,6 +431,7 @@ export default async function AgentCompletionsPage() {
             photoUrl: signed(f.photoStoragePath),
           }))}
         />
+        )}
       </div>
     </>
   );
