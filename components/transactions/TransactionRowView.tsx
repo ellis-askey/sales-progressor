@@ -12,7 +12,7 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
+import { UserAvatar } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
@@ -40,22 +40,23 @@ export type FilesColumn =
   | "review" | "paused"
   | "soldfor" | "exchanged" | "completed"
   | "reached" | "withdrawnDate" | "reason"
-  | "handled";
+  | "handled" | "people";
 
-// In the founder preview (files redesign, 2026-11-13) "Handled by" is no longer a
-// table column: who's looking after the file shows as a small avatar in the
-// Property cell and in full in the floating preview panel. For everyone else the
-// column is kept exactly as before (gated by `preview`).
+// Column set per tab. Founder preview (2026-11-15): drop the "Next action" column
+// and instead end every tab with a "Handled by" people column — the 1–2 people on
+// the file (owner + progressor), avatar + name + role. The classic table keeps its
+// Next action column and its own "handled" column exactly as before.
 export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?: boolean, preview?: boolean): FilesColumn[] {
   let cols: FilesColumn[];
   switch (tab) {
-    case "active":    cols = ["stage", "activity", "exchange"]; break;
+    case "active":    cols = preview ? ["stage", "exchange"] : ["stage", "activity", "exchange"]; break;
     case "on_hold":   cols = ["stage", "review", "paused"]; break;
     case "completed": cols = ["soldfor", "exchanged", "completed"]; break;
     case "withdrawn": cols = ["reached", "withdrawnDate", "reason"]; break;
-    default:          cols = ["stage", "activity", "keydate"]; break; // all + draft
+    default:          cols = preview ? ["stage", "keydate"] : ["stage", "activity", "keydate"]; break; // all + draft
   }
   if (showAssigned && !preview) cols.push("handled");
+  if (showAssigned && preview) cols.push("people");
   return cols;
 }
 
@@ -65,20 +66,20 @@ const COL_TRACK: Record<FilesColumn, string> = {
   review: "140px", paused: "minmax(200px,1.2fr)",
   soldfor: "120px", exchanged: "150px", completed: "150px",
   reached: "190px", withdrawnDate: "150px", reason: "minmax(240px,1.6fr)",
-  handled: "160px",
+  handled: "160px", people: "minmax(180px,1fr)",
 };
 // Min px each track can shrink to — drives the card↔grid switch bucket.
 const COL_MIN: Record<FilesColumn, number> = {
   stage: 190, activity: 220, exchange: 190, keydate: 190,
   review: 140, paused: 200, soldfor: 120, exchanged: 150, completed: 150,
-  reached: 190, withdrawnDate: 150, reason: 240, handled: 160,
+  reached: 190, withdrawnDate: 150, reason: 240, handled: 160, people: 180,
 };
 // Card mini-labels (and the desktop header labels, via TransactionTable).
 export const COL_LABEL: Record<FilesColumn, string> = {
   stage: "Stage / Progress", activity: "Latest activity / Next step", exchange: "Exchange forecast",
   keydate: "Key date", review: "Due back", paused: "Paused",
   soldfor: "Sold for", exchanged: "Exchanged", completed: "Completed",
-  reached: "Reached", withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by",
+  reached: "Reached", withdrawnDate: "Withdrawn", reason: "Reason", handled: "Handled by", people: "Handled by",
 };
 // The founder preview tightens three of the labels; everyone else sees the
 // strings above unchanged. Use colLabel() wherever a header / card label renders.
@@ -844,6 +845,7 @@ function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): Re
     case "withdrawnDate": return <DateCell d={tx.updatedAt} />;
     case "reason": return <ReasonCell tx={tx} />;
     case "handled": return <HandledBy tx={tx} />;
+    case "people": return <HandledBy tx={tx} />;
   }
 }
 
@@ -852,14 +854,11 @@ function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): Re
 // had the "Handled by" column (directors / internal / external progressors) a
 // small assignee avatar sits at the end, with the handler's name + role on hover;
 // the full team shows in the floating preview.
-function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; preview?: boolean; compact?: boolean }) {
+function PropertyCell({ tx, activeTab, showAgency, preview, compact }: { tx: TransactionRow; activeTab?: FilesTab; showAgency?: boolean; showAssigned?: boolean; preview?: boolean; compact?: boolean }) {
   const { line, location } = splitAddress(tx.propertyAddress);
   const marker = <RowMarker tx={tx} activeTab={activeTab} preview={preview} />;
-  // The people on the file: who added it (agent / client manager) + the
-  // progressor it's assigned to. Shown as a small avatar stack; deduped.
-  const rowPeople: { name: string; image: string | null; role: string | undefined }[] = [];
-  if (tx.agentUser) rowPeople.push({ name: tx.agentUser.name, image: tx.agentUser.image ?? null, role: jobTitleLabel(tx.agentUser.jobTitle) ?? "Agent" });
-  if (tx.assignedUser && tx.assignedUser.id !== tx.agentUser?.id) rowPeople.push({ name: tx.assignedUser.name, image: tx.assignedUser.image ?? null, role: jobTitleLabel(tx.assignedUser.jobTitle) ?? "Progressor" });
+  // The people on the file now live in the "Handled by" column (far right), not
+  // as an avatar stack here.
   return (
     <div className="files-id flex items-center gap-3 min-w-0">
       <PropertyThumb photoUrl={tx.photoUrl} size={46} />
@@ -871,25 +870,6 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compac
         {location && <span className="files-town">{location}</span>}
         {showAgency && tx.agency?.name && <span className="files-agency">{tx.agency.name}</span>}
       </div>
-      {showAssigned && preview && rowPeople.length > 0 && (
-        <Tooltip
-          placement="bottom-end"
-          content={
-            <>
-              {rowPeople.map((p, i) => (
-                <div key={i} style={{ marginTop: i ? 9 : 0, lineHeight: 1.2 }}>
-                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{p.name}</p>
-                  {p.role && <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>}
-                </div>
-              ))}
-            </>
-          }
-        >
-          <span className="files-assignee" aria-label={`On the file: ${rowPeople.map((p) => p.name).join(", ")}`}>
-            <UserAvatarStack people={rowPeople} size={24} />
-          </span>
-        </Tooltip>
-      )}
     </div>
   );
 }
@@ -969,52 +949,58 @@ export function TransactionRowView({
             const bodyCols = moveLast ? cols.slice(0, -1) : cols;
 
             if (preview) {
-              // Founder card: the final TWO columns form a bottom row with the
-              // last one right-aligned, on every tab (Exchange, Paused, Reason,
-              // Completion, Key date). Earlier columns stack above. Eyebrows sit
-              // tight to their value so the value reads as its subtext.
-              const footLeft = cols.length >= 2 ? cols[cols.length - 2] : undefined;
-              const stackCols = cols.slice(0, footLeft ? -2 : -1);
+              // Founder card: "Handled by" (people) is a full-width block at the
+              // very bottom. Of the rest, a bottom row pairs the final two columns
+              // (last right-aligned) — but only when the second-to-last is a
+              // compact column, never a progress bar (stage / reached), which
+              // always stacks as its own block.
               const eyebrow = (text: string) => (
                 <p style={{ margin: "0 0 2px", fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{text}</p>
+              );
+              const hasPeople = cols[cols.length - 1] === "people";
+              const main = hasPeople ? cols.slice(0, -1) : cols;
+              const isBar = (c: FilesColumn) => c === "stage" || c === "reached";
+              const useFoot = main.length >= 2 && !isBar(main[main.length - 2]);
+              const footRight = useFoot ? main[main.length - 1] : undefined;
+              const footLeft = useFoot ? main[main.length - 2] : undefined;
+              const stackCols = useFoot ? main.slice(0, -2) : main;
+              const stacked = (col: FilesColumn) => (
+                col === "stage" ? (
+                  <>
+                    {/* Progress eyebrow row carries the status on the right. */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 2px" }}>
+                      <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+                      {rowStatusNode(tx, preview)}
+                    </div>
+                    <StageCell tx={tx} preview={preview} showStatus={false} />
+                  </>
+                ) : col === "keydate" ? (
+                  <>{eyebrow(keyDateLabel(tx))}<KeyDateCell tx={tx} preview={preview} caption={false} /></>
+                ) : col === "exchange" ? (
+                  <>{eyebrow("Exchange prediction")}{renderCell(col, tx, preview)}</>
+                ) : (
+                  <>{eyebrow(colLabel(col, preview))}{renderCell(col, tx, preview)}</>
+                )
               );
               return (
                 <>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview compact /></div>
                   </div>
-                  {stackCols.map((col) => (
-                    <div key={col}>
-                      {col === "stage" ? (
-                        <>
-                          {/* Progress eyebrow row carries the status (Watch / On
-                              track / On hold) on the right. */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 2px" }}>
-                            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
-                            {rowStatusNode(tx, preview)}
-                          </div>
-                          <StageCell tx={tx} preview={preview} showStatus={false} />
-                        </>
-                      ) : (
-                        <>
-                          {eyebrow(colLabel(col, preview))}
-                          {renderCell(col, tx, preview)}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  {footLeft && (
+                  {stackCols.map((col) => <div key={col}>{stacked(col)}</div>)}
+                  {footLeft && footRight && (
                     <div className="flex items-start gap-3 flex-wrap">
                       <div className="min-w-0">
                         {eyebrow(colLabel(footLeft, preview))}
                         {renderCell(footLeft, tx, preview)}
                       </div>
                       <div className="text-right ml-auto">
-                        {eyebrow(last === "keydate" ? keyDateLabel(tx) : last === "exchange" ? "Exchange prediction" : colLabel(last, preview))}
-                        {last === "keydate" ? <KeyDateCell tx={tx} preview={preview} caption={false} /> : renderCell(last, tx, preview)}
+                        {eyebrow(footRight === "keydate" ? keyDateLabel(tx) : footRight === "exchange" ? "Exchange prediction" : colLabel(footRight, preview))}
+                        {footRight === "keydate" ? <KeyDateCell tx={tx} preview={preview} caption={false} /> : renderCell(footRight, tx, preview)}
                       </div>
                     </div>
                   )}
+                  {hasPeople && <div>{eyebrow(colLabel("people", preview))}{renderCell("people", tx, preview)}</div>}
                 </>
               );
             }
