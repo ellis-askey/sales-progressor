@@ -17,7 +17,7 @@ import { Funnel, Check, ClockCountdown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatarStack } from "@/components/ui/Avatar";
-import { Popover } from "@/components/ui/Popover";
+import { Popover, Tooltip } from "@/components/ui/Popover";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDetailPanel, completionStatus } from "@/components/completions/CompletionDetailPanel";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
@@ -77,10 +77,10 @@ function SortChevron({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 // ── the compact row ──────────────────────────────────────────────────────────
-function toRowPeople(agentUserName?: string | null, agentUserImage?: string | null, assignedUserName?: string | null, assignedUserImage?: string | null): { name: string; image: string | null }[] {
-  const people: { name: string; image: string | null }[] = [];
-  if (agentUserName) people.push({ name: agentUserName, image: agentUserImage ?? null });
-  if (assignedUserName && assignedUserName !== agentUserName) people.push({ name: assignedUserName, image: assignedUserImage ?? null });
+function toRowPeople(agentUserName?: string | null, agentUserImage?: string | null, assignedUserName?: string | null, assignedUserImage?: string | null): { name: string; image: string | null; role: string }[] {
+  const people: { name: string; image: string | null; role: string }[] = [];
+  if (agentUserName) people.push({ name: agentUserName, image: agentUserImage ?? null, role: "Agent" });
+  if (assignedUserName && assignedUserName !== agentUserName) people.push({ name: assignedUserName, image: assignedUserImage ?? null, role: "Progressor" });
   return people;
 }
 
@@ -90,7 +90,7 @@ function Row({
 }: {
   id: string; photoUrl?: string | null; address: string; priceStr: string | null;
   exchangedIso: string | null; completionIso: string | null; completionLabel: string;
-  people: { name: string; image: string | null }[]; trailing: React.ReactNode; selected: boolean; onSelect: () => void;
+  people: { name: string; image: string | null; role: string }[]; trailing: React.ReactNode; selected: boolean; onSelect: () => void;
 }) {
   const [line1, town] = splitAddr(address);
   return (
@@ -109,7 +109,23 @@ function Row({
           <span className="cw-addr">{line1}</span>
           {town && <span className="cw-town">{town}</span>}
         </span>
-        {people.length > 0 && <UserAvatarStack people={people} size={24} />}
+        {people.length > 0 && (
+          <Tooltip
+            placement="bottom-end"
+            content={
+              <>
+                {people.map((p, i) => (
+                  <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+                    <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{p.name}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>
+                  </div>
+                ))}
+              </>
+            }
+          >
+            <span style={{ display: "inline-flex", flexShrink: 0 }}><UserAvatarStack people={people} size={24} /></span>
+          </Tooltip>
+        )}
       </span>
       <span className="cw-price">{priceStr ?? "—"}</span>
       <span className="cw-cell">

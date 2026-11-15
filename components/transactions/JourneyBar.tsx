@@ -6,7 +6,7 @@
 
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
-export function JourneyBar({ stage }: { stage: DisplayStageKey }) {
+export function JourneyBar({ stage, complete }: { stage: DisplayStageKey; complete?: boolean }) {
   const idx = DISPLAY_STAGES.findIndex((s) => s.key === stage);
   const name = DISPLAY_STAGES[idx]?.name ?? "";
   const total = DISPLAY_STAGES.length;
@@ -18,7 +18,8 @@ export function JourneyBar({ stage }: { stage: DisplayStageKey }) {
       </span>
       <span className="jrn-bar">
         {DISPLAY_STAGES.map((s, i) => (
-          <span key={s.key} className={`jrn-seg${i < idx ? " done" : i === idx ? " cur" : ""}`} aria-hidden />
+          // complete = the whole journey is done, so every segment is green.
+          <span key={s.key} className={`jrn-seg${complete || i < idx ? " done" : i === idx ? " cur" : ""}`} aria-hidden />
         ))}
       </span>
     </span>

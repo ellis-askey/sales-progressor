@@ -172,7 +172,7 @@ export default async function AllTransactionsPage({
     // the same resolver, so the stage map covers both. Milestone completions
     // survive a withdrawal (the status change never deletes them), so the
     // furthest stage is still real data, not a guess.
-    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn" || t.status === "on_hold").map((t) => t.id)),
+    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn" || t.status === "on_hold" || t.status === "completed").map((t) => t.id)),
     inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis, [], { isExternalProgressor }).catch(() => []),
     inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
     // Honest next-step line, reusing the Reminders engine (lib/services/next-step.ts).

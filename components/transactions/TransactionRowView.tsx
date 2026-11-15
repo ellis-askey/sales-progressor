@@ -725,16 +725,23 @@ function StageCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
   // Founder preview: the single health status (On track / Watch / At risk) sits
   // directly under the step dashes, so the whole "how's it going" read is in one
   // place — no duplicate badge by the address, no separate pace line.
-  // On-hold rows show the same stage + dashes, but faded (muted name via
-  // .files-stage-hold — the dashes keep their colour) with an "On hold" line
-  // underneath, so a paused file still reads its progress.
+  // On-hold and completed rows show the same stage + dashes, faded (the whole
+  // journey is dimmed via .files-stage-faded — the colours stay, just reduced
+  // opacity), with an "On hold" / "Completed" line underneath. Completed renders
+  // the bar all-green (complete). Active rows are full strength.
   const onHold = tx.status === "on_hold";
+  const done = tx.status === "completed";
   return (
-    <div className={`files-stagecell${onHold ? " files-stage-hold" : ""}`}>
-      <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover>
+    <div className={`files-stagecell${onHold || done ? " files-stage-faded" : ""}`}>
+      <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>
       {onHold && (
         <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>
           <PauseCircle size={14} weight="fill" /> On hold
+        </div>
+      )}
+      {done && (
+        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}>
+          <CheckCircle size={14} weight="fill" /> Completed
         </div>
       )}
       {preview && tx.status === "active" && tx.health && (
