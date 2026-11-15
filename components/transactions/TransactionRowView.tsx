@@ -2,9 +2,10 @@
 
 import { useState, useRef, type ReactNode, type FormEvent, type MouseEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { withFrom } from "@/lib/agent/back-nav";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Tooltip } from "@/components/ui/Popover";
+import { Tooltip, Popover } from "@/components/ui/Popover";
 import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
 import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPopover";
@@ -12,11 +13,11 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
-import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { updateHoldReasonAction } from "@/app/actions/automation";
+import { updateHoldReasonAction, extendHoldAction } from "@/app/actions/automation";
 import { useIsFounder } from "@/components/layout/FounderGate";
 import type { TransactionStatus, UserRole } from "@prisma/client";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
@@ -535,20 +536,66 @@ function ExchangeCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }
 // above the date on the All tab (generic "Key date" header, so the row needs the
 // context); the On-hold tab omits it because its "Due back" column header already
 // says what the date is.
+// The on-hold "Due back" cell. The value is clickable — it opens a date popover
+// (the same popup style as the Completions date/fee menus) that sets the return
+// date via extendHoldAction. "Not set" reads like the "Set fee" affordance.
 function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
   const h = tx.health?.holdInfo;
+  const router = useRouter();
+  const { toast } = useAgentToast();
   const caption = label && h ? (
     <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>{label}</p>
   ) : null;
-  if (!h || !h.review) return <div>{caption}<span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>{h ? "Not set" : "—"}</span></div>;
-  if (h.reviewOverdue) return (
+
+  if (!h) return <div>{caption}<span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span></div>;
+
+  const current = h.review ? new Date(h.review).toISOString().split("T")[0] : "";
+  const value = h.review
+    ? (h.reviewOverdue
+        ? (<><span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</span><span style={{ display: "block", fontSize: 11.5, color: "var(--agent-danger)" }}>was {formatDate(new Date(h.review))}</span></>)
+        : <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span>)
+    : <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)" }}>Not set</span>;
+
+  return (
     <div>
       {caption}
-      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--agent-danger)" }}>Overdue</p>
-      <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-danger)" }}>was {formatDate(new Date(h.review))}</p>
+      <Popover
+        preset="popover"
+        width={220}
+        placement="bottom-start"
+        trigger={<button type="button" className="files-dueback-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>{value}</button>}
+      >
+        {(close) => (
+          <HoldDateForm txId={tx.id} current={current} onSaved={() => { close(); router.refresh(); }} onError={(m) => toast.error(m)} />
+        )}
+      </Popover>
     </div>
   );
-  return <div>{caption}<span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>{formatDate(new Date(h.review))}</span></div>;
+}
+
+function HoldDateForm({ txId, current, onSaved, onError }: { txId: string; current: string; onSaved: () => void; onError: (m: string) => void }) {
+  const [val, setVal] = useState(current);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  function openPicker() { const el = inputRef.current; if (!el) return; try { el.showPicker(); } catch { el.focus(); } }
+  async function save() {
+    if (!val) return;
+    setSaving(true);
+    const res = await extendHoldAction(txId, new Date(`${val}T00:00:00.000Z`));
+    setSaving(false);
+    if (res.ok) onSaved(); else onError(res.error ?? "Couldn't set the date");
+  }
+  return (
+    <>
+      <p className="comp-pop-label">When should it come back?</p>
+      <div className="comp-date-field" role="button" tabIndex={0} onClick={openPicker} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); } }}>
+        <CalendarBlank size={15} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+        <input ref={inputRef} type="date" value={val} min={tomorrow} onChange={(e) => setVal(e.target.value)} className="comp-date-input" />
+      </div>
+      <button type="button" className="comp-pop-cta" style={{ marginTop: 10 }} disabled={!val || saving} onClick={save}>{saving ? "Saving…" : "Set date"}</button>
+    </>
+  );
 }
 
 // On-hold — how long + the typed reason, inline-editable (hover reveals a pencil).
@@ -678,9 +725,18 @@ function StageCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
   // Founder preview: the single health status (On track / Watch / At risk) sits
   // directly under the step dashes, so the whole "how's it going" read is in one
   // place — no duplicate badge by the address, no separate pace line.
+  // On-hold rows show the same stage + dashes, but faded (muted name via
+  // .files-stage-hold — the dashes keep their colour) with an "On hold" line
+  // underneath, so a paused file still reads its progress.
+  const onHold = tx.status === "on_hold";
   return (
-    <div className="files-stagecell">
+    <div className={`files-stagecell${onHold ? " files-stage-hold" : ""}`}>
       <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} /></JourneyHover>
+      {onHold && (
+        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>
+          <PauseCircle size={14} weight="fill" /> On hold
+        </div>
+      )}
       {preview && tx.status === "active" && tx.health && (
         <div style={{ marginTop: 6 }}><RiskBadgeWithPopover raw={tx.health} /></div>
       )}

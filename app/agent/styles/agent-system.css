@@ -6132,7 +6132,14 @@ body[data-demo-file] [data-onboarding-checklist] {
    cell hover; the editor slides in/out; a single underline, no chunky border. */
 .paused-reason-row { display: flex; align-items: center; margin-top: 2px; min-height: 18px; }
 .paused-pencil { opacity: 0; margin-left: 5px; padding: 2px; border: none; background: none; cursor: pointer; display: inline-flex; line-height: 0; border-radius: 4px; color: var(--agent-text-muted); transition: opacity .14s ease, color .14s ease, background .14s ease; }
-.paused-cell:hover .paused-pencil, .paused-pencil:focus-visible { opacity: 1; }
+/* Reveal the reason pencil on ROW hover (both card + grid layouts carry
+   .agent-hover-row), not just the paused cell, so it's discoverable. */
+.agent-hover-row:hover .paused-pencil, .paused-pencil:focus-visible { opacity: 1; }
+/* On-hold progress: the stage name is muted (faded) while the dashes keep their
+   colour; the "Due back" value reads as an editable control. */
+.files-stage-hold .jrn-stage { color: var(--agent-text-secondary); }
+.files-dueback-btn { background: none; border: none; padding: 0; margin: 0; cursor: pointer; font: inherit; text-align: left; display: block; border-radius: 6px; transition: opacity .14s ease; }
+.files-dueback-btn:hover { opacity: 0.82; }
 .paused-pencil:hover { color: var(--agent-text-primary); background: var(--agent-bg-hover, rgba(127,127,127,.12)); }
 .paused-edit { display: flex; align-items: center; gap: 7px; margin-top: 3px; animation: paused-edit-in .18s cubic-bezier(.22,1,.36,1); }
 .paused-edit.closing { animation: paused-edit-out .15s ease forwards; }
