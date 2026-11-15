@@ -22,7 +22,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "@/components/icons/ph-ssr";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { SetupCard } from "@/components/agent/SetupCard";

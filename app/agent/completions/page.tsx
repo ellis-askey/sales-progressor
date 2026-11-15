@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClockCountdown, Plus, ListChecks } from "@/components/icons/ph-ssr";
+import { ClockCountdown, Plus, ListChecks } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { requireSession } from "@/lib/session";
