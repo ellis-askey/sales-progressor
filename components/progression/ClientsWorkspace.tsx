@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus, LinkSimpleHorizontal, PaperPlaneTilt } from "@phosphor-icons/react";
 import { SectionReveal } from "@/components/hub/SectionReveal";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
@@ -76,11 +76,11 @@ export function ClientsWorkspace({ data, pendingRequests = [] }: { data: Clients
   const activeClients = clients.filter((c) => !c.removed);
   const removedClients = clients.filter((c) => c.removed);
 
-  const cells = [
-    { tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
-    { tone: "info", icon: <TrendUp size={22} weight="bold" />, value: String(totals.activeSales), label: "Active sales", sub: "Across all clients" },
-    { tone: "warning", icon: <CurrencyGbp size={22} weight="fill" />, value: fmtCompact(totals.pipelinePence), label: "Pipeline value", sub: "In progress" },
-    { tone: "success", icon: <Handshake size={22} weight="fill" />, value: String(totals.exchangedThisMonth), label: "Exchanged this month", sub: "Sales exchanged" },
+  const cells: StatCardSpec[] = [
+    { key: "agencies", tone: "coral", icon: <Buildings size={22} weight="fill" />, value: String(totals.agencies), label: "Agencies", sub: "In your book" },
+    { key: "active", tone: "info", icon: <TrendUp size={22} weight="bold" />, value: String(totals.activeSales), label: "Active sales", sub: "Across all clients" },
+    { key: "pipeline", tone: "warning", icon: <CurrencyGbp size={22} weight="fill" />, value: fmtCompact(totals.pipelinePence), label: "Pipeline value", sub: "In progress" },
+    { key: "exchanged", tone: "success", icon: <Handshake size={22} weight="fill" />, value: String(totals.exchangedThisMonth), label: "Exchanged this month", sub: "Sales exchanged" },
   ];
 
   return (
@@ -135,20 +135,7 @@ export function ClientsWorkspace({ data, pendingRequests = [] }: { data: Clients
       </SectionReveal>
 
       <SectionReveal order={1}>
-        <GlassCard glassId="clients-totals" label="Clients totals" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-          <div className="cw-bar">
-            {cells.map((c, i) => (
-              <div key={c.label} className="cw-cell" style={{ borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined }}>
-                <span aria-hidden className={`stat-circle stat-circle--${c.tone}`}>{c.icon}</span>
-                <span className="cw-cell-tx">
-                  <span className="cw-cell-v">{c.value}</span>
-                  <span className="cw-cell-l">{c.label}</span>
-                  <span className="cw-cell-s">{c.sub}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
+        <StatCards cards={cells} ariaLabel="Clients totals" />
       </SectionReveal>
 
       <SectionReveal order={2}>

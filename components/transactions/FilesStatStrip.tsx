@@ -1,15 +1,13 @@
 "use client";
 
-// All Files → portfolio strip. One glass card split into four sections, icon
-// on the left — the same layout as the Enquiries / Completions summary (see
-// EnquiriesTriageList Tile + .enq-summary-*). Money-forward: how much is in
-// the book and what it's worth, what's exchanging this month, and the two
-// piles that need attention. The At risk / Gone quiet cells activate their
-// segment; Exchanging links to the month filter.
+// All Files → portfolio summary. Four individual glass cards via the shared
+// StatCards primitive (components/ui/StatCards.tsx). Money-forward: how much is
+// in the book and what it's worth, what's exchanging this month, and the two
+// piles that need attention. The At risk / Gone quiet cards toggle their
+// segment filter; Exchanging links to the month filter.
 
-import Link from "next/link";
-import { HouseLine, CalendarBlank, Warning, ChatDots } from "@phosphor-icons/react";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { HouseLine, CalendarBlank, Warning, ChatDots } from "@/components/icons/ph";
+import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { fileFeePence, type PipelineRow } from "./PipelineBoard";
 import { riskLevelForRow } from "./TransactionRowView";
 import { gbpCompact } from "./money";
@@ -50,53 +48,49 @@ export function FilesStatStrip({
 
   const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long" });
 
-  return (
-    <GlassCard glassId="files-summary" label="All Files · summary" defaultVariant="v05" data-bloom style={{ borderRadius: 14, overflow: "hidden" }}>
-      <div className="fstats">
-        <div className="fstat-cell">
-          <span className="stat-circle stat-circle--coral" aria-hidden><HouseLine size={22} weight="regular" /></span>
-          <span className="fstat-txt">
-            <span className="fstat-val">{active.length.toLocaleString()}</span>
-            <span className="fstat-label">Active sales</span>
-            <span className="fstat-sub">{gbpCompact(sumFees(active))} fees</span>
-          </span>
-        </div>
+  const cards: StatCardSpec[] = [
+    {
+      key: "active",
+      icon: <HouseLine size={22} weight="regular" />,
+      tone: "coral",
+      value: active.length.toLocaleString(),
+      label: "Active sales",
+      sub: `${gbpCompact(sumFees(active))} fees`,
+    },
+    {
+      key: "exchanging",
+      icon: <CalendarBlank size={22} weight="regular" />,
+      tone: "info",
+      value: exchangingThisMonth.length.toLocaleString(),
+      label: `Exchanging ${monthLabel}`,
+      sub: `${gbpCompact(sumFees(exchangingThisMonth))} fees`,
+      href: `${basePath}?exchanging=${monthKey}`,
+      caret: true,
+      ariaLabel: `Exchanging ${monthLabel} — filter to this month`,
+    },
+    {
+      key: "risk",
+      icon: <Warning size={22} weight="fill" />,
+      tone: "danger",
+      value: atRisk.length.toLocaleString(),
+      label: "At risk",
+      sub: `${gbpCompact(sumFees(atRisk))} fees`,
+      onClick: () => onToggle("risk"),
+      active: selected.has("risk"),
+      ariaLabel: "At risk — toggle filter",
+    },
+    {
+      key: "quiet",
+      icon: <ChatDots size={22} weight="regular" />,
+      tone: "warning",
+      value: goneQuiet.length.toLocaleString(),
+      label: "Gone quiet",
+      sub: `${gbpCompact(sumFees(goneQuiet))} fees`,
+      onClick: () => onToggle("quiet"),
+      active: selected.has("quiet"),
+      ariaLabel: "Gone quiet — toggle filter",
+    },
+  ];
 
-        <Link href={`${basePath}?exchanging=${monthKey}`} className="fstat-cell fstat-cell--link">
-          <span className="stat-circle stat-circle--info" aria-hidden><CalendarBlank size={22} weight="regular" /></span>
-          <span className="fstat-txt">
-            <span className="fstat-val">{exchangingThisMonth.length.toLocaleString()}</span>
-            <span className="fstat-label">Exchanging {monthLabel}</span>
-            <span className="fstat-sub">{gbpCompact(sumFees(exchangingThisMonth))} fees</span>
-          </span>
-        </Link>
-
-        <button
-          type="button"
-          className={`fstat-cell fstat-cell--btn${selected.has("risk") ? " on" : ""}`}
-          onClick={() => onToggle("risk")}
-        >
-          <span className="stat-circle stat-circle--danger" aria-hidden><Warning size={22} weight="fill" /></span>
-          <span className="fstat-txt">
-            <span className="fstat-val">{atRisk.length.toLocaleString()}</span>
-            <span className="fstat-label">At risk</span>
-            <span className="fstat-sub">{gbpCompact(sumFees(atRisk))} fees</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`fstat-cell fstat-cell--btn${selected.has("quiet") ? " on" : ""}`}
-          onClick={() => onToggle("quiet")}
-        >
-          <span className="stat-circle stat-circle--warning" aria-hidden><ChatDots size={22} weight="regular" /></span>
-          <span className="fstat-txt">
-            <span className="fstat-val">{goneQuiet.length.toLocaleString()}</span>
-            <span className="fstat-label">Gone quiet</span>
-            <span className="fstat-sub">{gbpCompact(sumFees(goneQuiet))} fees</span>
-          </span>
-        </button>
-      </div>
-    </GlassCard>
-  );
+  return <StatCards cards={cards} ariaLabel="All Files summary" />;
 }

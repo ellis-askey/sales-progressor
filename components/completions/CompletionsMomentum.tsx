@@ -1,13 +1,10 @@
 // The "finish line" band at the top of Completions — the payoff, not a nag.
-// Deliberately identical to the chain summary hero (SummaryTile): an icon in a
-// polished gradient circle, then value / label / sublabel — so the two read as
-// one component in different states. Figures come from getCompletionsMomentum +
-// the page's in-flight totals.
+// Four cards via the shared StatCards primitive (components/ui/StatCards.tsx),
+// with the audience-aware "fees due" line as its own note card below. Figures
+// come from getCompletionsMomentum + the page's in-flight totals.
 
-import { GlassCard } from "@/components/glass/GlassCard";
 import { Trophy, Timer, CheckCircle, Airplane } from "@phosphor-icons/react/dist/ssr";
-
-type Tone = "coral" | "info" | "warning" | "success" | "neutral";
+import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 
 function fmtCompact(pence: number): string {
   const pounds = pence / 100;
@@ -19,14 +16,6 @@ function fmtCompact(pence: number): string {
 function fmtFull(pence: number): string {
   return "£" + Math.round(pence / 100).toLocaleString("en-GB");
 }
-
-type Cell = {
-  icon: React.ReactNode;
-  tone: Tone;
-  label: string;
-  value: string;
-  sub: string;
-};
 
 export function CompletionsMomentum({
   completed30dCount,
@@ -51,8 +40,9 @@ export function CompletionsMomentum({
   feeLabel: string;
   feeNote: string;
 }) {
-  const cells: Cell[] = [
+  const cells: StatCardSpec[] = [
     {
+      key: "completed",
       icon: <Trophy size={22} weight="fill" />,
       tone: "success",
       label: "Completed · 30 days",
@@ -60,6 +50,7 @@ export function CompletionsMomentum({
       sub: completed30dValuePence > 0 ? `${fmtCompact(completed30dValuePence)} crossed the line` : "Nothing landed yet",
     },
     {
+      key: "avg",
       icon: <Timer size={22} weight="regular" />,
       tone: "info",
       label: "Avg exchange → completion",
@@ -67,6 +58,7 @@ export function CompletionsMomentum({
       sub: avgExchangeToCompletionDays != null ? "Your typical turnaround" : "No completions to measure yet",
     },
     {
+      key: "ontime",
       icon: <CheckCircle size={22} weight="regular" />,
       tone: onTimePct == null ? "neutral" : onTimePct >= 70 ? "success" : "warning",
       label: "Completed on time",
@@ -74,6 +66,7 @@ export function CompletionsMomentum({
       sub: onTimePct != null ? "On or before target" : "No target dates set",
     },
     {
+      key: "inflight",
       icon: <Airplane size={22} weight="regular" />,
       tone: "coral",
       label: "In flight",
@@ -83,56 +76,21 @@ export function CompletionsMomentum({
   ];
 
   return (
-    <GlassCard
-      glassId="completions-momentum"
-      label="Completions · Finish line"
-      defaultVariant="v05"
-      style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}
-    >
-      {/* Columns + dividers are responsive via CSS (4-up desktop → 2x2 on
-          tablet/phone), so the inline grid no longer hard-codes 4 columns or
-          per-cell left borders (critique #259). */}
-      <div className="completions-momentum-grid">
-        {cells.map((c) => (
-          <div
-            key={c.label}
-            style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "14px 16px",
-            }}
-          >
-            <span aria-hidden className={`stat-circle stat-circle--${c.tone}`}>{c.icon}</span>
-            <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ fontSize: 22, fontWeight: 600, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
-                {c.value}
-              </span>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>{c.label}</span>
-              {/* A touch more air above the small subtext so it doesn't crowd the
-                  label (critique 2026-10-15). */}
-              <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.2, marginTop: 3 }}>{c.sub}</span>
-            </span>
-          </div>
-        ))}
-      </div>
+    <div>
+      <StatCards cards={cells} ariaLabel="Completions finish line" />
 
-      {/* Fees due — one fixed line, resolved from who's logged in. No switcher. */}
+      {/* Fees due — one fixed line, resolved from who's logged in. No switcher.
+          Its own note card below the tiles; audience label/note unchanged. */}
       {feesPence > 0 && (
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
-            padding: "13px 16px", borderTop: "1px solid var(--agent-border-subtle)",
-          }}
-        >
+        <div className="statcards-note">
           <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 21, fontWeight: 700, lineHeight: 1, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
-              {fmtFull(feesPence)}
-            </span>
-            <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>
-              <b style={{ color: "var(--agent-text-secondary)", fontWeight: 650 }}>{feeLabel}</b> · {feeNote}
+            <span className="statcards-note-val">{fmtFull(feesPence)}</span>
+            <span className="statcards-note-sub">
+              <b>{feeLabel}</b> · {feeNote}
             </span>
           </span>
         </div>
       )}
-    </GlassCard>
+    </div>
   );
 }

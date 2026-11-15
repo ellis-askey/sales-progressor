@@ -21,12 +21,11 @@ import {
   LinkSimpleHorizontal,
   X,
   Check,
-  CaretRight,
 } from "@phosphor-icons/react";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { StatCards } from "@/components/ui/StatCards";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -49,67 +48,6 @@ const isConfirmedNoChain = (s: NoChainSale) => s.noChainConfirmedAt != null && !
 
 // ─── Summary tiles ────────────────────────────────────────────────────────────
 
-type TileTone = "coral" | "info" | "warning";
-
-function SummaryTile({
-  icon,
-  value,
-  label,
-  sublabel,
-  tone,
-  onClick,
-  highlight,
-}: {
-  icon: React.ReactNode;
-  value: number;
-  label: string;
-  sublabel: string;
-  tone: TileTone;
-  onClick?: () => void;
-  highlight?: boolean;
-}) {
-  const inner = (
-    <>
-      <span aria-hidden className={`stat-circle stat-circle--${tone}`}>
-        {icon}
-      </span>
-      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-        <span style={{ fontSize: 22, fontWeight: 600, lineHeight: 1, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
-          {value.toLocaleString()}
-        </span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>{label}</span>
-        <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", lineHeight: 1.2 }}>{sublabel}</span>
-      </span>
-      {onClick && (
-        <CaretRight size={14} weight="bold" aria-hidden style={{ marginLeft: "auto", color: "var(--agent-text-muted)", alignSelf: "center", flexShrink: 0 }} />
-      )}
-    </>
-  );
-
-  const style: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "14px 16px",
-    background: highlight ? "rgba(var(--agent-coral-base-rgb), 0.06)" : "transparent",
-    textAlign: "left",
-    width: "100%",
-    border: "none",
-    borderRadius: 12,
-    font: "inherit",
-    cursor: onClick ? "pointer" : "default",
-  };
-
-  return onClick ? (
-    <button type="button" onClick={onClick} className={`chains-summary-cell agent-press-cell${highlight ? " chains-summary-cell-hot" : ""}`} style={style} aria-label={`${value} ${label}`}>
-      {inner}
-    </button>
-  ) : (
-    <div className="chains-summary-cell" style={style} aria-label={`${value} ${label}`}>
-      {inner}
-    </div>
-  );
-}
 
 // ─── Lightweight filter popover ────────────────────────────────────────────────
 
@@ -464,42 +402,29 @@ export function ChainsWorkspace({
       `}</style>
 
       {/* Summary overview */}
-      <GlassCard glassId="chains-summary" label="Chains · summary" defaultVariant="v05" className="chains-summary-card" data-bloom style={{ borderRadius: 14, overflow: "hidden" }}>
-        <div className="chains-summary-grid">
-          <SummaryTile
-            icon={<House size={22} weight="regular" />}
-            value={activeSales}
-            label="Active sales"
-            sublabel="Across all files"
-            tone="coral"
-          />
-          <SummaryTile
-            icon={<LinkSimpleHorizontal size={22} weight="regular" />}
-            value={filesInChains}
-            label="Files in chains"
-            sublabel="Linked to other sales"
-            tone="info"
-            onClick={() => { setTab("chains"); setOnlyNeedsInvite(false); }}
-          />
-          <SummaryTile
-            icon={<HouseLine size={22} weight="regular" />}
-            value={needsSetupAll.length}
-            label="Need chain setup"
-            sublabel="Chain not yet resolved"
-            tone="warning"
-            onClick={() => setTab("needs")}
-          />
-          <SummaryTile
-            icon={<UsersThree size={22} weight="regular" />}
-            value={agentsToInvite}
-            label="Agents to invite"
-            sublabel={agentsToInvite === 0 ? "All invited" : `Across ${chainsWithInvites} ${chainsWithInvites === 1 ? "chain" : "chains"}`}
-            tone="coral"
-            highlight={agentsToInvite > 0}
-            onClick={() => { setTab("chains"); setOnlyNeedsInvite(true); }}
-          />
-        </div>
-      </GlassCard>
+      <StatCards
+        ariaLabel="Chains summary"
+        cards={[
+          { key: "active", icon: <House size={22} weight="regular" />, tone: "coral", value: activeSales.toLocaleString(), label: "Active sales", sub: "Across all files" },
+          {
+            key: "linked", icon: <LinkSimpleHorizontal size={22} weight="regular" />, tone: "info",
+            value: filesInChains.toLocaleString(), label: "Files in chains", sub: "Linked to other sales",
+            onClick: () => { setTab("chains"); setOnlyNeedsInvite(false); }, caret: true,
+          },
+          {
+            key: "needs", icon: <HouseLine size={22} weight="regular" />, tone: "warning",
+            value: needsSetupAll.length.toLocaleString(), label: "Need chain setup", sub: "Chain not yet resolved",
+            onClick: () => setTab("needs"), caret: true,
+          },
+          {
+            key: "invite", icon: <UsersThree size={22} weight="regular" />, tone: "coral",
+            value: agentsToInvite.toLocaleString(), label: "Agents to invite",
+            sub: agentsToInvite === 0 ? "All invited" : `Across ${chainsWithInvites} ${chainsWithInvites === 1 ? "chain" : "chains"}`,
+            highlight: agentsToInvite > 0,
+            onClick: () => { setTab("chains"); setOnlyNeedsInvite(true); }, caret: true,
+          },
+        ]}
+      />
 
       {/* Tabs + search + filters */}
       <div data-bloom style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>

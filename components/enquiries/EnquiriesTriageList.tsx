@@ -28,7 +28,7 @@ import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -285,15 +285,28 @@ export function EnquiriesTriageList({
 
   return (
     <div>
-      {/* Summary overview — same family as Chains / Completions */}
-      <GlassCard glassId="enquiries-summary" label="Enquiries · summary" defaultVariant="v05" data-bloom style={{ borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-        <div className="enq-summary-grid">
-          <Tile icon={<ChatCircleDots size={22} weight="regular" />} tone="coral" value={tiles.total} label="In enquiries" sub={<span className="enq-sub-split"><span>{tiles.withSellers} with sellers</span><span className="enq-sub-dot"> · </span><span>{tiles.withBuyers} with buyers</span></span>} />
-          <Tile icon={<WarningCircle size={22} weight="fill" />} tone="warning" value={tiles.needChecking} label="Need checking" sub="Overdue or due today" />
-          <Tile icon={<PaperPlaneTilt size={22} weight="regular" />} tone="info" value={tiles.awaiting} label="Awaiting replies" sub="With a solicitor" />
-          <Tile icon={<CalendarBlank size={22} weight="regular" />} tone="neutral" value={tiles.expected} label="Expected" sub="A reply date is set" />
-        </div>
-      </GlassCard>
+      {/* Summary overview — individual cards via the shared StatCards primitive */}
+      <div style={{ marginBottom: 16 }}>
+        <StatCards
+          ariaLabel="Enquiries summary"
+          cards={[
+            {
+              key: "total", icon: <ChatCircleDots size={22} weight="regular" />, tone: "coral",
+              value: tiles.total.toLocaleString(), label: "In enquiries",
+              sub: (
+                <span className="enq-sub-split">
+                  <span>{tiles.withSellers} with sellers</span>
+                  <span className="enq-sub-dot"> · </span>
+                  <span>{tiles.withBuyers} with buyers</span>
+                </span>
+              ),
+            },
+            { key: "need", icon: <WarningCircle size={22} weight="fill" />, tone: "warning", value: tiles.needChecking.toLocaleString(), label: "Need checking", sub: "Overdue or due today" },
+            { key: "await", icon: <PaperPlaneTilt size={22} weight="regular" />, tone: "info", value: tiles.awaiting.toLocaleString(), label: "Awaiting replies", sub: "With a solicitor" },
+            { key: "expected", icon: <CalendarBlank size={22} weight="regular" />, tone: "neutral", value: tiles.expected.toLocaleString(), label: "Expected", sub: "A reply date is set" },
+          ]}
+        />
+      </div>
 
       {/* Toolbar */}
       <div className="enq-toolbar" data-bloom>
@@ -741,20 +754,6 @@ function RowActions({
       <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={onToggleExpand}>
         <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
       </button>
-    </div>
-  );
-}
-
-type TileTone = "coral" | "info" | "warning" | "success" | "neutral";
-function Tile({ icon, value, label, sub, tone }: { icon: React.ReactNode; value: number; label: string; sub: React.ReactNode; tone: TileTone }) {
-  return (
-    <div className="enq-summary-cell">
-      <span aria-hidden className={`stat-circle stat-circle--${tone}`}>{icon}</span>
-      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-        <span className="enq-summary-val">{value.toLocaleString()}</span>
-        <span className="enq-summary-label">{label}</span>
-        <span className="enq-summary-sub">{sub}</span>
-      </span>
     </div>
   );
 }
