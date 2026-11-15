@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export type ChaseStream =
   | "solicitorChaseEnabled"
@@ -26,12 +27,24 @@ export async function updateAgencyChaseStreamAction(input: {
   if (!hasAdminPowers(session)) return { ok: false, error: "Forbidden" };
   if (!STREAMS.includes(input.stream)) return { ok: false, error: "Unknown stream." };
 
-  const agency = await prisma.agency.findUnique({ where: { id: input.agencyId }, select: { id: true } });
+  const agency = await prisma.agency.findUnique({
+    where: { id: input.agencyId },
+    select: { id: true, solicitorChaseEnabled: true, enquiryReplyChaseEnabled: true, enquiryRaiseChaseEnabled: true },
+  });
   if (!agency) return { ok: false, error: "Agency not found." };
 
   await prisma.agency.update({
     where: { id: input.agencyId },
     data: { [input.stream]: input.value },
+  });
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "agency.chase_stream.update",
+    targetType: "agency",
+    targetId: input.agencyId,
+    beforeValue: { [input.stream]: agency[input.stream] },
+    afterValue: { [input.stream]: input.value },
   });
 
   revalidatePath("/command/agencies");
@@ -52,6 +65,12 @@ export async function setAllAgencyChaseStreamAction(input: {
   const res = await prisma.agency.updateMany({
     where: { isInternal: false },
     data: { [input.stream]: input.value },
+  });
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "agency.chase_stream.set_all",
+    targetType: "agency",
+    afterValue: { stream: input.stream, value: input.value, count: res.count },
   });
   revalidatePath("/command/agencies");
   return { ok: true, count: res.count };

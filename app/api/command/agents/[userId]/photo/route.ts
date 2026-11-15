@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import { uploadAvatar, getAvatarPublicUrl } from "@/lib/supabase-storage";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -50,6 +51,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ userId: st
   // A fresh photo resets the focal point to centre — the old point rarely
   // suits a different crop.
   await commandDb.user.update({ where: { id: userId }, data: { image: url, imageFocusX: 50, imageFocusY: 50 } });
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.agent_photo.upload",
+    targetType: "user",
+    targetId: userId,
+    afterValue: { contentType: file.type },
+  });
 
   return NextResponse.json({ url });
 }

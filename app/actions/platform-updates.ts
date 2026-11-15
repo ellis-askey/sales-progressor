@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import {
   createPlatformUpdateUploadUrl,
   platformUpdateObjectExists,
@@ -69,12 +70,26 @@ export async function savePlatformUpdateAction(
 
   if (id) {
     await commandDb.platformUpdate.update({ where: { id }, data });
+    await recordAdminActionSafe({
+      adminUserId: who.id ?? "unknown",
+      action: "command.platform_update.save",
+      targetType: "platform_update",
+      targetId: id,
+      afterValue: { title: data.title, category, audience, created: false },
+    });
     revalidatePath(MANAGE_PATH);
     return { ok: true, id };
   }
 
   const created = await commandDb.platformUpdate.create({
     data: { ...data, createdById: who.id, createdByEmail: who.email },
+  });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.save",
+    targetType: "platform_update",
+    targetId: created.id,
+    afterValue: { title: data.title, category, audience, created: true },
   });
   revalidatePath(MANAGE_PATH);
   return { ok: true, id: created.id };
@@ -105,6 +120,13 @@ export async function setPlatformUpdateStatusAction(formData: FormData): Promise
         }
       : { status: "draft" },
   });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.status",
+    targetType: "platform_update",
+    targetId: id,
+    afterValue: { status: publish ? "published" : "draft" },
+  });
   revalidatePath(MANAGE_PATH);
   return { ok: true };
 }
@@ -114,17 +136,23 @@ export async function setPlatformUpdateStatusAction(formData: FormData): Promise
 // and is never regenerated (the release is already marked processed). Reversible
 // by nothing today — a dismissed entry can still be hard-deleted.
 export async function dismissPlatformUpdateAction(formData: FormData): Promise<{ ok: boolean }> {
-  await assertSuperadmin();
+  const who = await assertSuperadmin();
   const id = ((formData.get("id") as string) ?? "").trim();
   if (!id) return { ok: false };
   await commandDb.platformUpdate.update({ where: { id }, data: { dismissedAt: new Date() } });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.dismiss",
+    targetType: "platform_update",
+    targetId: id,
+  });
   revalidatePath(MANAGE_PATH);
   return { ok: true };
 }
 
 // Hard-delete an entry (and its image).
 export async function deletePlatformUpdateAction(formData: FormData): Promise<{ ok: boolean }> {
-  await assertSuperadmin();
+  const who = await assertSuperadmin();
   const id = ((formData.get("id") as string) ?? "").trim();
   if (!id) return { ok: false };
 
@@ -135,6 +163,12 @@ export async function deletePlatformUpdateAction(formData: FormData): Promise<{ 
   if (existing?.screenshotPath) await deletePlatformUpdateObject(existing.screenshotPath);
 
   await commandDb.platformUpdate.delete({ where: { id } });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.delete",
+    targetType: "platform_update",
+    targetId: id,
+  });
   revalidatePath(MANAGE_PATH);
   return { ok: true };
 }
@@ -159,7 +193,7 @@ export async function attachPlatformUpdateImageAction(
   id: string,
   path: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await assertSuperadmin();
+  const who = await assertSuperadmin();
   if (!id || !path) return { ok: false, error: "Missing id or path" };
   if (!(await platformUpdateObjectExists(path))) {
     return { ok: false, error: "Upload not found in storage." };
@@ -176,13 +210,19 @@ export async function attachPlatformUpdateImageAction(
     where: { id },
     data: { screenshotPath: path, screenshotFilename: path.split("/").pop() ?? "image.png" },
   });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.image_attach",
+    targetType: "platform_update",
+    targetId: id,
+  });
   revalidatePath(MANAGE_PATH);
   return { ok: true };
 }
 
 // Remove the image from an entry (and delete the object).
 export async function removePlatformUpdateImageAction(formData: FormData): Promise<{ ok: boolean }> {
-  await assertSuperadmin();
+  const who = await assertSuperadmin();
   const id = ((formData.get("id") as string) ?? "").trim();
   if (!id) return { ok: false };
   const existing = await commandDb.platformUpdate.findUnique({
@@ -193,6 +233,12 @@ export async function removePlatformUpdateImageAction(formData: FormData): Promi
   await commandDb.platformUpdate.update({
     where: { id },
     data: { screenshotPath: null, screenshotFilename: null },
+  });
+  await recordAdminActionSafe({
+    adminUserId: who.id ?? "unknown",
+    action: "command.platform_update.image_remove",
+    targetType: "platform_update",
+    targetId: id,
   });
   revalidatePath(MANAGE_PATH);
   return { ok: true };

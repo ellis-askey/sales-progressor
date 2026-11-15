@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import {
   assertDemoSafe,
   resolveDemoTargetUrl,
@@ -84,7 +85,7 @@ export type ResetDemoResult =
  * Command Centre.
  */
 export async function resetDemoAction(confirmText: string): Promise<ResetDemoResult> {
-  await requireSuperAdmin();
+  const session = await requireSuperAdmin();
 
   if (confirmText !== "RESET") {
     return { ok: false, error: 'Type "RESET" exactly (uppercase) to confirm.' };
@@ -127,6 +128,19 @@ export async function resetDemoAction(confirmText: string): Promise<ResetDemoRes
   try {
     const manifest = await runSeedDemo(prisma);
     revalidatePath("/command/admin/demo");
+    // Audit trail for a destructive reset (tears down + reseeds the demo agency).
+    // No credentials are logged — only what/where/how-much.
+    await recordAdminActionSafe({
+      adminUserId: session.user.id,
+      action: "command.demo.reset",
+      targetType: "agency",
+      targetId: DEMO_AGENCY_NAME,
+      afterValue: {
+        agencyName: DEMO_AGENCY_NAME,
+        fixtureCount: manifest.fixtures.length,
+        target: targetUrl.includes(STAGING_PROJECT_ID) ? "STAGING" : "UNKNOWN",
+      },
+    });
     return {
       ok: true,
       agencyName: DEMO_AGENCY_NAME,

@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -24,6 +25,13 @@ export async function POST(req: Request) {
 
   // Reset only the Sales Progressor default (agencyId null) — never an agency's
   // own override, which the agency-facing editor owns (Phase 1).
-  await prisma.milestoneEmailOverride.deleteMany({ where: { code, side, tenure, purchaseType, agencyId: null } });
+  const removed = await prisma.milestoneEmailOverride.deleteMany({ where: { code, side, tenure, purchaseType, agencyId: null } });
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.milestone_email.reset",
+    targetType: "milestone_email",
+    targetId: code,
+    afterValue: { code, side, tenure, purchaseType, removed: removed.count },
+  });
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import { invalidateAiEnabledCache } from "@/lib/ai/enabled";
 
 // Flip the global AI master switch (#291). Superadmin-gated (commandDb is a
@@ -16,12 +17,24 @@ export async function setAiEnabledAction(enabled: boolean): Promise<{ ok: boolea
   if (!session?.user || !hasSuperAdminPowers(session)) throw new Error("Unauthorised");
 
   const who = session.user.email ?? session.user.id ?? null;
+  const prev = await commandDb.systemSetting.findUnique({
+    where: { id: "singleton" },
+    select: { aiEnabled: true },
+  });
   await commandDb.systemSetting.upsert({
     where: { id: "singleton" },
     create: { id: "singleton", aiEnabled: enabled, updatedBy: who },
     update: { aiEnabled: enabled, updatedBy: who },
   });
   invalidateAiEnabledCache();
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.ai_switch.set",
+    targetType: "system_setting",
+    targetId: "aiEnabled",
+    beforeValue: { aiEnabled: prev?.aiEnabled ?? null },
+    afterValue: { aiEnabled: enabled },
+  });
   revalidatePath("/command/settings");
   return { ok: true };
 }

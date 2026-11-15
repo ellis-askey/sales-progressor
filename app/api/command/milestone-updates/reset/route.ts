@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -19,6 +20,13 @@ export async function POST(req: Request) {
   const code = String(b.code ?? "");
   if (!code) return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
-  await prisma.milestoneUpdateOverride.deleteMany({ where: { code } });
+  const removed = await prisma.milestoneUpdateOverride.deleteMany({ where: { code } });
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.milestone_update.reset",
+    targetType: "milestone_update",
+    targetId: code,
+    afterValue: { code, removed: removed.count },
+  });
   return NextResponse.json({ ok: true });
 }

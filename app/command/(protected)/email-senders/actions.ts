@@ -10,6 +10,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createAuthenticatedDomain, validateAuthenticatedDomain } from "@/lib/services/sendgrid";
 import { isPersonalDomain, getVerifiedDomainForAgency, adoptVerifiedDomainAsAgencySender } from "@/lib/services/verified-emails";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export type SerializedDomain = {
   id: string;
@@ -82,12 +83,20 @@ export async function setupAgencyDomainAction(input: { agencyId: string; domain:
     return { ok: false, error: "Couldn't reach SendGrid to set this up. Try again shortly." };
   }
 
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.agency_domain.setup",
+    targetType: "agency",
+    targetId: input.agencyId,
+    afterValue: { domain, status: created.status },
+  });
+
   revalidatePath("/command/email-senders");
   return { ok: true, domain: serialize(created) };
 }
 
 export async function checkAgencyDomainAction(verifiedDomainId: string): Promise<Result & { valid?: boolean }> {
-  await requireSuperadmin();
+  const session = await requireSuperadmin();
   const vd = await prisma.verifiedDomain.findUnique({ where: { id: verifiedDomainId } });
   if (!vd) return { ok: false, error: "Domain not found." };
 
@@ -112,7 +121,16 @@ export async function checkAgencyDomainAction(verifiedDomainId: string): Promise
   // Newly verified → adopt it as the agency's sending address (if none yet). A
   // domain owned by a progression business (agencyId null) isn't an agency sender,
   // so skip — the business's self-serve flow adopts it.
-  if (result.valid && vd.agencyId) await adoptVerifiedDomainAsAgencySender(vd.agencyId, vd.domain);
+  const adopted = !!(result.valid && vd.agencyId);
+  if (adopted) await adoptVerifiedDomainAsAgencySender(vd.agencyId!, vd.domain);
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.agency_domain.check",
+    targetType: "verified_domain",
+    targetId: vd.id,
+    afterValue: { domain: vd.domain, valid: result.valid, adoptedAsSender: adopted },
+  });
 
   revalidatePath("/command/email-senders");
   return { ok: true, domain: serialize(updated), valid: result.valid };

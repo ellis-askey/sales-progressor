@@ -460,7 +460,7 @@ function FilePanel({ file }: { file: FileOperational }) {
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {!file.hasPhoto && <PhotoUploadButton transactionId={file.id} />}
           <Link
-            href={`/transactions/${file.id}`}
+            href={`/agent/transactions/${file.id}`}
             className="text-xs text-blue-400 border border-blue-900 bg-blue-950/40 hover:bg-blue-950/70 px-2.5 py-1.5 rounded-lg whitespace-nowrap"
           >
             Open file →

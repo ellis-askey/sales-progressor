@@ -15,14 +15,11 @@ function requireEnv(name: string): string {
 export const TOTP_ENCRYPTION_KEY = requireEnv("ADMIN_TOTP_ENCRYPTION_KEY");
 export const AUDIT_HMAC_KEY = requireEnv("ADMIN_AUDIT_HMAC_KEY");
 
-/** Comma-separated CIDR/IP list; empty string = allowlist disabled (allow all). */
-export const IP_ALLOWLIST_RAW = process.env.ADMIN_IP_ALLOWLIST ?? "";
-
-/** Parsed list; empty = disabled. */
-export const IP_ALLOWLIST: string[] = IP_ALLOWLIST_RAW
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+// ADMIN_IP_ALLOWLIST is read and enforced directly in middleware.ts (the edge
+// runtime that gates every /command/* request). The previous parsed exports
+// here (IP_ALLOWLIST_RAW / IP_ALLOWLIST) were never imported anywhere, so they
+// are removed to avoid a second, divergent copy of the allowlist logic. Do not
+// re-add a parse here without a consumer — enforcement lives at the edge.
 
 export const STEP_UP_MAX_AGE_MS   = 30 * 60 * 1000;   // 30 min
 export const IDLE_MAX_AGE_MS      =  8 * 60 * 60 * 1000; // 8 h

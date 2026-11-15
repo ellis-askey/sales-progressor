@@ -81,6 +81,18 @@ export function hasSuperAdminPowers(session: Session): boolean {
   return false;
 }
 
+// A hybrid superadmin is an allowlisted non-superadmin (e.g. ellis as SP) who
+// reaches /command/* via hasSuperAdminPowers but is NOT a real `superadmin`
+// role. The Command Centre layout uses this to decide who skips the TOTP
+// step-up flow. Keyed on the email allowlist (the same signal as
+// hasSuperAdminPowers and the middleware) rather than on `role !== "superadmin"`
+// alone, so the two definitions can't drift. Behaviour is unchanged for every
+// user who can actually reach the layout: a real superadmin returns false
+// (goes through 2FA), the one allowlisted hybrid returns true (skips it).
+export function isHybridSuperadmin(session: Session): boolean {
+  return session.user.role !== "superadmin" && isHybridSuperadminEmail(session.user.email);
+}
+
 // Who may fire a Critique note. Superadmins always can; plus the founder test
 // accounts (isCritiqueTesterEmail) so the external progression business + its
 // client agency can be critiqued from their own production logins. This grants

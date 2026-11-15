@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 // Per-sale free grant for the outsourced-sunset model ("click which sales are
 // free"). Under the flat £50-per-exchange model there is no automatic free; a
@@ -27,7 +28,7 @@ export async function setSaleFreeOnExchangeAction(input: {
 
   const txn = await prisma.propertyTransaction.findUnique({
     where: { id: input.transactionId },
-    select: { id: true, agencyId: true, billedAtExchange: true },
+    select: { id: true, agencyId: true, billedAtExchange: true, freeOnExchange: true },
   });
   if (!txn) return { ok: false, error: "Sale not found." };
   if (txn.billedAtExchange) {
@@ -37,6 +38,15 @@ export async function setSaleFreeOnExchangeAction(input: {
   await prisma.propertyTransaction.update({
     where: { id: input.transactionId },
     data: { freeOnExchange: input.free },
+  });
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "agency.sale.free_on_exchange",
+    targetType: "transaction",
+    targetId: input.transactionId,
+    beforeValue: { freeOnExchange: txn.freeOnExchange },
+    afterValue: { freeOnExchange: input.free },
   });
 
   if (txn.agencyId) revalidatePath(`/command/agency/${txn.agencyId}`, "page");

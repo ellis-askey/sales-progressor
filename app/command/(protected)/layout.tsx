@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hasSuperAdminPowers } from "@/lib/agent-session";
+import { hasSuperAdminPowers, isHybridSuperadmin } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
 import { commandDb } from "@/lib/command/prisma";
 import { recordAdminAction } from "@/lib/command/audit/write";
@@ -34,8 +34,9 @@ export default async function CommandProtectedLayout({
   }
 
   // Hybrid superadmin (e.g. ellis as SP) skips the 2FA/step-up flow per
-  // product decision. Real superadmins still go through it.
-  const isHybridSuperadmin = session.user.role !== "superadmin";
+  // product decision. Real superadmins still go through it. Detection is
+  // centralised in isHybridSuperadmin() so this and the middleware can't drift.
+  const isHybrid = isHybridSuperadmin(session);
 
   const user = (await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -44,7 +45,7 @@ export default async function CommandProtectedLayout({
 
   if (!user) redirect("/dashboard");
 
-  if (!isHybridSuperadmin) {
+  if (!isHybrid) {
     if (!user.totpActivatedAt) redirect("/command/setup-2fa");
 
     const cookieStore = await cookies();
@@ -87,7 +88,7 @@ export default async function CommandProtectedLayout({
         savedMode={savedMode}
         savedAgencyIds={savedAgencyIds}
         adminEmail={(session as Session).user?.email ?? ""}
-        showBackToAdmin={isHybridSuperadmin}
+        showBackToAdmin={isHybrid}
         aiOn={aiOn}
       />
       <main

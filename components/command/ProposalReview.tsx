@@ -170,7 +170,7 @@ function ShadowRunsSection({ runs }: { runs: ShadowRunRow[] }) {
         {runs.map((r) => (
           <div key={r.id} className="px-4 py-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Link href={`/transactions/${r.transactionId}`} className="text-[13px] font-semibold text-neutral-200 hover:text-blue-300">
+              <Link href={`/agent/transactions/${r.transactionId}`} className="text-[13px] font-semibold text-neutral-200 hover:text-blue-300">
                 {r.propertyAddress}
               </Link>
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${r.outcome === "error" ? OUTCOME_STYLE.flagged.cls : OUTCOME_STYLE.no_action.cls}`}>
@@ -303,7 +303,7 @@ function ProposalCard({ p, busy, onAct }: { p: ProposalRow; busy: boolean; onAct
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/transactions/${p.transactionId}`} className="text-[14px] font-semibold text-neutral-100 hover:text-blue-300">
+            <Link href={`/agent/transactions/${p.transactionId}`} className="text-[14px] font-semibold text-neutral-100 hover:text-blue-300">
               {p.propertyAddress}
             </Link>
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${CONF_STYLE[p.confidence] ?? CONF_STYLE.low}`}>

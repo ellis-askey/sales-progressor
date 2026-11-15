@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -33,6 +34,21 @@ export async function POST(req: Request) {
     where: { code },
     create: { code, ...data },
     update: data,
+  });
+
+  // Log which fields were set (not the copy). Booleans show whether each
+  // override slot now holds custom text vs falls back to the default.
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.milestone_update.save",
+    targetType: "milestone_update",
+    targetId: code,
+    afterValue: {
+      code,
+      coreSet: data.core !== null,
+      subtextOwnSet: data.subtextOwn !== null,
+      subtextOtherSet: data.subtextOther !== null,
+    },
   });
 
   return NextResponse.json({ ok: true });

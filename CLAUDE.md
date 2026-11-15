@@ -237,7 +237,7 @@ For customer agency data: every database query filters by `agencyId` derived fro
 
 For internal staff: agencyId filtering doesn't apply. `sales_progressor` scoped by `assignedUserId`. `admin` / `superadmin` see everything via the helper.
 
-**A query that doesn't have a clear access model is a tenant isolation hole.** No exceptions outside `/app/command/*` (which uses `commandDb` with explicit superadmin context).
+**A query that doesn't have a clear access model is a tenant isolation hole.** No exceptions outside `/app/command/*`, which uses `commandDb` — a **full-access Prisma client with no database-level isolation** (no RLS, no superadmin DB context). Its safety is the **app-layer superadmin guard** on every Command Centre route/action, not anything in the client itself; `commandDb` must therefore only be imported under `lib/command/**`, `app/command/**`, or `app/api/command/**`, each of which is superadmin-gated.
 
 **Enforcement:** automated test (`__tests__/multi-tenant/access-scope-coverage.test.ts`, run by jest in CI) asserts every list endpoint goes through the access scope helper. **Outstanding enforcement gap:** the pre-commit grep for new `findFirst({ where: { ..., agencyId: ... } })` patterns is **not yet implemented**; until it lands, this is held by the CI test above plus code review. Building the grep requires separate approval.
 
@@ -247,7 +247,7 @@ Code under `/lib/command/` and `/app/command/` is superadmin-only.
 
 - Do not import from `/lib/command/*` into agent app or internal dashboard code.
 - Do not import agent app or dashboard business logic into `/lib/command/*` unless it's a genuinely shared utility (e.g. `lib/email.ts`, `lib/prisma.ts`).
-- Command Centre uses `commandDb` from [lib/command/prisma.ts](lib/command/prisma.ts) for queries needing superadmin context.
+- Command Centre uses `commandDb` from [lib/command/prisma.ts](lib/command/prisma.ts) for its queries. Note `commandDb` is a **full-access client with no DB-level isolation** — the superadmin gate that protects it is the app-layer route/action guard, not the client. Keep its imports confined to the Command Centre (`lib/command/**`, `app/command/**`, `app/api/command/**`).
 
 **Enforcement:** ESLint rule on import paths.
 

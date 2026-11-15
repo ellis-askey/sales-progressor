@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import { Prisma } from "@prisma/client";
 import { uploadAgencyLogo, deleteAgencyLogo, getAgencyLogoUrl } from "@/lib/supabase-storage";
 import { normaliseLogo, type LogoScale, type LogoAlign } from "@/lib/image/logo";
@@ -28,7 +29,7 @@ async function requireSuperadminAgency(agencyId: string) {
   }
   const agency = await commandDb.agency.findUnique({ where: { id: agencyId }, select: { id: true } });
   if (!agency) return { error: NextResponse.json({ error: "Agency not found." }, { status: 404 }) };
-  return { agencyId };
+  return { agencyId, adminUserId: session.user.id };
 }
 
 // Upload a new logo: normalise it and detect its tile colour.
@@ -82,6 +83,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ agencyId: 
     where: { id: agencyId },
     data: { logoPath: path, logoTileColor: tileColor, logoScale: scale, logoAlign: align },
   });
+  await recordAdminActionSafe({
+    adminUserId: auth.adminUserId,
+    action: "command.agency_logo.upload",
+    targetType: "agency",
+    targetId: agencyId,
+    afterValue: { replacedPrevious: !!prev?.logoPath, tileColor, scale, align },
+  });
   return NextResponse.json({ ok: true, url: getAgencyLogoUrl(path), tileColor, scale, align });
 }
 
@@ -121,6 +129,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ agencyId:
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
 
   await commandDb.agency.update({ where: { id: agencyId }, data });
+  await recordAdminActionSafe({
+    adminUserId: auth.adminUserId,
+    action: "command.agency_logo.adjust",
+    targetType: "agency",
+    targetId: agencyId,
+    afterValue: { fields: Object.keys(data) },
+  });
   return NextResponse.json({ ok: true });
 }
 
@@ -134,6 +149,13 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ agencyI
   await commandDb.agency.update({
     where: { id: agencyId },
     data: { logoPath: null, logoTileColor: null, logoScale: null, logoAlign: null },
+  });
+  await recordAdminActionSafe({
+    adminUserId: auth.adminUserId,
+    action: "command.agency_logo.remove",
+    targetType: "agency",
+    targetId: agencyId,
+    beforeValue: { hadLogo: !!agency?.logoPath },
   });
   return NextResponse.json({ ok: true });
 }

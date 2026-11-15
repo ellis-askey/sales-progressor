@@ -1,8 +1,11 @@
-// AI Outreach (Command Centre → Growth). Read-only surface (Build Order E): the
-// outreach objective funnel, segment performance, experiments, learnings, and AI
-// activity. NOTHING here mutates, generates, approves, launches, or sends — those
-// controls arrive in later build orders. Distinct from "Growth tests" (the general
-// product-experiment tracker); this is outbound prospect experimentation.
+// AI Outreach (Command Centre → Growth). The outreach objective funnel, segment
+// performance, experiments, learnings, cycles, sends and AI activity — PLUS the
+// operational controls that later build orders wired in: generating proposals,
+// finding agents, launching/resuming experiments, approving/rejecting reviews,
+// and firing test sends (GenerateProposalButton, FindAgentsPanel, LaunchPanel,
+// ExperimentReviewActions, TestSendControl). It is NOT a read-only surface.
+// Distinct from "Growth tests" (the general product-experiment tracker); this is
+// outbound prospect experimentation.
 
 import {
   Section,

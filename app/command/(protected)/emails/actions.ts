@@ -7,6 +7,7 @@ import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { findSpecimen } from "@/lib/command/email-catalogue/registry";
 import { specimenContentHash } from "@/lib/command/email-catalogue/review";
 import { setBucketEnabled } from "@/lib/email/bucket-toggles";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import { resolveCatalogueIdentity, describeSignature, audienceBucketFor, AUDIENCE_LABEL, LOCKED_BUCKETS, type Scenario, type IdentityTier, type AudienceBucket } from "@/lib/command/email-catalogue/scenario";
 
 export type RenderResult =
@@ -94,5 +95,13 @@ export async function setBucketEnabledAction(bucket: AudienceBucket, enabled: bo
     return { ok: false, error: "Not authorised." };
   }
   await setBucketEnabled(bucket, enabled, session.user.id ?? null);
+  // Platform-wide send kill-switch — worth a clear audit trail.
+  await recordAdminActionSafe({
+    adminUserId: session.user.id ?? "unknown",
+    action: "command.email_bucket.set",
+    targetType: "email_bucket",
+    targetId: bucket,
+    afterValue: { bucket, enabled },
+  });
   return { ok: true };
 }

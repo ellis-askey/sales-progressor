@@ -31,7 +31,7 @@ export function OptedOutTable({ rows }: { rows: OptedOutRow[] }) {
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-neutral-800/70 last:border-0 hover:bg-neutral-900/50 transition-colors">
               <td className="px-4 py-3">
-                <Link href={`/transactions/${r.transactionId}`} className="text-neutral-100 hover:text-blue-300">
+                <Link href={`/agent/transactions/${r.transactionId}`} className="text-neutral-100 hover:text-blue-300">
                   {r.clientName}
                 </Link>
                 <span className="ml-1.5 text-[11px] text-neutral-500">{r.role === "vendor" ? "seller" : "buyer"}</span>

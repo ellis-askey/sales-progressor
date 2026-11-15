@@ -40,7 +40,9 @@ This means: even if your session cookie leaks, the attacker still needs your TOT
 
 ### 2.3 IP allowlist (optional but recommended)
 
-Configurable env var `ADMIN_IP_ALLOWLIST` — comma-separated CIDR ranges. If set, every `/command/*` request rejects (404, not 403 — don't confirm the route exists) from IPs outside the list.
+Configurable env var `ADMIN_IP_ALLOWLIST` — comma-separated IP addresses. If set, every `/command/*` request from an IP outside the list is rejected.
+
+> **As-built note (2026-11-15).** Enforcement lives in `middleware.ts` and, as implemented, (a) returns **403**, not the 404 described above, and (b) uses **exact-string IP matching** — despite the "CIDR ranges" wording here, CIDR notation is **not** parsed, so a CIDR entry silently matches nothing. Use literal IPs until/unless CIDR support is deliberately added. Default is empty = disabled.
 
 For you working from one or two locations: trivial to maintain and defangs most attack paths.
 

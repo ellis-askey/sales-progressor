@@ -13,8 +13,9 @@ const TABS = [
   { href: "/command/outbound",      label: "Outbound"     },
   { href: "/command/content",       label: "Content"      },
   { href: "/command/experiments",   label: "Experiments"  },
-  { href: "/command/automations",   label: "Automations"  },
-  { href: "/command/friction",      label: "Friction"     },
+  // Automations + Friction are not-yet-built stubs — kept out of navigation
+  // (routes retained, reachable by direct URL only). The live sidebar
+  // (CommandSidebar) already excludes them; mirrored here.
   { href: "/command/health",        label: "Health"       },
   { href: "/command/revenue",       label: "Revenue"      },
   { href: "/command/audit",         label: "Audit"        },

@@ -250,7 +250,7 @@ export function OutboundRow({
             )}
             {row.transactionId && (
               <a
-                href={`/transactions/${row.transactionId}`}
+                href={`/agent/transactions/${row.transactionId}`}
                 className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
               >
                 View transaction →

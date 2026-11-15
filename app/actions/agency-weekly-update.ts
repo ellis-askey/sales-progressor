@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 export async function updateAgencyWeeklyUpdateAction(input: {
   agencyId: string;
@@ -17,12 +18,20 @@ export async function updateAgencyWeeklyUpdateAction(input: {
   const session = await requireSession();
   if (!hasAdminPowers(session)) return { ok: false, error: "Forbidden" };
 
-  const agency = await prisma.agency.findUnique({ where: { id: input.agencyId }, select: { id: true } });
+  const agency = await prisma.agency.findUnique({ where: { id: input.agencyId }, select: { id: true, weeklyClientUpdatesEnabled: true } });
   if (!agency) return { ok: false, error: "Agency not found." };
 
   await prisma.agency.update({
     where: { id: input.agencyId },
     data: { weeklyClientUpdatesEnabled: input.value },
+  });
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "agency.weekly_update.update",
+    targetType: "agency",
+    targetId: input.agencyId,
+    beforeValue: { weeklyClientUpdatesEnabled: agency.weeklyClientUpdatesEnabled },
+    afterValue: { weeklyClientUpdatesEnabled: input.value },
   });
   revalidatePath("/command/agencies");
   return { ok: true };
@@ -38,6 +47,12 @@ export async function setAllWeeklyUpdatesAction(input: {
   const res = await prisma.agency.updateMany({
     where: { isInternal: false },
     data: { weeklyClientUpdatesEnabled: input.value },
+  });
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "agency.weekly_update.set_all",
+    targetType: "agency",
+    afterValue: { weeklyClientUpdatesEnabled: input.value, count: res.count },
   });
   revalidatePath("/command/agencies");
   return { ok: true, count: res.count };

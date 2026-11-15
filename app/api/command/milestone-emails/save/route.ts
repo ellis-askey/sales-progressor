@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { prisma } from "@/lib/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 const SIDES = new Set(["vendor", "purchaser", "vendorAgent", "progressor"]);
 const TENURES = new Set(["any", "freehold", "leasehold"]);
@@ -67,6 +68,15 @@ export async function POST(req: Request) {
       data: { code, side, tenure, purchaseType, agencyId: null, ...data },
     });
   }
+
+  // Audit the WHICH, not the copy itself (never log full email bodies).
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.milestone_email.save",
+    targetType: "milestone_email",
+    targetId: code,
+    afterValue: { code, side, tenure, purchaseType, created: !existing },
+  });
 
   return NextResponse.json({ ok: true });
 }

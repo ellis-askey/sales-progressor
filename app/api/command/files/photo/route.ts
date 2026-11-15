@@ -14,6 +14,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 import { uploadToStorage, getSignedUrl, deleteFromStorage } from "@/lib/supabase-storage";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
   await commandDb.propertyTransaction.update({
     where: { id: transactionId },
     data: { photoStoragePath: path, photoUploadedAt: new Date() },
+  });
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.file_photo.upload",
+    targetType: "transaction",
+    targetId: transactionId,
+    afterValue: { contentType: file.type, replacedPrevious: !!existing.photoStoragePath },
   });
 
   const url = await getSignedUrl(path).catch(() => null);

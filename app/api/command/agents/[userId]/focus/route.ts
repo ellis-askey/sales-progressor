@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 import { commandDb } from "@/lib/command/prisma";
+import { recordAdminActionSafe } from "@/lib/command/audit/write";
 
 const clamp = (n: unknown) => Math.max(0, Math.min(100, Math.round(Number(n))));
 
@@ -28,6 +29,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ userId: st
 
   const res = await commandDb.user.updateMany({ where: { id: userId }, data: { imageFocusX: focusX, imageFocusY: focusY } });
   if (res.count === 0) return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+
+  await recordAdminActionSafe({
+    adminUserId: session.user.id,
+    action: "command.agent_photo.focus",
+    targetType: "user",
+    targetId: userId,
+    afterValue: { focusX, focusY },
+  });
 
   return NextResponse.json({ ok: true, focusX, focusY });
 }
