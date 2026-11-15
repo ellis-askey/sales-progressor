@@ -1254,7 +1254,6 @@
                 transform        120ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .agent-segment-pill:hover:not(:disabled):not(.on) {
-    background: rgba(var(--agent-coral-rgb), 0.12);
     border-color: rgba(var(--agent-coral-rgb), 0.50);
     color: var(--agent-coral-deep);
     transform: translateY(-1px);

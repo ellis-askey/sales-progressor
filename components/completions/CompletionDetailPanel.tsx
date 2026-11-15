@@ -145,7 +145,7 @@ export function CompletionDetailPanel({
     if (!open || !id) return;
     let live = true;
     setExtras(null);
-    getFilePreviewExtras(id).then((res) => { if (live && res.ok) setExtras(res); }).catch(() => {});
+    getFilePreviewExtras(id, { contactsOnly: true }).then((res) => { if (live && res.ok) setExtras(res); }).catch(() => {});
     return () => { live = false; };
   }, [id, open]);
 

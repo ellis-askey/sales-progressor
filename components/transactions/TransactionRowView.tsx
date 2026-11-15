@@ -929,13 +929,29 @@ export function TransactionRowView({
         style={{ textDecoration: "none", borderBottom: divider }}
       >
         <div className="flex-1 px-4 py-4 min-w-0 space-y-3">
-          <PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview={preview} compact />
-          {cols.map((col) => (
-            <div key={col}>
-              <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
-              {renderCell(col, tx, preview)}
-            </div>
-          ))}
+          {/* The last column is a date-ish value (key date / exchange / completed
+              etc.) — in the stacked card layout it sits top-right on the address
+              row rather than at the bottom. Text columns (paused / reason /
+              activity) stay stacked. */}
+          {(() => {
+            const last = cols[cols.length - 1];
+            const moveLast = !["paused", "activity", "stage", "handled", "reason"].includes(last);
+            const bodyCols = moveLast ? cols.slice(0, -1) : cols;
+            return (
+              <>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview={preview} compact /></div>
+                  {moveLast && <div className="shrink-0 text-right">{renderCell(last, tx, preview)}</div>}
+                </div>
+                {bodyCols.map((col) => (
+                  <div key={col}>
+                    <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+                    {renderCell(col, tx, preview)}
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
       </Link>
 

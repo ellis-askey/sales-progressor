@@ -74,7 +74,7 @@ export type FilePreviewExtras = {
 };
 export type FilePreviewResult = FilePreviewExtras | { ok: false; error: "not_found" | "failed" };
 
-export async function getFilePreviewExtras(id: string): Promise<FilePreviewResult> {
+export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: boolean }): Promise<FilePreviewResult> {
   try {
     const session = await requireSession();
     const scope = getAccessScope(session);
@@ -138,11 +138,13 @@ export async function getFilePreviewExtras(id: string): Promise<FilePreviewResul
     // full timeline, no media signing. Private (businessOnly) progressor notes
     // stay hidden from agencies because the real agencyId is passed through.
     let note: PreviewNote | null = null;
-    try {
-      const latest = await getLatestVisibleNote(id, session.user.agencyId);
-      if (latest) note = { body: latest.body, author: latest.author, at: latest.at.toISOString(), isSetup: latest.isSetup };
-    } catch {
-      /* note stays null — the panel shows its empty state */
+    if (!opts?.contactsOnly) {
+      try {
+        const latest = await getLatestVisibleNote(id, session.user.agencyId);
+        if (latest) note = { body: latest.body, author: latest.author, at: latest.at.toISOString(), isSetup: latest.isSetup };
+      } catch {
+        /* note stays null — the panel shows its empty state */
+      }
     }
 
     // ── Next reminder ── live, un-paused sales only. A terminal sale has nothing
@@ -150,7 +152,7 @@ export async function getFilePreviewExtras(id: string): Promise<FilePreviewResul
     // in the panel instead (from the row's existing holdInfo) rather than a
     // misleading "upcoming reminder".
     let reminder: PreviewReminder | null = null;
-    if (!terminal && tx.status !== "on_hold") {
+    if (!opts?.contactsOnly && !terminal && tx.status !== "on_hold") {
       try {
         const logs = await getReminderLogsForTransaction(id, session.user.agencyId);
         const now = new Date();

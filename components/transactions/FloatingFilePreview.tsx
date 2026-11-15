@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  CaretLeft, CaretRight, X, House, NotePencil, CalendarBlank, Target, ListChecks, Flag,
+  CaretLeft, CaretRight, X, NotePencil, CalendarBlank, Target, ListChecks, Flag,
   Phone, EnvelopeSimple, ArrowSquareOut, TrendUp, TrendDown, Minus, PauseCircle,
   CheckCircle, Prohibit,
 } from "@phosphor-icons/react";
@@ -209,7 +209,6 @@ export function FloatingFilePreview({
               + withdrawn files, so on-hold / completed fall back to their status
               rather than a misleading "Not started". */}
           <div className="ffp-stage">
-            <span className="ffp-stage-ic"><House size={16} weight="regular" /></span>
             <div className="ffp-stage-bar">
               {r.boardStage
                 ? <JourneyBar stage={r.boardStage} />
