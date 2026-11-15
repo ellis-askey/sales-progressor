@@ -51,7 +51,7 @@ export function PortalButton({
         letterSpacing: "-0.01em",
         // Primary owns its colour/fill inline; secondary's colour, border and
         // hover live in .pbtn-secondary so the hover can recolour border + text.
-        ...(secondary ? {} : { color: "#fff", background: PORTAL_BTN.primaryBg, boxShadow: PORTAL_BTN.primaryShadow }),
+        ...(secondary ? {} : { color: "var(--portal-btn-text, #fff)", background: PORTAL_BTN.primaryBg, boxShadow: PORTAL_BTN.primaryShadow }),
       }}
     >
       {loading && (

@@ -7,7 +7,7 @@
 // already correct.
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
-import { HIDE_MONEY_KEY, DEFAULT_PORTAL_SETTINGS, type PortalSettings } from "@/lib/portal/settings";
+import { HIDE_MONEY_KEY, DEFAULT_PORTAL_SETTINGS, onAccentText, type PortalSettings } from "@/lib/portal/settings";
 import { portalSaveSettingsAction } from "@/app/actions/portal";
 
 type Ctx = {
@@ -60,8 +60,18 @@ function applyToDom(s: PortalSettings) {
   else d.removeAttribute("data-portal-motion");
   if (s.dyslexicFont) d.setAttribute("data-portal-font", "dyslexic");
   else d.removeAttribute("data-portal-font");
-  if (s.accent) d.style.setProperty("--portal-primary", s.accent);
-  else d.style.removeProperty("--portal-primary");
+  if (s.accent) {
+    d.style.setProperty("--portal-primary", s.accent);
+    // data-portal-accent switches on the accent-derived brand surfaces (primary
+    // CTA, hero, costs fill) in globals.css; --portal-btn-text keeps the CTA
+    // label readable on a light accent. Both cleared when no custom accent.
+    d.setAttribute("data-portal-accent", "on");
+    d.style.setProperty("--portal-btn-text", onAccentText(s.accent));
+  } else {
+    d.style.removeProperty("--portal-primary");
+    d.removeAttribute("data-portal-accent");
+    d.style.removeProperty("--portal-btn-text");
+  }
 }
 
 export function PortalSettingsProvider({

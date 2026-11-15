@@ -19,8 +19,11 @@ export const P = {
   glassBorder:  "var(--portal-glass-border, rgba(255,255,255,0.65))",
   glassSoft:    "var(--portal-glass-soft, rgba(255,255,255,0.55))",
 
-  heroGradient: "linear-gradient(135deg, #FF8A65 0%, #FFB74D 100%)",
-  heroGlow:     "0 8px 32px rgba(255,138,101,0.30)",
+  // Default = the tuned coral hero; when an agency sets a portal accent,
+  // --portal-hero-bg / --portal-hero-glow (derived in globals.css, gated by
+  // [data-portal-accent]) override so the hero tracks their colour.
+  heroGradient: "var(--portal-hero-bg, linear-gradient(135deg, #FF8A65 0%, #FFB74D 100%))",
+  heroGlow:     "var(--portal-hero-glow, 0 8px 32px rgba(255,138,101,0.30))",
 
   primary:      "var(--portal-primary, #FF6B4A)",
   primaryBg:    "var(--portal-primaryBg, rgba(255,107,74,0.10))",
@@ -65,8 +68,12 @@ export const P = {
 // source so every button matches; the interaction states live in globals.css
 // (.pbtn / .pbtn-primary / .pbtn-press).
 export const PORTAL_BTN = {
-  primaryBg:     "linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%)",
-  primaryShadow: "0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.30)",
+  // Default = the tuned coral; when an agency sets a portal accent,
+  // --portal-btn-bg / --portal-btn-shadow / --portal-btn-text (derived in
+  // globals.css + injected contrast, gated by [data-portal-accent]) override so
+  // the CTA follows their colour with readable text on any accent.
+  primaryBg:     "var(--portal-btn-bg, linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%))",
+  primaryShadow: "var(--portal-btn-shadow, 0 2px 0 #C63E20, 0 6px 16px rgba(240,78,44,0.30), inset 0 1px 0 rgba(255,255,255,0.30))",
   waBg:          "linear-gradient(180deg,#2ED974 0%,#1FAE53 100%)",
   waShadow:      "0 1px 2px rgba(31,174,83,0.4), 0 6px 14px rgba(37,211,102,0.24), inset 0 1px 0 rgba(255,255,255,0.3)",
   emailBg:       "linear-gradient(180deg,#2A93FF 0%,#0A6FE8 100%)",

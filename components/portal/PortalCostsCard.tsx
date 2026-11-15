@@ -550,8 +550,10 @@ function OptionButton({ label, sub, selected, onClick }: { label: string; sub: s
 // doesn't shift the row.
 const OPT_SELECTED_STYLE: React.CSSProperties = {
   border: "2px solid transparent",
-  background: "linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%)",
-  boxShadow: "0 10px 24px rgba(255,107,74,0.4), inset 0 1px 0 rgba(255,255,255,0.4)",
+  // Default = the tuned coral; --portal-costs-bar / --portal-costs-shadow
+  // (gated by [data-portal-accent] in globals.css) follow the agency accent.
+  background: "var(--portal-costs-bar, linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%))",
+  boxShadow: "var(--portal-costs-shadow, 0 10px 24px rgba(255,107,74,0.4)), inset 0 1px 0 rgba(255,255,255,0.4)",
 };
 
 function ToggleRow({ label, sub, on, onClick }: { label: string; sub: string; on: boolean; onClick: () => void }) {

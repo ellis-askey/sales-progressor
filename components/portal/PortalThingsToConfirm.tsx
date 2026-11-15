@@ -101,7 +101,7 @@ export function PortalThingsToConfirm({
             <button
               onClick={() => openSheet(cp.id)}
               className="pbtn pbtn-primary pbtn-press flex-none"
-              style={{ padding: "8px 15px", borderRadius: 11, fontSize: 13, fontWeight: 700, color: "#fff", background: "linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%)", boxShadow: "0 1px 0 #C63E20, 0 3px 8px rgba(240,78,44,0.28)" }}
+              style={{ padding: "8px 15px", borderRadius: 11, fontSize: 13, fontWeight: 700, color: "var(--portal-btn-text, #fff)", background: "var(--portal-btn-bg, linear-gradient(180deg,#FF6F4E 0%,#F04E2C 100%))", boxShadow: "var(--portal-btn-shadow-sm, 0 1px 0 #C63E20, 0 3px 8px rgba(240,78,44,0.28))" }}
             >
               Confirm
             </button>

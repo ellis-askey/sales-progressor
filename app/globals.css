@@ -718,6 +718,23 @@ body {
   --portal-glass-soft:   rgba(255,255,255,0.55);
 }
 
+/* When an agency picks a portal accent, the two most prominent brand surfaces —
+   the primary CTA and the hero — plus the costs card's selected-choice fill
+   derive from --portal-primary so they track the accent instead of staying on
+   the tuned coral. Gated by [data-portal-accent] (set by PortalSettingsProvider
+   + the boot script only when a custom accent exists), so every un-customised
+   agency — light and dark — keeps the exact coral defaults above, untouched.
+   --portal-btn-text is the readable on-accent text, computed at injection. */
+[data-portal-accent] {
+  --portal-btn-bg: linear-gradient(180deg, color-mix(in srgb, var(--portal-primary) 90%, #fff) 0%, color-mix(in srgb, var(--portal-primary) 82%, #000) 100%);
+  --portal-btn-shadow: 0 2px 0 color-mix(in srgb, var(--portal-primary) 72%, #000), 0 6px 16px color-mix(in srgb, var(--portal-primary) 32%, transparent), inset 0 1px 0 rgba(255,255,255,0.30);
+  --portal-btn-shadow-sm: 0 1px 0 color-mix(in srgb, var(--portal-primary) 72%, #000), 0 3px 8px color-mix(in srgb, var(--portal-primary) 30%, transparent);
+  --portal-hero-bg: linear-gradient(135deg, color-mix(in srgb, var(--portal-primary) 90%, #fff) 0%, color-mix(in srgb, var(--portal-primary) 66%, #fff) 100%);
+  --portal-hero-glow: 0 8px 32px color-mix(in srgb, var(--portal-primary) 30%, transparent);
+  --portal-costs-bar: linear-gradient(180deg, color-mix(in srgb, var(--portal-primary) 85%, #fff) 0%, var(--portal-primary) 52%, color-mix(in srgb, var(--portal-primary) 80%, #000) 100%);
+  --portal-costs-shadow: 0 10px 24px color-mix(in srgb, var(--portal-primary) 40%, transparent);
+}
+
 /* Brand-matched dark palette: deep navy-charcoal ground, dark glass, hairline
    light borders, near-white text, coral brightened so it still pops. */
 [data-portal-theme="dark"] {

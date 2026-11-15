@@ -50,6 +50,17 @@ export function parsePortalSettings(raw: unknown): PortalSettings {
   };
 }
 
+// Readable text (near-black or white) for a button filled with the given accent
+// — a relative-luminance threshold. Drives --portal-btn-text so the primary CTA
+// label stays legible even when an agency picks a light accent.
+export function onAccentText(hex: string): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return "#ffffff";
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.62 ? "#1a1512" : "#ffffff";
+}
+
 // Inline no-flash boot script: applies the settings to <html> before first
 // paint. "system" resolves via prefers-color-scheme. Injected by the portal
 // layout (server) so there's no flash of the wrong theme.
@@ -63,7 +74,7 @@ export function portalSettingsBootScript(s: PortalSettings): string {
     (s.highContrast ? `d.setAttribute("data-portal-contrast","on");` : ``) +
     (s.reduceMotion ? `d.setAttribute("data-portal-motion","reduced");` : ``) +
     (s.dyslexicFont ? `d.setAttribute("data-portal-font","dyslexic");` : ``) +
-    (s.accent ? `d.style.setProperty("--portal-primary",${JSON.stringify(s.accent)});` : ``) +
+    (s.accent ? `d.style.setProperty("--portal-primary",${JSON.stringify(s.accent)});d.setAttribute("data-portal-accent","on");d.style.setProperty("--portal-btn-text",${JSON.stringify(onAccentText(s.accent))});` : ``) +
     // Per-device "hide money" (localStorage) — applied pre-paint so figures
     // never flash visible on a shared screen.
     `try{if(localStorage.getItem(${JSON.stringify(HIDE_MONEY_KEY)})==="1"){d.setAttribute("data-portal-hidemoney","on");}}catch(e){}` +
