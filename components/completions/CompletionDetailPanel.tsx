@@ -14,8 +14,8 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  CaretLeft, CaretRight, X, CheckCircle, Circle, CalendarBlank, UsersThree,
-  Headset, ArrowSquareOut, Flag, Scales, Timer, Phone, EnvelopeSimple,
+  CaretLeft, CaretRight, X, CheckCircle, Circle, Check, UsersThree,
+  Headset, ArrowSquareOut, Flag, Scales, Phone, EnvelopeSimple,
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
@@ -81,20 +81,6 @@ function nextStep(file: CompletionFileRow): string {
   if (file.internal && !(file.completionFundsSent === true || file.fundsInPlace === "yes")) return "Confirm completion funds are in place.";
   if (!file.completionDateIso) return "Set a completion date.";
   return "On track. Keep both sides moving to the date.";
-}
-
-type JourneyState = "done" | "now" | "todo";
-function JourneyNode({ label, date, state }: { label: string; date: string; state: JourneyState }) {
-  const done = state === "done";
-  return (
-    <div className="cdp-jnode">
-      <span className={`cdp-jdot cdp-jdot--${state}`}>
-        {done ? <CheckCircle size={20} weight="fill" /> : <Circle size={20} weight={state === "now" ? "bold" : "regular"} />}
-      </span>
-      <span className="cdp-jlabel">{label}</span>
-      <span className="cdp-jdate">{date}</span>
-    </div>
-  );
 }
 
 export function CompletionDetailPanel({
@@ -197,10 +183,6 @@ export function CompletionDetailPanel({
   const feeStr = fmtMoney(f.agentFeeAmount);
   const priceStr = f.purchasePrice != null ? "£" + Math.round(f.purchasePrice / 100).toLocaleString("en-GB") : null;
 
-  // Journey states — exchanged is always done here (these files have exchanged);
-  // completion is done only on the Completed tab.
-  const compState: JourneyState = completed ? "done" : "now";
-
   async function doComplete() {
     if (!completeDate) return;
     setSaving(true);
@@ -245,24 +227,30 @@ export function CompletionDetailPanel({
               the date already lives in the timeline below, so we don't repeat it. */}
           {!completed && <span className="cdp-status" style={{ color: st.color }}>{st.label}</span>}
 
-          {/* Journey — Added (date on the system) → Exchanged → Completion */}
-          <div className="cdp-journey">
-            <JourneyNode label="Added" date={fmtTiny(f.instructedAtIso)} state="done" />
-            <span className="cdp-jline cdp-jline--done" aria-hidden />
-            <JourneyNode label="Exchanged" date={fmtTiny(f.exchangedAtIso)} state="done" />
-            <span className={`cdp-jline${completed ? " cdp-jline--done" : " cdp-jline--todo"}`} aria-hidden />
-            <JourneyNode label="Completion" date={fmtTiny(f.completionDateIso)} state={compState} />
-          </div>
-
-          {/* Timings — two legs of the journey, split by a divider */}
-          <div className="cdp-twostat">
-            <div className="cdp-stat">
-              <span className="cdp-card-lab"><CalendarBlank size={13} weight="regular" /> Added to exchange</span>
-              <span className="cdp-card-val">{fmtDuration(addedToExchange)}</span>
+          {/* Journey — a gradient ribbon (green → coral). Each milestone's date
+              sits above its node; each leg's elapsed time sits centred below.
+              Added → Exchanged → Completion. */}
+          <div className="cdp-tl">
+            <div className="cdp-tl-dates">
+              <span className="cdp-tl-date cdp-tl-date--l"><span className="cdp-tl-lbl">Added</span><span className="cdp-tl-d">{fmtTiny(f.instructedAtIso)}</span></span>
+              <span className="cdp-tl-date cdp-tl-date--c"><span className="cdp-tl-lbl">Exchanged</span><span className="cdp-tl-d">{fmtTiny(f.exchangedAtIso)}</span></span>
+              <span className="cdp-tl-date cdp-tl-date--r"><span className="cdp-tl-lbl">Completion</span><span className="cdp-tl-d">{fmtTiny(f.completionDateIso)}</span></span>
             </div>
-            <div className="cdp-stat">
-              <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
-              <span className="cdp-card-val" style={{ color: completed ? "var(--agent-text-primary)" : st.color }}>{fmtDuration(exToCompDisplay)}</span>
+            <div className="cdp-tl-track">
+              <span
+                className="cdp-tl-fill"
+                style={completed
+                  ? { width: "100%", background: "linear-gradient(90deg, var(--agent-success), var(--agent-coral-deep))" }
+                  : { width: "50%", background: "var(--agent-success)" }}
+                aria-hidden
+              />
+              <span className="cdp-tl-node" style={{ left: "0%", transform: "translateY(-50%)" }}><Check size={12} weight="bold" style={{ color: "var(--agent-success)" }} /></span>
+              <span className="cdp-tl-node" style={{ left: "50%", transform: "translate(-50%,-50%)" }}><Check size={12} weight="bold" style={{ color: "var(--agent-success)" }} /></span>
+              <span className={`cdp-tl-node${completed ? "" : " cdp-tl-node--todo"}`} style={{ left: "100%", transform: "translate(-100%,-50%)" }}>{completed && <Check size={12} weight="bold" style={{ color: "var(--agent-coral-deep)" }} />}</span>
+            </div>
+            <div className="cdp-tl-durs">
+              <span className="cdp-tl-dur">{fmtDuration(addedToExchange)}</span>
+              <span className="cdp-tl-dur" style={{ color: completed ? undefined : st.color }}>{fmtDuration(exToCompDisplay)}</span>
             </div>
           </div>
 
@@ -480,18 +468,24 @@ const CDP_CSS = `
 .cdp-price{ margin:2px 0 0; font-size:17px; font-weight:700; color:var(--agent-text-primary); white-space:nowrap; letter-spacing:-0.01em; }
 .cdp-status{ font-size:12.5px; font-weight:700; margin-top:-6px; }
 
-/* Journey */
-.cdp-journey{ display:flex; align-items:flex-start; justify-content:space-between; padding:14px 2px 16px; }
-.cdp-jnode{ display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; width:92px; text-align:center; }
-.cdp-jdot{ display:inline-flex; }
-.cdp-jdot--done{ color:var(--agent-success); }
-.cdp-jdot--now{ color:var(--agent-danger); }
-.cdp-jdot--todo{ color:var(--agent-text-muted); }
-.cdp-jlabel{ font-size:10.5px; color:var(--agent-text-muted); font-weight:600; }
-.cdp-jdate{ font-size:12.5px; font-weight:600; color:var(--agent-text-primary); }
-.cdp-jline{ flex:1; height:2px; border-radius:2px; margin-top:9px; min-width:16px; }
-.cdp-jline--done{ background:var(--agent-success); }
-.cdp-jline--todo{ background:transparent; border-top:2px dashed var(--agent-border-strong, rgba(15,23,42,0.22)); height:0; }
+/* Journey — gradient ribbon. Dates above each node, elapsed time per leg below. */
+.cdp-tl{ padding:4px 8px 2px; }
+.cdp-tl-dates{ display:flex; margin-bottom:9px; }
+.cdp-tl-date{ flex:1; display:flex; flex-direction:column; gap:1px; min-width:0; }
+.cdp-tl-date--l{ align-items:flex-start; text-align:left; }
+.cdp-tl-date--c{ align-items:center; text-align:center; }
+.cdp-tl-date--r{ align-items:flex-end; text-align:right; }
+.cdp-tl-lbl{ font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--agent-text-muted); }
+.cdp-tl-d{ font-size:13.5px; font-weight:650; color:var(--agent-text-primary); font-variant-numeric:tabular-nums; }
+.cdp-tl-track{ position:relative; height:12px; border-radius:99px;
+  background:var(--agent-surface-nested, rgba(15,23,42,0.06)); box-shadow:inset 0 0 0 0.5px var(--agent-border-subtle); }
+.cdp-tl-fill{ position:absolute; left:0; top:0; height:100%; border-radius:99px; }
+.cdp-tl-node{ position:absolute; top:50%; display:flex; align-items:center; justify-content:center;
+  width:20px; height:20px; border-radius:99px; background:#fff; box-shadow:0 1px 4px rgba(15,23,42,0.22); z-index:1; }
+.cdp-tl-node--todo{ background:var(--agent-surface-elevated, #fff); box-shadow:none;
+  border:2px solid var(--agent-border-strong, rgba(15,23,42,0.22)); }
+.cdp-tl-durs{ display:flex; margin-top:9px; }
+.cdp-tl-dur{ flex:1; text-align:center; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
 
 /* Info grid */
 .cdp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -501,13 +495,6 @@ const CDP_CSS = `
 .cdp-card-val{ font-size:18px; font-weight:700; color:var(--agent-text-primary); line-height:1.2; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 .cdp-card-val--sm{ font-size:13px; font-weight:600; letter-spacing:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cdp-card-sub{ font-size:11px; color:var(--agent-text-muted); }
-
-/* Two-stat timings card (Added to exchange | Exchange to completion), split by
-   a vertical divider. */
-.cdp-twostat{ display:flex; border-radius:13px; overflow:hidden;
-  background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
-.cdp-stat{ flex:1; display:flex; flex-direction:column; gap:3px; padding:12px 13px; min-width:0; }
-.cdp-stat + .cdp-stat{ border-left:0.5px solid var(--agent-border-subtle); }
 
 /* People / Clients / Solicitors — no containers, just neat dividing lines. */
 .cdp-people-group{ display:flex; flex-direction:column; }

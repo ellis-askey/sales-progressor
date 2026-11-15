@@ -441,7 +441,10 @@ export function ComposeEmailModal({
         const toTokens: Token[] = pf.to.map((t) => {
           const email = typeof t === "string" ? t : t.email;
           const name = typeof t === "string" ? t : (t.name ?? t.email);
-          return { email, name, rec: null };
+          // Resolve against the sale's known recipients so an on-file person
+          // gets their colour-coded avatar/photo, not the generic fallback.
+          const match = c.recipients.find((x) => x.email.toLowerCase() === email.toLowerCase());
+          return match ? { email: match.email, name: match.name, rec: match } : { email, name, rec: null };
         });
         const ccTokens: Token[] = (pf.cc ?? []).map((r) => {
           const match = c.recipients.find((x) => x.email.toLowerCase() === r.email.toLowerCase());

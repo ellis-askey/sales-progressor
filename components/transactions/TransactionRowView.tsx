@@ -937,6 +937,44 @@ export function TransactionRowView({
             const last = cols[cols.length - 1];
             const moveLast = !["paused", "activity", "stage", "handled", "reason"].includes(last);
             const bodyCols = moveLast ? cols.slice(0, -1) : cols;
+
+            if (preview) {
+              // Founder card: the exchange prediction / key date drops to a
+              // wrapping bottom row, right-aligned beside the final body column
+              // (Next action) — stacking only when the drawer squeezes the list.
+              // Every eyebrow is sentence case (not all-caps).
+              const stackCols = moveLast ? bodyCols.slice(0, -1) : bodyCols;
+              const footLeft = moveLast ? bodyCols[bodyCols.length - 1] : undefined;
+              const eyebrow = (text: string) => (
+                <p style={{ margin: "0 0 5px", fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>{text}</p>
+              );
+              return (
+                <>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview compact /></div>
+                  </div>
+                  {stackCols.map((col) => (
+                    <div key={col}>
+                      {eyebrow(colLabel(col, preview))}
+                      {renderCell(col, tx, preview)}
+                    </div>
+                  ))}
+                  {footLeft && (
+                    <div className="flex items-start gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        {eyebrow(colLabel(footLeft, preview))}
+                        {renderCell(footLeft, tx, preview)}
+                      </div>
+                      <div className="text-right ml-auto">
+                        {eyebrow(last === "exchange" ? "Exchange prediction" : colLabel(last, preview))}
+                        {renderCell(last, tx, preview)}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            }
+
             return (
               <>
                 <div className="flex items-start gap-3">

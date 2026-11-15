@@ -9,11 +9,11 @@
 // row; the latest note, next reminder and the handling team's contact details
 // come from one read-only, access-scoped action (getFilePreviewExtras).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  CaretLeft, CaretRight, X, NotePencil, CalendarBlank, Target, ListChecks, Flag,
+  CaretLeft, CaretRight, CaretDown, X, NotePencil, CalendarBlank, Target, ListChecks, Flag,
   Phone, EnvelopeSimple, ArrowSquareOut, TrendUp, TrendDown, Minus, PauseCircle,
   CheckCircle, Prohibit,
 } from "@phosphor-icons/react";
@@ -98,6 +98,7 @@ export function FloatingFilePreview({
   const [failed, setFailed] = useState(false);
   const [noteExpanded, setNoteExpanded] = useState(false);
   const [noteClamped, setNoteClamped] = useState(false);
+  const [noteFull, setNoteFull] = useState(0);
   const [photoFailed, setPhotoFailed] = useState(false);
   const noteBodyRef = useRef<HTMLParagraphElement>(null);
   const id = row?.id ?? null;
@@ -114,10 +115,14 @@ export function FloatingFilePreview({
 
   // Reset per-file UI (note expand, photo-failure) when the file changes.
   useEffect(() => { setNoteExpanded(false); setPhotoFailed(false); }, [id]);
-  // Measure whether the collapsed note overflows, to decide Show more / less.
+  // Measure the collapsed note: does it overflow (→ expandable), and its full
+  // height (→ the max-height we animate open to).
   useEffect(() => {
     const el = noteBodyRef.current;
-    if (!noteExpanded && el) setNoteClamped(el.scrollHeight > el.clientHeight + 2);
+    if (!noteExpanded && el) {
+      setNoteClamped(el.scrollHeight > el.clientHeight + 2);
+      setNoteFull(el.scrollHeight);
+    }
   }, [extras, noteExpanded]);
 
   // Escape closes; focus is restored on close. (Prev/next are the on-screen
@@ -152,6 +157,10 @@ export function FloatingFilePreview({
   if (!rendered || typeof window === "undefined" || !r) return null;
 
   const addr = splitAddress(r.propertyAddress);
+  // Agreed price (priceAtExchange snapshot wins), rendered top-right of the head
+  // to match the completions drawer. Pence → pounds.
+  const pence = r.priceAtExchange ?? r.purchasePrice ?? null;
+  const priceStr = pence != null ? "£" + Math.round(pence / 100).toLocaleString("en-GB") : null;
   const stageIdx = r.boardStage ? DISPLAY_STAGES.findIndex((s) => s.key === r.boardStage) : -1;
   const total = DISPLAY_STAGES.length;
   const terminal = r.status === "completed" || r.status === "withdrawn";
@@ -199,10 +208,13 @@ export function FloatingFilePreview({
             ? <img className="ffp-photo" src={r.photoUrl} alt="" onError={() => setPhotoFailed(true)} />
             : <span className="ffp-photo property-photo-fallback" aria-hidden />}
 
-          {/* Address */}
+          {/* Address + agreed price */}
           <div className="ffp-head">
-            <h2 className="ffp-addr">{addr.line}</h2>
-            {addr.location && <p className="ffp-town">{addr.location}</p>}
+            <div className="ffp-head-main">
+              <h2 className="ffp-addr">{addr.line}</h2>
+              {addr.location && <p className="ffp-town">{addr.location}</p>}
+            </div>
+            {priceStr && <p className="ffp-price">{priceStr}</p>}
           </div>
 
           {/* Stage + progress + on-track. boardStage is only resolved for active
@@ -220,28 +232,51 @@ export function FloatingFilePreview({
             {r.boardStage && terminal && statusMark && <span className="ffp-track" style={{ color: statusMark.color }}><statusMark.Icon size={14} weight="fill" />{statusMark.label}</span>}
           </div>
 
-          {/* Latest note */}
-          <section className="ffp-note">
-            <div className="ffp-note-head">
-              <span className="ffp-note-lab"><NotePencil size={15} weight="regular" /> Latest note</span>
-              {extras?.note && <span className="ffp-note-when">{dateTime(extras.note.at)}</span>}
-            </div>
-            {loading && !extras
-              ? <div className="ffp-skel ffp-skel-lines" />
-              : extras?.note
-                ? <>
-                    <p ref={noteBodyRef} className={`ffp-note-body${noteExpanded ? " expanded" : ""}`}>{extras.note.body}</p>
-                    {(noteClamped || noteExpanded) && (
-                      <button type="button" className="ffp-note-more" onClick={() => setNoteExpanded((v) => !v)}>
-                        {noteExpanded ? "Show less" : "Show more"}
-                      </button>
-                    )}
-                    {extras.note.author && <p className="ffp-note-auth">{extras.note.author}</p>}
-                  </>
-                : failed
-                  ? <p className="ffp-empty">Couldn&rsquo;t load the latest note.</p>
-                  : <p className="ffp-empty">No notes yet.</p>}
-          </section>
+          {/* Latest note — when the body overflows, the whole card is a toggle:
+              click (or Enter/Space) animates the rest open, click again closes. */}
+          {(() => {
+            const canExpand = (noteClamped || noteExpanded) && !!extras?.note;
+            const toggle = () => setNoteExpanded((v) => !v);
+            return (
+              <section
+                className={`ffp-note${canExpand ? " ffp-note-x" : ""}${noteExpanded ? " open" : ""}`}
+                {...(canExpand
+                  ? {
+                      role: "button" as const, tabIndex: 0, "aria-expanded": noteExpanded,
+                      onClick: toggle,
+                      onKeyDown: (e: ReactKeyboardEvent) => {
+                        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+                      },
+                    }
+                  : {})}
+              >
+                <div className="ffp-note-head">
+                  <span className="ffp-note-lab"><NotePencil size={15} weight="regular" /> Latest note</span>
+                  {extras?.note && <span className="ffp-note-when">{dateTime(extras.note.at)}</span>}
+                </div>
+                {loading && !extras
+                  ? <div className="ffp-skel ffp-skel-lines" />
+                  : extras?.note
+                    ? <>
+                        <p
+                          ref={noteBodyRef}
+                          className={`ffp-note-body${noteExpanded ? " expanded" : noteClamped ? " clamped" : ""}`}
+                          style={noteExpanded && noteFull ? { maxHeight: noteFull } : undefined}
+                        >{extras.note.body}</p>
+                        {extras.note.author && <p className="ffp-note-auth">{extras.note.author}</p>}
+                        {canExpand && (
+                          <span className="ffp-note-more" aria-hidden>
+                            <CaretDown size={13} weight="bold" className="ffp-note-chev" />
+                            {noteExpanded ? "Show less" : "Show more"}
+                          </span>
+                        )}
+                      </>
+                    : failed
+                      ? <p className="ffp-empty">Couldn&rsquo;t load the latest note.</p>
+                      : <p className="ffp-empty">No notes yet.</p>}
+              </section>
+            );
+          })()}
 
           {/* Info grid */}
           <div className="ffp-grid">
@@ -366,27 +401,40 @@ const FFP_CSS = `
 
 .ffp-scroll{ flex:1; min-height:0; overflow-y:auto; padding:4px 20px 16px; display:flex; flex-direction:column; gap:16px; }
 .ffp-photo{ width:100%; height:188px; border-radius:16px; object-fit:cover; display:block; flex-shrink:0; }
-.ffp-head{ }
+.ffp-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.ffp-head-main{ min-width:0; }
 .ffp-addr{ margin:0; font-size:21px; font-weight:700; letter-spacing:-0.02em; line-height:1.15; color:var(--agent-text-primary); }
 .ffp-town{ margin:3px 0 0; font-size:13px; color:var(--agent-text-secondary); }
+.ffp-price{ margin:1px 0 0; font-size:18px; font-weight:700; color:var(--agent-text-primary); white-space:nowrap; letter-spacing:-0.01em; flex-shrink:0; }
 
 .ffp-stage{ display:flex; align-items:center; gap:11px; padding-bottom:16px; border-bottom:0.5px solid var(--agent-border-subtle); }
 .ffp-stage-ic{ color:var(--agent-text-muted); flex-shrink:0; }
 .ffp-stage-bar{ flex:1; min-width:0; }
-.ffp-track{ display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; flex-shrink:0; }
+.ffp-track{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; flex-shrink:0;
+  padding:4px 10px; border-radius:999px; border:1px solid currentColor; line-height:1; }
 .ffp-muted{ font-size:11.5px; color:var(--agent-text-muted); }
 .ffp-stage-status{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; }
 
+/* When the note overflows, the whole card becomes a toggle. */
+.ffp-note-x{ cursor:pointer; margin:-8px -12px; padding:8px 12px; border-radius:14px; transition:background .16s; }
+.ffp-note-x:hover{ background:var(--agent-surface-nested, rgba(15,23,42,0.045)); }
+.ffp-root[data-night] .ffp-note-x:hover{ background:rgba(255,255,255,0.05); }
+.ffp-note-x:focus-visible{ outline:2px solid var(--agent-coral); outline-offset:0;
+  background:var(--agent-surface-nested, rgba(15,23,42,0.03)); }
 .ffp-note-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:7px; }
 .ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-note-when{ font-size:11px; color:var(--agent-text-muted); white-space:nowrap; flex-shrink:0; }
+/* Collapsed to ~5 lines with a soft fade; expands by animating max-height down. */
 .ffp-note-body{ margin:0; font-size:13px; line-height:1.55; color:var(--agent-text-primary); white-space:pre-wrap;
-  display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
-.ffp-note-body.expanded{ -webkit-line-clamp:unset; display:block; overflow:visible; }
-.ffp-note-more{ margin:6px 0 0; padding:0; border:none; background:none; cursor:pointer; font-family:inherit;
+  max-height:7.75em; overflow:hidden; transition:max-height .34s cubic-bezier(.22,1,.36,1); }
+.ffp-note-body.clamped{ -webkit-mask-image:linear-gradient(180deg,#000 66%,transparent);
+  mask-image:linear-gradient(180deg,#000 66%,transparent); }
+.ffp-note-auth{ margin:7px 0 0; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
+.ffp-note-more{ display:inline-flex; align-items:center; gap:4px; margin:7px 0 0;
   font-size:11.5px; font-weight:700; color:var(--agent-coral-deep); }
-.ffp-note-more:hover{ text-decoration:underline; }
-.ffp-note-auth{ margin:6px 0 0; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
+.ffp-note-chev{ transition:transform .34s cubic-bezier(.22,1,.36,1); }
+.ffp-note.open .ffp-note-chev{ transform:rotate(180deg); }
+@media (prefers-reduced-motion:reduce){ .ffp-note-body,.ffp-note-chev{ transition:none } }
 .ffp-empty{ margin:0; font-size:11.5px; color:var(--agent-text-muted); }
 
 .ffp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
