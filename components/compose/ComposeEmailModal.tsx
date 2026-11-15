@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
-import { PaperPlaneTilt, ArrowBendUpLeft, Check } from "@phosphor-icons/react";
+import { PaperPlaneTilt, ArrowBendUpLeft, Check, X } from "@phosphor-icons/react";
 import { FloatingWindow } from "@/components/compose/FloatingWindow";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
@@ -682,7 +682,7 @@ export function ComposeEmailModal({
             <span key={t.email} className="cem-pill" style={{ animation: justAdded === t.email ? "cemPop .22s cubic-bezier(.34,1.56,.64,1) both" : undefined }}>
               <RecAvatar rec={t.rec} size={20} />
               <span>{t.rec ? extractFirstName(t.name) : t.email}</span>
-              <span className="cem-x" onClick={(e) => { e.stopPropagation(); removeToken(name, t.email); }}>✕</span>
+              <span className="cem-x" onClick={(e) => { e.stopPropagation(); removeToken(name, t.email); }}><X size={11} weight="bold" /></span>
             </span>
           ))}
           <input value={openField === name ? fieldQuery : ""} placeholder={tokens[name].length ? "" : placeholder}
@@ -785,7 +785,7 @@ export function ComposeEmailModal({
               <div className="cem-sale-selected">
                 <PropertyThumb photoUrl={ctx.photoUrl} size={44} />
                 <span className="cem-addr"><span className="cem-a">{ctx.sale.line1}</span><span className="cem-b">{ctx.sale.location}</span></span>
-                <button className="cem-clearx" title="Change sale" onClick={clearSale}>✕</button>
+                <button className="cem-clearx" title="Change sale" onClick={clearSale}><X size={13} weight="bold" /></button>
               </div>
             ) : (initialSaleHint && !saleCleared) ? (
               // Opened from a file: show the property instantly (we already know
@@ -1080,7 +1080,7 @@ const CEM_CSS = `
 .cem-sale-search{display:flex;align-items:center;gap:9px;background:var(--agent-surface-elevated,#fff);border-radius:12px;padding:10px 13px}
 .cem-sicon{color:var(--agent-text-muted);display:flex}
 .cem-sale-search input{flex:1;border:none;outline:none;background:none;font-family:inherit;font-size:13.5px;color:var(--agent-text-primary)}
-.cem-sale-selected{display:flex;align-items:center;gap:12px;background:var(--agent-surface-elevated,#fff);border:1px solid var(--agent-border-default);border-radius:12px;padding:9px 11px;animation:cemPop .26s cubic-bezier(.34,1.56,.64,1) both}
+.cem-sale-selected{display:flex;align-items:center;gap:12px;background:var(--agent-surface-elevated,#fff);border:1px solid var(--agent-border-default,rgba(45,24,16,.1));border-radius:12px;padding:9px 11px;animation:cemPop .26s cubic-bezier(.34,1.56,.64,1) both}
 .cem-sale-preload{animation:none}
 .cem-sale-spin{width:18px;height:18px;flex-shrink:0;border-radius:50%;border:2px solid var(--agent-border-default);border-top-color:var(--agent-coral-deep,#FF6B4A);animation:cemSpin .7s linear infinite}
 @keyframes cemSpin{to{transform:rotate(360deg)}}
@@ -1093,8 +1093,8 @@ const CEM_CSS = `
 .cem-addr{flex:1;min-width:0}
 .cem-a{display:block;font-size:13.5px;font-weight:650;color:var(--agent-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-b{display:block;font-size:11.5px;color:var(--agent-text-muted);margin-top:1px}
-.cem-clearx{width:28px;height:28px;border-radius:8px;border:1px solid var(--agent-border-default);background:#fff;color:var(--agent-text-muted);cursor:pointer;font-size:13px;display:grid;place-items:center;flex-shrink:0;transition:all .14s}
-.cem-clearx:hover{border-color:var(--agent-danger);color:var(--agent-danger)}
+.cem-clearx{width:28px;height:28px;border-radius:8px;border:1px solid var(--agent-border-default,rgba(45,24,16,.1));background:#fff;color:var(--agent-text-muted);cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:all .14s}
+.cem-clearx:hover{background:var(--agent-surface-overlay,rgba(15,23,42,0.08));color:var(--agent-text-primary)}
 .cem-recrow{display:flex;align-items:flex-start;gap:10px}
 .cem-reclabel{width:34px;flex-shrink:0;font-size:12.5px;font-weight:600;color:var(--agent-text-secondary);padding-top:9px}
 .cem-field{flex:1;min-width:0;position:relative}
@@ -1104,14 +1104,14 @@ const CEM_CSS = `
 .cem-ccbcc button{background:none;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--agent-text-muted);padding:0;transition:color .14s}
 .cem-ccbcc button:hover{color:var(--agent-coral-deep)}
 .cem-pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--agent-border-strong,rgba(45,24,16,.18));border-radius:999px;padding:3px 7px 3px 4px;font-size:12px;font-weight:550;color:var(--agent-text-primary);box-shadow:0 1px 3px rgba(45,24,16,0.07)}
-.cem-pill .cem-x{cursor:pointer;color:var(--agent-text-muted);font-size:13px;width:15px;height:15px;display:grid;place-items:center;border-radius:50%;transition:background .12s,color .12s}
-.cem-pill .cem-x:hover{background:rgba(199,62,62,0.12);color:var(--agent-danger)}
+.cem-pill .cem-x{cursor:pointer;color:var(--agent-text-muted);width:16px;height:16px;display:grid;place-items:center;border-radius:50%;transition:background .12s,color .12s}
+.cem-pill .cem-x:hover{background:var(--agent-surface-overlay,rgba(15,23,42,0.09));color:var(--agent-text-primary)}
 .cem-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:#fff;border:1px solid var(--agent-border-default);border-radius:12px;padding:5px;max-height:280px;overflow-y:auto;box-shadow:0 14px 40px rgba(45,24,16,0.16);animation:cemMenuin .16s ease both}
 .cem-menu-inline{position:static;top:auto;left:auto;right:auto;margin-top:6px;box-shadow:0 6px 18px rgba(45,24,16,0.08);animation:none}
 .cem-sale-reveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1),opacity .24s ease}
 .cem-sale-reveal.open{grid-template-rows:1fr;opacity:1}
 .cem-sale-reveal-in{overflow:hidden;min-height:0}
-.cem-mgroup{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--agent-text-muted);padding:8px 9px 4px}
+.cem-mgroup{font-size:11px;font-weight:700;letter-spacing:.01em;color:var(--agent-text-muted);padding:8px 9px 5px}
 .cem-mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;cursor:pointer;padding:7px 9px;border-radius:9px;font-family:inherit;transition:background .13s ease,transform .13s ease,box-shadow .13s ease}
 .cem-mi:hover{background:rgba(45,24,16,0.03);transform:translateY(-1px);box-shadow:0 3px 10px rgba(45,24,16,0.10)}
 .cem-nm{flex:1;min-width:0}
