@@ -481,7 +481,7 @@ const CDP_CSS = `
 .cdp-status{ font-size:12.5px; font-weight:700; margin-top:-6px; }
 
 /* Journey */
-.cdp-journey{ display:flex; align-items:flex-start; justify-content:space-between; padding:14px 2px 16px; border-bottom:0.5px solid var(--agent-border-subtle); }
+.cdp-journey{ display:flex; align-items:flex-start; justify-content:space-between; padding:14px 2px 16px; }
 .cdp-jnode{ display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; width:92px; text-align:center; }
 .cdp-jdot{ display:inline-flex; }
 .cdp-jdot--done{ color:var(--agent-success); }
