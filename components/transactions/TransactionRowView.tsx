@@ -563,7 +563,7 @@ function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
         preset="popover"
         width={220}
         placement="bottom-start"
-        trigger={<button type="button" className="files-dueback-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>{value}</button>}
+        trigger={<button type="button" className="files-dueback-btn">{value}</button>}
       >
         {(close) => (
           <HoldDateForm txId={tx.id} current={current} onSaved={() => { close(); router.refresh(); }} onError={(m) => toast.error(m)} onCancel={close} />
@@ -715,50 +715,63 @@ function ReasonCell({ tx }: { tx: TransactionRow }) {
 }
 
 // All-tab adaptive key date (status marker on the property cell disambiguates).
-function KeyDateCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
-  if (tx.status === "active") return <ExchangeCell tx={tx} preview={preview} />;
-  if (tx.status === "on_hold") return <ReviewCell tx={tx} label="Review due" />;
-  if (tx.status === "completed") return <DateCell d={tx.completionDate} />;
-  if (tx.status === "withdrawn") return <DateCell d={tx.updatedAt} />;
-  return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
+// The "Key date" means a different thing per status, so on the mixed All tab
+// each date says which one it is.
+function keyDateLabel(tx: TransactionRow): string {
+  switch (tx.status) {
+    case "active": return "Exchange";
+    case "on_hold": return "Due back";
+    case "completed": return "Completion";
+    case "withdrawn": return "Withdrawn";
+    default: return "Key date";
+  }
+}
+function KeyDateCell({ tx, preview, caption = true }: { tx: TransactionRow; preview?: boolean; caption?: boolean }) {
+  const inner =
+    tx.status === "active" ? <ExchangeCell tx={tx} preview={preview} />
+    : tx.status === "on_hold" ? <ReviewCell tx={tx} />
+    : tx.status === "completed" ? <DateCell d={tx.completionDate} />
+    : tx.status === "withdrawn" ? <DateCell d={tx.updatedAt} />
+    : <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
+  if (!caption) return inner;
+  return (
+    <div>
+      <p style={{ margin: "0 0 2px", fontSize: 10.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>{keyDateLabel(tx)}</p>
+      {inner}
+    </div>
+  );
 }
 
-function StageCell({ tx, preview, inlineStatus }: { tx: TransactionRow; preview?: boolean; inlineStatus?: boolean }) {
+// The single "how's it going" marker for a row: the risk badge (active), or an
+// On hold / Completed line. Rendered under the dashes in the grid, and on the
+// Progress eyebrow row in the stacked card.
+function rowStatusNode(tx: TransactionRow, preview?: boolean): ReactNode {
+  if (tx.status === "on_hold") return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}><PauseCircle size={14} weight="fill" /> On hold</span>
+  );
+  if (tx.status === "completed") return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}><CheckCircle size={14} weight="fill" /> Completed</span>
+  );
+  if (preview && tx.status === "active" && tx.health) return <RiskBadgeWithPopover raw={tx.health} />;
+  return null;
+}
+
+function StageCell({ tx, preview, showStatus = true }: { tx: TransactionRow; preview?: boolean; showStatus?: boolean }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>—</span>;
   // block=true + .files-stagecell CSS makes the bar fill its column (desktop) and
   // the full card width (mobile), instead of its fixed 210px (which overflowed).
-  // Founder preview: the single health status (On track / Watch / At risk) sits
-  // directly under the step dashes, so the whole "how's it going" read is in one
-  // place — no duplicate badge by the address, no separate pace line.
   // On-hold and completed rows show the same stage + dashes, faded (the whole
   // journey is dimmed via .files-stage-faded — the colours stay, just reduced
-  // opacity), with an "On hold" / "Completed" line. Completed renders the bar
-  // all-green (complete). Active rows are full strength.
-  // inlineStatus (the stacked card, i.e. drawer open): the status moves up to
-  // sit on the stage-label row, right-aligned, rather than under the dashes.
+  // opacity). Completed renders the bar all-green (complete).
+  // showStatus=false in the stacked card, where the status lives on the Progress
+  // eyebrow row instead of under the dashes.
   const onHold = tx.status === "on_hold";
   const done = tx.status === "completed";
-  const statusNode = onHold ? (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}><PauseCircle size={14} weight="fill" /> On hold</span>
-  ) : done ? (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}><CheckCircle size={14} weight="fill" /> Completed</span>
-  ) : (preview && tx.status === "active" && tx.health) ? (
-    <RiskBadgeWithPopover raw={tx.health} />
-  ) : null;
-  const bar = <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>;
+  const status = showStatus ? rowStatusNode(tx, preview) : null;
   return (
     <div className={`files-stagecell${onHold || done ? " files-stage-faded" : ""}`}>
-      {inlineStatus ? (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>{bar}</div>
-          {statusNode && <div style={{ flexShrink: 0, marginTop: 1 }}>{statusNode}</div>}
-        </div>
-      ) : (
-        <>
-          {bar}
-          {statusNode && <div style={{ marginTop: 6 }}>{statusNode}</div>}
-        </>
-      )}
+      <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>
+      {status && <div style={{ marginTop: 6 }}>{status}</div>}
     </div>
   );
 }
@@ -967,8 +980,22 @@ export function TransactionRowView({
                   </div>
                   {stackCols.map((col) => (
                     <div key={col}>
-                      {eyebrow(colLabel(col, preview))}
-                      {col === "stage" ? <StageCell tx={tx} preview={preview} inlineStatus /> : renderCell(col, tx, preview)}
+                      {col === "stage" ? (
+                        <>
+                          {/* Progress eyebrow row carries the status (Watch / On
+                              track / On hold) on the right. */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 5px" }}>
+                            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+                            {rowStatusNode(tx, preview)}
+                          </div>
+                          <StageCell tx={tx} preview={preview} showStatus={false} />
+                        </>
+                      ) : (
+                        <>
+                          {eyebrow(colLabel(col, preview))}
+                          {renderCell(col, tx, preview)}
+                        </>
+                      )}
                     </div>
                   ))}
                   {footLeft && (
@@ -978,8 +1005,8 @@ export function TransactionRowView({
                         {renderCell(footLeft, tx, preview)}
                       </div>
                       <div className="text-right ml-auto">
-                        {eyebrow(last === "exchange" ? "Exchange prediction" : colLabel(last, preview))}
-                        {renderCell(last, tx, preview)}
+                        {eyebrow(last === "keydate" ? keyDateLabel(tx) : last === "exchange" ? "Exchange prediction" : colLabel(last, preview))}
+                        {last === "keydate" ? <KeyDateCell tx={tx} preview={preview} caption={false} /> : renderCell(last, tx, preview)}
                       </div>
                     </div>
                   )}

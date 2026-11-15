@@ -128,9 +128,9 @@ function Row({
             content={
               <>
                 {people.map((p, i) => (
-                  <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+                  <div key={i} style={{ marginTop: i ? 9 : 0, lineHeight: 1.2 }}>
                     <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{p.name}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>
                   </div>
                 ))}
               </>
