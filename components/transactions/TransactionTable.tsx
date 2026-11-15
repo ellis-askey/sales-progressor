@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
+import { DISPLAY_STAGES } from "@/lib/milestones/display-stages";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { TransactionRowView, filesColumns, filesGridTemplate, filesGridMinWidth, colLabel } from "@/components/transactions/TransactionRowView";
 import { FloatingFilePreview } from "@/components/transactions/FloatingFilePreview";
@@ -11,8 +12,31 @@ import type { TransactionStatus } from "@prisma/client";
 
 export type { TransactionRow, HealthRaw };
 
-type SortKey = "exchange" | "property" | "status" | "risk" | "lastActive";
+type SortKey =
+  | "exchange" | "property" | "status" | "risk" | "lastActive"
+  | "stage" | "review" | "paused" | "soldfor" | "completed" | "withdrawnDate";
 type SortDir = "asc" | "desc";
+
+// First-click direction per column. Progress shows most-progressed first; dates
+// show soonest first; amounts / durations show largest first.
+const DEFAULT_DIR: Partial<Record<SortKey, SortDir>> = {
+  lastActive: "desc", stage: "desc", paused: "desc", soldfor: "desc",
+  completed: "desc", withdrawnDate: "desc",
+  exchange: "asc", review: "asc", property: "asc", status: "asc", risk: "asc",
+};
+
+// Nulls (missing value) always sort last, whichever direction is active.
+function cmpNullable(a: number | null, b: number | null, dir: SortDir, tieA: string, tieB: string): number {
+  if (a === null && b === null) return tieA.localeCompare(tieB);
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return applySortDir(a - b, dir);
+}
+function stageIndex(tx: TransactionRow): number | null {
+  if (!tx.boardStage) return null;
+  const i = DISPLAY_STAGES.findIndex((s) => s.key === tx.boardStage);
+  return i < 0 ? null : i;
+}
 
 const STATUS_ORDER: TransactionStatus[] = ["active", "on_hold", "completed", "withdrawn", "draft"];
 
@@ -58,6 +82,30 @@ function sortTransactions(rows: TransactionRow[], key: SortKey, dir: SortDir): T
         const la = a.health?.lastActivityAt ? new Date(a.health.lastActivityAt).getTime() : 0;
         const lb = b.health?.lastActivityAt ? new Date(b.health.lastActivityAt).getTime() : 0;
         return applySortDir(la - lb, dir);
+      }
+      case "stage": // Progress / Reached — furthest conveyancing stage reached.
+        return cmpNullable(stageIndex(a), stageIndex(b), dir, a.propertyAddress, b.propertyAddress);
+      case "review": { // On-hold "Due back" date.
+        const da = a.health?.holdInfo?.review ? new Date(a.health.holdInfo.review).getTime() : null;
+        const db = b.health?.holdInfo?.review ? new Date(b.health.holdInfo.review).getTime() : null;
+        return cmpNullable(da, db, dir, a.propertyAddress, b.propertyAddress);
+      }
+      case "paused": // On-hold "Paused" — how long it has been held.
+        return cmpNullable(a.health?.holdInfo?.days ?? null, b.health?.holdInfo?.days ?? null, dir, a.propertyAddress, b.propertyAddress);
+      case "soldfor": { // Completed "Sold for" — agreed price (snapshot wins).
+        const pa = a.priceAtExchange ?? a.purchasePrice ?? null;
+        const pb = b.priceAtExchange ?? b.purchasePrice ?? null;
+        return cmpNullable(pa, pb, dir, a.propertyAddress, b.propertyAddress);
+      }
+      case "completed": { // Completed date.
+        const da = a.completionDate ? new Date(a.completionDate).getTime() : null;
+        const db = b.completionDate ? new Date(b.completionDate).getTime() : null;
+        return cmpNullable(da, db, dir, a.propertyAddress, b.propertyAddress);
+      }
+      case "withdrawnDate": { // Withdrawn date (updatedAt stands in).
+        const da = a.updatedAt ? new Date(a.updatedAt).getTime() : null;
+        const db = b.updatedAt ? new Date(b.updatedAt).getTime() : null;
+        return cmpNullable(da, db, dir, a.propertyAddress, b.propertyAddress);
       }
       default: return 0;
     }
@@ -108,10 +156,10 @@ export function TransactionTable({
     if (key === sortKey) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
+      // A fresh column resets the sort to its natural first-click direction
+      // (see DEFAULT_DIR) — clicking any header clears the previous one.
       setSortKey(key);
-      // Default direction per column on first activation. lastActive defaults
-      // desc (recent first); the others default asc (alphabetical / earliest).
-      setSortDir(key === "lastActive" ? "desc" : "asc");
+      setSortDir(DEFAULT_DIR[key] ?? "asc");
     }
   }
 
@@ -139,7 +187,10 @@ export function TransactionTable({
 
   // Which columns are sortable (labels come from COL_LABEL, shared with the row).
   const COL_SORT: Partial<Record<FilesColumn, SortKey>> = {
-    activity: "lastActive", exchange: "exchange", exchanged: "exchange",
+    stage: "stage", activity: "lastActive", exchange: "exchange", keydate: "exchange",
+    review: "review", paused: "paused",
+    soldfor: "soldfor", exchanged: "exchange", completed: "completed",
+    reached: "stage", withdrawnDate: "withdrawnDate",
   };
 
   return (
