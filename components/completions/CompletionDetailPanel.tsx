@@ -21,6 +21,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
 import { DateMenu, FeeMenu } from "@/components/completions/CompletionCardMenus";
 import { completeFileAction } from "@/app/actions/completions";
+import { ContactAvatar } from "@/components/ui/Avatar";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ function nextStep(file: CompletionFileRow): string {
   if (st.rel != null && st.rel < 0) return "Chase completion and confirm a new target date.";
   if (file.internal && !(file.completionFundsSent === true || file.fundsInPlace === "yes")) return "Confirm completion funds are in place.";
   if (!file.completionDateIso) return "Set a completion date.";
-  return "On track — keep both sides moving to the date.";
+  return "On track. Keep both sides moving to the date.";
 }
 
 type JourneyState = "done" | "now" | "todo";
@@ -144,7 +145,6 @@ export function CompletionDetailPanel({
   const elapsed = f.exchangedAtIso ? daysBetween(f.exchangedAtIso, new Date().toISOString()) : null;
   const exToCompDisplay = completed ? exToComp : (st.rel != null && st.rel < 0 ? elapsed : exToComp);
 
-  const clients = f.purchasers.length > 0 ? f.purchasers.join(" & ") : "Not recorded";
   const agents = f.agencyName ?? f.assignedUserName ?? "Not recorded";
   const feeStr = fmtMoney(f.agentFeeAmount);
   const priceStr = f.purchasePrice != null ? "£" + Math.round(f.purchasePrice / 100).toLocaleString("en-GB") : null;
@@ -197,16 +197,16 @@ export function CompletionDetailPanel({
             {completed ? `Completed ${fmtTiny(f.completionDateIso)}` : st.label}
           </span>
 
-          {/* Journey — Instructed → Exchanged → Completion */}
+          {/* Journey — Added (date on the system) → Exchanged → Completion */}
           <div className="cdp-journey">
-            <JourneyNode label="Instructed" date={fmtTiny(f.instructedAtIso)} state="done" />
+            <JourneyNode label="Added" date={fmtTiny(f.instructedAtIso)} state="done" />
             <span className="cdp-jline cdp-jline--done" aria-hidden />
             <JourneyNode label="Exchanged" date={fmtTiny(f.exchangedAtIso)} state="done" />
             <span className={`cdp-jline${completed ? " cdp-jline--done" : " cdp-jline--todo"}`} aria-hidden />
             <JourneyNode label="Completion" date={fmtTiny(f.completionDateIso)} state={compState} />
           </div>
 
-          {/* Info grid */}
+          {/* Stat cards */}
           <div className="cdp-grid">
             <div className="cdp-card">
               <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
@@ -216,19 +216,42 @@ export function CompletionDetailPanel({
               <span className="cdp-card-sub">Target: 12-14 days</span>
             </div>
             <div className="cdp-card">
-              <span className="cdp-card-lab"><UsersThree size={13} weight="regular" /> Clients</span>
-              <span className="cdp-card-val cdp-card-val--sm">{clients}</span>
-            </div>
-            <div className="cdp-card">
               <span className="cdp-card-lab"><Buildings size={13} weight="regular" /> Agents</span>
               <span className="cdp-card-val cdp-card-val--sm">{agents}</span>
             </div>
-            <div className="cdp-card">
-              <span className="cdp-card-lab"><Scales size={13} weight="regular" /> Solicitors</span>
-              <span className="cdp-card-val cdp-card-val--sm" style={!f.vendorSolicitorName && !f.purchaserSolicitorName ? { color: "var(--agent-warning)" } : undefined}>
-                {!f.vendorSolicitorName && !f.purchaserSolicitorName ? "None on file" : `${f.vendorSolicitorName ?? "—"} ↔ ${f.purchaserSolicitorName ?? "—"}`}
-              </span>
-            </div>
+          </div>
+
+          {/* Clients — a column, each with a colour-coded avatar */}
+          <div className="cdp-people-card">
+            <span className="cdp-card-lab"><UsersThree size={13} weight="regular" /> Clients</span>
+            {f.purchasers.length > 0 ? (
+              <div className="cdp-people">
+                {f.purchasers.map((name, i) => (
+                  <div key={i} className="cdp-person">
+                    <ContactAvatar contact={{ name, roleType: "purchaser" }} art={false} size={26} />
+                    <span className="cdp-person-name">{name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <span className="cdp-people-empty">Not recorded</span>}
+          </div>
+
+          {/* Solicitors — a column, each firm with a colour-coded avatar (tinted
+              to the side it acts for: seller blue, buyer green) */}
+          <div className="cdp-people-card">
+            <span className="cdp-card-lab"><Scales size={13} weight="regular" /> Solicitors</span>
+            {f.vendorSolicitorName || f.purchaserSolicitorName ? (
+              <div className="cdp-people">
+                <div className="cdp-person">
+                  <ContactAvatar contact={{ name: f.vendorSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="vendor" art={false} size={26} />
+                  <span className="cdp-person-txt"><span className="cdp-person-name">{f.vendorSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Seller&rsquo;s solicitor</span></span>
+                </div>
+                <div className="cdp-person">
+                  <ContactAvatar contact={{ name: f.purchaserSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="purchaser" art={false} size={26} />
+                  <span className="cdp-person-txt"><span className="cdp-person-name">{f.purchaserSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Buyer&rsquo;s solicitor</span></span>
+                </div>
+              </div>
+            ) : <span className="cdp-people-empty" style={{ color: "var(--agent-warning)" }}>None on file</span>}
           </div>
 
           {/* Readiness pips */}
@@ -304,7 +327,7 @@ const CDP_CSS = `
 .cdp-panel{ pointer-events:auto; position:fixed; top:76px; right:16px; bottom:16px;
   width:min(524px, calc(100vw - 32px)); display:flex; flex-direction:column; overflow:hidden;
   border-radius:22px; outline:none;
-  border:1px solid rgba(255,255,255,0.5); border-top:2px solid var(--agent-coral-deep,#FF6B4A);
+  border:1px solid rgba(255,255,255,0.5);
   background:rgba(255,255,255,0.86); -webkit-backdrop-filter:blur(34px) saturate(1.7); backdrop-filter:blur(34px) saturate(1.7);
   box-shadow:0 30px 80px rgba(24,30,54,0.26), 0 4px 14px rgba(24,30,54,0.12); }
 .cdp-root[data-night] .cdp-panel{ border-color:rgba(255,255,255,0.08); background:rgba(20,27,42,0.9); box-shadow:0 30px 80px rgba(0,0,0,0.6); }
@@ -339,7 +362,7 @@ const CDP_CSS = `
 .cdp-jdot--done{ color:var(--agent-success); }
 .cdp-jdot--now{ color:var(--agent-danger); }
 .cdp-jdot--todo{ color:var(--agent-text-muted); }
-.cdp-jlabel{ font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--agent-text-muted); font-weight:700; }
+.cdp-jlabel{ font-size:10.5px; color:var(--agent-text-muted); font-weight:600; }
 .cdp-jdate{ font-size:12.5px; font-weight:600; color:var(--agent-text-primary); }
 .cdp-jline{ flex:1; height:2px; border-radius:2px; margin-top:9px; min-width:16px; }
 .cdp-jline--done{ background:var(--agent-success); }
@@ -349,10 +372,20 @@ const CDP_CSS = `
 .cdp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .cdp-card{ display:flex; flex-direction:column; gap:3px; padding:12px 13px; border-radius:13px;
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); min-width:0; }
-.cdp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.cdp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .cdp-card-val{ font-size:18px; font-weight:700; color:var(--agent-text-primary); line-height:1.2; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 .cdp-card-val--sm{ font-size:13px; font-weight:600; letter-spacing:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cdp-card-sub{ font-size:11px; color:var(--agent-text-muted); }
+
+/* People lists (Clients / Solicitors) — a column of colour-coded avatars. */
+.cdp-people-card{ display:flex; flex-direction:column; gap:10px; padding:12px 13px; border-radius:13px;
+  background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
+.cdp-people{ display:flex; flex-direction:column; gap:9px; }
+.cdp-person{ display:flex; align-items:center; gap:10px; min-width:0; }
+.cdp-person-txt{ display:flex; flex-direction:column; line-height:1.2; min-width:0; }
+.cdp-person-name{ font-size:13.5px; font-weight:600; color:var(--agent-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cdp-person-role{ font-size:11px; color:var(--agent-text-muted); }
+.cdp-people-empty{ font-size:13px; color:var(--agent-text-muted); }
 
 /* Pips */
 .cdp-pips{ display:flex; flex-wrap:wrap; gap:6px; }
@@ -363,7 +396,7 @@ const CDP_CSS = `
 
 /* Next step */
 .cdp-next{ display:flex; flex-direction:column; gap:7px; }
-.cdp-next-lab{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.cdp-next-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .cdp-next-row{ display:flex; align-items:flex-start; gap:9px; padding:11px 13px; border-radius:12px; background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
 .cdp-next-txt{ font-size:13px; line-height:1.45; color:var(--agent-text-primary); }
 

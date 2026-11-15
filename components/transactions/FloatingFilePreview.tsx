@@ -346,7 +346,7 @@ const FFP_CSS = `
 .ffp-panel{ pointer-events:auto; position:fixed; top:76px; right:16px; bottom:16px;
   width:min(520px, calc(100vw - 32px)); display:flex; flex-direction:column; overflow:hidden;
   border-radius:22px; outline:none;
-  border:1px solid rgba(255,255,255,0.5); border-top:2px solid var(--agent-coral-deep,#FF6B4A);
+  border:1px solid rgba(255,255,255,0.5);
   background:rgba(255,255,255,0.86); -webkit-backdrop-filter:blur(34px) saturate(1.7); backdrop-filter:blur(34px) saturate(1.7);
   box-shadow:0 30px 80px rgba(24,30,54,0.26), 0 4px 14px rgba(24,30,54,0.12); }
 .ffp-root[data-night] .ffp-panel{ border-color:rgba(255,255,255,0.08); background:rgba(20,27,42,0.9); box-shadow:0 30px 80px rgba(0,0,0,0.6); }

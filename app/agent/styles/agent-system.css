@@ -1054,7 +1054,7 @@
   .comp-seg-btn {
     flex: 1; padding: 8px 10px; border-radius: 11px; font-size: 12.5px; font-weight: 600;
     cursor: pointer; transition: border-color 150ms, color 150ms, transform 90ms ease;
-    border: 2px solid var(--agent-border-default);
+    border: 0.5px solid var(--agent-border-default);
     background: var(--agent-surface-overlay, rgba(255, 255, 255, 0.5));
     color: var(--agent-text-primary);
   }
@@ -1085,7 +1085,7 @@
     color: var(--agent-text-primary); outline: none;
   }
   .comp-fee-input {
-    border: 1px solid rgba(var(--agent-coral-rgb), 0.35) !important; border-radius: 9px !important;
+    border: 0.5px solid var(--agent-border-default) !important; border-radius: 9px !important;
     background: var(--agent-surface-overlay, rgba(255, 255, 255, 0.5)) !important;
     outline: none !important; box-shadow: none !important;
     transition: border-color 150ms ease;

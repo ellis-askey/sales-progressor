@@ -1,17 +1,18 @@
 "use client";
 
-// Completions → master-detail workspace. The redesigned list: Active / Completed
-// tabs, a sort menu and a filter menu, a compact single-line row per file with
-// the app's NEUTRAL selection shade (reused from the All-files list:
-// --agent-surface-nested fill + a 3px --agent-border-strong left bar, NOT a coral
-// wash), and a floating CompletionDetailPanel on the right that leaves the list
-// live. Drop-in for the current CompletionsGroupList: it takes the same
-// CompletionFileRow shape the page already serialises, and the row actions reuse
-// the real production handlers. CSS is self-contained (.cw-*) so nothing else
-// needs touching.
+// Completions → master-detail workspace. Redesigned list, matched to the
+// All-Files list family: a search+tabs bar (the shared .tl-* / .agent-tab bar,
+// so hover + underline are identical), Active / Completed tabs, a Filters menu,
+// a sortable column-header row (titles live once in the header, not on every
+// row), compact rows with the app's NEUTRAL selection shade (--agent-surface-
+// nested + a 3px --agent-border-strong left bar, reused from .files-row-selected,
+// not a coral wash), and a floating CompletionDetailPanel that leaves the list
+// live. Drop-in for CompletionsGroupList: same CompletionFileRow shape, real
+// production actions. CSS is self-contained (.cw-*); the .tl-*/.agent-tab bar
+// classes are the shared globals.
 
 import { useMemo, useState } from "react";
-import { CaretDown, Funnel, Check, ClockCountdown } from "@phosphor-icons/react";
+import { Funnel, Check, ClockCountdown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { Popover } from "@/components/ui/Popover";
@@ -32,18 +33,8 @@ export type CompletedCompletionRow = {
 };
 
 type Tab = "active" | "completed";
-type SortKey = "due_earliest" | "days_overdue" | "price_desc" | "exchanged_recent" | "completed_recent";
-
-const ACTIVE_SORTS: { key: SortKey; label: string }[] = [
-  { key: "due_earliest", label: "Due date (earliest)" },
-  { key: "days_overdue", label: "Days overdue" },
-  { key: "price_desc", label: "Price (high to low)" },
-  { key: "exchanged_recent", label: "Recently exchanged" },
-];
-const COMPLETED_SORTS: { key: SortKey; label: string }[] = [
-  { key: "completed_recent", label: "Recently completed" },
-  { key: "price_desc", label: "Price (high to low)" },
-];
+type SortCol = "property" | "price" | "exchanged" | "completion";
+type SortDir = "asc" | "desc";
 
 const FILTERS = [
   { key: "overdue", label: "Overdue", internalOnly: false },
@@ -65,13 +56,22 @@ function splitAddr(address: string): [string, string] {
   return [first.trim(), rest.join(",").trim()];
 }
 
+function SortChevron({ active, dir }: { active: boolean; dir: SortDir }) {
+  return (
+    <span className={`cw-chev${active ? " on" : ""}`} aria-hidden>
+      <svg width="7" height="5" viewBox="0 0 7 5" style={{ opacity: active && dir === "asc" ? 1 : 0.3 }}><path d="M3.5 0L7 5H0z" /></svg>
+      <svg width="7" height="5" viewBox="0 0 7 5" style={{ opacity: active && dir === "desc" ? 1 : 0.3 }}><path d="M3.5 5L0 0h7z" /></svg>
+    </span>
+  );
+}
+
 // ── the compact row ──────────────────────────────────────────────────────────
 function Row({
-  id, photoUrl, address, priceStr, exchangedIso, completionIso, statusLabel, statusColor,
-  selected, onSelect,
+  id, photoUrl, address, priceStr, exchangedIso, completionIso, completionLabel,
+  statusLabel, statusColor, selected, onSelect,
 }: {
   id: string; photoUrl?: string | null; address: string; priceStr: string | null;
-  exchangedIso: string | null; completionIso: string | null;
+  exchangedIso: string | null; completionIso: string | null; completionLabel: string;
   statusLabel: string; statusColor: string; selected: boolean; onSelect: () => void;
 }) {
   const [line1, town] = splitAddr(address);
@@ -96,7 +96,7 @@ function Row({
         <span className="cw-cell-val">{fmtDate(exchangedIso)}</span>
       </span>
       <span className="cw-cell">
-        <span className="cw-cell-lab">Completion</span>
+        <span className="cw-cell-lab">{completionLabel}</span>
         <span className="cw-cell-val">{fmtDate(completionIso)}</span>
       </span>
       <span className="cw-status" style={{ color: statusColor }}>{statusLabel}</span>
@@ -113,56 +113,65 @@ export function CompletionsWorkspace({
   basePath?: string;
 }) {
   const [tab, setTab] = useState<Tab>("active");
-  const [sort, setSort] = useState<SortKey>("due_earliest");
+  const [query, setQuery] = useState("");
+  const [sortCol, setSortCol] = useState<SortCol>("completion");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filters, setFilters] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const sorts = tab === "active" ? ACTIVE_SORTS : COMPLETED_SORTS;
-  const effectiveSort = sorts.some((s) => s.key === sort) ? sort : sorts[0].key;
 
   function switchTab(next: Tab) {
     setTab(next);
     setSelectedId(null);
     setFilters(new Set());
-    setSort(next === "active" ? "due_earliest" : "completed_recent");
+    setQuery("");
+    setSortCol("completion");
+    setSortDir(next === "completed" ? "desc" : "asc");
+  }
+  function handleSort(col: SortCol) {
+    if (col === sortCol) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir(col === "price" || (col === "completion" && tab === "completed") ? "desc" : "asc"); }
+    setSelectedId(null);
   }
   function toggleFilter(key: string) {
-    setFilters((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setFilters((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
     setSelectedId(null);
   }
 
-  // Active rows: filter then sort.
+  const q = query.trim().toLowerCase();
+  const dir = sortDir === "asc" ? 1 : -1;
+  // One comparator for both tabs (completed rows carry the same sortable fields).
+  type Sortable = { propertyAddress: string; purchasePrice: number | null; exchangedAtIso: string | null; completionDateIso: string | null };
+  function compare(a: Sortable, b: Sortable): number {
+    if (sortCol === "property") return a.propertyAddress.localeCompare(b.propertyAddress) * dir;
+    if (sortCol === "price") return ((a.purchasePrice ?? 0) - (b.purchasePrice ?? 0)) * dir;
+    const av = sortCol === "exchanged" ? a.exchangedAtIso : a.completionDateIso;
+    const bv = sortCol === "exchanged" ? b.exchangedAtIso : b.completionDateIso;
+    if (!av && !bv) return 0; if (!av) return 1; if (!bv) return -1; // undated always last
+    return (new Date(av).getTime() - new Date(bv).getTime()) * dir;
+  }
+
   const activeRows = useMemo(() => {
     let rows = active;
     if (filters.has("overdue")) rows = rows.filter((f) => { const r = completionStatus(f.completionDateIso).rel; return r != null && r < 0; });
     if (filters.has("chain")) rows = rows.filter((f) => (f.chainSize ?? 1) > 1);
     if (filters.has("no_sol")) rows = rows.filter((f) => !f.vendorSolicitorName && !f.purchaserSolicitorName);
     if (filters.has("funds")) rows = rows.filter((f) => !(f.completionFundsSent === true || f.fundsInPlace === "yes"));
-    const byDate = (a: string | null, b: string | null, dir: 1 | -1) => {
-      if (!a && !b) return 0; if (!a) return 1; if (!b) return -1;
-      return (new Date(a).getTime() - new Date(b).getTime()) * dir;
-    };
-    const sorted = [...rows];
-    if (effectiveSort === "due_earliest") sorted.sort((a, b) => byDate(a.completionDateIso, b.completionDateIso, 1));
-    else if (effectiveSort === "days_overdue") sorted.sort((a, b) => byDate(a.completionDateIso, b.completionDateIso, 1));
-    else if (effectiveSort === "price_desc") sorted.sort((a, b) => (b.purchasePrice ?? 0) - (a.purchasePrice ?? 0));
-    else if (effectiveSort === "exchanged_recent") sorted.sort((a, b) => byDate(a.exchangedAtIso, b.exchangedAtIso, -1));
-    return sorted;
-  }, [active, filters, effectiveSort]);
+    if (q) rows = rows.filter((f) => f.propertyAddress.toLowerCase().includes(q));
+    return [...rows].sort(compare);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, filters, q, sortCol, sortDir]);
 
   const completedRows = useMemo(() => {
-    const sorted = [...completed];
-    if (effectiveSort === "price_desc") sorted.sort((a, b) => (b.purchasePrice ?? 0) - (a.purchasePrice ?? 0));
-    else sorted.sort((a, b) => (new Date(b.completionDateIso ?? 0).getTime()) - (new Date(a.completionDateIso ?? 0).getTime()));
-    return sorted;
-  }, [completed, effectiveSort]);
+    let rows = completed;
+    if (q) rows = rows.filter((f) => f.propertyAddress.toLowerCase().includes(q));
+    return [...rows].sort(compare);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed, q, sortCol, sortDir]);
 
-  // The ordered id list drives prev/next in the panel.
   const orderedIds = tab === "active" ? activeRows.map((f) => f.id) : completedRows.map((f) => f.id);
   const selIndex = selectedId ? orderedIds.indexOf(selectedId) : -1;
   const panelOpen = selIndex >= 0;
 
-  // The selected file, mapped to the panel's CompletionFileRow shape.
   const selectedActive = tab === "active" ? activeRows.find((f) => f.id === selectedId) ?? null : null;
   const selectedCompleted = tab === "completed" ? completedRows.find((f) => f.id === selectedId) ?? null : null;
   const panelFile: CompletionFileRow | null = selectedActive
@@ -178,116 +187,128 @@ export function CompletionsWorkspace({
         }
       : null;
 
-  const activeFilters = FILTERS.filter((f) => (!f.internalOnly || internal));
+  const activeFilters = FILTERS.filter((f) => !f.internalOnly || internal);
   const filterCount = filters.size;
-
-  const sortLabel = sorts.find((s) => s.key === effectiveSort)?.label ?? sorts[0].label;
-
+  const completionLabel = tab === "completed" ? "Completed" : "Completion";
   const rows = tab === "active" ? activeRows : completedRows;
-  const emptyFiltered = tab === "active" && active.length > 0 && activeRows.length === 0;
+  const emptyFiltered = tab === "active" && active.length > 0 && activeRows.length === 0 && filterCount > 0;
+  const emptySearch = !!q && rows.length === 0;
+
+  const countPill = (isActive: boolean, n: number) => (
+    <span style={{ fontSize: 10, fontWeight: 500, padding: "1px 7px", borderRadius: 99, marginLeft: 6,
+      background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
+      color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>{n}</span>
+  );
 
   return (
     <div className="cw-root">
-      {/* Controls */}
-      <div className="cw-controls">
-        <div className="agent-tab-bar agent-tab-bar-static cw-tabs" role="tablist">
-          <button type="button" role="tab" aria-selected={tab === "active"} className="agent-tab" onClick={() => switchTab("active")}>
-            Active {active.length > 0 && <span className="cw-count">{active.length}</span>}
-          </button>
-          <button type="button" role="tab" aria-selected={tab === "completed"} className="agent-tab" onClick={() => switchTab("completed")}>
-            Completed {completed.length > 0 && <span className="cw-count cw-count--muted">{completed.length}</span>}
-          </button>
-        </div>
-
-        <div className="cw-controls-right">
-          <Popover
-            preset="popover"
-            width={212}
-            placement="bottom-end"
-            trigger={<button type="button" className="cw-ctl"><span className="cw-ctl-sort">{sortLabel}</span><CaretDown size={13} weight="bold" /></button>}
-          >
-            {(close) => (
-              <div className="cw-menu">
-                {sorts.map((s) => (
-                  <button key={s.key} type="button" className={`cw-menu-item${effectiveSort === s.key ? " on" : ""}`} onClick={() => { setSort(s.key); setSelectedId(null); close(); }}>
-                    {s.label}
-                    {effectiveSort === s.key && <Check size={14} weight="bold" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Popover>
-
-          {tab === "active" && (
-            <Popover
-              preset="popover"
-              width={220}
-              placement="bottom-end"
-              trigger={
-                <button type="button" className={`cw-ctl${filterCount > 0 ? " cw-ctl--on" : ""}`}>
-                  <Funnel size={14} weight={filterCount > 0 ? "fill" : "regular"} /> Filters
-                  {filterCount > 0 && <span className="cw-ctl-badge">{filterCount}</span>}
-                </button>
-              }
-            >
-              {() => (
-                <div className="cw-menu">
-                  <div className="cw-menu-head">
-                    <span>Filter completions</span>
-                    {filterCount > 0 && <button type="button" className="cw-menu-clear" onClick={() => { setFilters(new Set()); setSelectedId(null); }}>Clear</button>}
-                  </div>
-                  {activeFilters.map((f) => (
-                    <button key={f.key} type="button" className="cw-menu-check" onClick={() => toggleFilter(f.key)}>
-                      <span className={`cw-check${filters.has(f.key) ? " on" : ""}`}>{filters.has(f.key) && <Check size={12} weight="bold" />}</span>
-                      {f.label}
-                    </button>
-                  ))}
-                  <p className="cw-menu-foot">Nothing ticked shows every active file.</p>
-                </div>
-              )}
-            </Popover>
-          )}
-        </div>
-      </div>
-
-      {/* List + detail */}
       <div className={`cw-main${panelOpen ? " cw-main--preview" : ""}`}>
+        {/* Search + tabs bar — the All-Files family (.tl-* + .agent-tab) */}
+        <GlassCard glassId="completions-search" label="Completions · Search & tabs" defaultVariant="v25" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
+          <div className="tl-card-search tl-search-row">
+            <div className="tl-search-input" style={{ flex: 1 }}>
+              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input type="text" value={query} onChange={(e) => { setQuery(e.target.value); setSelectedId(null); }} placeholder="Search completions by address…" className="agent-input agent-input-sm" style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: 13 }} />
+              {query && <button onClick={() => setQuery("")} className="agent-icon-btn agent-icon-btn-sm" style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }} aria-label="Clear search">×</button>}
+            </div>
+            {tab === "active" && (
+              <Popover
+                preset="popover"
+                width={220}
+                placement="bottom-end"
+                trigger={
+                  <button type="button" className={`cw-ctl${filterCount > 0 ? " cw-ctl--on" : ""}`}>
+                    <Funnel size={14} weight={filterCount > 0 ? "fill" : "regular"} /> Filters
+                    {filterCount > 0 && <span className="cw-ctl-badge">{filterCount}</span>}
+                  </button>
+                }
+              >
+                {() => (
+                  <div className="cw-menu">
+                    <div className="cw-menu-head">
+                      <span>Filter completions</span>
+                      {filterCount > 0 && <button type="button" className="cw-menu-clear" onClick={() => { setFilters(new Set()); setSelectedId(null); }}>Clear</button>}
+                    </div>
+                    {activeFilters.map((f) => (
+                      <button key={f.key} type="button" className="cw-menu-check" onClick={() => toggleFilter(f.key)}>
+                        <span className={`cw-check${filters.has(f.key) ? " on" : ""}`}>{filters.has(f.key) && <Check size={12} weight="bold" />}</span>
+                        {f.label}
+                      </button>
+                    ))}
+                    <p className="cw-menu-foot">Nothing ticked shows every active file.</p>
+                  </div>
+                )}
+              </Popover>
+            )}
+          </div>
+
+          <div className="tl-card-tabs">
+            <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
+              <div className="tl-bar-tabs">
+                <button type="button" onClick={() => switchTab("active")} className="agent-tab" aria-selected={tab === "active" || undefined} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                  Active {countPill(tab === "active", active.length)}
+                </button>
+                <button type="button" onClick={() => switchTab("completed")} className="agent-tab" aria-selected={tab === "completed" || undefined} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                  Completed {countPill(tab === "completed", completed.length)}
+                </button>
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* List */}
         <GlassCard glassId="completions-workspace-list" label="Completions · list" defaultVariant="v05" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
           {rows.length === 0 ? (
             <div className="cw-empty">
               <ClockCountdown size={30} weight="regular" style={{ color: "var(--agent-text-muted)", opacity: 0.5 }} />
               <p className="cw-empty-title">
                 {emptyFiltered ? "No files match these filters"
+                  : emptySearch ? "No completions match your search"
                   : tab === "active" ? "Nothing heading to completion"
                   : "No completed files yet"}
               </p>
               <p className="cw-empty-sub">
                 {emptyFiltered ? "Try clearing a filter to see more."
+                  : emptySearch ? "Try a different address."
                   : tab === "active" ? "Files appear here once they exchange."
                   : "Completed sales will be archived here."}
               </p>
               {emptyFiltered && <button type="button" className="cw-empty-clear" onClick={() => setFilters(new Set())}>Clear filters</button>}
+              {emptySearch && <button type="button" className="cw-empty-clear" onClick={() => setQuery("")}>Clear search</button>}
             </div>
           ) : (
-            <div className="cw-list" role="list">
-              {tab === "active"
-                ? activeRows.map((f) => {
-                    const st = completionStatus(f.completionDateIso);
-                    return (
+            <>
+              {/* Column headers — titles live here once, not on every row. */}
+              <div className="cw-head">
+                <span aria-hidden />
+                <button type="button" className="cw-head-cell" onClick={() => handleSort("property")}>Property<SortChevron active={sortCol === "property"} dir={sortDir} /></button>
+                <button type="button" className="cw-head-cell" onClick={() => handleSort("price")}>Price<SortChevron active={sortCol === "price"} dir={sortDir} /></button>
+                <button type="button" className="cw-head-cell" onClick={() => handleSort("exchanged")}>Exchanged<SortChevron active={sortCol === "exchanged"} dir={sortDir} /></button>
+                <button type="button" className="cw-head-cell" onClick={() => handleSort("completion")}>{completionLabel}<SortChevron active={sortCol === "completion"} dir={sortDir} /></button>
+                <span className="cw-head-cell cw-head-status">Status</span>
+              </div>
+              <div className="cw-list">
+                {tab === "active"
+                  ? activeRows.map((f) => {
+                      const st = completionStatus(f.completionDateIso);
+                      return (
+                        <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
+                          priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
+                          statusLabel={st.label} statusColor={st.color}
+                          selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
+                      );
+                    })
+                  : completedRows.map((f) => (
                       <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
-                        priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso}
-                        statusLabel={st.label} statusColor={st.color}
+                        priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
+                        statusLabel={f.completionDateIso ? `Completed ${new Date(f.completionDateIso).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Completed"}
+                        statusColor="var(--agent-success)"
                         selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
-                    );
-                  })
-                : completedRows.map((f) => (
-                    <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
-                      priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso}
-                      statusLabel={f.completionDateIso ? `Completed ${new Date(f.completionDateIso).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Completed"}
-                      statusColor="var(--agent-success)"
-                      selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
-                  ))}
-            </div>
+                    ))}
+              </div>
+            </>
           )}
         </GlassCard>
       </div>
@@ -310,31 +331,21 @@ export function CompletionsWorkspace({
 }
 
 const CW_CSS = `
-.cw-root{ display:flex; flex-direction:column; gap:14px; }
+.cw-root{ display:flex; flex-direction:column; }
+.cw-main{ display:flex; flex-direction:column; gap:14px; transition:margin-right .3s cubic-bezier(.22,1,.36,1); }
+@media (min-width:1024px){ .cw-main--preview{ margin-right:556px; } }
 
-/* Controls */
-.cw-controls{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.cw-tabs{ gap:4px; }
-.cw-count{ display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; margin-left:5px;
-  border-radius:999px; font-size:11px; font-weight:700; background:rgba(var(--agent-coral-rgb),0.12); color:var(--agent-coral-deep); vertical-align:1px; }
-.cw-count--muted{ background:rgba(15,23,42,0.06); color:var(--agent-text-muted); }
-.cw-controls-right{ display:inline-flex; align-items:center; gap:8px; }
+/* Filters control (lives in the search row) */
 .cw-ctl{ display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px; border-radius:10px; cursor:pointer; font-family:inherit;
   font-size:12.5px; font-weight:600; color:var(--agent-text-secondary); border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff);
-  transition:border-color .15s, color .15s, background .15s; }
+  transition:border-color .15s, color .15s, background .15s; flex-shrink:0; }
 .cw-ctl:hover{ border-color:var(--agent-border-strong); color:var(--agent-text-primary); }
 .cw-ctl--on{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
-.cw-ctl-sort{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cw-ctl-badge{ display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:16px; padding:0 4px; border-radius:999px;
   font-size:10.5px; font-weight:700; background:var(--agent-coral-deep); color:#fff; }
 
-/* Menus */
+/* Filter menu */
 .cw-menu{ display:flex; flex-direction:column; gap:1px; }
-.cw-menu-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; height:34px; padding:0 10px; border-radius:8px;
-  border:none; background:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; color:var(--agent-text-secondary); text-align:left; }
-.cw-menu-item:hover{ background:var(--agent-hover-tint); color:var(--agent-text-primary); }
-.cw-menu-item.on{ color:var(--agent-text-primary); font-weight:600; }
-.cw-menu-item.on svg{ color:var(--agent-coral-deep); }
 .cw-menu-head{ display:flex; align-items:center; justify-content:space-between; padding:2px 8px 8px; font-size:11px; font-weight:700;
   text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
 .cw-menu-clear{ border:none; background:none; cursor:pointer; font-family:inherit; font-size:11.5px; font-weight:700; color:var(--agent-coral-deep); text-transform:none; letter-spacing:0; }
@@ -345,9 +356,18 @@ const CW_CSS = `
 .cw-check.on{ background:var(--agent-coral-deep); border-color:var(--agent-coral-deep); }
 .cw-menu-foot{ margin:7px 4px 1px; font-size:10.5px; color:var(--agent-text-muted); line-height:1.4; }
 
-/* List shifts left when the panel is open (desktop only). */
-.cw-main{ transition:margin-right .3s cubic-bezier(.22,1,.36,1); }
-@media (min-width:1024px){ .cw-main--preview{ margin-right:556px; } }
+/* Column headers — same grid as the rows so they line up (labels live here). */
+.cw-head{ display:grid; grid-template-columns:44px minmax(0,1.7fr) minmax(74px,0.7fr) minmax(96px,0.9fr) minmax(96px,0.9fr) minmax(104px,auto);
+  gap:14px; align-items:center; padding:10px 16px; background:rgba(var(--agent-shadow-rgb),0.04); border-bottom:0.5px solid var(--agent-border-subtle); }
+.cw-head-cell{ display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;
+  color:var(--agent-text-muted); background:none; border:none; padding:0; font-family:inherit; }
+button.cw-head-cell{ cursor:pointer; transition:color .15s; }
+button.cw-head-cell:hover{ color:var(--agent-text-secondary); }
+.cw-head-status{ justify-self:end; }
+.cw-chev{ display:inline-flex; flex-direction:column; gap:1px; opacity:0; transition:opacity .15s; color:var(--agent-text-secondary); }
+button.cw-head-cell:hover .cw-chev{ opacity:0.55; }
+.cw-chev.on{ opacity:1; }
+.cw-chev svg{ fill:currentColor; display:block; }
 
 /* Rows */
 .cw-list{ display:flex; flex-direction:column; }
@@ -365,7 +385,7 @@ const CW_CSS = `
 .cw-town{ font-size:11.5px; color:var(--agent-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cw-price{ font-size:13.5px; font-weight:700; color:var(--agent-text-primary); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .cw-cell{ display:flex; flex-direction:column; min-width:0; line-height:1.2; }
-.cw-cell-lab{ font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--agent-text-muted); font-weight:700; }
+.cw-cell-lab{ display:none; }
 .cw-cell-val{ font-size:12.5px; font-weight:500; color:var(--agent-text-secondary); white-space:nowrap; }
 .cw-status{ font-size:12.5px; font-weight:700; text-align:right; white-space:nowrap; justify-self:end; font-variant-numeric:tabular-nums; }
 
@@ -377,15 +397,16 @@ const CW_CSS = `
   font-family:inherit; font-size:12.5px; font-weight:600; color:var(--agent-text-secondary); padding:7px 14px; border-radius:9px; }
 .cw-empty-clear:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 
-/* Mobile: the row reflows to two lines; the detail panel is a bottom sheet (no shift). */
+/* Mobile: hide the header; rows reflow to two lines and show their own labels. */
 @media (max-width:760px){
+  .cw-head{ display:none; }
   .cw-row{ display:flex; flex-wrap:wrap; column-gap:14px; row-gap:7px; }
   .cw-thumb{ order:0; }
   .cw-id{ order:1; flex:1 1 auto; }
   .cw-status{ order:2; justify-self:auto; }
   .cw-price{ order:3; }
   .cw-cell{ order:4; flex-direction:row; align-items:baseline; gap:5px; }
-  .cw-cell-lab{ font-size:10px; }
+  .cw-cell-lab{ display:inline; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); font-weight:700; }
   .cw-cell-val{ font-size:12px; }
 }
 `;
