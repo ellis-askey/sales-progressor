@@ -336,6 +336,12 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   // shows for Boardwalk. Set to false to hide the sidebar shortcut again.
   const SHOW_MIGRATE_SALE_NAV = true;
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Touch-swipe for the mobile sidebar (critique): drag it left to dismiss (it
+  // follows the finger, snaps closed past a threshold), and swipe in from the
+  // left edge to open. The hamburger button keeps working unchanged.
+  const sidebarSwipeStart = useRef<number | null>(null);
+  const [sidebarDragX, setSidebarDragX] = useState<number | null>(null);
+  const edgeSwipeStart = useRef<number | null>(null);
   const [refreshedAt, setRefreshedAt] = useState<Date>(() => new Date());
   const recentlyViewed = useRecentlyViewed(5, session.user.id);
 
@@ -482,6 +488,20 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         </div>
       </header>
 
+      {/* Left-edge swipe-to-open strip (mobile only; CSS hides it on desktop). */}
+      {!mobileOpen && (
+        <div
+          className="agent-edge-swipe"
+          aria-hidden
+          onTouchStart={(e) => { edgeSwipeStart.current = e.touches[0].clientX; }}
+          onTouchMove={(e) => {
+            if (edgeSwipeStart.current == null) return;
+            if (e.touches[0].clientX - edgeSwipeStart.current > 36) { setMobileOpen(true); edgeSwipeStart.current = null; }
+          }}
+          onTouchEnd={() => { edgeSwipeStart.current = null; }}
+        />
+      )}
+
       {/* Mobile backdrop */}
       {mobileOpen && (
         <div className="agent-mobile-backdrop" onClick={() => setMobileOpen(false)} />
@@ -493,12 +513,24 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         data-glass-id="nav-sidebar"
         data-glass-label="Nav · Sidebar"
         data-glass-variant={sidebarPick}
+        onTouchStart={(e) => { if (mobileOpen) sidebarSwipeStart.current = e.touches[0].clientX; }}
+        onTouchMove={(e) => {
+          if (sidebarSwipeStart.current == null) return;
+          const dx = e.touches[0].clientX - sidebarSwipeStart.current;
+          setSidebarDragX(dx < 0 ? Math.max(dx, -260) : 0);
+        }}
+        onTouchEnd={() => {
+          if (sidebarDragX != null && sidebarDragX < -70) setMobileOpen(false);
+          sidebarSwipeStart.current = null;
+          setSidebarDragX(null);
+        }}
         style={{
           width: 220, flexShrink: 0, display: "flex", flexDirection: "column",
           position: "fixed", left: 0, overflowY: "auto",
           borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none",
           borderRight: "0.5px solid var(--agent-glass-border)",
           zIndex: 100,
+          ...(sidebarDragX != null ? { transition: "none", "--agent-sidebar-drag": `${sidebarDragX}px` } : {}),
         }}
       >
         {/* Brand */}

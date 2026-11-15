@@ -127,10 +127,10 @@ const DM_CSS = `
 .dm-wrap{display:inline-flex;align-items:center;gap:1px;}
 .dm-mic{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;transition:background .15s ease;}
 .dm-mic:hover{background:color-mix(in srgb, currentColor 12%, transparent);}
-/* The "i" is quiet (muted, 60%) so it never competes with the mic in a toolbar,
-   lifting to the coral accent on hover. */
+/* The "i" is quiet (muted, 60%), lifting to a neutral shade on hover (not the
+   coral accent) so the control reads calm, not "faded orange". */
 .dm-info{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:var(--agent-text-muted,#9a8a7f);opacity:.6;transition:background .15s ease,opacity .15s ease,color .15s ease;}
-.dm-info:hover{background:color-mix(in srgb, currentColor 12%, transparent);opacity:1;color:var(--agent-coral-deep,#F04E2C);}
+.dm-info:hover{background:color-mix(in srgb, currentColor 12%, transparent);opacity:1;color:var(--agent-text-primary,#2d1810);}
 /* Tips popover body-portals into .ui-pop (outside --agent-* scope), so colour
    off --ui-ink like the other popovers do. */
 .dm-tips{padding:11px 13px;}
@@ -159,7 +159,10 @@ function useDictationCss() {
 
 export function DictationMic({
   controls,
-  color = "var(--agent-coral-deep, #F04E2C)",
+  // Idle mic reads as a quiet neutral icon (shaded, not the "horrible faded
+  // orange"); its hover wash follows this colour. The live waveform/stop below
+  // keeps the coral accent so recording still stands out.
+  color = "var(--agent-text-muted, #9a8a7f)",
   waveColor = "#F04E2C",
   size = 18,
   waveWidth = 132,

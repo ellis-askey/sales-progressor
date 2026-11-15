@@ -1051,6 +1051,10 @@ select {
 .agent-mobile-backdrop {
   display: none;
 }
+/* Left-edge swipe strip (mobile only, positioned in the @media below). */
+.agent-edge-swipe {
+  display: none;
+}
 
 /* Top bar hamburger — hidden on desktop, shown on mobile */
 .agent-topbar-hamburger {
@@ -1112,7 +1116,9 @@ select {
     backdrop-filter: blur(16px) saturate(180%) !important;
   }
   .agent-sidebar-mobile-open {
-    transform: translateX(0) !important;
+    /* --agent-sidebar-drag lets a touch-drag follow the finger within this
+       !important rule (set inline on the aside while swiping the menu away). */
+    transform: translateX(var(--agent-sidebar-drag, 0px)) !important;
   }
 
   .agent-sidebar-close {
@@ -1127,6 +1133,19 @@ select {
     background: rgba(15,5,0,0.35);
     backdrop-filter: blur(2px);
     z-index: 99;
+  }
+
+  /* Invisible left-edge strip: swipe in from here to open the menu. The
+     hamburger button still works; this is additive. Thin so it only catches a
+     deliberate edge swipe, not normal taps near the edge. */
+  .agent-edge-swipe {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: var(--agent-topbar-height);
+    bottom: 0;
+    width: 20px;
+    z-index: 50;
   }
 
   /* Hub layout responsive grids (viewport fallback — the container-driven
