@@ -56,10 +56,12 @@ export type CompletionFileRow = {
   purchasers: string[];
   assignedUserName: string | null;
   assignedUserImage?: string | null;
+  assignedUserJobTitle?: string | null;
   // In-house progression: the client manager (agentUser) alongside the progressor
   // (assignedUserName) for a self-managed in-house file.
   agentUserName?: string | null;
   agentUserImage?: string | null;
+  agentUserJobTitle?: string | null;
   serviceType?: "self_managed" | "outsourced" | null;
   inHouseProgressionEnabled?: boolean;
   exchangedAtIso: string | null;

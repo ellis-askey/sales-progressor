@@ -43,7 +43,7 @@ function activeFiles(internal: boolean): CompletionFileRow[] {
     agentFeeIsVatInclusive: null, purchasers: [], assignedUserName: null, exchangedAtIso: null,
     completionDateIso: null, vendorSolicitorName: null, purchaserSolicitorName: null, photoUrl: null,
     internal, chainSize: 1, instructedAtIso: null, firstTimeBuyer: null, sellingRelated: null,
-    mortgageOfferExpiryIso: null, agentUserName: "Daniel Okafor", ...over,
+    mortgageOfferExpiryIso: null, agentUserName: "Daniel Okafor", agentUserJobTitle: "Client Manager", assignedUserJobTitle: "Head Of Sales Progression", ...over,
   });
   return [
     base({ id: "c1", propertyAddress: "27 Sion Hill, Clifton, Bristol, BS8 4BA", purchasePrice: 54_000_000, agentFeeAmount: 495_000,

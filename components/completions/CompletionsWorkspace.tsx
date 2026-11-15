@@ -38,8 +38,10 @@ export type CompletedCompletionRow = {
   agencyName?: string | null;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
+  assignedUserJobTitle?: string | null;
   agentUserName?: string | null;
   agentUserImage?: string | null;
+  agentUserJobTitle?: string | null;
   photoUrl?: string | null;
 };
 
@@ -77,10 +79,21 @@ function SortChevron({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 // ── the compact row ──────────────────────────────────────────────────────────
-function toRowPeople(agentUserName?: string | null, agentUserImage?: string | null, assignedUserName?: string | null, assignedUserImage?: string | null): { name: string; image: string | null; role: string }[] {
+// A real job title replaces the generic role when it's meaningful (not just
+// director/negotiator) — mirrors the All-Files jobTitleLabel.
+function jobTitleOr(jobTitle: string | null | undefined, fallback: string): string {
+  const t = jobTitle?.trim();
+  if (t && !/^(director|negotiator)$/i.test(t)) return t;
+  return fallback;
+}
+
+function toRowPeople(
+  agentUserName?: string | null, agentUserImage?: string | null, agentUserJobTitle?: string | null,
+  assignedUserName?: string | null, assignedUserImage?: string | null, assignedUserJobTitle?: string | null,
+): { name: string; image: string | null; role: string }[] {
   const people: { name: string; image: string | null; role: string }[] = [];
-  if (agentUserName) people.push({ name: agentUserName, image: agentUserImage ?? null, role: "Agent" });
-  if (assignedUserName && assignedUserName !== agentUserName) people.push({ name: assignedUserName, image: assignedUserImage ?? null, role: "Progressor" });
+  if (agentUserName) people.push({ name: agentUserName, image: agentUserImage ?? null, role: jobTitleOr(agentUserJobTitle, "Agent") });
+  if (assignedUserName && assignedUserName !== agentUserName) people.push({ name: assignedUserName, image: assignedUserImage ?? null, role: jobTitleOr(assignedUserJobTitle, "Progressor") });
   return people;
 }
 
@@ -369,7 +382,7 @@ export function CompletionsWorkspace({
                       return (
                         <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                           priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
-                          people={toRowPeople(f.agentUserName, f.agentUserImage, f.assignedUserName, f.assignedUserImage)}
+                          people={toRowPeople(f.agentUserName, f.agentUserImage, f.agentUserJobTitle, f.assignedUserName, f.assignedUserImage, f.assignedUserJobTitle)}
                           trailing={<span className="cw-status" style={{ color: st.color }}>{st.label}</span>}
                           selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                       );
@@ -377,7 +390,7 @@ export function CompletionsWorkspace({
                   : completedRows.map((f) => (
                       <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                         priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
-                        people={toRowPeople(f.agentUserName, f.agentUserImage, f.assignedUserName, f.assignedUserImage)}
+                        people={toRowPeople(f.agentUserName, f.agentUserImage, f.agentUserJobTitle, f.assignedUserName, f.assignedUserImage, f.assignedUserJobTitle)}
                         trailing={<CompletedFeeCell row={f} internal={internal} />}
                         selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                     ))}
