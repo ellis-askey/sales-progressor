@@ -40,6 +40,9 @@ export type PreviewClient = {
   name: string;
   email: string | null;
   phone: string | null;
+  // Which side of the sale they sit on, so the preview can label them
+  // Seller / Buyer and tint the avatar to match.
+  role: "vendor" | "purchaser";
 };
 
 export type PreviewSolicitor = {
@@ -106,12 +109,15 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
       people.push({ id: u.id, name: u.name, image: u.image, jobTitle: u.jobTitle, email: u.email, phone: u.phone, slot });
     }
 
-    // ── Clients (principal purchasers) with contact details ──
+    // ── Clients (principal sellers + buyers) with contact details. Sellers
+    // (vendors) first, then buyers, each labelled by their side. ──
     const clientRows = await prisma.contact.findMany({
-      where: { propertyTransactionId: id, roleType: "purchaser", isPrincipal: true },
-      select: { id: true, name: true, email: true, phone: true },
+      where: { propertyTransactionId: id, roleType: { in: ["vendor", "purchaser"] }, isPrincipal: true },
+      select: { id: true, name: true, email: true, phone: true, roleType: true },
     });
-    const clients: PreviewClient[] = clientRows.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
+    const clients: PreviewClient[] = clientRows
+      .map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, role: (c.roleType === "vendor" ? "vendor" : "purchaser") as "vendor" | "purchaser" }))
+      .sort((a, b) => (a.role === b.role ? 0 : a.role === "vendor" ? -1 : 1));
 
     // ── Solicitors (firm name + the handler's contact details). A dedicated
     // read keyed by the id already proven in scope above, so it's Law-7 safe.

@@ -342,7 +342,7 @@ function JourneyStages({ stage }: { stage: DisplayStageKey }) {
   return (
     <div>
       <p style={{ margin: "0 0 11px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: mutedColor }}>
-        The journey · {idx + 1} of {DISPLAY_STAGES.length}
+        {idx + 1} of {DISPLAY_STAGES.length} steps
       </p>
       <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
         {DISPLAY_STAGES.map((s, i) => {
@@ -566,14 +566,14 @@ function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
         trigger={<button type="button" className="files-dueback-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>{value}</button>}
       >
         {(close) => (
-          <HoldDateForm txId={tx.id} current={current} onSaved={() => { close(); router.refresh(); }} onError={(m) => toast.error(m)} />
+          <HoldDateForm txId={tx.id} current={current} onSaved={() => { close(); router.refresh(); }} onError={(m) => toast.error(m)} onCancel={close} />
         )}
       </Popover>
     </div>
   );
 }
 
-function HoldDateForm({ txId, current, onSaved, onError }: { txId: string; current: string; onSaved: () => void; onError: (m: string) => void }) {
+function HoldDateForm({ txId, current, onSaved, onError, onCancel }: { txId: string; current: string; onSaved: () => void; onError: (m: string) => void; onCancel?: () => void }) {
   const [val, setVal] = useState(current);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -593,7 +593,12 @@ function HoldDateForm({ txId, current, onSaved, onError }: { txId: string; curre
         <CalendarBlank size={15} style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
         <input ref={inputRef} type="date" value={val} min={tomorrow} onChange={(e) => setVal(e.target.value)} className="comp-date-input" />
       </div>
-      <button type="button" className="comp-pop-cta" style={{ marginTop: 10 }} disabled={!val || saving} onClick={save}>{saving ? "Saving…" : "Set date"}</button>
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        {onCancel && (
+          <button type="button" onClick={onCancel} style={{ padding: "0 14px", height: 36, borderRadius: 10, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated,#fff)", color: "var(--agent-text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+        )}
+        <button type="button" className="comp-pop-cta" style={{ flex: 1 }} disabled={!val || saving} onClick={save}>{saving ? "Saving…" : "Set date"}</button>
+      </div>
     </>
   );
 }
@@ -718,7 +723,7 @@ function KeyDateCell({ tx, preview }: { tx: TransactionRow; preview?: boolean })
   return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
 }
 
-function StageCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
+function StageCell({ tx, preview, inlineStatus }: { tx: TransactionRow; preview?: boolean; inlineStatus?: boolean }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>—</span>;
   // block=true + .files-stagecell CSS makes the bar fill its column (desktop) and
   // the full card width (mobile), instead of its fixed 210px (which overflowed).
@@ -727,25 +732,32 @@ function StageCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }) {
   // place — no duplicate badge by the address, no separate pace line.
   // On-hold and completed rows show the same stage + dashes, faded (the whole
   // journey is dimmed via .files-stage-faded — the colours stay, just reduced
-  // opacity), with an "On hold" / "Completed" line underneath. Completed renders
-  // the bar all-green (complete). Active rows are full strength.
+  // opacity), with an "On hold" / "Completed" line. Completed renders the bar
+  // all-green (complete). Active rows are full strength.
+  // inlineStatus (the stacked card, i.e. drawer open): the status moves up to
+  // sit on the stage-label row, right-aligned, rather than under the dashes.
   const onHold = tx.status === "on_hold";
   const done = tx.status === "completed";
+  const statusNode = onHold ? (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}><PauseCircle size={14} weight="fill" /> On hold</span>
+  ) : done ? (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}><CheckCircle size={14} weight="fill" /> Completed</span>
+  ) : (preview && tx.status === "active" && tx.health) ? (
+    <RiskBadgeWithPopover raw={tx.health} />
+  ) : null;
+  const bar = <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>;
   return (
     <div className={`files-stagecell${onHold || done ? " files-stage-faded" : ""}`}>
-      <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>
-      {onHold && (
-        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}>
-          <PauseCircle size={14} weight="fill" /> On hold
+      {inlineStatus ? (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>{bar}</div>
+          {statusNode && <div style={{ flexShrink: 0, marginTop: 1 }}>{statusNode}</div>}
         </div>
-      )}
-      {done && (
-        <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}>
-          <CheckCircle size={14} weight="fill" /> Completed
-        </div>
-      )}
-      {preview && tx.status === "active" && tx.health && (
-        <div style={{ marginTop: 6 }}><RiskBadgeWithPopover raw={tx.health} /></div>
+      ) : (
+        <>
+          {bar}
+          {statusNode && <div style={{ marginTop: 6 }}>{statusNode}</div>}
+        </>
       )}
     </div>
   );
@@ -831,7 +843,7 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compac
   if (tx.agentUser) rowPeople.push({ name: tx.agentUser.name, image: tx.agentUser.image ?? null, role: jobTitleLabel(tx.agentUser.jobTitle) ?? "Agent" });
   if (tx.assignedUser && tx.assignedUser.id !== tx.agentUser?.id) rowPeople.push({ name: tx.assignedUser.name, image: tx.assignedUser.image ?? null, role: jobTitleLabel(tx.assignedUser.jobTitle) ?? "Progressor" });
   return (
-    <div className="files-id flex items-start gap-3 min-w-0">
+    <div className="files-id flex items-center gap-3 min-w-0">
       <PropertyThumb photoUrl={tx.photoUrl} size={46} />
       <div className="min-w-0 flex-1">
         <div className="files-line1" style={compact ? { whiteSpace: "normal" } : undefined}>
@@ -847,9 +859,9 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compac
           content={
             <>
               {rowPeople.map((p, i) => (
-                <div key={i} style={{ marginTop: i ? 6 : 0 }}>
+                <div key={i} style={{ marginTop: i ? 9 : 0, lineHeight: 1.2 }}>
                   <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{p.name}</p>
-                  {p.role && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>}
+                  {p.role && <p style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)" }}>{p.role}</p>}
                 </div>
               ))}
             </>
@@ -956,7 +968,7 @@ export function TransactionRowView({
                   {stackCols.map((col) => (
                     <div key={col}>
                       {eyebrow(colLabel(col, preview))}
-                      {renderCell(col, tx, preview)}
+                      {col === "stage" ? <StageCell tx={tx} preview={preview} inlineStatus /> : renderCell(col, tx, preview)}
                     </div>
                   ))}
                   {footLeft && (

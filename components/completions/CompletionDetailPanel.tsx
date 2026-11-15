@@ -289,15 +289,15 @@ export function CompletionDetailPanel({
                 {extras?.clients
                   ? extras.clients.map((c) => (
                       <div key={c.id} className="cdp-person">
-                        <ContactAvatar contact={{ name: c.name, roleType: "purchaser" }} size={28} />
-                        <span className="cdp-person-txt"><span className="cdp-person-name">{c.name}</span></span>
+                        <ContactAvatar contact={{ name: c.name, roleType: c.role }} size={28} />
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{c.name}</span><span className="cdp-person-role">{c.role === "vendor" ? "Seller" : "Buyer"}</span></span>
                         {actions(c.name, c.email, c.phone)}
                       </div>
                     ))
                   : f.purchasers.map((name, i) => (
                       <div key={i} className="cdp-person">
                         <ContactAvatar contact={{ name, roleType: "purchaser" }} size={28} />
-                        <span className="cdp-person-txt"><span className="cdp-person-name">{name}</span></span>
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{name}</span><span className="cdp-person-role">Buyer</span></span>
                       </div>
                     ))}
               </div>

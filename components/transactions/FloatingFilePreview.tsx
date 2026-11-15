@@ -424,11 +424,11 @@ const FFP_CSS = `
 .ffp-note-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:7px; }
 .ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-note-when{ font-size:11px; color:var(--agent-text-muted); white-space:nowrap; flex-shrink:0; }
-/* Collapsed to ~5 lines with a soft fade; expands by animating max-height down. */
+/* Collapsed to ~3 lines with a soft fade; expands by animating max-height down. */
 .ffp-note-body{ margin:0; font-size:13px; line-height:1.55; color:var(--agent-text-primary); white-space:pre-wrap;
-  max-height:7.75em; overflow:hidden; transition:max-height .34s cubic-bezier(.22,1,.36,1); }
-.ffp-note-body.clamped{ -webkit-mask-image:linear-gradient(180deg,#000 66%,transparent);
-  mask-image:linear-gradient(180deg,#000 66%,transparent); }
+  max-height:4.7em; overflow:hidden; transition:max-height .34s cubic-bezier(.22,1,.36,1); }
+.ffp-note-body.clamped{ -webkit-mask-image:linear-gradient(180deg,#000 62%,transparent);
+  mask-image:linear-gradient(180deg,#000 62%,transparent); }
 .ffp-note-auth{ margin:7px 0 0; font-size:11px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-note-more{ display:inline-flex; align-items:center; gap:4px; margin:7px 0 0;
   font-size:11.5px; font-weight:700; color:var(--agent-coral-deep); }
