@@ -20,6 +20,10 @@ import {
 const STAGE_CODES = [
   "VM1", "PM1",   // instructed
   "VM7", "PM7",   // draft pack
+  "PM5", "PM11",  // finances (mortgage application -> offer) — without these the
+                  //   Finances stage can never resolve as done, so a file whose
+                  //   later stages are all complete (e.g. a completed sale) reads
+                  //   as stuck on "Finances". See DISPLAY_STAGES finances def.
   "PM8", "PM13",  // searches
   "PM14", "PM20", // enquiries
   "PM22", "VM17", "PM23", // contracts (buyer's contracts issued -> both sides signed)
