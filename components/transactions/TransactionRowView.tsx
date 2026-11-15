@@ -597,7 +597,7 @@ function HoldDateForm({ txId, current, onSaved, onError, onCancel }: { txId: str
         {onCancel && (
           <button type="button" onClick={onCancel} style={{ padding: "0 14px", height: 36, borderRadius: 10, border: "1px solid var(--agent-border-default)", background: "var(--agent-surface-elevated,#fff)", color: "var(--agent-text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         )}
-        <button type="button" className="comp-pop-cta" style={{ flex: 1 }} disabled={!val || saving} onClick={save}>{saving ? "Saving…" : "Set date"}</button>
+        <button type="button" className="comp-pop-cta" style={{ flex: 1, height: 36, padding: "0 14px", borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center" }} disabled={!val || saving} onClick={save}>{saving ? "Saving…" : "Set date"}</button>
       </div>
     </>
   );
@@ -752,6 +752,9 @@ function rowStatusNode(tx: TransactionRow, preview?: boolean): ReactNode {
   if (tx.status === "completed") return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}><CheckCircle size={14} weight="fill" /> Completed</span>
   );
+  if (tx.status === "withdrawn") return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#64748b" }}><Prohibit size={14} weight="fill" /> Withdrawn</span>
+  );
   if (preview && tx.status === "active" && tx.health) return <RiskBadgeWithPopover raw={tx.health} />;
   return null;
 }
@@ -767,9 +770,10 @@ function StageCell({ tx, preview, showStatus = true }: { tx: TransactionRow; pre
   // eyebrow row instead of under the dashes.
   const onHold = tx.status === "on_hold";
   const done = tx.status === "completed";
+  const withdrawn = tx.status === "withdrawn";
   const status = showStatus ? rowStatusNode(tx, preview) : null;
   return (
-    <div className={`files-stagecell${onHold || done ? " files-stage-faded" : ""}`}>
+    <div className={`files-stagecell${onHold || done || withdrawn ? " files-stage-faded" : ""}`}>
       <JourneyHover stage={tx.boardStage} block><JourneyBar stage={tx.boardStage} complete={done} /></JourneyHover>
       {status && <div style={{ marginTop: 6 }}>{status}</div>}
     </div>
@@ -810,11 +814,12 @@ function RowMarker({ tx, activeTab, preview }: { tx: TransactionRow; activeTab?:
   const mark = (color: string, Icon: typeof PauseCircle, label: string) => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color }}><Icon size={13} weight="fill" /> {label}</span>
   );
-  // Founder preview: the health status moved under the progress bar (StageCell),
-  // so it's suppressed here. Terminal status marks (on hold / completed /
-  // withdrawn) still show beside the address — those rows have no progress bar.
+  // Founder preview: every status (risk + on hold / completed / withdrawn) now
+  // reads under the stage bar (rowStatusNode in StageCell), so nothing shows
+  // beside the address. The classic table keeps the terminal marks here.
   const riskBadge = preview || !tx.health ? null : <RiskBadgeWithPopover raw={tx.health} />;
   if (activeTab === "all") {
+    if (preview) return null;
     if (tx.status === "on_hold") return mark("var(--agent-warning)", PauseCircle, "On hold");
     if (tx.status === "completed") return mark("#2563a8", CheckCircle, "Completed");
     if (tx.status === "withdrawn") return mark("#64748b", Prohibit, "Withdrawn");
@@ -964,14 +969,14 @@ export function TransactionRowView({
             const bodyCols = moveLast ? cols.slice(0, -1) : cols;
 
             if (preview) {
-              // Founder card: the exchange prediction / key date drops to a
-              // wrapping bottom row, right-aligned beside the final body column
-              // (Next action) — stacking only when the drawer squeezes the list.
-              // Every eyebrow is sentence case (not all-caps).
-              const stackCols = moveLast ? bodyCols.slice(0, -1) : bodyCols;
-              const footLeft = moveLast ? bodyCols[bodyCols.length - 1] : undefined;
+              // Founder card: the final TWO columns form a bottom row with the
+              // last one right-aligned, on every tab (Exchange, Paused, Reason,
+              // Completion, Key date). Earlier columns stack above. Eyebrows sit
+              // tight to their value so the value reads as its subtext.
+              const footLeft = cols.length >= 2 ? cols[cols.length - 2] : undefined;
+              const stackCols = cols.slice(0, footLeft ? -2 : -1);
               const eyebrow = (text: string) => (
-                <p style={{ margin: "0 0 5px", fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>{text}</p>
+                <p style={{ margin: "0 0 2px", fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{text}</p>
               );
               return (
                 <>
@@ -984,8 +989,8 @@ export function TransactionRowView({
                         <>
                           {/* Progress eyebrow row carries the status (Watch / On
                               track / On hold) on the right. */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 5px" }}>
-                            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 2px" }}>
+                            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
                             {rowStatusNode(tx, preview)}
                           </div>
                           <StageCell tx={tx} preview={preview} showStatus={false} />
