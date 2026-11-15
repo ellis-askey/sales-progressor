@@ -7,6 +7,7 @@
 // card stay read-only — they derive from the chosen partner + Partners config.
 
 import { useState } from "react";
+import { NumericFormat } from "react-number-format";
 import { PencilSimple } from "@phosphor-icons/react";
 import { PriceInput } from "@/components/ui/PriceInput";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
@@ -106,7 +107,7 @@ export function AgentFeeInline({
   }
 
   return (
-    <div style={{ padding: "6px 0" }}>
+    <div style={{ padding: "1px 0" }}>
       <p style={{ fontSize: 12, color: "var(--agent-text-muted)", marginBottom: 6 }}>{label}</p>
       <div style={{ marginBottom: 6 }}>
         <SegmentedSwitch
@@ -118,17 +119,23 @@ export function AgentFeeInline({
           options={[{ id: "amount", label: "Fixed £" }, { id: "percent", label: "Percentage %" }]}
         />
       </div>
+      {/* Both branches use the same NumericFormat + glass-input sizing so the
+          field height never jumps between Fixed (£ prefix) and Percentage
+          (% suffix); placeholders read as £1,500 / 1.5%. */}
       {feeType === "amount" ? (
         <PriceInput value={amount} onChange={setAmount} size="sm" className="w-full agent-focus" placeholder="1,500" disabled={saving} />
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
-            type="number" value={percent} onChange={(e) => setPercent(e.target.value)}
-            placeholder="e.g. 1.5" inputMode="decimal" disabled={saving}
-            className="glass-input agent-focus text-sm px-3 py-2 rounded-lg flex-1"
-          />
-          <span className="text-xs text-slate-900/50">%</span>
-        </div>
+        <NumericFormat
+          value={percent}
+          onValueChange={({ value }) => setPercent(value)}
+          suffix="%"
+          decimalScale={2}
+          allowNegative={false}
+          placeholder="1.5%"
+          inputMode="decimal"
+          disabled={saving}
+          className="glass-input px-2 py-1 text-sm w-full agent-focus"
+        />
       )}
       <div style={{ marginTop: 6 }}>
         <SegmentedSwitch

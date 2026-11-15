@@ -11,7 +11,7 @@
 // (agent-dropdown-in, RowActionsMenu, fcl-tip, lum-menu, …).
 // See project_menus_consolidation.
 
-import { useState, useRef, useEffect, useLayoutEffect, type ReactNode, type CSSProperties, type Ref, type RefObject } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, type ReactNode, type CSSProperties, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAnchoredPosition, type Placement } from "@/lib/agent/use-anchored-position";
@@ -250,6 +250,11 @@ export function AnchoredPanel({
 // there's no hover on touch, so a hover-only tip is unreachable on mobile. A tap
 // "pins" it open until an outside-tap / Escape (so it behaves like the bespoke
 // fcl-tip #298 / InfoTip it replaces). While pinned, hover-out doesn't close it.
+// Only one tooltip is ever open at a time: when one shows it closes whichever
+// was already open (including a pinned one), so hovering/clicking a second
+// anchor never leaves two floating layers stacked.
+let activeTooltipClose: (() => void) | null = null;
+
 export function Tooltip({ children, content, placement = "top-start", block }: { children: ReactNode; content: ReactNode; placement?: Placement; block?: boolean }) {
   const { theme, isNight } = usePortalTheme();
   const [open, setOpen] = useState(false);
@@ -259,15 +264,27 @@ export function Tooltip({ children, content, placement = "top-start", block }: {
   const floatRef = useRef<HTMLDivElement>(null);
   const pos = useAnchoredPosition(anchorRef, floatRef, render, { placement });
 
+  const closeSelf = useCallback(() => { setPinned(false); setOpen(false); }, []);
+  const show = useCallback(() => {
+    if (activeTooltipClose && activeTooltipClose !== closeSelf) activeTooltipClose();
+    activeTooltipClose = closeSelf;
+    setOpen(true);
+  }, [closeSelf]);
+  const hide = useCallback(() => {
+    closeSelf();
+    if (activeTooltipClose === closeSelf) activeTooltipClose = null;
+  }, [closeSelf]);
+  // Drop the global reference if this tooltip unmounts while open.
+  useEffect(() => () => { if (activeTooltipClose === closeSelf) activeTooltipClose = null; }, [closeSelf]);
+
   useEffect(() => {
     if (!pinned) return;
     function onDown(e: MouseEvent) {
       const t = e.target as Node;
       if (anchorRef.current?.contains(t) || floatRef.current?.contains(t)) return;
-      setPinned(false);
-      setOpen(false);
+      hide();
     }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") { setPinned(false); setOpen(false); } }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") hide(); }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
@@ -280,11 +297,11 @@ export function Tooltip({ children, content, placement = "top-start", block }: {
         className="ui-pop-anchor"
         tabIndex={0}
         style={block ? { display: "block", width: "100%" } : undefined}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => { if (!pinned) setOpen(false); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => { if (!pinned) setOpen(false); }}
-        onClick={() => { const next = !pinned; setPinned(next); setOpen(next); }}
+        onMouseEnter={show}
+        onMouseLeave={() => { if (!pinned) hide(); }}
+        onFocus={show}
+        onBlur={() => { if (!pinned) hide(); }}
+        onClick={() => { const next = !pinned; setPinned(next); if (next) show(); else hide(); }}
       >
         {children}
       </span>
