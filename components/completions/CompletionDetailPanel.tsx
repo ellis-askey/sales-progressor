@@ -51,6 +51,14 @@ function daysBetween(a?: string | null, b?: string | null): number | null {
   if (!a || !b) return null;
   return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000));
 }
+// A duration in days, shown as "N days" under a week, else "N week(s) N day(s)".
+function fmtDuration(days: number | null): string {
+  if (days == null) return "—";
+  if (days < 7) return `${days} ${days === 1 ? "day" : "days"}`;
+  const w = Math.floor(days / 7), d = days % 7;
+  const wk = `${w} ${w === 1 ? "week" : "weeks"}`;
+  return d === 0 ? wk : `${wk} ${d} ${d === 1 ? "day" : "days"}`;
+}
 // Days-to-completion status — the single source of the overdue/upcoming tone.
 export function completionStatus(iso: string | null | undefined): { label: string; color: string; rel: number | null } {
   if (!iso) return { label: "No date set", color: "var(--agent-text-muted)", rel: null };
@@ -179,6 +187,7 @@ export function CompletionDetailPanel({
   // When overdue, the "real" elapsed exchange→today is the honest figure.
   const elapsed = f.exchangedAtIso ? daysBetween(f.exchangedAtIso, new Date().toISOString()) : null;
   const exToCompDisplay = completed ? exToComp : (st.rel != null && st.rel < 0 ? elapsed : exToComp);
+  const addedToExchange = daysBetween(f.instructedAtIso, f.exchangedAtIso);
 
   // The people on the file: who added it (agent / client manager) + the progressor
   // looking after it. Deduped when they are the same person.
@@ -245,14 +254,21 @@ export function CompletionDetailPanel({
             <JourneyNode label="Completion" date={fmtTiny(f.completionDateIso)} state={compState} />
           </div>
 
-          {/* Exchange to completion */}
-          <div className="cdp-card">
-            <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
-            <span className="cdp-card-val" style={{ color: completed ? "var(--agent-text-primary)" : st.color }}>
-              {exToCompDisplay != null ? `${exToCompDisplay} days` : "—"}
-            </span>
+          {/* Timings — two legs of the journey, split by a divider */}
+          <div className="cdp-twostat">
+            <div className="cdp-stat">
+              <span className="cdp-card-lab"><CalendarBlank size={13} weight="regular" /> Added to exchange</span>
+              <span className="cdp-card-val">{fmtDuration(addedToExchange)}</span>
+            </div>
+            <div className="cdp-stat">
+              <span className="cdp-card-lab"><Timer size={13} weight="regular" /> Exchange to completion</span>
+              <span className="cdp-card-val" style={{ color: completed ? "var(--agent-text-primary)" : st.color }}>{fmtDuration(exToCompDisplay)}</span>
+            </div>
           </div>
 
+          {/* People / Clients / Solicitors — one group, no containers, separated
+              by neat dividing lines. */}
+          <div className="cdp-people-group">
           {/* People — who added it (agent / client manager) + the progressor.
               Call/email appear once the lazy contact details resolve. */}
           <div className="cdp-people-card">
@@ -335,6 +351,7 @@ export function CompletionDetailPanel({
                   )}
               </div>
             ) : <span className="cdp-people-empty" style={{ color: "var(--agent-warning)" }}>None on file</span>}
+          </div>
           </div>
 
           {/* Readiness pips */}
@@ -485,9 +502,19 @@ const CDP_CSS = `
 .cdp-card-val--sm{ font-size:13px; font-weight:600; letter-spacing:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cdp-card-sub{ font-size:11px; color:var(--agent-text-muted); }
 
-/* People lists (Clients / Solicitors) — a column of colour-coded avatars. */
-.cdp-people-card{ display:flex; flex-direction:column; gap:10px; padding:12px 13px; border-radius:13px;
+/* Two-stat timings card (Added to exchange | Exchange to completion), split by
+   a vertical divider. */
+.cdp-twostat{ display:flex; border-radius:13px; overflow:hidden;
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
+.cdp-stat{ flex:1; display:flex; flex-direction:column; gap:3px; padding:12px 13px; min-width:0; }
+.cdp-stat + .cdp-stat{ border-left:0.5px solid var(--agent-border-subtle); }
+
+/* People / Clients / Solicitors — no containers, just neat dividing lines. */
+.cdp-people-group{ display:flex; flex-direction:column; }
+.cdp-people-card{ display:flex; flex-direction:column; gap:10px; padding:14px 0; }
+.cdp-people-group .cdp-people-card:first-child{ padding-top:0; }
+.cdp-people-group .cdp-people-card:last-child{ padding-bottom:0; }
+.cdp-people-group .cdp-people-card + .cdp-people-card{ border-top:0.5px solid var(--agent-border-subtle); }
 .cdp-people{ display:flex; flex-direction:column; gap:9px; }
 .cdp-person{ display:flex; align-items:center; gap:10px; min-width:0; }
 .cdp-person-txt{ flex:1 1 auto; display:flex; flex-direction:column; line-height:1.2; min-width:0; }

@@ -379,7 +379,7 @@ const FFP_CSS = `
 .ffp-stage-status{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; }
 
 .ffp-note-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:7px; }
-.ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.ffp-note-lab{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-note-when{ font-size:11px; color:var(--agent-text-muted); white-space:nowrap; flex-shrink:0; }
 .ffp-note-body{ margin:0; font-size:13px; line-height:1.55; color:var(--agent-text-primary); white-space:pre-wrap;
   display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
@@ -393,11 +393,11 @@ const FFP_CSS = `
 .ffp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ffp-card{ display:flex; flex-direction:column; gap:3px; padding:12px 13px; border-radius:13px;
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
-.ffp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.ffp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-card-val{ font-size:14px; font-weight:600; color:var(--agent-text-primary); line-height:1.25; }
 .ffp-card-sub{ font-size:11.5px; color:var(--agent-text-muted); }
 
-.ffp-sec-lab{ margin:0 0 8px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); }
+.ffp-sec-lab{ margin:0 0 8px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-person{ display:flex; align-items:center; gap:11px; padding:7px 0; }
 .ffp-person-txt{ flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.2; }
 .ffp-person-name{ font-size:14px; font-weight:600; color:var(--agent-text-primary); }
