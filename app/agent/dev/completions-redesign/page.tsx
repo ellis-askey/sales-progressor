@@ -77,11 +77,11 @@ function activeFiles(internal: boolean): CompletionFileRow[] {
 
 function completedFiles(): CompletedCompletionRow[] {
   return [
-    { id: "d1", propertyAddress: "9 Lansdown View, Bath, BA1 5EG", completionDateIso: iso(-3), exchangedAtIso: iso(-17), purchasePrice: 45_000_000, agentFeeAmount: 450_000, purchasers: ["Grace Whitmore"], assignedUserName: "Priya Nair" },
-    { id: "d2", propertyAddress: "44 Highfield Road, Bristol, BS6 6HB", completionDateIso: iso(-8), exchangedAtIso: iso(-21), purchasePrice: 51_000_000, agentFeeAmount: 510_000, purchasers: ["The Nortons"], assignedUserName: "Tom Beckett" },
-    { id: "d3", propertyAddress: "7 Weston Lane, Bath, BA1 4AN", completionDateIso: iso(-15), exchangedAtIso: iso(-31), purchasePrice: 38_000_000, agentFeeAmount: null, purchasers: ["Aiden Clarke"], assignedUserName: "Priya Nair" },
-    { id: "d4", propertyAddress: "22 Cotham Brow, Bristol, BS6 6AR", completionDateIso: iso(-19), exchangedAtIso: iso(-30), purchasePrice: 62_500_000, agentFeeAmount: 625_000, purchasers: ["Mr & Mrs Farrell"], assignedUserName: "Tom Beckett" },
-    { id: "d5", propertyAddress: "3 Mendip Close, Frome, BA11 4DZ", completionDateIso: iso(-26), exchangedAtIso: iso(-39), purchasePrice: 30_500_000, agentFeeAmount: 305_000, purchasers: ["Hollie Grant"], assignedUserName: "Priya Nair" },
+    { id: "d1", propertyAddress: "9 Lansdown View, Bath, BA1 5EG", completionDateIso: iso(-3), exchangedAtIso: iso(-17), instructedAtIso: iso(-58), purchasePrice: 45_000_000, agentFeeAmount: 450_000, purchasers: ["Grace Whitmore"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harbour & Finch", assignedUserName: "Priya Nair" },
+    { id: "d2", propertyAddress: "44 Highfield Road, Bristol, BS6 6HB", completionDateIso: iso(-8), exchangedAtIso: iso(-21), instructedAtIso: iso(-64), purchasePrice: 51_000_000, agentFeeAmount: 510_000, purchasers: ["The Nortons"], vendorSolicitorName: "Oldfield Legal", purchaserSolicitorName: "Mallory & Co", assignedUserName: "Tom Beckett" },
+    { id: "d3", propertyAddress: "7 Weston Lane, Bath, BA1 4AN", completionDateIso: iso(-15), exchangedAtIso: iso(-31), instructedAtIso: iso(-72), purchasePrice: 38_000_000, agentFeeAmount: null, purchasers: ["Aiden Clarke"], vendorSolicitorName: "Stonegate", purchaserSolicitorName: "Quill & Bright", assignedUserName: "Priya Nair" },
+    { id: "d4", propertyAddress: "22 Cotham Brow, Bristol, BS6 6AR", completionDateIso: iso(-19), exchangedAtIso: iso(-30), instructedAtIso: iso(-69), purchasePrice: 62_500_000, agentFeeAmount: 625_000, purchasers: ["Mr & Mrs Farrell"], vendorSolicitorName: "Caldwell Law", purchaserSolicitorName: "Harrowell & Atkins", assignedUserName: "Tom Beckett" },
+    { id: "d5", propertyAddress: "3 Mendip Close, Frome, BA11 4DZ", completionDateIso: iso(-26), exchangedAtIso: iso(-39), instructedAtIso: iso(-80), purchasePrice: 30_500_000, agentFeeAmount: 305_000, purchasers: ["Hollie Grant"], vendorSolicitorName: "Westway Law", purchaserSolicitorName: "Gough Thorne", assignedUserName: "Priya Nair" },
   ];
 }
 

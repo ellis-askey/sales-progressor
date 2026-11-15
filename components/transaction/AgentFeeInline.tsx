@@ -22,6 +22,7 @@ export function AgentFeeInline({
   purchasePrice,
   defaultEditing = false,
   onDone,
+  label = "Agent fee",
 }: {
   transactionId: string;
   agentFeeAmount: number | null;
@@ -32,6 +33,9 @@ export function AgentFeeInline({
   // the editor is hosted in a popup (e.g. the Completions "Add fee" modal).
   defaultEditing?: boolean;
   onDone?: () => void;
+  // Row/editor caption. Internal staff see "Agent fee" (default); agencies see
+  // "Your commission" (the Completions panel passes this).
+  label?: string;
 }) {
   const [editing, setEditing] = useState(defaultEditing);
   const [saving, setSaving] = useState(false);
@@ -92,7 +96,7 @@ export function AgentFeeInline({
           textAlign: "left", font: "inherit",
         }}
       >
-        <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Agent fee</span>
+        <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <PencilSimple size={11} weight="regular" className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{displayValue}</span>
@@ -103,7 +107,7 @@ export function AgentFeeInline({
 
   return (
     <div style={{ padding: "6px 0" }}>
-      <p style={{ fontSize: 12, color: "var(--agent-text-muted)", marginBottom: 6 }}>Agent fee</p>
+      <p style={{ fontSize: 12, color: "var(--agent-text-muted)", marginBottom: 6 }}>{label}</p>
       <div style={{ marginBottom: 6 }}>
         <SegmentedSwitch
           size="sm"

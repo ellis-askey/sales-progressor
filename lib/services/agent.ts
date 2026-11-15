@@ -284,8 +284,12 @@ export async function getAgentCompletions(vis: AgentVisibility) {
       // Active-round contacts only — a relisted-then-completed file must not
       // list the previous buyer alongside the new one (2026-09-28).
       contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
-      vendorSolicitorFirm:    { select: { name: true } },
-      purchaserSolicitorFirm: { select: { name: true } },
+      vendorSolicitorFirm:       { select: { name: true } },
+      purchaserSolicitorFirm:    { select: { name: true } },
+      // Fall back to the named handler when the firm slot is empty (matches
+      // file-setup.ts), so a solicitor on the file isn't shown as "None on file".
+      vendorSolicitorContact:    { select: { name: true } },
+      purchaserSolicitorContact: { select: { name: true } },
       chainLink: { select: { chainId: true } },
       keysReleasedAt: true,
       // PHASE 1 (a)-CLASS resolved — Phase-3 OR scope below.
@@ -374,8 +378,8 @@ export async function getAgentCompletions(vis: AgentVisibility) {
         purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
         vendors:    tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name),
         exchangedAt:           exchangeCompletion?.completedAt ?? null,
-        vendorSolicitorName:    tx.vendorSolicitorFirm?.name ?? null,
-        purchaserSolicitorName: tx.purchaserSolicitorFirm?.name ?? null,
+        vendorSolicitorName:    tx.vendorSolicitorFirm?.name ?? tx.vendorSolicitorContact?.name ?? null,
+        purchaserSolicitorName: tx.purchaserSolicitorFirm?.name ?? tx.purchaserSolicitorContact?.name ?? null,
         // Journey
         instructedAt:    tx.createdAt,
         twelveWeekTarget: tx.twelveWeekTarget,
@@ -478,6 +482,7 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     where: { ...txWhere(vis), status: "completed" },
     select: {
       id: true,
+      createdAt: true,
       propertyAddress: true,
       completionDate: true,
       exchangedAt: true,
@@ -493,12 +498,17 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
       assignedUser: { select: { name: true } },
       agentUser:    { select: { name: true } },
       contacts: { where: { OR: contactRoundScopedOR(activeRoundIds) }, select: { name: true, roleType: true } },
+      vendorSolicitorFirm:       { select: { name: true } },
+      purchaserSolicitorFirm:    { select: { name: true } },
+      vendorSolicitorContact:    { select: { name: true } },
+      purchaserSolicitorContact: { select: { name: true } },
     },
     orderBy: { completionDate: "desc" },
     take: limit,
   });
   return rows.map((tx) => ({
     id: tx.id,
+    createdAt: tx.createdAt,
     propertyAddress: tx.propertyAddress,
     completionDate: tx.completionDate,
     exchangedAt: tx.exchangedAt,
@@ -512,6 +522,8 @@ export async function getAgentCompletedFiles(vis: AgentVisibility, limit = 25) {
     serviceType:      tx.serviceType === "outsourced" ? "outsourced" : "self_managed",
     inHouseProgressionEnabled: tx.agency?.inHouseProgressionEnabled ?? false,
     purchasers: tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name),
+    vendorSolicitorName:    tx.vendorSolicitorFirm?.name ?? tx.vendorSolicitorContact?.name ?? null,
+    purchaserSolicitorName: tx.purchaserSolicitorFirm?.name ?? tx.purchaserSolicitorContact?.name ?? null,
   }));
 }
 

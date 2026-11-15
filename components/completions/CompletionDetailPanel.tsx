@@ -19,9 +19,11 @@ import {
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
-import { DateMenu, FeeMenu } from "@/components/completions/CompletionCardMenus";
+import { DateMenu } from "@/components/completions/CompletionCardMenus";
 import { completeFileAction } from "@/app/actions/completions";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
+import { Popover } from "@/components/ui/Popover";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -193,9 +195,9 @@ export function CompletionDetailPanel({
             </div>
             {priceStr && <p className="cdp-price">{priceStr}</p>}
           </div>
-          <span className="cdp-status" style={{ color: completed ? "var(--agent-success)" : st.color }}>
-            {completed ? `Completed ${fmtTiny(f.completionDateIso)}` : st.label}
-          </span>
+          {/* Active files show the overdue/countdown tone here. For completed files
+              the date already lives in the timeline below, so we don't repeat it. */}
+          {!completed && <span className="cdp-status" style={{ color: st.color }}>{st.label}</span>}
 
           {/* Journey — Added (date on the system) → Exchanged → Completion */}
           <div className="cdp-journey">
@@ -228,7 +230,7 @@ export function CompletionDetailPanel({
               <div className="cdp-people">
                 {f.purchasers.map((name, i) => (
                   <div key={i} className="cdp-person">
-                    <ContactAvatar contact={{ name, roleType: "purchaser" }} art={false} size={26} />
+                    <ContactAvatar contact={{ name, roleType: "purchaser" }} size={28} />
                     <span className="cdp-person-name">{name}</span>
                   </div>
                 ))}
@@ -243,11 +245,11 @@ export function CompletionDetailPanel({
             {f.vendorSolicitorName || f.purchaserSolicitorName ? (
               <div className="cdp-people">
                 <div className="cdp-person">
-                  <ContactAvatar contact={{ name: f.vendorSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="vendor" art={false} size={26} />
+                  <ContactAvatar contact={{ name: f.vendorSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="vendor" size={28} />
                   <span className="cdp-person-txt"><span className="cdp-person-name">{f.vendorSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Seller&rsquo;s solicitor</span></span>
                 </div>
                 <div className="cdp-person">
-                  <ContactAvatar contact={{ name: f.purchaserSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="purchaser" art={false} size={26} />
+                  <ContactAvatar contact={{ name: f.purchaserSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="purchaser" size={28} />
                   <span className="cdp-person-txt"><span className="cdp-person-name">{f.purchaserSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Buyer&rsquo;s solicitor</span></span>
                 </div>
               </div>
@@ -306,7 +308,27 @@ export function CompletionDetailPanel({
           {!completing && (
             <div className="cdp-act-row">
               {!completed && <DateMenu txId={f.id} currentIso={f.completionDateIso} hasDate={!!f.completionDateIso} />}
-              {!f.hideFeeEdit && <FeeMenu txId={f.id} agentFeeAmount={f.agentFeeAmount} agentFeePercent={f.agentFeePercent} agentFeeIsVatInclusive={f.agentFeeIsVatInclusive} purchasePrice={f.purchasePrice} />}
+              {!f.hideFeeEdit && (
+                <Popover
+                  preset="popover"
+                  width={252}
+                  placement="bottom-end"
+                  trigger={<button type="button" className="comp-menu-trigger">{feeStr ? "Edit fee" : "+ Add fee"}</button>}
+                >
+                  {(close) => (
+                    <AgentFeeInline
+                      transactionId={f.id}
+                      agentFeeAmount={f.agentFeeAmount}
+                      agentFeePercent={f.agentFeePercent}
+                      agentFeeIsVatInclusive={f.agentFeeIsVatInclusive}
+                      purchasePrice={f.purchasePrice}
+                      defaultEditing
+                      onDone={() => { close(); router.refresh(); }}
+                      label={f.internal ? "Agent fee" : "Your commission"}
+                    />
+                  )}
+                </Popover>
+              )}
               <span className="cdp-fee-glance">{feeStr ? `Fee ${feeStr}` : "No fee set"}</span>
               <Link href={withFrom(`${basePath}/${f.id}`, "/agent/completions")} className="cdp-open" onClick={onClose}>
                 <ArrowSquareOut size={15} weight="bold" /> Open file

@@ -24,9 +24,12 @@ export type CompletedCompletionRow = {
   propertyAddress: string;
   completionDateIso: string | null;
   exchangedAtIso: string | null;
+  instructedAtIso: string | null;
   purchasePrice: number | null;
   agentFeeAmount: number | null;
   purchasers: string[];
+  vendorSolicitorName: string | null;
+  purchaserSolicitorName: string | null;
   agencyName?: string | null;
   assignedUserName?: string | null;
   photoUrl?: string | null;
@@ -182,7 +185,9 @@ export function CompletionsWorkspace({
           purchasePrice: selectedCompleted.purchasePrice, agentFeeAmount: selectedCompleted.agentFeeAmount,
           agentFeePercent: null, agentFeeIsVatInclusive: null, purchasers: selectedCompleted.purchasers,
           assignedUserName: selectedCompleted.assignedUserName ?? null, exchangedAtIso: selectedCompleted.exchangedAtIso,
-          completionDateIso: selectedCompleted.completionDateIso, vendorSolicitorName: null, purchaserSolicitorName: null,
+          completionDateIso: selectedCompleted.completionDateIso,
+          vendorSolicitorName: selectedCompleted.vendorSolicitorName, purchaserSolicitorName: selectedCompleted.purchaserSolicitorName,
+          instructedAtIso: selectedCompleted.instructedAtIso,
           agencyName: selectedCompleted.agencyName ?? null, photoUrl: selectedCompleted.photoUrl, internal,
         }
       : null;
