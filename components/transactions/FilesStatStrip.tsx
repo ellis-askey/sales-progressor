@@ -6,7 +6,7 @@
 // piles that need attention. The At risk / Gone quiet cards toggle their
 // segment filter; Exchanging links to the month filter.
 
-import { HouseLine, CalendarBlank, Warning, ChatDots } from "@/components/icons/ph";
+import { HouseLine, CalendarBlank, Warning, ChatDots } from "@phosphor-icons/react";
 import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { fileFeePence, type PipelineRow } from "./PipelineBoard";
 import { riskLevelForRow } from "./TransactionRowView";

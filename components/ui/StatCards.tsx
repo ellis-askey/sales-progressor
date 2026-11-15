@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CaretRight } from "@/components/icons/ph";
+import { CaretRight } from "@phosphor-icons/react";
 
 export type StatTone = "coral" | "info" | "warning" | "danger" | "success" | "neutral";
 
