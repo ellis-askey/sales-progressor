@@ -46,7 +46,7 @@ export type CompletedCompletionRow = {
 };
 
 type Tab = "active" | "completed";
-type SortCol = "property" | "price" | "exchanged" | "completion";
+type SortCol = "property" | "price" | "exchanged" | "completion" | "fee";
 type SortDir = "asc" | "desc";
 
 const FILTERS = [
@@ -157,10 +157,22 @@ function Row({
 // Completed-tab trailing cell: the fee, or "Set fee" which opens the canonical
 // property-file fee editor (AgentFeeInline) in a popover. For TSP/external the
 // fee is usually already set; agencies see their own commission.
+// A set fee always reads as the resolved amount (percentages are calculated
+// against the sale price) with its VAT treatment, e.g. "£3,050 + VAT".
+function feeAmountPence(row: { agentFeeAmount: number | null; agentFeePercent: number | null; purchasePrice: number | null }): number | null {
+  if (row.agentFeeAmount != null) return row.agentFeeAmount;
+  if (row.agentFeePercent != null && row.purchasePrice != null) return Math.round(row.purchasePrice * row.agentFeePercent / 100);
+  return null;
+}
+function feeVatSuffix(isInclusive: boolean | null): string {
+  return isInclusive === false ? " + VAT" : isInclusive === true ? " incl VAT" : "";
+}
 function CompletedFeeCell({ row, internal }: { row: CompletedCompletionRow; internal: boolean }) {
   const router = useRouter();
   if (row.agentFeeAmount != null || row.agentFeePercent != null) {
-    return <span className="cw-fee">{row.agentFeeAmount != null ? money(row.agentFeeAmount) : `${row.agentFeePercent}%`}</span>;
+    const pence = feeAmountPence(row);
+    const txt = pence != null ? `${money(pence)}${feeVatSuffix(row.agentFeeIsVatInclusive)}` : `${row.agentFeePercent}%`;
+    return <span className="cw-fee">{txt}</span>;
   }
   return (
     <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -212,7 +224,7 @@ export function CompletionsWorkspace({
   }
   function handleSort(col: SortCol) {
     if (col === sortCol) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortCol(col); setSortDir(col === "price" || (col === "completion" && tab === "completed") ? "desc" : "asc"); }
+    else { setSortCol(col); setSortDir(col === "price" || col === "fee" || (col === "completion" && tab === "completed") ? "desc" : "asc"); }
     setSelectedId(null);
   }
   function toggleFilter(key: string) {
@@ -223,10 +235,14 @@ export function CompletionsWorkspace({
   const q = query.trim().toLowerCase();
   const dir = sortDir === "asc" ? 1 : -1;
   // One comparator for both tabs (completed rows carry the same sortable fields).
-  type Sortable = { propertyAddress: string; purchasePrice: number | null; exchangedAtIso: string | null; completionDateIso: string | null };
+  type Sortable = { propertyAddress: string; purchasePrice: number | null; exchangedAtIso: string | null; completionDateIso: string | null; agentFeeAmount?: number | null; agentFeePercent?: number | null };
   function compare(a: Sortable, b: Sortable): number {
     if (sortCol === "property") return a.propertyAddress.localeCompare(b.propertyAddress) * dir;
     if (sortCol === "price") return ((a.purchasePrice ?? 0) - (b.purchasePrice ?? 0)) * dir;
+    if (sortCol === "fee") {
+      const fv = (r: Sortable) => feeAmountPence({ agentFeeAmount: r.agentFeeAmount ?? null, agentFeePercent: r.agentFeePercent ?? null, purchasePrice: r.purchasePrice }) ?? -1;
+      return (fv(a) - fv(b)) * dir;
+    }
     const av = sortCol === "exchanged" ? a.exchangedAtIso : a.completionDateIso;
     const bv = sortCol === "exchanged" ? b.exchangedAtIso : b.completionDateIso;
     if (!av && !bv) return 0; if (!av) return 1; if (!bv) return -1; // undated always last
@@ -373,7 +389,9 @@ export function CompletionsWorkspace({
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("price")}>Price<SortChevron active={sortCol === "price"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("exchanged")}>Exchanged<SortChevron active={sortCol === "exchanged"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("completion")}>{completionLabel}<SortChevron active={sortCol === "completion"} dir={sortDir} /></button>
-                <span className="cw-head-cell cw-head-status">{tab === "completed" ? "Fee" : "Status"}</span>
+                {tab === "completed"
+                  ? <button type="button" className="cw-head-cell cw-head-status" onClick={() => handleSort("fee")}>Fee<SortChevron active={sortCol === "fee"} dir={sortDir} /></button>
+                  : <span className="cw-head-cell cw-head-status">Status</span>}
               </div>
               <div className="cw-list">
                 {tab === "active"

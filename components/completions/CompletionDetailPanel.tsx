@@ -398,7 +398,7 @@ export function CompletionDetailPanel({
               swaps to the email/note actions — same footprint, so the swap is
               seamless. */}
           {!completing && completed && (
-            <div className="cdp-act-row">
+            <div className="cdp-act-row cdp-act-footer">
               <Link href={withFrom(`${basePath}/${f.id}`, "/agent/completions")} className="cdp-primary cdp-primary--flex" onClick={onClose}>
                 <ArrowSquareOut size={16} weight="bold" /> Open file
               </Link>
@@ -593,14 +593,21 @@ const CDP_CSS = `
 .cdp-open:hover{ color:var(--agent-coral-deep); }
 /* Completed footer: Open file primary (left) + a fee slot / email+note on the
    right. Both right-side states are the SAME 96px width so the swap is seamless. */
+/* The completed footer aligns to the top so the Set fee button lines up with
+   the top of the primary; its subtext hangs below. */
+.cdp-act-footer{ align-items:flex-start; }
 .cdp-primary--flex{ width:auto; flex:1; }
 .cdp-act-icons{ display:flex; gap:8px; flex-shrink:0; animation:cdpFade .25s ease; }
 .cdp-iconbtn{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; cursor:pointer;
   border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary);
   transition:border-color .15s, color .15s; }
 .cdp-iconbtn:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
-.cdp-fee-slot{ display:flex; flex-direction:column; gap:3px; width:96px; flex-shrink:0; animation:cdpFade .25s ease; }
-.cdp-setfee{ height:38px; border-radius:11px; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700;
+.cdp-fee-slot{ display:flex; flex-direction:column; gap:4px; width:96px; flex-shrink:0; animation:cdpFade .25s ease; }
+/* Popover wraps the trigger in an inline-flex anchor; make it fill the slot so
+   the button isn't content-width. */
+.cdp-fee-slot > .ui-pop-anchor{ display:block; width:100%; }
+.cdp-setfee{ width:100%; height:40px; display:inline-flex; align-items:center; justify-content:center; padding:0 12px;
+  border-radius:11px; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:700;
   border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary);
   transition:border-color .15s, color .15s; }
 .cdp-setfee:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
