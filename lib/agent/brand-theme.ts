@@ -187,10 +187,22 @@ export function brandThemeCss(hexInput: string | null | undefined): string {
     `:root[data-theme="dark"] [data-theme="custom"] {`,
     toCssBody(dark),
     `}`,
+    // Portalled overlays render in document.body, outside the shell wrapper, so
+    // emit the coral family on :root too — they inherit the brand colour rather
+    // than the hardcoded orange fallback. In-tree elements keep the nearer
+    // [data-theme="custom"] value (identical). See appColourCss for the fuller
+    // note; this generalises the .nv2-night / .lum-ov whitelist below.
+    `:root {`,
+    coralBody(light),
+    `}`,
+    `:root[data-theme="dark"] {`,
+    coralBody(dark),
+    `}`,
     // .nv2-night: the new-v2 form wrapper + night-mode portalled drawers.
     // .lum-ov: the "Log an update" modal's portal root (rendered in
     // document.body, so outside the shell — its coral tokens would otherwise
-    // fall back to the hardcoded orange defaults).
+    // fall back to the hardcoded orange defaults). These pin their own coral, so
+    // re-emit explicitly to override it.
     `.nv2-night, .lum-ov {`,
     coralBody(light),
     `}`,
@@ -326,6 +338,17 @@ export function appColourCss(cfg: AppColourConfig): string {
     `.agent-shell-root[data-theme="custom"], [data-theme="custom"] {`, toCssBody(light), `}`,
     `:root[data-theme="dark"] .agent-shell-root[data-theme="custom"],`,
     `:root[data-theme="dark"] [data-theme="custom"] {`, toCssBody(dark), `}`,
+    // Portalled overlays (modals, drawers, menus) render in document.body — a
+    // sibling of the [data-theme="custom"] wrapper, not a descendant — so emit
+    // the accent + button families on :root too. Every portal then inherits the
+    // user's colour instead of the hardcoded orange fallback, without needing
+    // its own usePortalTheme stamp. In-tree elements keep taking the nearer
+    // [data-theme="custom"] value (identical), so the shell is unchanged. Keyed
+    // by the app-wide dark flag on <html>. This generalises the old
+    // .nv2-night / .lum-ov whitelist (kept below for wrappers that pin their
+    // own coral and so must be re-emitted explicitly to be overridden).
+    `:root {`, subsetBody(light, portalKeys), `}`,
+    `:root[data-theme="dark"] {`, subsetBody(dark, portalKeys), `}`,
     `.nv2-night, .lum-ov {`, subsetBody(light, portalKeys), `}`,
     `:root[data-theme="dark"] .nv2-night, :root[data-theme="dark"] .lum-ov {`, subsetBody(dark, portalKeys), `}`,
   ].join("\n");
