@@ -5646,7 +5646,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .pboard-ch-meta { display: flex; align-items: center; gap: 8px; margin-top: 9px; min-height: 20px; }
 .pboard-fees { font-size: 12px; font-weight: 600; color: var(--agent-text-muted); }
 .pboard-fees b { color: var(--agent-text-secondary); font-weight: 700; }
-.pboard-atrisk { font-size: 11.5px; font-weight: 600; color: var(--agent-danger); display: inline-flex; align-items: center; gap: 4px; }
+.pboard-atrisk { font-size: 11.5px; font-weight: 600; color: var(--agent-danger); display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
 .pboard-atrisk .d { width: 6px; height: 6px; border-radius: 50%; background: var(--agent-danger); }
 .pboard-busy {
   display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em;
@@ -5682,18 +5682,17 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .pboard-card:hover .pboard-card-addr { color: var(--agent-coral-deep); }
 .pboard-card-town { font-size: 10.5px; color: var(--agent-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pboard-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
-.pboard-pill { font-size: 10px; font-weight: 700; padding: 2.5px 8px; border-radius: 7px; display: inline-flex; align-items: center; gap: 4px; letter-spacing: 0.01em; }
+.pboard-card-foot { display: flex; align-items: center; gap: 6px; margin-top: 9px; }
+/* Risk marker — no pill: just the coloured dot + word, sitting inline. */
+.pboard-pill { font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; letter-spacing: 0.01em; }
 .pboard-pill .d { width: 5px; height: 5px; border-radius: 50%; }
-.pboard-pill--risk { color: var(--agent-danger);
-  background: linear-gradient(180deg, rgba(var(--agent-danger-rgb), 0.16), rgba(var(--agent-danger-rgb), 0.09));
-  border: 0.5px solid rgba(var(--agent-danger-rgb), 0.26); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.pboard-pill--risk { color: var(--agent-danger); }
 .pboard-pill--risk .d { background: var(--agent-danger); }
-.pboard-pill--watch { color: var(--agent-warning);
-  background: linear-gradient(180deg, rgba(var(--agent-warning-rgb), 0.18), rgba(var(--agent-warning-rgb), 0.10));
-  border: 0.5px solid rgba(var(--agent-warning-rgb), 0.28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.pboard-pill--watch { color: var(--agent-warning); }
 .pboard-pill--watch .d { background: var(--agent-warning); }
-.pboard-card-fee { margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pboard-card-sub { font-size: 11px; font-weight: 600; color: var(--agent-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.pboard-card-fee { font-size: 11.5px; font-weight: 650; color: var(--agent-text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pboard-fee-lab { font-size: 10.5px; font-weight: 600; color: var(--agent-text-muted); margin-right: 1px; }
 
 .pboard-empty { padding: 40px 24px; text-align: center; border-radius: var(--agent-radius-xl); }
 .pboard-empty-t { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--agent-text-primary); }

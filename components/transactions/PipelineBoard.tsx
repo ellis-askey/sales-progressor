@@ -13,7 +13,8 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 import type { TransactionRow } from "./TransactionTable";
 import { riskLevelForRow } from "./TransactionRowView";
-import { gbpCompact } from "./money";
+import type { Tenure } from "@prisma/client";
+import { gbpFull } from "./money";
 import { useEdgeFadeMask } from "@/lib/agent/use-edge-fade";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { usePickForCard } from "@/lib/glass/context";
@@ -25,6 +26,7 @@ import { classFor, DEFAULT_VARIANT } from "@/lib/glass/variants";
 // the full rows pass through without widening the shared type.
 export type PipelineRow = TransactionRow & {
   purchasePrice?: number | null;
+  tenure?: Tenure | null;
   agentFeeAmount?: number | null;
   agentFeePercent?: number | null;
   referralFee?: number | null;
@@ -164,11 +166,11 @@ export function PipelineBoard({
                   {busy ? (
                     <span className="pboard-busy">
                       <Flame size={11} weight="fill" />
-                      Busiest{col.feeTotal > 0 ? ` · ${gbpCompact(col.feeTotal)}` : ""}
+                      Busiest{col.feeTotal > 0 ? ` · ${gbpFull(col.feeTotal)}` : ""}
                     </span>
                   ) : (
                     <>
-                      {col.feeTotal > 0 && <span className="pboard-fees"><b>{gbpCompact(col.feeTotal)}</b> fees</span>}
+                      {col.feeTotal > 0 && <span className="pboard-fees"><b>{gbpFull(col.feeTotal)}</b> fees</span>}
                       {col.atRisk > 0 && <span className="pboard-atrisk"><span className="d" />{col.atRisk} at risk</span>}
                     </>
                   )}
@@ -193,20 +195,23 @@ export function PipelineBoard({
                         data-glass-variant={cardVariant}
                       >
                         <div className="pboard-card-id">
-                          <PropertyThumb photoUrl={f.photoUrl ?? null} size={34} />
+                          <PropertyThumb photoUrl={f.photoUrl ?? null} size={40} />
                           <span className="pboard-card-txt">
                             <span className="pboard-card-addr">{line}</span>
                             {location && <span className="pboard-card-town">{location}</span>}
+                            {(f.tenure || f.purchasePrice) && (
+                              <span className="pboard-card-sub">
+                                {f.tenure ? (f.tenure === "leasehold" ? "Leasehold" : "Freehold") : ""}
+                                {f.tenure && f.purchasePrice ? " · " : ""}
+                                {f.purchasePrice ? gbpFull(f.purchasePrice) : ""}
+                              </span>
+                            )}
                           </span>
                         </div>
                         {(rt || fee > 0) && (
                           <div className="pboard-card-foot">
-                            {rt && <span className={`pboard-pill pboard-pill--${rt.cls}`}><span className="d" />{rt.label}</span>}
-                            {fee > 0 && (
-                              <span className="pboard-card-fee">
-                                {f.purchasePrice ? `${gbpCompact(f.purchasePrice)} · ` : ""}{gbpCompact(fee)}
-                              </span>
-                            )}
+                            {rt && <span className={`pboard-pill pboard-pill--${rt.cls}`} aria-label={rt.label}><span className="d" /></span>}
+                            {fee > 0 && <span className="pboard-card-fee"><span className="pboard-fee-lab">Fee</span> {gbpFull(fee)}</span>}
                           </div>
                         )}
                       </Link>

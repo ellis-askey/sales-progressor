@@ -10,7 +10,7 @@ import { HouseLine, CalendarBlank, Warning, ChatDots } from "@phosphor-icons/rea
 import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { fileFeePence, type PipelineRow } from "./PipelineBoard";
 import { riskLevelForRow } from "./TransactionRowView";
-import { gbpCompact } from "./money";
+import { gbpFull } from "./money";
 import type { FilterKey } from "./segments";
 
 function sumFees(rows: PipelineRow[]): number {
@@ -55,7 +55,7 @@ export function FilesStatStrip({
       tone: "coral",
       value: active.length.toLocaleString(),
       label: "Active sales",
-      sub: `${gbpCompact(sumFees(active))} fees`,
+      sub: `${gbpFull(sumFees(active))} fees`,
     },
     {
       key: "exchanging",
@@ -63,7 +63,7 @@ export function FilesStatStrip({
       tone: "info",
       value: exchangingThisMonth.length.toLocaleString(),
       label: `Exchanging ${monthLabel}`,
-      sub: `${gbpCompact(sumFees(exchangingThisMonth))} fees`,
+      sub: `${gbpFull(sumFees(exchangingThisMonth))} fees`,
       href: `${basePath}?exchanging=${monthKey}`,
       caret: true,
       ariaLabel: `Exchanging ${monthLabel} — filter to this month`,
@@ -74,7 +74,7 @@ export function FilesStatStrip({
       tone: "danger",
       value: atRisk.length.toLocaleString(),
       label: "At risk",
-      sub: `${gbpCompact(sumFees(atRisk))} fees`,
+      sub: `${gbpFull(sumFees(atRisk))} fees`,
       onClick: () => onToggle("risk"),
       active: selected.has("risk"),
       ariaLabel: "Toggle at-risk filter",
@@ -85,7 +85,7 @@ export function FilesStatStrip({
       tone: "warning",
       value: goneQuiet.length.toLocaleString(),
       label: "Gone quiet",
-      sub: `${gbpCompact(sumFees(goneQuiet))} fees`,
+      sub: `${gbpFull(sumFees(goneQuiet))} fees`,
       onClick: () => onToggle("quiet"),
       active: selected.has("quiet"),
       ariaLabel: "Toggle gone-quiet filter",
