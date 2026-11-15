@@ -274,6 +274,33 @@ export function AvatarStack({ people, size = 20, max = 2 }: {
   );
 }
 
+// ─── UserAvatarStack ──────────────────────────────────────────────────────────
+// The staff sibling of AvatarStack: overlapping UserAvatars (photo or the
+// internal person art) for "who's on the file" — the agent who added it + the
+// progressor. Same overlap + surface ring as AvatarStack so the two read as one
+// primitive; use this (not AvatarStack) for staff, who get the internal avatar
+// look rather than a contact-side tint.
+export function UserAvatarStack({ people, size = 24, max = 2 }: {
+  people: { name: string; image?: string | null }[];
+  size?: number;
+  max?: number;
+}) {
+  const shown = people.slice(0, max);
+  const ov = Math.round(size * 0.35);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }} aria-hidden>
+      {shown.map((p, i) => (
+        <span
+          key={`${p.name}-${i}`}
+          style={{ display: "inline-flex", position: "relative", marginLeft: i ? -ov : 0, zIndex: shown.length - i, borderRadius: "50%", boxShadow: "0 0 0 1.5px var(--agent-surface-elevated, #fff)" }}
+        >
+          <UserAvatar user={{ name: p.name, image: p.image ?? null }} size={size} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // ─── UserAvatar ───────────────────────────────────────────────────────────────
 
 type UserAvatarProps = {

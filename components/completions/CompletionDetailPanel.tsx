@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CaretLeft, CaretRight, X, CheckCircle, Circle, CalendarBlank, UsersThree,
-  Headset, ArrowSquareOut, Flag, Scales, Timer,
+  Headset, ArrowSquareOut, Flag, Scales, Timer, Phone, EnvelopeSimple,
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
@@ -24,6 +24,9 @@ import { completeFileAction } from "@/app/actions/completions";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { Popover } from "@/components/ui/Popover";
+import { getFilePreviewExtras, type FilePreviewExtras } from "@/app/actions/file-preview";
+import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import type { CompletionFileRow } from "@/components/completions/CompletionFileRowView";
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -123,6 +126,21 @@ export function CompletionDetailPanel({
   const id = file?.id ?? null;
   useEffect(() => { setPhotoFailed(false); setCompleting(false); setCompleteDate(file?.completionDateIso ? file.completionDateIso.split("T")[0] : ""); }, [id, file?.completionDateIso]);
 
+  // Lazy contact details (phone + email for clients, solicitors and staff) — the
+  // SAME access-scoped action the All-Files drawer uses, so the call/email logic
+  // matches. Names/avatars render immediately from the row; buttons appear once
+  // this resolves.
+  const [extras, setExtras] = useState<FilePreviewExtras | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailPrefill, setEmailPrefill] = useState<ComposePrefill | null>(null);
+  useEffect(() => {
+    if (!open || !id) return;
+    let live = true;
+    setExtras(null);
+    getFilePreviewExtras(id).then((res) => { if (live && res.ok) setExtras(res); }).catch(() => {});
+    return () => { live = false; };
+  }, [id, open]);
+
   // Escape closes; focus restored on close.
   useEffect(() => {
     if (!open) return;
@@ -141,6 +159,21 @@ export function CompletionDetailPanel({
   if (!rendered || typeof window === "undefined" || !f) return null;
 
   const addr = splitAddress(f.propertyAddress);
+  const fileId = f.id;
+  function openEmail(toEmail: string, toName: string) {
+    setEmailPrefill({ transactionId: fileId, to: [{ email: toEmail, name: toName }], subject: addr.line, bodyHtml: `<p>Hi ${extractFirstName(toName)},</p><p><br></p>` });
+    setEmailOpen(true);
+  }
+  // Call/email buttons for a person — guard each (contacts have nullable email/
+  // phone, unlike staff whose email is guaranteed). Matches the All-Files drawer.
+  const actions = (name: string, email: string | null | undefined, phone: string | null | undefined) => (
+    email || phone ? (
+      <span className="cdp-person-actions">
+        {phone && <a className="cdp-ic-sm" href={`tel:${phone}`} aria-label={`Call ${name}`} onClick={(e) => e.stopPropagation()}><Phone size={14} weight="regular" /></a>}
+        {email && <button type="button" className="cdp-ic-sm" aria-label={`Email ${name}`} onClick={(e) => { e.stopPropagation(); openEmail(email, name); }}><EnvelopeSimple size={14} weight="regular" /></button>}
+      </span>
+    ) : null
+  );
   const st = completionStatus(f.completionDateIso);
   const exToComp = daysBetween(f.exchangedAtIso, f.completionDateIso);
   // When overdue, the "real" elapsed exchange→today is the honest figure.
@@ -220,50 +253,86 @@ export function CompletionDetailPanel({
             </span>
           </div>
 
-          {/* People — who added it (agent / client manager) + the progressor */}
+          {/* People — who added it (agent / client manager) + the progressor.
+              Call/email appear once the lazy contact details resolve. */}
           <div className="cdp-people-card">
             <span className="cdp-card-lab"><Headset size={13} weight="regular" /> People</span>
-            {people.length > 0 ? (
+            {(extras?.people.length ?? people.length) > 0 ? (
               <div className="cdp-people">
-                {people.map((p, i) => (
-                  <div key={i} className="cdp-person">
-                    <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
-                    <span className="cdp-person-txt"><span className="cdp-person-name">{p.name}</span><span className="cdp-person-role">{p.role}</span></span>
-                  </div>
-                ))}
+                {extras?.people
+                  ? extras.people.map((p) => (
+                      <div key={p.id} className="cdp-person">
+                        <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{p.name}</span><span className="cdp-person-role">{p.jobTitle ?? (p.slot === "assigned" ? "Progressor" : "Agent")}</span></span>
+                        {actions(p.name, p.email, p.phone)}
+                      </div>
+                    ))
+                  : people.map((p, i) => (
+                      <div key={i} className="cdp-person">
+                        <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{p.name}</span><span className="cdp-person-role">{p.role}</span></span>
+                      </div>
+                    ))}
               </div>
             ) : <span className="cdp-people-empty">Not recorded</span>}
           </div>
 
-          {/* Clients — a column, each with a colour-coded avatar */}
+          {/* Clients — a column, each with a colour-coded avatar + call/email */}
           <div className="cdp-people-card">
             <span className="cdp-card-lab"><UsersThree size={13} weight="regular" /> Clients</span>
-            {f.purchasers.length > 0 ? (
+            {(extras?.clients.length ?? f.purchasers.length) > 0 ? (
               <div className="cdp-people">
-                {f.purchasers.map((name, i) => (
-                  <div key={i} className="cdp-person">
-                    <ContactAvatar contact={{ name, roleType: "purchaser" }} size={28} />
-                    <span className="cdp-person-name">{name}</span>
-                  </div>
-                ))}
+                {extras?.clients
+                  ? extras.clients.map((c) => (
+                      <div key={c.id} className="cdp-person">
+                        <ContactAvatar contact={{ name: c.name, roleType: "purchaser" }} size={28} />
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{c.name}</span></span>
+                        {actions(c.name, c.email, c.phone)}
+                      </div>
+                    ))
+                  : f.purchasers.map((name, i) => (
+                      <div key={i} className="cdp-person">
+                        <ContactAvatar contact={{ name, roleType: "purchaser" }} size={28} />
+                        <span className="cdp-person-txt"><span className="cdp-person-name">{name}</span></span>
+                      </div>
+                    ))}
               </div>
             ) : <span className="cdp-people-empty">Not recorded</span>}
           </div>
 
-          {/* Solicitors — a column, each firm with a colour-coded avatar (tinted
-              to the side it acts for: seller blue, buyer green) */}
+          {/* Solicitors — each firm with a side-tinted avatar + call/email on the
+              handler (seller blue, buyer green) */}
           <div className="cdp-people-card">
             <span className="cdp-card-lab"><Scales size={13} weight="regular" /> Solicitors</span>
-            {f.vendorSolicitorName || f.purchaserSolicitorName ? (
+            {(extras?.solicitors.length ?? (f.vendorSolicitorName || f.purchaserSolicitorName ? 1 : 0)) > 0 ? (
               <div className="cdp-people">
-                <div className="cdp-person">
-                  <ContactAvatar contact={{ name: f.vendorSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="vendor" size={28} />
-                  <span className="cdp-person-txt"><span className="cdp-person-name">{f.vendorSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Seller&rsquo;s solicitor</span></span>
-                </div>
-                <div className="cdp-person">
-                  <ContactAvatar contact={{ name: f.purchaserSolicitorName ?? "Not set", roleType: "solicitor" }} sideTint="purchaser" size={28} />
-                  <span className="cdp-person-txt"><span className="cdp-person-name">{f.purchaserSolicitorName ?? "Not set"}</span><span className="cdp-person-role">Buyer&rsquo;s solicitor</span></span>
-                </div>
+                {extras?.solicitors
+                  ? extras.solicitors.map((s) => {
+                      const label = s.firmName ?? s.name ?? "Not set";
+                      return (
+                        <div key={s.side} className="cdp-person">
+                          <ContactAvatar contact={{ name: label, roleType: "solicitor" }} sideTint={s.side} size={28} />
+                          <span className="cdp-person-txt"><span className="cdp-person-name">{label}</span><span className="cdp-person-role">{s.side === "vendor" ? "Seller’s solicitor" : "Buyer’s solicitor"}{s.name && s.firmName ? ` · ${s.name}` : ""}</span></span>
+                          {actions(s.name ?? label, s.email, s.phone)}
+                        </div>
+                      );
+                    })
+                  : (
+                    <>
+                      {f.vendorSolicitorName && (
+                        <div className="cdp-person">
+                          <ContactAvatar contact={{ name: f.vendorSolicitorName, roleType: "solicitor" }} sideTint="vendor" size={28} />
+                          <span className="cdp-person-txt"><span className="cdp-person-name">{f.vendorSolicitorName}</span><span className="cdp-person-role">Seller&rsquo;s solicitor</span></span>
+                        </div>
+                      )}
+                      {f.purchaserSolicitorName && (
+                        <div className="cdp-person">
+                          <ContactAvatar contact={{ name: f.purchaserSolicitorName, roleType: "solicitor" }} sideTint="purchaser" size={28} />
+                          <span className="cdp-person-txt"><span className="cdp-person-name">{f.purchaserSolicitorName}</span><span className="cdp-person-role">Buyer&rsquo;s solicitor</span></span>
+                        </div>
+                      )}
+                    </>
+                  )}
               </div>
             ) : <span className="cdp-people-empty" style={{ color: "var(--agent-warning)" }}>None on file</span>}
           </div>
@@ -353,7 +422,12 @@ export function CompletionDetailPanel({
     </div>
   );
 
-  return createPortal(panel, document.body);
+  return (
+    <>
+      {createPortal(panel, document.body)}
+      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={fileId} prefill={emailPrefill} elevated />
+    </>
+  );
 }
 
 const CDP_CSS = `
@@ -416,9 +490,13 @@ const CDP_CSS = `
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
 .cdp-people{ display:flex; flex-direction:column; gap:9px; }
 .cdp-person{ display:flex; align-items:center; gap:10px; min-width:0; }
-.cdp-person-txt{ display:flex; flex-direction:column; line-height:1.2; min-width:0; }
+.cdp-person-txt{ flex:1 1 auto; display:flex; flex-direction:column; line-height:1.2; min-width:0; }
 .cdp-person-name{ font-size:13.5px; font-weight:600; color:var(--agent-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cdp-person-role{ font-size:11px; color:var(--agent-text-muted); }
+.cdp-person-role{ font-size:11px; color:var(--agent-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cdp-person-actions{ display:inline-flex; gap:5px; flex-shrink:0; }
+.cdp-ic-sm{ width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; text-decoration:none;
+  border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary); transition:border-color .15s, color .15s; }
+.cdp-ic-sm:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 .cdp-people-empty{ font-size:13px; color:var(--agent-text-muted); }
 
 /* Pips */

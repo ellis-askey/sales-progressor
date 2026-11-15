@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { Funnel, Check, ClockCountdown } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { UserAvatarStack } from "@/components/ui/Avatar";
 import { Popover } from "@/components/ui/Popover";
 import { AgentFeeInline } from "@/components/transaction/AgentFeeInline";
 import { CompletionDetailPanel, completionStatus } from "@/components/completions/CompletionDetailPanel";
@@ -76,13 +77,20 @@ function SortChevron({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 // ── the compact row ──────────────────────────────────────────────────────────
+function toRowPeople(agentUserName?: string | null, agentUserImage?: string | null, assignedUserName?: string | null, assignedUserImage?: string | null): { name: string; image: string | null }[] {
+  const people: { name: string; image: string | null }[] = [];
+  if (agentUserName) people.push({ name: agentUserName, image: agentUserImage ?? null });
+  if (assignedUserName && assignedUserName !== agentUserName) people.push({ name: assignedUserName, image: assignedUserImage ?? null });
+  return people;
+}
+
 function Row({
   id, photoUrl, address, priceStr, exchangedIso, completionIso, completionLabel,
-  trailing, selected, onSelect,
+  people, trailing, selected, onSelect,
 }: {
   id: string; photoUrl?: string | null; address: string; priceStr: string | null;
   exchangedIso: string | null; completionIso: string | null; completionLabel: string;
-  trailing: React.ReactNode; selected: boolean; onSelect: () => void;
+  people: { name: string; image: string | null }[]; trailing: React.ReactNode; selected: boolean; onSelect: () => void;
 }) {
   const [line1, town] = splitAddr(address);
   return (
@@ -97,8 +105,11 @@ function Row({
     >
       <span className="cw-thumb"><PropertyThumb photoUrl={photoUrl} size={44} /></span>
       <span className="cw-id">
-        <span className="cw-addr">{line1}</span>
-        {town && <span className="cw-town">{town}</span>}
+        <span className="cw-id-main">
+          <span className="cw-addr">{line1}</span>
+          {town && <span className="cw-town">{town}</span>}
+        </span>
+        {people.length > 0 && <UserAvatarStack people={people} size={24} />}
       </span>
       <span className="cw-price">{priceStr ?? "—"}</span>
       <span className="cw-cell">
@@ -329,8 +340,7 @@ export function CompletionsWorkspace({
             <>
               {/* Column headers — titles live here once, not on every row. */}
               <div className="cw-head">
-                <span aria-hidden />
-                <button type="button" className="cw-head-cell" onClick={() => handleSort("property")}>Property<SortChevron active={sortCol === "property"} dir={sortDir} /></button>
+                <button type="button" className="cw-head-cell cw-head-prop" onClick={() => handleSort("property")}>Property<SortChevron active={sortCol === "property"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("price")}>Price<SortChevron active={sortCol === "price"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("exchanged")}>Exchanged<SortChevron active={sortCol === "exchanged"} dir={sortDir} /></button>
                 <button type="button" className="cw-head-cell" onClick={() => handleSort("completion")}>{completionLabel}<SortChevron active={sortCol === "completion"} dir={sortDir} /></button>
@@ -343,6 +353,7 @@ export function CompletionsWorkspace({
                       return (
                         <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                           priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
+                          people={toRowPeople(f.agentUserName, f.agentUserImage, f.assignedUserName, f.assignedUserImage)}
                           trailing={<span className="cw-status" style={{ color: st.color }}>{st.label}</span>}
                           selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                       );
@@ -350,6 +361,7 @@ export function CompletionsWorkspace({
                   : completedRows.map((f) => (
                       <Row key={f.id} id={f.id} photoUrl={f.photoUrl} address={f.propertyAddress}
                         priceStr={money(f.purchasePrice)} exchangedIso={f.exchangedAtIso} completionIso={f.completionDateIso} completionLabel={completionLabel}
+                        people={toRowPeople(f.agentUserName, f.agentUserImage, f.assignedUserName, f.assignedUserImage)}
                         trailing={<CompletedFeeCell row={f} internal={internal} />}
                         selected={selectedId === f.id} onSelect={() => setSelectedId((cur) => (cur === f.id ? null : f.id))} />
                     ))}
@@ -407,6 +419,7 @@ const CW_CSS = `
   gap:14px; align-items:center; padding:10px 16px; background:rgba(var(--agent-shadow-rgb),0.04); border-bottom:0.5px solid var(--agent-border-subtle); }
 .cw-head-cell{ display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;
   color:var(--agent-text-muted); background:none; border:none; padding:0; font-family:inherit; }
+.cw-head-prop{ grid-column:1 / 3; }
 button.cw-head-cell{ cursor:pointer; transition:color .15s; }
 button.cw-head-cell:hover{ color:var(--agent-text-secondary); }
 .cw-head-status{ justify-self:end; }
@@ -425,7 +438,8 @@ button.cw-head-cell:hover .cw-chev{ opacity:0.55; }
 .cw-row--selected{ background:var(--agent-surface-nested, rgba(15,23,42,0.06)); box-shadow:inset 3px 0 0 var(--agent-border-strong, rgba(15,23,42,0.22)); }
 .cw-row--selected:hover{ background:var(--agent-surface-nested, rgba(15,23,42,0.06)); }
 .cw-thumb{ display:flex; }
-.cw-id{ display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+.cw-id{ display:flex; flex-direction:row; align-items:center; gap:8px; min-width:0; }
+.cw-id-main{ display:flex; flex-direction:column; min-width:0; line-height:1.25; flex:1 1 auto; }
 .cw-addr{ font-size:14px; font-weight:600; color:var(--agent-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cw-row:hover .cw-addr{ color:var(--agent-coral-deep); }
 .cw-town{ font-size:11.5px; color:var(--agent-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

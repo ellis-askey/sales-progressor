@@ -35,6 +35,22 @@ export type PreviewPerson = {
   slot: "agent" | "assigned";
 };
 
+export type PreviewClient = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+};
+
+export type PreviewSolicitor = {
+  side: "vendor" | "purchaser";
+  firmName: string | null;
+  name: string | null; // the named handler, if any
+  email: string | null;
+  phone: string | null;
+  secondaryEmail: string | null; // assistant/secretary CC
+};
+
 export type PreviewNote = {
   body: string;
   author: string | null;
@@ -51,6 +67,8 @@ export type PreviewReminder = {
 export type FilePreviewExtras = {
   ok: true;
   people: PreviewPerson[];
+  clients: PreviewClient[];
+  solicitors: PreviewSolicitor[];
   note: PreviewNote | null;
   reminder: PreviewReminder | null;
 };
@@ -86,6 +104,32 @@ export async function getFilePreviewExtras(id: string): Promise<FilePreviewResul
       if (!u) continue;
       seen.add(uid);
       people.push({ id: u.id, name: u.name, image: u.image, jobTitle: u.jobTitle, email: u.email, phone: u.phone, slot });
+    }
+
+    // ── Clients (principal purchasers) with contact details ──
+    const clientRows = await prisma.contact.findMany({
+      where: { propertyTransactionId: id, roleType: "purchaser", isPrincipal: true },
+      select: { id: true, name: true, email: true, phone: true },
+    });
+    const clients: PreviewClient[] = clientRows.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone }));
+
+    // ── Solicitors (firm name + the handler's contact details). A dedicated
+    // read keyed by the id already proven in scope above, so it's Law-7 safe.
+    const sol = await prisma.propertyTransaction.findUnique({
+      where: { id },
+      select: {
+        vendorSolicitorFirm:       { select: { name: true } },
+        purchaserSolicitorFirm:    { select: { name: true } },
+        vendorSolicitorContact:    { select: { name: true, email: true, phone: true, secondaryEmail: true } },
+        purchaserSolicitorContact: { select: { name: true, email: true, phone: true, secondaryEmail: true } },
+      },
+    });
+    const solicitors: PreviewSolicitor[] = [];
+    if (sol) {
+      const vFirm = sol.vendorSolicitorFirm?.name ?? null, vC = sol.vendorSolicitorContact;
+      if (vFirm || vC) solicitors.push({ side: "vendor", firmName: vFirm ?? vC?.name ?? null, name: vC?.name ?? null, email: vC?.email ?? null, phone: vC?.phone ?? null, secondaryEmail: vC?.secondaryEmail ?? null });
+      const pFirm = sol.purchaserSolicitorFirm?.name ?? null, pC = sol.purchaserSolicitorContact;
+      if (pFirm || pC) solicitors.push({ side: "purchaser", firmName: pFirm ?? pC?.name ?? null, name: pC?.name ?? null, email: pC?.email ?? null, phone: pC?.phone ?? null, secondaryEmail: pC?.secondaryEmail ?? null });
     }
 
     // ── Latest human note ── focused, access-scoped read that shares the
@@ -124,7 +168,7 @@ export async function getFilePreviewExtras(id: string): Promise<FilePreviewResul
       }
     }
 
-    return { ok: true, people, note, reminder };
+    return { ok: true, people, clients, solicitors, note, reminder };
   } catch {
     return { ok: false, error: "failed" };
   }

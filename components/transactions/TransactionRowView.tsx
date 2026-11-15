@@ -11,7 +11,7 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
@@ -792,12 +792,8 @@ function PropertyCell({ tx, activeTab, showAgency, showAssigned, preview, compac
             </>
           }
         >
-          <span className="files-assignee" style={{ display: "inline-flex", flexShrink: 0 }} aria-label={`On the file: ${rowPeople.map((p) => p.name).join(", ")}`}>
-            {rowPeople.map((p, i) => (
-              <span key={i} style={{ marginLeft: i ? -8 : 0, borderRadius: "50%", boxShadow: "0 0 0 2px var(--agent-surface-elevated, #fff)" }}>
-                <UserAvatar user={{ name: p.name, image: p.image }} size={24} />
-              </span>
-            ))}
+          <span className="files-assignee" aria-label={`On the file: ${rowPeople.map((p) => p.name).join(", ")}`}>
+            <UserAvatarStack people={rowPeople} size={24} />
           </span>
         </Tooltip>
       )}
