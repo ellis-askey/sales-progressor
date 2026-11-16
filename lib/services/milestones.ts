@@ -1398,7 +1398,12 @@ export async function completeMilestone(
         // undefined = leave untouched (non-booking steps never pass it).
         keyCollectionRequired: input.keyCollectionRequired ?? undefined,
         signedInPerson: input.signedInPerson ?? undefined,
-        awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? undefined,
+        // Default to false (not "leave untouched") on re-complete: an agent
+        // confirming a booking step IS the confirmation, so a stale "awaiting"
+        // flag left over from an earlier client booking must not survive and
+        // wrongly re-show the hub's "client booked this" card (critique #297).
+        // The portal client-booking path passes true explicitly, so it wins.
+        awaitingBookingConfirmation: input.awaitingBookingConfirmation ?? false,
         completedById,
         confirmedByPortal,
         confirmedBySolicitorFirmId,
@@ -2740,6 +2745,12 @@ export async function executeUndoMilestone(input: {
           notRequiredAt: null,
           reconciledAtExchange: false,
           outOfOrderCompletion: false,
+          // A reversed booking is a fresh, unactioned step again — drop the
+          // provisional-hold flag and the access answer (critique #297), matching
+          // reverseMilestone, so an undone-then-re-confirmed survey/valuation step
+          // doesn't resurrect the hub's "client booked this" card.
+          awaitingBookingConfirmation: false,
+          keyCollectionRequired: null,
         },
       });
     }
@@ -2763,6 +2774,12 @@ export async function executeUndoMilestone(input: {
           notRequiredAt: null,
           reconciledAtExchange: false,
           outOfOrderCompletion: false,
+          // A reversed booking is a fresh, unactioned step again — drop the
+          // provisional-hold flag and the access answer (critique #297), matching
+          // reverseMilestone, so an undone-then-re-confirmed survey/valuation step
+          // doesn't resurrect the hub's "client booked this" card.
+          awaitingBookingConfirmation: false,
+          keyCollectionRequired: null,
         },
       });
     }
