@@ -22,6 +22,10 @@ import { getLatestVisibleNote } from "@/lib/services/comms";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
 import { classifyReminder, type ReminderBucket } from "@/lib/reminders/classify";
 import { isTerminalSale } from "@/lib/transactions/status";
+import { renderChaseCardCopy } from "@/lib/chase/chase-card-copy";
+import { getActionHolder } from "@/lib/chase/action-holders";
+import { joinNames } from "@/lib/services/chase-recipients";
+import { extractFirstName } from "@/lib/contacts/displayName";
 
 export type PreviewPerson = {
   id: string;
@@ -66,7 +70,66 @@ export type PreviewReminder = {
   dueAt: string; // ISO
   label: string;
   state: ReminderBucket;
+  // The named party the chase is addressed to (client first names joined, or the
+  // firm), and what they need to do — composed from the same hand-authored
+  // sources the Reminders page uses. Null when the milestone has no card copy.
+  who: string | null;
+  ask: string | null;
 };
+
+// ── Enriched reminder copy ──────────────────────────────────────────────────
+// WHO a chase is addressed to (action-holders) + WHAT they need to do
+// (chase-card-copy), filled with the file's real names. Client-safe strings.
+const RECEIPT_REFRAME: Record<string, (firm: string) => string> = {
+  // VM3 / PM21: the card copy is written from the solicitor's side, but the
+  // chase is addressed to the client (they confirm receipt) — so reframe.
+  VM3: (firm) => `They need to confirm ${firm}'s welcome pack has arrived.`,
+  PM21: (firm) => `They need to confirm their final report from ${firm} has arrived.`,
+};
+
+function theyLine(line: string): string {
+  const m = line.match(/\bneeds? to\b/);
+  if (!m || m.index === undefined) return line;
+  return `They need to ${line.slice(m.index + m[0].length).trimStart()}`;
+}
+function sideClientNames(clients: PreviewClient[], side: "vendor" | "purchaser"): string[] {
+  return clients.filter((c) => c.role === side).map((c) => extractFirstName(c.name)).filter(Boolean);
+}
+function sideFirm(solicitors: PreviewSolicitor[], side: "vendor" | "purchaser"): string | null {
+  return solicitors.find((s) => s.side === side)?.firmName ?? null;
+}
+function partyName(holder: string | undefined, clients: PreviewClient[], solicitors: PreviewSolicitor[]): string | null {
+  const clientsOf = (side: "vendor" | "purchaser") => {
+    const n = sideClientNames(clients, side);
+    return n.length ? joinNames(n) : null;
+  };
+  switch (holder) {
+    case "seller": return clientsOf("vendor") ?? "the seller";
+    case "buyer": return clientsOf("purchaser") ?? "the buyer";
+    case "seller_solicitor": return sideFirm(solicitors, "vendor") ?? "the seller's solicitor";
+    case "buyer_solicitor": return sideFirm(solicitors, "purchaser") ?? "the buyer's solicitor";
+    case "agent": return "the agent";
+    default: return null;
+  }
+}
+function composeReminderCopy(
+  code: string | null,
+  clients: PreviewClient[],
+  solicitors: PreviewSolicitor[],
+): { who: string; ask: string } | null {
+  if (!code) return null;
+  const spec = getActionHolder(code);
+  if (!spec || spec.kind === "excluded") return null; // notification-only, not chased
+  const side: "vendor" | "purchaser" = code.startsWith("PM") ? "purchaser" : "vendor";
+  const names = sideClientNames(clients, side);
+  const clientNames = names.length ? joinNames(names) : side === "vendor" ? "the seller" : "the buyer";
+  const firm = sideFirm(solicitors, side) ?? (side === "vendor" ? "the seller's solicitor" : "the buyer's solicitor");
+  const copy = renderChaseCardCopy(code, clientNames, firm, names.length <= 1);
+  if (!copy) return null;
+  const who = partyName(spec.holder, clients, solicitors) ?? clientNames;
+  const ask = RECEIPT_REFRAME[code]?.(firm) ?? theyLine(copy.line);
+  return { who, ask };
+}
 
 export type FilePreviewExtras = {
   ok: true;
@@ -166,10 +229,13 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
         // Logs are ordered nextDueDate asc; the first still-active one is "next".
         const next = logs.find((l) => classifyReminder(l, now) !== "inactive");
         if (next?.nextDueDate) {
+          const copy = composeReminderCopy(next.reminderRule?.targetMilestoneCode ?? null, clients, solicitors);
           reminder = {
             dueAt: new Date(next.nextDueDate).toISOString(),
             label: next.reminderRule?.name ?? "Follow-up",
             state: classifyReminder(next, now),
+            who: copy?.who ?? null,
+            ask: copy?.ask ?? null,
           };
         }
       } catch {

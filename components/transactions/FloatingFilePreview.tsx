@@ -13,7 +13,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  CaretLeft, CaretRight, CaretDown, X, NotePencil, CalendarBlank, Target, ListChecks, Flag,
+  CaretLeft, CaretRight, CaretDown, X, NotePencil, CalendarBlank, Target, ListChecks,
   Phone, EnvelopeSimple, ArrowSquareOut, TrendUp, TrendDown, Minus, PauseCircle,
   CheckCircle, Prohibit, Headset, UsersThree, Scales,
 } from "@phosphor-icons/react";
@@ -54,12 +54,6 @@ const STATUS_MARK: Record<string, { label: string; color: string; Icon: typeof C
   withdrawn: { label: "Withdrawn", color: "#64748b", Icon: Prohibit },
   on_hold: { label: "On hold", color: "var(--agent-warning)", Icon: PauseCircle },
 };
-const REMINDER_TONE: Record<string, string> = {
-  overdue: "var(--agent-danger)", escalated: "var(--agent-danger)",
-  due_today: "var(--agent-warning)", upcoming: "var(--agent-text-primary)",
-  snoozed: "var(--agent-text-muted)", inactive: "var(--agent-text-muted)",
-};
-
 export function FloatingFilePreview({
   row, open, basePath, onClose, onPrev, onNext, hasPrev, hasNext,
 }: {
@@ -288,20 +282,24 @@ export function FloatingFilePreview({
             );
           })()}
 
+          {/* Next reminder — full-width, names who to chase and what they need.
+              When there's no live chase it reads the file's milestone state
+              (Ready to exchange / Waiting on the chain) rather than "None
+              scheduled". The blocker / handoff detail lives on the Reminders and
+              work-queue surfaces, so it isn't duplicated here. */}
+          <ReminderBlock
+            onHold={r.status === "on_hold"}
+            holdInfo={r.health?.holdInfo ?? null}
+            loading={loading && !extras}
+            failed={failed}
+            terminal={terminal}
+            reminder={extras?.reminder ?? null}
+            stateText={r.health?.nextStep?.text ?? nextMilestone ?? null}
+          />
+
           {/* Info grid */}
           <div className="ffp-grid">
-            {r.status === "on_hold"
-              ? <InfoCard Icon={PauseCircle} label="On hold"
-                  value={r.health?.holdInfo?.review
-                    ? `Review ${formatDate(new Date(r.health.holdInfo.review))}`
-                    : (r.health?.holdInfo ? `Paused ${r.health.holdInfo.days} day${r.health.holdInfo.days === 1 ? "" : "s"}` : "Paused")}
-                  valueColor={r.health?.holdInfo?.reviewOverdue ? "var(--agent-danger)" : undefined} />
-              : <InfoCard Icon={CalendarBlank} label="Next reminder"
-                  value={loading && !extras ? null : failed ? "—"
-                    : extras?.reminder ? formatDate(new Date(extras.reminder.dueAt)) : (terminal ? "None" : "None scheduled")}
-                  valueColor={extras?.reminder ? REMINDER_TONE[extras.reminder.state] : undefined} />}
             <InfoCard Icon={Target} label="Exchange forecast" value={exchangeValue} sub={exchangeSub} />
-            <InfoCard Icon={Flag} label="Next step" value={r.health?.nextStep?.text ?? nextMilestone ?? "Nothing outstanding"} />
             <InfoCard Icon={ListChecks} label="Progress"
               value={stageIdx >= 0 ? `${stageIdx + 1} of ${total} key steps`
                 : r.status === "completed" ? "Sale complete"
@@ -396,6 +394,69 @@ export function FloatingFilePreview({
   );
 }
 
+// The Next reminder card: full-width, names WHO the chase is addressed to and
+// WHAT they need to do, with the due date + urgency pinned top-right. Falls back
+// to the hold state, a skeleton, or a bare "None scheduled" when there's nothing
+// to name. `reminder` carries the server-composed who/ask (app/actions/file-preview).
+function ReminderBlock({ onHold, holdInfo, loading, failed, terminal, reminder, stateText }: {
+  onHold: boolean;
+  holdInfo: { review?: string | Date | null; reviewOverdue?: boolean; days: number } | null;
+  loading: boolean;
+  failed: boolean;
+  terminal: boolean;
+  reminder: { dueAt: string; label: string; state: string; who: string | null; ask: string | null } | null;
+  // The file's milestone state, shown when there's no live chase (e.g. "Ready to
+  // exchange", "Waiting on the chain") instead of a bare "None scheduled".
+  stateText: string | null;
+}) {
+  if (onHold) {
+    const val = holdInfo?.review ? `Review ${formatDate(new Date(holdInfo.review))}`
+      : holdInfo ? `Paused ${holdInfo.days} day${holdInfo.days === 1 ? "" : "s"}` : "Paused";
+    return (
+      <div className="ffp-reminder">
+        <span className="ffp-card-lab"><PauseCircle size={14} weight="regular" /> On hold</span>
+        <span className="ffp-card-val" style={holdInfo?.reviewOverdue ? { color: "var(--agent-danger)" } : undefined}>{val}</span>
+      </div>
+    );
+  }
+  if (loading) {
+    return (
+      <div className="ffp-reminder">
+        <span className="ffp-card-lab"><CalendarBlank size={14} weight="regular" /> Next reminder</span>
+        <span className="ffp-skel ffp-skel-val" />
+      </div>
+    );
+  }
+  if (failed || !reminder) {
+    const val = failed ? "—" : stateText ?? (terminal ? "None" : "None scheduled");
+    return (
+      <div className="ffp-reminder">
+        <span className="ffp-card-lab"><CalendarBlank size={14} weight="regular" /> Next reminder</span>
+        <span className="ffp-card-val ffp-reminder-muted">{val}</span>
+      </div>
+    );
+  }
+  const d = formatDate(new Date(reminder.dueAt));
+  const dateText = reminder.state === "due_today" ? "Today"
+    : reminder.state === "overdue" ? `Overdue · ${d}`
+    : reminder.state === "escalated" ? `Escalated · ${d}`
+    : reminder.state === "snoozed" ? `Snoozed · ${d}` : d;
+  const dateColor = reminder.state === "overdue" || reminder.state === "escalated" ? "var(--agent-danger)"
+    : reminder.state === "due_today" ? "var(--agent-warning)" : "var(--agent-text-muted)";
+  return (
+    <div className="ffp-reminder">
+      <div className="ffp-reminder-top">
+        <span className="ffp-card-lab"><CalendarBlank size={14} weight="regular" /> Next reminder</span>
+        <span className="ffp-reminder-date" style={{ color: dateColor }}>{dateText}</span>
+      </div>
+      {reminder.who
+        ? <span className="ffp-card-val">Chase {reminder.who}</span>
+        : <span className="ffp-card-val">{reminder.label}</span>}
+      {reminder.ask && <span className="ffp-reminder-ask">{reminder.ask}</span>}
+    </div>
+  );
+}
+
 function InfoCard({ Icon, label, value, sub, valueColor }: { Icon: typeof CalendarBlank; label: string; value: string | null; sub?: string | null; valueColor?: string }) {
   return (
     <div className="ffp-card">
@@ -473,6 +534,12 @@ const FFP_CSS = `
 .ffp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ffp-card{ display:flex; flex-direction:column; gap:3px; padding:12px 13px; border-radius:13px;
   background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
+.ffp-reminder{ display:flex; flex-direction:column; gap:4px; padding:12px 13px; border-radius:13px; margin-bottom:10px;
+  background:var(--agent-surface-nested, rgba(15,23,42,0.035)); border:0.5px solid var(--agent-border-subtle); }
+.ffp-reminder-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.ffp-reminder-date{ font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ffp-reminder-ask{ font-size:12px; color:var(--agent-text-muted); line-height:1.4; }
+.ffp-reminder-muted{ color:var(--agent-text-muted); font-weight:600; }
 .ffp-card-lab{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
 .ffp-card-val{ font-size:14px; font-weight:600; color:var(--agent-text-primary); line-height:1.25; }
 .ffp-card-sub{ font-size:11.5px; color:var(--agent-text-muted); }
