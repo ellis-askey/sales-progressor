@@ -19,7 +19,7 @@ type Scenario = {
 const SCENARIOS: Scenario[] = [
   {
     id: "handed",
-    truth: "Buyer chase hit its 2-nudge limit — last nudge sent 10:00 this morning, now handed to your team.",
+    truth: "Buyer chase hit its 2-nudge limit - last nudge sent 10:00 this morning, now handed to your team.",
     before: { headline: "20 Nov", sub: "Auto-chase done · Buyer · Jane Sharp" },
     after: { headline: "With your team", sub: "Auto-chase done · Buyer · Jane Sharp", tone: "muted" },
   },
@@ -31,7 +31,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "overdue",
-    truth: "Chase was due 13 Nov but was blocked and missed its slot. It's 15:00 — this morning's run has passed.",
+    truth: "Chase was due 13 Nov but was blocked and missed its slot. It is 15:00 - this morning's run has passed.",
     before: { headline: "16 Nov", sub: "Auto-chasing · 1 of 2 nudges (reads as 'sending today')" },
     after: { headline: "17 Nov", sub: "Auto-chasing · 1 of 2 nudges (next working morning)" },
   },
@@ -39,11 +39,11 @@ const SCENARIOS: Scenario[] = [
     id: "phantom",
     truth: "Searches step is chased to the buyer's SOLICITOR only (no buyer chase for it).",
     before: { headline: "16 Nov", sub: "A Buyer 'up next' card shown on the solicitor thread" },
-    after: { headline: "—", sub: "No phantom buyer card — only the solicitor's chase shows", tone: "muted" },
+    after: { headline: "None", sub: "No phantom buyer card - only the solicitor's chase shows", tone: "muted" },
   },
   {
     id: "enquiry",
-    truth: "Enquiry chase is paused awaiting a reply — nothing is queued with a date.",
+    truth: "Enquiry chase is paused awaiting a reply - nothing is queued with a date.",
     before: { headline: "Scheduled", sub: "Next chase (implies a booked send)" },
     after: { headline: "Awaiting a reply", sub: "Next chase", tone: "muted" },
   },
