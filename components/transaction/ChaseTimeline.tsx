@@ -205,6 +205,9 @@ function nextLabel(t: ChaseThread): string {
   if (t.state === "completed") return "Done";
   if (t.state === "cancelled") return "Stopped";
   if (t.state === "escalated") return "Urgent";
+  // Auto-chasing is done and it's with the team — don't show a future date that
+  // reads as an upcoming automated send (there isn't one).
+  if (t.state === "handed_to_team") return "With your team";
   if (isHeldFarOut(t.nextDueAt)) return "On hold";
   // A hold (reschedule / date given) is already folded into nextDueAt — the row
   // shows the day the chase actually resumes, not a separate "Paused" concept.
@@ -353,7 +356,14 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
   // A parked chase (satisfied-gate holding it until the ball returns to the buyer)
   // reads as "On hold", never a date that looks like it's about to send.
   const held = isHeldFarOut(send.dueAt);
-  const whenLabel = held ? "On hold" : send.dueAt ? fmtDate(send.dueAt) : send.handedToTeam ? "With your team" : "Scheduled";
+  // Handed-to-team first (it carries no date); then a real date; then the honest
+  // no-date fallbacks. An enquiry awaiting a reply isn't "Scheduled" — nothing is
+  // queued — so say so rather than implying a booked send.
+  const whenLabel = held ? "On hold"
+    : send.handedToTeam ? "With your team"
+    : send.dueAt ? fmtDate(send.dueAt)
+    : send.untilEscalation ? "Awaiting a reply"
+    : "Scheduled";
   // The email preview below carries the recipient (its To line); cards without
   // one (handed to the team) name the recipient in the kicker instead — the
   // recipient pill was removed as duplication.
@@ -389,6 +399,11 @@ function UpNextCard({ send, transactionId }: { send: NextSend; transactionId: st
         <div style={{ fontSize: 22, fontWeight: 780, letterSpacing: "-0.02em", margin: "0 0 1px", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{whenLabel}</div>
       )}
       <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{kicker}</div>
+      {send.sentThisMorning && !send.handedToTeam && !held && (
+        <div style={{ fontSize: 11, color: "var(--agent-success, #1F8A4A)", fontWeight: 600, marginTop: 2 }}>
+          Chased this morning{send.dueAt ? ` · next ${fmtDate(send.dueAt)}` : ""}
+        </div>
+      )}
       {send.untilEscalation && send.escalatesAt && !send.handedToTeam && !held && (
         <div style={{ fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2 }}>
           Escalates to you if no reply by {fmtDate(send.escalatesAt)}

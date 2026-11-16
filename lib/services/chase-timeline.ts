@@ -189,6 +189,11 @@ export type NextSend = {
   capOf: number; // the lane's auto cap
   isAutomated: boolean; // true = autopilot sends it; false = a nudge for the team
   handedToTeam: boolean; // auto cap reached — it's on the team now
+  // This lane's automated chase already went out in TODAY's morning run (the
+  // cron is a once-a-weekday-morning tick). When true, dueAt is the NEXT send,
+  // not an imminent one — so the UI says "Chased this morning" rather than a bare
+  // "Due today" that reads as still-to-do. (chase-timeline accuracy pass.)
+  sentThisMorning: boolean;
   overrideTarget: ChaseThread["overrideTarget"]; // drives the per-lane edit/skip
   edited: boolean; // a subject/body edit is staged for this lane's next send
   skipped: boolean; // this lane's next send is set to skip
@@ -470,15 +475,32 @@ export async function getChaseTimeline(
     d && d.getTime() > Date.now() ? d : null;
   const laterDate = (a: Date | null, b: Date | null): Date | null =>
     a && b ? (a > b ? a : b) : (a ?? b);
+  // Automated chases send on a once-a-weekday-MORNING cron (solicitor ~09:00,
+  // client ~09:30 UTC). After that window has passed, a chase that is "due today"
+  // but hasn't gone is NOT imminent — its next real attempt is the next working
+  // morning. So once the morning is done, we treat today as spent.
+  const nowForWindow = new Date();
+  const nowUtcMin = nowForWindow.getUTCHours() * 60 + nowForWindow.getUTCMinutes();
+  const morningSendDoneToday = nowUtcMin >= 10 * 60 + 30; // past both crons (10:30 UTC)
+
   // A scheduled automated chase must always carry a real FORWARD date (critique
-  // #299). If the computed date has already passed (e.g. a chase that was blocked
-  // and missed its slot), it goes out on the next autopilot run — so show the next
-  // working day, never the date it already missed. "Scheduled = has a date."
+  // #299) — but an honest one: never the date it already missed, and never a bare
+  // "today" once today's one morning send window has already run. A past/overdue
+  // (or missed-today) date rolls to the next working MORNING the cron will fire:
+  // today if the window hasn't run yet, otherwise the next working day.
   const forwardDue = (d: Date | null): Date | null => {
     if (!d) return null;
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-    return d.getTime() >= startOfToday.getTime() ? d : rollToWorkingDay(new Date());
+    if (d.getTime() >= startOfToday.getTime() && !(toUKDateStr(d) === todayStr && morningSendDoneToday)) return d;
+    // Overdue, or due-today-but-the-window-has-passed → next working morning.
+    const base = new Date();
+    if (morningSendDoneToday) base.setDate(base.getDate() + 1);
+    base.setHours(6, 0, 0, 0); // 06:00 like setUkChaseTime, before the working day
+    return rollToWorkingDay(base);
   };
+  // This lane already chased in today's morning run (UK day match on lastChasedAt).
+  const chasedThisMorning = (lastChasedAt: Date | null | undefined): boolean =>
+    !!lastChasedAt && toUKDateStr(lastChasedAt) === todayStr;
 
   // Predict the next solicitor chase for a step: from an existing chase-state
   // (last chased + repeat), or — when never chased yet — the FIRST chase from the
@@ -507,7 +529,8 @@ export async function getChaseTimeline(
       const base = !capped && st.lastChasedAt ? addWorkingDays(st.lastChasedAt, repeat) : null;
       const dueAt = capped ? null : forwardDue(laterDate(base, hold));
       return { lane: "solicitor", recipientLabel: label, dueAt: dueAt ? dueAt.toISOString() : null,
-        chaseNumber: Math.min(st.chaseCount + 1, cap), capOf: cap, isAutomated: !capped, handedToTeam: capped, overrideTarget: target, edited, skipped };
+        chaseNumber: Math.min(st.chaseCount + 1, cap), capOf: cap, isAutomated: !capped, handedToTeam: capped,
+        sentThisMorning: chasedThisMorning(st.lastChasedAt), overrideTarget: target, edited, skipped };
     }
     // Never chased yet (no state row, or a hold-only row from a reschedule) →
     // project the first chase from the prerequisite (or the rule's explicit
@@ -525,7 +548,7 @@ export async function getChaseTimeline(
     if (!anchor) return null;
     const firstDue = forwardDue(laterDate(addWorkingDays(anchor, grace), hold)) as Date;
     return { lane: "solicitor", recipientLabel: label, dueAt: firstDue.toISOString(),
-      chaseNumber: 1, capOf: cap, isAutomated: true, handedToTeam: false, overrideTarget: target, edited, skipped };
+      chaseNumber: 1, capOf: cap, isAutomated: true, handedToTeam: false, sentThisMorning: false, overrideTarget: target, edited, skipped };
   }
 
   const todayStr = toUKDateStr(new Date());
@@ -717,17 +740,25 @@ export async function getChaseTimeline(
     // etc. are chased on both lanes). Either may be null.
     const clientOverrideTarget = code && clientContactId
       ? { kind: "client" as const, contactId: clientContactId, milestoneCode: code } : null;
-    const clientNext: NextSend | null = (log.status === "active")
+    // Only build the client "up next" when the client lane really owns a chase for
+    // this step — the lane owns the thread (track === "client"), OR there's a real
+    // ClientChaseState for it (a genuine dual-lane step like searches). A bare
+    // active ReminderLog on a SOLICITOR-owned step is not a client chase, so it
+    // must not conjure a phantom buyer card on the solicitor thread.
+    const clientHandedToTeam = !!cs && cs.chaseCount >= CLIENT_CHASE_CAP;
+    const clientDue = clientHandedToTeam ? null : forwardDue(laterDate(log.nextDueDate, clientHold));
+    const clientNext: NextSend | null = (log.status === "active" && (track === "client" || !!cs))
       ? {
           lane: "client",
           recipientLabel: `${side === "vendor" ? "Seller" : "Buyer"} · ${clientName}`,
-          // A hold (reschedule / snooze) pushes the shown date — it's when the
-          // chase actually resumes.
-          dueAt: (forwardDue(laterDate(log.nextDueDate, clientHold)) as Date).toISOString(),
+          // Null once handed to the team (mirrors the solicitor lane) so the card
+          // reads "With your team", not a future date that looks like an auto-send.
+          dueAt: clientDue ? clientDue.toISOString() : null,
           chaseNumber: Math.min((cs?.chaseCount ?? 0) + 1, CLIENT_CHASE_CAP),
           capOf: CLIENT_CHASE_CAP,
           isAutomated: !cs || (cs.status === "active" && cs.chaseCount < CLIENT_CHASE_CAP),
-          handedToTeam: !!cs && cs.chaseCount >= CLIENT_CHASE_CAP,
+          handedToTeam: clientHandedToTeam,
+          sentThisMorning: chasedThisMorning(task?.lastChasedAt),
           overrideTarget: clientOverrideTarget,
           edited: !!(clientContactId && overrideByKey.get(`contact:${clientContactId}|${code}`)?.edited),
           skipped: !!(clientContactId && overrideByKey.get(`contact:${clientContactId}|${code}`)?.skipped),
@@ -843,6 +874,7 @@ export async function getChaseTimeline(
           capOf: 0,
           isAutomated: !esc,
           handedToTeam: esc,
+          sentThisMorning: chasedThisMorning(raiseChase.lastNudgedAt),
           overrideTarget: rcOvTarget,
           edited: !!rcOv?.edited,
           skipped: !!rcOv?.skipped,
@@ -941,6 +973,7 @@ export async function getChaseTimeline(
           capOf: 0,
           isAutomated: !esc,
           handedToTeam: esc,
+          sentThisMorning: chasedThisMorning(et.lastChasedAt),
           overrideTarget: etOvTarget,
           edited: !!etOv?.edited,
           skipped: !!etOv?.skipped,
