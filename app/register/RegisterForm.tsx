@@ -377,9 +377,6 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                 }}>
                   Continue
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
                 </button>
 
                 <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
