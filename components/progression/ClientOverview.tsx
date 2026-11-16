@@ -12,17 +12,13 @@
 import Link from "next/link";
 import { CaretRight, Check, Circle } from "@phosphor-icons/react";
 import { fmtCurrencyPence } from "@/lib/utils";
+import { withFrom } from "@/lib/agent/back-nav";
+import { salePill } from "@/lib/progression/sale-pill";
 import { FeeEngine } from "./FeeEngine";
 import type { ClientAgencyDetail } from "@/lib/services/progression-clients";
 
 type Tab = "Overview" | "Branding" | "Sales" | "People" | "Access";
 
-function salePill(status: string): { label: string; cls: string } {
-  if (status === "completed") return { label: "Completed", cls: "done" };
-  if (status === "withdrawn") return { label: "Withdrawn", cls: "muted" };
-  if (status === "draft") return { label: "Draft", cls: "muted" };
-  return { label: "Active", cls: "live" };
-}
 const pct = (n: number | null) => (n == null ? "N/A" : `${n}%`);
 const num = (n: number | null) => (n == null ? "N/A" : String(n));
 
@@ -66,9 +62,9 @@ export function ClientOverview({
           ? <p className="ov-empty">No sales yet. Add their first sale to get started.</p>
           : (<>
               {detail.sales.slice(0, 5).map((s) => {
-                const p = salePill(s.status);
+                const p = salePill(s.status, s.exchanged);
                 return (
-                  <Link key={s.id} href={`/agent/transactions/${s.id}`} className="ov-salerow">
+                  <Link key={s.id} href={withFrom(`/agent/transactions/${s.id}`, `/agent/clients/${detail.agencyId}`)} className="ov-salerow">
                     <span className="ad">{s.address}</span>
                     <span className={`ov-spill ${p.cls}`}>{p.label}</span>
                     <CaretRight size={14} weight="bold" className="ov-chev" />
@@ -131,9 +127,15 @@ export function ClientOverview({
         .ov-salerow .ad { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--agent-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ov-chev { color: var(--agent-text-muted); flex-shrink: 0; }
         .ov-spill { font-size: 10px; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-        .ov-spill.live { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
+        .ov-spill.active { background: rgba(100,116,139,0.14); color: var(--agent-text-secondary); }
         .ov-spill.done { background: rgba(47,125,83,0.14); color: var(--agent-success, #2F7D53); }
+        .ov-spill.hold { background: rgba(201,125,26,0.16); color: #9A5B0E; }
+        .ov-spill.exchanged { background: rgba(37,99,235,0.12); color: #1D4ED8; }
+        .ov-spill.withdrawn { background: rgba(199,42,42,0.11); color: #C92A2A; }
         .ov-spill.muted { background: var(--agent-glass-bg, rgba(0,0,0,0.05)); color: var(--agent-text-muted); }
+        :root[data-theme="dark"] .ov-spill.hold { background: rgba(251,191,36,0.16); color: #FBBF24; }
+        :root[data-theme="dark"] .ov-spill.exchanged { background: rgba(59,130,246,0.20); color: #93C5FD; }
+        :root[data-theme="dark"] .ov-spill.withdrawn { background: rgba(248,113,113,0.18); color: #F8A9A9; }
         .ov-link { appearance: none; background: none; border: none; cursor: pointer; font-size: 12px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; margin-top: 10px; padding: 0; }
         .ov-link:hover { text-decoration: underline; }
 

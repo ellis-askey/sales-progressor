@@ -608,7 +608,7 @@ export async function getClientsOverview(businessId: string): Promise<ClientsOve
 
 // ─── Single client agency: the detail workspace at /agent/clients/[agencyId] ──
 
-export type AgencySale = { id: string; address: string; status: string; photoUrl: string | null };
+export type AgencySale = { id: string; address: string; status: string; exchanged: boolean; photoUrl: string | null };
 export type AgencyPerson = {
   id: string; name: string; email: string; role: string; pending: boolean;
   image: string | null;          // avatar URL, if they've set a photo
@@ -789,12 +789,17 @@ export async function getClientAgencyDetail(businessId: string, agencyId: string
     active, inProgress: active + onHold, pipelinePence: pipeline, exchanged,
     completed, withdrawn, avgDaysToExchange, conversionPct, fallThroughPct,
     completePct, checks,
-    sales: txns.map((t) => ({
-      id: t.id,
-      address: t.propertyAddress,
-      status: t.status,
-      photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
-    })),
+    // Drafts (half-created sales) are excluded from the client's sales list —
+    // consistent with the metrics above, which don't count them as "started".
+    sales: txns
+      .filter((t) => t.status !== "draft")
+      .map((t) => ({
+        id: t.id,
+        address: t.propertyAddress,
+        status: t.status,
+        exchanged: !!t.exchangedAt,
+        photoUrl: t.photoStoragePath ? photoMap.get(t.photoStoragePath) ?? null : null,
+      })),
     people: activeUsers.map((u) => ({
       id: u.id, name: u.name, email: u.email, role: u.role, pending: !u.password,
       image: getAvatarPublicUrl(u.image), canViewAll: u.canViewAllFiles,

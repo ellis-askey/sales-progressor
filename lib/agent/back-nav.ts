@@ -18,6 +18,7 @@ const LABELS: Array<{ prefix: string; label: string }> = [
   { prefix: "/agent/todo", label: "Back to to-do" },
   { prefix: "/agent/partners", label: "Back to partners" },
   { prefix: "/agent/analytics", label: "Back to analytics" },
+  { prefix: "/agent/clients", label: "Back to client" },
   { prefix: "/agent/transactions/", label: "Back" }, // file -> file (one step back)
   { prefix: "/agent/transactions", label: "Back to files" },
 ];

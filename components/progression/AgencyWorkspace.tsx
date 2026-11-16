@@ -16,6 +16,8 @@ import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { withFrom } from "@/lib/agent/back-nav";
+import { salePill } from "@/lib/progression/sale-pill";
 import { ClientOverview } from "./ClientOverview";
 import { ClientPeople } from "./ClientPeople";
 import { SenderDomainSection } from "./SenderDomainSection";
@@ -30,12 +32,6 @@ import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileM
 const TABS = ["Overview", "Branding", "Sales", "People", "Access"] as const;
 type Tab = (typeof TABS)[number];
 
-function salePill(status: string): { label: string; cls: string } {
-  if (status === "completed") return { label: "Completed", cls: "done" };
-  if (status === "withdrawn") return { label: "Withdrawn", cls: "muted" };
-  if (status === "draft") return { label: "Draft", cls: "muted" };
-  return { label: "Active", cls: "live" };
-}
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
@@ -292,10 +288,10 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
                     <p className="aw-empty" style={{ margin: 0 }}>No sales yet. Use the buttons above to add their first sale, or bring in one that&rsquo;s already underway.</p>
                   )
                 : detail.sales.map((s) => {
-                    const p = salePill(s.status);
+                    const p = salePill(s.status, s.exchanged);
                     const { main, sub } = splitAddress(s.address);
                     return (
-                      <Link key={s.id} href={`/agent/transactions/${s.id}`} className="aw-salerow">
+                      <Link key={s.id} href={withFrom(`/agent/transactions/${s.id}`, `/agent/clients/${detail.agencyId}`)} className="aw-salerow">
                         <span className="aw-salephoto">
                           {s.photoUrl
                             // eslint-disable-next-line @next/next/no-img-element
@@ -306,9 +302,7 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
                           <span className="ad">{main}</span>
                           {sub && <span className="aw-salesub">{sub}</span>}
                         </span>
-                        {/* The list is active sales by default — only a departure
-                            from that (completed/withdrawn/draft) earns a pill. */}
-                        {p.cls !== "live" && <span className={`aw-spill ${p.cls}`}>{p.label}</span>}
+                        <span className={`aw-spill ${p.cls}`}>{p.label}</span>
                         <CaretRight size={15} weight="bold" className="aw-salechev" />
                       </Link>
                     );
@@ -458,9 +452,15 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
         .aw-salesub { font-size: 11.5px; color: var(--agent-text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .aw-salechev { color: var(--agent-text-muted); flex-shrink: 0; }
         .aw-spill { font-size: 10px; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-        .aw-spill.live { background: rgba(var(--agent-coral-rgb),0.12); color: var(--agent-coral-deep, #E2452A); }
+        .aw-spill.active { background: rgba(100,116,139,0.14); color: var(--agent-text-secondary); }
         .aw-spill.done { background: rgba(47,125,83,0.14); color: var(--agent-success, #2F7D53); }
+        .aw-spill.hold { background: rgba(201,125,26,0.16); color: #9A5B0E; }
+        .aw-spill.exchanged { background: rgba(37,99,235,0.12); color: #1D4ED8; }
+        .aw-spill.withdrawn { background: rgba(199,42,42,0.11); color: #C92A2A; }
         .aw-spill.muted { background: var(--agent-glass-bg, rgba(0,0,0,0.05)); color: var(--agent-text-muted); }
+        :root[data-theme="dark"] .aw-spill.hold { background: rgba(251,191,36,0.16); color: #FBBF24; }
+        :root[data-theme="dark"] .aw-spill.exchanged { background: rgba(59,130,246,0.20); color: #93C5FD; }
+        :root[data-theme="dark"] .aw-spill.withdrawn { background: rgba(248,113,113,0.18); color: #F8A9A9; }
         .aw-link { appearance: none; background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--agent-coral-ink, #BE3C1C); font-weight: 700; margin-top: 10px; padding: 0; }
         .aw-link:hover { text-decoration: underline; }
 
