@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@/components/icons/ph";
+import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@phosphor-icons/react";
 import { createManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { SetupCard } from "@/components/agent/SetupCard";

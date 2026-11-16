@@ -8,7 +8,7 @@ import {
   resolveInternalVisibility,
   type UpdateFeedEntry,
 } from "@/lib/services/agent";
-import { ChartLine } from "@/components/icons/ph-ssr";
+import { ChartLine } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
 import { MarkBellReadOnView } from "@/components/agent/MarkBellReadOnView";

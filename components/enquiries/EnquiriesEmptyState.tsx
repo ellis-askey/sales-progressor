@@ -1,4 +1,4 @@
-import { ListBullets, Clock } from "@/components/icons/ph-ssr";
+import { ListBullets, Clock } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { Pill } from "@/components/ui/Pill";

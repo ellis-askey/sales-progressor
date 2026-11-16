@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@/components/icons/ph";
+import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 

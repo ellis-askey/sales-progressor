@@ -8,7 +8,7 @@
 // primitives; the copy and the CTA target are what differ.
 
 import Link from "next/link";
-import { Handshake, ListChecks, UsersThree, Plus } from "@/components/icons/ph";
+import { Handshake, ListChecks, UsersThree, Plus } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";

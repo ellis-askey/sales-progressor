@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@/components/icons/ph";
+import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { GlassCard } from "@/components/glass/GlassCard";

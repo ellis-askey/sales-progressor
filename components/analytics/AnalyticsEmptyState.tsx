@@ -11,7 +11,7 @@
 // See docs/active/TODO.md.
 
 import Link from "next/link";
-import { Plus, Timer, TrendUp, Funnel, Eye } from "@/components/icons/ph";
+import { Plus, Timer, TrendUp, Funnel, Eye } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
