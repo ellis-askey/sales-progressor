@@ -33,7 +33,7 @@ export function CommsEmptyState({ progressorName = null }: { progressorName?: st
           </p>
           <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: progressorName ? 400 : 300 }}>
             {progressorName
-              ? `Everything happening across your sales, including the work done for you by ${progressorName}, shows up here as it happens.`
+              ? `Updates across your sales, including activity from ${progressorName}, will appear here as they happen.`
               : "Updates from across your sales will appear here as they happen."}
           </p>
         </div>
@@ -48,16 +48,16 @@ export function CommsEmptyState({ progressorName = null }: { progressorName?: st
             label="Updates empty · Solicitor replies"
             iconSrc="/updates-solicitor.png"
             tint="coral"
-            title="Solicitor replies, no chasing"
-            desc="When a solicitor replies to one of our automatic chases, their reply and any dates they give appear right here."
+            title="Solicitor replies, without the chasing"
+            desc="See replies to automatic chases, including any dates or updates provided by solicitors."
           />
           <SetupCard
             glassId="empty-updates-progress"
             label="Updates empty · File progress"
             iconSrc="/updates-progress.png"
             tint="blue"
-            title="See every file's progress"
-            desc="Next to each update you'll see that sale's completion, its current stage and what it needs next."
+            title="See every sale's progress"
+            desc="View each sale's current stage, progress towards completion and what needs attention next."
           />
           <SetupCard
             glassId="empty-updates-confirmed"
@@ -65,7 +65,7 @@ export function CommsEmptyState({ progressorName = null }: { progressorName?: st
             iconSrc="/updates-confirmed.png"
             tint="green"
             title="See who confirmed each step"
-            desc="As a buyer, seller or their solicitor confirms a step, you'll see it marked done and exactly who did it."
+            desc="Know when a buyer, seller or solicitor confirms a milestone, and who confirmed it."
           />
         </div>
       </div>

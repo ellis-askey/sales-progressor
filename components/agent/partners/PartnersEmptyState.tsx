@@ -183,7 +183,7 @@ export function PartnersEmptyState({
             Set up the partners you work with
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-            Choose your preferred mortgage broker and the solicitor firms you recommend. We&apos;ll also build your partner list automatically as they appear on your sales.
+            Add your preferred mortgage broker and recommended solicitors. Your partner network will also grow automatically as professionals appear on your sales.
           </p>
           <button type="button" onClick={() => open("chooser")} className="agent-btn agent-btn-primary agent-btn-md" style={{ width: "fit-content" }}>
             <Plus size={16} weight="bold" />
@@ -201,7 +201,7 @@ export function PartnersEmptyState({
           tint={{ bg: "rgba(var(--agent-coral-rgb), 0.12)", fg: "var(--agent-coral-deep)" }}
           icon={<UserCircle size={20} weight="regular" />}
           title="Set your mortgage broker"
-          desc="Choose the broker your agency works with. We'll make them easy to select on new sales and track any referral fees in your analytics."
+          desc="Choose your preferred broker for new sales and track referral fees in your analytics."
           footer={broker
             ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "5px 6px 5px 12px", borderRadius: 9, background: "rgba(var(--agent-coral-rgb),0.08)", border: "1px solid rgba(var(--agent-coral-rgb),0.20)" }}>
@@ -248,7 +248,7 @@ export function PartnersEmptyState({
           tint={{ bg: "rgba(16,185,129,0.14)", fg: "#0f9d6b" }}
           icon={<LinkSimple size={20} weight="regular" />}
           title="Your network builds itself"
-          desc="Solicitors and brokers involved in your sales automatically appear here, giving you one place to keep track of them."
+          desc="Solicitors and brokers involved in your sales appear automatically, keeping your contacts in one place."
         />
       </div>
 
@@ -260,7 +260,7 @@ export function PartnersEmptyState({
           </span>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>No partners from your sales yet</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Solicitors, brokers and other professionals will appear here automatically as your pipeline grows.</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Solicitors, brokers and other professionals will appear here as your pipeline grows.</p>
           </div>
         </div>
         {canCreateSale && (

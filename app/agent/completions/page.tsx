@@ -289,8 +289,8 @@ export default async function AgentCompletionsPage() {
                 </p>
                 <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>
                   {isBusinessOwner
-                    ? "Once your clients' sales exchange, they'll appear here and you'll be able to track them all the way to completion."
-                    : "Once files are exchanged, they'll appear here and you'll be able to track them all the way to completion."}
+                    ? "Once your clients' sales exchange, they'll appear here so you can track them through to completion."
+                    : "Once a sale exchanges, it'll appear here so you can track it through to completion."}
                 </p>
                 <Link href={!isBusinessOwner || ownerNeedsSale ? "/agent/transactions/new" : "/agent/clients"} className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none", display: "inline-flex", width: "fit-content" }}>
                   <Plus size={16} weight="bold" />
@@ -310,7 +310,7 @@ export default async function AgentCompletionsPage() {
                     iconSrc="/setup-agency.png"
                     tint="coral"
                     title="Add your clients"
-                    desc="Add the estate agents you work with. Each gets their own login and sees only their own sales."
+                    desc="Add the estate agents you work with. Each gets their own login and access to their sales."
                     cta="Add a client"
                     href="/agent/clients"
                   />
@@ -353,7 +353,7 @@ export default async function AgentCompletionsPage() {
                   iconSrc="/setup-invite.png"
                   tint="green"
                   title="Invite your team"
-                  desc="Add your negotiators so they're ready when your first sales come in."
+                  desc="Give your negotiators access so they're ready when your first sales come in."
                   cta="Invite team"
                   href="/agent/account/team"
                 />
@@ -398,8 +398,8 @@ export default async function AgentCompletionsPage() {
             </p>
             <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
               {completedFiles.length > 0
-                ? "Files appear here once they exchange. Your completed files are below."
-                : "Files appear here once they exchange."}
+                ? "Exchanged sales will appear here. You can find your completed sales below."
+                : "Sales will appear here once they exchange."}
             </p>
           </div>
         )}

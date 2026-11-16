@@ -67,7 +67,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
             Nothing on your list yet
           </p>
           <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 380 }}>
-            Your to-dos, reminders and requests will appear here.
+            Your tasks, reminders and requests will appear here.
           </p>
           <button type="button" onClick={() => setAdding(true)} className="agent-btn agent-btn-primary agent-btn-md" style={{ width: "fit-content" }}>
             <Plus size={16} weight="bold" />
@@ -86,7 +86,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
             iconSrc="/todo-notes.png"
             tint="coral"
             title="Keep your own notes"
-            desc="Add quick notes and reminders for anything you need to come back to."
+            desc="Add quick notes and reminders for anything you need to revisit."
             cta="Add a to-do"
             onClick={() => setAdding(true)}
           />
@@ -96,7 +96,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
             iconSrc="/todo-sale.png"
             tint="blue"
             title="Tie tasks to a sale"
-            desc="Attach a to-do to a property and add a due date. We'll flag it when it needs your attention."
+            desc="Link a to-do to a property, set a due date and see when it needs attention."
             cta="Choose a sale"
             onClick={() => setAdding(true)}
           />
@@ -107,7 +107,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
               iconSrc="/todo-progressor.png"
               tint="green"
               title="Send a task to your progressor"
-              desc={`For sales you're sending to ${progressorName ?? "TSP"}, add a task directly for your sales progressor to pick up.`}
+              desc={`For sales managed by ${progressorName ?? "TSP"}, send tasks directly to them to pick up.`}
               cta="Add a request"
               onClick={() => setAdding(true)}
             />

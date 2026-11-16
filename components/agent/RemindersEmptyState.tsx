@@ -25,10 +25,10 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
       : null;
 
   const subtext = hasClients
-    ? "As your clients' sales progress, every chase and follow-up lands here, so nothing slips."
+    ? "As your clients' sales progress, we'll bring every chase and follow-up together so nothing gets overlooked."
     : isOwner
-      ? "Add your first client and create their sales, and we'll surface every chase across your book."
-      : "Chases and follow-ups across your business's sales appear here as they progress.";
+      ? "Add your first client and their sales to start tracking chases and follow-ups across your business."
+      : "Chases and follow-ups will appear here as your business's sales progress.";
 
   return (
     <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -47,7 +47,7 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
             No reminders yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-            Your chases will land here
+            Your chases will appear here
           </p>
           <p style={{ margin: cta ? "0 0 20px" : 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
             {subtext}
@@ -73,23 +73,23 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
           tint="coral"
           icon={<Bell size={20} weight="regular" />}
           title="Chases surface automatically"
-          desc="As each sale moves, we flag the next thing to chase and when, so you never have to go looking."
+          desc="See what needs chasing and when, as each sale progresses."
         />
         <SetupCard
           glassId="empty-reminders-who"
           label="Reminders empty · Who to nudge"
           tint="blue"
           icon={<UsersThree size={20} weight="regular" />}
-          title="Know who to nudge"
-          desc="We point to exactly who's holding things up, the solicitor or the other side, so you chase the right person first."
+          title="Know who to follow up with"
+          desc="Identify who's responsible for the next update, so you're chasing the right person."
         />
         <SetupCard
           glassId="empty-reminders-cold"
           label="Reminders empty · Nothing goes cold"
           tint="green"
           icon={<ShieldWarning size={20} weight="regular" />}
-          title="Nothing goes cold"
-          desc="Overdue and due-today chases sit front and centre, so a quiet sale never slips off your radar."
+          title="Keep every sale moving"
+          desc="See overdue and upcoming chases at a glance, so outstanding work doesn't get forgotten."
         />
       </div>
     </div>

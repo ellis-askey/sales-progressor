@@ -26,11 +26,11 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
   const heroTitle = hasClients ? "Now add their first sale" : "Your pipeline starts with your first client";
   // The invited-but-not-yet-accepted sub gets a shorter line on mobile.
   const invitedPending = hasClients && stage.pending > 0;
-  const deskSub = `You've added ${who}. You can start progressing their sales straight away, without waiting for them to accept their invite. We'll keep track of what's happening, what's outstanding and what needs your attention.`;
-  const mobSub = `${who} is ready to go. You can start progressing their sales straight away, without waiting for them to accept their invite.`;
+  const deskSub = `You've added ${who}. You can start progressing their sales straight away, even before they accept their invitation. We'll keep track of progress, outstanding work and what needs your attention.`;
+  const mobSub = `${who} is ready. You can start progressing their sales without waiting for them to accept their invitation.`;
   const heroSub = !hasClients
-    ? "Add an estate agent you work with, then create their first sale. We'll start tracking what's happening, what's outstanding and what needs your attention."
-    : `Add a sale for ${who} and run it through to completion. We'll track what's happening, what's outstanding and what needs your attention.`;
+    ? "Add an estate agent you work with, then create their first sale. We'll help you track progress, outstanding work and what needs your attention."
+    : `Add a sale for ${who} and start progressing it. We'll track what's happening, what's outstanding and what needs your attention.`;
   const ctaHref = hasClients ? "/agent/transactions/new" : "/agent/clients";
   const ctaLabel = hasClients ? "Add a sale" : "Add your first client";
 
@@ -84,7 +84,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
             tint="coral"
             icon={<Handshake size={20} weight="regular" />}
             title="Add the agents you work with"
-            desc="Each agent gets their own login and sees only their own sales. You see your whole book across every client."
+            desc="Give each agent their own login and access to their sales, while you manage your entire client portfolio."
           />
           <SetupCard
             glassId="empty-hub-prog-sales"
@@ -92,7 +92,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
             tint="blue"
             icon={<ListChecks size={20} weight="regular" />}
             title="Create and progress their sales"
-            desc="Add a sale for a client and run it through to completion, with milestones, chasing and documents in one place."
+            desc="Manage every sale from offer accepted to completion, with milestones, chasing and documents in one place."
           />
           <SetupCard
             glassId="empty-hub-prog-picture"
@@ -100,7 +100,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
             tint="green"
             icon={<UsersThree size={20} weight="regular" />}
             title="Keep everyone in the picture"
-            desc="Buyers and sellers see you as their point of contact, with live progress the whole way through."
+            desc="Buyers and sellers see you as their point of contact and can follow their sale's progress."
           />
         </div>
       </div>

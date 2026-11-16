@@ -34,7 +34,7 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
                 No enquiries need your attention
               </p>
               <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-                When a sale reaches the enquiries stage, anything that needs chasing or reviewing will appear here.
+                When enquiries need chasing or reviewing, they'll appear here.
               </p>
             </>
           ) : (
@@ -43,10 +43,10 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
                 Nothing here yet
               </Pill>
               <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-                Enquiries will show up here
+                Enquiries will appear here
               </p>
               <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-                Once you add a sale and it reaches the enquiries stage, anything that needs chasing or reviewing will appear here.
+                Once a sale reaches the enquiries stage, we'll show you anything that needs chasing or reviewing.
               </p>
             </>
           )}
@@ -63,7 +63,7 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
             icon={<ListBullets size={20} weight="regular" />}
             tint="coral"
             title="Everything in one place"
-            desc="See which sale has enquiries outstanding, who they're with and how long they've been waiting."
+            desc="See which sales have outstanding enquiries, who's responsible and how long they've been waiting."
           />
           <SetupCard
             glassId="empty-enquiries-chasing"
@@ -71,7 +71,7 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
             icon={<Clock size={20} weight="regular" />}
             tint="blue"
             title="Know what needs chasing"
-            desc="Once replies are due, we'll show you where things are sitting so you know what needs attention."
+            desc="See where replies are outstanding and what needs following up."
           />
         </div>
       </div>

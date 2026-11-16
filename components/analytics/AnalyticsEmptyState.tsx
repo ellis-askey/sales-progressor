@@ -50,10 +50,10 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 380 }}>
             {!isProg
-              ? "Add your sales and Sales Progressor starts turning every exchange, delay and fee into something you can measure."
+              ? "Add your sales and TSP will turn exchanges, delays and fees into insights you can act on."
               : progNeedsSale
-                ? "Start progressing your clients' sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."
-                : "Add a client and start progressing their sales, and Sales Progressor turns every exchange, delay and fee into something you can measure."}
+                ? "Start progressing your clients' sales and TSP will turn exchanges, delays and fees into insights you can act on."
+                : "Add your first client and start progressing their sales to build a clearer picture of exchanges, delays and fees."}
           </p>
           <Link
             href={ctaHref}
@@ -74,7 +74,7 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
           tint="coral"
           icon={<Timer size={22} weight="regular" />}
           title="See which solicitors move fastest"
-          desc="Compare the firms on your sales by how long they actually take to reach exchange."
+          desc="Compare firms by how long their sales take to reach exchange."
         />
         <SetupCard
           glassId="empty-analytics-commission"
@@ -82,7 +82,7 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
           tint="green"
           icon={<TrendUp size={22} weight="regular" />}
           title="Forecast your commission"
-          desc="See the fees expected this month alongside the commission already secured at exchange."
+          desc="See expected fees alongside commission already secured at exchange."
         />
         <SetupCard
           glassId="empty-analytics-conversion"
@@ -90,7 +90,7 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
           tint="blue"
           icon={<Funnel size={22} weight="regular" />}
           title="Measure your conversion"
-          desc="See how many agreed sales reach exchange and how long they actually take to get there."
+          desc="Track how many agreed sales reach exchange and how long they take to get there."
         />
       </div>
 

@@ -46,10 +46,10 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
             {!isProg
-              ? "Add your first sale and we'll keep everything around it together, from offer agreed through to completion."
+              ? "Add your first sale and keep everything together, from offer accepted through to completion."
               : progNeedsSale
-                ? "Create a sale for one of your clients and we'll keep everything around it together, from offer agreed through to completion."
-                : "Add a client and create their first sale, and we'll keep everything around it together, from offer agreed through to completion."}
+                ? "Create a sale for one of your clients and keep everything together, from offer accepted through to completion."
+                : "Add your first client, then create a sale to track everything from offer accepted through to completion."}
           </p>
           <Link
             href={ctaHref}
@@ -70,7 +70,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           tint="coral"
           icon={<ShieldWarning size={20} weight="regular" />}
           title="Spot at-risk sales early"
-          desc="Every sale gets a live risk read, so the ones drifting towards falling through stand out before it's too late."
+          desc="See which sales are starting to drift, with live risk indicators that help you act before problems escalate."
         />
         <SetupCard
           glassId="empty-allfiles-next"
@@ -78,7 +78,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           tint="blue"
           icon={<ListChecks size={20} weight="regular" />}
           title="See each sale's next step"
-          desc="Each file shows the exact next thing to do to move it forward, so you can work your list without opening a single one."
+          desc="Know what needs to happen next, directly from your Files list, without opening every sale."
         />
         <SetupCard
           glassId="empty-allfiles-exchange"
@@ -86,7 +86,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           tint="green"
           icon={<CalendarCheck size={20} weight="regular" />}
           title="Know what's exchanging when"
-          desc="See every sale's target exchange date and filter to what's landing this week or this month."
+          desc="See target exchange dates and filter sales expected this week or month."
         />
       </div>
 
@@ -101,7 +101,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           </span>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Want to see a finished example first?</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Explore a sample sale with progress, contacts and activity already added.</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Explore a sample sale with milestones, contacts and activity already in place.</p>
           </div>
         </div>
         <button

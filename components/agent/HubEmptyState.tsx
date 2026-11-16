@@ -37,8 +37,8 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 440 }}>
             {progressorName
-              ? `Add your first sale and we'll track it with you and ${progressorName}, flagging what's outstanding and what needs attention.`
-              : "Add your first sale and we'll start tracking what's happening, what's outstanding and what needs your attention."}
+              ? `Add your first sale and we'll track its progress alongside ${progressorName}, highlighting what's outstanding and what needs attention.`
+              : "Add your first sale and we'll start tracking its progress, what's outstanding and what needs your attention."}
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {canCreateSale && (
@@ -73,8 +73,8 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
             label="Hub empty · One place"
             tint="coral"
             icon={<FolderOpen size={20} weight="regular" />}
-            title="Everything starts in one place"
-            desc="Buyers, sellers, solicitors, milestones and documents stay attached to the file."
+            title="Everything in one place"
+            desc="Keep buyers, sellers, solicitors, milestones and documents together on each sale."
           />
           <SetupCard
             glassId="empty-hub-attention"
@@ -82,7 +82,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
             tint="blue"
             icon={<ListChecks size={20} weight="regular" />}
             title="Know what needs attention"
-            desc="See what's outstanding, what needs chasing and which sales are starting to drift."
+            desc="See what's outstanding, what needs chasing and which sales are falling behind."
           />
           <SetupCard
             glassId="empty-hub-picture"
@@ -90,7 +90,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
             tint="green"
             icon={<UsersThree size={20} weight="regular" />}
             title="Keep everyone in the picture"
-            desc="Give clients live progress while updates and solicitor replies come back into the file."
+            desc="Give clients live progress updates, with solicitor replies and activity saved to the file."
           />
         </div>
       </div>
@@ -103,7 +103,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
           </span>
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Finish setting up your workspace</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{progressorName ? "Add your details, set your branding and invite your team." : "Add your details, personalise your agency and invite your team."}</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{progressorName ? "Add your details, personalise your branding and invite your team." : "Add your details, personalise your agency and invite your team."}</p>
           </div>
         </div>
         <button
