@@ -254,7 +254,7 @@ export function AgentShellExperimental(props: AgentShellProps) {
         <FounderProvider value={isFounderDock}>{children}</FounderProvider>
       </main>
 
-      <QuickActionDock isFounder={isFounderDock} />
+      <QuickActionDock isFounder={isFounderDock} hasSales={props.hasSales ?? true} />
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}

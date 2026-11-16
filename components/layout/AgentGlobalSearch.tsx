@@ -108,7 +108,11 @@ function contactHref(c: AgentSearchResult["contacts"][number]): string {
   return c.previousSale ? `${base}?round=${encodeURIComponent(c.previousSale.roundId)}` : base;
 }
 
-export function AgentGlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = {}) {
+export function AgentGlobalSearch({ onOpenChange, showSelfPages = true }: { onOpenChange?: (open: boolean) => void; showSelfPages?: boolean } = {}) {
+  // Reminders (/agent/work-queue) is gated for an agency with no self-managed
+  // sales yet — the nav hides it, so the search shows it locked rather than
+  // sending the user to a "Page not found".
+  const remindersLocked = !showSelfPages;
   const { theme, isNight } = usePortalTheme();
   // Design Lab: the closed search trigger is a pickable surface (undefined for
   // everyone but Ellis, so the default look is unchanged).
@@ -193,7 +197,10 @@ export function AgentGlobalSearch({ onOpenChange }: { onOpenChange?: (open: bool
     results.solicitors.forEach(() => flat.push({ href: `/agent/solicitors` }));
   }
 
-  function navigate(href: string) { close(); router.push(href); }
+  function navigate(href: string) {
+    if (remindersLocked && href === "/agent/work-queue") return; // locked destination — no-op
+    close(); router.push(href);
+  }
 
   // Phase 3 perceived-performance (2026-09-18, PERF-16): programmatic
   // router.push gets no automatic prefetch (unlike <Link>), so warm the top
@@ -343,6 +350,7 @@ export function AgentGlobalSearch({ onOpenChange }: { onOpenChange?: (open: bool
                   selected={selected === i}
                   onClick={() => navigate(n.href)}
                   onMouseEnter={() => setSelected(i)}
+                  locked={remindersLocked && n.href === "/agent/work-queue"}
                 />
               ))}
             </SearchSection>
@@ -468,7 +476,7 @@ function SearchSection({ label, children }: { label: string; children: React.Rea
 }
 
 function SearchRow({
-  label, sub, subColor, subPill, leftVisual, selected, onClick, onMouseEnter,
+  label, sub, subColor, subPill, leftVisual, selected, onClick, onMouseEnter, locked = false,
 }: {
   label: string; sub?: React.ReactNode; subColor?: string;
   // When set, the sub-line renders as a coloured status pill (Files rows) instead
@@ -477,18 +485,23 @@ function SearchRow({
   // Optional visual before the text — a property thumbnail or a contact avatar.
   leftVisual?: React.ReactNode;
   selected: boolean; onClick: () => void; onMouseEnter: () => void;
+  // Gated destination (e.g. Reminders before the first self-managed sale): the row
+  // fades and shows a padlock instead of the chevron, and the click is a no-op.
+  locked?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={locked ? undefined : onClick}
       onMouseEnter={onMouseEnter}
+      aria-disabled={locked || undefined}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 12,
-        padding: "11px 16px", border: "none", cursor: "pointer", textAlign: "left",
+        padding: "11px 16px", border: "none", cursor: locked ? "default" : "pointer", textAlign: "left",
         background: selected ? "var(--agent-hover-shade)" : "transparent",
         transition: "background 80ms",
         borderLeft: selected ? "2px solid var(--agent-coral)" : "2px solid transparent",
+        opacity: locked ? 0.5 : 1,
       }}
     >
       {leftVisual && <span style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{leftVisual}</span>}
@@ -514,21 +527,31 @@ function SearchRow({
           </p>
         ) : null}
       </div>
-      {/* Hover chevron — slides in from the right + fades, matching the left
-          nav rail (.agent-rail-chevron). Driven by `selected`, which hover sets. */}
-      <span
-        aria-hidden
-        style={{
-          display: "inline-flex", flexShrink: 0, color: "var(--agent-coral)",
-          opacity: selected ? 1 : 0,
-          transform: selected ? "translateX(0)" : "translateX(10px)",
-          transition: "opacity 160ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-      >
-        <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
-        </svg>
-      </span>
+      {locked ? (
+        /* Locked destination — a padlock in place of the chevron. */
+        <span aria-hidden style={{ display: "inline-flex", flexShrink: 0, color: "var(--agent-text-muted)" }}>
+          <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path strokeLinecap="round" d="M8 11V7a4 4 0 118 0v4" />
+          </svg>
+        </span>
+      ) : (
+        /* Hover chevron — slides in from the right + fades, matching the left
+            nav rail (.agent-rail-chevron). Driven by `selected`, which hover sets. */
+        <span
+          aria-hidden
+          style={{
+            display: "inline-flex", flexShrink: 0, color: "var(--agent-coral)",
+            opacity: selected ? 1 : 0,
+            transform: selected ? "translateX(0)" : "translateX(10px)",
+            transition: "opacity 160ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+        >
+          <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+        </span>
+      )}
     </button>
   );
 }

@@ -54,7 +54,7 @@ function useGlassFallback(): boolean {
   return fallback;
 }
 
-export function QuickActionDock({ isFounder = false }: { isFounder?: boolean }) {
+export function QuickActionDock({ isFounder = false, hasSales = true }: { isFounder?: boolean; hasSales?: boolean }) {
   const isDark = useIsDark();
   const fallback = useGlassFallback();
   const pathname = usePathname();
@@ -107,14 +107,24 @@ export function QuickActionDock({ isFounder = false }: { isFounder?: boolean }) 
   // flicker when the sheet animates.
   const hidden = down && !noteOpen && !emailOpen;
 
+  // A note / email can only attach to a sale. Before the first sale there's
+  // nothing to compose against — so the dock stays visible (it's part of the
+  // chrome) but both actions are disabled with a hint, rather than opening a
+  // picker that can only ever say "No sales match". On a file, fileId gives a
+  // target, so it's never disabled there.
+  const composeDisabled = !hasSales && !fileId;
+  const disabledHint = composeDisabled ? "Add a sale first" : undefined;
+
   // Founder: opening brings an existing window to front (un-minimises it);
   // otherwise it opens onto the sale we're on right now, frozen for the life of
   // the window. Non-founder: the classic modal, unchanged.
   function openNote() {
+    if (composeDisabled) return;
     if (isFounder) setNoteWin((w) => (w ? { ...w, min: false } : { min: false, fileId }));
     else setNoteOpen(true);
   }
   function openEmail() {
+    if (composeDisabled) return;
     if (isFounder) setEmailWin((w) => (w ? { ...w, min: false } : { min: false, fileId }));
     else setEmailOpen(true);
   }
@@ -126,12 +136,14 @@ export function QuickActionDock({ isFounder = false }: { isFounder?: boolean }) 
   // Same buttons in both the refraction and fallback shells.
   const dockInner = (
     <>
-      <button className="ug-dock-btn" onClick={openNote}>
+      <button className="ug-dock-btn" onClick={openNote} disabled={composeDisabled} title={disabledHint}
+        style={composeDisabled ? { opacity: 0.4, cursor: "default" } : undefined}>
         <NotePencil weight="regular" />
         <span>New note</span>
       </button>
       <span className="ug-dock-sep" />
-      <button className="ug-dock-btn" onClick={openEmail}>
+      <button className="ug-dock-btn" onClick={openEmail} disabled={composeDisabled} title={disabledHint}
+        style={composeDisabled ? { opacity: 0.4, cursor: "default" } : undefined}>
         <PaperPlaneTilt weight="regular" />
         <span>New email</span>
       </button>

@@ -322,7 +322,7 @@ export default async function AgentCompletionsPage() {
                     title="Complete your profile"
                     desc="Add your contact details and photo so buyers and sellers know who they're dealing with."
                     cta="Set up profile"
-                    href="/agent/account/profile"
+                    href="/agent/settings/profile"
                   />
                 </div>
               ) : (
@@ -344,7 +344,7 @@ export default async function AgentCompletionsPage() {
                   tint="blue"
                   title="Set up your agency"
                   desc="Add your branding and contact details to personalise the client experience."
-                  cta="Agency settings"
+                  cta="Set up branding"
                   href="/agent/account/profile"
                 />
                 <SetupCard

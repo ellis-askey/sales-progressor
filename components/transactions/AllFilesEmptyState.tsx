@@ -90,7 +90,10 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
         />
       </div>
 
-      {/* Explore demo sale — real, reuses the shared flow */}
+      {/* Explore demo sale — real, reuses the shared flow. Agency only: the demo
+          action needs an agencyId, which a progression-business owner (agencyId
+          null) doesn't have — it would throw "Demo files are for agency accounts". */}
+      {!isProg && (
       <GlassCard glassId="empty-allfiles-demo" label="All Files empty · Demo card" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -121,6 +124,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
           </svg>
         </button>
       </GlassCard>
+      )}
 
       {node}
     </div>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AgentShell } from "@/components/layout/AgentShell";
 import { AgentShellExperimental } from "@/components/layout/AgentShellExperimental";
+import { userHasAnySale } from "@/lib/agent/has-sales";
 import { usesExperimentalShell } from "@/lib/agent/experimental-shell";
 import { AgentToaster } from "@/components/agent/AgentToaster";
 import { ChainDeclineBanner } from "@/components/agent/ChainDeclineBanner";
@@ -83,6 +84,10 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   // lib/agent/nav-badges.ts.
   const badges = await computeNavBadgeCounts(session, hasSelfManagedFiles);
 
+  // Whether the quick-action dock's New note / New email are usable (a note/email
+  // needs a sale to attach to). Disabled with a hint before the first sale.
+  const hasSales = await userHasAnySale(session);
+
   // One lookup, two uses. "Clients" nav + new-sale→clients stay owner-only
   // (showClientsNav). isBusinessMember (owner OR team) points the Account link at
   // the member's own settings area instead of the blank agency account. The flag
@@ -146,7 +151,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       <GlassPicksProvider initialPicks={glassPicks} initialStyles={glassStyles} initialMode={themeMode}>
       <AiEnabledProvider enabled={aiOn}>
       <AgentToaster>
-        <Shell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} whatsNewVisible={badges.whatsNewVisible} whatsNewUnread={badges.whatsNewUnread} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode}>
+        <Shell session={session} showWelcome={showWelcome} theme={theme} mobileTheme={mobileTheme} userName={userName} userImage={userImage} nightModePref={nightModePref} themeMode={themeMode} backgroundOpacity={backgroundOpacity} agencyModeProfile={agencyModeProfile} progressorName={progressorName} suppressSimpleWelcome={!!selfManagedWelcomePrefs} hasSelfManagedFiles={hasSelfManagedFiles} todoDueCount={badges.todo} enquiriesOpenCount={badges.enquiries} remindersCount={badges.reminders} chainsCount={badges.chains} completionsCount={badges.completions} agentBellClearedAt={agentBellClearedAt} whatsNewVisible={badges.whatsNewVisible} whatsNewUnread={badges.whatsNewUnread} showClientsNav={showClientsNav} isBusinessMember={isBusinessMember} businessMemberHasClients={businessMemberHasClients} canMigrateSale={canMigrateSale(session)} canToggleViewAll={canToggleViewAll} fileViewMode={fileViewMode} hasSales={hasSales}>
           {session.user.viewAsOperatorId && (
             <div style={{ padding: "12px 24px 0" }}>
               <div

@@ -309,9 +309,9 @@ export function UserDropdown({ session, role, userName, userImage, isBusinessOwn
   );
 }
 
-export type AgentShellProps = { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; whatsNewVisible?: boolean; whatsNewUnread?: boolean; fileViewMode?: "all" | "mine" };
+export type AgentShellProps = { children: React.ReactNode; session: Session; showWelcome?: boolean; suppressSimpleWelcome?: boolean; theme: AgentTheme; mobileTheme: MobileAgentTheme; userName?: string; userImage?: string | null; nightModePref: boolean | null; themeMode: ThemeMode; backgroundOpacity?: number; agencyModeProfile?: "self_progressed" | "progressor_managed" | "mixed"; progressorName?: string | null; hasSelfManagedFiles?: boolean; todoDueCount?: number; enquiriesOpenCount?: number; remindersCount?: number; chainsCount?: number; completionsCount?: number; agentBellClearedAt?: string | null; showClientsNav?: boolean; isBusinessMember?: boolean; businessMemberHasClients?: boolean; canMigrateSale?: boolean; canToggleViewAll?: boolean; whatsNewVisible?: boolean; whatsNewUnread?: boolean; fileViewMode?: "all" | "mine"; hasSales?: boolean };
 
-export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, whatsNewVisible = false, whatsNewUnread = false, fileViewMode = "all" }: AgentShellProps) {
+export function AgentShell({ children, session, showWelcome, suppressSimpleWelcome = false, theme, mobileTheme, userName, userImage, nightModePref, themeMode, backgroundOpacity = 100, agencyModeProfile, progressorName = null, hasSelfManagedFiles = true, todoDueCount = 0, enquiriesOpenCount = 0, remindersCount = 0, chainsCount = 0, completionsCount = 0, agentBellClearedAt = null, showClientsNav = false, isBusinessMember = false, businessMemberHasClients = true, canMigrateSale = false, canToggleViewAll = false, whatsNewVisible = false, whatsNewUnread = false, fileViewMode = "all", hasSales = true }: AgentShellProps) {
   const pathname    = usePathname();
   const router      = useRouter();
   const role            = session.user.role as UserRole;
@@ -328,6 +328,9 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const isDirector      = role === "director";
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount, whatsNewVisible, whatsNewUnread });
   const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav, badges.whatsNewVisible, badges.whatsNewUnread);
+  // Same self-managed gate the nav uses — passed to the global search so it can
+  // lock (not 404) the Reminders entry for an agency with no self-managed sales.
+  const showSelfPages = (role === "director" || role === "negotiator") ? hasSelfManagedFiles : true;
   // Migrate sale nav shortcut. Restored (founder, 2026-11-11) after the import
   // path was hardened to replicate completeMilestone's persistent side-effects
   // (mirror-pair completions, exchange stamp, mortgage-offer expiry, referral
@@ -441,7 +444,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         </button>
 
         <div className="md:max-w-[480px]" style={{ flex: 1 }}>
-          <AgentGlobalSearch />
+          <AgentGlobalSearch showSelfPages={showSelfPages} />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>
@@ -781,7 +784,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           "Log an update" triggers were retired in favour of this. On a file it
           opens straight onto that sale (QuickActionDock reads the route).
           FounderProvider stays (the Design Lab in LogUpdateModal gates on it). */}
-      <QuickActionDock isFounder={isFounderDock} />
+      <QuickActionDock isFounder={isFounderDock} hasSales={hasSales} />
 
       {showWelcome && !suppressSimpleWelcome && <WelcomeModal agencyModeProfile={agencyModeProfile ?? "self_progressed"} userName={displayName} progressorName={progressorName} />}
       {!isInternalStaff && !showWelcome && <OnboardingChecklist userId={session.user.id} role={role} />}
