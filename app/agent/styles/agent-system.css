@@ -5925,7 +5925,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .handled-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .handled-name { font-size: 13px; font-weight: 600; color: var(--agent-text-secondary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.handled-role { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+.handled-role { font-size: 11px; font-weight: 500; text-transform: capitalize;
   color: var(--agent-text-muted); margin-top: 1px; }
 .handled-awaiting { font-size: 11px; font-weight: 600; color: var(--agent-warning); }
 .handled-none { font-size: 13px; font-style: italic; color: var(--agent-text-muted); }

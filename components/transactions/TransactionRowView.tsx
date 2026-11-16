@@ -12,7 +12,7 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
 import { formatDate } from "@/lib/utils";
@@ -56,7 +56,11 @@ export function filesColumns(tab: FilesTab, showAssigned: boolean, _showAgency?:
     default:          cols = preview ? ["stage", "keydate"] : ["stage", "activity", "keydate"]; break; // all + draft
   }
   if (showAssigned && !preview) cols.push("handled");
-  if (showAssigned && preview) cols.push("people");
+  // The preview "Handled by" column shows BOTH people on the file (owner +
+  // progressor), so unlike the classic single-assignee column it's useful for
+  // everyone — including TSP progressors, for whom showAssigned is off. Not
+  // gated on showAssigned.
+  if (preview) cols.push("people");
   return cols;
 }
 
@@ -949,11 +953,14 @@ export function TransactionRowView({
             const bodyCols = moveLast ? cols.slice(0, -1) : cols;
 
             if (preview) {
-              // Founder card: "Handled by" (people) is a full-width block at the
-              // very bottom. Of the rest, a bottom row pairs the final two columns
-              // (last right-aligned) — but only when the second-to-last is a
-              // compact column, never a progress bar (stage / reached), which
-              // always stacks as its own block.
+              // Founder card (drawer open): the people on the file show as
+              // overlapping avatars in the top-right (no tooltip — the open drawer
+              // names them). The bottom row pairs the final two columns (last
+              // right-aligned) only when the second-to-last is a compact column,
+              // never a progress bar (stage / reached), which always stacks.
+              const people: { name: string; image: string | null; role: string | undefined }[] = [];
+              if (tx.agentUser) people.push({ name: tx.agentUser.name, image: tx.agentUser.image ?? null, role: jobTitleLabel(tx.agentUser.jobTitle) ?? "Agent" });
+              if (tx.assignedUser && tx.assignedUser.id !== tx.agentUser?.id) people.push({ name: tx.assignedUser.name, image: tx.assignedUser.image ?? null, role: jobTitleLabel(tx.assignedUser.jobTitle) ?? "Progressor" });
               const eyebrow = (text: string) => (
                 <p style={{ margin: "0 0 2px", fontSize: 11.5, fontWeight: 600, lineHeight: 1.2, color: "var(--agent-text-muted)" }}>{text}</p>
               );
@@ -986,6 +993,11 @@ export function TransactionRowView({
                 <>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview compact /></div>
+                    {hasPeople && people.length > 0 && (
+                      <span className="shrink-0" aria-label={`On the file: ${people.map((p) => p.name).join(", ")}`}>
+                        <UserAvatarStack people={people} size={28} />
+                      </span>
+                    )}
                   </div>
                   {stackCols.map((col) => <div key={col}>{stacked(col)}</div>)}
                   {footLeft && footRight && (
@@ -1000,7 +1012,6 @@ export function TransactionRowView({
                       </div>
                     </div>
                   )}
-                  {hasPeople && <div>{eyebrow(colLabel("people", preview))}{renderCell("people", tx, preview)}</div>}
                 </>
               );
             }
