@@ -538,7 +538,12 @@ function ThreadDetail({ thread, transactionId, onOpenEmail }: { thread: ChaseThr
       <div style={{ marginBottom: isExchange ? 0 : 22 }}>
         <SectionLabel>Timeline</SectionLabel>
         <div className="ct-stack">
-          {futureSends.map((s, i) => <FutureRow key={`f${i}`} send={s} />)}
+          {/* The timeline reads top-to-bottom as future → now → past (past events
+              below are newest-first). So the upcoming rows run FURTHEST-first,
+              descending toward the present — the opposite order to the soonest-
+              first "Up next" cards above. Without this the axis flips halfway and
+              a later chase sits below an earlier one. */}
+          {[...futureSends].reverse().map((s, i) => <FutureRow key={`f${i}`} send={s} />)}
           {thread.events.map((ev, i) => (
             <EventRow key={i} ev={ev} last={i === thread.events.length - 1} label={thread.trackLabel} onOpenEmail={onOpenEmail} />
           ))}
