@@ -3,7 +3,7 @@
 // Centralised gradient definitions — do not duplicate across files.
 
 import { getInitials } from "@/lib/contacts/displayName";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 // ─── Gradient tokens ─────────────────────────────────────────────────────────
 
@@ -146,6 +146,55 @@ function contactRoleToSide(roleType: string): Side {
   return "fallback"; // other — can't determine side
 }
 
+// ─── Avatar photo (shimmer + self-healing retry) ─────────────────────────────
+// A user/contact WHO HAS a photo should never show the browser's broken-image
+// "?" on a flaky connection (critique #296), and never fall back to the
+// branded no-photo art (that reads as "they have no display pic"). Instead:
+// show a neutral shimmer while loading, retry the fetch with backoff (cache-
+// busted so it doesn't re-read a cached failure), and let the real photo appear
+// the moment the connection recovers. Only the no-image path (handled by the
+// caller) shows the branded art / initials.
+const MAX_IMG_ATTEMPTS = 6;
+
+function AvatarImage({ src, size, focusX, focusY }: { src: string; size: number; focusX: number; focusY: number }) {
+  const [loaded, setLoaded] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const timer = useRef<number | null>(null);
+
+  // Reset when the photo changes (new user/contact).
+  useEffect(() => {
+    setLoaded(false);
+    setAttempt(0);
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
+  }, [src]);
+
+  // Cache-bust per retry so the browser re-fetches rather than re-reading its
+  // cached failure entry. First attempt uses the clean URL (so a healthy photo
+  // still benefits from normal caching).
+  const retrySrc = attempt === 0 ? src : `${src}${src.includes("?") ? "&" : "?"}r=${attempt}`;
+
+  return (
+    <>
+      {!loaded && <span className="avatar-shimmer" style={{ position: "absolute", inset: 0 }} aria-hidden />}
+      <img
+        key={attempt}
+        src={retrySrc}
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block", opacity: loaded ? 1 : 0 }}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          if (attempt >= MAX_IMG_ATTEMPTS) return; // keep the shimmer (loading look), never "?" or the no-photo art
+          const next = attempt + 1;
+          const delay = Math.min(30000, 600 * 2 ** attempt); // 0.6s → 1.2s → … capped at 30s
+          timer.current = window.setTimeout(() => setAttempt(next), delay);
+        }}
+      />
+    </>
+  );
+}
+
 // ─── Base avatar ─────────────────────────────────────────────────────────────
 
 type AvatarBaseProps = {
@@ -187,6 +236,7 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
     flexShrink: 0,
     userSelect: "none",
     overflow: "hidden",
+    position: "relative", // anchors the photo's loading shimmer overlay
     ...(artTones
       ? ({
           "--tsp-avatar-base": artTones.base,
@@ -199,13 +249,7 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
   return (
     <span style={style} className={className} aria-hidden>
       {image ? (
-        <img
-          src={image}
-          alt=""
-          width={size}
-          height={size}
-          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block" }}
-        />
+        <AvatarImage src={image} size={size} focusX={focusX} focusY={focusY} />
       ) : defaultArt ? (
         artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} />
         : artKind === "pound" ? <DefaultPoundAvatarArt size={size} />

@@ -674,6 +674,29 @@ body {
 }
 [data-portal-motion="reduced"] .portal-shimmer { animation: none; }
 
+/* Avatar photo loading shimmer (critique #296) — a neutral grey sweep shown
+   while a display photo loads or retries, so a flaky connection never shows the
+   browser's broken-image "?" and a user who HAS a photo is never dropped to the
+   no-photo art (which would read as "they have no display pic"). App-wide. */
+.avatar-shimmer {
+  /* Opaque neutral skeleton so it reads clearly as "loading", not as a tinted
+     avatar (the avatar's own colour sits behind it). */
+  background-color: #e6e9ef;
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: avatar-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes avatar-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+[data-theme="dark"] .avatar-shimmer {
+  background-color: #2b313c;
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.14) 50%, transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) { .avatar-shimmer { animation: none; } }
+
 /* Tappable "Your team" rows (solicitor / selling agent) — whole row is the
    control, a subtle wash confirms the tap target. */
 .portal-team-row { transition: background 150ms ease; }
