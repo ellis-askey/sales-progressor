@@ -6,6 +6,14 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Hide the browser's native password-reveal / clear controls (Edge + Chromium
+   ::-ms-reveal / ::-ms-clear). Every password field ships its own styled
+   show/hide toggle, so the native eye reads as a confusing duplicate. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 /* ─── Glass Design System Tokens ──────────────────────────────────────────── */
 
 @layer base {
