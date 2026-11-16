@@ -243,7 +243,12 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
     let reminder: PreviewReminder | null = null;
     if (!opts?.contactsOnly && !terminal && tx.status !== "on_hold") {
       try {
-        const logs = await getReminderLogsForTransaction(id, session.user.agencyId);
+        // Internal-staff sessions carry agencyId as "" (lib/auth.ts), and
+        // getReminderLogsForTransaction gates on a strict `=== null` — so the
+        // empty string would scope to a non-existent agency and throw, leaving
+        // the reminder null (the card then fell back to the row's next-step text
+        // for every TSP user). Normalise "" → null.
+        const logs = await getReminderLogsForTransaction(id, session.user.agencyId || null);
         const now = new Date();
         // Logs are ordered nextDueDate asc; the first still-active one is "next".
         const next = logs.find((l) => classifyReminder(l, now) !== "inactive");
