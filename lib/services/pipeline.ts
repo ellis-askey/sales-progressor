@@ -12,6 +12,7 @@ import {
   currentBoardStage,
   type DisplayStageKey,
   type MilestoneRowForStages,
+  type PurchaseTypeForStages,
 } from "@/lib/milestones/display-stages";
 
 // Only the codes that bound a display stage matter for placement — entry +
@@ -36,6 +37,10 @@ const STAGE_CODES = [
 // don't drag it forward) exactly as listTransactions / work-queue do.
 export async function getPipelineStageMap(
   txIds: string[],
+  // Passed in from the already-loaded list rows — the file's purchaseType lets
+  // resolveDisplayStages short-circuit the Finances stage for cash routes
+  // (matching the file-page strip), without a second DB round trip here.
+  purchaseTypeByTx: Map<string, PurchaseTypeForStages | null>,
 ): Promise<Map<string, DisplayStageKey>> {
   if (txIds.length === 0) return new Map();
 
@@ -68,16 +73,6 @@ export async function getPipelineStageMap(
     });
     byTx.set(r.transactionId, list);
   }
-
-  // Purchase type lets resolveDisplayStages short-circuit the Finances stage for
-  // cash routes — matching the file-page strip. Without it the list leaned on
-  // cash files carrying PM5/PM11 as not_required rows, so an older cash file
-  // missing those could wrongly pin at "Finances".
-  const txMeta = await prisma.propertyTransaction.findMany({
-    where: { id: { in: txIds } },
-    select: { id: true, purchaseType: true },
-  });
-  const purchaseTypeByTx = new Map(txMeta.map((t) => [t.id, t.purchaseType]));
 
   // Forecast dates don't affect placement (only the strip's date labels), so
   // pass empties — currentBoardStage reads status alone.

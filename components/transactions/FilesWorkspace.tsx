@@ -10,7 +10,7 @@
 // In narrowed contexts (hub / month filter) the bar is hidden and it's list-only.
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@phosphor-icons/react";
+import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@/components/icons/ph";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { TransactionStatus } from "@prisma/client";
 import { TransactionListWithSearch } from "./TransactionListWithSearch";
@@ -113,15 +113,17 @@ export function FilesWorkspace({
     }
   };
 
-  // Owners present in the active book, for the "Yours" section's per-owner rows.
+  // Owners present across the WHOLE book (not just active), so the owner filter
+  // can reach a person who only has completed/withdrawn files. The filter still
+  // applies to the current tab's rows.
   const owners = useMemo(() => {
     const seen = new Set<string>();
     const list: { id: string; name: string }[] = [];
-    for (const t of active) {
+    for (const t of rows) {
       if (t.agentUser && !seen.has(t.agentUser.id)) { seen.add(t.agentUser.id); list.push({ id: t.agentUser.id, name: t.agentUser.name }); }
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [active]);
+  }, [rows]);
 
   // External progression companies present in the active book, for the
   // "Progressor" section. Shown only when the agency works with 2+ companies, so
@@ -129,12 +131,12 @@ export function FilesWorkspace({
   const progressors = useMemo(() => {
     const seen = new Set<string>();
     const list: { id: string; name: string }[] = [];
-    for (const t of active) {
+    for (const t of rows) {
       const b = t.progressionBusiness;
       if (b && !b.isTsp && !seen.has(b.id)) { seen.add(b.id); list.push({ id: b.id, name: b.shortName || b.name }); }
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [active]);
+  }, [rows]);
   const showProgressorRows = progressors.length >= 2;
 
   // Client agencies present in the active book, for the "Agency" section. Shown
@@ -144,12 +146,12 @@ export function FilesWorkspace({
   const agencies = useMemo(() => {
     const seen = new Set<string>();
     const list: { id: string; name: string }[] = [];
-    for (const t of active) {
+    for (const t of rows) {
       const a = t.agency;
       if (a && !seen.has(a.id)) { seen.add(a.id); list.push({ id: a.id, name: a.name }); }
     }
     return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [active]);
+  }, [rows]);
   const showAgencyRows = agencies.length >= 2;
 
   // Owner rows: directors/admin see them whenever there's at least one owner;

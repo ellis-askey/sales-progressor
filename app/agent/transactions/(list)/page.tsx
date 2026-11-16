@@ -107,6 +107,9 @@ export default async function AllTransactionsPage({
   const agentId = !isInternalStaff && !vis.seeAll ? session.user.id : undefined;
   const isDirector = session.user.role === "director";
   const isProgressor = session.user.role === "sales_progressor";
+  // A read-only viewer is agency-scoped (sees the whole agency book), so it gets
+  // the agency framing — not the "My Files / assigned to you" default it fell to.
+  const isViewer = session.user.role === "viewer";
   // A progression-business owner's files come from clients they add, not from
   // being assigned work, so their empty state points at Clients (not "assigned").
   const isBusinessOwner = isProgressor ? await isBusinessOwnerViewer(session) : false;
@@ -182,7 +185,10 @@ export default async function AllTransactionsPage({
     // the same resolver, so the stage map covers both. Milestone completions
     // survive a withdrawal (the status change never deletes them), so the
     // furthest stage is still real data, not a guess.
-    getPipelineStageMap(clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn" || t.status === "on_hold" || t.status === "completed").map((t) => t.id)),
+    getPipelineStageMap(
+      clientTransactions.filter((t) => t.status === "active" || t.status === "withdrawn" || t.status === "on_hold" || t.status === "completed").map((t) => t.id),
+      new Map(clientTransactions.map((t) => [t.id, t.purchaseType ?? null])),
+    ),
     inNarrowedMode ? Promise.resolve([]) : getGoneQuietFiles(vis, [], { isExternalProgressor }).catch(() => []),
     inNarrowedMode ? Promise.resolve([]) : getWorkQueueItems(vis).catch(() => []),
     // Honest next-step line, reusing the Reminders engine (lib/services/next-step.ts).
@@ -244,10 +250,11 @@ export default async function AllTransactionsPage({
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
        * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
       <PageHeader
-        title={isDirector || isAdminPowers || isExternalProgressorSeeAll ? "All Files" : "My Files"}
+        title={isDirector || isAdminPowers || isExternalProgressorSeeAll || isViewer ? "All Files" : "My Files"}
         subtitle={
           isAdminPowers                      ? "Every sale our team is progressing." :
           isDirector                         ? "Every file across the agency." :
+          isViewer                           ? "Every file across the agency." :
           isExternalProgressorSeeAll         ? "Every sale your business is progressing." :
           session.user.role === "sales_progressor" ? "Files assigned to you." :
           "Files assigned to you."
@@ -374,21 +381,24 @@ export default async function AllTransactionsPage({
             ) : (
               <>
                 <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  Create your first sale
+                  {isViewer ? "No files yet" : "Create your first sale"}
                 </p>
                 {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
                 <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                  Sales appear here once you submit one. Track steps, manage chases,
-                  and progress to exchange.
+                  {isViewer
+                    ? "Files across the agency will appear here."
+                    : "Sales appear here once you submit one. Track steps, manage chases, and progress to exchange."}
                 </p>
-                <Link
-                  href="/agent/transactions/new"
-                  className="agent-btn agent-btn-primary agent-btn-md"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Plus size={16} weight="bold" />
-                  New sale
-                </Link>
+                {!isViewer && (
+                  <Link
+                    href="/agent/transactions/new"
+                    className="agent-btn agent-btn-primary agent-btn-md"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Plus size={16} weight="bold" />
+                    New sale
+                  </Link>
+                )}
               </>
             )}
           </div>

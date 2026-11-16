@@ -127,7 +127,7 @@ export function TransactionListWithSearch({
                       type="button"
                       onClick={() => selectStatus(value)}
                       className="agent-tab"
-                      aria-selected={isActive || undefined}
+                      aria-current={isActive ? "true" : undefined}
                       style={{ background: "none", border: "none", cursor: "pointer" }}
                     >
                       {label}

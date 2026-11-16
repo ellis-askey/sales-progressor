@@ -59,6 +59,9 @@ function riskScore(tx: TransactionRow): number {
 function applySortDir(n: number, dir: SortDir) { return dir === "asc" ? n : -n; }
 
 function sortTransactions(rows: TransactionRow[], key: SortKey, dir: SortDir): TransactionRow[] {
+  // Risk sort: compute each row's score ONCE here, not inside the comparator
+  // (which would recompute calculateRiskScore ~2·N·log N times per sort).
+  const riskById = key === "risk" ? new Map(rows.map((r) => [r.id, riskScore(r)])) : null;
   return [...rows].sort((a, b) => {
     switch (key) {
       case "exchange": {
@@ -77,7 +80,7 @@ function sortTransactions(rows: TransactionRow[], key: SortKey, dir: SortDir): T
         return applySortDir(ia - ib, dir);
       }
       case "risk":
-        return applySortDir(riskScore(b) - riskScore(a), dir);
+        return applySortDir((riskById!.get(b.id) ?? 0) - (riskById!.get(a.id) ?? 0), dir);
       case "lastActive": {
         const la = a.health?.lastActivityAt ? new Date(a.health.lastActivityAt).getTime() : 0;
         const lb = b.health?.lastActivityAt ? new Date(b.health.lastActivityAt).getTime() : 0;
@@ -116,11 +119,12 @@ function SortChevron({ col, active, dir }: { col: SortKey; active: SortKey; dir:
   const isActive = col === active;
   const up = isActive && dir === "asc";
   return (
-    <span className={`files-sort-chevron inline-flex flex-col ml-1 -space-y-0.5 opacity-0 group-hover/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
-      <svg width="7" height="5" viewBox="0 0 7 5" className={up || !isActive ? (isActive && up ? "text-slate-900/70" : "text-slate-900/25") : "text-slate-900/25"} fill="currentColor">
+    <span className={`files-sort-chevron inline-flex flex-col ml-1 -space-y-0.5 opacity-0 group-hover/hdr:opacity-100 group-focus-within/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
+      {/* Theme tokens (not slate ink) so the active sort shows on dark glass. */}
+      <svg width="7" height="5" viewBox="0 0 7 5" style={{ color: isActive && up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} fill="currentColor">
         <path d="M3.5 0L7 5H0z" />
       </svg>
-      <svg width="7" height="5" viewBox="0 0 7 5" className={!up || !isActive ? (!isActive ? "text-slate-900/25" : "text-slate-900/70") : "text-slate-900/25"} fill="currentColor">
+      <svg width="7" height="5" viewBox="0 0 7 5" style={{ color: isActive && !up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} fill="currentColor">
         <path d="M3.5 5L0 0h7z" />
       </svg>
     </span>
@@ -237,6 +241,8 @@ export function TransactionTable({
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "var(--agent-text-muted)"; }}
+              onFocus={(e) => { e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+              onBlur={(e) => { e.currentTarget.style.color = "var(--agent-text-muted)"; }}
             >
               {label}
               <SortChevron col={key} active={sortKey} dir={sortDir} />

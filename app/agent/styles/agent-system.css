@@ -5122,6 +5122,9 @@ body[data-demo-file] [data-onboarding-checklist] {
   .v2-swap-arrow { width: 12px; margin-left: 4px; opacity: 0.6; }
   /* Files-table sort chevrons — visible without hover */
   .files-sort-chevron { opacity: 1 !important; }
+  /* On-hold "Edit reason" pencil — a hover-only control that was invisible on
+     touch (reachable only by keyboard). Reveal it like the other edit cues. */
+  .paused-pencil { opacity: 0.45 !important; }
   /* Small icon buttons (drawer closes, chip clear-x) — 22px/14px → ≥32px */
   .agent-icon-btn-sm { width: 32px !important; height: 32px !important; }
   /* Text-link buttons (milestone Change date / Undo / Not required) —
