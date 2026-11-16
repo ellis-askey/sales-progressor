@@ -557,6 +557,9 @@ export function ComposeEmailModal({
     countTimerRef.current = setTimeout(() => { countTimerRef.current = null; updateCount(); }, 200);
   }
   function onEditorInput() { scheduleCount(); if (showRefined) setShowRefined(false); }
+  // Make Enter always create a <p> (not a browser-default <div>) so every
+  // paragraph break gets the same gap — fixes the uneven line spacing (critique #300).
+  function forceParagraphBreaks() { try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch { /* unsupported browser */ } }
 
   // "Share our latest" — drop the sale's progress block in just above the
   // signature, replacing any previous copy so a re-click refreshes rather than
@@ -891,7 +894,7 @@ export function ComposeEmailModal({
                 </div>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
-                    onInput={onEditorInput} />
+                    onInput={onEditorInput} onFocus={forceParagraphBreaks} />
                   <div className="cem-toolbar">
                     <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
                     <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
@@ -1121,7 +1124,7 @@ const CEM_CSS = `
 .cem-subject{width:100%;background:var(--agent-surface-elevated,#fff);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:550;color:var(--agent-text-primary);outline:none}
 .cem-editor-wrap{border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
 .cem-editor{min-height:150px;max-height:290px;overflow-y:auto;padding:13px 14px;font-size:13px;line-height:1.6;color:var(--agent-text-primary);outline:none;border-bottom:1px solid var(--agent-border-subtle)}
-.cem-editor p{margin:0 0 10px}.cem-editor a{color:var(--agent-coral-deep)}
+.cem-editor p{margin:0 0 16px}.cem-editor p:last-child{margin-bottom:0}.cem-editor a{color:var(--agent-coral-deep)}
 .cem-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:5px;background:var(--agent-bg-paper,#FFFBF5)}
 .cem-tb{width:30px;height:30px;border:none;background:none;border-radius:7px;cursor:pointer;color:var(--agent-text-secondary);font-size:14px;display:grid;place-items:center;transition:background .12s,color .12s}
 .cem-tb:hover{background:rgba(45,24,16,0.06);color:var(--agent-text-primary)}

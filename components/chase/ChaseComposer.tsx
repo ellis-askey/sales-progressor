@@ -203,7 +203,7 @@ export function ChaseComposer({
           onInput={emit}
           onKeyUp={refreshActive}
           onMouseUp={refreshActive}
-          onFocus={refreshActive}
+          onFocus={() => { try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch { /* unsupported browser */ } refreshActive(); }}
           onPaste={(e) => {
             e.preventDefault();
             const text = e.clipboardData.getData("text/plain");
