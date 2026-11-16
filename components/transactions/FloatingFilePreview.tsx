@@ -15,13 +15,13 @@ import Link from "next/link";
 import {
   CaretLeft, CaretRight, CaretDown, X, NotePencil, CalendarBlank, Target, ListChecks, Flag,
   Phone, EnvelopeSimple, ArrowSquareOut, TrendUp, TrendDown, Minus, PauseCircle,
-  CheckCircle, Prohibit,
+  CheckCircle, Prohibit, Headset, UsersThree, Scales,
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
 import { formatDate } from "@/lib/utils";
 import { formatTimeToExchange } from "@/lib/utils/format-time-to-exchange";
-import { UserAvatar } from "@/components/ui/Avatar";
+import { UserAvatar, ContactAvatar } from "@/components/ui/Avatar";
 import { JourneyBar } from "./JourneyBar";
 import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
 import { AddNoteModal } from "@/components/activity/AddNoteModal";
@@ -35,11 +35,6 @@ function splitAddress(address: string): { line: string; location: string } {
   const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
   if (parts.length <= 1) return { line: address, location: "" };
   return { line: parts.slice(0, -2).join(", ") || parts[0], location: parts.slice(-2).join(", ") };
-}
-function roleLabel(jobTitle: string | null, slot: "agent" | "assigned"): string | null {
-  const t = jobTitle?.trim();
-  if (t && !/^(director|negotiator)$/i.test(t)) return t;
-  return slot === "assigned" ? "Progressor" : null;
 }
 function dateTime(iso: string): string {
   const d = new Date(iso);
@@ -157,6 +152,21 @@ export function FloatingFilePreview({
   if (!rendered || typeof window === "undefined" || !r) return null;
 
   const addr = splitAddress(r.propertyAddress);
+  const rowId = r.id;
+  function openEmail(toEmail: string, toName: string) {
+    setEmailPrefill({ transactionId: rowId, to: [{ email: toEmail, name: toName }], subject: addr.line, bodyHtml: `<p>Hi ${extractFirstName(toName)},</p><p><br></p>` });
+    setEmailOpen(true);
+  }
+  // Call/email buttons for a person — guard each (contacts have nullable
+  // email/phone). Identical to the completions drawer.
+  const actions = (name: string, email: string | null | undefined, phone: string | null | undefined) => (
+    email || phone ? (
+      <span className="ffp-person-actions">
+        {phone && <a className="ffp-contact-btn" href={`tel:${phone}`} aria-label={`Call ${name}`} onClick={(e) => e.stopPropagation()}><Phone size={14} weight="regular" /></a>}
+        {email && <button type="button" className="ffp-contact-btn" aria-label={`Email ${name}`} onClick={(e) => { e.stopPropagation(); openEmail(email, name); }}><EnvelopeSimple size={14} weight="regular" /></button>}
+      </span>
+    ) : null
+  );
   // Agreed price (priceAtExchange snapshot wins), rendered top-right of the head
   // to match the completions drawer. Pence → pounds.
   const pence = r.priceAtExchange ?? r.purchasePrice ?? null;
@@ -299,45 +309,68 @@ export function FloatingFilePreview({
                 : "Not started"} />
           </div>
 
-          {/* People */}
-          <section className="ffp-people">
-            <p className="ffp-sec-lab">People</p>
-            {loading && !extras
-              ? <div className="ffp-skel ffp-skel-person" />
-              : failed
-                ? <p className="ffp-empty">Couldn&rsquo;t load the team.</p>
-                : extras && extras.people.length > 0
-                ? extras.people.map((p) => {
-                    const label = roleLabel(p.jobTitle, p.slot);
-                    return (
-                      <div key={p.id} className="ffp-person">
-                        <UserAvatar user={{ name: p.name, image: p.image }} size={34} />
-                        <span className="ffp-person-txt">
-                          <span className="ffp-person-name">{p.name}</span>
-                          {label && <span className="ffp-person-role">{label}</span>}
-                        </span>
-                        <span className="ffp-person-actions">
-                          {p.phone && <a className="ffp-ic ffp-ic-sm" href={`tel:${p.phone}`} aria-label={`Call ${p.name}`}><Phone size={15} weight="regular" /></a>}
-                          <button
-                            type="button"
-                            className="ffp-ic ffp-ic-sm"
-                            aria-label={`Email ${p.name}`}
-                            onClick={() => {
-                              setEmailPrefill({
-                                transactionId: r.id,
-                                to: [{ email: p.email, name: p.name }],
-                                subject: addr.line,
-                                bodyHtml: `<p>Hi ${extractFirstName(p.name)},</p><p><br></p>`,
-                              });
-                              setEmailOpen(true);
-                            }}
-                          ><EnvelopeSimple size={15} weight="regular" /></button>
-                        </span>
+          {/* People / Clients / Solicitors — one group, dividers between, exactly
+              as the completions drawer. */}
+          <div className="ffp-people-group">
+            {/* People — staff on the file (agent / client manager + progressor) */}
+            <div className="ffp-people-card">
+              <span className="ffp-card-lab"><Headset size={14} weight="regular" /> People</span>
+              {loading && !extras
+                ? <div className="ffp-skel ffp-skel-person" />
+                : failed
+                  ? <p className="ffp-empty">Couldn&rsquo;t load the team.</p>
+                  : extras && extras.people.length > 0
+                    ? <div className="ffp-people">
+                        {extras.people.map((p) => (
+                          <div key={p.id} className="ffp-person">
+                            <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
+                            <span className="ffp-person-txt"><span className="ffp-person-name">{p.name}</span><span className="ffp-person-role">{p.jobTitle ?? (p.slot === "assigned" ? "Progressor" : "Agent")}</span></span>
+                            {actions(p.name, p.email, p.phone)}
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })
-                : <p className="ffp-empty">No one assigned yet.</p>}
-          </section>
+                    : <span className="ffp-people-empty">Not recorded</span>}
+            </div>
+
+            {/* Clients — buyers / sellers with a colour-coded avatar + call/email */}
+            <div className="ffp-people-card">
+              <span className="ffp-card-lab"><UsersThree size={14} weight="regular" /> Clients</span>
+              {loading && !extras
+                ? <div className="ffp-skel ffp-skel-person" />
+                : extras && extras.clients.length > 0
+                  ? <div className="ffp-people">
+                      {extras.clients.map((c) => (
+                        <div key={c.id} className="ffp-person">
+                          <ContactAvatar contact={{ name: c.name, roleType: c.role }} size={28} />
+                          <span className="ffp-person-txt"><span className="ffp-person-name">{c.name}</span><span className="ffp-person-role">{c.role === "vendor" ? "Seller" : "Buyer"}</span></span>
+                          {actions(c.name, c.email, c.phone)}
+                        </div>
+                      ))}
+                    </div>
+                  : <span className="ffp-people-empty">Not recorded</span>}
+            </div>
+
+            {/* Solicitors — side-tinted avatar + call/email on the handler */}
+            <div className="ffp-people-card">
+              <span className="ffp-card-lab"><Scales size={14} weight="regular" /> Solicitors</span>
+              {loading && !extras
+                ? <div className="ffp-skel ffp-skel-person" />
+                : extras && extras.solicitors.length > 0
+                  ? <div className="ffp-people">
+                      {extras.solicitors.map((s) => {
+                        const label = s.firmName ?? s.name ?? "Not set";
+                        return (
+                          <div key={s.side} className="ffp-person">
+                            <ContactAvatar contact={{ name: label, roleType: "solicitor" }} sideTint={s.side} size={28} />
+                            <span className="ffp-person-txt"><span className="ffp-person-name">{label}</span><span className="ffp-person-role">{s.side === "vendor" ? "Seller’s solicitor" : "Buyer’s solicitor"}{s.name && s.firmName ? ` · ${s.name}` : ""}</span></span>
+                            {actions(s.name ?? label, s.email, s.phone)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  : <span className="ffp-people-empty" style={{ color: "var(--agent-warning)" }}>None on file</span>}
+            </div>
+          </div>
         </div>
 
         {/* Quick actions */}
@@ -444,12 +477,23 @@ const FFP_CSS = `
 .ffp-card-val{ font-size:14px; font-weight:600; color:var(--agent-text-primary); line-height:1.25; }
 .ffp-card-sub{ font-size:11.5px; color:var(--agent-text-muted); }
 
-.ffp-sec-lab{ margin:0 0 8px; font-size:11.5px; font-weight:600; color:var(--agent-text-muted); }
-.ffp-person{ display:flex; align-items:center; gap:11px; padding:7px 0; }
-.ffp-person-txt{ flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.2; }
-.ffp-person-name{ font-size:14px; font-weight:600; color:var(--agent-text-primary); }
-.ffp-person-role{ font-size:11px; color:var(--agent-text-muted); }
-.ffp-person-actions{ display:inline-flex; gap:5px; }
+/* People / Clients / Solicitors — one group, dividers between, matching the
+   completions drawer exactly. */
+.ffp-people-group{ display:flex; flex-direction:column; }
+.ffp-people-card{ display:flex; flex-direction:column; gap:10px; padding:14px 0; }
+.ffp-people-group .ffp-people-card:first-child{ padding-top:0; }
+.ffp-people-group .ffp-people-card:last-child{ padding-bottom:0; }
+.ffp-people-group .ffp-people-card + .ffp-people-card{ border-top:0.5px solid var(--agent-border-subtle); }
+.ffp-people{ display:flex; flex-direction:column; gap:9px; }
+.ffp-person{ display:flex; align-items:center; gap:10px; min-width:0; }
+.ffp-person-txt{ flex:1 1 auto; display:flex; flex-direction:column; line-height:1.2; min-width:0; }
+.ffp-person-name{ font-size:13.5px; font-weight:600; color:var(--agent-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ffp-person-role{ font-size:11px; color:var(--agent-text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ffp-person-actions{ display:inline-flex; gap:5px; flex-shrink:0; }
+.ffp-people-empty{ font-size:13px; color:var(--agent-text-muted); }
+.ffp-contact-btn{ width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; text-decoration:none;
+  border:1px solid var(--agent-border-default); background:var(--agent-surface-elevated,#fff); color:var(--agent-text-secondary); transition:border-color .15s, color .15s; }
+.ffp-contact-btn:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 
 .ffp-actions{ flex-shrink:0; display:flex; align-items:center; gap:8px; padding:12px 16px 14px; border-top:0.5px solid var(--agent-border-subtle);
   background:var(--agent-surface-elevated, rgba(255,255,255,0.4)); }
