@@ -975,16 +975,18 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
           .act-row-actions .agent-icon-btn:hover,
           .act-row-actions .agent-icon-btn:active { background: none !important; box-shadow: none !important; }
         }
-        /* z-index must beat the compose card below it (activity-comms-entry sits
-           at z-index:30 as a later sibling), or the open scope menu renders
-           behind it. */
+        /* z-index sits above the compose card below it (activity-comms-entry at
+           z-index:30, a later sibling) so the open scope menu clears it, but
+           stays BELOW the app-wide quick-action dock (fixed, z-index:40) so the
+           dock keeps floating on top as the list scrolls past it (critique #298).
+           Hence 35: above 30, below 40. */
         /* Search bar + "Log an update" share a wrapping row: the button sits to
            the right of the search when there's room, and drops onto its own line
            once the search would fall below its comfortable min width (so it never
            gets bunched). Pure flex-wrap, so it responds to real width / zoom. */
         .act-topbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
         .act-topbar-action { flex:0 0 auto; }
-        .act-filterbar { display:flex; align-items:center; gap:10px; flex:1 1 460px; min-width:0; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:50; }
+        .act-filterbar { display:flex; align-items:center; gap:10px; flex:1 1 460px; min-width:0; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:35; }
         .act-filterbar:focus-within { border-color:var(--agent-coral-deep); }
         .act-scope { position:relative; flex-shrink:0; }
         .act-scope-btn { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:none; border:none; border-right:1px solid var(--agent-border-default); padding:2px 12px 2px 2px; cursor:pointer; }

@@ -1,8 +1,10 @@
 /* Sticky notes — shared styles for the note, the floating layer, and the hero
    trigger. Used by the real file feature (StickyLayer) and the /dev sandbox. */
 
-/* ── the floating layer over the file content ── */
-.sticky-layer { position: absolute; inset: 0; pointer-events: none; z-index: 40; overflow: visible; }
+/* ── the floating layer over the file content ──
+   z-index 39 keeps notes above file content but one below the app-wide
+   quick-action dock (fixed, z-index:40) so the dock stays on top (critique #298). */
+.sticky-layer { position: absolute; inset: 0; pointer-events: none; z-index: 39; overflow: visible; }
 .sticky-layer .sn { pointer-events: auto; }
 
 /* ── the note ── */
