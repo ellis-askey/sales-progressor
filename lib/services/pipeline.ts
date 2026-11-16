@@ -69,6 +69,16 @@ export async function getPipelineStageMap(
     byTx.set(r.transactionId, list);
   }
 
+  // Purchase type lets resolveDisplayStages short-circuit the Finances stage for
+  // cash routes — matching the file-page strip. Without it the list leaned on
+  // cash files carrying PM5/PM11 as not_required rows, so an older cash file
+  // missing those could wrongly pin at "Finances".
+  const txMeta = await prisma.propertyTransaction.findMany({
+    where: { id: { in: txIds } },
+    select: { id: true, purchaseType: true },
+  });
+  const purchaseTypeByTx = new Map(txMeta.map((t) => [t.id, t.purchaseType]));
+
   // Forecast dates don't affect placement (only the strip's date labels), so
   // pass empties — currentBoardStage reads status alone.
   const emptyForecast = {
@@ -79,7 +89,7 @@ export async function getPipelineStageMap(
 
   const out = new Map<string, DisplayStageKey>();
   for (const id of txIds) {
-    const resolved = resolveDisplayStages(byTx.get(id) ?? [], emptyForecast);
+    const resolved = resolveDisplayStages(byTx.get(id) ?? [], emptyForecast, purchaseTypeByTx.get(id) ?? null);
     out.set(id, currentBoardStage(resolved));
   }
   return out;
