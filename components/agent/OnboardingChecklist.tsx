@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
 import * as analytics from "@/lib/analytics/posthog";
@@ -109,7 +108,6 @@ function SectionHeader({ label }: { label: string }) {
 //     drive the agent to add their first sale + finish account setup. Once a
 //     sale exists, the inline one steps aside and the floating one takes over.
 export function OnboardingChecklist({ userId, variant = "floating", role }: { userId: string; variant?: "floating" | "inline"; role?: string }) {
-  const pathname = usePathname();
   const isDirector = role === "director";
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -319,10 +317,14 @@ export function OnboardingChecklist({ userId, variant = "floating", role }: { us
   }
 
   // ── Floating (default) ────────────────────────────────────────────────────
-  // Option B: on the hub, while there are no sales, the hub's own empty state
-  // owns setup — so hide the floating one there unless the "Continue setup" card
-  // has explicitly opened it (forceShow). Everywhere else it floats.
-  if (pathname === "/agent/hub" && !effectiveProgress.hasSale && !forceShow) return null;
+  // Hold the floating checklist back until the first sale exists. Before any sale
+  // every page is an empty-state hero already driving "Add your first sale", so
+  // the floating 0/8 panel is pure redundancy and overlaps those CTAs. The moment
+  // a sale is added it appears with "Add your first sale" (and anything else done)
+  // already ticked. The hub's own inline checklist still guides pre-sale setup,
+  // and the "Continue setup" card can still force it open (forceShow).
+  // (Was: hidden only on the hub pre-sale; now everywhere.)
+  if (!effectiveProgress.hasSale && !forceShow) return null;
 
   return (
     <div data-onboarding-checklist="" style={{
