@@ -14,7 +14,10 @@ export type SurveyBookingOption = {
 
 export type SurveyBookingChoice =
   | { kind: "our_firm"; quoteRequestId: string }
-  | { kind: "someone_else"; firmName?: string }
+  // email/phone are optional on the type (the agent modal captures them via a
+  // separate confirm path and leaves them undefined here), but the client portal
+  // now requires a name + at least one contact (critique #295) and passes them in.
+  | { kind: "someone_else"; firmName?: string; email?: string | null; phone?: string | null }
   | { kind: "unknown" };
 
 // Non-terminal statuses we're allowed to move. Never touch a `won` (fee settled)
@@ -86,7 +89,14 @@ export async function applySurveyBooking(
       ),
       prisma.propertyTransaction.update({
         where: { id: transactionId },
-        data: { bookedSurveyorName: typed },
+        data: {
+          bookedSurveyorName: typed,
+          // Only write contact when the caller provided it (undefined = leave as
+          // is): the client portal passes email/phone through the choice; the
+          // agent path sets them via its own confirm and leaves these undefined.
+          ...(choice.email !== undefined ? { bookedSurveyorEmail: choice.email?.trim() || null } : {}),
+          ...(choice.phone !== undefined ? { bookedSurveyorPhone: choice.phone?.trim() || null } : {}),
+        },
       }),
     ]);
     return { ok: true };

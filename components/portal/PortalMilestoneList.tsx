@@ -125,6 +125,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [surveyOptions, setSurveyOptions]   = useState<SurveyBookingOption[] | null>(null);
   const [surveyChoice, setSurveyChoice]     = useState<SurveyBookingChoice | null>(null);
   const [otherFirmName, setOtherFirmName]   = useState("");
+  // Surveyor contact (critique #295): when the buyer booked outside our quotes we
+  // require a name + at least one of these, so we can reach the surveyor to arrange
+  // access. Not captured on the portal before.
+  const [surveyorPhone, setSurveyorPhone]   = useState("");
+  const [surveyorEmail, setSurveyorEmail]   = useState("");
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -169,6 +174,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setError(null);
     setSurveyOptions(null);
     setSurveyChoice(null);
+    setOtherFirmName("");
+    setSurveyorPhone("");
+    setSurveyorEmail("");
     // If this is the survey-booked step and the buyer requested quotes through
     // us, load the firms so they can say who they booked.
     const m = milestones.find((mm) => mm.id === id);
@@ -186,6 +194,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setError(null);
     setSurveyOptions(null);
     setSurveyChoice(null);
+    setOtherFirmName("");
+    setSurveyorPhone("");
+    setSurveyorEmail("");
   }
 
   function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
@@ -195,19 +206,37 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       setError("Please enter the date for this step.");
       return;
     }
-    if (surveyOptions && !surveyChoice) {
-      setError("Please choose the surveyor you booked.");
-      return;
+    // Survey booking (PM9): capture who they booked + how to reach them.
+    const sm = milestones.find((mm) => mm.id === milestoneId);
+    let choice: SurveyBookingChoice | null = null;
+    if (sm?.code === "PM9") {
+      // If we quoted firms, they must say which (or "someone else"). With no
+      // quotes there's no "our firm" to pick, so it's a someone-else booking.
+      if (surveyOptions && !surveyChoice) {
+        setError("Please choose the surveyor you booked.");
+        return;
+      }
+      if (surveyChoice?.kind === "our_firm") {
+        choice = surveyChoice; // we already hold this firm's name + contact
+      } else {
+        // Someone else (picked, or implied when we didn't quote): require a name
+        // and at least one contact so we can arrange access (critique #295).
+        const name = otherFirmName.trim();
+        const phone = surveyorPhone.trim();
+        const email = surveyorEmail.trim();
+        if (!name) { setError("Enter the surveyor's name."); return; }
+        if (!phone && !email) { setError("Add the surveyor's email or phone, so we can arrange access."); return; }
+        choice = { kind: "someone_else", firmName: name || undefined, email: email || null, phone: phone || null };
+      }
     }
     const ed = eventDate || null;
-    const choice: SurveyBookingChoice | null = surveyChoice?.kind === "someone_else"
-      ? { kind: "someone_else", firmName: otherFirmName.trim() || undefined }
-      : surveyChoice;
     setConfirming(null);
     setEventDate("");
     setSurveyOptions(null);
     setSurveyChoice(null);
     setOtherFirmName("");
+    setSurveyorPhone("");
+    setSurveyorEmail("");
     setLoading(true);
     setProcessingId(milestoneId);
     startTransition(async () => {
@@ -707,13 +736,13 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 </div>
               )}
 
-              {surveyOptions && (
+              {confirmingMilestone?.code === "PM9" && (
                 <div className="mb-4">
                   <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    Which surveyor did you book?
+                    {surveyOptions ? "Which surveyor did you book?" : "Who did you book your survey with?"}
                   </label>
                   <div className="flex flex-col gap-2">
-                    {surveyOptions.map((o) => {
+                    {surveyOptions?.map((o) => {
                       const active = surveyChoice?.kind === "our_firm" && surveyChoice.quoteRequestId === o.quoteRequestId;
                       return (
                         <button
@@ -727,23 +756,48 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                         </button>
                       );
                     })}
-                    <button
-                      type="button"
-                      onClick={() => setSurveyChoice({ kind: "someone_else" })}
-                      className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
-                      style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : P.cardBg, color: P.textPrimary }}
-                    >
-                      I booked someone else
-                    </button>
-                    {surveyChoice?.kind === "someone_else" && (
-                      <input
-                        type="text"
-                        value={otherFirmName}
-                        onChange={(e) => setOtherFirmName(e.target.value)}
-                        placeholder="Surveyor's name (optional)"
-                        className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
-                        style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
-                      />
+                    {surveyOptions && (
+                      <button
+                        type="button"
+                        onClick={() => setSurveyChoice({ kind: "someone_else" })}
+                        className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
+                        style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : P.cardBg, color: P.textPrimary }}
+                      >
+                        I booked someone else
+                      </button>
+                    )}
+                    {/* Someone else (picked, or the only option when we didn't quote):
+                        name + at least one contact are required (critique #295). */}
+                    {(surveyChoice?.kind === "someone_else" || !surveyOptions) && (
+                      <>
+                        <input
+                          type="text"
+                          value={otherFirmName}
+                          onChange={(e) => setOtherFirmName(e.target.value)}
+                          placeholder="Surveyor's name"
+                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                        />
+                        <input
+                          type="tel"
+                          value={surveyorPhone}
+                          onChange={(e) => setSurveyorPhone(e.target.value)}
+                          placeholder="Surveyor's phone"
+                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                        />
+                        <input
+                          type="email"
+                          value={surveyorEmail}
+                          onChange={(e) => setSurveyorEmail(e.target.value)}
+                          placeholder="Surveyor's email"
+                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
+                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
+                        />
+                        <p className="text-[12px] leading-snug" style={{ color: P.textMuted }}>
+                          Add a phone or email so we can arrange access to the property.
+                        </p>
+                      </>
                     )}
                   </div>
                 </div>
