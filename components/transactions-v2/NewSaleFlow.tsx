@@ -727,8 +727,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       clearTimers();
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Upload failed (${res.status})`);
+        // The route returns a plain, user-ready reason in `error` (wrong file
+        // type, too large, couldn't read it, etc.). Surface that exact reason —
+        // flagged userFacing so the catch shows it rather than the generic line.
+        let reason = "";
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string") reason = body.error;
+        } catch { /* non-JSON body — fall back to the generic reason below */ }
+        const err = new Error(reason) as Error & { userFacing?: boolean };
+        err.userFacing = reason.length > 0;
+        throw err;
       }
 
       const data: ExtractedMemoData = await res.json();
@@ -812,9 +821,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       // A failed read returns to the drop screen (not a blank manual form) with
       // the reason shown next to the dropzone — re-drop a clearer copy or add
       // manually, their choice. resetToHero() clears extractionError, so re-set
-      // it after.
+      // it after. Prefer the route's specific, user-ready reason; fall back to a
+      // connection-oriented line when the request never reached it (network, etc.).
       resetToHero();
-      setExtractionError("We couldn't read that memo. Try a clearer photo or PDF, or add the details manually.");
+      const e = err as { userFacing?: boolean; message?: string };
+      setExtractionError(
+        e.userFacing && e.message
+          ? e.message
+          : "We couldn't upload your memo. Please check your connection and try again, or enter the details manually.",
+      );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gated]);

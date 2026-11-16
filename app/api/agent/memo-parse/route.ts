@@ -42,27 +42,29 @@ const ALLOWED_TYPES = new Set([
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  // Every `error` string here is shown to the user as-is on the upload screen,
+  // so keep them plain and voice-passed (no codes, no jargon, no em-dashes).
+  if (!session) return NextResponse.json({ error: "Your session has expired. Please sign in again and re-upload your memo." }, { status: 401 });
   // AI master switch (#291): this route builds its own Anthropic client, so the
   // proxied-client guard doesn't cover it — gate here.
-  if (!(await aiEnabled())) return NextResponse.json({ error: "AI is turned off" }, { status: 503 });
+  if (!(await aiEnabled())) return NextResponse.json({ error: "Automatic memo reading is currently unavailable. You can still enter the details manually." }, { status: 503 });
 
   let formData: FormData;
   try {
     formData = await req.formData();
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: "We couldn't process this file. Please try uploading it again or enter the details manually." }, { status: 400 });
   }
 
   const file = formData.get("file") as File | null;
-  if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+  if (!file) return NextResponse.json({ error: "No file was attached. Please select your memo and try again." }, { status: 400 });
 
   if (!ALLOWED_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "Please upload a PDF or image (JPG, PNG, WEBP)" }, { status: 400 });
+    return NextResponse.json({ error: "We can read PDFs and JPG, PNG or WEBP images. If you're uploading an iPhone photo, try taking a screenshot or saving the memo as a PDF." }, { status: 400 });
   }
 
   if (file.size > 10 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large — please use a file under 10 MB" }, { status: 400 });
+    return NextResponse.json({ error: "This file exceeds the 10 MB limit. Please upload a smaller image or PDF." }, { status: 400 });
   }
 
   const bytes = await file.arrayBuffer();
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     const raw = msg.content[0].type === "text" ? msg.content[0].text : "";
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) {
-      return NextResponse.json({ error: "Couldn't extract data from this document — try a clearer scan" }, { status: 422 });
+      return NextResponse.json({ error: "We couldn't read the details from this memo. Try uploading a clearer photo or the original PDF, or enter the details manually." }, { status: 422 });
     }
 
     const data = JSON.parse(match[0]);
@@ -105,6 +107,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...data, mosStoragePath, mosFileSize: file.size, mosMimeType: file.type, mosFilename: file.name });
   } catch (e) {
     console.error("memo-parse error:", e);
-    return NextResponse.json({ error: "Something went wrong reading the document" }, { status: 500 });
+    return NextResponse.json({ error: "We couldn't read your memo this time. Please try again shortly or enter the details manually." }, { status: 500 });
   }
 }
