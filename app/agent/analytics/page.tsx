@@ -115,13 +115,11 @@ export default async function AgentAnalyticsPage({
     // owner variant points its CTA at Clients). Other internal staff (TSP
     // progressors, admin, viewer) keep the simple card + ghost preview below.
     if (!isInternalStaff || isBusinessOwner) {
+      // Header hidden on the onboarding hero — it carries its own title + CTA.
       return (
-        <>
-          <PageHeader title="Analytics" subtitle="Performance and revenue across your pipeline." />
-          <div className="px-4 py-5 sm:px-8">
-            <AnalyticsEmptyState audience={isBusinessOwner ? "progressor" : "agency"} hasClients={ownerHasClients} />
-          </div>
-        </>
+        <div className="px-4 py-5 sm:px-8">
+          <AnalyticsEmptyState audience={isBusinessOwner ? "progressor" : "agency"} hasClients={ownerHasClients} />
+        </div>
       );
     }
     return (

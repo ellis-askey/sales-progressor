@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@phosphor-icons/react";
+import { CheckCircle, Circle, CaretDown, CaretUp, X, ListChecks } from "@/components/icons/ph";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
@@ -93,8 +93,7 @@ function SectionHeader({ label }: { label: string }) {
       padding: "10px 16px 4px",
       fontSize: 10,
       fontWeight: 700,
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
+      letterSpacing: "0.01em",
       color: "var(--agent-text-muted)",
     }}>
       {label}

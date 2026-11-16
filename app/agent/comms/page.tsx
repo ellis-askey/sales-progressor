@@ -8,7 +8,7 @@ import {
   resolveInternalVisibility,
   type UpdateFeedEntry,
 } from "@/lib/services/agent";
-import { ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { ChartLine } from "@/components/icons/ph-ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
 import { MarkBellReadOnView } from "@/components/agent/MarkBellReadOnView";
@@ -109,10 +109,14 @@ export default async function AgentCommsPage() {
   const progressorCopy = entries.length === 0 ? await getProgressorCopy(session.user.agencyId) : { count: 0, name: null };
   const progressorName = progressorCopy.count >= 2 ? "your progressors" : progressorCopy.name;
 
+  // Hide the canonical header while the brand-new onboarding hero shows.
+  const showOnboardingHero = entries.length === 0 && (!isInternalStaff || isBusinessOwner);
+
   return (
     <>
       {/* Reading the Updates page clears the notification bell. */}
       <MarkBellReadOnView />
+      {!showOnboardingHero && (
       <PageHeader
         title="Updates"
         subtitle={
@@ -122,6 +126,7 @@ export default async function AgentCommsPage() {
         }
       >
       </PageHeader>
+      )}
 
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-4">
 

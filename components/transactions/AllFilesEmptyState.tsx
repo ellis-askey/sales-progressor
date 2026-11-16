@@ -6,7 +6,7 @@
 // you, and a real "Explore demo sale" card that reuses the shared demo flow.
 
 import Link from "next/link";
-import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
+import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -38,7 +38,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
       >
         <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, letterSpacing: "0.02em", fontWeight: 700 }}>
             No files yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>

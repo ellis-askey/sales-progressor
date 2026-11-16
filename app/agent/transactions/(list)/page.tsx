@@ -245,10 +245,18 @@ export default async function AllTransactionsPage({
         .toLocaleDateString("en-GB", { month: "long", year: "numeric" })
     : null;
 
+  // Brand-new onboarding: the full-bleed empty-state hero IS the page, so hide the
+  // canonical header + its actions while it shows (the hero carries its own title
+  // and CTA); they return the moment a file exists. Only the hero audience — the
+  // plain internal-staff empty state keeps its header.
+  const showOnboardingHero = allTransactions.length === 0 && (!isInternalStaff || isBusinessOwner);
+
   return (
     <>
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
-       * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
+       * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12).
+       * Hidden while the onboarding hero shows (see showOnboardingHero). */}
+      {!showOnboardingHero && (
       <PageHeader
         title={isDirector || isAdminPowers || isExternalProgressorSeeAll || isViewer ? "All Files" : "My Files"}
         subtitle={
@@ -281,6 +289,7 @@ export default async function AllTransactionsPage({
           <AgentFlagButton transactionId={null} address="general" label={`Send a note to ${noteTeamLabel}`} />
         )}
       </PageHeader>
+      )}
 
       <BloomStage className="px-4 md:px-8 py-2 md:py-4 space-y-5">
 

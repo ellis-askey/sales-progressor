@@ -244,9 +244,14 @@ export default async function AgentCompletionsPage() {
     return [{ key, label, files: fileRows, groupValue, groupFeeTotal, missingFeeCount }];
   });
 
+  // Hide the canonical header while the brand-new onboarding hero shows — the hero
+  // is the page; the header returns once there's a completion.
+  const showOnboardingHero = files.length === 0 && isBrandNew;
+
   return (
     <>
       {/* OLD subtitle: "Files that have exchanged and are heading to completion." */}
+      {!showOnboardingHero && (
       <PageHeader
         title="Completions"
         subtitle={
@@ -259,6 +264,7 @@ export default async function AgentCompletionsPage() {
           <StatPill key={s.key} href={s.anchor} label={s.label} color={s.pillColor} />
         ))}
       </PageHeader>
+      )}
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div className="px-4 md:px-8 py-2 md:py-4 space-y-7 agent-bloom-stagger">

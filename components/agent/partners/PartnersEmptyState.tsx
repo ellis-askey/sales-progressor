@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@phosphor-icons/react";
+import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -176,7 +176,7 @@ export function PartnersEmptyState({
       >
         <HeroArt light="/partners-hero.png" dark="/partners-hero-dark.png" maxWidth="50%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 460 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, letterSpacing: "0.02em", fontWeight: 700 }}>
             Your partner network
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>

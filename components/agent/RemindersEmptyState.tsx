@@ -12,7 +12,7 @@
 // neither, so no CTA.
 
 import Link from "next/link";
-import { Plus, Bell, UsersThree, ShieldWarning } from "@phosphor-icons/react";
+import { Plus, Bell, UsersThree, ShieldWarning } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
@@ -43,7 +43,7 @@ export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean;
       >
         <HeroArt light="/reminders-hero.png" dark="/reminders-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
             No reminders yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@phosphor-icons/react";
+import { Plus, ListChecks, BookOpen, ArrowSquareOut } from "@/components/icons/ph";
 import { createManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { SetupCard } from "@/components/agent/SetupCard";
@@ -60,7 +60,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
       >
         <HeroArt light="/todo-hero.png" dark="/todo-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
             Nothing here yet
           </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>

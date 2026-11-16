@@ -8,7 +8,7 @@
 // primitives; the copy and the CTA target are what differ.
 
 import Link from "next/link";
-import { Handshake, ListChecks, UsersThree, Plus } from "@phosphor-icons/react";
+import { Handshake, ListChecks, UsersThree, Plus } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
@@ -47,7 +47,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
       >
         <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+          <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, letterSpacing: "0.02em", fontWeight: 700 }}>
             {pillText}
           </Pill>
           <p style={{ margin: "0 0 10px", fontSize: 29, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>

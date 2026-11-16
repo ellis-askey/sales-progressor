@@ -90,16 +90,21 @@ export default async function AgentTodoPage() {
       ? `Your notes, plus anything you've flagged to ${pc.count >= 2 ? "your progressors" : "your progressor"}.`
       : "Your notes and reminders.";
 
+  // Hide the canonical header while the brand-new onboarding hero shows.
+  const showOnboardingHero = tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner);
+
   return (
     <>
       {/* The quick-nav stat pills are gone — the tabs below carry the counts now
           (critique #261). */}
+      {!showOnboardingHero && (
       <PageHeader title="To-Do" subtitle={subtitle}>
         {/* #292: on mobile, AgentTodoList portals its context-aware "Add to-do /
             Add review" button into this slot, so all three actions share one row.
             display:contents means it adds no box (no phantom gap) on desktop. */}
         <span id="todo-mobile-add-slot" style={{ display: "contents" }} />
       </PageHeader>
+      )}
 
       {tasks.length === 0 && !hasReviews && (!isInternal || isBusinessOwner) ? (
         // Brand-new agency user OR progression-business owner: the onboarding
