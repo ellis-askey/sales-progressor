@@ -128,10 +128,6 @@ export default async function AllTransactionsPage({
   // membership. The "Assigned to" column stays for them either way — it names the
   // agency agent who added the sale plus the progressor it's assigned to.
   const isExternalProgressorSeeAll = isExternalProgressor && (isBusinessOwner || !!session.user.canViewAllFiles);
-  // A progressor gets a "New sale" entry: the owner always; a team member only
-  // once the business has ≥1 client (they can't add clients themselves).
-  const progressorCanCreate = isExternalProgressor
-    && (isBusinessOwner || (!!session.user.progressionBusinessId && await businessHasClients(session.user.progressionBusinessId)));
   // Hide "ASSIGNED TO" for roles that only ever see their own files — the column would always show
   // their own name, which is redundant. Directors and internal staff see files belonging to multiple
   // people, so the column is meaningful for them. An external progressor also sees a multi-teammate
@@ -268,19 +264,9 @@ export default async function AllTransactionsPage({
           "Files assigned to you."
         }
       >
-        {/* "New sale" — agents + admin; also an external progressor who can create
-            (owner always, team member once a client exists). Hidden for TSP
-            progressors and viewers. */}
-        {((session.user.role !== "sales_progressor" && session.user.role !== "viewer") || progressorCanCreate) && (
-          <Link
-            href="/agent/transactions/new"
-            className="agent-btn agent-btn-primary agent-btn-sm"
-            style={{ textDecoration: "none" }}
-          >
-            <Plus size={14} weight="bold" />
-            New sale
-          </Link>
-        )}
+        {/* The standalone header "New sale" button was removed (founder, 2026-11-16):
+            sales are created from elsewhere; the empty-state hero still carries its
+            own "Add your first sale" CTA. */}
         {/* AgentFlagButton — agent-only, and only when there's a team to receive
             it (an active outsourced sale) AND one obvious recipient. A
             2+-progressor agency has no single destination for a general note, so
