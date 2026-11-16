@@ -262,7 +262,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
           </h1>
           <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
             {step === 1
-              ? "Step 1 of 2: your details"
+              ? "Step 1 of 2: Your details"
               : isProgressor
                 ? "Step 2 of 2: Set up your business"
                 : "Step 2 of 2: Set up your agency"}
