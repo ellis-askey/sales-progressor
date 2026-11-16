@@ -10,7 +10,7 @@
 // In narrowed contexts (hub / month filter) the bar is hidden and it's list-only.
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@/components/icons/ph";
+import { SquaresFour, Rows, ChartLineUp, MapTrifold, CaretDown } from "@phosphor-icons/react";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { TransactionStatus } from "@prisma/client";
 import { TransactionListWithSearch } from "./TransactionListWithSearch";
