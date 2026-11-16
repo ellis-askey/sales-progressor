@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_COOKIE_MAX_AGE } from "@/lib/analytics/attribution";
@@ -207,8 +208,14 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
           display: inline-flex; align-items: center; gap: 4px;
           transition: color 0.15s ease;
         }
-        .reg-alt-link:hover { color: #C7401F; }
+        .reg-alt-link:hover { color: #E55B3D; }
         .reg-alt-link:focus-visible { outline: 2px solid #FF6B4A; outline-offset: 2px; border-radius: 4px; }
+        /* Inline coral links (Terms, Privacy, Sign in) — no underline at rest,
+           darken to the canonical coral-darker (#E55B3D) on hover so every orange
+           link shares one hover language with .agent-link / "Open chain". */
+        .reg-link { color: #FF6B4A; text-decoration: none; transition: color 0.15s ease; }
+        .reg-link:hover { color: #E55B3D; }
+        .reg-link:focus-visible { outline: 2px solid #FF6B4A; outline-offset: 2px; border-radius: 4px; }
         .reg-alt-arrow { display: inline-block; transition: transform 0.15s ease; }
         .reg-alt-link:hover .reg-alt-arrow { transform: translateX(3px); }
         @media (prefers-reduced-motion: reduce) { .reg-alt-arrow { transition: none; } }
@@ -324,7 +331,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                       )}
                     </button>
                   </div>
-                  {password.length > 0 && password.length < 8 && (
+                  {password.length > 0 && password.length < 10 && (
                     <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 10 characters required</p>
                   )}
                   <PasswordStrength password={password} />
@@ -340,11 +347,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                       display: "flex", alignItems: "center", justifyContent: "center",
                       transition: "all 0.15s ease",
                     }}>
-                      {termsAccepted && (
-                        <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
+                      {termsAccepted && <AnimatedTick size={10} color="#fff" strokeWidth={3} />}
                     </div>
                   </div>
                   <span style={{ fontSize: "12px", color: "rgba(32,36,46,0.60)", lineHeight: 1.5 }}>
@@ -355,12 +358,12 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                       href={isProgressor ? "/progression-business-terms" : "/terms"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}
+                      className="reg-link"
                     >
                       {isProgressor ? "Sales Progression Business Terms" : "Terms of Service"}
                     </a>
                     {" "}and{" "}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6B4A", textDecoration: "underline", textUnderlineOffset: "2px" }}>Privacy Policy</a>
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="reg-link">Privacy Policy</a>
                   </span>
                 </label>
 
@@ -381,7 +384,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
 
                 <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
                   Already have an account?{" "}
-                  <Link href="/login" style={{ color: "#FF6B4A", fontWeight: 500, textDecoration: "none" }}>Sign in</Link>
+                  <Link href="/login" className="reg-link" style={{ fontWeight: 500 }}>Sign in</Link>
                 </p>
 
                 {/* Option D — agency is the clean default; an independent sales
@@ -468,9 +471,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                             display: "flex", alignItems: "center", justifyContent: "center",
                             boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                           }}>
-                            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
+                            <AnimatedTick size={11} color="#C7401F" strokeWidth={3.5} />
                           </span>
                         )}
                       </label>

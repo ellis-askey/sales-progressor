@@ -1,11 +1,12 @@
 // Password strength meter for the auth pages (register, invited-password,
-// reset-password). Only ever shown once the user reaches the 8-char minimum.
+// reset-password). Only ever shown once the user reaches the 10-char minimum
+// (the shared minimum across all three forms).
 // Scored from character variety + length, drawn as four bars in the warm palette.
 
 function scorePassword(pw: string): 1 | 2 | 3 | 4 {
   const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].reduce((n, re) => n + (re.test(pw) ? 1 : 0), 0);
-  let s = 1; // Weak — meets the 8-char minimum
-  if (classes >= 2 && pw.length >= 8) s = 2; // Fair
+  let s = 1; // Weak — meets the 10-char minimum
+  if (classes >= 2 && pw.length >= 10) s = 2; // Fair
   if (classes >= 3 && pw.length >= 10) s = 3; // Good
   if (classes >= 4 && pw.length >= 12) s = 4; // Strong
   return s as 1 | 2 | 3 | 4;
@@ -19,7 +20,7 @@ const STRENGTH = {
 } as const;
 
 export function PasswordStrength({ password }: { password: string }) {
-  if (password.length < 8) return null;
+  if (password.length < 10) return null;
   const score = scorePassword(password);
   const meta = STRENGTH[score];
   return (
