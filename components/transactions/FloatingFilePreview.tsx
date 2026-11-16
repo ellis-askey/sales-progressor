@@ -103,6 +103,14 @@ export function FloatingFilePreview({
     return () => { live = false; };
   }, [id, open]);
 
+  // Re-pull the extras after an in-panel mutation (note / email) so the Latest
+  // note and Next reminder cards reflect it without closing the panel. The fetch
+  // effect only re-runs on id/open change, which a modal open doesn't touch.
+  const refreshExtras = () => {
+    if (!id) return;
+    getFilePreviewExtras(id).then((res) => { if (res.ok) setExtras(res); }).catch(() => {});
+  };
+
   // Reset per-file UI (note expand, photo-failure) when the file changes.
   useEffect(() => { setNoteExpanded(false); setPhotoFailed(false); }, [id]);
   // Measure the collapsed note: does it overflow (→ expandable), and its full
@@ -389,8 +397,8 @@ export function FloatingFilePreview({
   return (
     <>
       {createPortal(panel, document.body)}
-      <ComposeEmailModal open={emailOpen} onClose={() => setEmailOpen(false)} initialTransactionId={r.id} prefill={emailPrefill} elevated />
-      <AddNoteModal open={noteOpen} onClose={() => setNoteOpen(false)} initialTransactionId={r.id} />
+      <ComposeEmailModal open={emailOpen} onClose={() => { setEmailOpen(false); refreshExtras(); }} initialTransactionId={r.id} prefill={emailPrefill} elevated />
+      <AddNoteModal open={noteOpen} onClose={() => { setNoteOpen(false); refreshExtras(); }} initialTransactionId={r.id} />
     </>
   );
 }

@@ -11,6 +11,12 @@ function revalidateTx(id: string) {
   // time to appear (critique: management pack slow to unlock).
   revalidatePath(`/transactions/${id}`, "layout");
   revalidatePath(`/agent/transactions/${id}`, "layout");
+  // The All Files list caches for 5 min (unstable_dynamicStaleTime); a milestone
+  // confirm moves the row's stage / pipeline column / forecast, so purge the list
+  // and hub too (matching changeStatusAction). Without this the list showed the
+  // old stage until the cache expired — "my confirmation didn't take".
+  revalidatePath("/agent/transactions");
+  revalidatePath("/agent/hub");
 }
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";

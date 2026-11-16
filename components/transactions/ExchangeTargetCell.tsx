@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDate, toUKDateStr } from "@/lib/utils";
+import { useAgentToast } from "@/components/agent/AgentToaster";
 
 export function ExchangeTargetCell({
   transactionId,
@@ -16,6 +17,7 @@ export function ExchangeTargetCell({
 }) {
   const [localDate, setLocalDate] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
+  const { toast } = useAgentToast();
 
   const twelveWeekTarget = new Date(createdAt);
   twelveWeekTarget.setDate(twelveWeekTarget.getDate() + 84);
@@ -34,6 +36,7 @@ export function ExchangeTargetCell({
       body: JSON.stringify({ expectedExchangeDate: dateStr }),
     });
     if (res.ok) setLocalDate(new Date(dateStr));
+    else toast.error("Couldn't save the target date. Please try again.");
     setSaving(false);
   }
 
