@@ -110,7 +110,7 @@ export function ChainBuildMap({ stubs, originatorAddress, bare = false }: { stub
           <Placeholder label="Add a property with a postcode and it'll drop onto the map here. Your chain takes shape as you build it." />
         ) : (
           <>
-            <ChainGeoMap nodes={nodes} moves={moves} details={details} selectedId={selectedId} onSelectNode={setSelectedId} theme={isNight ? "dark" : "light"} hideAttribution animateNewLegs />
+            <ChainGeoMap nodes={nodes} moves={moves} details={details} selectedId={selectedId} onSelectNode={setSelectedId} theme={isNight ? "dark" : "light"} hideAttribution animateNewLegs collapsibleSummary />
             {plotted === 0 && (
               // Sits in the gap between the bottom-left legend and the bottom-right
               // +/- zoom control, rather than spanning the full width and colliding

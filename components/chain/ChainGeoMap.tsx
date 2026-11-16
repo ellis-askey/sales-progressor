@@ -118,6 +118,7 @@ export function ChainGeoMap({
   theme,
   hideAttribution = false,
   animateNewLegs = false,
+  collapsibleSummary = false,
 }: {
   nodes: ChainMapNode[];
   moves: ChainMapMove[];
@@ -125,6 +126,10 @@ export function ChainGeoMap({
   selectedId: string | null;
   onSelectNode: (id: string | null) => void;
   theme: "light" | "dark";
+  // Build-map only: collapse the stats into a tappable top-right pill so the
+  // journey (pins + route) is the hero and nothing covers it. Expand on tap.
+  // Off in the chain drawer, which keeps the classic top summary strip.
+  collapsibleSummary?: boolean;
   // Drop the map's attribution "ⓘ" control (used by the new-sale preview, where
   // the map is a small embedded companion). Also flips the zoom control to the
   // bottom-right so it never sits under the top-left summary bar.
@@ -647,6 +652,53 @@ export function ChainGeoMap({
   // "X of N in chain" — only for a numbered spine property (branch labels are "↑").
   const posLabel = selDetail && /^\d+$/.test(selDetail.label) ? `${selDetail.label} of ${nodes.length} in chain` : null;
 
+  // Collapsible summary (build map): the metric cards + focus panel live behind
+  // a top-right pill so the map/journey stays clear; expanded on tap. The drawer
+  // map renders the same content as the classic top strip instead.
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const summaryInner = (
+    <>
+      <div className="chn-metric">
+        <span className="chn-metric-ic"><House size={20} weight="regular" /></span>
+        <span><b>{nodes.length}</b><span>{nodes.length === 1 ? "property" : "properties"}</span></span>
+      </div>
+      <div className="chn-metric">
+        <span className="chn-metric-ic"><ShareNetwork size={20} weight="regular" /></span>
+        <span><b>{moves.length}</b><span>{moves.length === 1 ? "move" : "moves"}</span></span>
+      </div>
+      {geoMoves.length > 0 && (
+        <div className="chn-metric">
+          <span className="chn-metric-ic"><MapPin size={20} weight="regular" /></span>
+          <span><b>{allDriving ? "" : "~"}{Math.round(totalMiles)}</b><span>miles total</span></span>
+        </div>
+      )}
+      {anyDriving && totalDriveSeconds > 0 && (
+        <div className="chn-metric">
+          <span className="chn-metric-ic"><Clock size={20} weight="regular" /></span>
+          <span><b>{allDriving ? "" : "~"}{fmtDur(totalDriveSeconds)}</b><span>total drive time</span></span>
+        </div>
+      )}
+      <div className="chn-focus">
+        {selectedId && selDetail ? (
+          <>
+            <span className="chn-focus-txt">
+              <span className="chn-focus-label">{posLabel ?? "Onward purchase"}</span>
+              <span className="chn-focus-sub">{selDetail.line1}</span>
+            </span>
+            <button type="button" className="chn-focus-x" aria-label="Clear selection" onClick={() => onSelectNode(null)}>×</button>
+          </>
+        ) : longest ? (
+          // Framed as the household move (lower → upper): select the mover (toId).
+          <button type="button" className="chn-focus-long" onClick={() => onSelectNode(longest.m.toId)}>
+            <span className="chn-focus-label">Longest move</span>
+            <span className="chn-focus-val">{allDriving ? "" : "~"}{miEl(longest.miles)}{longest.r ? ` · ${fmtDur(longest.r.durationSeconds)}` : ""}</span>
+            <span className="chn-focus-sub">{details[longest.m.toId]?.line1} → {details[longest.m.fromId]?.line1}</span>
+          </button>
+        ) : null}
+      </div>
+    </>
+  );
+
   return (
     <div className="chn-map-wrap">
       <div ref={containerRef} className="chn-map-canvas" />
@@ -670,49 +722,35 @@ export function ChainGeoMap({
         );
       })()}
 
-      {/* Summary bar — metric cards + a contextual focus panel (the longest move
-          by default; the selected property's place in the chain once one is
-          picked). Position lives here now, so the map popup stays lean. */}
-      <div className="chn-summary">
-        <div className="chn-metric">
-          <span className="chn-metric-ic"><House size={20} weight="regular" /></span>
-          <span><b>{nodes.length}</b><span>{nodes.length === 1 ? "property" : "properties"}</span></span>
-        </div>
-        <div className="chn-metric">
-          <span className="chn-metric-ic"><ShareNetwork size={20} weight="regular" /></span>
-          <span><b>{moves.length}</b><span>{moves.length === 1 ? "move" : "moves"}</span></span>
-        </div>
-        {geoMoves.length > 0 && (
-          <div className="chn-metric">
-            <span className="chn-metric-ic"><MapPin size={20} weight="regular" /></span>
-            <span><b>{allDriving ? "" : "~"}{Math.round(totalMiles)}</b><span>miles total</span></span>
-          </div>
-        )}
-        {anyDriving && totalDriveSeconds > 0 && (
-          <div className="chn-metric">
-            <span className="chn-metric-ic"><Clock size={20} weight="regular" /></span>
-            <span><b>{allDriving ? "" : "~"}{fmtDur(totalDriveSeconds)}</b><span>total drive time</span></span>
-          </div>
-        )}
-        <div className="chn-focus">
-          {selectedId && selDetail ? (
-            <>
-              <span className="chn-focus-txt">
-                <span className="chn-focus-label">{posLabel ?? "Onward purchase"}</span>
-                <span className="chn-focus-sub">{selDetail.line1}</span>
-              </span>
-              <button type="button" className="chn-focus-x" aria-label="Clear selection" onClick={() => onSelectNode(null)}>×</button>
-            </>
-          ) : longest ? (
-            // Framed as the household move (lower → upper): select the mover (toId).
-            <button type="button" className="chn-focus-long" onClick={() => onSelectNode(longest.m.toId)}>
-              <span className="chn-focus-label">Longest move</span>
-              <span className="chn-focus-val">{allDriving ? "" : "~"}{miEl(longest.miles)}{longest.r ? ` · ${fmtDur(longest.r.durationSeconds)}` : ""}</span>
-              <span className="chn-focus-sub">{details[longest.m.toId]?.line1} → {details[longest.m.fromId]?.line1}</span>
+      {/* Summary — metric cards + a contextual focus panel (the longest move by
+          default; the selected property's place in the chain once one is picked).
+          Build map: collapsed into a top-right pill so the journey stays clear,
+          expanded on tap (a scrim closes it on an outside tap). Drawer map: the
+          classic top strip. Same content either way (summaryInner). */}
+      {collapsibleSummary ? (
+        <>
+          {summaryOpen && <div className="chn-mini-scrim" onClick={() => setSummaryOpen(false)} />}
+          <div className={`chn-summary-mini${summaryOpen ? " open" : ""}`}>
+            <button
+              type="button"
+              className="chn-mini-pill"
+              aria-expanded={summaryOpen}
+              aria-label={summaryOpen ? "Hide chain summary" : "Show chain summary"}
+              onClick={() => setSummaryOpen((o) => !o)}
+            >
+              <House size={15} weight="regular" />
+              <b>{nodes.length}</b>
+              <span>{nodes.length === 1 ? "property" : "properties"}</span>
+              <svg className="chn-mini-caret" width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          ) : null}
-        </div>
-      </div>
+            {summaryOpen && <div className="chn-mini-pop">{summaryInner}</div>}
+          </div>
+        </>
+      ) : (
+        <div className="chn-summary">{summaryInner}</div>
+      )}
 
       {/* Legend */}
       <div className="chn-legend">
