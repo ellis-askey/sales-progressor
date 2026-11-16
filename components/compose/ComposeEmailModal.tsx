@@ -1131,7 +1131,7 @@ const CEM_CSS = `
 .cem-tbsep{width:1px;height:18px;background:var(--agent-border-default);margin:0 4px}
 .cem-tbspace{flex:1}
 .cem-count{font-size:10.5px;color:var(--agent-text-muted);padding:0 8px;font-variant-numeric:tabular-nums}
-.cem-refine{display:inline-flex;align-items:center;justify-content:center;width:auto;height:30px;padding:0 12px;gap:6px;font-size:12px;font-weight:650;color:#fff;border:1px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28),0 1px 4px rgba(224,78,44,0.26);transition:filter .12s}
+.cem-refine{display:inline-flex;align-items:center;justify-content:center;width:auto;height:30px;padding:0 12px;gap:6px;font-size:12px;font-weight:650;color:#fff;border:1px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.28),0 1px 4px rgba(var(--agent-coral-rgb),0.26);transition:filter .12s}
 .cem-refine:hover{filter:brightness(1.05)}.cem-refine:disabled{opacity:.7;cursor:default}
 .cem-refine-note{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--agent-success,#1F8A4A);font-weight:600}
 .cem-refine-note a{color:var(--agent-coral-deep);cursor:pointer;font-weight:600}
@@ -1140,7 +1140,7 @@ const CEM_CSS = `
 .cem-attach .cem-x{cursor:pointer;color:var(--agent-text-muted);font-size:13px}.cem-attach .cem-x:hover{color:var(--agent-danger)}
 .cem-foot{flex-shrink:0;display:flex;flex-direction:column;padding:12px 20px 16px;border-top:1px solid var(--agent-border-subtle);background:var(--agent-surface-elevated,#fff)}
 .cem-fromline{font-size:11px;color:var(--agent-text-muted);margin-right:auto}.cem-fromline b{color:var(--agent-text-secondary);font-weight:600}
-.cem-send{display:inline-flex;align-items:stretch;border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(255,107,74,0.28)}
+.cem-send{display:inline-flex;align-items:stretch;border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(var(--agent-coral-rgb),0.28)}
 /* Polished split-send — matches the enquiries "Replies sent" primary
    (.enq-btn-primary2): one vertical coral→coral-deep gradient across BOTH
    halves, a top sheen, and a white hairline between them. Was two mismatched
