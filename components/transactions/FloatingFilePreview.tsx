@@ -26,6 +26,7 @@ import { JourneyBar } from "./JourneyBar";
 import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
 import { AddNoteModal } from "@/components/activity/AddNoteModal";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { jobTitleLabel } from "@/lib/contacts/job-title-label";
 import { DISPLAY_STAGES } from "@/lib/milestones/display-stages";
 import { getFilePreviewExtras, type FilePreviewExtras } from "@/app/actions/file-preview";
 import type { TransactionRow } from "./TransactionRowView";
@@ -227,7 +228,7 @@ export function FloatingFilePreview({
           <div className="ffp-stage">
             <div className="ffp-stage-bar">
               {r.boardStage
-                ? <JourneyBar stage={r.boardStage} />
+                ? <span style={r.status === "withdrawn" ? { display: "block", opacity: 0.5, filter: "grayscale(0.5)" } : undefined}><JourneyBar stage={r.boardStage} /></span>
                 : statusMark
                   ? <span className="ffp-stage-status" style={{ color: statusMark.color }}><statusMark.Icon size={15} weight="fill" /> {statusMark.label}</span>
                   : <span className="ffp-muted">Not started</span>}
@@ -322,7 +323,7 @@ export function FloatingFilePreview({
                         {extras.people.map((p) => (
                           <div key={p.id} className="ffp-person">
                             <UserAvatar user={{ name: p.name, image: p.image }} size={28} />
-                            <span className="ffp-person-txt"><span className="ffp-person-name">{p.name}</span><span className="ffp-person-role">{p.jobTitle ?? (p.slot === "assigned" ? "Progressor" : "Agent")}</span></span>
+                            <span className="ffp-person-txt"><span className="ffp-person-name">{p.name}</span><span className="ffp-person-role">{jobTitleLabel(p.jobTitle) ?? (p.slot === "assigned" ? "Progressor" : "Agent")}</span></span>
                             {actions(p.name, p.email, p.phone)}
                           </div>
                         ))}
@@ -428,7 +429,10 @@ function ReminderBlock({ onHold, holdInfo, loading, failed, terminal, reminder, 
     );
   }
   if (failed || !reminder) {
-    const val = failed ? "—" : stateText ?? (terminal ? "None" : "None scheduled");
+    // Terminal files have nothing to chase — show "None", never the board-stage
+    // name that stateText would otherwise fall back to (which read as a bogus
+    // "Next reminder: Completion" on finished sales).
+    const val = failed ? "—" : terminal ? "None" : (stateText ?? "None scheduled");
     return (
       <div className="ffp-reminder">
         <span className="ffp-card-lab"><CalendarBlank size={14} weight="regular" /> Next reminder</span>

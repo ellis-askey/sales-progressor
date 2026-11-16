@@ -15,6 +15,7 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
+import { jobTitleLabel } from "@/lib/contacts/job-title-label";
 import { formatDate } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateHoldReasonAction, extendHoldAction } from "@/app/actions/automation";
@@ -88,7 +89,7 @@ export const COL_LABEL: Record<FilesColumn, string> = {
 // The founder preview tightens three of the labels; everyone else sees the
 // strings above unchanged. Use colLabel() wherever a header / card label renders.
 const COL_LABEL_PREVIEW: Partial<Record<FilesColumn, string>> = {
-  stage: "Progress", activity: "Next action", exchange: "Exchange",
+  stage: "Progress", exchange: "Exchange",
 };
 export function colLabel(col: FilesColumn, preview?: boolean): string {
   return (preview && COL_LABEL_PREVIEW[col]) || COL_LABEL[col];
@@ -306,34 +307,6 @@ function PaceLine({ pace }: { pace: NonNullable<NonNullable<TransactionRow["heal
   );
 }
 
-// Next action — one concise line (icon + the honest next-step), coloured by tone
-// so overdue / outstanding / normal read at a glance. Falls back to the activity
-// verb, then a calm "No action needed". (Files redesign 2026-11-13, founder
-// preview only — replaces the older three-line activity chip in the row.)
-type NextTone = NonNullable<NonNullable<TransactionRow["health"]>["nextStep"]>["tone"];
-const NEXT_ICON: Record<NextTone, { Icon: typeof PaperPlaneTilt; color: string }> = {
-  danger: { Icon: WarningCircle, color: "var(--agent-danger)" },
-  warn:   { Icon: ClockCounterClockwise, color: "var(--agent-warning)" },
-  accent: { Icon: PaperPlaneTilt, color: "var(--agent-coral-deep)" },
-  chain:  { Icon: ArrowBendUpLeft, color: "#5b6b8c" },
-  ready:  { Icon: CheckCircle, color: "var(--agent-success)" },
-  auto:   { Icon: PaperPlaneTilt, color: "var(--agent-info)" },
-  muted:  { Icon: ClockCounterClockwise, color: "var(--agent-text-muted)" },
-};
-function NextActionCell({ tx }: { tx: TransactionRow }) {
-  const next = tx.health?.nextStep ?? null;
-  const tone: NextTone = next?.tone ?? "muted";
-  const text = next?.text ?? tx.health?.activityVerb ?? (tx.health ? "No action needed" : "Just added");
-  const { Icon, color } = NEXT_ICON[tone];
-  const strong = tone === "danger" || tone === "warn";
-  return (
-    <span className="files-next">
-      <Icon size={16} weight="regular" style={{ color, flexShrink: 0, marginTop: 1 }} />
-      <span className="files-next-txt" style={{ color: strong ? color : "var(--agent-text-primary)", fontWeight: strong ? 700 : 600 }}>{text}</span>
-    </span>
-  );
-}
-
 /* JourneyStages — the six conveyancing stages inside the journey popover.
  * Done stages tick green, the current stage is coral, upcoming are muted.
  * Colours are set explicitly (stamping data-theme on a portal re-declares the
@@ -486,13 +459,6 @@ function HandledBy({ tx }: { tx: TransactionRow }) {
 // meaning: a blank title, or a bare "Director" / "Negotiator" (the generic agency
 // roles), shows nothing rather than a redundant label. Real titles — "Client
 // manager", "Progressor", "Sales Progressor", "Service Director" — show as set.
-function jobTitleLabel(jobTitle?: string | null): string | undefined {
-  const t = jobTitle?.trim();
-  if (!t) return undefined;
-  if (/^(director|negotiator)$/i.test(t)) return undefined;
-  return t;
-}
-
 // ── Per-tab cells (files-table redesign) ─────────────────────────────────────
 
 // "5th November 2026" — ordinal long form for the post-exchange completion date,
@@ -724,7 +690,7 @@ function ReasonCell({ tx }: { tx: TransactionRow }) {
 // each date says which one it is.
 function keyDateLabel(tx: TransactionRow): string {
   switch (tx.status) {
-    case "active": return "Exchange";
+    case "active": return tx.exchangedAt ? "Completion" : "Exchange";
     case "on_hold": return "Due back";
     case "completed": return "Completion";
     case "withdrawn": return "Withdrawn";
@@ -837,7 +803,7 @@ function RowMarker({ tx, activeTab, preview }: { tx: TransactionRow; activeTab?:
 function renderCell(col: FilesColumn, tx: TransactionRow, preview?: boolean): ReactNode {
   switch (col) {
     case "stage": return <StageCell tx={tx} preview={preview} />;
-    case "activity": return preview ? <NextActionCell tx={tx} /> : <ActivityVerbChip tx={tx} />;
+    case "activity": return <ActivityVerbChip tx={tx} />;
     case "exchange": return <ExchangeCell tx={tx} preview={preview} />;
     case "keydate": return <KeyDateCell tx={tx} preview={preview} />;
     case "review": return <ReviewCell tx={tx} />;
@@ -993,10 +959,11 @@ export function TransactionRowView({
                 <>
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0"><PropertyCell tx={tx} activeTab={activeTab} showAgency={showAgencyColumn} showAssigned={showAssignedToColumn} preview compact /></div>
-                    {hasPeople && people.length > 0 && (
-                      <span className="shrink-0" aria-label={`On the file: ${people.map((p) => p.name).join(", ")}`}>
-                        <UserAvatarStack people={people} size={28} />
-                      </span>
+                    {hasPeople && (people.length > 0
+                      ? <span className="shrink-0" aria-label={`On the file: ${people.map((p) => p.name).join(", ")}`}>
+                          <UserAvatarStack people={people} size={28} />
+                        </span>
+                      : <span className="shrink-0 handled-none" style={{ fontSize: 12, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>Unassigned</span>
                     )}
                   </div>
                   {stackCols.map((col) => <div key={col}>{stacked(col)}</div>)}
