@@ -6,7 +6,7 @@
 // you, and a real "Explore demo sale" card that reuses the shared demo flow.
 
 import Link from "next/link";
-import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@/components/icons/ph";
+import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { GlassCard } from "@/components/glass/GlassCard";
