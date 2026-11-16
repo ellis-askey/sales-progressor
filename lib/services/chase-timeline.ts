@@ -680,8 +680,11 @@ export async function getChaseTimeline(
       events.push({
         at: m.createdAt.toISOString(),
         kind: "manual_chase",
+        // A manual chase can go to a different recipient than this thread's auto
+        // lane (e.g. the agent emails the client on a solicitor-owned thread), so
+        // name who the message ACTUALLY went to, not the lane's default.
         category: "email",
-        title: `Chase emailed to ${waitingOn}`,
+        title: `Chase emailed to ${m.recipientName || waitingOn}`,
         subject: m.subject ?? undefined,
         actor: senderActor(m.createdById, m.createdByRole, senderNameById),
         delivery: m.openedAt ? "opened" : m.deliveredAt ? "delivered" : "sent",
