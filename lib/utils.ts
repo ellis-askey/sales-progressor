@@ -102,6 +102,16 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+/**
+ * Canonical email for storage: trimmed + lowercased, or null when empty or not a
+ * valid-looking address. Use anywhere we persist a user-entered email so stored
+ * values stay clean and comparable (never store a half-typed / mixed-case one).
+ */
+export function cleanEmail(raw: string | null | undefined): string | null {
+  const e = (raw ?? "").trim().toLowerCase();
+  return e && isValidEmail(e) ? e : null;
+}
+
 const NAME_PREFIXES = new Set(["mr","mrs","ms","miss","dr","prof","sir","lord","lady","rev"]);
 const NAME_SUFFIXES = new Set(["jr","sr","ii","iii","iv","phd","md","esq","mbe","obe","cbe"]);
 

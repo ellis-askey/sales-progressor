@@ -21,6 +21,7 @@ function revalidateTx(id: string) {
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
+import { normalizePhone, cleanEmail } from "@/lib/utils";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
 import type { PurchaseType } from "@prisma/client";
 import {
@@ -187,8 +188,8 @@ export async function confirmMilestoneAction(input: {
         data: {
           ...(input.surveyorName ? { bookedSurveyorName: input.surveyorName } : {}),
           ...(input.surveyLevel ? { surveyLevel: input.surveyLevel } : {}),
-          ...(input.surveyorEmail !== undefined ? { bookedSurveyorEmail: input.surveyorEmail?.trim() || null } : {}),
-          ...(input.surveyorPhone !== undefined ? { bookedSurveyorPhone: input.surveyorPhone?.trim() || null } : {}),
+          ...(input.surveyorEmail !== undefined ? { bookedSurveyorEmail: cleanEmail(input.surveyorEmail) } : {}),
+          ...(input.surveyorPhone !== undefined ? { bookedSurveyorPhone: input.surveyorPhone?.trim() ? normalizePhone(input.surveyorPhone) : null } : {}),
         },
       });
 

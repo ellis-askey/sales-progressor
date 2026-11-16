@@ -7,10 +7,10 @@ import { PortalSheet } from "./PortalSheet";
 // the server where useLayoutEffect would warn.
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import { P, VENDOR_GROUPS, PURCHASER_GROUPS } from "./portal-ui";
-import { portalConfirmMilestoneAction, portalMarkNotRequiredAction, getPortalSurveyBookingOptions, recordPortalSurveyBookingAction } from "@/app/actions/portal";
-import type { SurveyBookingOption, SurveyBookingChoice } from "@/lib/services/survey-booking";
+import { portalConfirmMilestoneAction, portalMarkNotRequiredAction } from "@/app/actions/portal";
 import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
 import { getMilestoneGuidance } from "@/lib/portal/milestone-guidance";
+import { SurveyBookingSheet } from "./SurveyBookingSheet";
 import { SearchesUpload } from "./SearchesUpload";
 import { isPortalAgentOnly } from "@/lib/chase/portal-agent-only-codes";
 import { PortalButton } from "./PortalButton";
@@ -121,15 +121,11 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   const [helpMilestone, setHelpMilestone]   = useState<Milestone | null>(null);
   const [skipSurveyId, setSkipSurveyId]     = useState<string | null>(null);
   const [skipLoading, setSkipLoading]       = useState(false);
-  // Survey-booking picker (buyer confirming PM9 on a file that requested quotes).
-  const [surveyOptions, setSurveyOptions]   = useState<SurveyBookingOption[] | null>(null);
-  const [surveyChoice, setSurveyChoice]     = useState<SurveyBookingChoice | null>(null);
-  const [otherFirmName, setOtherFirmName]   = useState("");
-  // Surveyor contact (critique #295): when the buyer booked outside our quotes we
-  // require a name + at least one of these, so we can reach the surveyor to arrange
-  // access. Not captured on the portal before.
-  const [surveyorPhone, setSurveyorPhone]   = useState("");
-  const [surveyorEmail, setSurveyorEmail]   = useState("");
+  // Survey step (PM9): the surveyor name + contact capture lives in the shared
+  // SurveyBookingSheet (critique #295) so all three entry points — this list, the
+  // overview card, and the respond page — open the same form. PM9 opens that sheet
+  // instead of the generic confirm sheet below.
+  const [surveyMilestoneId, setSurveyMilestoneId] = useState<string | null>(null);
 
   const groups      = side === "vendor" ? VENDOR_GROUPS : PURCHASER_GROUPS;
   const otherGroups = side === "vendor" ? PURCHASER_GROUPS : VENDOR_GROUPS;
@@ -169,22 +165,16 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
   function toggleOther(label: string) { setOtherExpanded((p) => ({ ...p, [label]: !(p[label] ?? false) })); }
 
   function openSheet(id: string) {
+    // The survey step (PM9) uses the shared capture sheet (name + contact),
+    // not this generic date-only confirm sheet (critique #295).
+    const m = milestones.find((mm) => mm.id === id);
+    if (m?.code === "PM9") {
+      setSurveyMilestoneId(id);
+      return;
+    }
     setConfirming(id);
     setEventDate("");
     setError(null);
-    setSurveyOptions(null);
-    setSurveyChoice(null);
-    setOtherFirmName("");
-    setSurveyorPhone("");
-    setSurveyorEmail("");
-    // If this is the survey-booked step and the buyer requested quotes through
-    // us, load the firms so they can say who they booked.
-    const m = milestones.find((mm) => mm.id === id);
-    if (m?.code === "PM9") {
-      getPortalSurveyBookingOptions(token)
-        .then((opts) => { if (opts.length > 0) setSurveyOptions(opts); })
-        .catch(() => {});
-    }
   }
 
   function closeSheet() {
@@ -192,11 +182,6 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
     setConfirming(null);
     setEventDate("");
     setError(null);
-    setSurveyOptions(null);
-    setSurveyChoice(null);
-    setOtherFirmName("");
-    setSurveyorPhone("");
-    setSurveyorEmail("");
   }
 
   function confirmMilestone(milestoneId: string, isTimeSensitive: boolean) {
@@ -206,37 +191,9 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       setError("Please enter the date for this step.");
       return;
     }
-    // Survey booking (PM9): capture who they booked + how to reach them.
-    const sm = milestones.find((mm) => mm.id === milestoneId);
-    let choice: SurveyBookingChoice | null = null;
-    if (sm?.code === "PM9") {
-      // If we quoted firms, they must say which (or "someone else"). With no
-      // quotes there's no "our firm" to pick, so it's a someone-else booking.
-      if (surveyOptions && !surveyChoice) {
-        setError("Please choose the surveyor you booked.");
-        return;
-      }
-      if (surveyChoice?.kind === "our_firm") {
-        choice = surveyChoice; // we already hold this firm's name + contact
-      } else {
-        // Someone else (picked, or implied when we didn't quote): require a name
-        // and at least one contact so we can arrange access (critique #295).
-        const name = otherFirmName.trim();
-        const phone = surveyorPhone.trim();
-        const email = surveyorEmail.trim();
-        if (!name) { setError("Enter the surveyor's name."); return; }
-        if (!phone && !email) { setError("Add the surveyor's email or phone, so we can arrange access."); return; }
-        choice = { kind: "someone_else", firmName: name || undefined, email: email || null, phone: phone || null };
-      }
-    }
     const ed = eventDate || null;
     setConfirming(null);
     setEventDate("");
-    setSurveyOptions(null);
-    setSurveyChoice(null);
-    setOtherFirmName("");
-    setSurveyorPhone("");
-    setSurveyorEmail("");
     setLoading(true);
     setProcessingId(milestoneId);
     startTransition(async () => {
@@ -244,7 +201,6 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
       try {
         const result = await portalConfirmMilestoneAction({ token, milestoneDefinitionId: milestoneId, eventDate: ed, mirrorSourceToken });
         if (result.ok) {
-          if (choice) await recordPortalSurveyBookingAction({ token, choice }).catch(() => {});
           await fireConfetti();
         } else if (result.reason === "agent_only") {
           // B1 hard-block hit. Normally the UI strips the Confirm button for
@@ -736,73 +692,6 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
                 </div>
               )}
 
-              {confirmingMilestone?.code === "PM9" && (
-                <div className="mb-4">
-                  <label className="block text-[13px] font-semibold mb-2" style={{ color: P.textSecondary }}>
-                    {surveyOptions ? "Which surveyor did you book?" : "Who did you book your survey with?"}
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    {surveyOptions?.map((o) => {
-                      const active = surveyChoice?.kind === "our_firm" && surveyChoice.quoteRequestId === o.quoteRequestId;
-                      return (
-                        <button
-                          key={o.quoteRequestId}
-                          type="button"
-                          onClick={() => setSurveyChoice({ kind: "our_firm", quoteRequestId: o.quoteRequestId })}
-                          className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] font-semibold border transition-colors"
-                          style={{ borderColor: active ? P.primary : P.border, borderWidth: active ? 2 : 1, background: active ? P.primaryBg : P.cardBg, color: P.textPrimary }}
-                        >
-                          {o.firmName}
-                        </button>
-                      );
-                    })}
-                    {surveyOptions && (
-                      <button
-                        type="button"
-                        onClick={() => setSurveyChoice({ kind: "someone_else" })}
-                        className="pbtn-press text-left px-4 py-3 rounded-xl text-[14px] border transition-colors"
-                        style={{ borderColor: surveyChoice?.kind === "someone_else" ? P.primary : P.border, borderWidth: surveyChoice?.kind === "someone_else" ? 2 : 1, background: surveyChoice?.kind === "someone_else" ? P.primaryBg : P.cardBg, color: P.textPrimary }}
-                      >
-                        I booked someone else
-                      </button>
-                    )}
-                    {/* Someone else (picked, or the only option when we didn't quote):
-                        name + at least one contact are required (critique #295). */}
-                    {(surveyChoice?.kind === "someone_else" || !surveyOptions) && (
-                      <>
-                        <input
-                          type="text"
-                          value={otherFirmName}
-                          onChange={(e) => setOtherFirmName(e.target.value)}
-                          placeholder="Surveyor's name"
-                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
-                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
-                        />
-                        <input
-                          type="tel"
-                          value={surveyorPhone}
-                          onChange={(e) => setSurveyorPhone(e.target.value)}
-                          placeholder="Surveyor's phone"
-                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
-                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
-                        />
-                        <input
-                          type="email"
-                          value={surveyorEmail}
-                          onChange={(e) => setSurveyorEmail(e.target.value)}
-                          placeholder="Surveyor's email"
-                          className="w-full px-4 py-3 rounded-xl text-[15px] border focus:outline-none"
-                          style={{ borderColor: P.border, background: P.pageBg, color: P.textPrimary }}
-                        />
-                        <p className="text-[12px] leading-snug" style={{ color: P.textMuted }}>
-                          Add a phone or email so we can arrange access to the property.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {error && (
                 <p className="text-[13px] mb-3" style={{ color: "#EF4444" }}>{error}</p>
               )}
@@ -831,6 +720,18 @@ export function PortalMilestoneList({ token, milestones, otherSideMilestones, ha
             </div>
         )}
       </PortalSheet>
+
+      {/* Survey step (PM9) — shared capture sheet (critique #295). Same form the
+          overview card and respond page open, so there's one survey UI. */}
+      <SurveyBookingSheet
+        token={token}
+        milestoneId={surveyMilestoneId}
+        open={!!surveyMilestoneId}
+        onClose={() => setSurveyMilestoneId(null)}
+        onConfirmed={() => { const id = surveyMilestoneId; if (id) startTransition(() => addOptimistic(id)); }}
+        readOnly={readOnly}
+        mirrorSourceToken={mirrorSourceToken}
+      />
     </>
   );
 }

@@ -3,7 +3,7 @@
 // (app/actions/portal.ts, token-scoped). Keeps the status rules in one place.
 
 import { prisma } from "@/lib/prisma";
-import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { titleCaseKeepAcronyms, normalizePhone, cleanEmail } from "@/lib/utils";
 
 export type SurveyBookingOption = {
   quoteRequestId: string;
@@ -79,7 +79,11 @@ export async function applySurveyBooking(
   const now = new Date();
 
   if (choice.kind === "someone_else") {
+    // Clean the surveyor details to the house format: name title-cased (acronyms
+    // + Mc preserved), phone normalised, email lowercased + validated.
     const typed = choice.firmName?.trim() ? titleCaseFirm(choice.firmName) : null;
+    const cleanedPhone = choice.phone?.trim() ? normalizePhone(choice.phone) : null;
+    const cleanedEmail = cleanEmail(choice.email);
     await Promise.all([
       ...movable.map((q) =>
         prisma.quoteRequest.update({
@@ -94,8 +98,8 @@ export async function applySurveyBooking(
           // Only write contact when the caller provided it (undefined = leave as
           // is): the client portal passes email/phone through the choice; the
           // agent path sets them via its own confirm and leaves these undefined.
-          ...(choice.email !== undefined ? { bookedSurveyorEmail: choice.email?.trim() || null } : {}),
-          ...(choice.phone !== undefined ? { bookedSurveyorPhone: choice.phone?.trim() || null } : {}),
+          ...(choice.email !== undefined ? { bookedSurveyorEmail: cleanedEmail } : {}),
+          ...(choice.phone !== undefined ? { bookedSurveyorPhone: cleanedPhone } : {}),
         },
       }),
     ]);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { PortalSheet } from "./PortalSheet";
 import { P, PortalPill } from "./portal-ui";
 import { PortalButton } from "./PortalButton";
 import { PortalGlassCard } from "./PortalGlassCard";
+import { SurveyBookingSheet } from "./SurveyBookingSheet";
 import { portalConfirmMilestoneAction } from "@/app/actions/portal";
 import { getEventDateLabel, getMilestoneConfirmCopy } from "@/lib/portal-copy";
 import { DateField } from "@/components/ui/DateField";
@@ -45,15 +47,21 @@ async function fireConfetti() {
 
 export function PortalNextActionCard({ token, milestone, whatHappensNext, saleActive = true }: Props) {
   const readOnly = usePortalReadOnly();
+  const router = useRouter();
   const [, startTransition] = useTransition();
   const [optimisticConfirmed, addOptimistic] = useOptimistic(false, () => true);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [surveyOpen, setSurveyOpen] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
   const isYours = milestone.who === "you";
   const confirmCopy = getMilestoneConfirmCopy(milestone.code);
+  // The survey step (PM9) needs the surveyor's name + contact (critique #295),
+  // which only the full milestone sheet captures. Instead of inline-confirming
+  // here with a date only (which would bypass that), the CTA opens that sheet.
+  const isSurvey = milestone.code === "PM9";
 
   // Dead sale (withdrawn / completed): no next action to confirm — hide the
   // whole prompt. The overview hero still shows the sale's status.
@@ -144,8 +152,8 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext, saleAc
             </PortalPill>
           </div>
 
-          <PortalButton onClick={openSheet} loading={loading}>
-            {loading ? "Saving…" : "Confirm this step"}
+          <PortalButton onClick={isSurvey ? () => setSurveyOpen(true) : openSheet} loading={loading}>
+            {isSurvey ? "Add your survey details" : loading ? "Saving…" : "Confirm this step"}
           </PortalButton>
 
           {whatHappensNext && (
@@ -215,6 +223,17 @@ export function PortalNextActionCard({ token, milestone, whatHappensNext, saleAc
               </button>
             </div>
       </PortalSheet>
+
+      {/* Survey step (PM9) opens the shared capture sheet in place — same form as
+          the progress page, no navigation away (critique #295). */}
+      <SurveyBookingSheet
+        token={token}
+        milestoneId={surveyOpen ? milestone.id : null}
+        open={surveyOpen}
+        onClose={() => setSurveyOpen(false)}
+        onConfirmed={() => router.refresh()}
+        readOnly={readOnly}
+      />
     </>
   );
 }

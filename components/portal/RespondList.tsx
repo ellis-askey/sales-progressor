@@ -17,6 +17,7 @@
 // and we render the per-code explanation from PORTAL_AGENT_ONLY_COPY.
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { P } from "./portal-ui";
 import {
   portalConfirmFromRespondAction,
@@ -27,6 +28,7 @@ import { getPortalAgentOnlyCopy } from "@/lib/chase/portal-agent-only-copy";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { DateField } from "@/components/ui/DateField";
 import { PortalButton } from "@/components/portal/PortalButton";
+import { SurveyBookingSheet } from "./SurveyBookingSheet";
 import { Check, CalendarBlank, NotePencil } from "@phosphor-icons/react/dist/ssr";
 
 type Who = "you" | "solicitor" | "lender";
@@ -68,6 +70,7 @@ export function RespondList({
   items,
 }: Props) {
   const [activeItem, setActiveItem] = useState<string | null>(null);
+  const router = useRouter();
   const [activeMode, setActiveMode] = useState<"confirm" | "date" | "note" | null>(null);
   const [dateInput, setDateInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
@@ -77,6 +80,9 @@ export function RespondList({
   const [collapsingFor, setCollapsingFor] = useState<string[]>([]);
   const [doneFor, setDoneFor] = useState<string[]>([]);
   const [hardBlockByCode, setHardBlockByCode] = useState<Record<string, string>>({});
+  // Survey step (PM9): opens the shared capture sheet in place, so a buyer with
+  // several items to respond to stays on this page (critique #295).
+  const [surveyMilestoneId, setSurveyMilestoneId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   function open(code: string, mode: "confirm" | "date" | "note") {
@@ -369,14 +375,27 @@ export function RespondList({
                   {/* Controls */}
                   {!isExpanded ? (
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                      <PortalButton size="sm" full={false} disabled={isSubmitting} onClick={() => open(item.milestoneCode, "confirm")}>
-                        <Check size={15} weight="bold" />
-                        {isDiy ? "Yes, this is done" : "Yes, this is already done"}
-                      </PortalButton>
-                      <PortalButton size="sm" full={false} variant="secondary" disabled={isSubmitting} onClick={() => open(item.milestoneCode, "date")}>
-                        <CalendarBlank size={15} />
-                        Tell us when
-                      </PortalButton>
+                      {/* The survey (PM9) needs the surveyor's name + contact
+                          (critique #295). Open the shared capture sheet in place
+                          rather than confirming date-only here, so the buyer stays
+                          on this page; "Leave a note" below still works. */}
+                      {item.milestoneCode === "PM9" ? (
+                        <PortalButton size="sm" full={false} disabled={isSubmitting} onClick={() => setSurveyMilestoneId(item.milestoneDefinitionId)}>
+                          <Check size={15} weight="bold" />
+                          Add your survey details
+                        </PortalButton>
+                      ) : (
+                        <>
+                          <PortalButton size="sm" full={false} disabled={isSubmitting} onClick={() => open(item.milestoneCode, "confirm")}>
+                            <Check size={15} weight="bold" />
+                            {isDiy ? "Yes, this is done" : "Yes, this is already done"}
+                          </PortalButton>
+                          <PortalButton size="sm" full={false} variant="secondary" disabled={isSubmitting} onClick={() => open(item.milestoneCode, "date")}>
+                            <CalendarBlank size={15} />
+                            Tell us when
+                          </PortalButton>
+                        </>
+                      )}
                       <PortalButton size="sm" full={false} variant="secondary" disabled={isSubmitting} onClick={() => open(item.milestoneCode, "note")}>
                         <NotePencil size={15} />
                         Leave a note
@@ -523,6 +542,17 @@ export function RespondList({
           );
         })}
       </div>
+
+      {/* Shared survey capture (critique #295) — opens in place, so a buyer with
+          several items to respond to never leaves this page. On confirm the row
+          drops on refresh (PM9 becomes complete). */}
+      <SurveyBookingSheet
+        token={token}
+        milestoneId={surveyMilestoneId}
+        open={!!surveyMilestoneId}
+        onClose={() => setSurveyMilestoneId(null)}
+        onConfirmed={() => router.refresh()}
+      />
     </div>
   );
 }

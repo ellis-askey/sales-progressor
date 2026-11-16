@@ -1615,7 +1615,7 @@ const CONFIRM_COPY: Record<string, string> = {
   PM5: "Your full mortgage application has been submitted to your lender, either by you or your mortgage broker.",
   PM6: "Your mortgage broker, lender or we have confirmed that the lender's valuation of the property has been booked.",
   PM11: "Your mortgage broker or lender has formally confirmed your mortgage offer, and a copy has been sent to your solicitor.",
-  PM9: "Your survey has been booked with a surveyor and you have a confirmed appointment for the property.",
+  PM9: "You've arranged your survey. Tell us the date it's taking place and who's carrying it out, so we can coordinate access to the property.",
   PM10: "You have received the completed survey report from your surveyor.",
   PM7: "Your solicitor has confirmed that they have received the draft contract pack from the seller's solicitor.",
   PM8: "Your solicitor has confirmed that all required property searches have been ordered.",
