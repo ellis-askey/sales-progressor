@@ -98,7 +98,7 @@ export function BusinessBillingPointForm({ initialBillAtCompletion }: { initialB
       <style>{`
         .bizbp-opt { transition: background 160ms, border-color 150ms, box-shadow 220ms, transform 160ms; }
         .bizbp-opt:not(.on):hover { border-color: var(--agent-coral, #FF8A65); transform: translateY(-1px); }
-        .bizbp-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,0.3); }
+        .bizbp-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),0.3); }
         @media (prefers-reduced-motion: reduce) { .bizbp-opt { transition: none; } .bizbp-opt:hover { transform: none; } }
         .bizbp-save-mobile { display: none; }
         @media (max-width: 640px) {

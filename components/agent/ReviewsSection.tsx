@@ -68,7 +68,7 @@ function dueLabel(reviewDate: Date | null): { label: string; color: string; due:
 }
 
 const RV_STYLES = `
-  .rv-split { display: inline-flex; align-items: stretch; box-shadow: 0 1px 4px rgba(224,78,44,0.26); border-radius: 9px; }
+  .rv-split { display: inline-flex; align-items: stretch; box-shadow: 0 1px 4px rgba(var(--agent-coral-rgb),0.26); border-radius: 9px; }
   .rv-main { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-right: 1px solid rgba(255,255,255,0.28); border-radius: 9px 0 0 9px; padding: 7px 12px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
   .rv-caret { display: inline-flex; align-items: center; justify-content: center; width: 32px; color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); border: 1px solid transparent; border-radius: 0 9px 9px 0; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,0.28); transition: filter .12s ease; }
   .rv-main:hover:not(:disabled), .rv-caret:hover:not(:disabled) { filter: brightness(1.05); }

@@ -119,7 +119,7 @@ export function BusinessInviteMode({ initial }: { initial: InviteMode }) {
         /* Same subtle lift-on-hover as the Billing-point selector (.bizbp-opt). */
         .bizinvite-opt { transition: background 160ms, border-color 150ms, box-shadow 220ms, transform 160ms; }
         .bizinvite-opt:not(.on):hover { transform: translateY(-1px); border-color: var(--agent-coral, #FF8A65); }
-        .bizinvite-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,0.3); }
+        .bizinvite-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),0.3); }
         @media (prefers-reduced-motion: reduce) { .bizinvite-opt { transition: none; } .bizinvite-opt:hover { transform: none; } }
       `}</style>
     </div>

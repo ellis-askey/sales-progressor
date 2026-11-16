@@ -556,14 +556,14 @@ const EME2_STYLES = `
   .eme2-seg button:hover:not(.on):not(:disabled) { color: ${TEXT}; }
   .eme2-seg button:disabled { cursor: default; }
   .eme2-seg button.on { color: #fff; }
-  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.45); }
+  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(var(--agent-coral-rgb),.45); }
 
   .eme2-steps { display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; margin: 0 -4px; padding: 2px 4px; }
   .eme2-step { appearance: none; border: none; background: none; cursor: pointer; font: inherit; text-align: left; display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px; border-radius: 8px; color: ${MUTED}; transition: background 140ms, color 140ms; }
   .eme2-step:hover:not(.on):not(:disabled) { background: rgba(0,0,0,.04); color: ${TEXT}; }
   .eme2-step:disabled { cursor: default; opacity: .5; }
   .eme2-step.on { background: rgba(255,107,74,.10); color: var(--agent-coral-deep, #E2452A); }
-  .eme2-step:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,107,74,.4); }
+  .eme2-step:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(var(--agent-coral-rgb),.4); }
   .eme2-step-num { font-variant-numeric: tabular-nums; font-size: 10.5px; color: ${FAINT}; flex: 0 0 20px; margin-top: 1px; }
   .eme2-step.on .eme2-step-num { color: var(--agent-coral-deep, #E2452A); }
   .eme2-step-lbl { font-size: 12.5px; line-height: 1.35; }
@@ -580,7 +580,7 @@ const EME2_STYLES = `
   .eme2-btn:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn:active:not(:disabled) { transform: scale(.975); }
   .eme2-btn:disabled { opacity: .5; cursor: default; }
-  .eme2-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,107,74,.32); }
+  .eme2-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),.32); }
   .eme2-btn-ghost { border-color: transparent; background: none; color: ${MUTED}; }
   .eme2-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn-primary { border-color: transparent; color: #fff; background: linear-gradient(180deg,#FF7A5C,#E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 10px -4px rgba(255,107,74,.5); }
