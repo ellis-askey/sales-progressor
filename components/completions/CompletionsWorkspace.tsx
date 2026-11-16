@@ -140,7 +140,7 @@ function Row({
           </Tooltip>
         )}
       </span>
-      <span className="cw-price">{priceStr ?? "—"}</span>
+      <span className="cw-price"><span className="cw-cell-lab">Price</span>{priceStr ?? "—"}</span>
       <span className="cw-cell">
         <span className="cw-cell-lab">Exchanged</span>
         <span className="cw-cell-val">{fmtDate(exchangedIso)}</span>
@@ -172,7 +172,7 @@ function CompletedFeeCell({ row, internal }: { row: CompletedCompletionRow; inte
   if (row.agentFeeAmount != null || row.agentFeePercent != null) {
     const pence = feeAmountPence(row);
     const txt = pence != null ? `${money(pence)}${feeVatSuffix(row.agentFeeIsVatInclusive)}` : `${row.agentFeePercent}%`;
-    return <span className="cw-fee">{txt}</span>;
+    return <span className="cw-fee"><span className="cw-cell-lab">Fee</span>{txt}</span>;
   }
   return (
     <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -508,17 +508,21 @@ button.cw-head-cell:hover .cw-chev{ opacity:0.55; }
   font-family:inherit; font-size:12.5px; font-weight:600; color:var(--agent-text-secondary); padding:7px 14px; border-radius:9px; }
 .cw-empty-clear:hover{ border-color:var(--agent-coral); color:var(--agent-coral-deep); }
 
-/* Mobile: hide the header; rows reflow to two lines and show their own labels. */
+/* Mobile: hide the header. Line 1 = property + people (avatars top-right).
+   Line 2 = Fee + Price. Line 3 = Exchanged + Completed. Two figures per row, each
+   with its own inline label so nothing is unlabelled once the header is gone. */
 @media (max-width:760px){
   .cw-head{ display:none; }
-  .cw-row{ display:flex; flex-wrap:wrap; column-gap:14px; row-gap:7px; }
+  .cw-row{ display:flex; flex-wrap:wrap; align-items:flex-start; column-gap:16px; row-gap:9px; padding:14px 16px; }
   .cw-thumb{ order:0; }
-  .cw-id{ order:1; flex:1 1 auto; }
-  .cw-trail{ order:2; justify-self:auto; }
-  .cw-price{ order:3; }
-  .cw-cell{ order:4; flex-direction:row; align-items:baseline; gap:5px; }
-  .cw-cell-lab{ display:inline; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); font-weight:700; }
+  .cw-id{ order:1; flex:1 1 60%; align-items:flex-start; }
+  .cw-trail{ order:2; flex:1 1 40%; justify-self:auto; justify-content:flex-start; }
+  .cw-price{ order:3; flex:1 1 40%; display:inline-flex; align-items:baseline; gap:5px; }
+  .cw-cell{ order:4; flex:1 1 40%; flex-direction:row; align-items:baseline; gap:5px; }
+  .cw-fee{ display:inline-flex; align-items:baseline; gap:5px; }
+  .cw-cell-lab{ display:inline; flex-shrink:0; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--agent-text-muted); font-weight:700; }
   .cw-cell-val{ font-size:12px; }
+  .cw-price, .cw-fee{ font-size:12.5px; }
 }
 `;
 
