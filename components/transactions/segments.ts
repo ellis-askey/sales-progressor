@@ -3,18 +3,20 @@
 // view. The menu is split into sections; rows within a section OR together,
 // sections AND together. Nothing ticked = every active file.
 //
-//   Yours            Mine, + a row per owner (director/admin)      → OR
+//   Your team        Mine, + a row per owner (director/admin)      → OR
 //   Needs attention  At risk / Gone quiet / No solicitor / Stalled → OR (active book)
 //   Service          Self-managed / Outsourced                     → OR
+//   Agency           A row per client agency in the book           → OR
 //
-// Owner rows are dynamic (`owner:<userId>`); everything else is a fixed key.
+// Owner, progressor and agency rows are dynamic (`owner:` / `prog:` / `agency:`);
+// everything else is a fixed key.
 
 export type StaticFilterKey =
   | "mine"
   | "risk" | "quiet" | "nosolicitor" | "stalled"
   | "selfmanaged" | "outsourced";
 
-export type FilterKey = StaticFilterKey | `owner:${string}` | `prog:${string}`;
+export type FilterKey = StaticFilterKey | `owner:${string}` | `prog:${string}` | `agency:${string}`;
 
 // The problem lenses — OR among themselves, then AND-ed with the other
 // sections. These only apply to the active book (a completed file isn't "at
@@ -40,6 +42,17 @@ export function isProgKey(k: FilterKey): k is `prog:${string}` {
 }
 export function progIdOf(k: `prog:${string}`): string {
   return k.slice("prog:".length);
+}
+
+// Agency rows are dynamic (`agency:<agencyId>`), shown only when the book spans
+// 2+ client agencies — i.e. a progression business (or cross-agency admin) can
+// slice its book by which agency each sale belongs to. A single agency never
+// sees it (their whole book is one agency).
+export function isAgencyKey(k: FilterKey): k is `agency:${string}` {
+  return k.startsWith("agency:");
+}
+export function agencyIdOf(k: `agency:${string}`): string {
+  return k.slice("agency:".length);
 }
 
 // Label + leading-dot semantic for the fixed keys. `dot` maps to the --agent-*

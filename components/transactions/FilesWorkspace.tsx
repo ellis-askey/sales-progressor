@@ -24,7 +24,7 @@ import { riskLevelForRow } from "./TransactionRowView";
 import type { FilterSection } from "./FilterMenu";
 import {
   FILTER_META, PROBLEM_FILTERS, SERVICE_FILTERS,
-  isOwnerKey, ownerIdOf, isProgKey, progIdOf, type FilterKey, type StaticFilterKey,
+  isOwnerKey, ownerIdOf, isProgKey, progIdOf, isAgencyKey, agencyIdOf, type FilterKey, type StaticFilterKey,
 } from "./segments";
 import type { DisplayStageKey } from "@/lib/milestones/display-stages";
 
@@ -100,6 +100,7 @@ export function FilesWorkspace({
   const hits = (r: PipelineRow, k: FilterKey): boolean => {
     if (isOwnerKey(k)) return r.agentUser?.id === ownerIdOf(k);
     if (isProgKey(k)) return r.progressionBusiness?.id === progIdOf(k);
+    if (isAgencyKey(k)) return r.agency?.id === agencyIdOf(k);
     switch (k) {
       case "mine": return isMine(r);
       case "risk": return riskLevelForRow(r) === "high";
@@ -136,6 +137,21 @@ export function FilesWorkspace({
   }, [active]);
   const showProgressorRows = progressors.length >= 2;
 
+  // Client agencies present in the active book, for the "Agency" section. Shown
+  // only when the book spans 2+ agencies — a progression business (or a
+  // cross-agency admin) slicing its book by agency. A single agency's book is
+  // all one agency, so the section never appears for them.
+  const agencies = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { id: string; name: string }[] = [];
+    for (const t of active) {
+      const a = t.agency;
+      if (a && !seen.has(a.id)) { seen.add(a.id); list.push({ id: a.id, name: a.name }); }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [active]);
+  const showAgencyRows = agencies.length >= 2;
+
   // Owner rows: directors/admin see them whenever there's at least one owner;
   // negotiators (who see only their own files) get nothing to pick from, so hide.
   const showOwnerRows = isDirector ? owners.length > 0 : owners.length > 1;
@@ -148,13 +164,14 @@ export function FilesWorkspace({
   const sections: FilterSection[] = useMemo(() => {
     const s: FilterSection[] = [];
     const yours = [meta("mine"), ...(showOwnerRows ? owners.map((o) => ({ key: `owner:${o.id}` as FilterKey, label: o.name })) : [])];
-    s.push({ title: "Yours", items: yours });
+    s.push({ title: "Your team", items: yours });
     s.push({ title: "Needs attention", items: PROBLEM_FILTERS.map((k) => meta(k as StaticFilterKey)) });
     if (showServiceRows) s.push({ title: "Service", items: SERVICE_FILTERS.map((k) => meta(k as StaticFilterKey)) });
     if (showProgressorRows) s.push({ title: "Progressor", items: progressors.map((p) => ({ key: `prog:${p.id}` as FilterKey, label: p.name })) });
+    if (showAgencyRows) s.push({ title: "Agency", items: agencies.map((a) => ({ key: `agency:${a.id}` as FilterKey, label: a.name })) });
     return s;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [owners, showOwnerRows, showServiceRows, progressors, showProgressorRows]);
+  }, [owners, showOwnerRows, showServiceRows, progressors, showProgressorRows, agencies, showAgencyRows]);
 
   // Sectioned matcher: rows within a section OR, sections AND. Ownership +
   // service are status-agnostic; the problem lenses only apply to the active
@@ -170,6 +187,8 @@ export function FilesWorkspace({
     if (svcSel.length > 0 && !svcSel.some((k) => hits(r, k))) return false;
     const progSel = [...selected].filter(isProgKey);
     if (progSel.length > 0 && !progSel.some((k) => r.progressionBusiness?.id === progIdOf(k))) return false;
+    const agencySel = [...selected].filter(isAgencyKey);
+    if (agencySel.length > 0 && !agencySel.some((k) => r.agency?.id === agencyIdOf(k))) return false;
     const probSel = PROBLEM_FILTERS.filter((k) => selected.has(k));
     if (probSel.length > 0) {
       if (r.status !== "active") return false;
