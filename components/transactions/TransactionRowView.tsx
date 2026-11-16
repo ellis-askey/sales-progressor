@@ -89,7 +89,7 @@ export const COL_LABEL: Record<FilesColumn, string> = {
 // The founder preview tightens three of the labels; everyone else sees the
 // strings above unchanged. Use colLabel() wherever a header / card label renders.
 const COL_LABEL_PREVIEW: Partial<Record<FilesColumn, string>> = {
-  stage: "Progress", exchange: "Exchange",
+  stage: "Progress", exchange: "Predicted exchange",
 };
 export function colLabel(col: FilesColumn, preview?: boolean): string {
   return (preview && COL_LABEL_PREVIEW[col]) || COL_LABEL[col];
@@ -690,7 +690,7 @@ function ReasonCell({ tx }: { tx: TransactionRow }) {
 // each date says which one it is.
 function keyDateLabel(tx: TransactionRow): string {
   switch (tx.status) {
-    case "active": return tx.exchangedAt ? "Completion" : "Exchange";
+    case "active": return tx.exchangedAt ? "Completion" : "Predicted exchange";
     case "on_hold": return "Due back";
     case "completed": return "Completion";
     case "withdrawn": return "Withdrawn";
@@ -950,7 +950,7 @@ export function TransactionRowView({
                 ) : col === "keydate" ? (
                   <>{eyebrow(keyDateLabel(tx))}<KeyDateCell tx={tx} preview={preview} caption={false} /></>
                 ) : col === "exchange" ? (
-                  <>{eyebrow("Exchange prediction")}{renderCell(col, tx, preview)}</>
+                  <>{eyebrow("Predicted exchange")}{renderCell(col, tx, preview)}</>
                 ) : (
                   <>{eyebrow(colLabel(col, preview))}{renderCell(col, tx, preview)}</>
                 )
@@ -974,7 +974,7 @@ export function TransactionRowView({
                         {renderCell(footLeft, tx, preview)}
                       </div>
                       <div className="text-right ml-auto">
-                        {eyebrow(footRight === "keydate" ? keyDateLabel(tx) : footRight === "exchange" ? "Exchange prediction" : colLabel(footRight, preview))}
+                        {eyebrow(footRight === "keydate" ? keyDateLabel(tx) : footRight === "exchange" ? "Predicted exchange" : colLabel(footRight, preview))}
                         {footRight === "keydate" ? <KeyDateCell tx={tx} preview={preview} caption={false} /> : renderCell(footRight, tx, preview)}
                       </div>
                     </div>

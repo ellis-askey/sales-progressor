@@ -4,6 +4,14 @@ import { useState } from "react";
 import { formatDate, toUKDateStr } from "@/lib/utils";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
+// Monday of the week containing `d` — the predicted exchange is an estimate, so
+// it reads as "W/C <Monday>" (week commencing) rather than a false exact day.
+function weekCommencing(d: Date): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+
 export function ExchangeTargetCell({
   transactionId,
   expectedExchangeDate,
@@ -94,13 +102,13 @@ export function ExchangeTargetCell({
   return (
     <div>
       <p className={`text-sm font-medium ${isPast ? "text-red-500" : "text-slate-900/70"}`}>
-        {formatDate(effectiveDate)}
+        W/C {formatDate(weekCommencing(effectiveDate))}
       </p>
       {isPast ? (
         <p className="text-xs mt-0.5" style={{ color: "rgba(239,68,68,0.60)" }}>Predicted date passed</p>
       ) : (
         <p className="text-xs text-slate-900/35 mt-0.5">
-          {weeksAway <= 0 ? "Within a week" : `Approx ${weeksAway} ${weeksAway === 1 ? "week" : "weeks"}`}
+          {weeksAway <= 0 ? "Within a week" : `Approx ${weeksAway} ${weeksAway === 1 ? "week" : "weeks"} away`}
         </p>
       )}
     </div>
