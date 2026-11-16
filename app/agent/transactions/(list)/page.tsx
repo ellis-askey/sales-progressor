@@ -119,6 +119,12 @@ export default async function AllTransactionsPage({
   // flag reframes the title/subtitle/column for them. It is strictly non-TSP: a
   // TSP sales_progressor returns false and keeps the "assigned to you" framing.
   const isExternalProgressor = isProgressor ? await isExternalProgressorViewer(session) : false;
+  // Only an OWNER or a see-all-granted member sees the whole business book; a
+  // see-own team member sees just their assigned sales, so the "whole business"
+  // framing (title / subtitle / empty state) is gated on see-all, not bare
+  // membership. The "Assigned to" column stays for them either way — it names the
+  // agency agent who added the sale plus the progressor it's assigned to.
+  const isExternalProgressorSeeAll = isExternalProgressor && (isBusinessOwner || !!session.user.canViewAllFiles);
   // A progressor gets a "New sale" entry: the owner always; a team member only
   // once the business has ≥1 client (they can't add clients themselves).
   const progressorCanCreate = isExternalProgressor
@@ -134,8 +140,12 @@ export default async function AllTransactionsPage({
   // Only the highest-priority filter that resolves is used.
   const hubFilter   = isHubFilter(filter) ? filter : null;
   const monthFilter = !hubFilter ? parseMonthFilter(exchanging) : null;
-  const statusFilter: TransactionStatus | "all" = (!hubFilter && !monthFilter)
-    ? ((filter as TransactionStatus | "all") ?? "active")
+  // Guard against a stale/hand-edited ?filter=: an unknown value used to flow
+  // straight through and render "No <value> files". Fall back to "active".
+  const isStatusFilter = (v: string | undefined): v is TransactionStatus | "all" =>
+    v === "active" || v === "on_hold" || v === "completed" || v === "withdrawn" || v === "all";
+  const statusFilter: TransactionStatus | "all" = (!hubFilter && !monthFilter && isStatusFilter(filter))
+    ? filter
     : "active";
 
   // The exchange forecast is now a view inside the workspace (built from the
@@ -234,11 +244,11 @@ export default async function AllTransactionsPage({
       {/* Canonical PageHeader — matches hub / transaction-detail / work-queue / dashboard.
        * Bloom decorations dropped per Stage 2 decision A (locked 2026-05-12). */}
       <PageHeader
-        title={isDirector || isAdminPowers || isExternalProgressor ? "All Files" : "My Files"}
+        title={isDirector || isAdminPowers || isExternalProgressorSeeAll ? "All Files" : "My Files"}
         subtitle={
-          isAdminPowers                      ? "Every file across every agency." :
+          isAdminPowers                      ? "Every sale our team is progressing." :
           isDirector                         ? "Every file across the agency." :
-          isExternalProgressor               ? "Every sale your business is progressing." :
+          isExternalProgressorSeeAll         ? "Every sale your business is progressing." :
           session.user.role === "sales_progressor" ? "Files assigned to you." :
           "Files assigned to you."
         }
@@ -355,10 +365,10 @@ export default async function AllTransactionsPage({
             {isProgressor ? (
               <>
                 <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  {isExternalProgressor ? "No active sales yet" : "No files assigned yet"}
+                  {isExternalProgressorSeeAll ? "No active sales yet" : "No files assigned yet"}
                 </p>
                 <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 300, lineHeight: 1.5 }}>
-                  {isExternalProgressor ? "Sales your business is progressing will show up here." : "Files assigned to you will appear here."}
+                  {isExternalProgressorSeeAll ? "Sales your business is progressing will show up here." : "Files assigned to you will appear here."}
                 </p>
               </>
             ) : (
