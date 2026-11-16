@@ -119,7 +119,12 @@ export function CompletionDetailPanel({
   const [completeDate, setCompleteDate] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const id = file?.id ?? null;
-  useEffect(() => { setPhotoFailed(false); setCompleting(false); setCompleteDate(file?.completionDateIso ? file.completionDateIso.split("T")[0] : ""); }, [id, file?.completionDateIso]);
+  // Default the completion date to TODAY — the day the sale is actually being
+  // marked complete — not the agreed-at-exchange date. Pre-filling the agreed
+  // date meant a file whose completion slipped recorded the stale planned date
+  // as its completion (critique #294). The field stays editable for logging a
+  // completion a day or two after the fact.
+  useEffect(() => { setPhotoFailed(false); setCompleting(false); setCompleteDate(new Date().toISOString().split("T")[0]); }, [id]);
 
   // Lazy contact details (phone + email for clients, solicitors and staff) — the
   // SAME access-scoped action the All-Files drawer uses, so the call/email logic
