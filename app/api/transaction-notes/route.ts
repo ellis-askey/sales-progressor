@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNote, deleteNote } from "@/lib/services/transaction-notes";
 import { getAccessScope, scopeOwnershipWhere, TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
+import { canAgentAccessFile } from "@/lib/security/agent-file-access";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -17,19 +18,14 @@ export async function POST(req: NextRequest) {
   const scope = getAccessScope(session);
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, transactionId),
-    select: { id: true, agentUserId: true },
+    select: { id: true, agentUserId: true, assignedUserId: true },
   });
   if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
 
-  // Negotiators without canViewAllFiles may only add notes to their own files
-  if (session.user.role === "negotiator") {
-    const actor = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { canViewAllFiles: true },
-    });
-    if (!actor?.canViewAllFiles && tx.agentUserId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  // Own-files-or-see-all, including the assigned slot (in-house progressor) and
+  // the director-granted ceiling — matches the file-open + preview gate.
+  if (!(await canAgentAccessFile(session, tx))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const note = await createNote(transactionId, content.trim(), session.user.id);

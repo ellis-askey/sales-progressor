@@ -17,6 +17,8 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { getAccessScope } from "@/lib/security/access-scope";
+import { canAgentAccessFile } from "@/lib/security/agent-file-access";
+import { loadActiveRoundIds, contactRoundScopedOR } from "@/lib/services/round-scope";
 import { getTransactionByScope } from "@/lib/services/transactions";
 import { getLatestVisibleNote } from "@/lib/services/comms";
 import { getReminderLogsForTransaction } from "@/lib/services/reminders";
@@ -150,6 +152,14 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
     const tx = await getTransactionByScope(id, scope);
     if (!tx) return { ok: false, error: "not_found" };
 
+    // Horizontal-access gate: getTransactionByScope scopes a negotiator to the
+    // whole agency, but opening/editing a file is own-files-or-see-all. Match
+    // the file-open gate so the preview never returns client/solicitor PII for a
+    // file this user could not open. (See lib/security/agent-file-access.ts.)
+    if (!(await canAgentAccessFile(session, { agentUserId: tx.agentUserId, assignedUserId: tx.assignedUserId }))) {
+      return { ok: false, error: "not_found" };
+    }
+
     const terminal = isTerminalSale(tx.status);
 
     // ── Handling team (the "Handled by" people, now preview-only) ──
@@ -175,8 +185,17 @@ export async function getFilePreviewExtras(id: string, opts?: { contactsOnly?: b
 
     // ── Clients (principal sellers + buyers) with contact details. Sellers
     // (vendors) first, then buyers, each labelled by their side. ──
+    // Round-scope purchasers to the ACTIVE buyer round — on a relisted file the
+    // old (fallen-through) buyer must not appear here; they live only in the
+    // old-buyer history. Vendors are file-level and pass unconditionally.
+    const activeRoundIds = await loadActiveRoundIds({ id });
     const clientRows = await prisma.contact.findMany({
-      where: { propertyTransactionId: id, roleType: { in: ["vendor", "purchaser"] }, isPrincipal: true },
+      where: {
+        propertyTransactionId: id,
+        roleType: { in: ["vendor", "purchaser"] },
+        isPrincipal: true,
+        OR: contactRoundScopedOR(activeRoundIds),
+      },
       select: { id: true, name: true, email: true, phone: true, roleType: true },
     });
     const clients: PreviewClient[] = clientRows

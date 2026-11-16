@@ -5,7 +5,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { canAgentAccessFile } from "@/lib/security/agent-file-access";
 import { recordPredictionChangeIfMoved } from "@/lib/services/exchange-prediction-history";
+import { revalidatePath } from "next/cache";
 
 export async function PATCH(
   req: NextRequest,
@@ -19,19 +21,16 @@ export async function PATCH(
 
   const existing = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(scope, id),
-    select: { id: true, agentUserId: true, expectedExchangeDate: true },
+    select: { id: true, agentUserId: true, assignedUserId: true, expectedExchangeDate: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Negotiators without canViewAllFiles may only update their own files
-  if (session.user.role === "negotiator") {
-    const actor = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { canViewAllFiles: true },
-    });
-    if (!actor?.canViewAllFiles && existing.agentUserId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  // Own-files-or-see-all — includes the assigned slot (an in-house progressor
+  // the file was handed to) and the director-granted ceiling, matching the
+  // file-open + preview gate. The old check only allowed agentUserId, so an
+  // in-house progressor's inline edits 403'd (silently — see ExchangeTargetCell).
+  if (!(await canAgentAccessFile(session, existing))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
@@ -86,6 +85,12 @@ export async function PATCH(
     }
     return u;
   });
+
+  // The list caches for 5 min (unstable_dynamicStaleTime); an edit here moves
+  // the Forecast / Pipeline / Stat strip, so purge the list + detail + hub.
+  revalidatePath("/agent/transactions");
+  revalidatePath(`/agent/transactions/${id}`, "layout");
+  revalidatePath("/agent/hub");
 
   return NextResponse.json(updated);
 }
