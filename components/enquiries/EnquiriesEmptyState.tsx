@@ -3,13 +3,15 @@ import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { Pill } from "@/components/ui/Pill";
 
-// Enquiries empty state — shown when no sale is currently in the enquiries stage
-// (before enquiries are raised, or after they're satisfied). Reached only once
-// the agency has a live file (the nav gates on hasSelfManagedFiles), so this is
-// the "all clear" resting state, not a brand-new-account state. Mirrors the
-// Comms / To-Do / Completions empty states. Info-only: there's no user action
-// that creates an enquiry, so the cards carry no CTA.
-export function EnquiriesEmptyState() {
+// Enquiries empty state — two framings, chosen by whether the user has ever had
+// a sale. With sales (none currently at the enquiries stage) it's the green "all
+// clear" resting state. Before the first sale it's a first-sale framing instead,
+// so a brand-new account isn't told it has "cleared" something it never had.
+// (Progression-business owners / internal staff reach this before any sale,
+// since their nav isn't gated on self-managed files the way agency users' is.)
+// Mirrors the Comms / To-Do / Completions empty states. Info-only: there's no
+// user action that creates an enquiry, so the cards carry no CTA.
+export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean }) {
   return (
     <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
@@ -23,15 +25,31 @@ export function EnquiriesEmptyState() {
       >
         <HeroArt light="/enquiries-hero.png" dark="/enquiries-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="success" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-            All clear
-          </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-            No enquiries need your attention
-          </p>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
-            When a sale reaches the enquiries stage, anything that needs chasing or reviewing will appear here.
-          </p>
+          {hasSales ? (
+            <>
+              <Pill tone="success" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
+                All clear
+              </Pill>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
+                No enquiries need your attention
+              </p>
+              <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
+                When a sale reaches the enquiries stage, anything that needs chasing or reviewing will appear here.
+              </p>
+            </>
+          ) : (
+            <>
+              <Pill tone="default" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
+                Nothing here yet
+              </Pill>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
+                Enquiries will show up here
+              </p>
+              <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
+                Once you add a sale and it reaches the enquiries stage, anything that needs chasing or reviewing will appear here.
+              </p>
+            </>
+          )}
         </div>
       </div>
 

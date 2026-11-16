@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { getOpenEnquiries } from "@/lib/services/enquiries";
+import { userHasAnySale } from "@/lib/agent/has-sales";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
@@ -31,6 +32,9 @@ export default async function EnquiriesPage() {
     prisma.imapConnection.count({ where: { userId: session.user.id } }),
   ]);
   const emailConnected = outlookCount + imapCount > 0;
+  // Distinguish a genuine resting state ("all clear", has sales) from a brand-new
+  // account that has never had a sale, so the empty copy tells the truth for both.
+  const hasSales = rows.length === 0 ? await userHasAnySale(session) : true;
   // No open loops → the "all clear" empty state. Only reachable once the agency
   // has a live file (nav gates on hasSelfManagedFiles), so it reads as a resting
   // state, not a brand-new-account one. Skip the photo signing when there's
@@ -48,7 +52,7 @@ export default async function EnquiriesPage() {
       <BloomStage>
       <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
         {rows.length === 0 ? (
-          <EnquiriesEmptyState />
+          <EnquiriesEmptyState hasSales={hasSales} />
         ) : (
           <EnquiriesTriageList rows={rows} signedPhotos={Object.fromEntries(signed)} emailConnected={emailConnected} />
         )}
