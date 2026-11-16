@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { DISPLAY_STAGES } from "@/lib/milestones/display-stages";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -169,6 +169,27 @@ export function TransactionTable({
 
   const sorted = useMemo(() => sortTransactions(transactions, sortKey, sortDir), [transactions, sortKey, sortDir]);
 
+  // Windowing: render a capped slice and reveal more as a sentinel scrolls into
+  // view, so a large book (admin / big agency) doesn't mount every row + sign
+  // every photo up front. Selection and prev/next still operate over the FULL
+  // sorted set, so nothing behaves differently — only off-screen rows are
+  // deferred. The cap resets whenever the result set or sort changes.
+  const VISIBLE_STEP = 40;
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
+  useEffect(() => { setVisibleCount(VISIBLE_STEP); }, [transactions, sortKey, sortDir]);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (visibleCount >= sorted.length) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) setVisibleCount((c) => Math.min(c + VISIBLE_STEP, sorted.length)); },
+      { rootMargin: "800px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visibleCount, sorted.length]);
+
   // Selection over the on-screen order. If the selected file leaves the results
   // (tab / search / filter change) the preview auto-closes — never leave an
   // unrelated property open (founder adjustment, 2026-11-13).
@@ -263,7 +284,7 @@ export function TransactionTable({
         )}
       </div>
 
-      {sorted.map((tx, i) => (
+      {sorted.slice(0, visibleCount).map((tx, i) => (
         <TransactionRowView
           key={tx.id}
           tx={tx}
@@ -277,6 +298,7 @@ export function TransactionTable({
           selected={preview && tx.id === selectedId}
         />
       ))}
+      {visibleCount < sorted.length && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
     </GlassCard>
 
     {preview && (
