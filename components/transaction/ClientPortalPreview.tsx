@@ -34,7 +34,7 @@ export type PortalPreviewClient = {
   // (resolvePortalState / getPortalLinkSentByContact): "active" = they've opened
   // their portal, "invited" = a link email genuinely went to them, else
   // "ready_to_invite". Kept in sync by the file-wide refresh so both surfaces agree.
-  status: "ready_to_invite" | "invited" | "active";
+  status: "ready_to_invite" | "invited" | "active" | "couldnt_send";
   lastViewedIso?: string | null;
 };
 
@@ -769,9 +769,11 @@ function ResendList({ clients }: { clients: PortalPreviewClient[] }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {clients.map((c) => {
           // Same data-backed status the contacts card shows, so both surfaces
-          // read the truth and agree (amber = sent, green = they've opened it).
-          const dotColor = c.status === "active" ? "#16a34a" : c.status === "invited" ? "#d97706" : "#94a3b8";
-          const statusLabel = c.status === "active" ? "Active" : c.status === "invited" ? "Invite sent" : "Ready to invite";
+          // read the truth and agree (amber = sent, green = they've opened it,
+          // red = the send failed).
+          const failed = c.status === "couldnt_send";
+          const dotColor = c.status === "active" ? "#16a34a" : c.status === "invited" ? "#d97706" : failed ? "#dc2626" : "#94a3b8";
+          const statusLabel = c.status === "active" ? "Active" : c.status === "invited" ? "Invite sent" : failed ? "Couldn't send" : "Ready to invite";
           const sending = busy === c.token;
           return (
             <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "7px 2px", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
@@ -785,7 +787,7 @@ function ResendList({ clients }: { clients: PortalPreviewClient[] }) {
                 {sending ? (
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>Sending…</span>
                 ) : (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: failed ? "#dc2626" : "var(--agent-text-secondary)" }}>
                     <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                     {statusLabel}
                   </span>
@@ -793,8 +795,10 @@ function ResendList({ clients }: { clients: PortalPreviewClient[] }) {
                 <button
                   onClick={() => resend(c)}
                   disabled={sending}
-                  className="agent-link"
-                  style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-coral-deep)", flexShrink: 0, cursor: sending ? "wait" : "pointer", background: "none", border: 0 }}
+                  className={failed ? undefined : "agent-link"}
+                  style={failed
+                    ? { fontSize: 12.5, fontWeight: 700, color: "#fff", flexShrink: 0, cursor: sending ? "wait" : "pointer", background: "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))", border: "1px solid transparent", borderRadius: 8, padding: "5px 12px", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)" }
+                    : { fontSize: 12.5, fontWeight: 600, color: "var(--agent-coral-deep)", flexShrink: 0, cursor: sending ? "wait" : "pointer", background: "none", border: 0 }}
                 >
                   {c.status === "ready_to_invite" ? "Send invite" : "Resend"}
                 </button>

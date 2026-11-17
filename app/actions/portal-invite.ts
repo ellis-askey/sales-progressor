@@ -60,6 +60,9 @@ export async function inviteNewClientToPortalAction(input: {
     actingUserRole: session.user.role,
   });
   if (!sent.ok) {
+    // The contact was created and the failed send is recorded, so refresh to
+    // surface the "Couldn't send" status on the client list.
+    revalidatePath(`/agent/transactions/${input.transactionId}`, "layout");
     return { ok: false, error: `Client added, but the invite email didn't send (${sent.error}). Try resending from the client list.` };
   }
 
@@ -82,7 +85,8 @@ export async function resendPortalInviteAction(token: string): Promise<{ ok: tru
     actingUserId: session.user.id,
     actingUserRole: session.user.role,
   });
-  // Refresh the file so the "invite sent" line shows on the Activity tab.
-  if (res.ok) revalidatePath(`/agent/transactions/${res.transactionId}`, "layout");
+  // Refresh the file so the outcome (invite sent, or "Couldn't send" on failure)
+  // shows on the client list + Activity tab.
+  if (res.transactionId) revalidatePath(`/agent/transactions/${res.transactionId}`, "layout");
   return res;
 }

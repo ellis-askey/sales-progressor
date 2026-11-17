@@ -919,6 +919,9 @@ export async function getPortalLinkSentByContact(
     where: {
       transactionId,
       method: "email",
+      // A send we recorded as "failed" must NOT read as invited (it's surfaced
+      // separately as "Couldn't send" by getPortalInviteFailedByContact).
+      status: { not: "failed" },
       OR: [{ isAutomated: true }, { subject: "Portal invite" }],
     },
     select: { contactIds: true },
@@ -928,6 +931,25 @@ export async function getPortalLinkSentByContact(
     for (const id of r.contactIds) sent[id] = true;
   }
   return sent;
+}
+
+// Companion to getPortalLinkSentByContact: a contact whose portal invite was
+// recorded as FAILED (the send threw). Callers layer this UNDER the sent signal
+// — any successful link email wins — so this only surfaces for a contact who has
+// a failed invite and no successful link email, powering the truthful
+// "Couldn't send" status. Reads records we already keep; no new column.
+export async function getPortalInviteFailedByContact(
+  transactionId: string,
+): Promise<Record<string, boolean>> {
+  const rows = await prisma.outboundMessage.findMany({
+    where: { transactionId, method: "email", status: "failed", subject: "Portal invite" },
+    select: { contactIds: true },
+  });
+  const failed: Record<string, boolean> = {};
+  for (const r of rows) {
+    for (const id of r.contactIds) failed[id] = true;
+  }
+  return failed;
 }
 
 export async function getLastContactedByContact(

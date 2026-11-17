@@ -21,7 +21,7 @@ import { greetingFirstName } from "@/lib/contacts/displayName";
 export async function sendPortalInviteByToken(
   token: string,
   opts: { origin: string; actingUserId: string | null; actingUserRole: string | null },
-): Promise<{ ok: true; transactionId: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; transactionId: string } | { ok: false; error: string; transactionId?: string }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: {
@@ -67,7 +67,34 @@ export async function sendPortalInviteByToken(
   // agency's, else our default wording.
   const inviteContent = await resolvePortalInviteContent(contact.transaction.agencyId, contact.transaction.progressionBusinessId);
   const invite = buildPortalInviteEmail({ agencyName, address, saleWord, greeting, portalUrl, theme, logoBand, studioTheme, identityName: brandName ?? agencyName, logoUrl: resolvedLogoUrl, tileColor: resolvedTileColor, content: inviteContent });
-  await sendEmail({ to: contact.email, subject: invite.subject, from: fromAddr, replyTo, text: invite.text, html: invite.html });
+  try {
+    await sendEmail({ to: contact.email, subject: invite.subject, from: fromAddr, replyTo, text: invite.text, html: invite.html });
+  } catch (err) {
+    // Record the FAILED attempt so the status reads a truthful "Couldn't send"
+    // (and the agent knows to retry) instead of the failure vanishing. The
+    // link-sent signal ignores "failed" rows, so this never reads as invited.
+    await prisma.outboundMessage.create({
+      data: {
+        transactionId: contact.transaction.id,
+        agencyId: contact.transaction.agencyId,
+        type: "outbound",
+        channel: "email",
+        method: "email",
+        purpose: "notification",
+        status: "failed",
+        isAutomated: false,
+        subject: "Portal invite",
+        content: `Portal invitation to ${greetingFirstName(contact.name)} (${contact.email}) could not be sent.`,
+        contactIds: [contact.id],
+        recipientName: contact.name,
+        recipientEmail: contact.email,
+        sentFromEmail: fromAddr,
+        createdById: opts.actingUserId,
+        createdByRole: opts.actingUserRole,
+      },
+    }).catch((e) => console.error("[portal-invite] failed to log FAILED invite OutboundMessage", e));
+    return { ok: false, error: err instanceof Error ? err.message : "Email send failed", transactionId: contact.transaction.id };
+  }
 
   // Record the send so the contacts card can show a truthful "Invite sent",
   // attributed to whoever pressed the button (their avatar in the activity feed).
