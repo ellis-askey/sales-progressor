@@ -195,7 +195,7 @@ const CSS = `
 .csp-compose-save:hover:not(:disabled){ filter:brightness(1.05); }
 .csp-compose-save:disabled{ opacity:0.45; cursor:default; }
 
-.csp-feed{ display:flex; flex-direction:column; gap:14px; }
+.csp-feed{ display:flex; flex-direction:column; gap:14px; max-height:300px; overflow-y:auto; padding-right:4px; scrollbar-width:thin; }
 .csp-feed-empty{ margin:0; font-size:12px; color:var(--agent-text-muted); }
 .csp-entry{ display:flex; gap:10px; }
 .csp-entry-body{ flex:1; min-width:0; }

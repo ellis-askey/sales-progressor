@@ -125,5 +125,5 @@ export async function getChainSidePanelData(transactionId: string): Promise<Chai
     }
   }
 
-  return { seller, buyer, entries: entries.slice(0, 25) };
+  return { seller, buyer, entries: entries.slice(0, 50) };
 }
