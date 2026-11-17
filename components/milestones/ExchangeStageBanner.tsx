@@ -9,7 +9,7 @@
 // The caller decides the stage; this owns the exact strings and icons.
 
 import { useRouter } from "next/navigation";
-import { CheckCircle, Handshake, SealCheck } from "@/components/icons/ph";
+import { CheckCircle, Handshake, SealCheck } from "@phosphor-icons/react";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export type ExchangeStage = "ready" | "exchanged" | "completed";
