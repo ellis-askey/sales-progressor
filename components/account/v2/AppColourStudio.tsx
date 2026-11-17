@@ -189,7 +189,7 @@ const STEPS = [
   { n: 3 as const, label: "Secondary button", sub: "The quieter action", Icon: SquaresFour },
 ];
 
-export function AppColourStudio({ initial = DEFAULT_APP_COLOUR, onSave, onChange, hideHead = false }: { initial?: AppColourConfig; onSave?: (config: AppColourConfig) => void | Promise<void>; onChange?: (config: AppColourConfig) => void; hideHead?: boolean }) {
+export function AppColourStudio({ initial = DEFAULT_APP_COLOUR, onSave, onChange, hideHead = false, advanceOnSave = false }: { initial?: AppColourConfig; onSave?: (config: AppColourConfig) => void | Promise<void>; onChange?: (config: AppColourConfig) => void; hideHead?: boolean; advanceOnSave?: boolean }) {
   const [cfg, setCfg] = useState<AppColourConfig>(initial);
   const [saved, setSaved] = useState<AppColourConfig>(initial);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -250,7 +250,10 @@ export function AppColourStudio({ initial = DEFAULT_APP_COLOUR, onSave, onChange
     return { worst, grade: (worst >= 4.5 ? "aa" : worst >= 3 ? "large" : "fail") as "aa" | "large" | "fail" };
   }, [cfg]);
 
-  async function save() { setBusy(true); try { await onSave?.(cfg); setSaved(cfg); } finally { setBusy(false); } }
+  // advanceOnSave (opt-in; off in production until wired): Save also carries the
+  // user to the next step so the studio "sweeps them through" rather than
+  // stranding them on step 1 beside a now-greyed Save. Default-off = unchanged.
+  async function save() { setBusy(true); try { await onSave?.(cfg); setSaved(cfg); if (advanceOnSave && step < 3) setStep((step + 1) as 2 | 3); } catch { /* save failed (onSave threw) — stay on this step */ } finally { setBusy(false); } }
 
   const bd = cfg.primaryBtn.border;
 
@@ -399,8 +402,8 @@ export function AppColourStudio({ initial = DEFAULT_APP_COLOUR, onSave, onChange
           <div className="acs-foot">
             {step > 1 ? <button type="button" className="acs-nav" onClick={() => setStep((step - 1) as 1 | 2)}><ArrowLeft size={13} weight="bold" /> Back</button> : <span />}
             <div className="acs-foot-r">
-              {step < 3 && <button type="button" className="acs-nav acs-nav--next" onClick={() => setStep((step + 1) as 2 | 3)}>Next <ArrowRight size={13} weight="bold" /></button>}
-              <button type="button" className="acs-save" style={{ background: dirty ? (priStyle.background as string) : undefined, color: dirty ? (priStyle.color as string) : undefined }} disabled={!dirty || busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+              {step < 3 && !advanceOnSave && <button type="button" className="acs-nav acs-nav--next" onClick={() => setStep((step + 1) as 2 | 3)}>Next <ArrowRight size={13} weight="bold" /></button>}
+              <button type="button" className="acs-save" style={{ background: dirty ? (priStyle.background as string) : undefined, color: dirty ? (priStyle.color as string) : undefined }} disabled={!dirty || busy} onClick={save}>{busy ? "Saving…" : advanceOnSave && step < 3 ? "Save & next" : "Save"}</button>
             </div>
           </div>
         </div>

@@ -34,11 +34,15 @@ export function AppColourStudioLive({ initial }: { initial: AppColourConfig }) {
     <AppColourStudio
       initial={initial}
       hideHead
+      // Save carries the user to the next step (Colours → Primary → Secondary)
+      // instead of greying out on step 1. Throwing on failure makes the studio's
+      // save() skip the advance so a failed save leaves them where they are.
+      advanceOnSave
       onChange={(cfg) => { if (styleRef.current) styleRef.current.textContent = appColourCss(cfg); }}
       onSave={async (cfg) => {
         const r = await updateAppColour(cfg);
-        if (r.ok) { toast.success("App colour updated"); router.refresh(); }
-        else toast.error(r.error);
+        if (!r.ok) { toast.error(r.error); throw new Error(r.error); }
+        toast.success("App colour updated"); router.refresh();
       }}
     />
   );
