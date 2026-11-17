@@ -91,11 +91,16 @@ export function buildNavGroups(role: UserRole, email: string | null | undefined,
     // hoverPrefetch on the four measured-heaviest renders (perf audit
     // follow-up 2026-10-12): they load data on hover instead of joining
     // the on-mount prefetch stampede that queued early sidebar clicks.
-    ...(showSelfPages ? [{ href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope, hoverPrefetch: true }] : []),
+    // Auto emails (critique #298): always shown for agency users. The page shows
+    // the onboarding empty state until they have a self-managed file, then the
+    // live feed — so an outsourced-only agency sees the empty state, never TSP's
+    // data. Internal staff keep the real page (showSelfPages true for them).
+    { href: "/agent/automated-emails", label: "Auto emails", Icon: Envelope, hoverPrefetch: true },
     { href: "/agent/transactions", label: role === "director" ? "All Files" : "My Files", Icon: FolderOpen, hoverPrefetch: true },
-    // Chains: internal staff + self-managing agencies (+ the named allowlist).
-    // Same canSeeChains gate as the server route guard.
-    ...(canSeeChains(role, email, hasSelfManagedFiles) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined, hoverPrefetch: true }] : []),
+    // Chains (critique #298): internal staff + the named allowlist see real chains
+    // (canSeeChains); agency users always see the item too and get the onboarding
+    // empty state until they self-progress, then the workspace.
+    ...((canSeeChains(role, email, hasSelfManagedFiles) || isAgencyUser) ? [{ href: "/agent/chains", label: "Chains", Icon: LinkSimple, badge: chainsCount > 0 ? chainsCount : undefined, hoverPrefetch: true }] : []),
     // WhatsApp reading room nav link removed 2026-10-19 (founder): WhatsApp
     // lives on each file's own tab; a standalone page duplicated it. The
     // /agent/messages route is parked (404s) alongside this.

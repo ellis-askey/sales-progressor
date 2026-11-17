@@ -12,6 +12,7 @@
 
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { AutoEmailsEmptyState } from "@/components/agent/AutoEmailsEmptyState";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
@@ -71,10 +72,19 @@ export default async function AutomatedEmailsPage({
   }>;
 }) {
   const session = await requireSession();
-  // Founder rule 2026-08-09: an agency that outsources everything has no
-  // Auto-emails page (the nav item is hidden too). Direct-URL access 404s.
+  // Critique #298: an agency with no self-managed files (never self-progresses,
+  // or brand new) gets the onboarding empty state here — not the real data, which
+  // is TSP's/the outsourced progressor's to handle. The page flips to the live
+  // feed once they have an in-house file. Non-agency roles (internal staff /
+  // external progressors) pass the helper and always get the real page.
   if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
-    notFound();
+    return (
+      <div>
+        <div style={{ padding: "8px 32px 24px" }}>
+          <AutoEmailsEmptyState />
+        </div>
+      </div>
+    );
   }
   const sp = await searchParams;
 

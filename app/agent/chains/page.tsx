@@ -9,6 +9,7 @@ import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { isExternalProgressorViewer, isBusinessOwnerViewer, businessHasClients } from "@/lib/services/progression-clients";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ChainsWorkspace } from "@/components/chain/ChainsWorkspace";
+import { ChainsEmptyState } from "@/components/agent/ChainsEmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,19 @@ export default async function AgentChainsPage() {
     session.user.id,
     session.user.agencyId,
   );
+  // Critique #298: an agency user who can't yet see real chains (no self-managed
+  // files — they outsource, or are brand new) gets the onboarding empty state
+  // rather than a redirect. It flips to the real workspace once they have an
+  // in-house file. Non-agency roles that fail the check (shouldn't happen) still
+  // bounce to the hub.
+  const isAgencyUser = session.user.role === "director" || session.user.role === "negotiator";
   if (!canSeeChains(session.user.role, session.user.email, hasSelfManagedFiles)) {
-    redirect("/agent/hub");
+    if (!isAgencyUser) redirect("/agent/hub");
+    return (
+      <div className="px-4 md:px-8 py-2 md:py-4">
+        <ChainsEmptyState />
+      </div>
+    );
   }
 
   const scope = getAccessScope(session);
