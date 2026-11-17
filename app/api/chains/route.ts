@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
     businessId: session.user.progressionBusinessId ?? null,
+    canViewAllFiles: session.user.canViewAllFiles,
     scope,
   });
   // chain=null + not gated out → no v2 chain: fall back to a legacy chain.

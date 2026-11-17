@@ -22,6 +22,7 @@ export default async function ChainTabPage({ params }: { params: Promise<{ id: s
     userId: session.user.id,
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
+    canViewAllFiles: session.user.canViewAllFiles,
     scope: getAccessScope(session),
   });
   return (

@@ -48,6 +48,7 @@ function viewerFromSession(session: Session): IntelViewer {
     userId: session.user.id,
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
+    canViewAllFiles: session.user.canViewAllFiles,
     scope: getAccessScope(session),
   };
 }

@@ -22,6 +22,12 @@ export type IntelViewer = {
   // The viewer's progression business (internal/business users). With agencyId
   // this gives the viewer's "side key" for the private chase-log filter (#chain-checkins).
   businessId?: string | null;
+  // Agency "see-all" flag — lets a trusted non-director (a senior negotiator /
+  // progressor set to see the whole agency book) edit the agency's chain stubs,
+  // not just a director or the person who added the stub. Omitted = treated as
+  // false, so any caller that doesn't pass it keeps the stricter director-only
+  // behaviour (no regression).
+  canViewAllFiles?: boolean;
   scope: AccessScope;
 };
 
@@ -126,7 +132,10 @@ export function canEditNodeIntel(
     // no file here still only gets a stub they created themselves.
     if (tspInternal) return true;
     if (o.linkCreatedByUserId === v.userId) return true;
-    if (v.role === "director" && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId) return true;
+    // A director OR a trusted see-all agency member (a senior negotiator /
+    // progressor) edits any stub their OWN agency created — not just the person
+    // who added it. Mirrors "manages the whole agency book".
+    if ((v.role === "director" || v.canViewAllFiles === true) && !!o.linkCreatedByAgencyId && o.linkCreatedByAgencyId === v.agencyId) return true;
     return v.scope.kind === "business" && ctx?.viewerProgressesChain === true;
   }
   // Claimed node.

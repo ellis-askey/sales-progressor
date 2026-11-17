@@ -194,6 +194,7 @@ export async function buildChainEmailDraft(
     role: session.user.role,
     agencyId: session.user.agencyId ?? null,
     businessId: session.user.progressionBusinessId ?? null,
+    canViewAllFiles: session.user.canViewAllFiles,
     scope,
   };
   const chainV2 = await getChainForTransactionV2(transactionId, session.user.id, viewer);
