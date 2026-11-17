@@ -12,12 +12,14 @@ import { prisma } from "@/lib/prisma";
 //
 //   - Internal staff (admin / sales_progressor / superadmin / viewer):
 //     always true — unaffected by this rule.
-//   - director:   agency-wide — any active/on-hold self-managed file.
-//   - negotiator: their own — an active/on-hold self-managed file assigned
-//     to them.
+//   - director:   agency-wide — any non-draft self-managed file.
+//   - negotiator: their own — a non-draft self-managed file they agreed or
+//     are assigned to progress.
 //
-// Gated on active/on-hold (not completed/withdrawn) so a file that has
-// already closed doesn't unlock an otherwise-empty page.
+// "Ever self-progressed" (any non-draft status, incl. completed/withdrawn): once
+// an agency has run a self-managed sale, these surfaces stay unlocked — they get
+// the real page with its own "nothing right now" state, not the onboarding empty
+// state, even in the gaps between in-house sales (critique #298 follow-up).
 //
 // isDemo:false — a demo sale must NOT unlock these surfaces. The demo sends no
 // real chases or emails, so an agency that only has the demo file (and outsources
@@ -31,7 +33,7 @@ export async function agencyUserHasSelfManagedFiles(
   const count = await prisma.propertyTransaction.count({
     where: {
       serviceType: "self_managed",
-      status: { in: ["active", "on_hold"] },
+      status: { not: "draft" },
       isDemo: false,
       ...(role === "director"
         ? { agencyId: agencyId ?? "__none__" }
