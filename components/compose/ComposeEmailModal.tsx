@@ -627,10 +627,10 @@ export function ComposeEmailModal({
       else ed.innerHTML = html;
       autoGreetRef.current = false; // the template carries its own greeting now
     } else {
-      const sel = window.getSelection();
-      const inEditor = !!sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode);
-      if (inEditor) { ed.focus(); document.execCommand("insertHTML", false, html); }
-      else if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
+      // Append the template above the signature, keeping the existing draft.
+      // Always insertAdjacentHTML (never execCommand("insertHTML"), which
+      // flattens <p>/<ul> and drops the line breaks + bullet structure).
+      if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
       else ed.insertAdjacentHTML("beforeend", html);
     }
     // Apply the template subject only when the composer has no subject yet (never
@@ -932,7 +932,7 @@ export function ComposeEmailModal({
                         {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
                       </button>
                     )}
-                    <button type="button" className={`cem-tb cem-tmpl-btn ${pickerOpen ? "on" : ""}`} title="Email templates"
+                    <button type="button" className={`cem-tmpl-btn ${pickerOpen ? "on" : ""}`} title="Email templates"
                       onMouseDown={(e) => e.preventDefault()} onClick={() => setPickerOpen((v) => !v)} aria-label="Email templates">
                       <Stack size={16} weight={pickerOpen ? "fill" : "regular"} />
                     </button>
@@ -1180,9 +1180,14 @@ const CEM_CSS = `
 .cem-subject{width:100%;background:var(--agent-surface-elevated,#fff);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:550;color:var(--agent-text-primary);outline:none}
 .cem-editor-wrap{position:relative;border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
 .cem-editor-wrap:has(.tp){overflow:visible}
+.cem-tmpl-btn{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:var(--agent-text-muted,#9a8a7f);transition:background .15s ease,color .15s ease}
+.cem-tmpl-btn:hover{background:color-mix(in srgb, currentColor 12%, transparent);color:var(--agent-text-primary,#2d1810)}
 .cem-tmpl-btn.on{background:var(--agent-hover-shade-strong,rgba(45,24,16,.09));color:var(--agent-text-primary,#2d1810)}
 .cem-editor{min-height:150px;max-height:290px;overflow-y:auto;padding:13px 14px;font-size:13px;line-height:1.6;color:var(--agent-text-primary);outline:none;border-bottom:1px solid var(--agent-border-subtle)}
-.cem-editor p{margin:0 0 16px}.cem-editor p:last-child{margin-bottom:0}.cem-editor a{color:var(--agent-coral-deep)}
+.cem-editor p{margin:0 0 16px}
+.cem-editor ul{list-style:disc;padding-left:22px;margin:0 0 16px}
+.cem-editor ol{list-style:decimal;padding-left:22px;margin:0 0 16px}
+.cem-editor li{margin:0 0 5px}.cem-editor p:last-child{margin-bottom:0}.cem-editor a{color:var(--agent-coral-deep)}
 .cem-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:5px;background:var(--agent-bg-paper,#FFFBF5)}
 .cem-tb{width:30px;height:30px;border:none;background:none;border-radius:7px;cursor:pointer;color:var(--agent-text-secondary);font-size:14px;display:grid;place-items:center;transition:background .12s,color .12s}
 .cem-tb:hover{background:rgba(45,24,16,0.06);color:var(--agent-text-primary)}
