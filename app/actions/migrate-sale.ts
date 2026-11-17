@@ -341,14 +341,16 @@ async function finalizeImport(
     // Milestone set — idempotent (find-then-create-if-missing).
     await initializeMilestoneCompletions(transactionId, input.tenure, input.purchaseType, actingUserId, activeBuyerRoundId);
 
-    // Historical ticks — SILENT backdated writes via the shared core.
-    // completerId null => "Auto-confirmed" (not a misleading "X confirmed on
-    // <historical date>"). Enforce all-or-nothing: a short count fails the import.
+    // Historical ticks — SILENT backdated writes via the shared core. The
+    // migrator is recorded as the confirmer: they confirmed each step as they
+    // entered it during the import, so migrated steps show them (and their
+    // avatar), not "System" (founder decision 2026-11-17).
+    // Enforce all-or-nothing: a short count fails the import.
     if (input.completions.length > 0) {
       const { applied } = await applyMigratedMilestoneCompletions({
         transactionId,
         completions: input.completions,
-        completerId: null,
+        completerId: actingUserId,
       });
       if (applied !== input.completions.length) {
         return { ok: false, kind: "partial", message: "Some historical milestones didn't import. Nothing was sent. Retry to finish.", id: transactionId };
