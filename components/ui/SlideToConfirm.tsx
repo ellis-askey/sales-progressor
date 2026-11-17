@@ -484,6 +484,10 @@ export function SlideToConfirm({
             x: seen,
             scaleX: sx,
             scaleY: sy,
+            /* grip height tracks the live track height (GRIP = height - 2·PAD),
+               the same value the width rests at — so the handle is a circle at
+               rest for ANY height prop, not the CSS's old fixed 48px. */
+            height: GRIP,
             /* ── the morph, and it is ONE number ───────────
                 `wide` is read off x and the anchor, so the
                 width is not being animated at all — it is

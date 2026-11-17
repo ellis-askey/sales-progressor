@@ -158,7 +158,9 @@
   position: absolute;
   left: 4px;
   top: 4px;
-  height: 48px;
+  /* fallback only — the component sets the real height inline from GRIP
+     (track height - 2*PAD). calc keeps it correct if ever rendered without JS. */
+  height: calc(100% - 8px);
   padding: 0;
   border: 0;
   background: var(--fill-on, var(--ink));
