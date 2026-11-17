@@ -30,10 +30,24 @@ export type ChainSidePanelData = { seller: SidePanelStep[]; buyer: SidePanelStep
 // N/R'd; anything else falls back to the hero label.
 const NR_NOUN: Record<string, string> = { PM8: "Searches", PM9: "Survey", PM24: "Deposit", PM5: "Mortgage", PM6: "Mortgage", PM11: "Mortgage" };
 
+// Feed-only confirmation wording. A few email hero labels read fine as an email
+// header but wrong as a past-tense confirmation in this feed ("Property forms to
+// complete", "Contract ready to sign"), and PM2 has no client email at all so it
+// would fall back to its infinitive to-do label. These override the feed label
+// WITHOUT touching the client emails (which keep their own hero labels).
+const FEED_CONFIRM_LABEL: Record<string, string> = {
+  PM2: "Memorandum of sale issued",
+  VM5: "Property forms received",
+  VM16: "Contract issued to sign",
+  PM22: "Contract issued to sign",
+};
+
 // The concise done-state label for a step — the email hero label for the step's
 // own side ("Solicitor instructed", "Mortgage application submitted", "Searches
-// ordered"). Single source of truth with the client emails.
+// ordered"), with the feed-only overrides above applied. Otherwise the single
+// source of truth with the client emails.
 function shortLabel(code: string): string {
+  if (FEED_CONFIRM_LABEL[code]) return FEED_CONFIRM_LABEL[code];
   const copy = getMilestoneCopy(code);
   const side = code.startsWith("PM") ? copy.emailCopy?.purchaser : copy.emailCopy?.vendor;
   return side?.heroLabel ?? copy.label ?? code;

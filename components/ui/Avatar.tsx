@@ -3,7 +3,7 @@
 // Centralised gradient definitions — do not duplicate across files.
 
 import { getInitials } from "@/lib/contacts/displayName";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 // ─── Gradient tokens ─────────────────────────────────────────────────────────
 
@@ -148,24 +148,34 @@ function contactRoleToSide(roleType: string): Side {
 
 // ─── Avatar photo (shimmer + self-healing retry) ─────────────────────────────
 // A user/contact WHO HAS a photo should never show the browser's broken-image
-// "?" on a flaky connection (critique #296), and never fall back to the
-// branded no-photo art (that reads as "they have no display pic"). Instead:
-// show a neutral shimmer while loading, retry the fetch with backoff (cache-
-// busted so it doesn't re-read a cached failure), and let the real photo appear
-// the moment the connection recovers. Only the no-image path (handled by the
-// caller) shows the branded art / initials.
+// "?" on a flaky connection (critique #296). We retry the fetch with backoff
+// (cache-busted so it doesn't re-read a cached failure) and let the real photo
+// appear the moment the connection recovers. But a permanently unreachable URL
+// (stale/wrong-project storage URL, a throttled OAuth photo) must NOT leave a
+// blank circle forever: after a short grace window with no photo we reveal the
+// branded art / initials UNDERNEATH, while the retries continue on top — so a
+// late photo still swaps in. Net: healthy photo loads clean, slow photo shows
+// branded art for a beat then the photo, dead photo settles on the branded art.
 const MAX_IMG_ATTEMPTS = 6;
+const GRACE_MS = 1200; // how long to wait for the photo before showing the art
 
-function AvatarImage({ src, size, focusX, focusY }: { src: string; size: number; focusX: number; focusY: number }) {
+function AvatarImage({ src, size, focusX, focusY, fallback }: { src: string; size: number; focusX: number; focusY: number; fallback: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [grace, setGrace] = useState(false); // grace window elapsed → art may show
   const timer = useRef<number | null>(null);
+  const graceTimer = useRef<number | null>(null);
 
   // Reset when the photo changes (new user/contact).
   useEffect(() => {
     setLoaded(false);
     setAttempt(0);
-    return () => { if (timer.current) window.clearTimeout(timer.current); };
+    setGrace(false);
+    graceTimer.current = window.setTimeout(() => setGrace(true), GRACE_MS);
+    return () => {
+      if (timer.current) window.clearTimeout(timer.current);
+      if (graceTimer.current) window.clearTimeout(graceTimer.current);
+    };
   }, [src]);
 
   // Cache-bust per retry so the browser re-fetches rather than re-reading its
@@ -175,17 +185,25 @@ function AvatarImage({ src, size, focusX, focusY }: { src: string; size: number;
 
   return (
     <>
-      {!loaded && <span className="avatar-shimmer" style={{ position: "absolute", inset: 0 }} aria-hidden />}
+      {!loaded && (
+        // Before the grace window: neutral shimmer (looks like loading).
+        // After it, with no photo yet: the branded art, so it's never a blank
+        // circle. The photo (below) still overlays it the instant it loads.
+        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
+          {grace ? fallback : <span className="avatar-shimmer" style={{ position: "absolute", inset: 0 }} />}
+        </span>
+      )}
       <img
         key={attempt}
         src={retrySrc}
         alt=""
         width={size}
         height={size}
-        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block", opacity: loaded ? 1 : 0 }}
+        referrerPolicy="no-referrer"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: `${focusX}% ${focusY}%`, display: "block", opacity: loaded ? 1 : 0 }}
         onLoad={() => setLoaded(true)}
         onError={() => {
-          if (attempt >= MAX_IMG_ATTEMPTS) return; // keep the shimmer (loading look), never "?" or the no-photo art
+          if (attempt >= MAX_IMG_ATTEMPTS) return; // stop retrying; the art fallback (above) stays
           const next = attempt + 1;
           const delay = Math.min(30000, 600 * 2 ** attempt); // 0.6s → 1.2s → … capped at 30s
           timer.current = window.setTimeout(() => setAttempt(next), delay);
@@ -246,16 +264,22 @@ function AvatarBase({ initials, side, size = 32, className, image, focusX = 50, 
       : {}),
   };
 
+  // What a photo-less avatar shows — also the fallback a photo settles on if its
+  // URL never loads (so a broken photo URL is never a blank circle).
+  const artFallback: ReactNode = defaultArt ? (
+    artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} />
+    : artKind === "pound" ? <DefaultPoundAvatarArt size={size} />
+    : <DefaultAgentAvatarArt size={size} />
+  ) : (
+    initials
+  );
+
   return (
     <span style={style} className={className} aria-hidden>
       {image ? (
-        <AvatarImage src={image} size={size} focusX={focusX} focusY={focusY} />
-      ) : defaultArt ? (
-        artKind === "idcard" ? <DefaultIdCardAvatarArt size={size} />
-        : artKind === "pound" ? <DefaultPoundAvatarArt size={size} />
-        : <DefaultAgentAvatarArt size={size} />
+        <AvatarImage src={image} size={size} focusX={focusX} focusY={focusY} fallback={artFallback} />
       ) : (
-        initials
+        artFallback
       )}
     </span>
   );
