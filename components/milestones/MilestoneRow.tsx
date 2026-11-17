@@ -1074,7 +1074,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
             inside the drop-down. */}
         <div className={`flex flex-col items-end gap-1.5 flex-shrink-0 ${showEventDate ? "max-sm:w-full max-sm:items-stretch" : "max-[425px]:w-full max-[425px]:items-stretch"}`}>
           {!isDone && (
-            <div className={`flex items-center gap-2 ${showEventDate ? "max-sm:w-full" : "max-[425px]:w-full"}`}>
+            <div className={`flex items-center gap-2 ${showEventDate ? "max-sm:w-full" : "max-[425px]:w-full max-[425px]:flex-col-reverse max-[425px]:items-stretch"}`}>
               {/* Cancel sits to the LEFT of Confirm on the same line (mock),
                   instead of dropping below it. Same handler. */}
               {showEventDate && (
@@ -1091,12 +1091,33 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 <button
                   onClick={handleNRClick}
                   disabled={loading}
-                  className="agent-link agent-link-muted"
+                  className="agent-link agent-link-muted max-[425px]:hidden"
                   style={{ fontSize: 11 }}
                   title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
                 >
                   Not required
                 </button>
+              )}
+              {/* Phones (≤425px): "Not required" becomes a quieter full-width
+                  secondary button stacked UNDER the full-width Confirm (the row
+                  flips to a reversed column above), rather than a tiny link on
+                  the same line (#299, mobile only). Desktop keeps the link to
+                  Confirm's left. Same handler. */}
+              {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
+                <div
+                  className="hidden max-[425px]:block w-full"
+                  title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
+                >
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleNRClick}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    Not required
+                  </Button>
+                </div>
               )}
               {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
                 <Button
