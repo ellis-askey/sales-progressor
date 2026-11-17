@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   description: "Your pipeline, attention items, and exchange forecast at a glance.",
 };
 
+// The hub diary can confirm an exchange/completion, which runs a heavy DB
+// transaction budgeted up to ~40s; the Vercel default (~15s) killed it mid-write
+// and read as a freeze. Match the budget — see
+// app/agent/transactions/[id]/milestones/page.tsx.
+export const maxDuration = 60;
+
 export default function HubPage() {
   return (
     <>

@@ -7,6 +7,12 @@ import { getAccessScope } from "@/lib/security/access-scope";
 
 export const unstable_dynamicStaleTime = 300;
 
+// The Chain tab renders neighbour files' steps, so an exchange/completion can be
+// confirmed here too. That confirm runs a heavy DB transaction budgeted up to
+// ~40s; the Vercel default (~15s) killed it mid-write and read as a freeze.
+// Match the budget — see app/agent/transactions/[id]/milestones/page.tsx.
+export const maxDuration = 60;
+
 export default async function ChainTabPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, transaction } = await loadFilePageContext(id);

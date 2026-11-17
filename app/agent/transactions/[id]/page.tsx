@@ -14,6 +14,12 @@ import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
+// The Overview tab hosts the "next step" confirm widget, which can confirm an
+// exchange/completion. That confirm runs a heavy DB transaction budgeted up to
+// ~40s; the Vercel default (~15s) killed it mid-write and read as a freeze.
+// Match the budget — see app/agent/transactions/[id]/milestones/page.tsx.
+export const maxDuration = 60;
+
 // Legacy deep-links used ?tab=<key>. Tabs are now route segments, so bounce
 // those to the segment; ?tab=overview (or none) stays here.
 const TAB_SEGMENTS = new Set([

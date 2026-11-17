@@ -6,6 +6,15 @@ import { TabEnter } from "@/components/transaction/TabEnter";
 
 export const unstable_dynamicStaleTime = 300;
 
+// Exchange/completion is confirmed on this tab. That confirm reconciles the
+// outstanding late-stage steps and completes BOTH sides of the pair inside one
+// DB transaction, budgeted up to ~40s (timeout 30s + up to 10s to acquire a
+// pooled connection — app/actions/milestones.ts). Vercel's default function
+// limit (~15s) killed the request mid-write, which the progressor saw as a
+// freeze. Give the route headroom to match that budget — same fix the new-sale
+// route uses (app/agent/transactions/new/page.tsx).
+export const maxDuration = 60;
+
 export default async function StepsTabPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { session, transaction } = await loadFilePageContext(id);
