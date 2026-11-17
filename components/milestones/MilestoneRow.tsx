@@ -1118,7 +1118,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                      .agent-btn display rule — a plain max-[425px]:hidden lost
                      the cascade and left both this button and the slide showing
                      on phones (Ellis). */
-                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1" : "max-[425px]:!hidden"}`}
+                  /* On phones the confirming state replaces the 42px slide, so
+                     match that height (sm is 32px) to avoid a 10px jump as the
+                     slide swaps to "Confirming…". !h so it beats agent-btn-sm. */
+                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1 max-[425px]:!h-[42px]" : "max-[425px]:!hidden"}`}
                   style={{ minWidth: 76 }}
                 >
                   {loading ? (
