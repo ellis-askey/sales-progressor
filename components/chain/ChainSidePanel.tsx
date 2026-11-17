@@ -22,10 +22,20 @@ function Tick({ state }: { state: "done" | "next" | "todo" }) {
   return <span className={`csp-tk ${state === "next" ? "csp-tk--next" : ""}`} aria-hidden />;
 }
 
+// System events get the TSP brand mark; everyone else gets the shared actor
+// avatar — client per-side colour SVG (seller blue / buyer green), solicitor
+// briefcase, agent orange, or a real photo when present. Never initials.
+function SystemAvatar() {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/brand-icon.png" alt="The Sales Progressor" width={22} height={22} style={{ display: "block", width: 22, height: 22, borderRadius: "50%", flexShrink: 0 }} />;
+}
+
 function EntryRow({ e }: { e: SidePanelEntry }) {
   return (
     <div className="csp-entry">
-      <ActorAvatar name={e.who} role={e.whoRole as ActorRole} image={e.whoImage} size={22} />
+      {e.whoRole === "system"
+        ? <SystemAvatar />
+        : <ActorAvatar name={e.who} role={e.whoRole as ActorRole} image={e.whoImage} size={22} />}
       <div className="csp-entry-body">
         <div className="csp-entry-top">
           <span className="csp-entry-who">
@@ -115,7 +125,7 @@ export function ChainSidePanel({ transactionId }: { transactionId: string }) {
 
           <div className="csp-divider" />
 
-          <div className="csp-notes-head"><h4>Notes</h4><span className="csp-hint">On this sale</span></div>
+          <div className="csp-notes-head"><h4>Notes</h4></div>
           <div className={`csp-compose${draft ? " on" : ""}`}>
             <textarea className="csp-compose-input" placeholder="Add a note…" value={draft} onChange={(e) => setDraft(e.target.value)} />
             <div className="csp-compose-row">

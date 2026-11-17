@@ -429,7 +429,14 @@ export async function getActivityTimeline(
       sentence,
       byName,
       byImage,
-      actorRole: confirmedByClient ? "other" : c.completedBy ? userRoleToActor(c.completedBy.role) : c.confirmedBySolicitorFirmId ? "other" : "system",
+      // Client confirmation → that client's side (seller blue / buyer green);
+      // a solicitor-firm confirmation → the solicitor briefcase; staff → their
+      // role; otherwise system (TSP mark). Avoids greying real confirmers.
+      actorRole: confirmedByClient
+        ? (clientContact ? contactRoleToActor(clientContact.roleType) : "other")
+        : c.completedBy ? userRoleToActor(c.completedBy.role)
+        : c.confirmedBySolicitorFirmId ? "solicitor"
+        : "system",
       actorName: byName ?? "System",
       actorImage: byImage,
       // Skipped steps carry no subtext; completed steps take the approved
