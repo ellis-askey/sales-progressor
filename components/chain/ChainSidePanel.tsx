@@ -56,7 +56,7 @@ export function ChainSidePanel({ transactionId }: { transactionId: string }) {
   const [data, setData] = useState<ChainSidePanelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [side, setSide] = useState<"seller" | "buyer">("seller");
-  const [stepsOpen, setStepsOpen] = useState(true);
+  const [stepsOpen, setStepsOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
