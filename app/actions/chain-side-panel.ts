@@ -13,7 +13,7 @@ import { getActivityTimeline } from "@/lib/services/comms";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { formatTimestamp } from "@/lib/utils";
 
-export type SidePanelStep = { code: string; label: string; state: "done" | "next" | "todo" };
+export type SidePanelStep = { code: string; label: string; state: "done" | "next" | "todo"; date: string | null };
 export type SidePanelEntry = {
   id: string;
   kind: "note" | "call" | "step" | "nr";
@@ -39,6 +39,19 @@ function shortLabel(code: string): string {
   return side?.heroLabel ?? copy.label ?? code;
 }
 
+function ordinal(n: number): string {
+  const v = n % 100;
+  const suffix = v >= 11 && v <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${suffix}`;
+}
+// "19th October 2027" — UK time so a date-only event date never slips a day.
+function formatOrdinalDate(d: Date): string {
+  const day = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric" }).format(d));
+  const month = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "long" }).format(d);
+  const year = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric" }).format(d);
+  return `${ordinal(day)} ${month} ${year}`;
+}
+
 export async function getChainSidePanelData(transactionId: string): Promise<ChainSidePanelData | null> {
   const session = await requireSession();
   const scope = getAccessScope(session);
@@ -53,15 +66,22 @@ export async function getChainSidePanelData(transactionId: string): Promise<Chai
     getActivityTimeline(transactionId, tx.agencyId).catch(() => []),
   ]);
 
-  const toSteps = (defs: { code: string; isComplete: boolean; isNotRequired: boolean }[] | undefined): SidePanelStep[] => {
+  const toSteps = (
+    defs: { code: string; isComplete: boolean; isNotRequired: boolean; completion: { eventDate: Date | null; completedAt: Date | null } | null }[] | undefined,
+  ): SidePanelStep[] => {
     if (!defs) return [];
     let nextAssigned = false;
     return defs
       .filter((d) => !d.isNotRequired)
       .map((d): SidePanelStep => {
-        if (d.isComplete) return { code: d.code, label: shortLabel(d.code), state: "done" };
-        if (!nextAssigned) { nextAssigned = true; return { code: d.code, label: shortLabel(d.code), state: "next" }; }
-        return { code: d.code, label: shortLabel(d.code), state: "todo" };
+        if (d.isComplete) {
+          // The user's own event date if they set one ("this happened on…"),
+          // else when it was confirmed.
+          const when = d.completion?.eventDate ?? d.completion?.completedAt ?? null;
+          return { code: d.code, label: shortLabel(d.code), state: "done", date: when ? formatOrdinalDate(when) : null };
+        }
+        if (!nextAssigned) { nextAssigned = true; return { code: d.code, label: shortLabel(d.code), state: "next", date: null }; }
+        return { code: d.code, label: shortLabel(d.code), state: "todo", date: null };
       });
   };
 

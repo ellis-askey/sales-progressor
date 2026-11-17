@@ -102,7 +102,10 @@ export function ChainSidePanel({ transactionId }: { transactionId: string }) {
               {steps.map((s) => (
                 <li key={s.code} className={`csp-step csp-step--${s.state}`}>
                   <Tick state={s.state} />
-                  <span className="csp-step-label">{s.label}</span>
+                  <span className="csp-step-main">
+                    <span className="csp-step-label">{s.label}</span>
+                    {s.date && <span className="csp-step-date">{s.date}</span>}
+                  </span>
                   {s.state === "next" && <span className="csp-next">Next</span>}
                 </li>
               ))}
@@ -153,14 +156,16 @@ const CSS = `
 .csp-steps-wrap.open{ grid-template-rows:1fr; }
 .csp-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; overflow:hidden; min-height:0; }
 @media (prefers-reduced-motion:reduce){ .csp-chev, .csp-steps-wrap{ transition:none; } }
-.csp-step{ display:flex; align-items:center; gap:9px; font-size:12.5px; padding:4px 2px; color:var(--agent-text-secondary); }
+.csp-step{ display:flex; align-items:flex-start; gap:9px; font-size:12.5px; padding:5px 2px; color:var(--agent-text-secondary); }
 .csp-step--done{ color:var(--agent-text-muted); }
 .csp-step--todo{ color:var(--agent-text-muted); opacity:0.7; }
 .csp-step--next{ color:var(--agent-text-primary); font-weight:700; }
-.csp-step-label{ flex:1; min-width:0; }
+.csp-step-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.csp-step-label{ min-width:0; }
+.csp-step-date{ font-size:10.5px; font-weight:500; color:var(--agent-text-muted); margin-top:1px; letter-spacing:0.01em; }
 .csp-empty{ list-style:none; font-size:12px; color:var(--agent-text-muted); padding:4px 2px; }
 .csp-next{ font-size:10.5px; font-weight:700; color:#fff; background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep)); padding:2px 9px; border-radius:999px; }
-.csp-tk{ width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1.5px solid var(--agent-border-default); display:grid; place-items:center; }
+.csp-tk{ width:16px; height:16px; border-radius:50%; flex-shrink:0; margin-top:1px; border:1.5px solid var(--agent-border-default); display:grid; place-items:center; }
 .csp-tk--done{ background:rgba(var(--agent-success-rgb),0.14); border-color:rgba(var(--agent-success-rgb),0.4); color:var(--agent-success); }
 .csp-tk--next{ border:2px solid var(--agent-coral-deep); }
 
