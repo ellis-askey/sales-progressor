@@ -451,7 +451,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>
           {/* Mobile search — a single icon that opens the full-bar field + drop
               (Ellis). Desktop uses the pill above instead. */}
-          <AgentMobileSearch className="md:hidden" />
+          <AgentMobileSearch className="md:!hidden" />
           {/* Personal All/Mine view toggle — desktop only (won't fit the mobile top
               bar; the same control lives in the mobile menu below). Shown only to
               users allowed to see all files. */}

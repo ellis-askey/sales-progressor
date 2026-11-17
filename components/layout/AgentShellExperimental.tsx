@@ -148,6 +148,10 @@ export function AgentShellExperimental(props: AgentShellProps) {
   // ── The right-hand control cluster (identical in both shells) ──
   const topControls = (
     <div className="agx-controls">
+      {/* Mobile search icon — grouped with refresh + bell here (lg:!hidden beats
+          .ams-trigger's own display so only one search shows). Desktop uses the
+          pill in the search slot instead. */}
+      <AgentMobileSearch className="lg:!hidden" />
       {canToggleViewAll && (
         <div className="hidden md:block"><ViewModeToggle initialMode={fileViewMode} /></div>
       )}
@@ -317,12 +321,10 @@ function DrawersChrome({ navOpen, setNavOpen, hasPendingWork, fallback, isDark, 
       <div className="agx-cap-wrap">
         <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cap${searching ? " agx-cap--searching" : ""}`}>
           {leadingControl}
-          {/* Desktop: the ⌘K pill + palette. Mobile: a single icon that opens
-              the full-bar field + results drop (Ellis). */}
-          <div className="agx-cap-search">
-            <span className="hidden md:block"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></span>
-            <AgentMobileSearch className="md:hidden" />
-          </div>
+          {/* Desktop (>=1024, the shell's own mobile breakpoint): the ⌘K pill +
+              palette. On mobile the slot is hidden and the search becomes an icon
+              grouped with refresh/bell in the control cluster (Ellis). */}
+          <div className="agx-cap-search hidden lg:block"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
           {controls}
         </AgxGlass>
       </div>

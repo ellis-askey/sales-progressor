@@ -239,6 +239,19 @@ html:has(.agx-root) .uacc-card[data-night]:has(.agent-acc.open) {
   .agx-asof-txt { display: none; }
   .agx-asof { padding-left: 7px; padding-right: 7px; }
 
+  /* Group the search icon with refresh + bell as matching shaded circles so the
+     search icon isn't on its own (Ellis). Same 36px circle + resting shade as
+     .ams-trigger; mobile + experimental command bar only. */
+  .agx-cap .agx-asof,
+  .agx-cap .agx-bell button {
+    width: 36px; height: 36px; min-width: 36px; padding: 0; gap: 0;
+    border-radius: 50%; justify-content: center;
+    background: var(--agent-hover-shade);
+  }
+  .agx-cap .agx-asof svg,
+  .agx-cap .agx-bell button svg { width: 17px; height: 17px; }
+  .agx-cap .agx-bell { margin-right: 0; }
+
   .agx-cmd-wrap { left: 12px; right: 12px; transform: none; width: auto; }
 
   .agx-hide-on-search { transition: opacity 0.18s ease, max-width 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.2s ease, padding 0.2s ease; max-width: 160px; overflow: hidden; }
