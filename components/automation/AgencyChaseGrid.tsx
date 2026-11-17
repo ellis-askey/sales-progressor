@@ -58,7 +58,7 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
       onChange={(next) => setState((s) => ({ ...s, [k]: next }))}
       width={42}
       height={24}
-      color={"#FF6B4A"}
+      color={"var(--agent-coral-deep, #FF6B4A)"}
       aria-label="Toggle"
     />
   );

@@ -407,7 +407,7 @@ export function MobilePushSection({
                   onChange={() => handleToggle(t.key)}
                   width={48}
                   height={28}
-                  color="#FF6B4A"
+                  color="var(--agent-coral-deep, #FF6B4A)"
                   disabled={saving}
                   aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
                 />
