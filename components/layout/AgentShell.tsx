@@ -62,17 +62,12 @@ function formatAgentTime(d: Date): string {
 const ADMIN_NAV_EMAILS = new Set(["ellis@thesalesprogressor.co.uk"]);
 
 export function buildNavGroups(role: UserRole, email: string | null | undefined, hasSelfManagedFiles: boolean, todoDueCount: number, enquiriesOpenCount: number, remindersCount: number, chainsCount: number, completionsCount: number, showClients: boolean = false, whatsNewVisible: boolean = false, whatsNewUnread: boolean = false) {
-  // Reminders + Auto emails are self-progression surfaces. For agency
-  // users (director/negotiator) they only appear when the agency actually
-  // progresses a live file itself; agencies that outsource everything get
-  // neither page (the SP team handles their chasing). Internal staff are
-  // unaffected — hasSelfManagedFiles is true for them. Founder, 2026-08-09.
+  // Critique #298: the self-progression surfaces (Reminders, Enquiries, Auto
+  // emails, Chains) are always shown for agency users now. Each page shows an
+  // onboarding empty state until the agency has an in-house file, then flips to
+  // the real feed — so an outsourced-only agency stays on the empty state and
+  // never sees TSP's data. (Reverses the 2026-08-09 hide-from-nav rule.)
   const isAgencyUser = role === "director" || role === "negotiator";
-  const showSelfPages = isAgencyUser ? hasSelfManagedFiles : true;
-  // Enquiries triage: internal staff always, plus any agency that progresses
-  // its own live files (same self-managed gate as Reminders/Auto emails). An
-  // all-outsourced agency has no self-managed enquiries to triage, so it's
-  // hidden for them. See docs/active/enquiries-triage/00-spec.md.
   const main = [
     { href: "/agent/hub",         label: "Hub",         Icon: Gauge         },
     // Progression-business owners manage the estate agents they progress for.
@@ -83,8 +78,8 @@ export function buildNavGroups(role: UserRole, email: string | null | undefined,
     // founder/admin tiers). Each sees their own scoped book. Page 404s for anyone
     // else, so the gate here just hides the nav item to match.
     ...((role === "sales_progressor" || role === "admin" || role === "superadmin") ? [{ href: "/agent/focus", label: "Focus", Icon: Target }] : []),
-    ...(role !== "admin" && showSelfPages ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray, badge: remindersCount > 0 ? remindersCount : undefined }] : []),
-    ...(showSelfPages ? [{ href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined }] : []),
+    ...(role !== "admin" ? [{ href: "/agent/work-queue", label: "Reminders", Icon: Tray, badge: remindersCount > 0 ? remindersCount : undefined }] : []),
+    { href: "/agent/enquiries", label: "Enquiries", Icon: ChatCircleDots, badge: enquiriesOpenCount > 0 ? enquiriesOpenCount : undefined },
     { href: "/agent/completions", label: "Completions", Icon: CalendarCheck, badge: completionsCount > 0 ? completionsCount : undefined },
     ...(role !== "admin" ? [{ href: "/agent/to-do", label: "To-Do", Icon: CheckSquare, badge: todoDueCount > 0 ? todoDueCount : undefined }] : []),
     { href: "/agent/comms",       label: "Updates",     Icon: BellSimple    },
@@ -333,9 +328,6 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
   const isDirector      = role === "director";
   const [badges, setBadges] = useState({ todo: todoDueCount, enquiries: enquiriesOpenCount, reminders: remindersCount, chains: chainsCount, completions: completionsCount, whatsNewVisible, whatsNewUnread });
   const navGroups   = buildNavGroups(role, session.user.email, hasSelfManagedFiles, badges.todo, badges.enquiries, badges.reminders, badges.chains, badges.completions, showClientsNav, badges.whatsNewVisible, badges.whatsNewUnread);
-  // Same self-managed gate the nav uses — passed to the global search so it can
-  // lock (not 404) the Reminders entry for an agency with no self-managed sales.
-  const showSelfPages = (role === "director" || role === "negotiator") ? hasSelfManagedFiles : true;
   // Migrate sale nav shortcut. Restored (founder, 2026-11-11) after the import
   // path was hardened to replicate completeMilestone's persistent side-effects
   // (mirror-pair completions, exchange stamp, mortgage-offer expiry, referral
@@ -449,7 +441,7 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
         </button>
 
         <div className="md:max-w-[480px]" style={{ flex: 1 }}>
-          <AgentGlobalSearch showSelfPages={showSelfPages} />
+          <AgentGlobalSearch />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>

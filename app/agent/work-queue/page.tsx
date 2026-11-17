@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { hasAdminPowers } from "@/lib/agent-session";
 import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
@@ -73,10 +72,16 @@ function classifyForStats(log: AgentLog, now: Date, upcomingCutoffStr: string): 
 
 export default async function WorkQueuePage() {
   const session = await requireSession();
-  // Founder rule 2026-08-09: an agency that outsources everything has no
-  // Reminders page (the nav item is hidden too). Direct-URL access 404s.
+  // Critique #298: an agency with no self-managed files (outsources everything,
+  // or brand new) gets the onboarding empty state here rather than a 404 — header
+  // hidden, the hero is the page. It flips to the live reminders feed once they
+  // have an in-house file. Non-agency roles pass the helper and keep the feed.
   if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
-    notFound();
+    return (
+      <div className="px-4 md:px-8 py-2 md:py-4">
+        <RemindersEmptyState isOwner={false} hasClients={false} isAgency />
+      </div>
+    );
   }
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";
   const isProgressor = session.user.role === "sales_progressor";

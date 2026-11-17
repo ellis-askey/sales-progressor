@@ -17,14 +17,20 @@ import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 
-export function RemindersEmptyState({ isOwner, hasClients }: { isOwner: boolean; hasClients: boolean }) {
-  const cta = hasClients
+export function RemindersEmptyState({ isOwner, hasClients, isAgency = false }: { isOwner: boolean; hasClients: boolean; isAgency?: boolean }) {
+  // isAgency (critique #298): an agency user who doesn't progress its own files
+  // yet. Agency-facing copy, not the external-progression-business wording.
+  const cta = isAgency
+    ? { label: "Add a new sale", href: "/agent/transactions/new" }
+    : hasClients
     ? { label: "Add a new sale", href: "/agent/transactions/new" }
     : isOwner
       ? { label: "Add your first client", href: "/agent/clients" }
       : null;
 
-  const subtext = hasClients
+  const subtext = isAgency
+    ? "As your sales progress, we'll bring every chase and follow-up together so nothing gets overlooked."
+    : hasClients
     ? "As your clients' sales progress, we'll bring every chase and follow-up together so nothing gets overlooked."
     : isOwner
       ? "Add your first client and their sales to start tracking chases and follow-ups across your business."

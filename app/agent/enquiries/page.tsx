@@ -4,6 +4,7 @@ import { getAccessScope } from "@/lib/security/access-scope";
 import { prisma } from "@/lib/prisma";
 import { getOpenEnquiries } from "@/lib/services/enquiries";
 import { userHasAnySale } from "@/lib/agent/has-sales";
+import { agencyUserHasSelfManagedFiles } from "@/lib/agent/self-managed-nav";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EnquiriesTriageList } from "@/components/enquiries/EnquiriesTriageList";
@@ -20,6 +21,22 @@ export default async function EnquiriesPage() {
   const role = session.user.role;
   if (!(role === "admin" || role === "sales_progressor" || role === "superadmin" || role === "director" || role === "negotiator")) {
     notFound();
+  }
+
+  // Critique #298: an agency with no self-managed files (outsources everything, or
+  // brand new) gets the onboarding empty state — header hidden, the hero is the
+  // page. It flips to the real triage once they have an in-house file. Non-agency
+  // roles pass the helper and keep the real page.
+  if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <BloomStage>
+          <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
+            <EnquiriesEmptyState hasSales={false} />
+          </div>
+        </BloomStage>
+      </div>
+    );
   }
 
   const scope = getAccessScope(session);
