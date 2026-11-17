@@ -14,6 +14,13 @@ export function formatDate(date: Date | string | null | undefined): string {
 }
 
 /** Format a Date with time — "Today, 14:32" / "19 May, 14:32" / "19 May 2026, 14:32" */
+/** Ordinal day: 1 → "1st", 2 → "2nd", 22 → "22nd", 11 → "11th". */
+export function ordinal(n: number): string {
+  const v = n % 100;
+  const suffix = v >= 11 && v <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${suffix}`;
+}
+
 export function formatTimestamp(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const d = new Date(date);
@@ -22,12 +29,10 @@ export function formatTimestamp(date: Date | string | null | undefined): string 
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) return `Today, ${time}`;
   const isThisYear = d.getFullYear() === now.getFullYear();
-  const datePart = d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    ...(isThisYear ? {} : { year: "numeric" }),
-  });
-  return `${datePart}, ${time}`;
+  const day = Number(d.toLocaleDateString("en-GB", { day: "numeric" }));
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const yearSuffix = isThisYear ? "" : ` ${d.toLocaleDateString("en-GB", { year: "numeric" })}`;
+  return `${ordinal(day)} ${month}${yearSuffix}, ${time}`;
 }
 
 /** Short money from pence: £725,000 / £2.10m / £1.25bn. Promoted from

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@phosphor-icons/react";
-import { formatTimestamp } from "@/lib/utils";
+import { formatTimestamp, ordinal } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -227,12 +227,15 @@ function localDateKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 function formatDateHeader(d: Date): string {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const day = Number(d.toLocaleDateString("en-GB", { day: "numeric" }));
+  const month = d.toLocaleDateString("en-GB", { month: "long" });
+  const year = d.toLocaleDateString("en-GB", { year: "numeric" });
+  return `${ordinal(day)} ${month} ${year}`;
 }
 function DateHeader({ label }: { label: string }) {
   return (
     <div style={{ paddingLeft: 20, paddingTop: 8, paddingBottom: 2 }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+      <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.01em", color: "var(--agent-text-muted)" }}>
         {label}
       </span>
     </div>
