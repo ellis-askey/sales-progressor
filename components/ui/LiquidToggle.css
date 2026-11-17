@@ -1,0 +1,83 @@
+/* ══ Liquid toggle ══════════════════════════════════════════
+   Bencho's liquid toggle (bencho.dev, MIT). One body that lengthens along
+   its travel; no goo filter (the toggle dropped it). See LiquidToggle.tsx. */
+
+/* ── Bencho's tokens → this project's agent-app system ──────
+   Bencho's CSS reads seven custom properties it never defines. They are
+   mapped here on the component's OWN root so nothing leaks to globals. The
+   toggle only actually uses the colour pair (--fill-on / --fill-slab, with
+   --ink / --card / --board as their fallbacks) and --pane-edge for the
+   optional hairline; --nod-r belongs to Bencho's node-card study, not this
+   switch, so it is omitted.
+
+   [app] --fill-on is driven PER INSTANCE from --liq-on (the `color` prop),
+   so every call site keeps its own on-colour — coral, coral-deep, the green
+   "fee received" switches. The slab/ground tokens map to the app's surface
+   and ink; hardcoded fallbacks keep it legible outside the agent shell. */
+.liq-sw {
+  --fill-on: var(--liq-on, var(--agent-coral-deep, #ff6b4a));
+  --ink: var(--agent-text-primary, #211d18);
+  --card: var(--agent-surface-elevated, #ffffff);
+  --board: var(--agent-surface-elevated, #ffffff);
+  --fill-slab: var(--agent-surface-elevated, #ffffff);
+  --pane-edge: var(--agent-border-default, rgba(33, 29, 24, 0.10));
+
+  position: relative;
+  padding: 0;
+  border: 0;
+  flex-shrink: 0;
+  /* ── ALWAYS A PILL ────────────────────────────────────────
+     It took a Corner knob for a while and does not any more. A switch is a
+     pill: that is the shape the gesture is named after, and squaring it
+     turns a thing you slide into a thing you click. */
+  border-radius: 999px;
+  /* ── OFF keeps THIS APP's rule, not Bencho's slab ────────
+     [app] Bencho's OFF is a near-white "slab" track on a grey stage; on the
+     app's white cards that vanishes. To "keep the rules" we hold the
+     existing toggles' look instead: a visible neutral OFF track (a theme-
+     aware grey mixed from ink toward the surface) with a white thumb, so
+     swapping in the liquid toggle never makes an OFF switch disappear. ON
+     and the liquid motion are Bencho's. */
+  background: color-mix(in srgb, var(--ink) 22%, var(--fill-slab));
+  cursor: pointer;
+  /* it is a rail you can push along, not only a button */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* transform is Framer's; only the colour eases here */
+  transition: background 420ms ease;}
+
+.liq-sw[data-on="true"] { background: var(--fill-on, var(--ink)); }
+
+.liq-sw[data-disabled] { opacity: 0.5; cursor: default; }
+
+.liq-sw:focus-visible {
+  outline: 2px solid var(--fill-on, var(--agent-coral-deep, #ff6b4a));
+  outline-offset: 2px;}
+
+[data-stroke="on"] .liq-sw {
+  box-shadow: inset 0 0 0 1px var(--pane-edge);}
+
+.liq-sw-blobs {
+  position: absolute; inset: 0;}
+
+/* ── the droplet, and it is the ONLY body ───────────────────
+   `left: 0` is not optional. It is an inline element, so with `left: auto`
+   the static position is wherever the line box put it — and the button it
+   sits in would centre it, which pushes the thumb to the middle of the
+   track. The size comes from LiquidToggle.tsx (which also needs it for the
+   travel — one number, so the circle and the distance it crosses cannot
+   disagree). [app] The thumb stays the slab (white) in BOTH states, as the
+   app's switches do, rather than Bencho's grey-off / white-on inversion. */
+.liq-thumb {
+  position: absolute;
+  left: 0; top: 50%;
+  width: var(--liq-thumb, 18px); height: var(--liq-thumb, 18px);
+  margin-top: calc(var(--liq-thumb, 18px) / -2);
+  border-radius: 999px;
+  background: var(--fill-slab, var(--card));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);}
+
+@media (prefers-reduced-motion: reduce) {
+  .liq-sw { transition-duration: 160ms; }
+}
