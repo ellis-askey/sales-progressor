@@ -251,6 +251,9 @@ html:has(.agx-root) .uacc-card[data-night]:has(.agent-acc.open) {
   .agx-cap .agx-asof svg,
   .agx-cap .agx-bell button svg { width: 17px; height: 17px; }
   .agx-cap .agx-bell { margin-right: 0; }
+  /* Icons stay grouped left; the account pill (name + photo) sits on the right. */
+  .agx-cap .agx-controls { flex: 1 1 auto; min-width: 0; }
+  .agx-cap .agx-controls > :last-child { margin-left: auto; }
 
   .agx-cmd-wrap { left: 12px; right: 12px; transform: none; width: auto; }
 
