@@ -14,7 +14,8 @@ import { phoneSearchVariants } from "@/lib/utils";
 const ROLE_LABELS: Record<string, string> = {
   purchaser: "Purchaser", vendor: "Seller", broker: "Broker", solicitor: "Solicitor", chain_agent: "Agent",
 };
-function roleLabel(role: string): string {
+// Exported so AgentMobileSearch renders the same role words without a second copy.
+export function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? (role ? role.charAt(0).toUpperCase() + role.slice(1) : role);
 }
 
@@ -68,14 +69,15 @@ function PropertyThumb({ url }: { url: string | null }) {
   );
 }
 
-const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   active: "Active", on_hold: "On hold", completed: "Completed", withdrawn: "Withdrawn",
 };
-const STATUS_COLORS: Record<string, string> = {
+export const STATUS_COLORS: Record<string, string> = {
   active: "#16a34a", on_hold: "#d97706", completed: "#2563eb", withdrawn: "#94a3b8",
 };
 
-const NAV_ITEMS = [
+// Shared with AgentMobileSearch so the mobile "Go to" list stays in lockstep.
+export const NAV_ITEMS = [
   { label: "Hub",          href: "/agent/hub",              sub: "Your pipeline overview"        },
   { label: "Reminders",    href: "/agent/work-queue",       sub: "Due and overdue chasers"       },
   { label: "Completions",  href: "/agent/completions",      sub: "Files ready to complete"       },
@@ -103,7 +105,7 @@ const DARK_SEARCH_TOKENS: Record<string, string> = {
 // A previous-buyer result deep-links to the file with ?round=<id> so the file's
 // Previous-sales card auto-opens that sale's archived-round drawer (their
 // details + the steps that were done). Current contacts just open the file.
-function contactHref(c: AgentSearchResult["contacts"][number]): string {
+export function contactHref(c: AgentSearchResult["contacts"][number]): string {
   const base = `/agent/transactions/${c.transactionId}`;
   return c.previousSale ? `${base}?round=${encodeURIComponent(c.previousSale.roundId)}` : base;
 }

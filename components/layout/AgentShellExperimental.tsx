@@ -31,6 +31,7 @@ import { AuroraOpacityControl } from "@/components/agent/AuroraOpacityControl";
 import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { AgentMobileSearch } from "@/components/layout/AgentMobileSearch";
 import { RecentlyViewedMenu } from "@/components/layout/RecentlyViewedMenu";
 import { ViewModeToggle } from "@/components/layout/ViewModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
@@ -316,7 +317,12 @@ function DrawersChrome({ navOpen, setNavOpen, hasPendingWork, fallback, isDark, 
       <div className="agx-cap-wrap">
         <AgxGlass fallback={fallback} isDark={isDark} radius={19} className={`agx-cap${searching ? " agx-cap--searching" : ""}`}>
           {leadingControl}
-          <div className="agx-cap-search"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></div>
+          {/* Desktop: the ⌘K pill + palette. Mobile: a single icon that opens
+              the full-bar field + results drop (Ellis). */}
+          <div className="agx-cap-search">
+            <span className="hidden md:block"><AgentGlobalSearch onOpenChange={onSearchOpenChange} /></span>
+            <AgentMobileSearch className="md:hidden" />
+          </div>
           {controls}
         </AgxGlass>
       </div>

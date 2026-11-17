@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
+import { AgentMobileSearch } from "@/components/layout/AgentMobileSearch";
 import { ViewModeToggle } from "@/components/layout/ViewModeToggle";
 import { WelcomeModal } from "@/components/agent/WelcomeModal";
 import { OnboardingChecklist } from "@/components/agent/OnboardingChecklist";
@@ -440,11 +441,17 @@ export function AgentShell({ children, session, showWelcome, suppressSimpleWelco
           <List weight="regular" style={{ width: 20, height: 20 }} />
         </button>
 
-        <div className="md:max-w-[480px]" style={{ flex: 1 }}>
+        {/* Desktop: the ⌘K search pill + command palette. Hidden on phones,
+            where the icon-and-overlay AgentMobileSearch (in the right cluster)
+            takes over. */}
+        <div className="hidden md:block md:max-w-[480px]" style={{ flex: 1 }}>
           <AgentGlobalSearch />
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingLeft: 12 }}>
+          {/* Mobile search — a single icon that opens the full-bar field + drop
+              (Ellis). Desktop uses the pill above instead. */}
+          <AgentMobileSearch className="md:hidden" />
           {/* Personal All/Mine view toggle — desktop only (won't fit the mobile top
               bar; the same control lives in the mobile menu below). Shown only to
               users allowed to see all files. */}

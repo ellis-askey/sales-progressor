@@ -1,0 +1,244 @@
+/* Mobile top-bar search (Ellis) — the icon trigger lives in the bar; the rest is
+   a portal overlay that covers the real top bar. One easing curve across the
+   width, the drop and the fades so nothing arrives on its own clock. All colour
+   is the agent token system (dark values injected on the overlay root in night
+   mode), so it tracks every theme. */
+
+/* ── the trigger (in the bar) ──────────────────────────────── */
+.ams-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--agent-text-secondary, #4e483f);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 150ms ease, transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ams-trigger:hover { background: var(--agent-hover-shade, rgba(33, 29, 24, 0.05)); }
+.ams-trigger:active,
+.ams-trigger[data-press] { transform: scale(0.92); }
+
+/* ── the overlay ───────────────────────────────────────────── */
+.ams-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
+}
+
+.ams-scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.26);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 240ms ease;
+  z-index: 1;
+  cursor: default;
+}
+.ams-ov[data-shown] .ams-scrim { opacity: 1; }
+
+/* the bar that covers the real top bar — fades up so its items fade out under it */
+.ams-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--bar-h, 56px);
+  padding: 0 12px;
+  background: var(--agent-surface-elevated, #fff);
+  border-bottom: 1px solid var(--agent-border-default, rgba(33, 29, 24, 0.1));
+  opacity: 0;
+  transition: opacity 200ms ease;
+  z-index: 3;
+}
+.ams-ov[data-shown] .ams-bar { opacity: 1; }
+
+/* the one object: a field that grows from the icon's slot (right) to full bar
+   width. Right-anchored so it unfurls leftward; the lens stays at the left. */
+.ams-field-box {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--agent-text-primary, #211d18) 6%, transparent);
+  border: 1px solid transparent;
+  overflow: hidden;
+  transition:
+    width 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 240ms ease,
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+.ams-ov[data-shown] .ams-field-box {
+  width: var(--open-w, 300px);
+  background: color-mix(in srgb, var(--agent-text-primary, #211d18) 4%, transparent);
+  border-color: var(--agent-border-strong, rgba(33, 29, 24, 0.18));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-coral, #ff8a65) 15%, transparent);
+}
+
+.ams-lens {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  fill: none;
+  stroke: var(--agent-text-secondary, #4e483f);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke 220ms ease, stroke-width 220ms ease;
+}
+.ams-ov[data-shown] .ams-lens { stroke: var(--agent-text-muted, rgba(33, 29, 24, 0.55)); }
+.ams-ov[data-busy] .ams-lens { stroke: var(--agent-coral, #ff8a65); stroke-width: 1.8; }
+
+.ams-field {
+  position: absolute;
+  left: 42px;
+  right: 68px;   /* room for the spinner + clear */
+  top: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--agent-text-primary, #211d18);
+  outline: none;
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition: opacity 200ms ease 70ms, transform 300ms cubic-bezier(0.22, 1, 0.36, 1) 70ms;
+}
+.ams-ov[data-shown] .ams-field { opacity: 1; transform: none; pointer-events: auto; }
+.ams-field::placeholder { color: var(--agent-text-disabled, rgba(33, 29, 24, 0.35)); }
+
+.ams-spin {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
+  border: 2px solid color-mix(in srgb, var(--agent-text-muted, #8a8178) 40%, transparent);
+  border-top-color: var(--agent-text-muted, #8a8178);
+  border-radius: 50%;
+  animation: ams-spin 620ms linear infinite;
+  pointer-events: none;
+}
+@keyframes ams-spin { to { transform: rotate(360deg); } }
+
+.ams-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--agent-text-secondary, #4e483f);
+  background: color-mix(in srgb, var(--agent-text-primary, #211d18) 9%, transparent);
+  cursor: pointer;
+  opacity: 0;
+  transition: background 150ms ease, color 150ms ease, opacity 200ms ease 130ms;
+}
+.ams-ov[data-shown] .ams-clear { opacity: 1; }
+.ams-clear:hover { background: color-mix(in srgb, var(--agent-text-primary, #211d18) 15%, transparent); color: var(--agent-text-primary, #211d18); }
+
+/* ── the drop ──────────────────────────────────────────────── */
+.ams-drop {
+  position: fixed;
+  top: var(--bar-h, 56px);
+  left: 0;
+  right: 0;
+  background: var(--agent-surface-elevated, #fff);
+  border-bottom: 1px solid var(--agent-border-default, rgba(33, 29, 24, 0.1));
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 20px 44px -22px rgba(0, 0, 0, 0.45);
+  padding: 6px 8px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+.ams-ov[data-shown] .ams-drop { opacity: 1; transform: none; pointer-events: auto; }
+
+.ams-group { padding: 4px 0; }
+.ams-group + .ams-group { border-top: 1px solid var(--agent-border-default, rgba(33, 29, 24, 0.08)); }
+.ams-group-h {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--agent-text-muted, rgba(33, 29, 24, 0.55));
+  padding: 8px 12px 4px;
+}
+
+.ams-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  transition: background 120ms ease;
+}
+.ams-row[data-sel] { background: var(--agent-hover-shade, rgba(33, 29, 24, 0.05)); }
+.ams-row[data-locked] { opacity: 0.5; cursor: default; }
+
+.ams-row-left { display: inline-flex; align-items: center; flex-shrink: 0; }
+.ams-thumb { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; display: block; flex-shrink: 0; }
+.ams-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ams-thumb .property-photo-fallback { display: block; width: 100%; height: 100%; }
+
+.ams-row-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.ams-row-label { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--agent-text-primary, #211d18); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ams-row-sub { font-size: 12.5px; color: var(--agent-text-muted, rgba(33, 29, 24, 0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ams-row-pill { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 11.5px; font-weight: 600; }
+.ams-row-pill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.ams-row-go { color: var(--agent-text-disabled, rgba(33, 29, 24, 0.35)); flex-shrink: 0; opacity: 0; transition: opacity 120ms ease; }
+.ams-row[data-sel] .ams-row-go { opacity: 1; }
+.ams-row[data-locked] .ams-row-go { opacity: 1; }
+
+.ams-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--agent-text-muted, rgba(33, 29, 24, 0.55));
+}
+.ams-foot {
+  padding: 9px 12px 6px;
+  font-size: 11px;
+  color: var(--agent-text-disabled, rgba(33, 29, 24, 0.35));
+  border-top: 1px solid var(--agent-border-default, rgba(33, 29, 24, 0.08));
+  margin-top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ams-scrim, .ams-bar, .ams-field-box, .ams-field, .ams-clear, .ams-drop, .ams-trigger { transition-duration: 1ms; }
+}
