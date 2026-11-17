@@ -832,7 +832,7 @@ export function ChainView({
     for (const l of all) {
       const a = addr(l);
       const ci = a.indexOf(",");
-      const isYours = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
+      const isYours = l.isOwnFile || l.claimedByUserId === currentUserId || l.transactionId === transactionId;
       detailById[l.id] = {
         label: labelOf(l),
         line1: ci === -1 ? a : a.slice(0, ci),
@@ -879,7 +879,7 @@ export function ChainView({
   const panelItems: ChainMapPanelItem[] = orderedPanelLinks.map(({ link: l, depth, branchTop, hasLadderUp, forkParent }) => {
     const a = l.transaction?.propertyAddress ?? l.stubPropertyAddress ?? "";
     const ci = a.indexOf(",");
-    const mine = l.claimedByUserId === currentUserId || l.transactionId === transactionId;
+    const mine = l.isOwnFile || l.claimedByUserId === currentUserId || l.transactionId === transactionId;
     const isSpineLink = (l.branchKey ?? "") === "";
     const spineIdx = links.findIndex((x) => x.id === l.id);
     const canEdit = l.canEditStub ?? canEditLink(l, currentUserId, currentUserRole);

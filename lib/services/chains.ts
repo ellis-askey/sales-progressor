@@ -146,6 +146,12 @@ export type ChainLinkV2 = {
   createdByUserId: string | null;
   claimedByUserId: string | null;
   transactionId: string | null;
+  // "Yours" — the link's file is in the viewer's access scope (their agency's
+  // file self-managed or outsourced, assigned to them, or run by their business).
+  // Set server-side in getChainV2 from ownLinkIds; covers every file you own in a
+  // chain, not just the one you opened it from (critique #300). Optional so
+  // hand-built demo/dev link objects are unaffected (treated as false).
+  isOwnFile?: boolean;
   claimedAt: Date | null;
   stubPropertyAddress: string | null;
   stubAgencyName: string | null;
@@ -1018,6 +1024,9 @@ export async function getChainV2(
           createdBy,
           photoUrl: stubPhotoUrl,
           transaction: null,
+          // A stub has no file, so it's never "yours" — ownLinkIds only holds
+          // claimed links the viewer owns under their scope (always false here).
+          isOwnFile: ownLinkIds.has(l.id),
           progressPercent: null,
           predictedExchangeDate: null,
           isEarlyEstimate: false,
@@ -1072,6 +1081,12 @@ export async function getChainV2(
       return {
         ...linkRest,
         ...stubPrivate,
+        // "Yours" — the link's file is in the viewer's access scope (critique #300):
+        // their agency's file (self-managed OR outsourced), assigned to them, or run
+        // by their business. Covers two of your own sales in the same chain, not
+        // just the file you opened the chain from. ownLinkIds is the same scope set
+        // the #287 solicitor prefill uses.
+        isOwnFile: ownLinkIds.has(l.id),
         // Link-level photo: the claimed transaction's signed photo (falls back to
         // the stub photo if somehow set). Mirrors transaction.photoUrl below so the
         // card can read one field regardless of claimed/unclaimed.
