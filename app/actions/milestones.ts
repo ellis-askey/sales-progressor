@@ -40,6 +40,7 @@ import { pushToTransaction } from "@/lib/services/push";
 import { getMilestoneCopy } from "@/lib/portal-copy";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
+import { RETIRED_ENQUIRY_CODES } from "@/lib/milestone-prerequisites";
 import { applyMigratedMilestoneCompletions } from "@/lib/services/migrate-milestones";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
@@ -1106,8 +1107,14 @@ export async function getExchangeReconciliationList(input: {
     excludeIds = [...excludeIds, ...completionDefs.map((d) => d.id)];
   }
 
+  // Enquiries rework: the granular enquiry sub-steps (PM15-19 / VM11-15) are
+  // retired — "raised" then "satisfied" now covers both sides, with the back-and-
+  // forth handled on the enquiries page. On files relisted before the rework the
+  // old rows linger in `available`, so without this exclusion they'd be presented
+  // as outstanding at exchange (and swept to complete). Every other surface
+  // already filters them; this one was missed.
   const allDefs = await prisma.milestoneDefinition.findMany({
-    where: { id: { notIn: excludeIds } },
+    where: { id: { notIn: excludeIds }, code: { notIn: [...RETIRED_ENQUIRY_CODES] } },
     select: { id: true, name: true, side: true, code: true, eventDateRequired: true, orderIndex: true },
     orderBy: [{ side: "asc" }, { orderIndex: "asc" }],
   });
