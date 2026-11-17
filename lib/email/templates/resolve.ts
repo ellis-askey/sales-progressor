@@ -5,6 +5,7 @@
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { extractFirstName } from "@/lib/contacts/displayName";
 import type { TemplateVarValues } from "./variables";
 
 function fmtDate(d: Date | null): string | null {
@@ -41,8 +42,12 @@ export async function resolveTemplateValuesForFile(
   });
   if (!tx) return null;
 
-  const buyers = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name);
-  const sellers = tx.contacts.filter((c) => c.roleType === "vendor").map((c) => c.name);
+  // Use the greeting-safe short name per person (first name, or "Mr Surname"
+  // when there's no first name on file — never the full legal name or a bare
+  // surname), then join joint clients: "Natalie & Jonathan". Matches how the
+  // rest of the app addresses clients (lib/contacts/displayName.ts).
+  const buyers = tx.contacts.filter((c) => c.roleType === "purchaser").map((c) => extractFirstName(c.name));
+  const sellers = tx.contacts.filter((c) => c.roleType === "vendor").map((c) => extractFirstName(c.name));
   // Who looks after the file (assigned progressor wins, else the agent), falling
   // back to the current user's name for the agent-name variable.
   const agent = (tx.assignedUser?.name || tx.agentUser?.name || session.user.name || "").trim();
