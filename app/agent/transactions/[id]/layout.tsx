@@ -297,13 +297,16 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
   const tabs = [
     { key: "overview",   label: "Overview", icon: "house" },
     ...(setupMatured ? [] : [setupTab]),
-    { key: "milestones", label: "Steps", icon: "steps" },
+    // Steps + the activity log are now one tab: the Steps panel renders at ~60%
+    // with the activity feed as a ~40% column (milestones/page.tsx), so the
+    // standalone Activity tab is gone and this one is labelled "Activity" (it
+    // keeps the Steps icon, founder 2026-11-17). /activity redirects here.
+    { key: "milestones", label: "Activity", icon: "steps" },
     { key: "reminders",  label: "Reminders", badge: 0, icon: "bell" },
     { key: "chain",      label: "Chain", icon: "chain" },
     ...(showChaseTimeline ? [{ key: "chase", label: "Chase timeline", icon: "chase" }] : []),
     { key: "todos",      label: "To-Do", badge: 0, icon: "todo" },
     { key: "documents",  label: "Documents", icon: "documents" },
-    { key: "activity",   label: "Activity", icon: "activity" },
     ...(setupMatured ? [setupTab] : []),
     // WhatsApp tab for every file-access role (pivot 2026-10-18): capture is
     // per-connection now (agents + business members can link their own

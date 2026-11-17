@@ -1,8 +1,16 @@
-// File-detail — Steps tab (route segment). Renders only when this tab is open.
+// File-detail — Steps + Activity tab (route segment). Renders only when open.
+// Steps and the activity log are one surface now: Steps at ~60%, the activity
+// feed as a ~40% column beside it, stacking BELOW Steps on tablet/mobile (the
+// same xl breakpoint the shell's sidebar used). The Sale-health sidebar is
+// suppressed on this tab by FileTabsChrome, so the pair runs full width.
+// Nothing inside either panel changed — this is pure relocation (founder,
+// 2026-11-17). The standalone /activity route redirects here.
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { StepsPanel } from "@/components/transaction/StepsPanel";
+import { ActivityPanel } from "@/components/transaction/ActivityPanel";
 import { buildPartyNameContext } from "@/lib/milestones/step-name";
 import { TabEnter } from "@/components/transaction/TabEnter";
+import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -17,7 +25,7 @@ export const maxDuration = 60;
 
 export default async function StepsTabPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { session, transaction } = await loadFilePageContext(id);
+  const { session, transaction, isInternalStaff, isProgressor, isAdminRole } = await loadFilePageContext(id);
   // Real party names for the Steps-tab labels (firm + seller/buyer names, titles
   // stripped, active buyer round only). Falls back to generic wording per slot.
   const partyNames = buildPartyNameContext(
@@ -26,16 +34,41 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
     transaction.purchaserSolicitorFirm?.name ?? null,
     transaction.activeBuyerRound?.id ?? null,
   );
+  // Progression-business members can mark a note private to their team. They can
+  // only ever reach their own business's files, so membership + flag is enough;
+  // createCommunicationRecord re-checks the business scope as the boundary.
+  const canMarkPrivate = progressionBusinessesEnabled() && !!session.user.progressionBusinessId;
+
   return (
     <TabEnter stage>
-      <StepsPanel
-        transactionId={transaction.id}
-        agencyId={session.user.agencyId}
-        userId={session.user.id}
-        purchaseType={transaction.purchaseType ?? null}
-        buyerNames={transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)}
-        partyNames={partyNames}
-      />
+      <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 xl:items-start">
+        <div className="min-w-0 xl:flex-[3]">
+          <StepsPanel
+            transactionId={transaction.id}
+            agencyId={session.user.agencyId}
+            userId={session.user.id}
+            purchaseType={transaction.purchaseType ?? null}
+            buyerNames={transaction.contacts.filter((c) => c.roleType === "purchaser").map((c) => c.name)}
+            partyNames={partyNames}
+          />
+        </div>
+        <div className="min-w-0 xl:flex-[2]">
+          <ActivityPanel
+            transactionId={transaction.id}
+            agencyId={session.user.agencyId}
+            isInternalStaff={isInternalStaff}
+            isProgressor={isProgressor}
+            isAdminRole={isAdminRole}
+            canMarkPrivate={canMarkPrivate}
+            currentUserId={session.user.id}
+            currentUserName={session.user.name ?? ""}
+            currentUserRole={session.user.role ?? ""}
+            contacts={transaction.contacts}
+            vendorSolicitor={transaction.vendorSolicitorContact ?? null}
+            purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
+          />
+        </div>
+      </div>
     </TabEnter>
   );
 }

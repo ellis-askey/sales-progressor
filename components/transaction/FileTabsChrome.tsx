@@ -314,36 +314,46 @@ export function FileTabsChrome({ tabs, children, sidebar, basePath, heroConnecte
         )}
 
         {/* Mobile/tablet collapsible sidebar — hidden once the fixed sidebar
-            takes over at xl. */}
-        <div className="xl:hidden border-b border-white/20">
-          <button
-            onClick={toggleSidebar}
-            aria-expanded={sidebarOpen}
-            className={`agent-hover-ctl flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 transition-colors`}
-          >
-            <span>File details</span>
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-          <div className={[
-            !heroConnected ? "px-4" : "",
-            "pt-3 pb-3 md:pb-5 file-acc-body",
-            sidebarOpen ? "" : "hidden",
-          ].filter(Boolean).join(" ")}>
-            {sidebar}
+            takes over at xl. The Steps/Activity tab suppresses it entirely: that
+            tab carries its own activity column instead of the Sale-health card
+            (milestones/page.tsx), so this accordion header would be an empty
+            affordance there. */}
+        {active !== "milestones" && (
+          <div className="xl:hidden border-b border-white/20">
+            <button
+              onClick={toggleSidebar}
+              aria-expanded={sidebarOpen}
+              className={`agent-hover-ctl flex w-full items-center justify-between ${heroConnected ? "" : "px-4 "}py-3 text-sm font-medium text-slate-900/60 hover:text-slate-900/80 transition-colors`}
+            >
+              <span>File details</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            <div className={[
+              !heroConnected ? "px-4" : "",
+              "pt-3 pb-3 md:pb-5 file-acc-body",
+              sidebarOpen ? "" : "hidden",
+            ].filter(Boolean).join(" ")}>
+              {sidebar}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Tab content (the active route segment) + desktop sidebar */}
+        {/* Tab content (the active route segment) + desktop sidebar. On the
+            Steps/Activity tab the Sale-health sidebar is suppressed so the tab
+            runs full width (its own Steps 60% / Activity 40% split lives inside
+            the route segment). */}
         <div className={`${heroConnected ? "" : "px-4 lg:px-8 "}pt-3 pb-5 lg:pb-7 flex flex-col xl:flex-row gap-4 xl:gap-5 xl:items-start`}>
           <div className="flex-1 min-w-0 relative">
             {children}
           </div>
 
-          <div id="file-sidebar" style={{ scrollMarginTop: 100 }} className="hidden xl:block w-72 flex-shrink-0 sticky top-[53px]">
-            {sidebar}
-          </div>
+          {active !== "milestones" && (
+            <div id="file-sidebar" style={{ scrollMarginTop: 100 }} className="hidden xl:block w-72 flex-shrink-0 sticky top-[53px]">
+              {sidebar}
+            </div>
+          )}
         </div>
         {tourSlot}
       </TabBadgeContext.Provider>

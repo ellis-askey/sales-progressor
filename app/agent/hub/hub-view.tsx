@@ -1558,9 +1558,11 @@ async function ActivityRibbonSlot({ vis }: { vis: AgentVisibility }) {
           {feed.map((a, i) => {
             const { Icon, color } = pickActivityGlyph(a.kind, a.description);
             // Every Recent Activity row opens the file's Activity tab — where all
-            // of these updates (comms AND milestone events) live. Not Overview,
-            // not Steps (critique #272; supersedes #242's comm/milestone split).
-            const target = `/agent/transactions/${a.transactionId}/activity`;
+            // of these updates (comms AND milestone events) live. The activity
+            // feed now lives beside Steps on the merged tab (route still
+            // /milestones), so point there directly rather than bouncing through
+            // the /activity redirect (critique #272).
+            const target = `/agent/transactions/${a.transactionId}/milestones`;
             return (
               <Link
                 key={`${a.transactionId}-${i}`}
