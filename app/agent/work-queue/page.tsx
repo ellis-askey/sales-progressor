@@ -78,9 +78,12 @@ export default async function WorkQueuePage() {
   // have an in-house file. Non-agency roles pass the helper and keep the feed.
   if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
     return (
-      <div className="px-4 md:px-8 py-2 md:py-4">
-        <RemindersEmptyState isOwner={false} hasClients={false} isAgency />
-      </div>
+      <>
+        <PageHeader title="Reminders" subtitle="What needs chasing, today and ahead." />
+        <div className="px-4 md:px-8 py-2 md:py-4">
+          <RemindersEmptyState isOwner={false} hasClients={false} isAgency />
+        </div>
+      </>
     );
   }
   const isInternalStaff = session.user.role === "admin" || session.user.role === "sales_progressor" || session.user.role === "viewer";

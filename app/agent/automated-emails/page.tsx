@@ -80,6 +80,7 @@ export default async function AutomatedEmailsPage({
   if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
     return (
       <div>
+        <PageHeader title="Auto emails" subtitle="Client updates, sent as your sales progress." />
         <div style={{ padding: "8px 32px 24px" }}>
           <AutoEmailsEmptyState />
         </div>

@@ -30,6 +30,7 @@ export default async function EnquiriesPage() {
   if (!(await agencyUserHasSelfManagedFiles(session.user.role, session.user.id, session.user.agencyId))) {
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <PageHeader title="Enquiries" subtitle="See what's outstanding, who has it and what needs chasing." />
         <BloomStage>
           <div className="hub-content-pad" style={{ padding: "8px 32px 24px" }}>
             <EnquiriesEmptyState hasSales={false} />

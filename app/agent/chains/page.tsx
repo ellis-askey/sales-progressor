@@ -38,9 +38,12 @@ export default async function AgentChainsPage() {
   if (!canSeeChains(session.user.role, session.user.email, hasSelfManagedFiles)) {
     if (!isAgencyUser) redirect("/agent/hub");
     return (
-      <div className="px-4 md:px-8 py-2 md:py-4">
-        <ChainsEmptyState />
-      </div>
+      <>
+        <PageHeader title="Chains" subtitle="See your chain position at a glance and spot what needs your attention." />
+        <div className="px-4 md:px-8 py-2 md:py-4">
+          <ChainsEmptyState />
+        </div>
+      </>
     );
   }
 
