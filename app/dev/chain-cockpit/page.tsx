@@ -89,10 +89,18 @@ function MiniSteps() {
 
 /* ─────────── notes + inline composer ─────────── */
 
-const NOTES = [
-  { who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Today · 11:52", text: "Buyer's solicitor confirmed searches back, nothing flagged. Pushing enquiries this week." },
-  { who: "Laura Chen", initials: "LC", colour: "#3B7DE0", when: "Mon · 16:05", text: "Top of chain confirmed not buying on — chain ends here. All keen to exchange before month-end." },
-  { who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Fri · 09:20", text: "Okafors' mortgage offer through. Chasing their solicitor for the signed contract." },
+type Entry =
+  | { kind: "note"; who: string; initials: string; colour: string; when: string; text: string }
+  | { kind: "step"; who: string; initials: string; colour: string; when: string; label: string }
+  | { kind: "email"; who: string; initials: string; colour: string; when: string; dir: "out" | "in"; subject: string };
+
+const ENTRIES: Entry[] = [
+  { kind: "note", who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Today · 11:52", text: "Buyer's solicitor confirmed searches back, nothing flagged. Pushing enquiries this week." },
+  { kind: "step", who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Today · 10:30", label: "Enquiries raised" },
+  { kind: "email", who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Today · 09:15", dir: "out", subject: "Chasing the signed contract" },
+  { kind: "step", who: "System", initials: "SP", colour: "#8A6D5A", when: "Yesterday", label: "Search results back" },
+  { kind: "note", who: "Laura Chen", initials: "LC", colour: "#3B7DE0", when: "Mon · 16:05", text: "Top of chain confirmed not buying on — chain ends here. All keen to exchange before month-end." },
+  { kind: "step", who: "Okafor family", initials: "OF", colour: "#0F9D6B", when: "Fri · 14:20", label: "Mortgage application submitted" },
 ];
 
 function NotesPanel() {
@@ -118,15 +126,25 @@ function NotesPanel() {
       </div>
 
       <div className="cc-note-list">
-        {NOTES.map((n, i) => (
+        {ENTRIES.map((e, i) => (
           <div key={i} className="cc-note">
-            <Avatar initials={n.initials} colour={n.colour} />
+            <Avatar initials={e.initials} colour={e.colour} />
             <div className="cc-note-body">
               <div className="cc-note-top">
-                <span className="cc-note-who">{n.who}</span>
-                <span className="cc-note-when">{n.when}</span>
+                <span className="cc-note-who">{e.who}</span>
+                <span className="cc-note-when">{e.when}</span>
               </div>
-              <p className="cc-note-text">{n.text}</p>
+              {e.kind === "note" && <p className="cc-note-text">{e.text}</p>}
+              {e.kind === "step" && (
+                <p className="cc-entry-step"><span className="cc-gdot" aria-hidden /> {e.label}</p>
+              )}
+              {e.kind === "email" && (
+                <p className="cc-entry-email">
+                  <span className="cc-eico" aria-hidden>✉</span>
+                  {e.dir === "out" ? "Sent" : "Reply"} — {e.subject}
+                  <button className="cc-view" type="button">View</button>
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -292,7 +310,7 @@ const CSS = `
 .cc-step-next{ font-size:10.5px; font-weight:700; color:#fff; background:linear-gradient(180deg,var(--coral),var(--cd)); padding:2px 9px; border-radius:999px; }
 .cc-tk{ width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1.5px solid var(--bdef); display:grid; place-items:center; }
 .cc-tk--done{ background:rgba(var(--okrgb),0.14); border-color:rgba(var(--okrgb),0.4); color:var(--ok); }
-.cc-tk--next{ border:2px solid var(--cd); box-shadow:0 0 0 3px rgba(var(--crgb),0.14); }
+.cc-tk--next{ border:2px solid var(--cd); }
 
 .cc-divider{ height:1px; background:var(--bsub); margin:14px 0; }
 
@@ -302,8 +320,8 @@ const CSS = `
 .cc-notes-hint{ font-size:11px; color:var(--tm); }
 
 .cc-compose{ border:1px solid var(--bdef); background:var(--solid); border-radius:12px; padding:8px 10px; margin-bottom:16px; transition:border-color .15s, box-shadow .15s; }
-.cc-compose:hover{ border-color:var(--cd); }
-.cc-compose.is-active{ border-color:var(--cd); box-shadow:0 0 0 3px rgba(var(--crgb),0.1); }
+.cc-compose:hover{ border-color:var(--bdef); }
+.cc-compose.is-active{ border-color:var(--cd); }
 .cc-compose-input{ width:100%; min-height:30px; height:30px; max-height:160px; border:0; background:transparent; resize:vertical; font:inherit; font-size:12.5px; color:var(--tp); outline:none; line-height:1.5; display:block; }
 .cc-compose-input::placeholder{ color:var(--tm); }
 .cc-compose-row{ display:flex; justify-content:flex-end; margin-top:6px; }
@@ -319,4 +337,13 @@ const CSS = `
 .cc-note-who{ font-size:12.5px; font-weight:700; color:var(--tp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cc-note-when{ font-size:10.5px; color:var(--tm); flex-shrink:0; }
 .cc-note-text{ margin:0; font-size:12.5px; line-height:1.5; color:var(--ts); }
+
+/* step confirmation — green dot + short label */
+.cc-entry-step{ margin:0; font-size:12.5px; font-weight:600; color:var(--tp); display:flex; align-items:center; gap:7px; }
+.cc-gdot{ width:8px; height:8px; border-radius:50%; background:var(--ok); flex-shrink:0; }
+/* compact email */
+.cc-entry-email{ margin:0; font-size:12px; color:var(--ts); display:flex; align-items:center; gap:6px; }
+.cc-eico{ color:var(--tm); flex-shrink:0; }
+.cc-view{ border:0; background:none; font:inherit; font-size:11.5px; font-weight:650; color:var(--cd); cursor:pointer; padding:0; margin-left:auto; flex-shrink:0; transition:opacity .15s; }
+.cc-view:hover{ opacity:0.7; }
 `;
