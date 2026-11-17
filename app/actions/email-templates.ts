@@ -16,6 +16,8 @@ import {
   canEditTemplate,
 } from "@/lib/email/templates/access";
 import { resolveTemplateValuesForFile, type ResolvedTemplateContext } from "@/lib/email/templates/resolve";
+import { resolveEmailSignature } from "@/lib/email/signature";
+import { resolveSignOffPhrase } from "@/lib/email/resolve-sign-off";
 
 export type TemplateScope = "personal" | "company";
 
@@ -180,4 +182,27 @@ export async function getTemplatePreviewContext(transactionId: string): Promise<
 export async function canManageCompanyTemplatesAction(): Promise<boolean> {
   const session = await requireSession();
   return canManageCompanyTemplates(session);
+}
+
+// The current user's own sign-off phrase + signature, shown FADED + non-editable
+// under the template editor and preview so they know that bit is appended
+// automatically (and don't type it into the template themselves). File-
+// independent — their personal settings, with the agency logo band when set.
+export async function getMyTemplateFooter(): Promise<{ signOff: string; signatureHtml: string }> {
+  const session = await requireSession();
+  const uid = session.user.id;
+  const agencyId = session.user.agencyId || null;
+  const signOff = await resolveSignOffPhrase({
+    userId: uid,
+    agencyId,
+    progressionBusinessId: session.user.progressionBusinessId || null,
+  });
+  const agency = agencyId
+    ? await prisma.agency.findUnique({
+        where: { id: agencyId },
+        select: { logoPath: true, logoTileColor: true, logoScale: true, logoAlign: true },
+      })
+    : null;
+  const sig = await resolveEmailSignature({ userId: uid, agency, signatureStyle: "default" });
+  return { signOff, signatureHtml: sig.html };
 }

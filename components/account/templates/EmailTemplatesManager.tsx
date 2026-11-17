@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Stack, MagnifyingGlass, Plus, Eye, CaretDown, X, Check, CircleNotch, Buildings, User as UserIcon,
+  Stack, MagnifyingGlass, Plus, Eye, CaretDown, X, Check, CircleNotch, Buildings, User as UserIcon, LockSimple,
 } from "@phosphor-icons/react";
 import { RowActionsMenu } from "@/components/account/chrome/RowActionsMenu";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -18,8 +18,10 @@ import { TemplateRichEditor } from "./TemplateRichEditor";
 import { renderTemplateBody, type TemplateVarValues } from "@/lib/email/templates/variables";
 import {
   listEmailTemplates, createEmailTemplate, updateEmailTemplate, deleteEmailTemplate, duplicateEmailTemplate,
-  getTemplatePreviewContext, type EmailTemplateDTO, type TemplateScope,
+  getTemplatePreviewContext, getMyTemplateFooter, type EmailTemplateDTO, type TemplateScope,
 } from "@/app/actions/email-templates";
+
+type SigFooter = { signOff: string; signatureHtml: string };
 import { searchComposeSales, type ComposeSaleResult } from "@/app/actions/compose";
 
 function fmtDate(iso: string): string {
@@ -70,14 +72,18 @@ export function EmailTemplatesManager({ canManageCompany }: { canManageCompany: 
     <div className="etm">
       <style>{ETM_CSS}</style>
 
-      {/* Controls */}
-      <div className="etm-controls">
-        <div className="etm-search">
-          <MagnifyingGlass size={16} weight="bold" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search templates…" aria-label="Search templates" />
+      {/* Controls — hidden until there's at least one template, so the empty
+          state's own "Create your first template" button isn't doubled up. They
+          animate in once the first template exists. */}
+      {templates !== null && templates.length > 0 && (
+        <div className="etm-controls etm-controls-in">
+          <div className="etm-search">
+            <MagnifyingGlass size={16} weight="bold" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search templates…" aria-label="Search templates" />
+          </div>
+          <button type="button" className="etm-create" onClick={openNew}><Plus size={15} weight="bold" /> Create template</button>
         </div>
-        <button type="button" className="etm-create" onClick={openNew}><Plus size={15} weight="bold" /> Create template</button>
-      </div>
+      )}
 
       {/* List */}
       {templates === null ? (
@@ -158,7 +164,12 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
   const { theme, isNight } = usePortalTheme();
   const [d, setD] = useState<Draft>(initial);
   const [saving, setSaving] = useState(false);
+  const [footer, setFooter] = useState<SigFooter | null>(null);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
+
+  // Their own sign-off + signature, shown faded below the editor/preview so they
+  // know it's appended automatically and shouldn't be typed into the template.
+  useEffect(() => { getMyTemplateFooter().then(setFooter).catch(() => setFooter(null)); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -212,9 +223,10 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
             <Field label="Message" required>
               <TemplateRichEditor initialHtml={d.body} onChange={(html) => set("body", html)} />
             </Field>
+            {footer && <SignOffSignatureHint footer={footer} labelled />}
           </div>
 
-          <TemplatePreviewPane body={d.body} subject={d.subject} />
+          <TemplatePreviewPane body={d.body} subject={d.subject} footer={footer} />
         </div>
 
         <div className="etm-modal-ft">
@@ -230,7 +242,7 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
 }
 
 // ── Live preview against a real file ─────────────────────────────────────────
-export function TemplatePreviewPane({ body, subject }: { body: string; subject: string }) {
+export function TemplatePreviewPane({ body, subject, footer }: { body: string; subject: string; footer: SigFooter | null }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ComposeSaleResult[]>([]);
   const [file, setFile] = useState<ComposeSaleResult | null>(null);
@@ -283,10 +295,23 @@ export function TemplatePreviewPane({ body, subject }: { body: string; subject: 
         {!file && <div className="etm-prev-note">Pick a file to see this template with real details. Variables show as <span className="et-var-missing">not set</span> until a file is chosen.</div>}
         {resolvedSubject && <div className="etm-prev-subj"><span>Subject</span>{resolvedSubject}</div>}
         <div className="etm-prev-email" dangerouslySetInnerHTML={{ __html: rendered.html || "<p style='color:var(--agent-text-muted)'>Nothing to preview yet.</p>" }} />
+        {footer && <SignOffSignatureHint footer={footer} />}
         {file && rendered.missing.length > 0 && (
           <div className="etm-prev-missing">{rendered.missing.length} variable{rendered.missing.length > 1 ? "s" : ""} not set on this file.</div>
         )}
       </div>
+    </div>
+  );
+}
+
+// The user's sign-off + signature, shown faded + non-interactive so they know
+// it's appended automatically and isn't part of the editable template.
+function SignOffSignatureHint({ footer, labelled }: { footer: SigFooter; labelled?: boolean }) {
+  return (
+    <div className="etm-sig-hint" aria-hidden>
+      {labelled && <div className="etm-sig-hint-label"><LockSimple size={11} weight="fill" /> Your sign-off &amp; signature — added automatically</div>}
+      <p className="etm-sig-hint-off">{footer.signOff}</p>
+      <div className="etm-sig-hint-sig" dangerouslySetInnerHTML={{ __html: footer.signatureHtml }} />
     </div>
   );
 }
@@ -323,6 +348,13 @@ const ETM_CSS = `
 .etm-spin { animation: etm-rot 0.8s linear infinite; }
 @keyframes etm-rot { to { transform: rotate(360deg); } }
 .etm-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.etm-controls-in { animation: etm-slidein .24s ease; }
+@keyframes etm-slidein { from { opacity: 0; transform: translateY(-5px); } }
+/* Faded, non-editable sign-off + signature (auto-appended by the composer). */
+.etm-sig-hint { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--agent-border-default, rgba(20,16,10,0.14)); opacity: 0.5; pointer-events: none; user-select: none; }
+.etm-sig-hint-label { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--agent-text-muted, #9a8a7f); margin-bottom: 9px; }
+.etm-sig-hint-off { font-size: 14px; color: var(--agent-text-primary, #2D1810); margin: 0 0 6px; }
+.etm-sig-hint-sig { font-size: 13px; line-height: 1.5; color: var(--agent-text-secondary, #5A3A28); }
 .etm-search { flex: 1; display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: #fff; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 11px; color: var(--agent-text-muted, #9a8a7f); transition: border-color .14s; }
 .etm-search:focus-within { border-color: var(--agent-coral-deep, #E2452A); }
 .etm-search input { flex: 1; border: 0; outline: 0; background: none; font-size: 14px; color: var(--agent-text-primary, #2D1810); }
