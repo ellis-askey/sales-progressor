@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
-import { PaperPlaneTilt, ArrowBendUpLeft, Check, X } from "@phosphor-icons/react";
+import { PaperPlaneTilt, ArrowBendUpLeft, Check, X, Stack } from "@phosphor-icons/react";
 import { FloatingWindow } from "@/components/compose/FloatingWindow";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
@@ -20,6 +20,7 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DictationMic } from "@/components/dictation/DictationMic";
+import { TemplatePicker, type TemplateInsertMode } from "@/components/compose/TemplatePicker";
 import { useContentEditableDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
@@ -214,6 +215,7 @@ export function ComposeEmailModal({
 
   // body
   const [subject, setSubject] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const pendingBodyRef = useRef<string | null>(null);
   // Debounce timer for the character count. Reading the body + re-rendering on
@@ -597,6 +599,47 @@ export function ComposeEmailModal({
     }
   }
 
+  // Whether the message area (above the signature) holds a real draft — a lone
+  // auto-greeting doesn't count, so a fresh compose replaces while a typed
+  // message inserts at the cursor instead of clobbering the user's work.
+  function hasDraftContent(): boolean {
+    const ed = editorRef.current;
+    if (!ed) return false;
+    const anchor = ed.querySelector("[data-cem-signoff], [data-cem-sig]");
+    let text = "";
+    if (anchor) { let n: ChildNode | null = anchor.previousSibling; while (n) { text = (n.textContent || "") + text; n = n.previousSibling; } }
+    else text = ed.textContent || "";
+    const trimmed = text.replace(/\s+/g, " ").trim();
+    if (!trimmed) return false;
+    if (trimmed.length <= 24 && /,$/.test(trimmed)) return false; // a lone greeting
+    return true;
+  }
+
+  // Drop a resolved template into the editor, preserving the seeded signature +
+  // sign-off (insert above the anchor). "replace" clears the current draft;
+  // "cursor" drops it at the caret.
+  function insertTemplateHtml(html: string, tmplSubject: string | null, mode: TemplateInsertMode) {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const anchor = ed.querySelector("[data-cem-signoff], [data-cem-sig]");
+    if (mode === "replace") {
+      if (anchor) { while (anchor.previousSibling) anchor.previousSibling.remove(); anchor.insertAdjacentHTML("beforebegin", html); }
+      else ed.innerHTML = html;
+      autoGreetRef.current = false; // the template carries its own greeting now
+    } else {
+      const sel = window.getSelection();
+      const inEditor = !!sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode);
+      if (inEditor) { ed.focus(); document.execCommand("insertHTML", false, html); }
+      else if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
+      else ed.insertAdjacentHTML("beforeend", html);
+    }
+    // Apply the template subject only when the composer has no subject yet (never
+    // silently overwrite an existing one).
+    if (tmplSubject && tmplSubject.trim() && !subject.trim()) setSubject(tmplSubject.trim());
+    ed.focus();
+    updateCount();
+  }
+
   async function refine() {
     if (!editorRef.current || refining) return;
     const current = editorRef.current.innerHTML;
@@ -889,12 +932,25 @@ export function ComposeEmailModal({
                         {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
                       </button>
                     )}
+                    <button type="button" className={`cem-tb cem-tmpl-btn ${pickerOpen ? "on" : ""}`} title="Email templates"
+                      onMouseDown={(e) => e.preventDefault()} onClick={() => setPickerOpen((v) => !v)} aria-label="Email templates">
+                      <Stack size={16} weight={pickerOpen ? "fill" : "regular"} />
+                    </button>
                     <DictationMic controls={dictation} size={16} />
                   </span>
                 </div>
                 <div className="cem-editor-wrap">
                   <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
                     onInput={onEditorInput} onFocus={forceParagraphBreaks} />
+                  <TemplatePicker
+                    open={pickerOpen}
+                    onClose={() => setPickerOpen(false)}
+                    transactionId={ctx?.sale.id ?? null}
+                    fileLabel={ctx?.sale.line1 ?? ctx?.sale.address ?? null}
+                    hasDraft={hasDraftContent()}
+                    getEditorRect={() => editorRef.current?.getBoundingClientRect() ?? null}
+                    onInsert={insertTemplateHtml}
+                  />
                   <div className="cem-toolbar">
                     <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
                     <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
@@ -1122,7 +1178,9 @@ const CEM_CSS = `
 .cem-r{display:block;font-size:11px;color:var(--agent-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-em{font-size:11px;color:var(--agent-text-muted);flex-shrink:0;max-width:36%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-subject{width:100%;background:var(--agent-surface-elevated,#fff);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:550;color:var(--agent-text-primary);outline:none}
-.cem-editor-wrap{border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
+.cem-editor-wrap{position:relative;border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
+.cem-editor-wrap:has(.tp){overflow:visible}
+.cem-tmpl-btn.on{background:var(--agent-hover-shade-strong,rgba(45,24,16,.09));color:var(--agent-text-primary,#2d1810)}
 .cem-editor{min-height:150px;max-height:290px;overflow-y:auto;padding:13px 14px;font-size:13px;line-height:1.6;color:var(--agent-text-primary);outline:none;border-bottom:1px solid var(--agent-border-subtle)}
 .cem-editor p{margin:0 0 16px}.cem-editor p:last-child{margin-bottom:0}.cem-editor a{color:var(--agent-coral-deep)}
 .cem-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:5px;background:var(--agent-bg-paper,#FFFBF5)}

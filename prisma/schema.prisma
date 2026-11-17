@@ -4359,6 +4359,40 @@ model BusinessEmailTemplate {
   @@index([progressionBusinessId])
 }
 
+// User-authored reusable email templates for the COMPOSER (critique cmwkl7ufj).
+// Distinct from AgencyEmailTemplate above (which edits the fixed AUTOMATED client
+// emails). These are free-form rich-text templates a user drops into a new email.
+// Two scopes: `personal` (visible only to the creator) and `company` (visible to
+// everyone in the owning company; only a director/owner may create/edit/delete).
+// Owner column mirrors the automated discriminator: exactly one of agencyId /
+// progressionBusinessId is set (progressionBusinessId wins when present). Plain
+// ids (no FK) in the lightweight BusinessEmailTemplate style; createdByName is
+// denormalised for the list. body is rich HTML with <span data-token="key">
+// markers resolved against the file at insert/preview time.
+model EmailTemplate {
+  id                    String             @id @default(cuid())
+  name                  String
+  description           String?
+  subject               String?
+  body                  String             @db.Text
+  scope                 EmailTemplateScope
+  agencyId              String?
+  progressionBusinessId String?
+  createdByUserId       String
+  createdByName         String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([agencyId])
+  @@index([progressionBusinessId])
+  @@index([createdByUserId])
+}
+
+enum EmailTemplateScope {
+  personal
+  company
+}
+
 // Append-only audit of every agency email-copy edit — BOTH milestone overrides
 // and Tier-2 templates. Never updated or deleted in normal operation: it exists
 // so we can always prove exactly what copy an agency authored, who made the

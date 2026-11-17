@@ -10,7 +10,7 @@
 // Owner-only; mounted by AccountShell variant="business".
 
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge, DeviceMobile } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge, DeviceMobile, Stack } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
@@ -25,6 +25,7 @@ const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/team", label: "Team", Icon: UsersThree },
   { href: "/agent/settings/emails", label: "Emails", Icon: EnvelopeSimple },
+  { href: "/agent/settings/email-templates", label: "Email templates", Icon: Stack },
   { href: "/agent/settings/chases", label: "Automated chasing", Icon: Gauge },
   { href: "/agent/settings/client-portal", label: "Client portal", Icon: DeviceMobile },
   { href: "/agent/settings/notifications", label: "Notifications", Icon: Bell },
@@ -37,6 +38,9 @@ const ITEMS: NavRailItem[] = [
 // we hide those tabs rather than show links that dead-end.
 const MEMBER_HREFS = new Set([
   "/agent/settings/profile",
+  // Templates are visible to members too — they manage their own personal ones
+  // (the company option is owner-gated inside the editor + server-side).
+  "/agent/settings/email-templates",
   "/agent/settings/connections",
   "/agent/settings/notifications",
   "/agent/settings/security",

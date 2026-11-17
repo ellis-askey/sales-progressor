@@ -14,7 +14,7 @@
 
 import { usePathname } from "next/navigation";
 import type { UserRole } from "@prisma/client";
-import { CreditCard, User, UsersThree, Bell, EnvelopeSimple, Lock, DeviceMobile, Gauge, PlugsConnected, Phone, ArrowsLeftRight } from "@phosphor-icons/react";
+import { CreditCard, User, UsersThree, Bell, EnvelopeSimple, Lock, DeviceMobile, Gauge, PlugsConnected, Phone, ArrowsLeftRight, Stack } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 
 type Tab = NavRailItem & { roles: UserRole[] };
@@ -28,6 +28,7 @@ const TABS: Tab[] = [
   { href: "/agent/account/profile", label: "Profile", Icon: User, roles: ["director", "negotiator"] },
   { href: "/agent/account/team", label: "Team", Icon: UsersThree, roles: ["director", "negotiator"] },
   { href: "/agent/account/emails", label: "Emails", Icon: EnvelopeSimple, roles: ["director"] },
+  { href: "/agent/account/email-templates", label: "Email templates", Icon: Stack, roles: ["director", "negotiator"] },
   { href: "/agent/account/chasing", label: "Automated chasing", Icon: Gauge, roles: ["director"] },
   { href: "/agent/account/client-portal", label: "Client portal", Icon: DeviceMobile, roles: ["director"] },
   { href: "/agent/account/welcome-call", label: "Welcome call", Icon: Phone, roles: ["director"] },
