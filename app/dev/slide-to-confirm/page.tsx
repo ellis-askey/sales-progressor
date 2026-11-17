@@ -61,7 +61,7 @@ export default function SlideToConfirmPreview() {
 
         <Row label="Fired">
           <div style={{ fontSize: 13, color: "var(--agent-text-secondary, #6b6258)", minHeight: 20, lineHeight: 1.7 }}>
-            {log.length === 0 ? "Nothing yet — slide one across." : log.map((l, i) => <div key={i}>{l}</div>)}
+            {log.length === 0 ? "Nothing yet. Slide one across." : log.map((l, i) => <div key={i}>{l}</div>)}
           </div>
         </Row>
       </div>
