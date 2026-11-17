@@ -948,7 +948,6 @@ export function ComposeEmailModal({
                     transactionId={ctx?.sale.id ?? null}
                     fileLabel={ctx?.sale.line1 ?? ctx?.sale.address ?? null}
                     hasDraft={hasDraftContent()}
-                    getEditorRect={() => editorRef.current?.getBoundingClientRect() ?? null}
                     onInsert={insertTemplateHtml}
                   />
                   <div className="cem-toolbar">
@@ -1178,8 +1177,8 @@ const CEM_CSS = `
 .cem-r{display:block;font-size:11px;color:var(--agent-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-em{font-size:11px;color:var(--agent-text-muted);flex-shrink:0;max-width:36%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cem-subject{width:100%;background:var(--agent-surface-elevated,#fff);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13.5px;font-weight:550;color:var(--agent-text-primary);outline:none}
-.cem-editor-wrap{position:relative;border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff)}
-.cem-editor-wrap:has(.tp){overflow:visible}
+.cem-editor-wrap{position:relative;border-radius:10px;overflow:hidden;background:var(--agent-surface-elevated,#fff);transition:min-height .2s ease}
+.cem-editor-wrap:has(.tp-open){min-height:360px}
 .cem-tmpl-btn{border:0;background:transparent;cursor:pointer;padding:5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:var(--agent-text-muted,#9a8a7f);transition:background .15s ease,color .15s ease}
 .cem-tmpl-btn:hover{background:color-mix(in srgb, currentColor 12%, transparent);color:var(--agent-text-primary,#2d1810)}
 .cem-tmpl-btn.on{background:var(--agent-hover-shade-strong,rgba(45,24,16,.09));color:var(--agent-text-primary,#2d1810)}
