@@ -6,6 +6,8 @@ import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onw
 import { getPortalBrokerCard } from "@/lib/services/broker-card";
 import { aiEnabled } from "@/lib/ai/enabled";
 import { PortalBrokerCard } from "@/components/portal/PortalBrokerCard";
+import { SurveyRecommendationCard } from "@/components/portal/SurveyRecommendationCard";
+import { getSurveyProviderContext } from "@/lib/services/survey-providers";
 import { resolveProviderAvailability } from "@/lib/services/provider-availability";
 import type { TimelineEntry } from "@/lib/services/portal";
 import { getMilestoneCopy, WHO_LABELS, getMilestoneUpdateSubtext, getMilestoneUpdateSubtextOther } from "@/lib/portal-copy";
@@ -331,6 +333,14 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   const quotedFirmNames = surveyQuotes.firmNames;
   const lastQuotedAt = surveyQuotes.lastQuotedAt;
   const hasRequestedQuote = quotedFirmNames.length > 0;
+
+  // The TSP vetted-surveyor network is offered only on files TSP progresses.
+  // Everyone else (self-managed / in-house / external business) loses the quote
+  // card; purchasers get an "ask my agent for a recommendation" card instead
+  // (temporary — self-serve providers land in the new year). The TSP flag is
+  // file-level so it gates the seller's onward card too.
+  const { offersTsp: offersTspProviders, agencyName: recoAgencyName, askedForReco } =
+    await getSurveyProviderContext(transaction.id, contact.id);
 
   // Mortgage broker card (purchasers only). Resolves the file's broker — the
   // agent's own, or the TSP default on outsourced files — or null. Only
@@ -737,7 +747,7 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
   // sellers buying onward are a follow-up (docs/POLISH_TBD).
   const surveyEngaged      = side === "purchaser" && !hasExchanged && !hasCompleted && (surveyBooked || !!bookedSurveyorName || purchaserSurveyOptedOut);
   const providerAvail      = surveyEngaged ? await resolveProviderAvailability(transaction.propertyAddress) : null;
-  const showProvidersCard  = surveyEngaged && (providerAvail?.hasLocalCovered ?? false);
+  const showProvidersCard  = offersTspProviders && surveyEngaged && (providerAvail?.hasLocalCovered ?? false);
   if (showProvidersCard) void recordPortalEvent("portal_service_surfaced", contact.id, { service: "providers" });
   // Subcopy lists what's genuinely available (grows as we add provider kinds),
   // ending "and more".
@@ -877,8 +887,19 @@ const side      = contact.roleType === "vendor" ? "vendor" : "purchaser";
 
       <div className="flex flex-col gap-4">
 
+      {/* ── Non-TSP survey path: ask the agent for a recommendation ──
+             Files TSP doesn't progress have no vetted-surveyor network, so the
+             purchaser gets an "ask my agent" card instead of the quote link
+             (temporary — self-serve providers land in the new year). Non-TSP
+             sellers simply get no card. */}
+      {showSurveyQuote && !offersTspProviders && side === "purchaser" && (
+        <div style={slot("survey-quote")}>
+          <SurveyRecommendationCard token={token} agencyName={recoAgencyName} asked={askedForReco} />
+        </div>
+      )}
+
       {/* ── Survey quote prompt (purchasers, once instructed, pre-exchange) ── */}
-      {showSurveyQuote && (
+      {showSurveyQuote && offersTspProviders && (
         <div style={slot("survey-quote")}>
         <Link
           href={surveyQuoteHref}

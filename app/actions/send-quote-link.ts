@@ -15,6 +15,7 @@ import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { sendEmail } from "@/lib/email";
 import { resolveAgencySenderForTransaction } from "@/lib/email/agency-sender";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";
+import { txOffersTspProviders } from "@/lib/services/survey-providers";
 
 export type SendQuoteLinkResult =
   | { ok: true; recipientEmail: string }
@@ -51,6 +52,12 @@ export async function sendQuoteLinkToBuyerAction(
   });
 
   if (!tx) return { ok: false, error: "File not found or not in your scope." };
+
+  // The TSP vetted-surveyor quote flow is for TSP-progressed files only. On any
+  // other file the agent handles surveys themselves, so there's no link to send.
+  if (!(await txOffersTspProviders(transactionId))) {
+    return { ok: false, error: "The survey quote flow isn't available on this file." };
+  }
 
   // Never send the quote link to an archived previous buyer — active round only.
   const buyer = tx.contacts.find(

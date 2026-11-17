@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { outwardCode } from "@/lib/utils/address";
 import { getOnwardSignalForFile, getOnwardTrackerView } from "@/lib/services/onward";
+import { txOffersTspProviders } from "@/lib/services/survey-providers";
 import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency, Tenure } from "@prisma/client";
 
 // Contact methods that reach the client on a phone number — server-side mirror
@@ -119,6 +120,12 @@ export async function submitQuoteRequest(input: QuoteSubmitInput): Promise<Quote
   });
 
   if (!contact) return { ok: false, error: "That link isn't valid. Please contact your agent." };
+
+  // Defence in depth: the provider network is TSP-progressed files only. A direct
+  // POST on any other file is refused — those clients ask their agent instead.
+  if (!(await txOffersTspProviders(contact.transaction.id))) {
+    return { ok: false, error: "Your agent is looking after your survey on this sale. Ask them for a recommendation from your portal." };
+  }
 
   // 2. Look up the service type + firms; verify each firm covers the postcode
   //    and offers this service type. Prevents client-side tampering.

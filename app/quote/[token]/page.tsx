@@ -15,6 +15,7 @@ import { outwardCode } from "@/lib/utils/address";
 import { getOnwardSignalForFile } from "@/lib/services/onward";
 import { getProviderLogoUrl } from "@/lib/supabase-storage";
 import { extractFirstName } from "@/lib/contacts/displayName";
+import { txOffersTspProviders } from "@/lib/services/survey-providers";
 import { recordPortalEvent } from "@/lib/services/portal-events";
 import { QuoteFlow } from "./QuoteFlow";
 import { A } from "./ui";
@@ -65,6 +66,26 @@ export default async function QuotePage({
   });
 
   if (!contact) notFound();
+
+  // The TSP vetted-provider network is offered only on files TSP progresses.
+  // On any other file this flow isn't available (a stale link, say), so show a
+  // friendly dead-end that points the client back to their agent rather than
+  // letting them request quotes we don't run.
+  if (!(await txOffersTspProviders(contact.transaction.id))) {
+    return (
+      <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
+        <div aria-hidden className="portal-ambient" />
+        <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
+            Arranging your survey
+          </h1>
+          <p style={{ fontSize: 14, color: A.textMuted }}>
+            Your agent is looking after your survey on this sale. If you&apos;d like a recommendation, ask them from your portal and they&apos;ll be in touch.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   // Portal Engagement v2 (Phase 1): reaching the quote flow means the client
   // acted on the survey card. Fire-and-forget, best-effort.

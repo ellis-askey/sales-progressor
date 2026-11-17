@@ -11,6 +11,7 @@
 // underlying query runs per request.
 
 import { prisma } from "@/lib/prisma";
+import { fileBucket } from "@/lib/email/audience-buckets";
 import { buildDueSteps } from "@/lib/chase/step-questions";
 import {
   getMilestonesCached,
@@ -402,6 +403,7 @@ export async function SidebarPanel({
         freeOnExchange: transaction.freeOnExchange ?? null,
         firstOutsourcedFree: transaction.firstOutsourcedFree ?? null,
       }}
+      offersTspProviders={fileBucket({ progressionBusinessId: transaction.progressionBusinessId ?? null, isTsp: transaction.progressionBusiness?.isTsp ?? false }) === "tsp_outsourced"}
       recommendedFirms={recommendedFirms}
       checkIn={{
         transactionId: transaction.id,

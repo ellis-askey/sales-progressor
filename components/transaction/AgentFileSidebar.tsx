@@ -151,6 +151,10 @@ type Props = {
     seller: CheckInSide;
     buyer: CheckInSide;
   };
+  // The TSP vetted-surveyor quote flow (the "Send survey quote link" quick action)
+  // is for TSP-progressed files only. External-business-outsourced and self-managed
+  // files don't get it, so the button is hidden.
+  offersTspProviders?: boolean;
 };
 
 type CheckInSide = { steps: DueStep[]; clientCount: number };
@@ -279,6 +283,7 @@ export function AgentFileSidebar({
   lastActivityAt,
   previousSales = [],
   checkIn,
+  offersTspProviders = false,
 }: Props) {
   const { setActiveTab } = useTabContext();
 
@@ -839,7 +844,9 @@ export function AgentFileSidebar({
               the WhatsApp check-in copies are hidden on self-managed files. */}
           {transaction.serviceType === "outsourced" && (
             <>
-              <SendQuoteLinkQuickAction transactionId={transaction.id} />
+              {/* Survey-quote link is the TSP provider network — TSP-progressed
+                  files only, not external-business-outsourced ones. */}
+              {offersTspProviders && <SendQuoteLinkQuickAction transactionId={transaction.id} />}
               {checkIn && checkIn.seller.steps.length > 0 && (
                 <CheckInQuickAction label="Copy seller check-in" side={checkIn.seller} transactionId={checkIn.transactionId} />
               )}

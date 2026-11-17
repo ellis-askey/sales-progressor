@@ -47,6 +47,7 @@ import { renderStudioEmail } from "@/lib/email/studio-render";
 import type { StudioTheme } from "@/lib/email/email-theme-studio";
 import { resolveClientChaseContent } from "@/lib/agency-email/templates";
 import { resolveProviderAvailability } from "@/lib/services/provider-availability";
+import { txOffersTspProviders } from "@/lib/services/survey-providers";
 
 // Guard for the multi-contact chase-inflation bug (2026-08-17).
 //
@@ -101,6 +102,11 @@ export type AssembleDigestInput = {
   // coverage check); omitted = no local provider, so the email is unchanged.
   // mortgage drives the "separate from your lender's valuation" line.
   surveyQuote?: { url: string; mortgage: boolean };
+  // Non-TSP files have no quote network, so a chased survey (PM9) gets an
+  // "arrange your survey / ask your agent for a recommendation" nudge pointing at
+  // the portal instead of the quote offer. Caller sets this for purchasers on
+  // files TSP doesn't progress. Mutually exclusive with surveyQuote.
+  surveyReco?: boolean;
   // "Need help?" footer contact. Defaults to our support address; the chase path
   // passes the file's own reply-to so a white-labelled email to a business's clients
   // doesn't show TSP's support address (audit SP-polish).
@@ -233,6 +239,13 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
   const surveyOffer = input.surveyQuote && milestones.some((m) => m.code === "PM9") ? input.surveyQuote : null;
   const surveyOnly = !!surveyOffer && count === 1;
 
+  // Non-TSP survey nudge (no quote network): when the chased survey is the only
+  // due item, the email leads with "arrange your survey / ask your agent for a
+  // recommendation", pointing at the portal. Mutually exclusive with surveyOffer.
+  const surveyReco = !!input.surveyReco && milestones.some((m) => m.code === "PM9");
+  const surveyRecoOnly = surveyReco && count === 1;
+  const portalHomeUrl = `${base}/portal/${contact.portalToken}`;
+
   // ─── Classify each item; split into DIY / NUDGE groups ──────────────────
   // Prefer chaseLabel where the copy defines it — it's phrased for the
   // chase opener ("sitting with your solicitor: <chaseLabel>" or
@@ -309,6 +322,20 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
       ``,
       `Already arranged your own surveyor? You can confirm that on your page instead:`,
       respondUrl,
+    ];
+  } else if (surveyRecoOnly) {
+    // Non-TSP survey nudge — no quote network, so point them at the portal to ask
+    // their agent for a recommendation or to confirm a survey they've booked.
+    toneLines = [
+      `Now's a good time to arrange your property survey.`,
+      ``,
+      `A survey gives you an independent assessment of the property's condition, helping you understand any potential issues before you commit to your purchase.`,
+      ``,
+      `If you haven't chosen a surveyor yet, you can request a recommendation from your estate agent directly through your portal.`,
+      ``,
+      `Already booked your survey? Simply confirm this in your portal so everyone knows it's underway.`,
+      ``,
+      portalHomeUrl,
     ];
   } else if (overallTone === "diy" && count === 1) {
     toneLines = [
@@ -416,6 +443,12 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
           <p style="${pStyle}">Now is a good time to think about getting your survey booked on your purchase at <strong>${escapeHtml(address)}</strong>.</p>
           <p style="${pStyle}">A survey gives you an independent view of the property's condition and can highlight anything you may want to look into before you move forward.${lenderLineHtml}</p>
           <p style="${pStyle}">If you'd like a recommendation, you can request quotes from a small selection of trusted local surveyors using the button below. It takes around 30 seconds.</p>`;
+  } else if (surveyRecoOnly) {
+    toneHtml = `
+          <p style="${pStyle}">Now's a good time to arrange your property survey.</p>
+          <p style="${pStyle}">A survey gives you an independent assessment of the property's condition, helping you understand any potential issues before you commit to your purchase.</p>
+          <p style="${pStyle}">If you haven't chosen a surveyor yet, you can request a recommendation from your estate agent directly through your portal.</p>
+          <p style="${pStyle}">Already booked your survey? Simply confirm this in your portal so everyone knows it's underway.</p>`;
   } else if (overallTone === "diy" && count === 1) {
     toneHtml = `
           <p style="${pStyle}">Just a quick reminder that there's an outstanding item on your ${transactionWord} at <strong>${escapeHtml(address)}</strong> that needs your attention:</p>
@@ -474,8 +507,8 @@ export function assembleDigestPayload(input: AssembleDigestInput): AssembledDige
 
   // Primary CTA: the survey offer takes the button when it's the only item;
   // otherwise "Confirm or update" (the respond page is where they act on the items).
-  const ctaHref = surveyOnly && surveyOffer ? surveyOffer.url : respondUrl;
-  const ctaLabel = surveyOnly && surveyOffer ? "Get a survey quote" : "Confirm or update";
+  const ctaHref = surveyOnly && surveyOffer ? surveyOffer.url : surveyRecoOnly ? portalHomeUrl : respondUrl;
+  const ctaLabel = surveyOnly && surveyOffer ? "Get a survey quote" : surveyRecoOnly ? "Open your portal" : "Confirm or update";
   const surveyOnlySecondaryHtml = surveyOnly
     ? `
           <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#4a5162;">Already arranged your own surveyor? <a href="${respondUrl}" style="color:${theme.buttonBg};text-decoration:underline;">Confirm it on your page</a>.</p>`
@@ -650,7 +683,12 @@ export async function enqueueClientChaseDigest(input: {
   // vetted surveyor covers this property's postcode, turn the plain nudge into a
   // pre-filled quote offer. No coverage → undefined → the email is unchanged.
   let surveyQuote: { url: string; mortgage: boolean } | undefined;
-  if (sendCodes.includes("PM9") && contact.roleType === "purchaser") {
+  // A chased survey (PM9) to a buyer: TSP-progressed files get the vetted-surveyor
+  // quote offer (if a local surveyor covers the postcode); everyone else gets the
+  // "arrange your survey / ask your agent" nudge pointing at the portal.
+  const purchaserSurvey = sendCodes.includes("PM9") && contact.roleType === "purchaser";
+  const offersTsp = purchaserSurvey ? await txOffersTspProviders(transaction.id) : false;
+  if (purchaserSurvey && offersTsp) {
     const avail = await resolveProviderAvailability(transaction.propertyAddress).catch(() => null);
     if (avail?.hasLocalCovered) {
       surveyQuote = {
@@ -659,6 +697,7 @@ export async function enqueueClientChaseDigest(input: {
       };
     }
   }
+  const surveyReco = purchaserSurvey && !offersTsp;
 
   const payload = assembleDigestPayload({
     transaction: { id: transaction.id, propertyAddress: transaction.propertyAddress },
@@ -666,6 +705,7 @@ export async function enqueueClientChaseDigest(input: {
     milestones: sendCodes.map((code) => ({ code })),
     agencyName: transaction.agency?.name ?? "Your agent",
     surveyQuote,
+    surveyReco,
     // Drives sale/purchase word in the body openers. Defaults to vendor
     // defensively — should never apply since the cron filters contacts
     // to vendor/purchaser only before reaching this path.

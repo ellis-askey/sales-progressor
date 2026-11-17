@@ -20,6 +20,7 @@ import { writeClientChainStub } from "@/lib/services/chains";
 import { filePeopleIds, dayToDayUserId } from "@/lib/services/file-people";
 import { createNotification, addPortalClientSelfNote } from "@/lib/services/notifications";
 import { getPortalChainAgent, getPortalSurveyState, type PortalChainAgent } from "@/lib/services/portal";
+import { getSurveyProviderContext } from "@/lib/services/survey-providers";
 import { pauseContactChases, resumeContactChases } from "@/lib/services/chase-pause";
 import { assertLivePortalRound } from "@/lib/portal/round-guard";
 
@@ -81,6 +82,13 @@ export type MyPortalDetails = {
     progressorName: string | null;
     progressorEmail: string | null;
   };
+  // TSP vetted-surveyor network is TSP-progressed files only. Everyone else is
+  // routed to "ask my agent for a recommendation" (see SurveyRecommendationCard).
+  recommendation: {
+    offersTsp: boolean;
+    agencyName: string;
+    askedForReco: boolean;
+  };
 };
 
 export async function getMyPortalDetailsAction(token: string): Promise<MyPortalDetails> {
@@ -113,6 +121,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
     booked: tx?.bookedSurveyorName != null,
     requested: requestedSurveyCount > 0,
   };
+  const recommendation = await getSurveyProviderContext(contact.propertyTransactionId, contact.id);
 
   return {
     contact: {
@@ -138,6 +147,7 @@ export async function getMyPortalDetailsAction(token: string): Promise<MyPortalD
       : null,
     chainAgent,
     survey,
+    recommendation,
   };
 }
 

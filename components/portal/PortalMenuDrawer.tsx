@@ -34,6 +34,7 @@ function EditPencil({ onClick, label }: { onClick: () => void; label: string }) 
   );
 }
 import { P, PortalPill } from "./portal-ui";
+import { SurveyRecommendationCard } from "./SurveyRecommendationCard";
 import {
   getMyPortalDetailsAction,
   updateMyNotificationsAction,
@@ -419,11 +420,13 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                   <div ref={agentsRef}>
                     <YourAgentsSection details={details} token={token} onSaved={reload} />
                   </div>
-                  {/* Buyers: survey nudge while getting a survey is still an open
-                      decision; the general "Request a quote" once it's resolved
-                      (booked, already requested, or marked not required). Sellers
-                      always get the general entry. */}
-                  {contactRole === "purchaser" &&
+                  {/* TSP-progressed files get the vetted-surveyor quote network:
+                      buyers see the survey nudge while it's an open decision, the
+                      general "Request a quote" once resolved; sellers get the
+                      general entry. Everyone else has no network, so buyers get an
+                      "ask my agent for a recommendation" card instead and sellers
+                      get nothing (temporary — self-serve providers land new year). */}
+                  {contactRole === "purchaser" && details.recommendation.offersTsp &&
                     (details.survey.applicable &&
                     !details.survey.skipped &&
                     !details.survey.booked &&
@@ -432,7 +435,15 @@ export function PortalMenuDrawer({ open, onClose, token, contactName, contactRol
                     ) : (
                       <RequestQuoteSection token={token} />
                     ))}
-                  {contactRole === "vendor" && <RequestQuoteSection token={token} />}
+                  {contactRole === "purchaser" && !details.recommendation.offersTsp &&
+                    details.survey.applicable && !details.survey.skipped && !details.survey.booked && (
+                      <SurveyRecommendationCard
+                        token={token}
+                        agencyName={details.recommendation.agencyName}
+                        asked={details.recommendation.askedForReco}
+                      />
+                    )}
+                  {contactRole === "vendor" && details.recommendation.offersTsp && <RequestQuoteSection token={token} />}
                   <NotificationsSection details={details} token={token} onSaved={reload} />
                 </>
               ) : null}
