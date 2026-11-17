@@ -4,6 +4,7 @@ import { isActiveRoundContact } from "@/lib/contacts/round-scope";
 import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { TabEnter } from "@/components/transaction/TabEnter";
 import { ClientPortalPreview, type PortalPreviewClient } from "@/components/transaction/ClientPortalPreview";
+import { getPortalLinkSentByContact } from "@/lib/services/comms";
 
 export const unstable_dynamicStaleTime = 300;
 
@@ -26,10 +27,16 @@ export default async function ClientPortalTabPage({ params }: { params: Promise<
           portalToken: true,
           portalEligible: true,
           buyerRoundId: true,
+          email: true,
+          lastVisitedPortalAt: true,
         },
       },
     },
   });
+
+  // Same portal-link-sent signal the contacts card uses, so the status on both
+  // surfaces reads from one source of truth (reads existing records; no new column).
+  const linkSent = await getPortalLinkSentByContact(transaction.id);
 
   const clients: PortalPreviewClient[] = (tx?.contacts ?? [])
     .filter((c) => c.portalEligible && !!c.portalToken)
@@ -42,6 +49,10 @@ export default async function ClientPortalTabPage({ params }: { params: Promise<
       name: nameWithoutTitle(c.name) || "Client",
       roleType: c.roleType,
       token: c.portalToken as string,
+      // Precedence mirrors resolvePortalState: opened portal > link genuinely
+      // sent > added-but-not-yet-invited.
+      status: c.lastVisitedPortalAt ? "active" : linkSent[c.id] ? "invited" : "ready_to_invite",
+      lastViewedIso: c.lastVisitedPortalAt ? c.lastVisitedPortalAt.toISOString() : null,
     }));
 
   return (
