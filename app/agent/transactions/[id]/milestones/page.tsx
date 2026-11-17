@@ -1,8 +1,10 @@
 // File-detail — Steps + Activity tab (route segment). Renders only when open.
 // Steps and the activity log are one surface now: Steps at ~60%, the activity
-// feed as a ~40% column beside it, stacking BELOW Steps on tablet/mobile (the
-// same xl breakpoint the shell's sidebar used). The Sale-health sidebar is
-// suppressed on this tab by FileTabsChrome, so the pair runs full width.
+// feed as a ~40% column beside it from 1100px up, stacking BELOW Steps below
+// that — so a laptop at 100% zoom gets the split while phones and smaller /
+// portrait tablets (incl. iPad landscape at 1024) stay stacked. The Sale-health
+// sidebar is suppressed on this tab by FileTabsChrome, so the pair runs full
+// width.
 // Nothing inside either panel changed — this is pure relocation (founder,
 // 2026-11-17). The standalone /activity route redirects here.
 import { loadFilePageContext } from "@/lib/services/file-page-context";
@@ -41,8 +43,8 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
 
   return (
     <TabEnter stage>
-      <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 xl:items-start">
-        <div className="min-w-0 xl:flex-[3]">
+      <div className="flex flex-col min-[1100px]:flex-row gap-4 min-[1100px]:gap-5 min-[1100px]:items-start">
+        <div className="min-w-0 min-[1100px]:flex-[3]">
           <StepsPanel
             transactionId={transaction.id}
             agencyId={session.user.agencyId}
@@ -52,7 +54,7 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
             partyNames={partyNames}
           />
         </div>
-        <div className="min-w-0 xl:flex-[2]">
+        <div className="min-w-0 min-[1100px]:flex-[2]">
           <ActivityPanel
             transactionId={transaction.id}
             agencyId={session.user.agencyId}
