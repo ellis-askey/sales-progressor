@@ -2,10 +2,8 @@
 
 // /dev/chain-cockpit — focused preview: on the CHAIN tab, the right-hand
 // "Sale health" column is swapped for a compact panel that shows a mini steps
-// view (buyer/seller toggle) and, underneath, the file's notes with an inline
-// add-a-note box. So a progressor on the phone sees chain + steps + notes on one
-// screen and can jot a note without leaving. Health stays reachable via a toggle
-// (zero capability lost). Self-contained mock, no wiring.
+// view (seller/buyer toggle) and, underneath, the file's notes with an inline
+// add-a-note box. Self-contained mock, no wiring.
 
 import { useState } from "react";
 import { notFound } from "next/navigation";
@@ -25,6 +23,11 @@ function Tick({ state }: { state: "done" | "next" | "todo" }) {
 
 function Chip({ tone, children }: { tone: "ftb" | "terminal"; children: React.ReactNode }) {
   return <span className={`cc-chip cc-chip--${tone}`}>{children}</span>;
+}
+
+// Initials avatar — the SVG/photo fallback the rest of the app uses.
+function Avatar({ initials, colour, size = 22 }: { initials: string; colour: string; size?: number }) {
+  return <span className="cc-avatar" style={{ background: colour, width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
 }
 
 /* ─────────── mini steps (per side) ─────────── */
@@ -61,13 +64,15 @@ function MiniSteps() {
   const done = steps.filter((s) => s.state === "done").length;
   return (
     <div>
-      <div className="cc-seg" role="tablist" aria-label="Side">
-        <button role="tab" aria-selected={side === "seller"} className={`cc-seg-btn${side === "seller" ? " on" : ""}`} onClick={() => setSide("seller")}>Seller</button>
-        <button role="tab" aria-selected={side === "buyer"} className={`cc-seg-btn${side === "buyer" ? " on" : ""}`} onClick={() => setSide("buyer")}>Buyer</button>
+      {/* Sliding toggle — the selection is the primary colour and glides across. */}
+      <div className="cc-toggle" role="tablist" aria-label="Side">
+        <span className="cc-toggle-ind" data-side={side} aria-hidden />
+        <button role="tab" aria-selected={side === "seller"} className={`cc-toggle-btn${side === "seller" ? " on" : ""}`} onClick={() => setSide("seller")}>Seller</button>
+        <button role="tab" aria-selected={side === "buyer"} className={`cc-toggle-btn${side === "buyer" ? " on" : ""}`} onClick={() => setSide("buyer")}>Buyer</button>
       </div>
       <div className="cc-steps-meta">
         <span>{done} of {steps.length} done</span>
-        <span className="cc-steps-stage">{side === "seller" ? "Enquiries" : "Enquiries"}</span>
+        <span className="cc-steps-stage">Enquiries</span>
       </div>
       <ul className="cc-steps">
         {steps.map((s) => (
@@ -85,9 +90,9 @@ function MiniSteps() {
 /* ─────────── notes + inline composer ─────────── */
 
 const NOTES = [
-  { who: "You", when: "Today · 11:52", text: "Buyer's solicitor confirmed searches back, nothing flagged. Pushing enquiries this week." },
-  { who: "Laura", when: "Mon · 16:05", text: "Top of chain confirmed not buying on — chain ends here. All keen to exchange before month-end." },
-  { who: "You", when: "Fri · 09:20", text: "Okafors' mortgage offer through. Chasing their solicitor for the signed contract." },
+  { who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Today · 11:52", text: "Buyer's solicitor confirmed searches back, nothing flagged. Pushing enquiries this week." },
+  { who: "Laura Chen", initials: "LC", colour: "#3B7DE0", when: "Mon · 16:05", text: "Top of chain confirmed not buying on — chain ends here. All keen to exchange before month-end." },
+  { who: "Ellis Askey", initials: "EA", colour: "#C77D1A", when: "Fri · 09:20", text: "Okafors' mortgage offer through. Chasing their solicitor for the signed contract." },
 ];
 
 function NotesPanel() {
@@ -99,17 +104,15 @@ function NotesPanel() {
         <span className="cc-notes-hint">On this sale</span>
       </div>
 
-      {/* Inline composer — type a note right here */}
+      {/* Inline composer — small, drag-to-resize like the app's note inputs. */}
       <div className={`cc-compose${draft ? " is-active" : ""}`}>
         <textarea
           className="cc-compose-input"
           placeholder="Add a note…"
-          rows={draft ? 3 : 1}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
         <div className="cc-compose-row">
-          <button className="cc-compose-ai" type="button" title="Draft from the latest activity">✨ Generate</button>
           <button className="cc-compose-save" type="button" disabled={!draft.trim()}>Add note</button>
         </div>
       </div>
@@ -117,8 +120,14 @@ function NotesPanel() {
       <div className="cc-note-list">
         {NOTES.map((n, i) => (
           <div key={i} className="cc-note">
-            <div className="cc-note-meta"><span className="cc-note-who">{n.who}</span><span className="cc-note-when">{n.when}</span></div>
-            <p className="cc-note-text">{n.text}</p>
+            <Avatar initials={n.initials} colour={n.colour} />
+            <div className="cc-note-body">
+              <div className="cc-note-top">
+                <span className="cc-note-who">{n.who}</span>
+                <span className="cc-note-when">{n.when}</span>
+              </div>
+              <p className="cc-note-text">{n.text}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -126,33 +135,12 @@ function NotesPanel() {
   );
 }
 
-/* ─────────── the right column (the swap) ─────────── */
-
 function RightColumn() {
-  const [view, setView] = useState<"steps" | "health">("steps");
   return (
     <aside className="cc-right">
-      <div className="cc-seg cc-seg--top" role="tablist" aria-label="Right panel">
-        <button role="tab" aria-selected={view === "steps"} className={`cc-seg-btn${view === "steps" ? " on" : ""}`} onClick={() => setView("steps")}>Steps &amp; notes</button>
-        <button role="tab" aria-selected={view === "health"} className={`cc-seg-btn${view === "health" ? " on" : ""}`} onClick={() => setView("health")}>Health</button>
-      </div>
-
-      {view === "steps" ? (
-        <div className="cc-fade">
-          <MiniSteps />
-          <div className="cc-divider" />
-          <NotesPanel />
-        </div>
-      ) : (
-        <div className="cc-fade cc-health">
-          <p className="cc-health-title">Sale health · <b>On track</b></p>
-          <div className="cc-health-row"><span>Stage</span><b>Exchange</b></div>
-          <div className="cc-health-row"><span>Risk level</span><b>Low</b></div>
-          <div className="cc-health-row"><span>Last activity</span><b>Today, 11:52</b></div>
-          <div className="cc-health-row"><span>Time on file</span><b>4h 26m</b></div>
-          <p className="cc-health-foot">The old sidebar — kept here, one tap away.</p>
-        </div>
-      )}
+      <MiniSteps />
+      <div className="cc-divider" />
+      <NotesPanel />
     </aside>
   );
 }
@@ -206,7 +194,7 @@ export default function ChainCockpitDevPage() {
         <header className="cc-top">
           <div>
             <h1 className="cc-h1">Chain tab — steps &amp; notes where health used to be</h1>
-            <p className="cc-lede">The right column swaps to a mini steps view (seller/buyer toggle) and the file&rsquo;s notes, with a box to jot one down there and then. Health is a tap away, not lost. Chain still shows the first-time-buyer / top-of-chain markers on the left.</p>
+            <p className="cc-lede">The right column shows a mini steps view (seller/buyer toggle) and the file&rsquo;s notes, with a box to jot one down there and then. Chain keeps the first-time-buyer / top-of-chain markers on the left.</p>
           </div>
           <button className="cc-theme" type="button" onClick={() => setDark((v) => !v)}>{dark ? "Light" : "Dark"}</button>
         </header>
@@ -247,9 +235,9 @@ const CSS = `
 .cc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:26px; }
 .cc-h1{ margin:0; font-size:24px; font-weight:800; letter-spacing:-0.025em; }
 .cc-lede{ margin:8px 0 0; font-size:13.5px; line-height:1.55; color:var(--ts); max-width:66ch; }
-.cc-theme{ flex-shrink:0; border:1px solid var(--bdef); background:var(--surface); color:var(--ts); border-radius:10px; padding:8px 15px; font:inherit; font-size:12.5px; font-weight:650; cursor:pointer; backdrop-filter:blur(12px); }
+.cc-theme{ flex-shrink:0; border:1px solid var(--bdef); background:var(--surface); color:var(--ts); border-radius:10px; padding:8px 15px; font:inherit; font-size:12.5px; font-weight:650; cursor:pointer; backdrop-filter:blur(12px); transition:border-color .15s; }
+.cc-theme:hover{ border-color:var(--cd); }
 
-/* frame: left chain + right column */
 .cc-frame{ display:grid; grid-template-columns:1fr 336px; gap:18px; align-items:start; }
 @media (max-width:820px){ .cc-frame{ grid-template-columns:1fr; } }
 
@@ -258,7 +246,8 @@ const CSS = `
 .cc-left-tabs{ display:inline-flex; gap:3px; padding:3px; border-radius:10px; background:var(--sunk); border:1px solid var(--bsub); }
 .cc-left-tabs span{ font-size:12.5px; font-weight:650; color:var(--tm); padding:6px 14px; border-radius:8px; }
 .cc-left-tabs span.on{ color:var(--tp); background:var(--solid); box-shadow:0 1px 2px rgba(20,14,10,0.1); }
-.cc-email{ border:1px solid var(--bdef); background:var(--surface); color:var(--ts); border-radius:9px; padding:7px 13px; font:inherit; font-size:12px; font-weight:650; cursor:pointer; }
+.cc-email{ border:1px solid var(--bdef); background:var(--surface); color:var(--ts); border-radius:9px; padding:7px 13px; font:inherit; font-size:12px; font-weight:650; cursor:pointer; transition:border-color .15s; }
+.cc-email:hover{ border-color:var(--cd); }
 
 .cc-cnode{ display:flex; gap:12px; }
 .cc-cpos{ width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:800; color:var(--ts); background:var(--solid); border:1.5px solid var(--bdef); flex-shrink:0; margin-top:12px; }
@@ -278,18 +267,21 @@ const CSS = `
 .cc-chip--terminal{ color:var(--amber); background:rgba(199,125,26,0.12); border-color:rgba(199,125,26,0.28); }
 .cc-page.dark .cc-chip--terminal{ background:rgba(224,164,88,0.14); border-color:rgba(224,164,88,0.3); }
 
-/* right column (the swap) */
+/* right column */
 .cc-right{ border:1px solid var(--bsub); background:var(--surface); backdrop-filter:blur(20px) saturate(1.5); border-radius:16px; padding:14px; box-shadow:0 2px 4px rgba(20,14,10,0.04), 0 18px 38px -26px rgba(20,14,10,0.24); }
-.cc-fade{ animation:cc-in 220ms ease both; }
-@keyframes cc-in{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
-@media (prefers-reduced-motion:reduce){ .cc-fade{ animation:none; } }
 
-.cc-seg{ display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:3px; border-radius:11px; background:var(--sunk); border:1px solid var(--bsub); }
-.cc-seg--top{ margin-bottom:14px; }
-.cc-seg-btn{ border:0; cursor:pointer; padding:8px 10px; border-radius:8px; font:inherit; font-size:12.5px; font-weight:680; background:transparent; color:var(--tm); transition:color .15s, background .15s; }
-.cc-seg-btn.on{ color:var(--tp); background:var(--solid); box-shadow:0 1px 2px rgba(20,14,10,0.1); }
+/* sliding toggle — selection is primary colour, glides across */
+.cc-toggle{ position:relative; display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:11px; background:var(--sunk); border:1px solid var(--bsub); }
+.cc-toggle-ind{ position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 6px); border-radius:8px;
+  background:linear-gradient(180deg,var(--coral),var(--cd)); box-shadow:0 2px 8px rgba(var(--crgb),0.35), inset 0 1px 0 rgba(255,255,255,0.28);
+  transition:transform 280ms cubic-bezier(0.22,1,0.36,1); z-index:0; }
+.cc-toggle-ind[data-side="buyer"]{ transform:translateX(calc(100% + 4px)); }
+.cc-toggle-btn{ position:relative; z-index:1; border:1px solid transparent; cursor:pointer; padding:8px 10px; border-radius:8px; font:inherit; font-size:12.5px; font-weight:680; background:transparent; color:var(--tm); transition:color .18s, border-color .15s; }
+.cc-toggle-btn.on{ color:#fff; }
+.cc-toggle-btn:not(.on):hover{ color:var(--ts); border-color:var(--bdef); }
+@media (prefers-reduced-motion:reduce){ .cc-toggle-ind{ transition:none; } }
 
-.cc-steps-meta{ display:flex; align-items:center; justify-content:space-between; margin:12px 2px 8px; font-size:11.5px; color:var(--tm); font-weight:600; }
+.cc-steps-meta{ display:flex; align-items:center; justify-content:space-between; margin:14px 2px 8px; font-size:11.5px; color:var(--tm); font-weight:600; }
 .cc-steps-stage{ color:var(--cd); font-weight:700; }
 .cc-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; }
 .cc-step{ display:flex; align-items:center; gap:9px; font-size:12.5px; padding:4px 2px; color:var(--ts); }
@@ -297,7 +289,7 @@ const CSS = `
 .cc-step--todo{ color:var(--tm); opacity:0.7; }
 .cc-step--next{ color:var(--tp); font-weight:700; }
 .cc-step-label{ flex:1; min-width:0; }
-.cc-step-next{ font-size:9.5px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; color:#fff; background:linear-gradient(180deg,var(--coral),var(--cd)); padding:2px 7px; border-radius:999px; }
+.cc-step-next{ font-size:10.5px; font-weight:700; color:#fff; background:linear-gradient(180deg,var(--coral),var(--cd)); padding:2px 9px; border-radius:999px; }
 .cc-tk{ width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1.5px solid var(--bdef); display:grid; place-items:center; }
 .cc-tk--done{ background:rgba(var(--okrgb),0.14); border-color:rgba(var(--okrgb),0.4); color:var(--ok); }
 .cc-tk--next{ border:2px solid var(--cd); box-shadow:0 0 0 3px rgba(var(--crgb),0.14); }
@@ -308,25 +300,23 @@ const CSS = `
 .cc-notes-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
 .cc-notes-head h4{ margin:0; font-size:13.5px; font-weight:740; }
 .cc-notes-hint{ font-size:11px; color:var(--tm); }
-.cc-compose{ border:1px solid var(--bdef); background:var(--solid); border-radius:12px; padding:9px 10px; margin-bottom:14px; transition:border-color .15s, box-shadow .15s; }
-.cc-compose.is-active{ border-color:rgba(var(--crgb),0.5); box-shadow:0 0 0 3px rgba(var(--crgb),0.1); }
-.cc-compose-input{ width:100%; border:0; background:transparent; resize:none; font:inherit; font-size:12.5px; color:var(--tp); outline:none; line-height:1.5; }
+
+.cc-compose{ border:1px solid var(--bdef); background:var(--solid); border-radius:12px; padding:8px 10px; margin-bottom:16px; transition:border-color .15s, box-shadow .15s; }
+.cc-compose:hover{ border-color:var(--cd); }
+.cc-compose.is-active{ border-color:var(--cd); box-shadow:0 0 0 3px rgba(var(--crgb),0.1); }
+.cc-compose-input{ width:100%; min-height:30px; height:30px; max-height:160px; border:0; background:transparent; resize:vertical; font:inherit; font-size:12.5px; color:var(--tp); outline:none; line-height:1.5; display:block; }
 .cc-compose-input::placeholder{ color:var(--tm); }
-.cc-compose-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:7px; }
-.cc-compose-ai{ border:1px solid var(--bdef); background:var(--surface); color:var(--ts); border-radius:8px; padding:5px 10px; font:inherit; font-size:11.5px; font-weight:650; cursor:pointer; }
-.cc-compose-save{ border:1px solid transparent; border-radius:8px; padding:6px 13px; font:inherit; font-size:12px; font-weight:700; color:#fff; background:linear-gradient(180deg,var(--coral),var(--cd)); box-shadow:inset 0 1px 0 rgba(255,255,255,0.28); cursor:pointer; }
+.cc-compose-row{ display:flex; justify-content:flex-end; margin-top:6px; }
+.cc-compose-save{ border:1px solid transparent; border-radius:8px; padding:6px 13px; font:inherit; font-size:12px; font-weight:700; color:#fff; background:linear-gradient(180deg,var(--coral),var(--cd)); box-shadow:inset 0 1px 0 rgba(255,255,255,0.28); cursor:pointer; transition:filter .15s; }
+.cc-compose-save:hover:not(:disabled){ filter:brightness(1.05); }
 .cc-compose-save:disabled{ opacity:0.45; cursor:default; }
 
-.cc-note-list{ display:flex; flex-direction:column; gap:12px; }
-.cc-note{ padding-left:11px; border-left:2px solid rgba(var(--crgb),0.4); }
-.cc-note-meta{ display:flex; align-items:center; gap:8px; margin-bottom:3px; }
-.cc-note-who{ font-size:11.5px; font-weight:700; color:var(--tp); }
-.cc-note-when{ font-size:10.5px; color:var(--tm); }
+.cc-note-list{ display:flex; flex-direction:column; gap:14px; }
+.cc-note{ display:flex; gap:10px; }
+.cc-avatar{ border-radius:50%; flex-shrink:0; display:grid; place-items:center; font-weight:800; color:#fff; letter-spacing:0.02em; margin-top:1px; }
+.cc-note-body{ flex:1; min-width:0; }
+.cc-note-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px; }
+.cc-note-who{ font-size:12.5px; font-weight:700; color:var(--tp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cc-note-when{ font-size:10.5px; color:var(--tm); flex-shrink:0; }
 .cc-note-text{ margin:0; font-size:12.5px; line-height:1.5; color:var(--ts); }
-
-/* health (fallback view) */
-.cc-health-title{ margin:2px 0 12px; font-size:13px; color:var(--ts); }
-.cc-health-row{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; color:var(--tm); padding:7px 0; border-top:0.5px solid var(--bsub); }
-.cc-health-row b{ color:var(--tp); font-weight:650; }
-.cc-health-foot{ margin:12px 0 0; font-size:11px; color:var(--tm); font-style:italic; }
 `;
