@@ -727,6 +727,12 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
+    /* Default to the medium size so a button that omits a size class is never a
+       thin, line-height-tall sliver (Ellis, universal fix). Every explicit size
+       class (xs/sm/md/lg/icon) sets its own height + padding later in this file,
+       so they override these untouched. */
+    height: 40px;
+    padding: 0 16px;
     font-size: var(--agent-text-body);
     font-weight: var(--agent-weight-medium);
     line-height: 1;

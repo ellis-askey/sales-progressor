@@ -1088,37 +1088,21 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   Cancel
                 </Button>
               )}
+              {/* "Not required" is one secondary button at every size (Ellis):
+                  auto-width to the LEFT of Confirm on tablet/desktop, full-width
+                  stacked under the slide on phones. A single element — no
+                  duplicate link + button across breakpoints. */}
               {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleNRClick}
                   disabled={loading}
-                  className="agent-link agent-link-muted max-[425px]:hidden"
-                  style={{ fontSize: 11 }}
+                  className="max-[425px]:w-full"
                   title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
                 >
                   Not required
-                </button>
-              )}
-              {/* Phones (≤425px): "Not required" becomes a quieter full-width
-                  secondary button stacked UNDER the full-width Confirm (the row
-                  flips to a reversed column above), rather than a tiny link on
-                  the same line (#299, mobile only). Desktop keeps the link to
-                  Confirm's left. Same handler. */}
-              {!showEventDate && !showNotRequired && !showCounterpartNotice && effectivelyAvailable && canBeNR && (
-                <div
-                  className="hidden max-[425px]:block w-full"
-                  title="This step isn't needed for this sale, so it won't appear on the progress bar or in the client portal."
-                >
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleNRClick}
-                    disabled={loading}
-                    className="w-full"
-                  >
-                    Not required
-                  </Button>
-                </div>
+                </Button>
               )}
               {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && (
                 <Button
