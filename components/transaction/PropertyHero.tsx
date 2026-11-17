@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { resolveBackTarget } from "@/lib/agent/back-nav";
+import { resolveBackTarget, readFileOrigin, FILE_ORIGIN_EVENT } from "@/lib/agent/back-nav";
 import dynamic from "next/dynamic";
 import type { TransactionStatus, Tenure, PurchaseType, ServiceType } from "@prisma/client";
 import { HouseSimple, CurrencyGbp, UserCircle, CalendarBlank, Clock, ArrowLeft, Camera } from "@phosphor-icons/react/dist/ssr";
@@ -321,9 +321,20 @@ export function PropertyHero({
   // the provider isn't present.
   const livePercent = useFileProgress()?.percent;
   const shownPercent = livePercent ?? percent;
-  // Context-aware Back: the ?from= marker on the link that opened this file tells
-  // us where to return (hub, enquiries, another file…); no marker → all-files.
-  const back = resolveBackTarget(useSearchParams().get("from"));
+  // Context-aware Back: an explicit ?from= marker wins (shareable); otherwise we
+  // use the origin FileBackTracker recorded for this file on the way in, so Back
+  // returns you where you came from even when the link didn't add a marker. The
+  // custom event re-reads once the tracker writes (resolves the initial entry).
+  const fromParam = useSearchParams().get("from");
+  const [trackedOrigin, setTrackedOrigin] = useState<string | null>(null);
+  useEffect(() => {
+    if (fromParam || !transactionId) { setTrackedOrigin(null); return; }
+    const read = () => setTrackedOrigin(readFileOrigin(transactionId));
+    read();
+    window.addEventListener(FILE_ORIGIN_EVENT, read);
+    return () => window.removeEventListener(FILE_ORIGIN_EVENT, read);
+  }, [fromParam, transactionId]);
+  const back = resolveBackTarget(fromParam ?? trackedOrigin);
   const [line1, ...rest] = address.split(",");
   const line2 = rest.join(",").trim();
   const barColor = TRACK_BAR[onTrack];

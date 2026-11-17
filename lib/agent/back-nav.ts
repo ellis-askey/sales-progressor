@@ -53,3 +53,41 @@ export function withFrom(href: string, origin: string): string {
   const sep = href.includes("?") ? "&" : "?";
   return `${href}${sep}from=${encodeURIComponent(origin)}`;
 }
+
+// ── Automatic origin capture ─────────────────────────────────────────────────
+// Most links into a file never bother to add `?from=`, so Back fell back to
+// "all files". FileBackTracker (mounted once in the agent layout) records the
+// path you were on just before entering each file; the hero's Back uses it when
+// there's no explicit `?from=`. This makes "back to where I came from" work from
+// everywhere — reminders, Focus, search, recently-viewed, anywhere — without
+// touching every call site. An explicit `?from=` still wins (it's shareable).
+
+export const FILE_ORIGIN_EVENT = "sp:file-origin";
+const ORIGIN_PREFIX = "spFileOrigin:";
+
+// The file id from a file path (/agent/transactions/<id>[/tab]); null for the
+// list route (/agent/transactions) or any non-file path.
+export function fileIdFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const m = path.match(/^\/agent\/transactions\/([^/?#]+)/);
+  const id = m?.[1];
+  if (!id || id.startsWith("(")) return null; // route-group segment, not an id
+  return id;
+}
+
+export function recordFileOrigin(fileId: string, origin: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(`${ORIGIN_PREFIX}${fileId}`, origin);
+    window.dispatchEvent(new Event(FILE_ORIGIN_EVENT));
+  } catch { /* storage unavailable (private mode / quota) — Back just falls back */ }
+}
+
+export function readFileOrigin(fileId: string | null | undefined): string | null {
+  if (typeof window === "undefined" || !fileId) return null;
+  try {
+    return sessionStorage.getItem(`${ORIGIN_PREFIX}${fileId}`);
+  } catch {
+    return null;
+  }
+}

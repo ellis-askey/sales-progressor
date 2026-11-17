@@ -22,6 +22,7 @@ import { SelfManagedWelcomeModal } from "@/components/agent/SelfManagedWelcomeMo
 import { ThemeModeBoot } from "@/components/theme/ThemeModeBoot";
 import { ThemeModeReapply } from "@/components/theme/ThemeModeReapply";
 import { AppBackground } from "@/components/decor/AppBackground";
+import { FileBackTracker } from "@/components/agent/FileBackTracker";
 import { GlassPicksProvider } from "@/lib/glass/context";
 import { AiEnabledProvider } from "@/components/ai/AiEnabledProvider";
 import { aiEnabled } from "@/lib/ai/enabled";
@@ -145,6 +146,9 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       {/* WebGL backdrop: SoftAurora on dark, Iridescence on light,
           CSS fallback on iOS. Reads data-theme on <html> and swaps live. */}
       <AppBackground />
+      {/* Records where you came from before entering each file, so the file
+          hero's "Back" returns you there (not always "all files"). */}
+      <FileBackTracker />
       {/* Design Lab (Ellis-only) — provides per-card glass-variant picks
           via context. Empty for anyone who hasn't set picks, so their
           tagged cards render as their defaultVariant (v00 = today). */}
