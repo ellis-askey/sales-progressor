@@ -559,7 +559,13 @@ export async function unlockDirectDependents(
   tx?: Prisma.TransactionClient,
   // Availability-history cause. Defaults to a completed prerequisite; markNotRequired
   // passes "not_required_satisfied" since an NR'd prereq also satisfies dependents.
-  cause: AvailabilityCause = "prereq_satisfied"
+  cause: AvailabilityCause = "prereq_satisfied",
+  // Optional hint: the caller's already-resolved active buyer round. When given
+  // we build the scope from it instead of issuing another identical
+  // activeBuyerRoundId read — the confirm hot path already holds this value,
+  // read in the same tx snapshot. Omitted (undefined) → read it ourselves, so
+  // every existing caller behaves exactly as before.
+  activeBuyerRoundId?: string | null,
 ) {
   const db = tx ?? prisma;
   const dependentCodes = DIRECT_DEPENDENTS[completedCode] ?? [];
@@ -575,7 +581,9 @@ export async function unlockDirectDependents(
 
   // Round-scoped: VM file-level + active round's PMs together. PM12-VM9
   // and similar cross-side prereqs are handled by the OR in forRound().
-  const scope = await getActiveRoundScope(db, transactionId);
+  const scope = activeBuyerRoundId === undefined
+    ? await getActiveRoundScope(db, transactionId)
+    : forRound(activeBuyerRoundId, transactionId);
   const allCompletions = await db.milestoneCompletion.findMany({
     where: { transactionId, ...milestoneScopeWhere(scope) },
     select: { milestoneDefinitionId: true, state: true },
@@ -717,7 +725,9 @@ export async function maybeUnlockExchangeGate(
   transactionId: string,
   side: MilestoneSide,
   createdById: string | null,
-  tx?: Prisma.TransactionClient
+  tx?: Prisma.TransactionClient,
+  // Optional hint — see unlockDirectDependents. Omitted → read it ourselves.
+  activeBuyerRoundId?: string | null,
 ): Promise<void> {
   const db = tx ?? prisma;
   const gateCode = side === "vendor" ? "VM18" : "PM25";
@@ -730,7 +740,9 @@ export async function maybeUnlockExchangeGate(
 
   // Round-scoped: gate code is side-specific so the OR picks vendor
   // file-level or active round's purchaser correctly.
-  const scope = await getActiveRoundScope(db, transactionId);
+  const scope = activeBuyerRoundId === undefined
+    ? await getActiveRoundScope(db, transactionId)
+    : forRound(activeBuyerRoundId, transactionId);
 
   const gateCompletion = await db.milestoneCompletion.findFirst({
     where: { transactionId, milestoneDefinitionId: gateDef.id, ...milestoneScopeWhere(scope) },
@@ -1509,7 +1521,10 @@ export async function completeMilestone(
   const txForHelpers = tx as Prisma.TransactionClient | undefined;
 
   try {
-    await unlockDirectDependents(input.transactionId, def.code, txForHelpers);
+    // Pass the round we already resolved so the helper skips a redundant
+    // activeBuyerRoundId read (3a). "prereq_satisfied" is the default cause,
+    // stated explicitly only so we can reach the hint param.
+    await unlockDirectDependents(input.transactionId, def.code, txForHelpers, "prereq_satisfied", activeBuyerRoundId);
   } catch (err) {
     console.error("[completeMilestone] unlockDirectDependents failed:", err);
   }
@@ -1537,7 +1552,8 @@ export async function completeMilestone(
   }
 
   try {
-    await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, txForHelpers);
+    // Reuse the already-resolved round (3a) — skips a redundant read.
+    await maybeUnlockExchangeGate(input.transactionId, def.side, completedById, txForHelpers, activeBuyerRoundId);
   } catch (err) {
     console.error("[completeMilestone] maybeUnlockExchangeGate failed:", err);
   }
