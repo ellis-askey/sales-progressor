@@ -22,6 +22,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export default function SlideToConfirmPreview() {
   const [log, setLog] = useState<string[]>([]);
   const note = (what: string) => setLog((l) => [`${what} confirmed`, ...l].slice(0, 6));
+  // Mirrors the real step-confirm: sliding opens a date box rather than
+  // morphing to "Confirmed" (morphToConfirmed={false}).
+  const [boxOpen, setBoxOpen] = useState(false);
 
   return (
     <div
@@ -56,6 +59,23 @@ export default function SlideToConfirmPreview() {
         <Row label="Mobile · full-width (375px)">
           <div style={{ width: 375, maxWidth: "100%", padding: 16, borderRadius: 16, background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid var(--agent-border-subtle, rgba(0,0,0,0.06))" }}>
             <SlideToConfirm tone="primary" width={343} onConfirm={() => note("Mobile step")} />
+          </div>
+        </Row>
+
+        <Row label="Step-confirm flow · slide opens the date box (no false &ldquo;Confirmed&rdquo;)">
+          <div style={{ width: 375, maxWidth: "100%", padding: 16, borderRadius: 16, background: "var(--agent-surface-elevated, #fff)", border: "0.5px solid var(--agent-border-subtle, rgba(0,0,0,0.06))" }}>
+            {!boxOpen ? (
+              <SlideToConfirm tone="primary" width={343} morphToConfirmed={false} onConfirm={() => setBoxOpen(true)} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary, #6b6258)" }}>When did this happen?</span>
+                <input type="date" className="account-input" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--agent-border-default, rgba(0,0,0,0.1))", fontSize: 14 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => setBoxOpen(false)} style={{ flex: "0 0 auto", padding: "10px 16px", borderRadius: 10, border: "1px solid var(--agent-border-default, rgba(0,0,0,0.1))", background: "#fff", fontSize: 14, cursor: "pointer" }}>Cancel</button>
+                  <button onClick={() => { setBoxOpen(false); note("Step"); }} style={{ flex: 1, padding: "10px 16px", borderRadius: 10, border: "none", background: "var(--agent-coral-deep, #ff6b4a)", color: "var(--agent-text-on-coral, #fff)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Confirm</button>
+                </div>
+              </div>
+            )}
           </div>
         </Row>
 

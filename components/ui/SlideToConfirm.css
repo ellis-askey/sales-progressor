@@ -55,6 +55,15 @@
 .sld[data-tone="primary"] .sld-grip {
   color: var(--agent-text-on-coral, #fff);}
 
+/* ── busy ───────────────────────────────────────────────────
+   While the host is mid-confirm the gesture is blocked in JS; this just
+   reads the block (dimmed, no grab cursor) so it doesn't look live. */
+.sld[data-disabled] {
+  opacity: 0.55;}
+
+.sld[data-disabled] .sld-grip {
+  cursor: default;}
+
 .sld-track {
   position: relative;
   width: 100%;

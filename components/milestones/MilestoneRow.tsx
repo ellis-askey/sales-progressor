@@ -28,6 +28,7 @@ import { useSession } from "next-auth/react";
 import { useFileProgress } from "@/components/transaction/FileProgressContext";
 import { CaretDown, CalendarBlank } from "@phosphor-icons/react";
 import { DateField } from "@/components/ui/DateField";
+import { SlideToConfirm } from "@/components/ui/SlideToConfirm";
 import { SearchesExpectedBack } from "./SearchesExpectedBack";
 import { personaliseStepName, type PartyNameContext } from "@/lib/milestones/step-name";
 
@@ -1124,22 +1125,30 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                   size="sm"
                   onClick={showEventDate ? () => doComplete() : handleConfirmClick}
                   disabled={(showEventDate && def.eventDateRequired && !eventDate && !(isPM6 && desktopValuation)) || loading}
-                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : "max-[425px]:w-full max-[425px]:flex-1"}`}
+                  /* On phones (≤425px), the idle pre-date-box confirm is the
+                     slide-to-confirm below, so hide this button there. It still
+                     owns desktop at every size, the in-flight "Confirming…"
+                     state (shown full-width on the phone too), and the date-box
+                     "Confirm". */
+                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1" : "max-[425px]:hidden"}`}
                   style={{ minWidth: 76 }}
                 >
                   {loading ? (
                     <><span className="agent-btn-spinner" />Confirming…</>
-                  ) : showEventDate ? (
-                    "Confirm"
                   ) : (
-                    <>
-                      {/* "Confirm step" on the full-width phone button (<=425px);
-                          plain "Confirm" everywhere else. */}
-                      <span className="max-[425px]:hidden">Confirm</span>
-                      <span className="hidden max-[425px]:inline">Confirm step</span>
-                    </>
+                    "Confirm"
                   )}
                 </Button>
+              )}
+              {/* Phones (≤425px), before the date box opens: the full-width
+                  "Confirm step" tap becomes a slide-to-confirm. Sliding runs the
+                  exact same handleConfirmClick — which opens the date box (or the
+                  survey picker) — so it does NOT morph to "Confirmed"; the date
+                  box appears just as it does on a tap (critique: Ellis). */}
+              {!showNotRequired && !showCounterpartNotice && effectivelyAvailable && !showEventDate && !loading && (
+                <div className="hidden max-[425px]:block w-full">
+                  <MobileSlideConfirm onConfirm={handleConfirmClick} />
+                </div>
               )}
             </div>
           )}
@@ -1232,6 +1241,33 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
         />
       )}
     </>
+  );
+}
+
+// Full-width slide-to-confirm for the phone step-confirm. The slider's track is
+// pixel-sized, so measure the row it sits in and hand it that width (it fills
+// rather than sitting at a fixed max). morphToConfirmed is OFF: a slide runs
+// handleConfirmClick, which opens the date box, so the handle must not claim
+// "Confirmed" — the date box appears just as it does on a tap. minHeight reserves
+// the handle's height so the row doesn't jump in the frame before it measures.
+function MobileSlideConfirm({ onConfirm }: { onConfirm: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="w-full" style={{ minHeight: 56 }}>
+      {w > 0 && (
+        <SlideToConfirm width={w} tone="primary" morphToConfirmed={false} onConfirm={onConfirm} />
+      )}
+    </div>
   );
 }
 

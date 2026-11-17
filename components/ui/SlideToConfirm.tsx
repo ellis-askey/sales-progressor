@@ -36,7 +36,11 @@ const GRIP = H - PAD * 2;
    label starts to sit under the resting handle, which is the
    one collision this layout has. */
 const MIN = 220;
-const MAX = 380;
+/* raised from the original 380 so a full-width phone confirm bar isn't
+   clamped narrower than its container. The track is pixel-sized, so the host
+   measures the row it sits in and passes that width; the cap just has to clear
+   the widest phone. */
+const MAX = 520;
 
 /* a pill, and the top of the Corner knob */
 const CORNER = H / 2;
@@ -76,12 +80,23 @@ export function SlideToConfirm({
      instead of ink (see SlideToConfirm.css). Default is the
      faithful ink-on-slab look. */
   tone = "default",
+  /* when false the commit does NOT morph to "Confirmed": it fires
+     onConfirm and springs home. For hosts that take over the UI on
+     commit — a date box, a modal — where this handle is no longer the
+     final answer, so it must not claim to be one. Default true keeps the
+     source behaviour (the handle becomes the answer). */
+  morphToConfirmed = true,
+  /* blocks the gesture while the host is busy (e.g. an async confirm in
+     flight), so a second slide can't double-fire. */
+  disabled = false,
 }: {
   corner?: number;
   speed?: number;
   width?: number;
   onConfirm?: () => void;
   tone?: "default" | "primary";
+  morphToConfirmed?: boolean;
+  disabled?: boolean;
 } = {}) {
   const [done, setDone] = useState(false);
   const [held, setHeld] = useState(false);
@@ -309,8 +324,8 @@ export function SlideToConfirm({
      `scale` property, which applies first and would move the
      handle along the track it is sitting on. That bug is
      written up on the liquid toggle. */
-  const sx = useTransform(squash, (q) => q * (hot && !held && !done ? SWELL : 1));
-  const sy = useTransform(squash, (q) => (1 / q) * (hot && !held && !done ? SWELL : 1));
+  const sx = useTransform(squash, (q) => q * (hot && !held && !done && !disabled ? SWELL : 1));
+  const sy = useTransform(squash, (q) => (1 / q) * (hot && !held && !done && !disabled ? SWELL : 1));
 
   const local = (clientX: number) => {
     const box = track.current?.getBoundingClientRect();
@@ -326,6 +341,17 @@ export function SlideToConfirm({
   };
 
   const finish = () => {
+    /* ── host-takeover commit ────────────────────────────────
+       When the commit hands off to the host's OWN UI (a date box, a modal)
+       rather than this handle being the answer, there is nothing to morph
+       into: fire the callback and spring home. Showing "Confirmed" here
+       would claim a confirmation that has not happened. The host re-renders
+       (the date box opens, this slider unmounts) on the same tick. */
+    if (!morphToConfirmed) {
+      onConfirm?.();
+      animate(x, 0, home);
+      return;
+    }
     setDone(true);
     /* the host's work fires the instant it commits, before the
        unfurl plays — additive to the source. */
@@ -370,7 +396,7 @@ export function SlideToConfirm({
   };
 
   const down = (e: React.PointerEvent) => {
-    if (done) return;
+    if (done || disabled) return;
     e.stopPropagation();
     /* ── NO OFFSET YET, it is taken at the first MOVE ───────
        Deciding it here is what made the toggle teleport: a
@@ -423,7 +449,7 @@ export function SlideToConfirm({
   live.current = { move, up };
 
   return (
-    <div className="sld" style={{ width: span, height: H }} data-tone={tone === "primary" ? "primary" : undefined}>
+    <div className="sld" style={{ width: span, height: H }} data-tone={tone === "primary" ? "primary" : undefined} data-disabled={disabled || undefined}>
       <motion.div
         className="sld-track"
         ref={track}
