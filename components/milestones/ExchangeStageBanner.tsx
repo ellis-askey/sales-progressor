@@ -8,7 +8,8 @@
 //   completed — VM20 + PM27 confirmed; terminal, nothing left to track
 // The caller decides the stage; this owns the exact strings and icons.
 
-import { CheckCircle, Handshake, SealCheck } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, Handshake, SealCheck } from "@/components/icons/ph";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export type ExchangeStage = "ready" | "exchanged" | "completed";
@@ -23,6 +24,7 @@ export function ExchangeStageBanner({
   completionDateLabel?: string | null;
   className?: string;
 }) {
+  const router = useRouter();
   if (stage === "completed") {
     return (
       <AgentBanner
@@ -45,6 +47,7 @@ export function ExchangeStageBanner({
             ? `Completing ${completionDateLabel}. Track completion-day actions on the Completions page.`
             : "Add the completion date to finish setting up completion."
         }
+        action={completionDateLabel ? { label: "Go to Completions", onClick: () => router.push("/agent/completions") } : undefined}
         className={className}
       />
     );
