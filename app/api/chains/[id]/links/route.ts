@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getChainV2, addChainLink, addChainBranch, addAboveLink, insertLinkAdjacent, selfLinkOwnSale, type SelfLinkContext } from "@/lib/services/chains";
-import { isInternalStaff } from "@/lib/chain/permissions";
+import { isInternalStaff, agencyManagesChain } from "@/lib/chain/permissions";
 import { resolveOwnOnwardFileId } from "@/lib/services/onward";
 import { tieOwnFilePeople } from "@/lib/services/portal-twin";
 import { externalMemberChainAccess } from "@/lib/chain/external-scope";
@@ -32,8 +32,9 @@ async function canManageChain(
       transaction: { select: { agencyId: true } },
     },
   });
-  return links.some(
-    (l) => l.transaction?.agencyId === agencyId || l.createdBy?.agencyId === agencyId,
+  return agencyManagesChain(
+    links.map((l) => ({ txAgencyId: l.transaction?.agencyId ?? null, createdByAgencyId: l.createdBy?.agencyId ?? null })),
+    agencyId,
   );
 }
 

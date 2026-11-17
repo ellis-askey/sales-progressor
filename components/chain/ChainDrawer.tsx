@@ -19,7 +19,7 @@ import { copyToClipboard } from "@/lib/utils/clipboard";
 import { isChainBroken } from "@/lib/chain/is-broken";
 import { computeChainBottleneck } from "@/lib/chain/bottleneck";
 import type { EditingLinkData } from "@/components/chain/AddNodeDrawer";
-import { canAddAbove, canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
+import { canAddBelow, canEditLink, isInternalStaff } from "@/lib/chain/permissions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { ChainEmailModal } from "@/components/chain/ChainEmailModal";
 import { buildChainEmailDraft, type ChainEmailDraft } from "@/app/actions/chain-email";
@@ -278,6 +278,14 @@ export function ChainView({
   // Mobile: the panel is a bottom sheet — peek by default, tap the handle to open.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [notAParticipant, setNotAParticipant] = useState(initialChainData?.notAParticipant ?? false);
+  // Server-computed "may this viewer add/insert sales" (canManageChainLinks):
+  // internal staff, or an agency member whose agency owns/created a link here.
+  // The authoritative add gate — the client's + buttons read this instead of the
+  // person-based canAddAbove/canAddBelow, so they match what the API accepts
+  // (2026-11-17, option A). isInternal OR'd in so internal staff keep their
+  // buttons during the brief pre-fetch window when the drawer opens unseeded.
+  const [canManage, setCanManage] = useState(initialChainData?.canManage ?? false);
+  const canManageChain = isInternal || canManage;
   // Seeded server-side (inline tab) → not loading; drawer opens with a fetch.
   const [loading, setLoading] = useState(initialChainData == null);
   const [sendingInvites, setSendingInvites] = useState<string | null>(null);
@@ -416,6 +424,7 @@ export function ChainView({
       // of the "No chain yet + Create" empty state - the latter set up an
       // accidental double-create trap.
       setNotAParticipant(data.notAParticipant === true);
+      setCanManage(data.canManage === true);
       setPendingNotifications(data.pendingNotifications ?? []);
       setDirectional(data.directional ?? {});
     } catch {
@@ -907,7 +916,7 @@ export function ChainView({
       // A branch column's top can grow upward (its own "+ add above"), just like
       // each column in the Timeline. The spine top is depth-0 branchTop and uses
       // the same control, so there's one add-above per column and no duplicate.
-      canColumnAdd: branchTop && (isInternal || canAddAbove(l, currentUserId, currentUserRole)),
+      canColumnAdd: branchTop && canManageChain,
       line1: ci === -1 ? a : a.slice(0, ci),
       line2: ci === -1 ? "" : a.slice(ci + 1).trim(),
       agency: l.claimedBy?.firmName ?? l.stubAgencyName ?? null,
@@ -939,14 +948,14 @@ export function ChainView({
       hasShareLink: !!l.hasShareLink,
       canMoveUp: isSpineLink && canReorder && spineIdx > 0,
       canMoveDown: isSpineLink && canReorder && spineIdx >= 0 && spineIdx < links.length - 1,
-      canAddOnward: (isInternal || canAddAbove(l, currentUserId, currentUserRole)) && onwardsAbove(l).length < MAX_ONWARDS,
+      canAddOnward: canManageChain && onwardsAbove(l).length < MAX_ONWARDS,
       canUploadPhoto: l.transactionId == null && canEdit,
       chaseDir: chaseDirForLink(l),
       expand: (isChainCardExpandable(l) || stepsDirForLink(l)) ? <ChainCardExpand link={l} onSaveIntel={handleSaveIntel} onAddEntry={handleAddEntry} stepsDirection={stepsDirForLink(l) ?? undefined} stepsTransactionId={transactionId} /> : null,
       // Hover "+" in the gap ABOVE this card: only where there's a sale directly
       // above in the SAME ladder (a real adjacent pair — a fork boundary isn't an
       // insertion point). Anchors to this (lower) card, placement "above".
-      canInsertAbove: hasLadderUp && (isInternal || canAddAbove(l, currentUserId, currentUserRole)),
+      canInsertAbove: hasLadderUp && canManageChain,
     };
   });
 
@@ -995,7 +1004,7 @@ export function ChainView({
     (isInternal
       ? !!bottomLink
       : !!userLink &&
-        canAddBelow(userLink, currentUserId, currentUserRole) &&
+        (canManageChain || canAddBelow(userLink, currentUserId, currentUserRole)) &&
         (bottomLink === null || bottomLink.id === userLink.id || bottomLink.transactionId === null));
 
   // Renders one link (the inline delete-confirm row, or the card). Shared by the
@@ -1106,7 +1115,7 @@ export function ChainView({
     const canAddBranch =
       onwards.length >= 1 &&
       onwards.length < MAX_ONWARDS &&
-      (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+      canManageChain;
 
     const card = (
       <div className={newLinkIds.has(link.id) ? "agent-reveal-in" : undefined}>
@@ -1132,7 +1141,7 @@ export function ChainView({
       // above a sale you originated or claimed (internal staff always may).
       const canAddTop =
         !!onOpenAddNode &&
-        (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+        canManageChain;
       return (
         <div key={link.id}>
           {canAddTop && (
@@ -1156,7 +1165,7 @@ export function ChainView({
       const upperInSameLadder = (onwards[0].branchKey ?? "") === (link.branchKey ?? "");
       const canInsertHere =
         !!onOpenAddNode &&
-        (isInternal || canAddAbove(link, currentUserId, currentUserRole));
+        canManageChain;
       return (
         <div key={link.id}>
           {renderNode(onwards[0], chainId)}
@@ -1186,7 +1195,7 @@ export function ChainView({
           count={onwards.length}
           legs={onwards.map((o) => ({ onwardId: o.id }))}
           onInsert={
-            !!onOpenAddNode && (isInternal || canAddAbove(link, currentUserId, currentUserRole))
+            !!onOpenAddNode && canManageChain
               ? (anchorOnwardId) => onOpenAddNode?.("above", chainId, undefined, undefined, undefined, { anchorLinkId: anchorOnwardId, placement: "below" })
               : undefined
           }

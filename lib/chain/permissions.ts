@@ -66,6 +66,35 @@ export function canAddBelow(link: LinkPermissionData, userId: string, role?: str
   return isInternalStaff(role) || isOriginator(link, userId) || isClaimer(link, userId);
 }
 
+// Agency-wide "can work this chain" — the single rule behind the add / insert
+// affordances. Internal staff always; a customer-agency user (ANY role) whose
+// agency OWNS a claimed file OR CREATED a link in the chain. This is the exact
+// rule the authoritative server gate uses (canManageChain in
+// app/api/chains/[id]/links/route.ts), lifted here as a pure function so the
+// client's + buttons and the API read one answer. Previously the client gated
+// the buttons on the person-based canAddAbove/canAddBelow, which hid them from
+// agency colleagues the API already accepts — a see-it-but-can't / can't-see-but-
+// could mismatch (2026-11-17, Ellis: option A — match the buttons to the server).
+// viewerAgencyId null (internal staff, decided by role) skips the agency path.
+type ChainAgencyLink = { txAgencyId?: string | null; createdByAgencyId?: string | null };
+
+export function agencyManagesChain(links: ChainAgencyLink[], viewerAgencyId: string | null | undefined): boolean {
+  if (!viewerAgencyId) return false;
+  return links.some(
+    (l) =>
+      (l.txAgencyId != null && l.txAgencyId === viewerAgencyId) ||
+      (l.createdByAgencyId != null && l.createdByAgencyId === viewerAgencyId),
+  );
+}
+
+export function canManageChainLinks(
+  role: string | null | undefined,
+  viewerAgencyId: string | null | undefined,
+  links: ChainAgencyLink[],
+): boolean {
+  return isInternalStaff(role) || agencyManagesChain(links, viewerAgencyId);
+}
+
 // Internal staff roles that see every chain on every file they can access.
 // Matches the wider access-scope model in lib/security/access-scope.ts: these
 // roles have platform-wide (or assigned-file-wide) transaction visibility, so

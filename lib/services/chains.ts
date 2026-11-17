@@ -25,7 +25,7 @@ import {
   type ChainNodeOwnership,
 } from "@/lib/chain/intel";
 import { getChainLinkStatus, type ChainLinkStatusKind } from "@/lib/chain/status";
-import { canViewChain } from "@/lib/chain/permissions";
+import { canViewChain, canManageChainLinks } from "@/lib/chain/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 1 commit 4d — chains.ts disposition.
@@ -1148,12 +1148,17 @@ export async function getChainForTransactionV2(
 export type ChainTabPayload = {
   chain: ChainV2 | null;
   notAParticipant: boolean;
+  // Whether this viewer may work the chain (add / insert sales). The exact rule
+  // the mutation route enforces (canManageChainLinks): internal staff, or an
+  // agency member whose agency owns/created a link here. Computed once on the
+  // server so the client's + buttons and the API agree (2026-11-17, option A).
+  canManage: boolean;
   pendingNotifications: { id: string; type: string; direction: string; triggeringLinkId: string | null; createdAt: Date }[];
   directional: Record<string, { upward: string | null; downward: string | null }>;
 };
 
 export async function getChainTabPayload(transactionId: string, viewer: IntelViewer): Promise<ChainTabPayload> {
-  const empty = { pendingNotifications: [] as ChainTabPayload["pendingNotifications"], directional: {} as ChainTabPayload["directional"] };
+  const empty = { canManage: false, pendingNotifications: [] as ChainTabPayload["pendingNotifications"], directional: {} as ChainTabPayload["directional"] };
   const chain = await getChainForTransactionV2(transactionId, viewer.userId, viewer);
   if (!chain) return { chain: null, notAParticipant: false, ...empty };
 
@@ -1165,6 +1170,19 @@ export async function getChainTabPayload(transactionId: string, viewer: IntelVie
   if (!canViewChain(allLinks, viewer.userId, viewer.role, viewer.agencyId)) {
     return { chain: null, notAParticipant: true, ...empty };
   }
+
+  // Can this viewer ADD to the chain? The createdBy agency isn't on the wire
+  // chain, so read the two agency ids per link directly (same tiny indexed query
+  // the mutation route runs) and apply the shared rule — no client re-derivation.
+  const mgmtRows = await prisma.chainLink.findMany({
+    where: { chainId: chain.id },
+    select: { createdBy: { select: { agencyId: true } }, transaction: { select: { agencyId: true } } },
+  });
+  const canManage = canManageChainLinks(
+    viewer.role,
+    viewer.agencyId,
+    mgmtRows.map((l) => ({ txAgencyId: l.transaction?.agencyId ?? null, createdByAgencyId: l.createdBy?.agencyId ?? null })),
+  );
 
   const allNotifications = await prisma.chainNotificationQueue.findMany({
     where: { chainId: chain.id },
@@ -1186,7 +1204,7 @@ export async function getChainTabPayload(transactionId: string, viewer: IntelVie
     .filter((n) => n.recipientUserId === viewer.userId && !n.response)
     .map((n) => ({ id: n.id, type: n.type, direction: n.direction, triggeringLinkId: n.triggeringLinkId, createdAt: n.createdAt }));
 
-  return { chain, notAParticipant: false, pendingNotifications, directional };
+  return { chain, notAParticipant: false, canManage, pendingNotifications, directional };
 }
 
 // Count of neighbours in this file's chain that could be invited but haven't
