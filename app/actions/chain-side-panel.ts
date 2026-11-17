@@ -84,9 +84,13 @@ export async function getChainSidePanelData(transactionId: string): Promise<Chai
           ? `${NR_NOUN[e.milestoneCode] ?? shortLabel(e.milestoneCode)} not required`
           : shortLabel(e.milestoneCode),
       });
-    } else if (e.kind === "comm") {
+    } else if (e.kind === "comm" && e.createdByRole) {
+      // createdByRole separates a person's note/call from a logActivity system
+      // note (contact added, chain changes, "viewed portal"…), which carries no
+      // author role — so the system noise is excluded here. Other channels
+      // (email / WhatsApp / SMS) are held back for the default view.
       const isCall = e.method === "phone";
-      const isNote = e.type === "internal_note";
+      const isNote = e.type === "internal_note" && e.method == null;
       if (isCall || isNote) {
         entries.push({
           id: e.id,

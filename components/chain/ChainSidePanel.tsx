@@ -46,6 +46,7 @@ export function ChainSidePanel({ transactionId }: { transactionId: string }) {
   const [data, setData] = useState<ChainSidePanelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [side, setSide] = useState<"seller" | "buyer">("seller");
+  const [stepsOpen, setStepsOpen] = useState(true);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
@@ -92,17 +93,22 @@ export function ChainSidePanel({ transactionId }: { transactionId: string }) {
         </div>
       ) : (
         <>
-          <div className="csp-meta"><span>{done} of {steps.length} done</span></div>
-          <ul className="csp-steps">
-            {steps.map((s) => (
-              <li key={s.code} className={`csp-step csp-step--${s.state}`}>
-                <Tick state={s.state} />
-                <span className="csp-step-label">{s.label}</span>
-                {s.state === "next" && <span className="csp-next">Next</span>}
-              </li>
-            ))}
-            {steps.length === 0 && <li className="csp-empty">No steps yet.</li>}
-          </ul>
+          <button type="button" className="csp-meta" aria-expanded={stepsOpen} onClick={() => setStepsOpen((v) => !v)}>
+            <span>{done} of {steps.length} done</span>
+            <svg className={`csp-chev${stepsOpen ? " open" : ""}`} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          <div className={`csp-steps-wrap${stepsOpen ? " open" : ""}`}>
+            <ul className="csp-steps">
+              {steps.map((s) => (
+                <li key={s.code} className={`csp-step csp-step--${s.state}`}>
+                  <Tick state={s.state} />
+                  <span className="csp-step-label">{s.label}</span>
+                  {s.state === "next" && <span className="csp-next">Next</span>}
+                </li>
+              ))}
+              {steps.length === 0 && <li className="csp-empty">No steps yet.</li>}
+            </ul>
+          </div>
 
           <div className="csp-divider" />
 
@@ -136,11 +142,17 @@ const CSS = `
 .csp-ind[data-side="buyer"]{ transform:translateX(calc(100% + 4px)); }
 .csp-tgl{ position:relative; z-index:1; border:1px solid transparent; cursor:pointer; padding:8px 10px; border-radius:8px; font:inherit; font-size:12.5px; font-weight:680; background:transparent; color:var(--agent-text-muted); transition:color .18s, border-color .15s; }
 .csp-tgl.on{ color:#fff; }
-.csp-tgl:not(.on):hover{ color:var(--agent-text-secondary); border-color:var(--agent-border-default); }
+.csp-tgl:not(.on):hover{ color:var(--agent-text-secondary); background:rgba(120,120,130,0.14); }
 @media (prefers-reduced-motion:reduce){ .csp-ind{ transition:none; } }
 
-.csp-meta{ margin:14px 2px 8px; font-size:11.5px; color:var(--agent-text-muted); font-weight:600; }
-.csp-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; }
+.csp-meta{ display:flex; align-items:center; justify-content:space-between; width:100%; margin:14px 0 6px; padding:6px 4px; background:none; border:0; cursor:pointer; font:inherit; font-size:11.5px; color:var(--agent-text-muted); font-weight:600; border-radius:8px; transition:color .15s, background .15s; }
+.csp-meta:hover{ color:var(--agent-text-secondary); background:rgba(120,120,130,0.10); }
+.csp-chev{ transition:transform 260ms cubic-bezier(0.22,1,0.36,1); color:var(--agent-text-muted); flex-shrink:0; }
+.csp-chev.open{ transform:rotate(180deg); }
+.csp-steps-wrap{ display:grid; grid-template-rows:0fr; transition:grid-template-rows 260ms cubic-bezier(0.22,1,0.36,1); }
+.csp-steps-wrap.open{ grid-template-rows:1fr; }
+.csp-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; overflow:hidden; min-height:0; }
+@media (prefers-reduced-motion:reduce){ .csp-chev, .csp-steps-wrap{ transition:none; } }
 .csp-step{ display:flex; align-items:center; gap:9px; font-size:12.5px; padding:4px 2px; color:var(--agent-text-secondary); }
 .csp-step--done{ color:var(--agent-text-muted); }
 .csp-step--todo{ color:var(--agent-text-muted); opacity:0.7; }
