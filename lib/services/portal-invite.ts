@@ -21,7 +21,7 @@ import { greetingFirstName } from "@/lib/contacts/displayName";
 export async function sendPortalInviteByToken(
   token: string,
   opts: { origin: string; actingUserId: string | null; actingUserRole: string | null },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; transactionId: string } | { ok: false; error: string }> {
   const contact = await prisma.contact.findUnique({
     where: { portalToken: token },
     select: {
@@ -100,5 +100,8 @@ export async function sendPortalInviteByToken(
     contactId: contact.id,
     roleType: contact.roleType,
   });
-  return { ok: true };
+  // Return the file id so the calling action can refresh the file (the invite's
+  // "sent" activity line is written just above, after createContactAction's own
+  // refresh has already run).
+  return { ok: true, transactionId: contact.transaction.id };
 }

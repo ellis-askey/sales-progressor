@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
 function revalidateTx(id: string) {
-  revalidatePath(`/transactions/${id}`, "page");
-  revalidatePath(`/agent/transactions/${id}`, "page");
+  // "layout" (not "page") so EVERY tab under the file refreshes, not just the
+  // Overview segment. The file view is split into per-tab route segments
+  // (Activity, Client portal, Steps…); a "page" revalidate left the Activity
+  // tab serving its cached copy, so a just-added contact or sent invite didn't
+  // appear there until its 5-minute stale window lapsed — the agent had to
+  // reload a few times to see it. Mirrors milestones.ts revalidateTx, which
+  // already does this (and whose confirms DO show on Activity immediately).
+  revalidatePath(`/transactions/${id}`, "layout");
+  revalidatePath(`/agent/transactions/${id}`, "layout");
 }
 import { requireSession } from "@/lib/session";
 import { getAccessScope, scopeOwnershipWhere } from "@/lib/security/access-scope";

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/session";
 import { createContactAction } from "@/app/actions/contacts";
 import { sendPortalInviteByToken } from "@/lib/services/portal-invite";
@@ -62,6 +63,11 @@ export async function inviteNewClientToPortalAction(input: {
     return { ok: false, error: `Client added, but the invite email didn't send (${sent.error}). Try resending from the client list.` };
   }
 
+  // createContactAction already refreshed the file for the "added" entry; the
+  // "invite sent" activity line is written during the send above, so refresh
+  // once more so it shows on the Activity tab without a manual reload.
+  revalidatePath(`/agent/transactions/${input.transactionId}`, "layout");
+
   return { ok: true };
 }
 
@@ -71,9 +77,12 @@ export async function inviteNewClientToPortalAction(input: {
 export async function resendPortalInviteAction(token: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireSession();
   const origin = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
-  return sendPortalInviteByToken(token, {
+  const res = await sendPortalInviteByToken(token, {
     origin,
     actingUserId: session.user.id,
     actingUserRole: session.user.role,
   });
+  // Refresh the file so the "invite sent" line shows on the Activity tab.
+  if (res.ok) revalidatePath(`/agent/transactions/${res.transactionId}`, "layout");
+  return res;
 }
