@@ -24,14 +24,12 @@ import "./SlideToConfirm.css";
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 const SPAN = 280;
+/* default track height, px. Overridable per-instance via the `height` prop
+   (the phone step-confirm runs a shorter 42px bar; the lab keeps 56). GRIP and
+   the track corner are derived from the live height inside the component. */
 const H = 56;
 /* the inset the handle keeps from the track, all four sides */
 const PAD = 4;
-/* the handle is a circle in a 56 track, so it is sized by the
-   HEIGHT and the width knob does not touch it. Widening the
-   track buys travel, not a longer handle — the thing you push
-   stays the thing you push. */
-const GRIP = H - PAD * 2;
 /* the shortest track worth drawing. Below this the centred
    label starts to sit under the resting handle, which is the
    one collision this layout has. */
@@ -42,8 +40,6 @@ const MIN = 220;
    the widest phone. */
 const MAX = 520;
 
-/* a pill, and the top of the Corner knob */
-const CORNER = H / 2;
 const SPEED = 50;
 
 /* ── how far the swell is, and it is TINY ──────────────────
@@ -63,8 +59,11 @@ const HOLD = 1500;
 export function SlideToConfirm({
   /* the track's corner, px. The handle's is this less the
      inset, which is the concentric rule every nested pair on
-     this bench follows. */
-  corner = CORNER,
+     this bench follows. Defaults to a full pill (half the height). */
+  corner,
+  /* the track's height, px. Defaults to the lab's 56; the phone step-confirm
+     passes a shorter bar. GRIP and the corner derive from this. */
+  height = H,
   /* how quickly it takes over once you let go, 0..100 */
   speed = SPEED,
   /* the track's length, px. Everything that reads as distance
@@ -91,6 +90,7 @@ export function SlideToConfirm({
   disabled = false,
 }: {
   corner?: number;
+  height?: number;
   speed?: number;
   width?: number;
   onConfirm?: () => void;
@@ -154,9 +154,13 @@ export function SlideToConfirm({
      the fade and the wash on the same frame the number
      changes. Nothing here has to be told the width moved. */
   const span = clamp(Math.round(width), MIN, MAX);
+  /* the handle is a circle in the track, sized by the HEIGHT; the width knob
+     buys travel, not a longer handle. Both derive from the live height. */
+  const GRIP = height - PAD * 2;
+  const CORNER = height / 2;
   const TRAVEL = span - PAD * 2 - GRIP;
 
-  const r = clamp(corner, 0, CORNER);
+  const r = clamp(corner ?? CORNER, 0, CORNER);
   /* ── the handle's corner is DERIVED ──────────────────────
      `r - PAD`, floored at zero: the radius of a thing inside
      another, less the gap between them, is what keeps the two
@@ -449,7 +453,7 @@ export function SlideToConfirm({
   live.current = { move, up };
 
   return (
-    <div className="sld" style={{ width: span, height: H }} data-tone={tone === "primary" ? "primary" : undefined} data-disabled={disabled || undefined}>
+    <div className="sld" style={{ width: span, height }} data-tone={tone === "primary" ? "primary" : undefined} data-disabled={disabled || undefined}>
       <motion.div
         className="sld-track"
         ref={track}

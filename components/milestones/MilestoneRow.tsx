@@ -1130,7 +1130,11 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                      owns desktop at every size, the in-flight "Confirming…"
                      state (shown full-width on the phone too), and the date-box
                      "Confirm". */
-                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1" : "max-[425px]:hidden"}`}
+                  /* !hidden (important) so it beats the Button's own
+                     .agent-btn display rule — a plain max-[425px]:hidden lost
+                     the cascade and left both this button and the slide showing
+                     on phones (Ellis). */
+                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1" : "max-[425px]:!hidden"}`}
                   style={{ minWidth: 76 }}
                 >
                   {loading ? (
@@ -1263,9 +1267,9 @@ function MobileSlideConfirm({ onConfirm }: { onConfirm: () => void }) {
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={ref} className="w-full" style={{ minHeight: 56 }}>
+    <div ref={ref} className="w-full" style={{ minHeight: 42 }}>
       {w > 0 && (
-        <SlideToConfirm width={w} tone="primary" morphToConfirmed={false} onConfirm={onConfirm} />
+        <SlideToConfirm width={w} height={42} tone="primary" morphToConfirmed={false} onConfirm={onConfirm} />
       )}
     </div>
   );
