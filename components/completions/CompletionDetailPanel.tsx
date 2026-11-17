@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { withFrom } from "@/lib/agent/back-nav";
+import { useScrollLock, useMediaQuery, useSwipeDown } from "@/lib/hooks/use-drawer-dismiss";
 import { DateMenu } from "@/components/completions/CompletionCardMenus";
 import { completeFileAction } from "@/app/actions/completions";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
@@ -106,6 +107,14 @@ export function CompletionDetailPanel({
   // Keep-mounted exit animation (mirrors FloatingFilePreview / Drawer).
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
+
+  // Mobile/tablet chrome (critique #285): backdrop + scroll-lock, and swipe the
+  // mobile bottom sheet down to dismiss. Desktop stays backdrop-less / list-live.
+  const isNarrow = useMediaQuery("(max-width: 1023px)");
+  useScrollLock(open && isNarrow);
+  const isMobileSheet = useMediaQuery("(max-width: 560px)");
+  const swipe = useSwipeDown({ enabled: open && isMobileSheet, onDismiss: onClose });
+
   useEffect(() => {
     if (open) { setRendered(true); setExiting(false); return; }
     if (!rendered) return;
@@ -200,13 +209,16 @@ export function CompletionDetailPanel({
 
   const panel = (
     <div className={`cdp-root${exiting ? " cdp-exiting" : ""}`} data-theme={theme} data-night={isNight ? "" : undefined}>
+      <div className="cdp-backdrop" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         tabIndex={-1}
         role="dialog"
         aria-label={`Completion: ${addr.line}`}
         className={`cdp-panel${exiting ? " cdp-out" : " cdp-in"}`}
+        style={isMobileSheet ? { transform: swipe.dragY ? `translateY(${swipe.dragY}px)` : undefined, transition: swipe.dragging ? "none" : "transform .24s cubic-bezier(.22,1,.36,1)" } : undefined}
       >
+        <div className="cdp-grab" {...swipe.handlers} aria-hidden><span /></div>
         {/* Nav */}
         <div className="cdp-nav">
           <div className="cdp-nav-arrows">
@@ -487,6 +499,10 @@ export function CompletionDetailPanel({
 
 const CDP_CSS = `
 .cdp-root{ position:fixed; inset:0; z-index:70; pointer-events:none; }
+.cdp-backdrop{ display:none; }
+.cdp-grab{ display:none; }
+@keyframes cdpBd{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes cdpBdOut{ from{ opacity:1 } to{ opacity:0 } }
 .cdp-panel{ pointer-events:auto; position:fixed; top:76px; right:16px; bottom:16px;
   width:min(524px, calc(100vw - 32px)); display:flex; flex-direction:column; overflow:hidden;
   border-radius:22px; outline:none;
@@ -621,9 +637,15 @@ const CDP_CSS = `
 @media (prefers-reduced-motion:reduce){ .cdp-act-icons,.cdp-fee-slot{ animation:none } }
 
 /* Tablet / mobile: full-width sheet, then bottom sheet. */
-@media (max-width:1023px){ .cdp-panel{ top:12px; right:12px; bottom:12px; left:12px; width:auto; } }
+@media (max-width:1023px){
+  .cdp-panel{ top:12px; right:12px; bottom:12px; left:12px; width:auto; }
+  .cdp-backdrop{ display:block; position:fixed; inset:0; pointer-events:auto; background:rgba(0,0,0,0.35); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); animation:cdpBd .2s ease both; }
+  .cdp-exiting .cdp-backdrop{ animation:cdpBdOut .2s ease both; }
+}
 @media (max-width:560px){
   .cdp-panel{ top:auto; bottom:0; left:0; right:0; border-radius:20px 20px 0 0; max-height:92vh; }
+  .cdp-grab{ display:flex; justify-content:center; align-items:center; padding:9px 0 3px; flex-shrink:0; cursor:grab; touch-action:none; }
+  .cdp-grab span{ width:38px; height:4px; border-radius:999px; background:var(--agent-border-strong, rgba(120,120,130,0.45)); }
   .cdp-in{ animation:cdpUp .34s cubic-bezier(.22,1,.36,1) both; }
   @keyframes cdpUp{ from{ opacity:0; transform:translateY(40px) } to{ opacity:1; transform:none } }
   .cdp-out{ animation:cdpDown .24s ease both; }
