@@ -17,6 +17,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, saveSignOffAction, type SignatureTarget } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
 import { SIGN_OFF_CHOICES, normalizeSignOff } from "@/lib/email/sign-off";
+import { hasGmailHostedSignatureImage } from "@/lib/email/gmail-signature-image";
 import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 
 export interface SignatureInitial {
@@ -407,6 +408,10 @@ function CustomSignatureEditor({
   const reinjectNext = useRef(false);
   const [empty, setEmpty] = useState(!initialHtml.trim());
   const [source, setSource] = useState<SignatureSource>(initialSource);
+  // A signature pasted from Gmail carries its images as private googleusercontent
+  // links that never load in a recipient's inbox (see gmail-signature-image.ts).
+  // Flag it so we can warn at paste time and point the user to upload instead.
+  const [gmailImg, setGmailImg] = useState(() => hasGmailHostedSignatureImage(initialHtml));
 
   // Seed once.
   useEffect(() => {
@@ -435,6 +440,7 @@ function CustomSignatureEditor({
       window.getSelection?.()?.removeAllRanges();
     }
     setEmpty(!(res.html ?? html).replace(/<[^>]*>/g, "").trim());
+    setGmailImg(hasGmailHostedSignatureImage(res.html ?? html));
     onSaved(res.html ?? html);
   }, [onSaved, onSaving, onError, target]);
 
@@ -462,6 +468,7 @@ function CustomSignatureEditor({
       return;
     }
     if (ref.current) ref.current.innerHTML = res.html ?? "";
+    setGmailImg(hasGmailHostedSignatureImage(res.html ?? ""));
     onSaved(res.html ?? "");
   }
 
@@ -509,6 +516,24 @@ function CustomSignatureEditor({
           fontSize: 14, color: "#111827", lineHeight: 1.5, cursor: "text",
         }}
       />
+      {gmailImg && (
+        <div
+          role="alert"
+          style={{
+            display: "flex", alignItems: "flex-start", gap: 8, marginTop: 8,
+            padding: "10px 12px", borderRadius: 8,
+            border: "1px solid rgba(217,119,6,0.35)", borderLeft: "3px solid #d97706",
+            background: "#fff",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0, marginTop: 1 }}>
+            <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <p style={{ margin: 0, fontSize: 12.5, color: "#92400e", lineHeight: 1.5 }}>
+            This image is hosted by Gmail and won&rsquo;t appear in sent emails. Upload it as an image instead so recipients can see it.
+          </p>
+        </div>
+      )}
       <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6, lineHeight: 1.45 }}>
         Paste just your signature block, not the whole email. Click inside the box to edit or remove anything you don&rsquo;t want. Changes save as you make them, and pasted images are hosted so they display properly in inboxes.
       </p>
