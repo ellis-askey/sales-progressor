@@ -153,10 +153,13 @@ export function canEditNodeIntel(
     // another agency's or another business's node.
     return o.txAssignedUserId === v.userId;
   }
-  // Agency scope: director edits any file in the agency; a negotiator only if
-  // they are the assigned overseer or the owning agent.
+  // Agency scope: a director OR a trusted see-all member (a senior negotiator /
+  // progressor who manages the whole agency book) edits any file in the agency —
+  // including a second sale they run in the same chain. A plain negotiator only
+  // edits a file they are the assigned overseer or the owning agent of. Another
+  // agency's file never passes (read-only view is a separate, broader gate).
   if (!o.txAgencyId || o.txAgencyId !== v.agencyId) return false;
-  if (v.role === "director") return true;
+  if (v.role === "director" || v.canViewAllFiles === true) return true;
   return o.txAssignedUserId === v.userId || o.txAgentUserId === v.userId;
 }
 
