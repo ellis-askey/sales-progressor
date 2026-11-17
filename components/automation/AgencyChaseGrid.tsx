@@ -18,6 +18,7 @@ import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveAgentChasePrefsAction } from "@/app/actions/automation";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs";
 
 type Key = keyof ProgressorChasePrefs;
@@ -52,16 +53,14 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
   }
 
   const Toggle = ({ k }: { k: Key }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={state[k]}
-      onClick={() => setState((s) => ({ ...s, [k]: !s[k] }))}
-      className={`acg-switch${state[k] ? " on" : ""}`}
+    <LiquidToggle
+      checked={state[k]}
+      onChange={(next) => setState((s) => ({ ...s, [k]: next }))}
+      width={42}
+      height={24}
+      color={"#FF6B4A"}
       aria-label="Toggle"
-    >
-      <span className="acg-knob" />
-    </button>
+    />
   );
 
   const saveButton = (cls: string) => (

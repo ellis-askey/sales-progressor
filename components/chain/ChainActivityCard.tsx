@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Lock } from "@phosphor-icons/react";
 import type { ChainActivityEvent } from "@/lib/services/chains";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 function relativeTime(at: string): string {
   const diff = Math.floor((Date.now() - new Date(at).getTime()) / 1000);
@@ -80,58 +81,15 @@ export function ChainActivityCard({
     <div {...cardTag.props} className={`chain-scard ${cardTag.className}`}>
       <div className="chain-acthead">
         <span className="t">Chain activity</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={optedIn}
-          aria-label="Share and follow chain activity"
+        <LiquidToggle
+          checked={optedIn}
+          onChange={() => { void toggle(); }}
+          width={58}
+          height={26}
+          color="var(--agent-coral, #FF8A65)"
           disabled={toggling}
-          onClick={() => { void toggle(); }}
-          style={{
-            position: "relative",
-            display: "inline-flex",
-            alignItems: "center",
-            width: 58,
-            height: 26,
-            borderRadius: 99,
-            padding: 0,
-            cursor: toggling ? "wait" : "pointer",
-            background: optedIn ? "var(--agent-coral)" : "var(--agent-border-subtle)",
-            border: `1px solid ${optedIn ? "transparent" : "var(--agent-border-default)"}`,
-            transition: "background .18s var(--agent-ease)",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: optedIn ? 9 : undefined,
-              right: optedIn ? undefined : 9,
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: ".06em",
-              color: optedIn ? "#fff" : "var(--agent-text-muted)",
-            }}
-          >
-            {optedIn ? "ON" : "OFF"}
-          </span>
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 2,
-              left: optedIn ? undefined : 2,
-              right: optedIn ? 2 : undefined,
-              width: 20,
-              height: 20,
-              borderRadius: 99,
-              background: "#fff",
-              boxShadow: "0 1px 2px rgba(0,0,0,.25)",
-              transition: "all .18s var(--agent-ease)",
-            }}
-          />
-        </button>
+          aria-label="Share and follow chain activity"
+        />
       </div>
 
       {!optedIn ? (

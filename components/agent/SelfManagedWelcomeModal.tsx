@@ -25,6 +25,7 @@ import type { ThemeMode } from "@/lib/agent/theme-mode";
 import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
@@ -268,16 +269,14 @@ export function SelfManagedWelcomeModal({
                         <span className="pw-tr-t">{c.title}</span>
                         <span className="pw-tr-d">{c.desc}</span>
                       </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={prefs[c.key]}
+                      <LiquidToggle
+                        checked={prefs[c.key]}
+                        onChange={(next) => setPrefs((p) => ({ ...p, [c.key]: next }))}
+                        width={38}
+                        height={22}
+                        color="var(--agent-coral, #FF8A65)"
                         aria-label={c.title}
-                        className="pw-switch"
-                        onClick={() => setPrefs((p) => ({ ...p, [c.key]: !p[c.key] }))}
-                      >
-                        <span className="pw-knob" />
-                      </button>
+                      />
                     </div>
                   ))}
                 </div>

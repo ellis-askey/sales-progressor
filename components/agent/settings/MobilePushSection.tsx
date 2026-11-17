@@ -20,6 +20,7 @@ import { useState, useTransition, useEffect } from "react";
 import { DeviceMobile } from "@phosphor-icons/react";
 import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
 import { Pill } from "@/components/ui/Pill";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { SectionMasterControl } from "@/components/account/chrome/SectionMasterControl";
 import type { NotificationPrefs, PushKey } from "@/lib/agent/notification-prefs";
@@ -401,21 +402,15 @@ export function MobilePushSection({
                   <p className="text-sm font-semibold text-slate-900/85">{t.label}</p>
                   <p className="text-xs text-slate-900/55 mt-0.5">{t.description}</p>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={on}
-                  aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
+                <LiquidToggle
+                  checked={on}
+                  onChange={() => handleToggle(t.key)}
+                  width={48}
+                  height={28}
+                  color="#FF6B4A"
                   disabled={saving}
-                  onClick={() => handleToggle(t.key)}
-                  className="relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-60"
-                  style={{ background: on ? "#FF6B4A" : "rgba(15,23,42,0.20)" }}
-                >
-                  <span
-                    className="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
-                    style={{ transform: on ? "translateX(22px)" : "translateX(4px)", marginTop: 4 }}
-                  />
-                </button>
+                  aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
+                />
               </div>
             );
           })}

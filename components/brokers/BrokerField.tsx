@@ -16,6 +16,7 @@ import { Pill } from "@/components/ui/Pill";
 import { PriceInput } from "@/components/ui/PriceInput";
 import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { addBrokerForSaleAction } from "@/app/actions/brokers";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 
@@ -178,23 +179,16 @@ export function BrokerField({
         <span style={{ fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>
           {open ? "Mortgage broker involved in this sale" : "Is a mortgage broker involved in this sale?"}
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={open}
-          aria-label="Mortgage broker involved in this sale"
-          onClick={toggle}
-          style={{
-            flexShrink: 0, width: 44, height: 25, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
-            position: "relative", transition: "background 150ms",
-            background: open ? "var(--agent-coral-deep)" : "var(--nv2-border-medium, rgba(0,0,0,0.16))",
-          }}
-        >
-          <span style={{
-            position: "absolute", top: 3, left: open ? 22 : 3, width: 19, height: 19, borderRadius: "50%",
-            background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "left 150ms",
-          }} />
-        </button>
+        <span style={{ display: "inline-flex", flexShrink: 0 }}>
+          <LiquidToggle
+            checked={open}
+            onChange={() => toggle()}
+            width={44}
+            height={25}
+            color="var(--agent-coral-deep, #FF6B4A)"
+            aria-label="Mortgage broker involved in this sale"
+          />
+        </span>
       </div>
 
       {/* Smoothly revealed body */}

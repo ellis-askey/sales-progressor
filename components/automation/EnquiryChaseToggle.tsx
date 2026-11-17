@@ -7,6 +7,7 @@
 
 import { useState, useTransition } from "react";
 import { setAgencyEnquiryChaseEnabled } from "@/app/actions/automation";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEnabled: boolean; bare?: boolean }) {
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -39,23 +40,15 @@ export function EnquiryChaseToggle({ initialEnabled, bare = false }: { initialEn
               : "Keep enquiries moving without chasing by hand. These go to solicitors only, never your clients."}
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          aria-label="Chase enquiries automatically"
+        <LiquidToggle
+          checked={enabled}
+          onChange={() => toggle()}
+          width={44}
+          height={24}
+          color={"var(--agent-coral, #FF8A65)"}
           disabled={pending}
-          onClick={toggle}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-            enabled ? "bg-[var(--agent-coral)]" : "bg-slate-300"
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-              enabled ? "translate-x-[22px]" : "translate-x-[2px]"
-            }`}
-          />
-        </button>
+          aria-label="Chase enquiries automatically"
+        />
       </div>
 
       {/* What happens, when — a designed cadence: bell nudge → two diary-dated

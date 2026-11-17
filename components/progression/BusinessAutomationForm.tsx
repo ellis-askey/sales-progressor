@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gauge } from "@phosphor-icons/react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveBusinessAutomationAction } from "@/app/actions/progression-clients";
 import type { ProgressorAutomation } from "@/lib/services/progressor-chase-prefs";
@@ -48,16 +49,14 @@ export function BusinessAutomationForm({ initial }: { initial: ProgressorAutomat
   }
 
   const Toggle = ({ k }: { k: Key }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={state[k]}
-      onClick={() => setState((s) => ({ ...s, [k]: !s[k] }))}
-      className={`baf-switch${state[k] ? " on" : ""}`}
+    <LiquidToggle
+      checked={state[k]}
+      onChange={(next) => setState((s) => ({ ...s, [k]: next }))}
+      width={42}
+      height={24}
+      color="#FF6B4A"
       aria-label="Toggle"
-    >
-      <span className="baf-knob" />
-    </button>
+    />
   );
 
   const Row = ({ title, desc, k }: { title: string; desc: string; k: Key }) => (

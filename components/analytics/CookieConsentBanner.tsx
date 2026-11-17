@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getConsent, hasDecided, setConsent } from "@/lib/analytics/consent";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 // White-label surfaces where TSP's consent banner must never appear: the
 // Boardwalk Forms workspace and its public respondent forms run no analytics
@@ -40,28 +41,15 @@ function Toggle({
   disabled?: boolean;
 }) {
   return (
-    <label
-      htmlFor={id}
-      style={{ display: "inline-flex", alignItems: "center", cursor: disabled ? "not-allowed" : "pointer", gap: 10 }}
-    >
-      <span style={{
-        position: "relative", display: "inline-block", width: 36, height: 20, borderRadius: 10,
-        background: checked ? "#1a1a1a" : "#d0d0d0", opacity: disabled ? 0.45 : 1,
-        transition: "background 0.15s ease", flexShrink: 0,
-      }}>
-        <input
-          id={id} type="checkbox" checked={checked} disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
-          aria-checked={checked}
-        />
-        <span style={{
-          position: "absolute", top: 2, left: checked ? 18 : 2, width: 16, height: 16,
-          borderRadius: "50%", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-          transition: "left 0.15s ease", pointerEvents: "none",
-        }} />
-      </span>
-    </label>
+    <LiquidToggle
+      checked={checked}
+      onChange={onChange}
+      width={36}
+      height={20}
+      color="#1a1a1a"
+      disabled={disabled}
+      aria-label={id === "toggle-essential" ? "Essential cookies" : "Analytics cookies"}
+    />
   );
 }
 

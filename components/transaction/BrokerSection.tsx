@@ -7,6 +7,7 @@ import { PriceInput } from "@/components/ui/PriceInput";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 type Props = {
   transactionId: string;
@@ -160,21 +161,16 @@ export function BrokerSection({
         {/* Received toggle */}
         <div className="flex items-center justify-between">
           <label className="text-sm text-slate-900/70">Fee received</label>
-          <button
-            type="button"
-            onClick={() => { setReceived((v) => !v); setDirty(true); }}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
-              received ? "bg-emerald-500" : "bg-slate-200"
-            }`}
-            role="switch"
-            aria-checked={received}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                received ? "translate-x-5" : "translate-x-0"
-              }`}
+          <span style={{ display: "inline-flex", flexShrink: 0 }}>
+            <LiquidToggle
+              checked={received}
+              onChange={(next) => { setReceived(next); setDirty(true); }}
+              width={44}
+              height={24}
+              color="#10b981"
+              aria-label="Fee received"
             />
-          </button>
+          </span>
         </div>
 
         {/* Summary pill */}

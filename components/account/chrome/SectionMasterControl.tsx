@@ -9,6 +9,7 @@
 
 import { CaretDown } from "@phosphor-icons/react";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export function SectionMasterControl({
   values,
@@ -64,41 +65,15 @@ export function SectionMasterControl({
         )}
       </div>
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={allOn}
-        aria-label={allOn ? "Turn all off" : "Turn all on"}
+      <LiquidToggle
+        checked={allOn}
+        onChange={(next) => onSetAll(next)}
+        width={44}
+        height={24}
+        color="var(--agent-coral, #FF8A65)"
         disabled={disabled}
-        onClick={() => onSetAll(!allOn)}
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          width: 44,
-          height: 24,
-          flexShrink: 0,
-          borderRadius: 999,
-          background: allOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-          border: "none",
-          cursor: disabled ? "default" : "pointer",
-          padding: 0,
-          transition: "background 150ms",
-        }}
-      >
-        <span
-          style={{
-            position: "absolute",
-            top: 3,
-            left: allOn ? 23 : 3,
-            width: 18,
-            height: 18,
-            borderRadius: "50%",
-            background: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-            transition: "left 180ms cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
-        />
-      </button>
+        aria-label={allOn ? "Turn all off" : "Turn all on"}
+      />
 
       <style>{`
         .account-master-drop:hover { background: var(--agent-hover-shade); }

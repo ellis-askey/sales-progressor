@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Palette, SquaresFour, Cursor, ArrowCounterClockwise, Check, Warning, ArrowRight, ArrowLeft } from "@phosphor-icons/react";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import {
   DEFAULT_APP_COLOUR,
   type AppColourConfig,
@@ -170,7 +171,7 @@ function Slider({ label, min, max, step = 1, value, suffix = "px", onChange, acc
   );
 }
 function Toggle({ label, on, onChange, accent }: { label: string; on: boolean; onChange: (v: boolean) => void; accent: string }) {
-  return <div className="acs-toggle"><span>{label}</span><button type="button" role="switch" aria-checked={on} aria-label={label} className={`acs-tg${on ? " on" : ""}`} style={on ? { background: accent } : undefined} onClick={() => onChange(!on)}><i /></button></div>;
+  return <div className="acs-toggle"><span>{label}</span><LiquidToggle checked={on} onChange={(next) => onChange(next)} width={38} height={22} color={accent} aria-label={label} /></div>;
 }
 function Grp({ label, hint, action, children }: { label: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }) {
   return <div className="acs-grp"><div className="acs-grp-h"><span className="acs-grp-l">{label}</span>{hint && <span className="acs-grp-hint">{hint}</span>}{action && <span className="acs-grp-action">{action}</span>}</div>{children}</div>;

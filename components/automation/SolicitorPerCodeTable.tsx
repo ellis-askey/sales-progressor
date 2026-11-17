@@ -16,6 +16,7 @@
 
 import { useState, useTransition } from "react";
 import { updateSolicitorRule, type SolicitorRuleRow } from "@/app/actions/automation";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 const STEP_LABELS: Record<string, string> = {
   VM5:  "Property information forms issued",
@@ -198,31 +199,15 @@ function RowEditor({
         onCommit={(v) => save({ repeatWorkingDays: v })}
       />
       <div className="flex justify-end items-center">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={row.active}
-          onClick={() => save({ active: !row.active })}
+        <LiquidToggle
+          checked={row.active}
+          onChange={(next) => save({ active: next })}
           disabled={pending}
-          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors"
-          style={{
-            height: 20,
-            width: 36,
-            background: row.active ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-          }}
-        >
-          <span
-            aria-hidden
-            className="absolute rounded-full bg-white shadow"
-            style={{
-              width: 16,
-              height: 16,
-              top: 2,
-              transition: "left 120ms ease",
-              left: row.active ? 18 : 2,
-            }}
-          />
-        </button>
+          width={36}
+          height={20}
+          color={"var(--agent-coral, #FF6B4A)"}
+          aria-label={`${label} chasing active`}
+        />
       </div>
     </div>
   );

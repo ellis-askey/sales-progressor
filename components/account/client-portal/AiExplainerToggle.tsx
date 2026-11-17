@@ -7,6 +7,7 @@
 
 import { useState, useTransition } from "react";
 import { setAgencyAiExplainEmail } from "@/app/actions/portal-display";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export function AiExplainerToggle({ initial }: { initial: boolean }) {
   const [value, setValue] = useState(initial);
@@ -36,17 +37,17 @@ export function AiExplainerToggle({ initial }: { initial: boolean }) {
         </p>
         {error && <p className="mt-1 text-[12px] text-red-500">{error}</p>}
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={value}
-        aria-label="Explain-email helper"
-        disabled={pending}
-        onClick={toggle}
-        className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${value ? "bg-[var(--agent-coral)]" : "bg-slate-300"}`}
-      >
-        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-[22px]" : "translate-x-[2px]"}`} />
-      </button>
+      <div className="mt-0.5">
+        <LiquidToggle
+          checked={value}
+          onChange={() => toggle()}
+          width={44}
+          height={24}
+          color="var(--agent-coral, #FF8A65)"
+          disabled={pending}
+          aria-label="Explain-email helper"
+        />
+      </div>
     </div>
   );
 }

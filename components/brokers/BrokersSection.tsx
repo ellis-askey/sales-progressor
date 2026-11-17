@@ -20,6 +20,7 @@ import { SavingPulse } from "@/components/ui/SavingPulse";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export type BrokerSlot = {
   side: "purchaser" | "vendor";
@@ -327,15 +328,16 @@ function BrokerTile({
                     </div>
                     <div className="flex items-center justify-between">
                       <label className="text-sm text-slate-900/70">Fee received</label>
-                      <button
-                        type="button"
-                        onClick={() => { setReceived((v) => !v); setFeeDirty(true); }}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${received ? "bg-emerald-500" : "bg-slate-200"}`}
-                        role="switch"
-                        aria-checked={received}
-                      >
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${received ? "translate-x-5" : "translate-x-0"}`} />
-                      </button>
+                      <span style={{ display: "inline-flex", flexShrink: 0 }}>
+                        <LiquidToggle
+                          checked={received}
+                          onChange={(next) => { setReceived(next); setFeeDirty(true); }}
+                          width={44}
+                          height={24}
+                          color="#10b981"
+                          aria-label="Fee received"
+                        />
+                      </span>
                     </div>
                     {feePence != null && feePence > 0 && (
                       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${received ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-amber-50 text-amber-700 border border-amber-100"}`}>

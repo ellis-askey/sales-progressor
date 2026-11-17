@@ -17,6 +17,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "react";
 import { updateAgencyChasePolicy, updateBusinessChasePolicy } from "@/app/actions/automation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 type Side = "vendor" | "purchaser";
 
@@ -223,7 +224,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
             <h2>Send automated chase emails on {filesLabel}</h2>
             <p>When on, we send gentle chase emails on your behalf for the steps below. When off, nothing is sent, but anything waiting still shows up in your reminders.</p>
           </div>
-          <button type="button" role="switch" aria-checked={chaseEmailsEnabled} className={`ct-switch${chaseEmailsEnabled ? " on" : ""}`} onClick={() => setChaseEmailsEnabled((v) => !v)} />
+          <LiquidToggle checked={chaseEmailsEnabled} onChange={(next) => setChaseEmailsEnabled(next)} width={46} height={26} color={"var(--agent-coral-deep, #FF6B4A)"} aria-label={`Send automated chase emails on ${filesLabel}`} />
         </section>
       )}
 
@@ -315,8 +316,9 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                             </div>
                           </div>
                           <div className="ct-step-right">
-                            <button type="button" role="switch" aria-checked={s.enabled} className={`ct-switch sm${s.enabled ? " on" : ""}`}
-                              onClick={(e) => { e.stopPropagation(); patch(s.code, { enabled: !s.enabled }); }} />
+                            <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+                              <LiquidToggle checked={s.enabled} onChange={(next) => patch(s.code, { enabled: next })} width={40} height={23} color={"var(--agent-coral-deep, #FF6B4A)"} aria-label={`Chase ${s.name}`} />
+                            </span>
                             <svg className="ct-edchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                           </div>
                         </div>

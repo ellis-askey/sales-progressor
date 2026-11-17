@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { updateSolicitorCadence, type SolicitorCadenceState } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadenceState }) {
   const [enabled, setEnabled] = useState(initial.enabled);
@@ -60,20 +61,14 @@ export function SolicitorAutomationForm({ initial }: { initial: SolicitorCadence
             {enabled ? "On. Solicitors are emailed using the schedule below." : "Off. No solicitor confirmation emails are sent."}
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={() => setEnabled((v) => !v)}
-          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors"
-          style={{ height: 24, width: 42, background: enabled ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)" }}
+        <LiquidToggle
+          checked={enabled}
+          onChange={(next) => setEnabled(next)}
+          width={42}
+          height={24}
+          color={"var(--agent-coral, #FF6B4A)"}
           aria-label={enabled ? "Turn solicitor emails off" : "Turn solicitor emails on"}
-        >
-          <span
-            className="inline-block rounded-full bg-white shadow transition-transform"
-            style={{ height: 18, width: 18, marginTop: 3, transform: enabled ? "translateX(21px)" : "translateX(3px)" }}
-          />
-        </button>
+        />
       </div>
 
       {/* Cadence numbers */}

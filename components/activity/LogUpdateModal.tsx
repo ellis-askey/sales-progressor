@@ -18,6 +18,7 @@ import { logCommAction } from "@/app/actions/comms";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { AnchoredPanel } from "@/components/ui/Popover";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
@@ -514,7 +515,7 @@ export function LogUpdateModal(props: Props) {
             {isComm ? (
               <div>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-                  <button type="button" role="switch" aria-checked={share} className={"lu-switch" + (share ? " on" : "")} onClick={toggleShare} />
+                  <LiquidToggle checked={share} onChange={() => toggleShare()} width={38} height={22} color="var(--agent-coral-deep, #FF6B4A)" aria-label="Share with clients" />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Share with clients</div>
                     <div style={{ fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>{share ? "Choose who can see this update in their portal." : "Only your team can see this update."}</div>
@@ -547,7 +548,7 @@ export function LogUpdateModal(props: Props) {
               </div>
             ) : canMarkPrivate ? (
               <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-                <button type="button" role="switch" aria-checked={priv} className={"lu-switch" + (priv ? " on" : "")} onClick={() => setPriv((v) => !v)} />
+                <LiquidToggle checked={priv} onChange={(next) => setPriv(next)} width={38} height={22} color="var(--agent-coral-deep, #FF6B4A)" aria-label="Private to your team" />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Private to your team</div>
                   <div style={{ fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>{priv ? "Only your progression team can see this note." : "The agency can see this note too."}</div>

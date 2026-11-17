@@ -16,6 +16,7 @@ import {
   NotePencil, UserPlus, X, PencilSimple, ChatText,
 } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { PartnerPopup } from "@/components/agent/partners/PartnerPopup";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -505,7 +506,7 @@ function EditFirmPopup({ firmId, firmName, recommended, feePence, feeVat, onClos
       <div className="sp-form">
         <p className="sp-editnote">These settings are your agency&rsquo;s only. They don&rsquo;t change the shared firm record.</p>
         <div className="sp-switchrow">
-          <button type="button" role="switch" aria-checked={isRec} className={"sp-switch" + (isRec ? " on" : "")} onClick={() => setIsRec((v) => !v)} />
+          <LiquidToggle checked={isRec} onChange={(next) => setIsRec(next)} width={38} height={22} color="var(--agent-coral-deep, #FF6B4A)" aria-label="Recommended solicitor" />
           <div style={{ flex: 1 }}>
             <div className="sp-switchlabel">Recommended solicitor</div>
             <div className="sp-switchsub">Mark this firm as recommended and prefill its referral fee on new sales.</div>

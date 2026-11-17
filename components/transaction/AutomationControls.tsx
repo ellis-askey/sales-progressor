@@ -28,6 +28,7 @@ import {
 } from "@/app/actions/automation";
 import { AutomationStopModal } from "@/components/transaction/AutomationStopModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 type Props = {
   transactionId: string;
@@ -153,34 +154,17 @@ export function AutomationControls({
     const pauseOn = mode === "on_hold";
     return (
       <>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={pauseOn}
-          onClick={handleToggleClick}
-          disabled={isPending}
-          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50"
-          style={{
-            height: 24,
-            width: 42,
-            boxSizing: "border-box",
-            // Off-state hairline so the dark translucent track stays visible on
-            // dark surfaces (matches the drawer's shared Switch).
-            border: pauseOn ? "0.5px solid transparent" : "0.5px solid var(--agent-border-strong)",
-            background: pauseOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-          }}
-          aria-label={pauseOn ? "Resume this sale" : "Pause this sale"}
-        >
-          <span
-            className="inline-block rounded-full bg-white shadow transition-transform"
-            style={{
-              height: 18,
-              width: 18,
-              marginTop: 3,
-              transform: pauseOn ? "translateX(21px)" : "translateX(3px)",
-            }}
+        <span style={{ display: "inline-flex", flexShrink: 0 }}>
+          <LiquidToggle
+            checked={pauseOn}
+            onChange={() => handleToggleClick()}
+            width={42}
+            height={24}
+            color="var(--agent-coral, #FF6B4A)"
+            disabled={isPending}
+            aria-label={pauseOn ? "Resume this sale" : "Pause this sale"}
           />
-        </button>
+        </span>
         {modalOpen && (
           <AutomationStopModal
             onPick={handleChoice}
@@ -223,32 +207,17 @@ export function AutomationControls({
                 : SUBTEXT[mode])}
           </span>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={toggleOn}
-          onClick={handleToggleClick}
-          disabled={isPending}
-          className="relative inline-flex flex-shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50"
-          style={{
-            height: 24,
-            width: 42,
-            boxSizing: "border-box",
-            border: toggleOn ? "0.5px solid transparent" : "0.5px solid var(--agent-border-strong)",
-            background: toggleOn ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-          }}
-          aria-label={toggleOn ? "Stop automation on this file" : "Resume automation on this file"}
-        >
-          <span
-            className="inline-block rounded-full bg-white shadow transition-transform"
-            style={{
-              height: 18,
-              width: 18,
-              marginTop: 3,
-              transform: toggleOn ? "translateX(21px)" : "translateX(3px)",
-            }}
+        <span style={{ display: "inline-flex", flexShrink: 0 }}>
+          <LiquidToggle
+            checked={toggleOn}
+            onChange={() => handleToggleClick()}
+            width={42}
+            height={24}
+            color="var(--agent-coral, #FF6B4A)"
+            disabled={isPending}
+            aria-label={toggleOn ? "Stop automation on this file" : "Resume automation on this file"}
           />
-        </button>
+        </span>
       </div>
 
       {modalOpen && (

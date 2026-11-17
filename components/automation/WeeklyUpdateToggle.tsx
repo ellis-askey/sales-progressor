@@ -6,6 +6,7 @@
 
 import { useState, useTransition } from "react";
 import { setWeeklyClientUpdatesEnabled } from "@/app/actions/automation";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean }) {
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -35,23 +36,15 @@ export function WeeklyUpdateToggle({ initialEnabled }: { initialEnabled: boolean
             heard from you in the last week. Anyone who has unsubscribed is never included.
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          aria-label="Weekly client updates"
+        <LiquidToggle
+          checked={enabled}
+          onChange={() => toggle()}
+          width={44}
+          height={24}
+          color={"var(--agent-coral, #FF8A65)"}
           disabled={pending}
-          onClick={toggle}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-            enabled ? "bg-[var(--agent-coral)]" : "bg-slate-300"
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-              enabled ? "translate-x-[22px]" : "translate-x-[2px]"
-            }`}
-          />
-        </button>
+          aria-label="Weekly client updates"
+        />
       </div>
       <p className="mt-3 text-[12.5px] font-medium text-slate-600">
         {enabled ? "On. Clients receive a weekly check-in." : "Off. No weekly client update is sent."}

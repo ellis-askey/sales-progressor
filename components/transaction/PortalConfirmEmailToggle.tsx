@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { toggleSuppressPortalConfirmEmailsAction } from "@/app/actions/transactions";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 type Props = {
   transactionId: string;
@@ -79,42 +80,17 @@ export function PortalConfirmEmailToggle({
       >
         Portal emails {emailsOn ? "on" : "paused"}
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={emailsOn}
-        aria-label={emailsOn ? "Pause portal confirmation emails on this file" : "Resume portal confirmation emails on this file"}
-        onClick={handleClick}
-        disabled={saving}
-        style={{
-          position: "relative",
-          height: 18,
-          width: 32,
-          borderRadius: 999,
-          border: "none",
-          padding: 0,
-          background: emailsOn ? "var(--agent-coral, #FF6B4A)" : "var(--agent-border-strong)",
-          cursor: saving ? "default" : "pointer",
-          opacity: saving ? 0.6 : 1,
-          transition: "background 120ms ease",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            position: "absolute",
-            top: 2,
-            left: 2,
-            height: 14,
-            width: 14,
-            borderRadius: 999,
-            background: "white",
-            boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
-            transform: emailsOn ? "translateX(14px)" : "translateX(0)",
-            transition: "transform 120ms ease",
-          }}
+      <span style={{ display: "inline-flex", flexShrink: 0 }}>
+        <LiquidToggle
+          checked={emailsOn}
+          onChange={() => handleClick()}
+          width={32}
+          height={18}
+          color="var(--agent-coral, #FF6B4A)"
+          disabled={saving}
+          aria-label={emailsOn ? "Pause portal confirmation emails on this file" : "Resume portal confirmation emails on this file"}
         />
-      </button>
+      </span>
     </div>
   );
 }

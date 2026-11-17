@@ -55,6 +55,7 @@ import { toggleSuppressPortalConfirmEmailsAction } from "@/app/actions/transacti
 import { setTransactionKeyDatesOverride } from "@/app/actions/portal-display";
 import { AutomationControls } from "@/components/transaction/AutomationControls";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 // ── Shared switch ──────────────────────────────────────────────────────
 // Dimensions match AutomationControls' toggle so every switch in the
@@ -71,45 +72,17 @@ function Switch({
   ariaLabel: string;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={ariaLabel}
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        position: "relative",
-        height: 24,
-        width: 42,
-        borderRadius: 999,
-        boxSizing: "border-box",
-        // Off-state carries a hairline so the track stays visible on dark
-        // surfaces (the translucent fill alone all but vanishes there).
-        border: on ? "0.5px solid transparent" : "0.5px solid var(--agent-border-strong)",
-        padding: 0,
-        background: on ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-        transition: "background 120ms ease",
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: 3,
-          left: 3,
-          height: 18,
-          width: 18,
-          borderRadius: 999,
-          background: "white",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
-          transform: on ? "translateX(18px)" : "translateX(0)",
-          transition: "transform 120ms ease",
-        }}
+    <span style={{ display: "inline-flex", flexShrink: 0 }}>
+      <LiquidToggle
+        checked={on}
+        onChange={() => onClick()}
+        width={42}
+        height={24}
+        color="var(--agent-coral, #FF6B4A)"
+        disabled={disabled}
+        aria-label={ariaLabel}
       />
-    </button>
+    </span>
   );
 }
 

@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/agent-preferences";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { SectionMasterControl } from "@/components/account/chrome/SectionMasterControl";
+import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import type { NotificationPrefs, NotificationKey } from "@/lib/agent/notification-prefs";
 
 type ToggleSpec = {
@@ -110,43 +111,15 @@ export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs:
                 <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{t.label}</p>
                 <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.55 }}>{t.description}</p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={on}
-                aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
+              <LiquidToggle
+                checked={on}
+                onChange={() => handleToggle(t.key)}
+                width={44}
+                height={24}
+                color="var(--agent-coral, #FF8A65)"
                 disabled={saving}
-                onClick={() => handleToggle(t.key)}
-                className="account-switch"
-                style={{
-                  position: "relative",
-                  display: "inline-flex",
-                  width: 44,
-                  height: 24,
-                  flexShrink: 0,
-                  borderRadius: 999,
-                  background: on ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.20)",
-                  border: "none",
-                  cursor: saving ? "default" : "pointer",
-                  opacity: saving ? 0.6 : 1,
-                  transition: "background 150ms, box-shadow 130ms, transform 90ms",
-                  padding: 0,
-                }}
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    left: on ? 23 : 3,
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: "#fff",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                    transition: "left 180ms cubic-bezier(0.16, 1, 0.3, 1)",
-                  }}
-                />
-              </button>
+                aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
+              />
             </div>
           );
         })}
