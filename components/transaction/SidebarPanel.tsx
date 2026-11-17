@@ -26,6 +26,7 @@ import { getPreviousSales } from "@/lib/services/previous-sales";
 import { fileProgressorLabel } from "@/lib/progression/identity";
 import { calculateClientFee, parseFeeModel } from "@/lib/progression/client-fees";
 import { AgentFileSidebar } from "@/components/transaction/AgentFileSidebar";
+import { ChainAwareSidebar } from "@/components/transaction/ChainAwareSidebar";
 import type { ClientType, PurchaseType, Tenure, TransactionStatus } from "@prisma/client";
 
 type SidebarTransaction = {
@@ -373,6 +374,7 @@ export async function SidebarPanel({
   const showInHouseProgressor = !isInternalStaff && !!inHouseAgency?.inHouseProgressionEnabled && transaction.serviceType === "self_managed";
 
   return (
+    <ChainAwareSidebar transactionId={transaction.id}>
     <AgentFileSidebar
       transaction={{
         id: transaction.id,
@@ -446,6 +448,7 @@ export async function SidebarPanel({
       lastActivityAt={transaction.lastActivityAt ?? null}
       previousSales={previousSales}
     />
+    </ChainAwareSidebar>
   );
   // isAgentRole reserved for future variants; explicit reference here keeps
   // TS from flagging as unused.
