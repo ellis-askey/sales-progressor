@@ -17,10 +17,11 @@
 
 import { isInternalStaff } from "@/lib/chain/permissions";
 
-// Named agency users granted early access, by lowercased login email.
-export const CHAINS_ALLOWLIST_EMAILS = new Set<string>([
-  "taylor@akeman-residential.co.uk", // Taylor Kay, director, Akeman Residential (prod)
-]);
+// Named agency users granted early access, by lowercased login email. Empty now
+// (the Akeman build-time grant was removed, critique #298) — Chains gates purely
+// on self-managed files, consistent with the other self-progression pages. Add an
+// email here to grant a specific agency Chains ahead of self-progressing.
+export const CHAINS_ALLOWLIST_EMAILS = new Set<string>([]);
 
 export function canSeeChains(
   role?: string | null,
