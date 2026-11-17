@@ -18,6 +18,7 @@ import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { Drawer } from "@/components/ui/Drawer";
 import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
 import { EmailContactSuggestion } from "@/components/activity/EmailContactSuggestion";
+import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
 
 type Props = {
   entries: ActivityEntry[];
@@ -389,6 +390,10 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   const [openOriginals, setOpenOriginals] = useState<Set<string>>(new Set());
   // Which email conversation is open in the drawer (by conversationId).
   const [convCid, setConvCid] = useState<string | null>(null);
+  // Byte-for-byte "view the exact email we sent" — opens SentEmailModal, which
+  // fetches the stored sentEmailHtml by OutboundMessage id. Covers the portal
+  // invite and every other agent/automated email on the timeline.
+  const [openEmail, setOpenEmail] = useState<OpenEmail | null>(null);
   const toggleInSet = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) =>
     setter((prev) => {
       const next = new Set(prev);
@@ -650,10 +655,18 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                   className="relative group"
                   style={{ padding: "10px 14px", borderRadius: 10 }}
                 >
-                  {/* Delivery status (outbound emails only) — top-right. */}
-                  {email && entry.type === "outbound" && entry.delivery && (
-                    <div style={{ position: "absolute", top: 10, right: 12, zIndex: 1 }}>
-                      <DeliveryDot delivery={entry.delivery} />
+                  {/* Delivery status + "View" (outbound emails only) — top-right.
+                      "View" opens the exact email that was sent, byte-for-byte. */}
+                  {email && entry.type === "outbound" && (
+                    <div style={{ position: "absolute", top: 10, right: 12, zIndex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+                      {entry.delivery && <DeliveryDot delivery={entry.delivery} />}
+                      <button
+                        type="button"
+                        style={LINK_BTN}
+                        onClick={() => setOpenEmail({ id: entry.id, label: entry.subject || "Sent email" })}
+                      >
+                        View
+                      </button>
                     </div>
                   )}
 
@@ -1120,6 +1133,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         subject={convSubject}
         messages={convMsgs}
       />
+
+      {/* Byte-for-byte sent-email viewer (the "View" link on outbound emails). */}
+      <SentEmailModal email={openEmail} onClose={() => setOpenEmail(null)} />
     </div>
   );
 }
