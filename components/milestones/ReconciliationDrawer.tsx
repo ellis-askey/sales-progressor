@@ -27,6 +27,10 @@ interface ReconciliationDrawerProps {
     completionDate?: string
   ) => void;
   onCancel: () => void;
+  // True while the parent's confirm action is in flight. Disables the controls,
+  // shows a "Confirming…" state, and blocks dismissal so the heavy exchange
+  // confirm isn't a silent wait and can't be interrupted mid-write.
+  saving?: boolean;
 }
 
 // The sign-up T&C tick, as a non-interactive "included" marker. Every
@@ -156,12 +160,14 @@ export function ReconciliationDrawer({
   pendingEventDate,
   onConfirm,
   onCancel,
+  saving = false,
 }: ReconciliationDrawerProps) {
   const { theme, isNight } = usePortalTheme();
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   function doClose() {
+    if (saving) return; // don't let the drawer be dismissed mid-confirm
     if (!closing) {
       setClosing(true);
       closeTimer.current = setTimeout(onCancel, 200);
@@ -185,6 +191,7 @@ export function ReconciliationDrawer({
   const asModal = total === 0;
 
   function handleConfirm() {
+    if (saving) return;
     onConfirm(
       eventDate || pendingEventDate,
       outstanding.map((m) => m.id),
@@ -335,17 +342,20 @@ export function ReconciliationDrawer({
           <button
             type="button"
             onClick={doClose}
+            disabled={saving}
             className="agent-btn agent-btn-neutral"
-            style={{ width: 96, borderRadius: 12, fontSize: 14 }}
+            style={{ width: 96, borderRadius: 12, fontSize: 14, ...(saving ? { opacity: 0.5, cursor: "default" } : {}) }}
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
+            disabled={saving}
+            aria-busy={saving || undefined}
             className="agent-btn-color-primary"
-            style={{ flex: 1, padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}
+            style={{ flex: 1, padding: "10px 16px", borderRadius: 12, fontWeight: 600, fontSize: 14, border: "none", cursor: saving ? "default" : "pointer", ...(saving ? { opacity: 0.85 } : {}) }}
           >
-            {title}
+            {saving ? "Confirming…" : title}
           </button>
         </div>
       </div>

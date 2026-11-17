@@ -430,7 +430,13 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
     completionDate?: string
   ) {
     if (loading) return;
-    setShowReconciliationModal(false);
+    // Keep the drawer OPEN and disabled while this heavy exchange confirm runs
+    // (server-side it back-fills the outstanding steps and completes both sides,
+    // which takes several seconds). Closing it up front turned that into a
+    // silent wait that read as a freeze. We close on success below; on failure
+    // we keep it open, revert the optimistic tick and surface a real error so
+    // the agent can retry. Mirrors doComplete's success/failure handling.
+    setError(null);
     setLoading(true);
     startTransition(async () => {
       addOptimistic("complete");
@@ -444,6 +450,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           outstandingDates,
           completionDate: completionDate || undefined,
         });
+        setShowReconciliationModal(false);
         if (result.triggeredCelebration && result.propertyAddress) {
           const addr = result.propertyAddress;
           setTimeout(() => {
@@ -457,7 +464,15 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           toast.success(displayName, count > 0 ? { description: `+${count} step${count > 1 ? "s" : ""} marked done` } : undefined);
         }
       } catch (err: unknown) {
-        setError(softenServerError(err, "Could not complete this step."));
+        // Revert the optimistic tick + re-lock any dependents that opened, and
+        // surface the failure as both a toast and the row's inline error. The
+        // drawer stays open (saving flips back to false) so the agent can retry
+        // without re-opening it. Matches doComplete's failure handling.
+        addOptimistic("reverse");
+        onConfirmFailed?.();
+        const msg = softenServerError(err, "Could not complete this step.");
+        setError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -1161,6 +1176,7 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
           pendingEventDate={eventDate || undefined}
           onConfirm={(ed, ids, dates, cd) => doReconciliationConfirm(ed, ids, dates, cd)}
           onCancel={() => setShowReconciliationModal(false)}
+          saving={loading}
         />
       )}
 
