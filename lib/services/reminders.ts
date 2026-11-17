@@ -27,9 +27,11 @@ import { ENQUIRY_SATISFIED_CODE, enquirySatisfiedChaseAllowed, enquirySatisfiedD
 // fresh chase clock starts now, not 8 weeks ago.
 const RELIST_RESET_VM_CODE_SET = new Set([
   "VM2", "VM7",
-  "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
+  // Retired enquiry sub-steps VM11–15 dropped (enquiries rework) — mirror of
+  // RELIST_RESET_VM_CODES in app/actions/transactions.ts.
+  "VM10", "VM16", "VM17",
   "VM18", "VM19", "VM20",
-  "VM21", // enquiries rework — mirror of RELIST_RESET_VM_CODES
+  "VM21",
 ]);
 
 // Critique #23: when a chase re-anchors on an expected "due back" date

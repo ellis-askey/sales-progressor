@@ -3638,13 +3638,15 @@ export async function toggleSuppressPortalConfirmEmailsAction(
 // comment on vendorMilestoneSnapshot.
 const RELIST_RESET_VM_CODES = [
   "VM2", "VM7",
-  "VM10", "VM11", "VM12", "VM13", "VM14", "VM15", "VM16", "VM17",
+  // Enquiries rework: the granular enquiry sub-steps VM11–15 are retired and no
+  // longer created on new files. Leaving them out of the reset means a relist
+  // stops re-creating phantom "available" rows for steps nothing uses.
+  "VM10", "VM16", "VM17",
   "VM18", "VM19", "VM20",
-  // Enquiries rework: VM21 ("all enquiries satisfied") is numerically outside
-  // the VM10–VM20 range above, so it must be listed explicitly or it survives a
-  // relist as complete — which would let the new buyer's seller exchange gate
-  // open before their enquiries are even raised. resetStateFor derives it back
-  // to locked from VM10.
+  // VM21 ("all enquiries satisfied") is numerically outside the VM10–VM20 range
+  // above, so it must be listed explicitly or it survives a relist as complete —
+  // which would let the new buyer's seller exchange gate open before their
+  // enquiries are even raised. resetStateFor derives it back to locked from VM10.
   "VM21",
 ];
 
