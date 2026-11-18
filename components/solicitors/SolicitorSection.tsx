@@ -12,6 +12,7 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { CommsButton } from "@/components/ui/CommsButton";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { ComposeEmailModal, type ComposePrefill } from "@/components/compose/ComposeEmailModal";
 
 type SolicitorIntel = {
   totalFiles: number;
@@ -197,6 +198,7 @@ function SolicitorTile({
   const [exiting, setExiting] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
   const [draft, setDraft] = useState<SolicitorSelection | null>(toSelection(info));
 
   // Solicitors have no stored portal token — mint one via the server action
@@ -277,6 +279,20 @@ function SolicitorTile({
       ? `mailto:${info.contact.email}${ccParam ? `?${ccParam.replace(/&$/, "")}` : ""}`
       : null;
 
+  // The comms-row Email button opens our in-house composer (matching the client
+  // rows) rather than the OS mail client. Pre-addressed to the solicitor, cc'ing
+  // their assistant, with the same side-scoped subject the mailto link carries.
+  const composePrefill: ComposePrefill | null =
+    info.contact?.email && address
+      ? {
+          transactionId,
+          to: [{ email: info.contact.email, name: info.contact.name || info.firm?.name || undefined }],
+          cc: info.contact.secondaryEmail ? [{ email: info.contact.secondaryEmail }] : undefined,
+          subject: solicitorEmailSubject(address, clientNames ?? []),
+          bodyHtml: "",
+        }
+      : null;
+
   // Empty row - no firm assigned yet (roster-style, matches ContactsSection)
   if (!info.firm && !editing && !exiting) {
     return (
@@ -306,6 +322,7 @@ function SolicitorTile({
   }
 
   return (
+    <>
     <div ref={rootRef} className={`people-item${editing || exiting ? "" : " agent-hover-row"}`}>
       {/* Display view — collapsed roster row + expand, matches ContactsSection */}
       {info.firm && !editing && !exiting && (
@@ -348,7 +365,7 @@ function SolicitorTile({
             <div className="people-row-actions">
               <CommsButton compact href={info.contact?.phone ? `tel:${info.contact.phone.replace(/\s/g, "")}` : undefined} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "Call" : "No phone number on file"} />
               <CommsButton compact href={info.contact?.phone ? `https://wa.me/${info.contact.phone.replace(/[^\d]/g, "")}` : undefined} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!info.contact?.phone} title={info.contact?.phone ? "WhatsApp" : "No phone number on file"} />
-              <CommsButton compact href={emailHref ?? undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!info.contact?.email} title={info.contact?.email ? "Email" : "No email on file"} />
+              <CommsButton compact onClick={composePrefill ? () => setComposeOpen(true) : undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!info.contact?.email} title={info.contact?.email ? "Email" : "No email on file"} />
               <button
                 type="button"
                 onClick={openEdit}
@@ -491,6 +508,10 @@ function SolicitorTile({
         </div>
       )}
     </div>
+    {composePrefill && (
+      <ComposeEmailModal open={composeOpen} onClose={() => setComposeOpen(false)} prefill={composePrefill} />
+    )}
+    </>
   );
 }
 
@@ -508,9 +529,11 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
   useEffect(() => { setVendorState(vendor); }, [vendor]);
   useEffect(() => { setPurchaserState(purchaser); }, [purchaser]);
 
-  const clientNames = (contacts ?? [])
-    .filter((c) => c.roleType === "vendor" || c.roleType === "purchaser")
-    .map((c) => c.name);
+  // Side-scoped client names. A solicitor acts for ONE side — the vendor's
+  // solicitor for the sellers, the purchaser's for the buyers — so each tile's
+  // email subject should list ONLY that side's clients, not everyone on the sale.
+  const vendorClientNames = (contacts ?? []).filter((c) => c.roleType === "vendor").map((c) => c.name);
+  const purchaserClientNames = (contacts ?? []).filter((c) => c.roleType === "purchaser").map((c) => c.name);
 
   function save(patch: Parameters<typeof saveSolicitorsAction>[1]) {
     setSaving(true);
@@ -616,7 +639,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           info={vendorState}
           recommendedFirms={recommendedFirms}
           address={address}
-          clientNames={clientNames}
+          clientNames={vendorClientNames}
           isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={vendorHasReferral}
@@ -633,7 +656,7 @@ export function SolicitorSection({ transactionId, vendor, purchaser, recommended
           info={purchaserState}
           recommendedFirms={recommendedFirms}
           address={address}
-          clientNames={clientNames}
+          clientNames={purchaserClientNames}
           isInternalStaff={isInternalStaff}
           referralFee={referralFee ?? null}
           showReferralFee={purchaserHasReferral}
