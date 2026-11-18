@@ -75,12 +75,15 @@ export function WarmLoginForm() {
         .wcreate:hover { color: #E55B3D !important; }
       `}</style>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* --lbi-top: 0 drops each field's label-room padding so the 14px gap is
+          the real space between field outlines (the lifted label's ~6px of
+          overhang lives inside the gap). */}
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", "--lbi-top": "0px" } as React.CSSProperties}>
 
         {stage === "password" && (
         <>
         {/* SSO buttons — top of form */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <Button
             type="button"
             variant="secondary"

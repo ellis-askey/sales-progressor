@@ -26,8 +26,10 @@
   font-family: var(--font-ui);
   display: grid;
   place-items: center;
-  /* room above the field for the lifted label */
-  padding-top: 12px;}
+  /* room above the field for the lifted label. Overridable (--lbi-top) so a
+     dense form can set it to 0 and control field spacing with its own gap —
+     the lifted label is only ~6px of overhang, which lives in that gap. */
+  padding-top: var(--lbi-top, 12px);}
 
 /* fill the form column — the component measures this width and redraws the
    outline to fit, so the corners stay crisp (fullWidth prop). */
