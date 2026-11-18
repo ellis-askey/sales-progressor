@@ -29,6 +29,11 @@
   /* room above the field for the lifted label */
   padding-top: 12px;}
 
+/* fill the form column — the component measures this width and redraws the
+   outline to fit, so the corners stay crisp (fullWidth prop). */
+.lbi[data-full="true"] { width: 100%; }
+.lbi[data-full="true"] .lbi-box { width: 100% !important; }
+
 /* no fill: the field is only its outline */
 .lbi-box {
   position: relative;
@@ -91,7 +96,8 @@
   user-select: none;}
 
 .lbi[data-up="true"] .lbi-label {
-  transform: translateY(-50%) translateY(-26px) scale(0.78);
+  /* lift onto the top edge — half the 48px height (was -26 for 52) */
+  transform: translateY(-50%) translateY(-24px) scale(0.78);
   color: var(--ink-3);}
 
 .lbi[data-focus="true"] .lbi-label { color: var(--fill-on, var(--ink)); }

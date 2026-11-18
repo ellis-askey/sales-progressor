@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { ChangeEvent, FocusEvent, HTMLInputTypeAttribute } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import "./LabelInput.css";
 
@@ -20,12 +21,22 @@ import "./LabelInput.css";
 
    The gap is two short paths across the notch, each from the
    middle to one side, retracted from the middle outward by a
-   negative dash offset. */
+   negative dash offset.
+
+   ── Adapted for real forms (TSP) ────────────────────────
+   The source is a showcase that owns its own value. Added here,
+   without touching the animation: optional controlled value /
+   onChange / onBlur and the usual field attributes (name, type,
+   autoComplete, inputMode, required, autoFocus), a `label`
+   override, and `fullWidth` — which measures the container and
+   redraws the outline to fit, so it fills a form column on any
+   width while the corners stay crisp. */
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
+/* the resting / minimum width; fullWidth measures the container instead */
 const W = 280;
-const H = 52;
+const H = 48;
 /* the lifted label's size, against its resting one */
 const S = 0.78;
 /* the stroke sits half a stroke inside the box so none of it
@@ -34,28 +45,83 @@ const IN = 0.75;
 
 export function LabelInput({
   field = "Email",
+  /* override the displayed label text (else derived from `field`) */
+  label: labelProp,
+  /* override the input type (password fields ignore this — the eye owns it) */
+  type: typeProp,
+  name,
+  /* controlled value — pass with onChange to drive it from a form */
+  value: valueProp,
+  onChange,
+  onBlur: onBlurProp,
+  autoComplete,
+  autoCapitalize = "off",
+  inputMode,
+  required,
+  autoFocus,
   /* the field's corner, px — at half the height it is a pill */
   corner = 20,
+  /* focus-outline colour (and the focused label); defaults to the ink ramp.
+     The login passes its coral so the field stays on-brand. */
+  accent,
+  /* fill the container (measured) instead of the fixed 280px */
+  fullWidth = false,
   /* a showcase, not a form: on a touch screen, keep the device's
      keyboard down. Off by default — a real field wants its
      keyboard — and the bench turns it on for its feed */
   showcase = false,
 }: {
   field?: string;
+  label?: string;
+  type?: HTMLInputTypeAttribute;
+  name?: string;
+  value?: string;
+  onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  autoComplete?: string;
+  autoCapitalize?: string;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
+  required?: boolean;
+  autoFocus?: boolean;
   corner?: number;
+  accent?: string;
+  fullWidth?: boolean;
   showcase?: boolean;
 } = {}) {
   const r = clamp(corner, 0, H / 2);
   const secret = field === "Password";
-  const label = secret ? "Password" : "Email";
+  const label = labelProp ?? (secret ? "Password" : "Email");
   const id = `lbi-${useId().replace(/:/g, "")}`;
 
   const [focus, setFocus] = useState(false);
   const [quiet] = useState(() => showcase && typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-  const [value, setValue] = useState("");
+  /* controlled when both value + onChange are supplied; otherwise the
+     component owns its value (the showcase behaviour) */
+  const controlled = valueProp !== undefined && onChange !== undefined;
+  const [ownValue, setOwnValue] = useState("");
+  const value = controlled ? valueProp : ownValue;
   const [show, setShow] = useState(false);
   const [flip, setFlip] = useState(0);
   const input = useRef<HTMLInputElement | null>(null);
+
+  /* ── full width, measured ────────────────────────────────
+     When asked to fill its column, the box is as wide as the
+     container and the outline is redrawn at that width, so the
+     corners stay crisp rather than being stretched by the svg.
+     Measured, and kept current through a resize / rotation. */
+  const root = useRef<HTMLDivElement | null>(null);
+  const [boxW, setBoxW] = useState(W);
+  useLayoutEffect(() => {
+    if (!fullWidth) { setBoxW(W); return; }
+    const el = root.current;
+    if (!el) return;
+    const measure = () => setBoxW(Math.max(160, Math.round(el.clientWidth)));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fullWidth]);
 
   /* the notch is the label's own width, so it is measured */
   const lab = useRef<HTMLLabelElement | null>(null);
@@ -65,11 +131,14 @@ export function LabelInput({
   }, [label]);
 
   /* a different kind of field starts empty — an email left in
-     a password box would be shown in the clear */
+     a password box would be shown in the clear (only when the
+     component owns its own value; a controlled field is the
+     form's to reset) */
   useEffect(() => {
-    setValue("");
+    if (controlled) return;
+    setOwnValue("");
     setShow(false);
-  }, [field]);
+  }, [field, controlled]);
 
   const up = focus || value.length > 0;
 
@@ -81,16 +150,16 @@ export function LabelInput({
   const x0 = Math.max(r * 0.6, lx - 5);
   const x1 = lx + lw * S + 5;
   const a = r - IN;
-  const R = W - IN;
+  const R = boxW - IN;
   const B = H - IN;
-  const mid = W / 2;
+  const mid = boxW / 2;
   /* the gap, as two halves from its middle to each side */
   const nm = (x0 + x1) / 2;
   const gapL = `M${nm},${IN} L${x0},${IN}`;
   const gapR = `M${nm},${IN} L${x1},${IN}`;
   /* right: from the notch, clockwise, to the bottom middle */
   const right = r > 0
-    ? `M${x1},${IN} L${W - r},${IN} A${a},${a} 0 0 1 ${R},${r} L${R},${H - r} A${a},${a} 0 0 1 ${W - r},${B} L${mid},${B}`
+    ? `M${x1},${IN} L${boxW - r},${IN} A${a},${a} 0 0 1 ${R},${r} L${R},${H - r} A${a},${a} 0 0 1 ${boxW - r},${B} L${mid},${B}`
     : `M${x1},${IN} L${R},${IN} L${R},${B} L${mid},${B}`;
   /* left: from the notch, the other way round, to the same point */
   const left = r > 0
@@ -103,12 +172,12 @@ export function LabelInput({
   };
 
   return (
-    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0}>
+    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0} data-full={fullWidth || undefined} ref={root} style={accent ? ({ "--ink": accent } as React.CSSProperties) : undefined}>
       <div
         className="lbi-box"
-        style={{ width: W, height: H, borderRadius: r, "--lbi-x": `${lx}px` } as React.CSSProperties}
+        style={{ width: boxW, height: H, borderRadius: r, "--lbi-x": `${lx}px` } as React.CSSProperties}
       >
-        <svg className="lbi-ring" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+        <svg className="lbi-ring" width={boxW} height={H} viewBox={`0 0 ${boxW} ${H}`} aria-hidden="true">
           <path d={right} />
           <path d={left} />
           <path className="lbi-gap" d={gapL} pathLength={1} />
@@ -135,20 +204,22 @@ export function LabelInput({
              rather than by the type — named so Safari takes it for
              a search, and marked off for the managers that read
              their own attribute. A real use keeps the real types. */
-          type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : "email"}
-          name={showcase ? "search-preview" : undefined}
+          type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : (typeProp ?? "email")}
+          name={showcase ? "search-preview" : name}
           data-1p-ignore={showcase || undefined}
           data-lpignore={showcase ? "true" : undefined}
           data-bwignore={showcase || undefined}
           data-form-type={showcase ? "other" : undefined}
           autoCorrect="off"
-          autoCapitalize="off"
+          autoCapitalize={autoCapitalize}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => { if (controlled) onChange?.(e); else setOwnValue(e.target.value); }}
           onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
-          autoComplete="off"
+          onBlur={(e) => { setFocus(false); onBlurProp?.(e); }}
+          autoComplete={showcase ? "off" : (autoComplete ?? "off")}
           spellCheck={false}
+          required={required}
+          autoFocus={autoFocus}
           /* ── no keyboard, when it is only being shown ─────
              In a feed you are scrolling on a phone, a tap that
              lands on the field threw the keyboard up over the
@@ -157,7 +228,7 @@ export function LabelInput({
              opening — and only tells the device not to raise its
              keyboard. A mouse and a hardware keyboard are
              untouched, and so is any real use of this field. */
-          inputMode={quiet ? "none" : undefined}
+          inputMode={quiet ? "none" : inputMode}
           style={{
             paddingRight: secret ? 48 : lx,
             ...(showcase && secret && !show ? { WebkitTextSecurity: "disc" } : {}),

@@ -6,11 +6,14 @@ import Link from "next/link"
 import { GoogleIcon } from "./GoogleIcon"
 import { MicrosoftIcon } from "./MicrosoftIcon"
 import { loginPrecheck } from "@/app/actions/login-precheck"
+import { LabelInput } from "@/components/ui/LabelInput"
+import { Button } from "@/components/arc/button/button"
+
+const CORAL = "#FF6B4A"
 
 export function WarmLoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [stage, setStage] = useState<"password" | "totp">("password")
@@ -56,69 +59,20 @@ export function WarmLoginForm() {
     await completeSignIn()
   }
 
-  const submitDisabled = loading || (stage === "password" ? (!email.trim() || !password) : !totp.trim())
+  // Fields-empty is kept separate from loading: the arc Button shows its own
+  // busy state (spinner, stays focusable) via `loading` and only disables for
+  // genuinely empty fields.
+  const fieldsEmpty = stage === "password" ? (!email.trim() || !password) : !totp.trim()
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "#F4F4F6",
-    border: "0.5px solid rgba(45,24,16,0.12)",
-    borderRadius: "10px",
-    padding: "9px 14px",
-    color: "#20242E",
-    fontSize: "16px",
-    outline: "none",
-    transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-  }
-
-  const oauthBtnStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    minHeight: "46px",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    background: "#FFFFFF",
-    border: "1px solid rgba(23,23,30,0.10)",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    color: "#20242E",
-    fontSize: "14px",
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all 0.15s ease",
-  }
+  // Coral submit — the arc Button's style, the login's colour. Overriding the
+  // primary's ink/slab tokens turns it coral without touching the component.
+  const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties
 
   return (
     <>
       <style>{`
-        .wi::placeholder { color: rgba(32,36,46,0.38); }
-        .wi:hover:not(:focus) {
-          border-color: rgba(255,138,101,0.45) !important;
-        }
-        .wi:focus {
-          background: #ffffff !important;
-          border-color: #FF6B4A !important;
-          box-shadow: none !important;
-        }
-        .wi-pw { padding-right: 42px !important; }
-        .wbtn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 28px rgba(255,107,74,0.45) !important;
-        }
-        .wbtn:active:not(:disabled) { transform: scale(0.98); }
         .wlink:hover { color: #E55B3D !important; }
         .wcreate:hover { color: #E55B3D !important; }
-        .woauth:hover:not(:disabled) {
-          background: rgba(255,255,255,1) !important;
-          border-color: rgba(23,23,30,0.18) !important;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.07), 0 4px 10px rgba(0,0,0,0.05) !important;
-          transform: translateY(-1px);
-        }
-        .woauth:active:not(:disabled) { transform: scale(0.98); }
-        .woauth:focus-visible {
-          outline: 2px solid rgba(255,138,101,0.60);
-          outline-offset: 2px;
-        }
       `}</style>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -127,29 +81,31 @@ export function WarmLoginForm() {
         <>
         {/* SSO buttons — top of form */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="lg"
             disabled={loading}
-            className="woauth"
             onClick={() => signIn("google", { callbackUrl: "/" })}
             aria-label="Continue with Google"
-            style={{ ...oauthBtnStyle, width: "100%" }}
+            style={{ width: "100%" }}
           >
             <GoogleIcon />
             Continue with Google
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="lg"
             disabled={loading}
-            className="woauth"
             onClick={() => signIn("azure-ad", { callbackUrl: "/" })}
             aria-label="Continue with Microsoft"
-            style={{ ...oauthBtnStyle, width: "100%" }}
+            style={{ width: "100%" }}
           >
             <MicrosoftIcon />
             Continue with Microsoft
-          </button>
+          </Button>
         </div>
 
         {/* Divider */}
@@ -159,75 +115,47 @@ export function WarmLoginForm() {
           <div style={{ flex: 1, height: "1px", background: "rgba(32,36,46,0.10)" }} />
         </div>
 
-        <div>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
-            Email address
-          </label>
-          <input
-            className="wi"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-            required
-            autoComplete="email"
-            placeholder="you@agency.co.uk"
-            style={inputStyle}
-          />
-        </div>
+        {/* The label lives inside the field now (no eyebrow). Email stays
+            lower-cased on blur as before. */}
+        <LabelInput
+          label="Email address"
+          type="email"
+          name="email"
+          autoComplete="email"
+          accent={CORAL}
+          fullWidth
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+        />
 
-        <div>
-          <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
-            Password
-          </label>
-          <div style={{ position: "relative" }}>
-            <input
-              className="wi wi-pw"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              style={inputStyle}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(v => !v)}
-              tabIndex={-1}
-              style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(61,31,14,0.40)", padding: 0, display: "flex" }}
-            >
-              {showPassword ? (
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                </svg>
-              ) : (
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
+        <LabelInput
+          field="Password"
+          name="password"
+          autoComplete="current-password"
+          accent={CORAL}
+          fullWidth
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         </>
         )}
 
         {stage === "totp" && (
           <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#3F3F46", marginBottom: "6px", letterSpacing: "0.005em" }}>
-              Authenticator code
-            </label>
-            <input
-              className="wi"
+            <LabelInput
+              label="Authenticator code"
               type="text"
+              name="totp"
               inputMode="numeric"
               autoComplete="one-time-code"
-              value={totp}
-              onChange={e => setTotp(e.target.value)}
+              accent={CORAL}
+              fullWidth
               autoFocus
-              placeholder="123 456"
-              style={inputStyle}
+              value={totp}
+              onChange={(e) => setTotp(e.target.value)}
             />
             <p style={{ margin: "8px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)" }}>
               Enter the 6-digit code from your authenticator app, or one of your backup codes.
@@ -251,37 +179,27 @@ export function WarmLoginForm() {
 
         {stage === "password" && (
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <Link href="/forgot-password" className="wlink" style={{ fontSize: "12px", fontWeight: 500, color: "#FF6B4A", textDecoration: "none", transition: "color 0.12s ease" }}>
+            <Link href="/forgot-password" className="wlink" style={{ fontSize: "12px", fontWeight: 500, color: CORAL, textDecoration: "none", transition: "color 0.12s ease" }}>
               Forgot password?
             </Link>
           </div>
         )}
 
-        <button
+        <Button
           type="submit"
-          disabled={submitDisabled}
-          className="wbtn"
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: "8px",
-            background: submitDisabled ? "rgba(255,107,74,0.45)" : "#FF6B4A",
-            color: "white",
-            fontSize: "15px",
-            fontWeight: 600,
-            border: "none",
-            cursor: submitDisabled ? "not-allowed" : "pointer",
-            boxShadow: "0 4px 20px rgba(255,107,74,0.35)",
-            transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-          }}
+          variant="primary"
+          size="lg"
+          loading={loading}
+          disabled={fieldsEmpty}
+          style={{ ...coralVars, width: "100%" }}
         >
-          {loading ? "Signing in…" : stage === "totp" ? "Verify code" : "Sign in"}
-        </button>
+          {stage === "totp" ? "Verify code" : "Sign in"}
+        </Button>
 
         {stage === "password" && (
           <p style={{ textAlign: "center", fontSize: "13px", color: "#8A8A94", margin: 0 }}>
             New here?{" "}
-            <Link href="/register" className="wcreate" style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "none", transition: "color 0.12s ease" }}>
+            <Link href="/register" className="wcreate" style={{ color: CORAL, fontWeight: 600, textDecoration: "none", transition: "color 0.12s ease" }}>
               Create an account
             </Link>
           </p>
