@@ -1,0 +1,101 @@
+/* Radio group for the register flow. The component (radio-group.tsx) slides one
+   highlight to the chosen row and springs the dot in; this stylesheet dresses
+   that with the flow's existing coral-gradient "filled" look — so the selected
+   row keeps the gradient, sheen and lift it always had, now as a single element
+   that travels between rows. Light-only (the auth pages are white cards). */
+
+.group { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+/* the group's question — a quiet label, not an input eyebrow */
+.group legend {
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3f46;
+  letter-spacing: 0.005em;
+}
+
+.options {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* the one highlight — the coral "filled" gradient, sheen and lift, placed and
+   moved by the component (transform/height). Hidden until it is placed, so the
+   server paint never shows it in the wrong spot. */
+.highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ff8365 0%, #ff6b4a 52%, #e85a35 100%);
+  box-shadow: 0 10px 24px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, height;
+}
+
+/* each row sits above the highlight; its border fades out when it becomes the
+   selected row (the gradient is its surface then) */
+.option {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(32, 36, 46, 0.12);
+  cursor: pointer;
+  transition: border-color 200ms ease;
+}
+.option:has(input:checked) { border-color: transparent; }
+.option input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+
+/* the radio mark — grey ring at rest, white ring holding a coral-deep dot when
+   chosen (the dot's scale/opacity are sprung by the component) */
+.mark {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(32, 36, 46, 0.3);
+  background: rgba(255, 255, 255, 0.5);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.option:has(input:checked) .mark { border-color: #ffffff; background: #ffffff; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #c7401f; }
+
+/* the label + description. They crossfade to white as the highlight arrives
+   (the color transition is tuned to the highlight's travel so the text is
+   white by the time the gradient is under it). */
+.option strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #20242e;
+  transition: color 200ms ease;
+}
+.option small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(32, 36, 46, 0.55);
+  line-height: 1.4;
+  transition: color 200ms ease;
+}
+.option:has(input:checked) strong { color: #ffffff; }
+.option:has(input:checked) small { color: rgba(255, 255, 255, 0.82); }
+
+/* keyboard focus lands a coral ring on the row */
+.option:focus-within { outline: none; }
+.option:focus-within:not(:has(input:checked)) { border-color: rgba(255, 107, 74, 0.55); }

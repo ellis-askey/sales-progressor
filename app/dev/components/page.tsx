@@ -8,11 +8,13 @@
 import { useState } from "react";
 import { Button } from "@/components/arc/button/button";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 
 export default function ComponentsPreview() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
+  const [role, setRole] = useState("director");
 
   function save() {
     if (saving) return;
@@ -93,6 +95,26 @@ export default function ComponentsPreview() {
               <Button variant="ghost" disabled>Ghost</Button>
               <Button variant="danger" disabled>Danger</Button>
             </Cluster>
+          </Panel>
+        </section>
+
+        {/* ── RadioGroup ───────────────────────────────────── */}
+        <section style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <SectionHead title="Radio group" note="components/arc/radio-group · one highlight glides to the chosen row, the dot springs in; the register's coral gradient as the fill" />
+          <Panel>
+            <div style={{ maxWidth: 360, width: "100%" }}>
+              <RadioGroup
+                label="What's your role?"
+                name="demo-role"
+                value={role}
+                onValueChange={setRole}
+                options={[
+                  { value: "director", label: "Director", description: "Manage your agency, view all sales and oversee your team." },
+                  { value: "negotiator", label: "Negotiator", description: "View your sales and request support from your sales progressor." },
+                  { value: "progressor", label: "Sales progressor", description: "Run progression for the sales you're assigned." },
+                ]}
+              />
+            </div>
           </Panel>
         </section>
 

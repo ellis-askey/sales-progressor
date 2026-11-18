@@ -10,8 +10,18 @@ import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_COOKIE_MAX_AGE } from "@/lib/analytics/attribution";
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Button } from "@/components/arc/button/button";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 
 type Step = 1 | 2;
+
+const CORAL = "#FF6B4A";
+// Coral submit — the arc Button's style, the register's colour.
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
+// Dense auth rhythm: drop the field's label-room padding so the 14px form gap is
+// the real spacing between field outlines.
+const formStyle: React.CSSProperties = { padding: "1.75rem", display: "flex", flexDirection: "column", gap: "14px", "--lbi-top": "0px" } as React.CSSProperties;
 
 // Names: letters, numbers and spaces only, plus the hyphen and apostrophe real
 // names use (Anne-Marie, O'Brien). Anything else just doesn't register as they
@@ -19,28 +29,6 @@ type Step = 1 | 2;
 function stripNameChars(v: string): string {
   return v.replace(/[^\p{L}\p{N} '’-]/gu, "");
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#F4F4F6",
-  border: "0.5px solid rgba(45,24,16,0.12)",
-  borderRadius: "10px",
-  padding: "9px 14px",
-  color: "#20242E",
-  fontSize: "16px",
-  outline: "none",
-  transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "12px",
-  fontWeight: 600,
-  color: "#3F3F46",
-  marginBottom: "6px",
-  letterSpacing: "0.005em",
-};
 
 export default function RegisterForm({ progressorEnabled = false }: { progressorEnabled?: boolean }) {
   // First-touch attribution handoff from the marketing site: the /register URL
@@ -59,7 +47,6 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [firmName, setFirmName] = useState("");
@@ -183,22 +170,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
       }} />
 
       <style>{`
-        .ri::placeholder { color: rgba(32,36,46,0.38); }
         @media (max-width: 500px) { .reg-agency-hint { display: block; margin-top: 2px; } }
-        .ri:hover:not(:focus) {
-          border-color: rgba(255,138,101,0.45) !important;
-        }
-        .ri:focus {
-          background: #ffffff !important;
-          border-color: #FF6B4A !important;
-          box-shadow: none !important;
-        }
-        .ri-pr { padding-right: 42px !important; }
-        .rbtn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 28px rgba(255,107,74,0.45) !important;
-        }
-        .rbtn:active:not(:disabled) { transform: scale(0.98); }
         .rback:hover { color: #20242E !important; }
         /* Option D side-door link: darkens on hover, no underline, arrow glides right. */
         .reg-alt { text-align: center; font-size: 12px; color: #8A8A94; margin: 0; }
@@ -219,18 +191,14 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         .reg-alt-arrow { display: inline-block; transition: transform 0.15s ease; }
         .reg-alt-link:hover .reg-alt-arrow { transform: translateX(3px); }
         @media (prefers-reduced-motion: reduce) { .reg-alt-arrow { transition: none; } }
-        @keyframes rpulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.6; transform: scale(0.85); }
-        }
-        /* Subtle attention nudge — fires when user hovers the disabled
-           submit button. Coral box-shadow blooms outward and fades. */
+        /* Subtle attention nudge — fires when user hovers the disabled submit
+           button. Coral bloom blooms outward and fades around the field. */
         @keyframes ri-nudge {
           0%   { box-shadow: 0 0 0 0 rgba(255,107,74,0.40); }
           50%  { box-shadow: 0 0 0 6px rgba(255,107,74,0.18); }
           100% { box-shadow: 0 0 0 0 rgba(255,107,74,0); }
         }
-        .ri-nudge { animation: ri-nudge 700ms ease-out; border-radius: 8px; }
+        .ri-nudge { animation: ri-nudge 700ms ease-out; border-radius: 22px; }
         /* Page entrance: content rises and fades in on load, matching the
            app's house motion (relaxed pace). (founder report, 2026-10-05) */
         @keyframes reg-enter {
@@ -239,8 +207,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         }
         .reg-enter { animation: reg-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         @media (prefers-reduced-motion: reduce) { .reg-enter { animation: none; } }
-        /* Background develops in on load so it appears alongside the card —
-           a touch slower than the card's rise so the street gently resolves. */
+        /* Background develops in on load so it appears alongside the card. */
         @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
         .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
         @media (prefers-reduced-motion: reduce) { .auth-bg-enter { animation: none; } }
@@ -295,44 +262,35 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
 
             {/* ── Step 1 ── */}
             {step === 1 && (
-              <form onSubmit={e => { e.preventDefault(); advanceToStep2(); }} style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <form onSubmit={e => { e.preventDefault(); advanceToStep2(); }} style={formStyle}>
 
-                <div>
-                  <label style={labelStyle}>Full name</label>
-                  <input className="ri" type="text" value={name} onChange={e => setName(stripNameChars(e.target.value))}
-                    onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
-                    placeholder="Sarah Jones" required autoComplete="name" autoFocus style={inputStyle} />
-                </div>
+                <LabelInput
+                  label="Full name" type="text" name="name" autoComplete="name"
+                  accent={CORAL} fullWidth required autoFocus
+                  value={name}
+                  onChange={e => setName(stripNameChars(e.target.value))}
+                  onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
+                />
 
-                <div>
-                  <label style={labelStyle}>Work email</label>
-                  <input className="ri" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-                    placeholder="sarah@youragency.co.uk" required autoComplete="email" style={inputStyle} />
-                </div>
+                <LabelInput
+                  label="Work email" type="email" name="email" autoComplete="email"
+                  accent={CORAL} fullWidth required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+                />
 
-                <div>
-                  <label style={labelStyle}>Password</label>
-                  <div style={{ position: "relative" }}>
-                    <input className="ri ri-pr" type={showPassword ? "text" : "password"} value={password}
-                      onChange={e => setPassword(e.target.value)} placeholder="Min. 10 characters"
-                      required autoComplete="new-password" style={inputStyle} />
-                    <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
-                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(32,36,46,0.40)", padding: 0, display: "flex" }}>
-                      {showPassword ? (
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                {/* Password group — the field, the length hint and the strength
+                    meter sit close together, apart from the 14px rhythm. */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <LabelInput
+                    field="Password" name="password" autoComplete="new-password"
+                    accent={CORAL} fullWidth required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
                   {password.length > 0 && password.length < 10 && (
-                    <p style={{ fontSize: "11px", color: "#B05A20", marginTop: "4px" }}>At least 10 characters required</p>
+                    <p style={{ fontSize: "11px", color: "#B05A20", margin: 0 }}>At least 10 characters required</p>
                   )}
                   <PasswordStrength password={password} />
                 </div>
@@ -367,17 +325,9 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   </span>
                 </label>
 
-                <button type="submit" disabled={!step1Valid} className="rbtn" style={{
-                  width: "100%", padding: "12px", borderRadius: "8px",
-                  background: step1Valid ? "#FF6B4A" : "rgba(255,107,74,0.40)",
-                  color: "white", fontSize: "14px", fontWeight: 500, border: "none",
-                  cursor: step1Valid ? "pointer" : "not-allowed",
-                  boxShadow: "0 4px 20px rgba(255,107,74,0.30)",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-                }}>
+                <Button type="submit" variant="primary" size="lg" disabled={!step1Valid} style={{ ...coralVars, width: "100%" }}>
                   Continue
-                </button>
+                </Button>
 
                 <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
                   Already have an account?{" "}
@@ -401,81 +351,33 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
 
             {/* ── Step 2 ── */}
             {step === 2 && (
-              <form onSubmit={handleSubmit} style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+              <form onSubmit={handleSubmit} style={formStyle}>
 
-                <div>
-                  <label style={labelStyle}>
-                    {isProgressor ? "Business name" : "Agency name"}
-                  </label>
-                  {/* Wrapper carries the one-shot ri-nudge animation. key bump
-                      re-mounts the wrapper (not the input) so the animation
-                      restarts on every disabled-submit hover. */}
-                  <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "ri-nudge" : undefined}>
-                    <input className="ri" type="text" value={firmName} onChange={e => setFirmName(e.target.value)}
-                      onBlur={e => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
-                      placeholder={isProgressor ? "e.g. Sarah's Progression Co" : "e.g. Hartwell & Partners"}
-                      autoComplete="organization" autoFocus required style={inputStyle} />
-                  </div>
+                {/* Wrapper carries the one-shot ri-nudge animation; the key bump
+                    re-mounts it so the nudge restarts on every disabled-submit
+                    hover. */}
+                <div key={agencyNudgeKey} className={agencyNudgeKey > 0 ? "ri-nudge" : undefined}>
+                  <LabelInput
+                    label={isProgressor ? "Business name" : "Agency name"}
+                    type="text" name="firmName" autoComplete="organization"
+                    accent={CORAL} fullWidth required autoFocus
+                    value={firmName}
+                    onChange={e => setFirmName(e.target.value)}
+                    onBlur={e => { if (e.target.value.trim()) setFirmName(titleCaseKeepAcronyms(e.target.value)); }}
+                  />
                 </div>
 
                 {!isProgressor && (
-                <div>
-                  <p style={{ ...labelStyle, marginBottom: "10px" }}>What&apos;s your role?</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {([
-                      { value: "director" as const, label: "Director", sub: "Manage your agency, view all sales and oversee your team." },
-                      { value: "negotiator" as const, label: "Negotiator", sub: "View your sales and request support from your sales progressor." },
-                    ] as const).map(({ value, label, sub }) => {
-                      const on = role === value;
-                      return (
-                      // Selected card reuses the claim-flow sale-type "glossy-solid"
-                      // treatment (.claim-choice-card.on): solid coral gradient, top
-                      // sheen, lift shadow, white label + tick. Unselected unchanged.
-                      <label key={value} style={{
-                        position: "relative",
-                        display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 14px",
-                        borderRadius: "10px", cursor: "pointer",
-                        border: `1.5px solid ${on ? "transparent" : "rgba(32,36,46,0.12)"}`,
-                        background: on
-                          ? "linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%)"
-                          : "#F4F4F6",
-                        boxShadow: on
-                          ? "0 10px 24px rgba(255,107,74,0.40), inset 0 1px 0 rgba(255,255,255,0.40)"
-                          : "none",
-                        transition: "all 0.15s ease",
-                      }}>
-                        <div style={{ position: "relative", marginTop: "2px", flexShrink: 0 }}>
-                          <input type="radio" name="role" value={value} checked={on} onChange={() => setRole(value)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
-                          <div style={{
-                            width: "16px", height: "16px", borderRadius: "50%",
-                            border: `2px solid ${on ? "#ffffff" : "rgba(32,36,46,0.30)"}`,
-                            background: on ? "#ffffff" : "rgba(255,255,255,0.50)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.15s ease",
-                          }}>
-                            {on && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#C7401F" }} />}
-                          </div>
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: on ? "#ffffff" : "#20242E" }}>{label}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: "11px", color: on ? "rgba(255,255,255,0.82)" : "rgba(32,36,46,0.55)", lineHeight: 1.4 }}>{sub}</p>
-                        </div>
-                        {on && (
-                          <span style={{
-                            position: "absolute", top: "10px", right: "10px",
-                            width: "18px", height: "18px", borderRadius: "50%",
-                            background: "#ffffff", color: "#C7401F",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                          }}>
-                            <AnimatedTick size={11} color="#C7401F" strokeWidth={3.5} />
-                          </span>
-                        )}
-                      </label>
-                      );
-                    })}
-                  </div>
-                </div>
+                  <RadioGroup
+                    label="What's your role?"
+                    name="role"
+                    value={role}
+                    onValueChange={(v) => setRole(v as "director" | "negotiator")}
+                    options={[
+                      { value: "director", label: "Director", description: "Manage your agency, view all sales and oversee your team." },
+                      { value: "negotiator", label: "Negotiator", description: "View your sales and request support from your sales progressor." },
+                    ]}
+                  />
                 )}
 
                 {error && (
@@ -485,27 +387,17 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                 )}
 
                 {/* Hover wrapper — disabled buttons don't fire mouse events in
-                    most browsers, so the nudge handler lives on the parent. */}
+                    most browsers, so the nudge handler lives on the parent. The
+                    loading messages ride the arc Button's label morph. */}
                 <div onMouseEnter={nudgeAgencyIfEmpty}>
-                <button type="submit" disabled={loading || !firmName.trim()} className="rbtn" style={{
-                  width: "100%", padding: "12px", borderRadius: "8px",
-                  background: (loading || !firmName.trim()) ? "rgba(255,107,74,0.40)" : "#FF6B4A",
-                  color: "white", fontSize: "14px", fontWeight: 500, border: "none",
-                  cursor: (loading || !firmName.trim()) ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 20px rgba(255,107,74,0.30)",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                }}>
-                  {loading ? LOADING_MESSAGES[msgIndex] : "Create account"}
-                </button>
+                  <Button type="submit" variant="primary" size="lg" disabled={loading || !firmName.trim()} style={{ ...coralVars, width: "100%" }}>
+                    {loading ? LOADING_MESSAGES[msgIndex] : "Create account"}
+                  </Button>
                 </div>
 
-                <button type="button" onClick={backToStep1} className="rback" style={{
-                  width: "100%", padding: "8px", fontSize: "12px", color: "rgba(32,36,46,0.45)",
-                  background: "none", border: "none", cursor: "pointer",
-                  transition: "color 0.12s ease",
-                }}>
+                <Button type="button" variant="ghost" size="sm" onClick={backToStep1} className="rback" style={{ width: "100%" }}>
                   ← Back
-                </button>
+                </Button>
 
                 {/* Net fallback: a persistent way back to the estate-agency path
                     for anyone who took the side door by mistake and is now on
