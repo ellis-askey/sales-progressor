@@ -653,7 +653,14 @@ export async function resolveSenderForTransaction(
   // no assigned progressor branded every manual send as the agency's agent — e.g.
   // "Jack at Akeman <ellis@…>" — whoever actually opened the drawer.
   const fallback = async (): Promise<{ from: string; replyTo: string }> => {
-    const fb = await resolveAgencySenderForTransaction(transactionId, { persona: "personal" });
+    // When the composer has no verified sending address of their own, fall back to
+    // the agency's GENERIC authenticated address (persona "automated" → updates@
+    // their-domain), NOT the file's day-to-day person's personal inbox (persona
+    // "personal"). Otherwise a director composing on a colleague's file sent from
+    // that colleague's address under their own name — e.g. "Ellis at Boardwalk
+    // <ruby@boardwalkpropertyco.com>". You only ever send from a personal address
+    // when it's genuinely your OWN verified one (handled above, before this).
+    const fb = await resolveAgencySenderForTransaction(transactionId, { persona: "automated" });
     return { from: rebrandSenderDisplay(fb.from, brandedDisplay), replyTo: fb.replyTo };
   };
 
