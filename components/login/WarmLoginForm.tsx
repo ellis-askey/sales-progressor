@@ -8,6 +8,8 @@ import { MicrosoftIcon } from "./MicrosoftIcon"
 import { loginPrecheck } from "@/app/actions/login-precheck"
 import { LabelInput } from "@/components/ui/LabelInput"
 import { Button } from "@/components/arc/button/button"
+import { OtpInput } from "@/components/arc/otp-input/otp-input"
+import "@/components/arc/cookie-consent/scope.css"
 
 const CORAL = "#FF6B4A"
 
@@ -18,6 +20,13 @@ export function WarmLoginForm() {
   const [loading, setLoading] = useState(false)
   const [stage, setStage] = useState<"password" | "totp">("password")
   const [totp, setTotp] = useState("")
+  // Backup codes are alphanumeric (xxxxx-xxxxx), so they can't go in the 6-box
+  // numeric OTP — this swaps that field for a plain text one.
+  const [useBackupCode, setUseBackupCode] = useState(false)
+  const [ssoLoading, setSsoLoading] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState("")
+
+  const emailLooksValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 
   async function completeSignIn(code?: string) {
     const result = await signIn("credentials", { email: email.trim(), password, totp: code ?? "", redirect: false })
@@ -31,6 +40,14 @@ export function WarmLoginForm() {
       window.location.assign("/")
       // loading stays true — component unmounts on navigation, no flash
     }
+  }
+
+  // Submit a 2FA code, setting the busy state the way handleSubmit does — so the
+  // OTP can auto-submit the moment its sixth digit lands.
+  function submitTotp(code: string) {
+    setError(null)
+    setLoading(true)
+    void completeSignIn(code)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -88,8 +105,9 @@ export function WarmLoginForm() {
             type="button"
             variant="secondary"
             size="lg"
-            disabled={loading}
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            loading={ssoLoading === "google"}
+            disabled={loading || ssoLoading !== null}
+            onClick={() => { setSsoLoading("google"); signIn("google", { callbackUrl: "/" }); }}
             aria-label="Continue with Google"
             style={{ width: "100%" }}
           >
@@ -101,8 +119,9 @@ export function WarmLoginForm() {
             type="button"
             variant="secondary"
             size="lg"
-            disabled={loading}
-            onClick={() => signIn("azure-ad", { callbackUrl: "/" })}
+            loading={ssoLoading === "azure-ad"}
+            disabled={loading || ssoLoading !== null}
+            onClick={() => { setSsoLoading("azure-ad"); signIn("azure-ad", { callbackUrl: "/" }); }}
             aria-label="Continue with Microsoft"
             style={{ width: "100%" }}
           >
@@ -120,18 +139,25 @@ export function WarmLoginForm() {
 
         {/* The label lives inside the field now (no eyebrow). Email stays
             lower-cased on blur as before. */}
-        <LabelInput
-          label="Email address"
-          type="email"
-          name="email"
-          autoComplete="email"
-          accent={CORAL}
-          fullWidth
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <LabelInput
+            label="Email address"
+            type="email"
+            name="email"
+            autoComplete="email"
+            accent={emailError ? "#C73E3E" : CORAL}
+            fullWidth
+            required
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v) setEmail(v.toLowerCase());
+              setEmailError(v && !emailLooksValid(v) ? "Enter a valid email address" : "");
+            }}
+          />
+          {emailError && <p style={{ fontSize: "12px", color: "#C73E3E", fontWeight: 500, margin: 0 }}>{emailError}</p>}
+        </div>
 
         <LabelInput
           field="Password"
@@ -148,36 +174,81 @@ export function WarmLoginForm() {
 
         {stage === "totp" && (
           <div>
-            <LabelInput
-              label="Authenticator code"
-              type="text"
-              name="totp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              accent={CORAL}
-              fullWidth
-              autoFocus
-              value={totp}
-              onChange={(e) => setTotp(e.target.value)}
-            />
-            <p style={{ margin: "8px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)" }}>
-              Enter the 6-digit code from your authenticator app, or one of your backup codes.
-            </p>
+            {!useBackupCode ? (
+              <div
+                className="arc-scope"
+                style={{ "--accent": CORAL, "--accent-strong": CORAL, "--accent-subtle": "rgba(255,107,74,0.08)" } as React.CSSProperties}
+              >
+                <OtpInput
+                  label="Authenticator code"
+                  length={6}
+                  inputMode="numeric"
+                  autoFocus
+                  value={totp}
+                  onChange={(v: string) => {
+                    setTotp(v)
+                    if (error) setError(null)
+                    if (v.length === 6 && !loading) submitTotp(v)
+                  }}
+                  description="Enter the 6-digit code from your authenticator app."
+                  error={error ?? undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseBackupCode(true); setTotp(""); setError(null) }}
+                  className="wlink"
+                  style={{ marginTop: "10px", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: CORAL, fontWeight: 500 }}
+                >
+                  Use a backup code instead
+                </button>
+              </div>
+            ) : (
+              <div>
+                <LabelInput
+                  label="Backup code"
+                  type="text"
+                  name="totp"
+                  accent={CORAL}
+                  fullWidth
+                  autoFocus
+                  value={totp}
+                  onChange={(e) => setTotp(e.target.value)}
+                />
+                <p style={{ margin: "8px 0 0", fontSize: "11px", color: "rgba(61,31,14,0.55)" }}>
+                  Enter one of your backup codes (for example, a3f9k-mn2pq).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setUseBackupCode(false); setTotp(""); setError(null) }}
+                  className="wlink"
+                  style={{ marginTop: "10px", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: CORAL, fontWeight: 500 }}
+                >
+                  Use authenticator code instead
+                </button>
+              </div>
+            )}
             <button
               type="button"
-              onClick={() => { setStage("password"); setTotp(""); setError(null); }}
+              onClick={() => { setStage("password"); setTotp(""); setError(null); setUseBackupCode(false) }}
               className="wlink"
-              style={{ marginTop: "10px", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "#7A4A2E" }}
+              style={{ marginTop: "10px", display: "block", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "#7A4A2E" }}
             >
               ← Back
             </button>
           </div>
         )}
 
-        {error && (
-          <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
-            {error}
-          </p>
+        {/* Form-level error. In OTP mode the field shows its own inline error (and
+            shakes), so the banner is suppressed there to avoid saying it twice. */}
+        {error && !(stage === "totp" && !useBackupCode) && (
+          <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", borderRadius: "8px", border: "1px solid rgba(199,62,62,0.30)", background: "#ffffff", margin: 0 }}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flex: "none" }}>
+              <circle cx="8" cy="8" r="6.6" stroke="#C73E3E" strokeWidth="1.3" />
+              <path d="M8 4.7v4" stroke="#C73E3E" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="8" cy="11" r="0.5" fill="#C73E3E" stroke="#C73E3E" strokeWidth="0.6" />
+            </svg>
+            <span style={{ fontSize: "12.5px", color: "#C73E3E", fontWeight: 500 }}>{error}</span>
+          </div>
         )}
 
         {stage === "password" && (
@@ -200,7 +271,7 @@ export function WarmLoginForm() {
         </Button>
 
         {stage === "password" && (
-          <p style={{ textAlign: "center", fontSize: "13px", color: "#8A8A94", margin: 0 }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(45,24,16,0.55)", margin: 0 }}>
             New here?{" "}
             <Link href="/register" className="wcreate" style={{ color: CORAL, fontWeight: 600, textDecoration: "none", transition: "color 0.12s ease" }}>
               Create an account

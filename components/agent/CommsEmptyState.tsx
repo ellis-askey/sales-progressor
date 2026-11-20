@@ -1,7 +1,6 @@
 import { ChatText, BookOpen, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
-import { Pill } from "@/components/ui/Pill";
 
 // The "Learn more about Updates" guide card is built below but hidden until its
 // "View guide" target exists (logged in docs/active/TODO.md). The three cards'
@@ -13,7 +12,7 @@ const SHOW_UPDATES_GUIDE = false;
 // update, so the cards are info-only until the guides are built.
 export function CommsEmptyState({ progressorName = null }: { progressorName?: string | null }) {
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -25,9 +24,6 @@ export function CommsEmptyState({ progressorName = null }: { progressorName?: st
       >
         <HeroArt light="/updates-hero.png" dark="/updates-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-            Nothing here yet
-          </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             Nothing to catch up on yet
           </p>

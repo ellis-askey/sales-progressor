@@ -28,17 +28,19 @@ export default async function LoginPage() {
         .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
         .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        /* Responsive background photo: desktop (landscape) by default; tablet and
+           mobile (portrait) crops swap in at their breakpoints. */
+        .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+        @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+        @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
         @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
       ` }} />
 
-      {/* Architectural line-drawing background (agent desk + UK street). The
-          centre of the artwork is clean white space, where the card sits. A
-          faint white veil keeps the card area legible on narrow screens where
-          the illustration crops inward. */}
-      <div aria-hidden className="auth-bg-enter" style={{
+      {/* Sunlit minimalist interior background photo. A faint white veil keeps
+          the card area legible on narrow screens where the image crops inward. */}
+      <div aria-hidden className="auth-bg-enter auth-bg-img" style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
-        backgroundImage: "url(/login-bg.png)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -59,10 +61,10 @@ export default async function LoginPage() {
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.9rem", fontWeight: 800, color: "#20242E", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
+          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
             Welcome back<span style={{ color: "#FF6B4A" }}>.</span>
           </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
+          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
             Sign in to Sales Progressor
           </p>
         </div>

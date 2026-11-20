@@ -8,13 +8,12 @@
 
 import Link from "next/link";
 import { Plus, Envelope, PaperPlaneTilt, ChartBar } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 
 export function AutoEmailsEmptyState() {
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div
         style={{
           position: "relative", overflow: "hidden",
@@ -25,9 +24,6 @@ export function AutoEmailsEmptyState() {
       >
         <HeroArt light="/auto-emails-hero.png" dark="/auto-emails-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-            No automated emails yet
-          </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             Client updates, taken care of
           </p>

@@ -14,8 +14,9 @@ export const WELCOME_STEPS_CSS = `
 .pw-card[data-pw-theme="light"] {
   --surface:#ffffff; --coral:#FF6B4A; --coral-tint:rgba(255,138,101,0.12);
   --cta-from:#FF7E57; --cta-to:#F0511A; --cta-shadow:rgba(240,81,26,0.30); --cta-shadow-hi:rgba(240,81,26,0.42);
-  --heading:#0F1B2D; --body:#54617d; --muted:#9aa3b2;
-  --row-border:rgba(45,24,16,0.10); --row-bg:rgba(45,24,16,0.015); --switch-off:rgba(45,24,16,0.18);
+  /* Warm auth-canon ink (was cool navy #0F1B2D / grey #54617d). */
+  --heading:#2D1810; --body:rgba(45,24,16,0.62); --muted:rgba(45,24,16,0.45);
+  --row-border:rgba(45,24,16,0.10); --row-bg:rgba(45,24,16,0.05); --switch-off:rgba(45,24,16,0.18);
   --card-border:rgba(45,24,16,0.10); --card-shadow:0 24px 64px rgba(45,24,16,0.16),0 4px 16px rgba(45,24,16,0.07);
 }
 .pw-card[data-pw-theme="dark"] {
@@ -53,7 +54,7 @@ export const WELCOME_STEPS_CSS = `
   .pw-ready-bg { animation:none; opacity:1; }
 }
 
-.pw-close { position:absolute; top:14px; right:14px; z-index:4; width:26px; height:26px; border-radius:50%;
+.pw-close { position:absolute; top:14px; right:14px; z-index:4; width:30px; height:30px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center; background:transparent; border:0; cursor:pointer;
   color:var(--muted); transition:background 140ms ease,color 140ms ease,transform 140ms ease; }
 .pw-close:hover { background:var(--row-bg); color:var(--body); }
@@ -65,25 +66,27 @@ export const WELCOME_STEPS_CSS = `
 .pw-dot { height:6px; width:6px; border-radius:999px; background:var(--row-border); transition:all 220ms ease; }
 .pw-dot.on { width:20px; background:var(--coral); }
 
-.pw-eyebrow { font-size:11.5px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:var(--coral); }
-.pw-title { margin:11px 0 0; font-size:25px; line-height:1.12; font-weight:800; letter-spacing:-0.5px; color:var(--heading); }
+/* Canon type ramp (auth-aligned): eyebrow 10/600/0.1em, title 28/600 warm,
+   weights off the 800 that was off-ramp. */
+.pw-eyebrow { font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--coral); }
+.pw-title { margin:10px 0 0; font-size:28px; line-height:1.15; font-weight:600; letter-spacing:-0.28px; color:var(--heading); }
 /* No text-wrap:balance here — it equalises line lengths, which read as the
    subtext refusing to fill the card width (founder note, 2026-10-13). */
-.pw-lede { margin:11px 0 0; font-size:14.5px; line-height:1.55; color:var(--body); }
+.pw-lede { margin:11px 0 0; font-size:14px; line-height:1.6; color:var(--body); }
 
 .pw-points { list-style:none; margin:22px 0 0; padding:0; display:flex; flex-direction:column; gap:3px; }
 .pw-points li { display:flex; gap:13px; align-items:flex-start; padding:11px 0; }
 .pw-chip { flex-shrink:0; width:30px; display:inline-flex; align-items:flex-start; justify-content:center; color:var(--coral); }
-.pw-pt-t { display:block; font-size:14.5px; font-weight:700; color:var(--heading); letter-spacing:-0.2px; }
-.pw-pt-d { display:block; margin-top:2px; font-size:13px; line-height:1.5; color:var(--body); }
+.pw-pt-t { display:block; font-size:15px; font-weight:600; color:var(--heading); letter-spacing:-0.15px; }
+.pw-pt-d { display:block; margin-top:3px; font-size:13px; line-height:1.5; color:var(--body); }
 
 /* Filled coral badges + divided rows. Opt in with .pw-points.pw-badges. */
 .pw-points.pw-badges { gap:0; }
 .pw-points.pw-badges li { padding:14px 0; gap:15px; border-top:0.5px solid var(--row-border); }
 .pw-points.pw-badges li:first-child { border-top:0; padding-top:4px; }
 .pw-points.pw-badges .pw-chip { width:42px; height:42px; border-radius:50%;
-  background:linear-gradient(180deg,var(--cta-from),var(--cta-to)); color:#fff;
-  align-items:center; justify-content:center; box-shadow:0 5px 14px var(--cta-shadow); }
+  background:var(--coral); color:#fff;
+  align-items:center; justify-content:center; box-shadow:0 5px 14px rgba(255,107,74,0.30); }
 .pw-points.pw-badges .pw-chip svg { width:20px; height:20px; }
 
 .pw-toggles { margin:20px 0 0; display:flex; flex-direction:column; border-radius:14px; overflow:hidden; border:1px solid var(--row-border); }
@@ -112,15 +115,21 @@ export const WELCOME_STEPS_CSS = `
 
 /* Footer action row: secondary on the left, primary on the right (desktop). */
 .pw-foot { margin-top:26px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.pw-cta { width:auto; display:flex; align-items:center; justify-content:center; gap:10px; border:0; border-radius:14px;
-  cursor:pointer; padding:14px 26px; font:inherit; font-size:15px; font-weight:700; color:#fff;
-  background:linear-gradient(180deg,var(--cta-from) 0%,var(--cta-to) 100%); box-shadow:0 6px 16px var(--cta-shadow);
-  transition:transform 140ms ease,box-shadow 160ms ease,filter 160ms ease; }
-.pw-cta:hover { transform:translateY(-1px); box-shadow:0 10px 24px var(--cta-shadow-hi); filter:saturate(1.05) brightness(1.02); }
-.pw-cta:active { transform:translateY(0); }
-.pw-ghost { width:auto; border:0; background:transparent; cursor:pointer; font:inherit; font-size:13.5px; font-weight:600;
-  color:var(--muted); padding:8px 10px; border-radius:10px; transition:color 140ms ease; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
-.pw-ghost:hover { color:var(--coral); }
+/* Canon arc primary + ghost, matched in CSS (the modal portals outside arc-scope,
+   where .pw-card redefines --surface/--coral, so the token-scoped <Button> can't
+   be dropped in without collisions). Flat coral, 14px/500, 48px tall — identical
+   treatment to the arc Button, and the ghost is the SAME 48px height as primary. */
+.pw-cta { width:auto; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid transparent; border-radius:12px;
+  cursor:pointer; min-height:48px; padding:0 20px; font:inherit; font-size:14px; font-weight:500; color:#fff;
+  background:var(--coral); box-shadow:none;
+  transition:opacity 140ms ease, box-shadow 160ms ease, transform 110ms ease; }
+.pw-cta:hover { opacity:0.91; box-shadow:0 1px 2px rgba(45,24,16,0.10); }
+.pw-cta:active { opacity:0.84; transform:scale(0.97); }
+.pw-ghost { width:auto; border:1px solid transparent; background:transparent; cursor:pointer; font:inherit; font-size:14px; font-weight:500;
+  color:var(--muted); min-height:48px; padding:0 16px; border-radius:12px; transition:color 140ms ease, background 140ms ease, transform 110ms ease; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.pw-ghost:hover { color:var(--heading); background:var(--row-bg); }
+.pw-ghost:active { transform:scale(0.97); }
+@media (prefers-reduced-motion: reduce) { .pw-cta:active, .pw-ghost:active { transform:none; } }
 /* Coral-outline secondary — white fill, coral outline + text, warms to a faint coral on hover. */
 .pw-secondary { width:auto; display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
   font:inherit; font-size:15px; font-weight:700; color:var(--cta-to); background:var(--surface);

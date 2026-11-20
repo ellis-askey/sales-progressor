@@ -24,15 +24,15 @@ export function PasswordStrength({ password }: { password: string }) {
   const score = scorePassword(password);
   const meta = STRENGTH[score];
   return (
-    <div style={{ marginTop: "8px" }} aria-live="polite">
-      <div style={{ display: "flex", gap: "4px" }}>
+    <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "12px" }} aria-live="polite">
+      <div style={{ display: "flex", gap: "4px", flex: 1 }}>
         {[1, 2, 3, 4].map((i) => (
           <div key={i} style={{ flex: 1, height: "4px", borderRadius: "2px", background: i <= score ? meta.color : "rgba(61,31,14,0.12)", transition: "background 0.2s ease" }} />
         ))}
       </div>
-      <p style={{ fontSize: "11px", color: meta.color, margin: "5px 0 0", fontWeight: 500 }}>
-        Password strength: {meta.label}
-      </p>
+      <span style={{ fontSize: "12px", color: meta.color, fontWeight: 600, minWidth: 48, textAlign: "right" }} aria-label={`Password strength: ${meta.label}`}>
+        {meta.label}
+      </span>
     </div>
   );
 }

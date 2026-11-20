@@ -302,20 +302,19 @@ export function ChainsWorkspace({
   return (
     <BloomStage style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
-        /* Empty-state CTA (external progression business) — the polished coral pill
-           matching .cw-primary / .enq-btn-primary2. */
+        /* Empty-state CTA (external progression business) — the canonical flat
+           coral primary (approved 2026-11-20): flat fill, no gloss, press-down. */
         .chains-empty-cta {
           display: inline-flex; align-items: center; gap: 8px;
           height: 40px; padding: 0 18px; border-radius: 12px;
           font-size: 13.5px; font-weight: 650; text-decoration: none; color: #fff;
-          background: linear-gradient(180deg, var(--agent-coral) 0%, var(--agent-coral-deep) 100%);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 4px 16px rgba(var(--agent-coral-rgb),0.28);
-          transition: filter 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+          background: #FF6B4A;
+          box-shadow: none;
+          transition: opacity 140ms ease, box-shadow 160ms ease, transform 110ms ease;
         }
-        .chains-empty-cta:hover { filter: brightness(1.04); transform: translateY(-1px);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px rgba(var(--agent-coral-rgb),0.38); }
-        .chains-empty-cta:active { transform: scale(0.98); }
-        @media (prefers-reduced-motion: reduce) { .chains-empty-cta { transition: none; } }
+        .chains-empty-cta:hover { opacity: 0.91; box-shadow: 0 1px 2px rgba(45,24,16,0.10); }
+        .chains-empty-cta:active { transform: scale(0.97); opacity: 0.84; }
+        @media (prefers-reduced-motion: reduce) { .chains-empty-cta { transition: none; } .chains-empty-cta:active { transform: none; } }
 
         .chains-summary-card { container-type: inline-size; }
         .chains-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }

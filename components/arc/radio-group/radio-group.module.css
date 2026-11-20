@@ -33,7 +33,7 @@
   top: 0;
   height: 0;
   border-radius: 10px;
-  background: linear-gradient(180deg, #ff8365 0%, #ff6b4a 52%, #e85a35 100%);
+  background: #ff6b4a;
   box-shadow: 0 10px 24px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   opacity: 0;
   pointer-events: none;

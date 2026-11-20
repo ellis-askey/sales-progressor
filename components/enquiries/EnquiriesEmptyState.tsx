@@ -1,7 +1,6 @@
 import { ListBullets, Clock } from "@phosphor-icons/react/dist/ssr";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
-import { Pill } from "@/components/ui/Pill";
 
 // Enquiries empty state — two framings, chosen by whether the user has ever had
 // a sale. With sales (none currently at the enquiries stage) it's the green "all
@@ -27,9 +26,6 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
         <div style={{ position: "relative", maxWidth: 480 }}>
           {hasSales ? (
             <>
-              <Pill tone="success" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-                All clear
-              </Pill>
               <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
                 No enquiries need your attention
               </p>
@@ -39,9 +35,6 @@ export function EnquiriesEmptyState({ hasSales = true }: { hasSales?: boolean })
             </>
           ) : (
             <>
-              <Pill tone="default" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-                Nothing here yet
-              </Pill>
               <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
                 Enquiries will appear here
               </p>

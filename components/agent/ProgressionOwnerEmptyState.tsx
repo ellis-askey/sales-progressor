@@ -9,7 +9,6 @@
 
 import Link from "next/link";
 import { Handshake, ListChecks, UsersThree, Plus } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import type { BusinessClientStage } from "@/lib/services/progression-clients";
@@ -35,7 +34,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
   const ctaLabel = hasClients ? "Add a sale" : "Add your first client";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -47,10 +46,7 @@ export function ProgressionOwnerEmptyState({ stage }: { stage: BusinessClientSta
       >
         <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, letterSpacing: "0.02em", fontWeight: 700 }}>
-            {pillText}
-          </Pill>
-          <p style={{ margin: "0 0 10px", fontSize: 29, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             {heroTitle}
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 460 }}>

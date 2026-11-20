@@ -270,6 +270,7 @@ export default async function AgentCompletionsPage() {
             {/* Hero — matches the other empty states (gradient + HeroArt; the
                 generic backdrop takes over < 1000px via HeroArt). */}
             <div
+              className="agent-canon-cta"
               style={{
                 position: "relative", overflow: "hidden",
                 borderRadius: "var(--agent-radius-xl)", minHeight: 210, padding: "28px 30px",

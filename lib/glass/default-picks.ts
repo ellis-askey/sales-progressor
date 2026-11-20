@@ -178,6 +178,14 @@ export const DEFAULT_PICKS: GlassPicks = {
   "empty-reminders-chase": { dark: "v04" },
   "empty-reminders-who": { dark: "v04" },
   "empty-reminders-cold": { dark: "v04" },
+  // Auto-emails + chains info cards were never baked, so their dark cards fell
+  // back to a different look than every other empty state. Same v04 pick now.
+  "empty-autoemails-milestones": { dark: "v04" },
+  "empty-autoemails-chasing": { dark: "v04" },
+  "empty-autoemails-status": { dark: "v04" },
+  "empty-chains-links": { dark: "v04" },
+  "empty-chains-blocker": { dark: "v04" },
+  "empty-chains-loop": { dark: "v04" },
 
   // Ellis's export, 2026-10-31. GlassCard tags only (the useGlassTag surfaces in
   // the same export — chase-*, documents-*, activity-searchbar, chain-add-btn,

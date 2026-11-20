@@ -6,7 +6,6 @@ import { createManualTaskAction } from "@/app/actions/manual-tasks";
 import { AddManualTaskForm } from "@/components/todos/AddManualTaskForm";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
-import { Pill } from "@/components/ui/Pill";
 
 // The "Learn more about to-dos" guide card is built below but hidden until its
 // "View guide" target exists (logged in docs/active/TODO.md).
@@ -48,7 +47,7 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
   }
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -60,9 +59,6 @@ export function TodoEmptyState({ canUseProgressor, progressorName = null }: { ca
       >
         <HeroArt light="/todo-hero.png" dark="/todo-hero-dark.png" maxWidth="46%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 480 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 12, letterSpacing: "0.02em", fontWeight: 700 }}>
-            Nothing here yet
-          </Pill>
           <p style={{ margin: "0 0 8px", fontSize: "var(--agent-text-h2)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
             Nothing on your list yet
           </p>

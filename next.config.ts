@@ -68,7 +68,16 @@ const nextConfig: NextConfig = {
 // the auto-instrumentation. When SENTRY_AUTH_TOKEN is unset (local dev) the
 // build still succeeds but without source maps — the SDK falls back to
 // minified stack traces. That's fine for dev.
-export default withSentryConfig(nextConfig, {
+//
+// IMPORTANT (2026-11-19): Sentry's build plugin injects a webpack config, which
+// forces `next dev` out of Turbopack and into the much slower webpack dev
+// server (6+ postcss workers, slow recompiles). Sentry is only needed at BUILD
+// time, so wrap only for production builds; local dev runs the plain config on
+// Turbopack. The Sentry SDK still initialises at runtime via instrumentation —
+// that is unaffected by skipping the build plugin here.
+const isDev = process.env.NODE_ENV === "development";
+
+export default isDev ? nextConfig : withSentryConfig(nextConfig, {
   // Org + project slugs come from the Sentry dashboard. Set as env vars in
   // Vercel so this file doesn't hard-code them.
   org: process.env.SENTRY_ORG,

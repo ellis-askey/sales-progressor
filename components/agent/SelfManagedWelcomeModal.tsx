@@ -213,7 +213,6 @@ export function SelfManagedWelcomeModal({
             <div className={`pw-stepbody${phase === "out" ? " is-out" : ""}`}>
             {step === 0 && (
               <>
-                <span className="pw-eyebrow">You&apos;re in</span>
                 <h2 className="pw-title">Welcome to TSP{firstName ? `, ${firstName}` : ""}.</h2>
                 <p className="pw-lede">
                   {isClaim
@@ -254,7 +253,6 @@ export function SelfManagedWelcomeModal({
 
             {step === 1 && (
               <>
-                <span className="pw-eyebrow">Set up · your chases</span>
                 <h2 className="pw-title">We&apos;ll do the chasing.</h2>
                 <p className="pw-lede">
                   {isClaim
@@ -297,8 +295,7 @@ export function SelfManagedWelcomeModal({
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand-icon.png" alt="TSP" className="pw-ready-logo" width={54} height={54} />
-                <span className="pw-eyebrow" style={{ marginTop: 16 }}>All set</span>
-                <h2 className="pw-title">You&apos;re ready to go.</h2>
+                <h2 className="pw-title" style={{ marginTop: 16 }}>You&apos;re ready to go.</h2>
                 <p className="pw-lede">
                   {isClaim
                     ? <>We’ll follow up on whatever’s still outstanding on {shortAddress} and bring anything that needs you to the surface. Change your chases any time in Settings.</>

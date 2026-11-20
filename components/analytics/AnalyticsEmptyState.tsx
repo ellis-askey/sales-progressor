@@ -12,7 +12,6 @@
 
 import Link from "next/link";
 import { Plus, Timer, TrendUp, Funnel, Eye } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
@@ -30,7 +29,7 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
   const ctaLabel = !isProg ? "Add your first sale" : progNeedsSale ? "Add a sale" : "Add your first client";
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -42,10 +41,7 @@ export function AnalyticsEmptyState({ audience = "agency", hasClients = false }:
       >
         <HeroArt light="/analytics-hero.png" dark="/analytics-hero-dark.png" maxWidth="50%" maskStart="38%" />
         <div style={{ position: "relative", maxWidth: 460 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, letterSpacing: "0.02em", fontWeight: 700 }}>
-            Your data starts here
-          </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             {isProg ? "See what's really happening across your sales" : "See what's really happening in your agency"}
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 380 }}>

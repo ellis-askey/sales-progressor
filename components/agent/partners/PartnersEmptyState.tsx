@@ -10,7 +10,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PartnerPopup } from "@/components/agent/partners/PartnerPopup";
@@ -164,7 +163,7 @@ export function PartnersEmptyState({
       : "Save a professional your agency works with.";
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -176,10 +175,7 @@ export function PartnersEmptyState({
       >
         <HeroArt light="/partners-hero.png" dark="/partners-hero-dark.png" maxWidth="50%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 460 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, letterSpacing: "0.02em", fontWeight: 700 }}>
-            Your partner network
-          </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             Set up the partners you work with
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>

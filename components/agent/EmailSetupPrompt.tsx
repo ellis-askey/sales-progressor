@@ -20,6 +20,7 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
   const [dismissed, setDismissed] = useState(false);
   const [notNowHover, setNotNowHover] = useState(false);
   const [closeHover, setCloseHover] = useState(false);
+  const [linkHover, setLinkHover] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem(dismissedKey(userId))) {
@@ -53,7 +54,7 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
     <GlassCard
       glassId="hub-email-nudge"
       label="Hub · Email nudge banner"
-      className="agent-reveal-in"
+      className="agent-reveal-in agent-canon-cta"
       style={{
         display: "flex",
         gap: 14,
@@ -79,20 +80,25 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
           >
             Set up my email
           </Link>
+          {/* Canon ghost — quiet, matches the primary's 32px height. */}
           <button
             type="button"
             onClick={dismiss}
             onMouseEnter={() => setNotNowHover(true)}
             onMouseLeave={() => setNotNowHover(false)}
             style={{
-              fontSize: 12.5,
-              fontWeight: 600,
+              display: "inline-flex",
+              alignItems: "center",
+              height: 32,
+              padding: "0 12px",
+              borderRadius: "var(--agent-radius-md, 10px)",
+              fontSize: 14,
+              fontWeight: 500,
               color: notNowHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-              background: "none",
+              background: notNowHover ? "var(--agent-surface-muted, rgba(45,24,16,0.05))" : "transparent",
               border: "none",
-              padding: "8px 6px",
               cursor: "pointer",
-              transition: "color 120ms ease",
+              transition: "color 120ms ease, background 120ms ease",
             }}
           >
             Not now
@@ -100,9 +106,12 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
         </div>
         <p style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
           Want to change what those emails say?{" "}
+          {/* Canon coral text link — coral, hover darkens to #E55B3D. */}
           <Link
             href="/agent/account/emails"
-            style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}
+            onMouseEnter={() => setLinkHover(true)}
+            onMouseLeave={() => setLinkHover(false)}
+            style={{ color: linkHover ? "#E55B3D" : "#FF6B4A", fontWeight: 600, textDecoration: "none", transition: "color 120ms ease" }}
           >
             Personalise your client emails
           </Link>
@@ -116,13 +125,15 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
         onMouseLeave={() => setCloseHover(false)}
         aria-label="Dismiss"
         style={{
-          padding: 4,
-          borderRadius: 6,
+          width: 30,
+          height: 30,
+          borderRadius: 999,
           border: "none",
-          background: closeHover ? "rgba(var(--agent-coral-rgb), 0.1)" : "none",
+          background: closeHover ? "var(--agent-surface-muted, rgba(45,24,16,0.07))" : "transparent",
           cursor: "pointer",
           color: closeHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-          display: "flex",
+          display: "grid",
+          placeItems: "center",
           flexShrink: 0,
           transition: "background 120ms ease, color 120ms ease",
         }}

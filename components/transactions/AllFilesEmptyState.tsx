@@ -7,7 +7,6 @@
 
 import Link from "next/link";
 import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
@@ -26,7 +25,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
   const ctaLabel = !isProg ? "Add your first sale" : progNeedsSale ? "Add a sale" : "Add your first client";
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -38,10 +37,7 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
       >
         <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 14, letterSpacing: "0.02em", fontWeight: 700 }}>
-            No files yet
-          </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             Your pipeline starts here
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 400 }}>
@@ -107,14 +103,8 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
         <button
           type="button"
           onClick={() => launch(true)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0,
-            padding: "9px 16px", borderRadius: "var(--agent-radius-md, 10px)",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            color: "var(--agent-coral-deep)",
-            background: "rgba(var(--agent-coral-rgb),0.12)",
-            border: "1px solid rgba(var(--agent-coral-rgb),0.28)",
-          }}
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ flexShrink: 0, gap: 8 }}
         >
           <Eye size={15} weight="bold" />
           Explore demo sale

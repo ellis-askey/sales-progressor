@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_COOKIE_MAX_AGE } from "@/lib/analytics/attribution";
@@ -13,6 +12,8 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { LabelInput } from "@/components/ui/LabelInput";
 import { Button } from "@/components/arc/button/button";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import "@/components/arc/cookie-consent/scope.css";
 
 type Step = 1 | 2;
 
@@ -46,6 +47,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
 
@@ -70,7 +72,12 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
   const [agencyNudgeKey, setAgencyNudgeKey] = useState(0);
 
   function nudgeAgencyIfEmpty() {
-    if (!firmName.trim()) setAgencyNudgeKey((k) => k + 1);
+    if (firmName.trim()) return;
+    // If the agency field already has focus, the user is on it — nudging it
+    // would just flash the field they're about to type into. Leave it be.
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (active instanceof HTMLElement && active.getAttribute("name") === "firmName") return;
+    setAgencyNudgeKey((k) => k + 1);
   }
 
   const LOADING_MESSAGES = [
@@ -153,13 +160,11 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
-      {/* Architectural line-drawing background. Centre is clean white space for
-          the card; a faint white veil keeps it legible on narrow screens. The
-          image fades in on load so it materialises alongside the card. */}
-      <div aria-hidden className="auth-bg-enter" style={{
+      {/* Sunlit minimalist interior background photo; a faint white veil keeps it
+          legible on narrow screens. Fades in on load alongside the card. */}
+      <div aria-hidden className="auth-bg-enter auth-bg-img" style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
-        backgroundImage: "url(/register-bg.png)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -173,7 +178,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         @media (max-width: 500px) { .reg-agency-hint { display: block; margin-top: 2px; } }
         .rback:hover { color: #20242E !important; }
         /* Option D side-door link: darkens on hover, no underline, arrow glides right. */
-        .reg-alt { text-align: center; font-size: 12px; color: #8A8A94; margin: 0; }
+        .reg-alt { text-align: center; font-size: 12px; color: rgba(45,24,16,0.55); margin: 0; }
         .reg-alt-link {
           background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
           color: #FF6B4A; font-weight: 600; text-decoration: none;
@@ -210,6 +215,11 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
         /* Background develops in on load so it appears alongside the card. */
         @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
         .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        /* Responsive background photo: desktop (landscape) by default; tablet and
+           mobile (portrait) crops swap in at their breakpoints. */
+        .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+        @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+        @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
         @media (prefers-reduced-motion: reduce) { .auth-bg-enter { animation: none; } }
       `}</style>
 
@@ -224,26 +234,21 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.9rem", fontWeight: 800, color: "#20242E", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
+          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
             Create your account
           </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
-            {step === 1
-              ? "Step 1 of 2: Your details"
-              : isProgressor
-                ? "Step 2 of 2: Set up your business"
-                : "Step 2 of 2: Set up your agency"}
-          </p>
         </div>
 
-        {/* Step indicator */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "1.1rem" }}>
-          <div style={{ flex: 1, height: "4px", borderRadius: "999px", background: "#FF6B4A" }} />
-          <div style={{
-            flex: 1, height: "4px", borderRadius: "999px",
-            background: step === 2 ? "#FF6B4A" : "rgba(32,36,46,0.12)",
-            transition: "background 0.3s ease",
-          }} />
+        {/* Step indicator — the step name sits centred above a two-segment track;
+            the second segment fills coral once you reach step 2. */}
+        <div style={{ marginBottom: "1.1rem" }}>
+          <p style={{ margin: "0 0 10px", textAlign: "center", fontSize: "12px", fontWeight: 500, letterSpacing: "-0.005em", color: "rgba(45,24,16,0.62)" }}>
+            {step === 1 ? "Your details" : isProgressor ? "Set up your business" : "Set up your agency"}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ flex: 1, height: "2px", borderRadius: "2px", background: "#FF6B4A" }} />
+            <div style={{ flex: 1, height: "2px", borderRadius: "2px", background: step >= 2 ? "#FF6B4A" : "rgba(32,36,46,0.14)", transition: "background 0.4s ease" }} />
+          </div>
         </div>
 
         {/* Card */}
@@ -272,13 +277,20 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   onBlur={e => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
                 />
 
-                <LabelInput
-                  label="Work email" type="email" name="email" autoComplete="email"
-                  accent={CORAL} fullWidth required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onBlur={e => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-                />
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <LabelInput
+                    label="Work email" type="email" name="email" autoComplete="email"
+                    accent={emailError ? "#C73E3E" : CORAL} fullWidth required
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
+                    onBlur={e => {
+                      const v = e.target.value.trim();
+                      if (v) setEmail(v.toLowerCase());
+                      setEmailError(v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "Enter a valid email address" : "");
+                    }}
+                  />
+                  {emailError && <p style={{ fontSize: "11px", color: "#C73E3E", fontWeight: 500, margin: 0 }}>{emailError}</p>}
+                </div>
 
                 {/* Password group — the field, the length hint and the strength
                     meter sit close together, apart from the 14px rhythm. */}
@@ -290,46 +302,38 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                     onChange={e => setPassword(e.target.value)}
                   />
                   {password.length > 0 && password.length < 10 && (
-                    <p style={{ fontSize: "11px", color: "#B05A20", margin: 0 }}>At least 10 characters required</p>
+                    <p style={{ fontSize: "11px", color: "#C97D1A", margin: 0 }}>At least 10 characters required</p>
                   )}
                   <PasswordStrength password={password} />
                 </div>
 
-                {/* Terms checkbox */}
-                <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
-                  <div style={{ position: "relative", marginTop: "1px", flexShrink: 0 }}>
-                    <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
-                    <div style={{
-                      width: "16px", height: "16px", borderRadius: "4px", border: `1.5px solid ${termsAccepted ? "#FF6B4A" : "rgba(32,36,46,0.30)"}`,
-                      background: termsAccepted ? "#FF6B4A" : "rgba(255,255,255,0.50)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all 0.15s ease",
-                    }}>
-                      {termsAccepted && <AnimatedTick size={10} color="#fff" strokeWidth={3} />}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: "12px", color: "rgba(32,36,46,0.60)", lineHeight: 1.5 }}>
-                    I agree to the{" "}
-                    {/* A progression business agrees to ITS OWN terms, not the agency
-                        Terms of Service. The agency flow is unchanged. */}
-                    <a
-                      href={isProgressor ? "/progression-business-terms" : "/terms"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="reg-link"
-                    >
-                      {isProgressor ? "Sales Progression Business Terms" : "Terms of Service"}
-                    </a>
-                    {" "}and{" "}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="reg-link">Privacy Policy</a>
-                  </span>
-                </label>
+                {/* Terms checkbox — canonical arc Checkbox (coral); the linked
+                    label is passed to the component so its own box+label layout
+                    handles the spacing. */}
+                <div className="arc-scope" style={{ "--control-on": "#FF6B4A", "--control-glyph": "#ffffff" } as React.CSSProperties}>
+                  <Checkbox
+                    checked={termsAccepted}
+                    onCheckedChange={v => setTermsAccepted(v === true)}
+                    label={
+                      <span style={{ fontSize: "12px", color: "rgba(32,36,46,0.60)", fontWeight: 400, lineHeight: 1.5 }}>
+                        I agree to the{" "}
+                        {/* A progression business agrees to ITS OWN terms, not the
+                            agency Terms of Service. The agency flow is unchanged. */}
+                        <a href={isProgressor ? "/progression-business-terms" : "/terms"} target="_blank" rel="noopener noreferrer" className="reg-link">
+                          {isProgressor ? "Sales Progression Business Terms" : "Terms of Service"}
+                        </a>
+                        {" "}and{" "}
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="reg-link">Privacy Policy</a>
+                      </span>
+                    }
+                  />
+                </div>
 
                 <Button type="submit" variant="primary" size="lg" disabled={!step1Valid} style={{ ...coralVars, width: "100%" }}>
                   Continue
                 </Button>
 
-                <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
+                <p style={{ textAlign: "center", fontSize: "12px", color: "rgba(45,24,16,0.55)", margin: 0 }}>
                   Already have an account?{" "}
                   <Link href="/login" className="reg-link" style={{ fontWeight: 500 }}>Sign in</Link>
                 </p>
@@ -381,9 +385,14 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                 )}
 
                 {error && (
-                  <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
-                    {error}
-                  </p>
+                  <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", borderRadius: "8px", border: "1px solid rgba(199,62,62,0.30)", background: "#ffffff", margin: 0 }}>
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flex: "none" }}>
+                      <circle cx="8" cy="8" r="6.6" stroke="#C73E3E" strokeWidth="1.3" />
+                      <path d="M8 4.7v4" stroke="#C73E3E" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="8" cy="11" r="0.5" fill="#C73E3E" stroke="#C73E3E" strokeWidth="0.6" />
+                    </svg>
+                    <span style={{ fontSize: "12.5px", color: "#C73E3E", fontWeight: 500 }}>{error}</span>
+                  </div>
                 )}
 
                 {/* Hover wrapper — disabled buttons don't fire mouse events in

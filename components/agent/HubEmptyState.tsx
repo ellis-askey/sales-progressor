@@ -7,7 +7,6 @@
 
 import Link from "next/link";
 import { Plus, FolderOpen, ListChecks, UsersThree, UserCircle, ArrowRight } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
 import { SetupCard } from "@/components/agent/SetupCard";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { HeroArt } from "@/components/agent/HeroArt";
@@ -17,7 +16,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
   const { launch, node } = useDemoExplore();
 
   return (
-    <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="agent-bloom-stagger agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Hero */}
       <div
         style={{
@@ -29,10 +28,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
       >
         <HeroArt light="/hub-hero.png" dark="/hub-hero-dark.png" maxWidth="48%" maskStart="40%" />
         <div style={{ position: "relative", maxWidth: 520 }}>
-          <Pill tone="brand" size="sm" glass style={{ marginBottom: 16, letterSpacing: "0.02em", fontWeight: 700 }}>
-            New here?
-          </Pill>
-          <p style={{ margin: "0 0 10px", fontSize: 29, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             Your pipeline starts with one sale
           </p>
           <p style={{ margin: "0 0 24px", fontSize: 14.5, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 440 }}>
@@ -55,7 +51,7 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
               type="button"
               onClick={() => launch()}
               className="agent-btn agent-btn-secondary agent-btn-md"
-              style={{ gap: 8, color: "var(--agent-coral-deep)" }}
+              style={{ gap: 8 }}
             >
               Explore a demo sale
               <ArrowRight size={15} weight="bold" className="agent-arrow-i" />
@@ -109,14 +105,8 @@ export function HubEmptyState({ canCreateSale, progressorName = null }: { userId
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("sp_open_checklist"))}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0,
-            padding: "9px 16px", borderRadius: "var(--agent-radius-md, 10px)",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            color: "var(--agent-coral-deep)",
-            background: "rgba(var(--agent-coral-rgb),0.12)",
-            border: "1px solid rgba(var(--agent-coral-rgb),0.28)",
-          }}
+          className="agent-btn agent-btn-primary agent-btn-sm"
+          style={{ flexShrink: 0, gap: 8 }}
         >
           Continue setup
           <ArrowRight size={15} weight="bold" className="agent-arrow-i" />
