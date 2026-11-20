@@ -209,6 +209,31 @@ export type BusinessDetail = {
   clients: BusinessClientRow[];
   members: BusinessMemberRow[];
   lifetimeSaleCount: number;
+  // Read-only configuration preferences for founder diagnostics. These mirror the
+  // existing ProgressionBusiness setting columns (chase/update behaviour, client-
+  // portal defaults, auto-invite, billing point, terms acceptance). No secrets,
+  // credentials, Stripe ids or brand JSON here — just the toggles/values that
+  // explain how this business is configured. Display-only; nothing writes them.
+  settings: {
+    chaseClientsEnabled: boolean;
+    clientChaseEscalateAfter: number;
+    chaseSolicitorsEnabled: boolean;
+    chaseEnquiriesEnabled: boolean;
+    chaseAdvisorsEnabled: boolean;
+    weeklyClientUpdatesEnabled: boolean;
+    chainUpdatesEnabled: boolean;
+    autoChainInvitesEnabled: boolean;
+    showPortalKeyDates: boolean;
+    showPortalCosts: boolean;
+    showPortalProgressPercent: boolean;
+    showPortalWelcomeSheet: boolean;
+    aiExplainEmailEnabled: boolean;
+    autoInviteOnAgentAdd: boolean;
+    autoInviteOnOwnAdd: boolean;
+    billAtCompletion: boolean;
+    termsAcceptedVersion: string | null;
+    termsAcceptedAt: Date | null;
+  };
 };
 
 // ── Business watch: activity feed + member vitals + setup scorecard ─────────
@@ -572,6 +597,13 @@ export async function getBusinessDetail(id: string, now: Date = new Date()): Pro
     select: {
       id: true, name: true, shortName: true, senderVerified: true, senderEmail: true, senderDomain: true,
       createdAt: true, stripeCustomerId: true, stripeSubscriptionId: true,
+      // Read-only configuration preferences (surfaced in the account Setup tab).
+      chaseClientsEnabled: true, clientChaseEscalateAfter: true, chaseSolicitorsEnabled: true,
+      chaseEnquiriesEnabled: true, chaseAdvisorsEnabled: true, weeklyClientUpdatesEnabled: true,
+      chainUpdatesEnabled: true, autoChainInvitesEnabled: true, showPortalKeyDates: true,
+      showPortalCosts: true, showPortalProgressPercent: true, showPortalWelcomeSheet: true,
+      aiExplainEmailEnabled: true, autoInviteOnAgentAdd: true, autoInviteOnOwnAdd: true,
+      billAtCompletion: true, termsAcceptedVersion: true, termsAcceptedAt: true,
       members: {
         select: { id: true, name: true, progressionBusinessRole: true, deactivatedAt: true },
         orderBy: { name: "asc" },
@@ -622,6 +654,26 @@ export async function getBusinessDetail(id: string, now: Date = new Date()): Pro
       deactivated: m.deactivatedAt !== null,
     })),
     lifetimeSaleCount,
+    settings: {
+      chaseClientsEnabled: b.chaseClientsEnabled,
+      clientChaseEscalateAfter: b.clientChaseEscalateAfter,
+      chaseSolicitorsEnabled: b.chaseSolicitorsEnabled,
+      chaseEnquiriesEnabled: b.chaseEnquiriesEnabled,
+      chaseAdvisorsEnabled: b.chaseAdvisorsEnabled,
+      weeklyClientUpdatesEnabled: b.weeklyClientUpdatesEnabled,
+      chainUpdatesEnabled: b.chainUpdatesEnabled,
+      autoChainInvitesEnabled: b.autoChainInvitesEnabled,
+      showPortalKeyDates: b.showPortalKeyDates,
+      showPortalCosts: b.showPortalCosts,
+      showPortalProgressPercent: b.showPortalProgressPercent,
+      showPortalWelcomeSheet: b.showPortalWelcomeSheet,
+      aiExplainEmailEnabled: b.aiExplainEmailEnabled,
+      autoInviteOnAgentAdd: b.autoInviteOnAgentAdd,
+      autoInviteOnOwnAdd: b.autoInviteOnOwnAdd,
+      billAtCompletion: b.billAtCompletion,
+      termsAcceptedVersion: b.termsAcceptedVersion,
+      termsAcceptedAt: b.termsAcceptedAt,
+    },
   };
 }
 
