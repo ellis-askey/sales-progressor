@@ -16,19 +16,38 @@ import { ReadinessDetail, ReadinessPill } from "@/components/command/agencies/Re
 import { AgencyAutomationControls } from "@/components/command/agency-file/AgencyAutomationControls";
 import { AgencyFeeEditor } from "@/components/command/agency-file/AgencyFeeEditor";
 import { AgencyDataControls } from "@/components/command/agency-file/AgencyDataControls";
+import { ParamTabs } from "@/components/command/ui/primitives";
 
 export const dynamic = "force-dynamic";
 
 // The Agency File — the founder's single deep view of one customer agency, and
 // (since the Command Centre rebuild) the ONE place per-agency settings are
-// edited: automation switches, fee tier, and the setup-readiness detail all
-// live here. The Agencies list observes; this page edits.
+// edited. Phase 1 of the Admin & Founder Workspace organises it into tabs
+// (?tab=) while keeping the SAME data loaders, components, actions and routes —
+// a grouping of what already renders, not a rewrite. The header + critical
+// alerts stay above the tabs so a blocked/failed-payment agency is never hidden.
+// See docs/active/admin-workspace/03-CUSTOMER-ACCOUNT-WORKSPACE.md.
+const ACCOUNT_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "people", label: "People" },
+  { key: "sales", label: "Sales & files" },
+  { key: "billing", label: "Billing" },
+  { key: "comms", label: "Comms & deliverability" },
+  { key: "settings", label: "Settings" },
+] as const;
+type AccountTab = (typeof ACCOUNT_TABS)[number]["key"];
+
 export default async function AgencyFilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ agencyId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { agencyId } = await params;
+  const { tab } = await searchParams;
+  const active: AccountTab = (ACCOUNT_TABS.some((t) => t.key === tab) ? tab : "overview") as AccountTab;
+  const hrefFor = (key: string) => `/command/agency/${agencyId}?tab=${key}`;
   const now = new Date();
   const [data, sales, emails, reach, readiness, managedBy, chaseSettings] = await Promise.all([
     getAgencyFileHeader(agencyId),
@@ -45,10 +64,15 @@ export default async function AgencyFilePage({
   if (!data) notFound();
   const s = data.settings;
   const setup = readiness.rows[0] ?? null;
+  // Overview "at a glance" — derived purely from data already loaded above (no
+  // new loader, no new analytics system): counts off the live-sales array +
+  // reachability we already fetched.
+  const salesAttention = sales.filter((f) => f.escalatedChases > 0 || f.overdueChases > 0).length;
+  const salesExchangeOverdue = sales.filter((f) => f.isExchangeOverdue).length;
 
   return (
-    <div className="space-y-8">
-      {/* ── Header ──────────────────────────────────────────────── */}
+    <div className="space-y-6">
+      {/* ── Header (always visible) ─────────────────────────────── */}
       <div>
         <Link href="/command/agencies" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
           ← Agencies
@@ -87,7 +111,7 @@ export default async function AgencyFilePage({
         )}
       </div>
 
-      {/* ── Alerts strip (payment / blocked) ────────────────────── */}
+      {/* ── Alerts strip (payment / blocked) — always visible ───── */}
       {(s.newFileCreationBlockedAt || s.paymentFailedAt) && (
         <div className="bg-red-950/40 border border-red-900/60 rounded-xl px-5 py-3 text-sm">
           {s.newFileCreationBlockedAt ? (
@@ -98,170 +122,231 @@ export default async function AgencyFilePage({
         </div>
       )}
 
-      {/* ── Sales with health ───────────────────────────────────── */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-          Live sales · {sales.length}
-        </h2>
-        {sales.length === 0 ? (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
-            <p className="text-sm text-neutral-600">No live sales.</p>
-          </div>
-        ) : (
-          <SalesTable rows={sales} />
-        )}
-      </section>
+      {/* ── Tabs ─────────────────────────────────────────────────── */}
+      <ParamTabs options={[...ACCOUNT_TABS]} active={active} hrefFor={hrefFor} />
 
-      {/* ── Client emails + delivery ────────────────────────────── */}
-      <section>
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Client emails</h2>
-          <p className="text-[11px] text-neutral-500">
-            {emails.totalSent} sent · {emails.delivered} delivered · <span className="text-emerald-400">{emails.opened} opened ({emails.openRatePct}%)</span>
-            {emails.clicked > 0 && <> · <span className="text-emerald-300">{emails.clicked} clicked</span></>}
-            {emails.bouncedFailed > 0 && <> · <span className="text-red-400">{emails.bouncedFailed} bounced/failed</span></>}
-          </p>
-        </div>
-        {emails.rows.length === 0 ? (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
-            <p className="text-sm text-neutral-600">No emails sent yet.</p>
+      {/* ── Overview ─────────────────────────────────────────────── */}
+      {active === "overview" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label="Live sales" value={String(sales.length)} href={hrefFor("sales")} />
+            <StatCard label="Need chasing attention" value={String(salesAttention)} tone={salesAttention > 0 ? "warn" : "default"} href={hrefFor("sales")} />
+            <StatCard label="Exchange overdue" value={String(salesExchangeOverdue)} tone={salesExchangeOverdue > 0 ? "warn" : "default"} href={hrefFor("sales")} />
+            <StatCard label="Client emails paused" value={String(reach.pausedFiles.length)} tone={reach.pausedFiles.length > 0 ? "warn" : "default"} href={hrefFor("comms")} />
           </div>
-        ) : (
-          <EmailTable summary={emails} />
-        )}
-      </section>
-
-      {/* ── Reachability ────────────────────────────────────────── */}
-      {(reach.contacts.length > 0 || reach.pausedFiles.length > 0) && (
-        <section>
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Reachability</h2>
-            <p className="text-[11px] text-neutral-500">
-              {reach.bouncedCount > 0 && <span className="text-red-400">{reach.bouncedCount} bounced</span>}
-              {reach.bouncedCount > 0 && (reach.unsubscribedCount > 0 || reach.pausedContactCount > 0) && " · "}
-              {reach.unsubscribedCount > 0 && <span className="text-amber-400">{reach.unsubscribedCount} unsubscribed</span>}
-              {reach.unsubscribedCount > 0 && reach.pausedContactCount > 0 && " · "}
-              {reach.pausedContactCount > 0 && <span className="text-neutral-400">{reach.pausedContactCount} paused</span>}
-            </p>
-          </div>
-
-          {reach.pausedFiles.length > 0 && (
-            <div className="bg-amber-950/30 border border-amber-900/50 rounded-xl px-5 py-3 text-xs text-amber-200/90 mb-3">
-              Client emails switched off on {reach.pausedFiles.length} live file{reach.pausedFiles.length === 1 ? "" : "s"}:{" "}
-              {reach.pausedFiles.slice(0, 6).map((f) => f.propertyAddress).join(" · ")}
-              {reach.pausedFiles.length > 6 && ` · +${reach.pausedFiles.length - 6} more`}
+          {setup ? (
+            <section>
+              <div className="flex items-center gap-2.5 mb-3">
+                <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Setup</h2>
+                <ReadinessPill level={setup.level} />
+                <span className="text-[11px] font-mono text-neutral-600">
+                  {setup.doneCount}/{setup.totalSignals}
+                </span>
+              </div>
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
+                <ReadinessDetail r={setup} />
+              </div>
+            </section>
+          ) : (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+              <p className="text-sm text-neutral-600">No setup-readiness detail for this agency.</p>
             </div>
           )}
-
-          {reach.contacts.length > 0 && <ReachabilityTable rows={reach.contacts} />}
-        </section>
-      )}
-
-      {/* ── Setup readiness (this agency's detail from the board) ── */}
-      {setup && (
-        <section>
-          <div className="flex items-center gap-2.5 mb-3">
-            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Setup</h2>
-            <ReadinessPill level={setup.level} />
-            <span className="text-[11px] font-mono text-neutral-600">
-              {setup.doneCount}/{setup.totalSignals}
-            </span>
-          </div>
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
-            <ReadinessDetail r={setup} />
-          </div>
-        </section>
-      )}
-
-      {/* ── Settings (editable where the Command Centre owns the switch) ── */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Settings</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <AgencyAutomationControls
-            agencyId={data.id}
-            values={{
-              solicitorChaseEnabled: s.solicitorChaseEnabled,
-              enquiryReplyChaseEnabled: s.enquiryReplyChaseEnabled,
-              enquiryRaiseChaseEnabled: s.enquiryRaiseChaseEnabled,
-              weeklyClientUpdatesEnabled: s.weeklyClientUpdatesEnabled,
-              whatsAppCaptureEnabled: s.whatsAppCaptureEnabled,
-              whatsAppTasksEnabled: s.whatsAppTasksEnabled,
-            }}
-            agencySet={{
-              chaseEmailsEnabled: s.chaseEmailsEnabled,
-              advisorChaseEnabled: s.advisorChaseEnabled,
-              chainNeighbourUpdatesEnabled: s.chainNeighbourUpdatesEnabled,
-              clientChaseEscalateAfter: s.clientChaseEscalateAfter,
-            }}
-            chaseMasterOn={chaseSettings?.enabledByDefault ?? false}
-            retentionEmailsPaused={s.retentionEmailsPaused}
-          />
-
-          <SettingsGroup title="Client portal">
-            <Toggle label="Key dates card" on={s.showPortalKeyDates} />
-            <Toggle label="Costs card" on={s.showPortalCosts} />
-            <Toggle label="Progress %" on={s.showPortalProgressPercent} />
-            <Toggle label="Welcome sheet" on={s.showPortalWelcomeSheet} />
-            <Toggle label="Auto-invite clients on add" on={s.autoInviteClientsOnAdd} />
-          </SettingsGroup>
-
-          <SettingsGroup title="Branding & sender">
-            <Toggle label="Custom logo" on={s.hasLogo} />
-            <Toggle label="Custom email theme" on={s.hasEmailTheme} />
-            <Row label="Logo tile colour" value={s.logoTileColor ?? "—"} />
-            <Row label="Quote sender" value={s.quoteSenderEmail ?? "Sales Progressor fallback"} />
-            <Row
-              label="Sender verified"
-              value={s.quoteSenderEmail ? (s.quoteSenderVerified ? "Verified" : "Not sendable") : "n/a"}
-              tone={s.quoteSenderEmail ? (s.quoteSenderVerified ? "good" : "warn") : "muted"}
-            />
-          </SettingsGroup>
-
-          <SettingsGroup title="Money & billing">
-            <AgencyFeeEditor
-              agencyId={data.id}
-              feeTier={s.feeTier}
-              legacyOutsourcedFeePence={s.legacyOutsourcedFeePence}
-            />
-            <Row label="Monthly fee target" value={s.monthlyFeeTargetPence != null ? fmtGBP(s.monthlyFeeTargetPence) : "Not set"} />
-            <Row label="VAT" value={s.vatRegisteredAt ? `Registered ${fmtDate(s.vatRegisteredAt)}` : "Not registered"} />
-            <Row label="Stripe customer" value={s.stripeCustomerId ?? "None"} mono={!!s.stripeCustomerId} />
-            <Row
-              label="Payment"
-              value={s.newFileCreationBlockedAt ? "Blocked" : s.paymentFailedAt ? "Failed" : "Healthy"}
-              tone={s.newFileCreationBlockedAt ? "bad" : s.paymentFailedAt ? "warn" : "good"}
-            />
-          </SettingsGroup>
-
-          <SettingsGroup title="Where they came from">
-            <Row label="Source" value={s.signupSource ?? "—"} />
-            <Row label="Medium" value={s.signupMedium ?? "—"} />
-            <Row label="Campaign" value={s.signupCampaign ?? "—"} />
-            <Row label="Tier clicked" value={s.signupTier ?? "—"} />
-            <Row label="CTA" value={s.signupCtaLocation ?? "—"} />
-            <Row label="Signed up" value={fmtDate(s.signupAt)} />
-          </SettingsGroup>
         </div>
-      </section>
+      )}
 
-      {/* ── Data & GDPR (danger zone) ───────────────────────────── */}
-      <AgencyDataControls agencyId={data.id} agencyName={data.name} isInternal={data.isInternal} />
+      {/* ── People ───────────────────────────────────────────────── */}
+      {active === "people" && (
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+            Team · {data.team.length} {data.team.length === 1 ? "person" : "people"}
+          </h2>
+          {data.team.length === 0 ? (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+              <p className="text-sm text-neutral-600">No users on this agency.</p>
+            </div>
+          ) : (
+            <TeamTable rows={data.team} now={now} />
+          )}
+        </section>
+      )}
 
-      {/* ── Team ────────────────────────────────────────────────── */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-          Team · {data.team.length} {data.team.length === 1 ? "person" : "people"}
-        </h2>
-        {data.team.length === 0 ? (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
-            <p className="text-sm text-neutral-600">No users on this agency.</p>
+      {/* ── Sales & files ────────────────────────────────────────── */}
+      {active === "sales" && (
+        <section>
+          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+            Live sales · {sales.length}
+          </h2>
+          {sales.length === 0 ? (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+              <p className="text-sm text-neutral-600">No live sales.</p>
+            </div>
+          ) : (
+            <SalesTable rows={sales} />
+          )}
+        </section>
+      )}
+
+      {/* ── Billing ──────────────────────────────────────────────── */}
+      {active === "billing" && (
+        <section>
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Money &amp; billing</h2>
+            <Link href={`/command/revenue/${data.id}`} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              Full revenue breakdown →
+            </Link>
           </div>
-        ) : (
-          <TeamTable rows={data.team} now={now} />
-        )}
-      </section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <SettingsGroup title="Fee & payment">
+              <AgencyFeeEditor
+                agencyId={data.id}
+                feeTier={s.feeTier}
+                legacyOutsourcedFeePence={s.legacyOutsourcedFeePence}
+              />
+              <Row label="Monthly fee target" value={s.monthlyFeeTargetPence != null ? fmtGBP(s.monthlyFeeTargetPence) : "Not set"} />
+              <Row label="VAT" value={s.vatRegisteredAt ? `Registered ${fmtDate(s.vatRegisteredAt)}` : "Not registered"} />
+              <Row label="Stripe customer" value={s.stripeCustomerId ?? "None"} mono={!!s.stripeCustomerId} />
+              <Row
+                label="Payment"
+                value={s.newFileCreationBlockedAt ? "Blocked" : s.paymentFailedAt ? "Failed" : "Healthy"}
+                tone={s.newFileCreationBlockedAt ? "bad" : s.paymentFailedAt ? "warn" : "good"}
+              />
+            </SettingsGroup>
+          </div>
+        </section>
+      )}
+
+      {/* ── Comms & deliverability ───────────────────────────────── */}
+      {active === "comms" && (
+        <div className="space-y-6">
+          <section>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Client emails</h2>
+              <p className="text-[11px] text-neutral-500">
+                {emails.totalSent} sent · {emails.delivered} delivered · <span className="text-emerald-400">{emails.opened} opened ({emails.openRatePct}%)</span>
+                {emails.clicked > 0 && <> · <span className="text-emerald-300">{emails.clicked} clicked</span></>}
+                {emails.bouncedFailed > 0 && <> · <span className="text-red-400">{emails.bouncedFailed} bounced/failed</span></>}
+              </p>
+            </div>
+            {emails.rows.length === 0 ? (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+                <p className="text-sm text-neutral-600">No emails sent yet.</p>
+              </div>
+            ) : (
+              <EmailTable summary={emails} />
+            )}
+          </section>
+
+          {(reach.contacts.length > 0 || reach.pausedFiles.length > 0) ? (
+            <section>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Reachability</h2>
+                <p className="text-[11px] text-neutral-500">
+                  {reach.bouncedCount > 0 && <span className="text-red-400">{reach.bouncedCount} bounced</span>}
+                  {reach.bouncedCount > 0 && (reach.unsubscribedCount > 0 || reach.pausedContactCount > 0) && " · "}
+                  {reach.unsubscribedCount > 0 && <span className="text-amber-400">{reach.unsubscribedCount} unsubscribed</span>}
+                  {reach.unsubscribedCount > 0 && reach.pausedContactCount > 0 && " · "}
+                  {reach.pausedContactCount > 0 && <span className="text-neutral-400">{reach.pausedContactCount} paused</span>}
+                </p>
+              </div>
+
+              {reach.pausedFiles.length > 0 && (
+                <div className="bg-amber-950/30 border border-amber-900/50 rounded-xl px-5 py-3 text-xs text-amber-200/90 mb-3">
+                  Client emails switched off on {reach.pausedFiles.length} live file{reach.pausedFiles.length === 1 ? "" : "s"}:{" "}
+                  {reach.pausedFiles.slice(0, 6).map((f) => f.propertyAddress).join(" · ")}
+                  {reach.pausedFiles.length > 6 && ` · +${reach.pausedFiles.length - 6} more`}
+                </div>
+              )}
+
+              {reach.contacts.length > 0 && <ReachabilityTable rows={reach.contacts} />}
+            </section>
+          ) : (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+              <p className="text-sm text-neutral-600">No reachability issues.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Settings ─────────────────────────────────────────────── */}
+      {active === "settings" && (
+        <div className="space-y-6">
+          <section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <AgencyAutomationControls
+                agencyId={data.id}
+                values={{
+                  solicitorChaseEnabled: s.solicitorChaseEnabled,
+                  enquiryReplyChaseEnabled: s.enquiryReplyChaseEnabled,
+                  enquiryRaiseChaseEnabled: s.enquiryRaiseChaseEnabled,
+                  weeklyClientUpdatesEnabled: s.weeklyClientUpdatesEnabled,
+                  whatsAppCaptureEnabled: s.whatsAppCaptureEnabled,
+                  whatsAppTasksEnabled: s.whatsAppTasksEnabled,
+                }}
+                agencySet={{
+                  chaseEmailsEnabled: s.chaseEmailsEnabled,
+                  advisorChaseEnabled: s.advisorChaseEnabled,
+                  chainNeighbourUpdatesEnabled: s.chainNeighbourUpdatesEnabled,
+                  clientChaseEscalateAfter: s.clientChaseEscalateAfter,
+                }}
+                chaseMasterOn={chaseSettings?.enabledByDefault ?? false}
+                retentionEmailsPaused={s.retentionEmailsPaused}
+              />
+
+              <SettingsGroup title="Client portal">
+                <Toggle label="Key dates card" on={s.showPortalKeyDates} />
+                <Toggle label="Costs card" on={s.showPortalCosts} />
+                <Toggle label="Progress %" on={s.showPortalProgressPercent} />
+                <Toggle label="Welcome sheet" on={s.showPortalWelcomeSheet} />
+                <Toggle label="Auto-invite clients on add" on={s.autoInviteClientsOnAdd} />
+              </SettingsGroup>
+
+              <SettingsGroup title="Branding & sender">
+                <Toggle label="Custom logo" on={s.hasLogo} />
+                <Toggle label="Custom email theme" on={s.hasEmailTheme} />
+                <Row label="Logo tile colour" value={s.logoTileColor ?? "—"} />
+                <Row label="Quote sender" value={s.quoteSenderEmail ?? "Sales Progressor fallback"} />
+                <Row
+                  label="Sender verified"
+                  value={s.quoteSenderEmail ? (s.quoteSenderVerified ? "Verified" : "Not sendable") : "n/a"}
+                  tone={s.quoteSenderEmail ? (s.quoteSenderVerified ? "good" : "warn") : "muted"}
+                />
+              </SettingsGroup>
+
+              <SettingsGroup title="Where they came from">
+                <Row label="Source" value={s.signupSource ?? "—"} />
+                <Row label="Medium" value={s.signupMedium ?? "—"} />
+                <Row label="Campaign" value={s.signupCampaign ?? "—"} />
+                <Row label="Tier clicked" value={s.signupTier ?? "—"} />
+                <Row label="CTA" value={s.signupCtaLocation ?? "—"} />
+                <Row label="Signed up" value={fmtDate(s.signupAt)} />
+              </SettingsGroup>
+            </div>
+          </section>
+
+          {/* Data & GDPR (danger zone) — unchanged controls + gating */}
+          <AgencyDataControls agencyId={data.id} agencyName={data.name} isInternal={data.isInternal} />
+        </div>
+      )}
     </div>
   );
+}
+
+function StatCard({ label, value, tone = "default", href }: {
+  label: string; value: string; tone?: "default" | "warn"; href?: string;
+}) {
+  const valueCls = tone === "warn" && value !== "0" ? "text-amber-400" : "text-neutral-100";
+  const inner = (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 h-full">
+      <p className={`text-xl font-semibold tabular-nums ${valueCls}`}>{value}</p>
+      <p className="text-[11px] text-neutral-500 mt-0.5">{label}</p>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block hover:border-neutral-700 transition-colors rounded-xl">
+      {inner}
+    </Link>
+  ) : inner;
 }
 
 function modeLabel(m: string): string {
