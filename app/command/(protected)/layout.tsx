@@ -9,6 +9,7 @@ import { verifySession, COOKIE_NAME } from "@/lib/command/session";
 import { STEP_UP_MAX_AGE_MS, SESSION_HARD_MAX_MS } from "@/lib/command/config";
 import { cookies, headers } from "next/headers";
 import { CommandSidebar } from "@/components/command/CommandSidebar";
+import { CommandGlobalSearch } from "@/components/command/CommandGlobalSearch";
 import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import { AiEnabledProvider } from "@/components/ai/AiEnabledProvider";
 import { aiEnabled } from "@/lib/ai/enabled";
@@ -91,6 +92,8 @@ export default async function CommandProtectedLayout({
         showBackToAdmin={isHybrid}
         aiOn={aiOn}
       />
+      {/* Global ⌘K search — one instance for the whole Command Centre. */}
+      <CommandGlobalSearch />
       <main
         className="flex-1 overflow-y-auto"
         style={{ background: "#0a0a0a" }}
