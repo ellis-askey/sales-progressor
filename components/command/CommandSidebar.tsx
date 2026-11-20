@@ -7,13 +7,8 @@ import { signOut } from "next-auth/react";
 import { saveCommandPreferencesAction } from "@/app/actions/command-preferences";
 import { ThoughtQuickCapture } from "@/components/command/content/ThoughtQuickCapture";
 import type { CommandMode } from "@/lib/command/scope";
-import {
-  LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw,
-  Activity, Send, HeartPulse, FlaskConical,
-  Shield, PoundSterling, ChevronDown, Check,
-  RotateCcw, Handshake, Inbox, FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail, MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen, PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer, CalendarDays, Radar, Menu, Camera, Building2, Gavel, Rocket,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ChevronDown, Check, Menu } from "lucide-react";
+import { WORKSPACE_NAV } from "./workspace-nav";
 
 interface Agency { id: string; name: string; modeProfile: string; }
 
@@ -34,106 +29,9 @@ function CommandLinkPending() {
   );
 }
 
-interface NavItem {
-  href: string;
-  label: string;
-  Icon: LucideIcon;
-  soon?: boolean;
-  // Match this route exactly (used for a section landing whose href is a prefix
-  // of its siblings, e.g. /command/content), so it doesn't stay active on them.
-  exact?: boolean;
-}
-
-// Operator-oriented structure (redesign 2026-08-13). Grouped by what the
-// founder opens the Command Centre to DO, with plain-English labels. Dead /
-// not-ready surfaces (Content, Automations, Friction) are left out of the nav —
-// their routes still exist ("hide, not remove"). See
-// docs/audits/COMMAND_CENTRE_ADMIN_AUDIT_2026-08-13.md.
-const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Today",
-    items: [
-      { href: "/command/overview", label: "Today", Icon: LayoutDashboard },
-      { href: "/command/insights", label: "Briefing", Icon: Lightbulb },
-    ],
-  },
-  {
-    label: "Day to day",
-    items: [
-      { href: "/command/agencies", label: "Agencies & agents", Icon: Users },
-      { href: "/command/trials/boardwalk", label: "Boardwalk trial", Icon: Rocket },
-      { href: "/command/businesses", label: "Businesses", Icon: Building2 },
-      { href: "/command/files", label: "Files", Icon: FolderOpen },
-      { href: "/command/outbound", label: "Messages", Icon: Send },
-      { href: "/command/email-threading", label: "Email threading", Icon: Mails },
-      { href: "/command/proposals", label: "Proposed updates", Icon: Inbox },
-      { href: "/command/whatsapp", label: "WhatsApp", Icon: MessageSquare },
-      { href: "/command/crm-requests", label: "CRM requests", Icon: Link2 },
-    ],
-  },
-  {
-    label: "Money",
-    items: [
-      { href: "/command/revenue", label: "Revenue", Icon: PoundSterling },
-      { href: "/command/providers/quotes", label: "Quote inbox", Icon: Inbox },
-      { href: "/command/providers", label: "Surveyor firms", Icon: Handshake },
-    ],
-  },
-  {
-    label: "Growth",
-    items: [
-      { href: "/command/website-growth", label: "Website & Growth", Icon: Globe },
-      { href: "/command/timeframes", label: "Timeframes", Icon: Timer },
-      { href: "/command/prospects", label: "Prospects", Icon: UserPlus },
-      { href: "/command/ai-outreach", label: "AI Outreach", Icon: Radar },
-      { href: "/command/activation", label: "Getting started", Icon: Zap },
-      { href: "/command/chain-invites", label: "Chain invites", Icon: Link2 },
-      { href: "/command/adoption", label: "App adoption", Icon: Smartphone },
-      { href: "/command/followup-usage", label: "Feature usage", Icon: BarChart3 },
-      { href: "/command/retention", label: "Repeat use", Icon: RefreshCw },
-      { href: "/command/growth", label: "Trends", Icon: TrendingUp },
-      { href: "/command/experiments", label: "Growth tests", Icon: FlaskConical },
-      { href: "/command/enquiries-chase", label: "Chase experiment", Icon: MailCheck },
-    ],
-  },
-  {
-    // Content & Personal Brand (docs/active/content-brand/SPEC.md). Being built
-    // in phases; nav items are added as each real page ships (no dead links).
-    label: "Content",
-    items: [
-      { href: "/command/content", label: "Overview", Icon: LayoutDashboard, exact: true },
-      { href: "/command/content/inbox", label: "Content inbox", Icon: Inbox },
-      { href: "/command/content/opportunities", label: "Brand opportunities", Icon: Megaphone },
-      { href: "/command/content/strategy", label: "Strategy", Icon: Compass },
-      { href: "/command/content/create", label: "Create", Icon: Sparkle },
-      { href: "/command/content/calendar", label: "Calendar", Icon: CalendarDays },
-      { href: "/command/content/performance", label: "Performance", Icon: BarChart3 },
-      { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
-      { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
-      { href: "/command/content/drafts", label: "Drafts & images", Icon: PenLine },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { href: "/command/health", label: "System status", Icon: HeartPulse },
-      { href: "/command/updates", label: "Platform updates", Icon: Megaphone },
-      { href: "/command/critique", label: "Critique", Icon: Camera },
-      { href: "/command/activity", label: "Activity", Icon: Activity },
-      { href: "/command/audit", label: "Audit log", Icon: Shield },
-      { href: "/command/rules", label: "Rules", Icon: ListChecks },
-      { href: "/command/emails", label: "Email catalogue", Icon: BookOpen },
-      { href: "/command/milestone-emails", label: "Milestone emails", Icon: Mails },
-      { href: "/command/email-templates", label: "Other client emails", Icon: MailPlus },
-      { href: "/command/milestone-updates", label: "Milestone updates", Icon: MessageSquare },
-      { href: "/command/agent-emails", label: "Agent emails", Icon: Mail },
-      { href: "/command/email-senders", label: "Email senders", Icon: AtSign },
-      { href: "/command/solicitor-chase", label: "Solicitor chasing", Icon: Gavel },
-      { href: "/command/settings", label: "Settings", Icon: Settings },
-      { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
-    ],
-  },
-];
+// Navigation now lives in ./workspace-nav (WORKSPACE_NAV) — the eight-section
+// Admin & Founder Workspace structure. Routes are unchanged; this is grouping
+// only. See docs/active/admin-workspace/00-AUDIT-AND-ARCHITECTURE.md §B.
 
 // ── Scope filters (needs useSearchParams → must be wrapped in Suspense) ──────
 
@@ -377,8 +275,8 @@ export function CommandSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 py-3 px-2 space-y-5 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.label}>
+        {WORKSPACE_NAV.map((section) => (
+          <div key={section.id}>
             <p className="text-[9px] font-bold text-[#404040] uppercase tracking-widest px-2 mb-1">
               {section.label}
             </p>
