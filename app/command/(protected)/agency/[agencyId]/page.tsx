@@ -17,6 +17,8 @@ import { AgencyAutomationControls } from "@/components/command/agency-file/Agenc
 import { AgencyFeeEditor } from "@/components/command/agency-file/AgencyFeeEditor";
 import { AgencyDataControls } from "@/components/command/agency-file/AgencyDataControls";
 import { ParamTabs } from "@/components/command/ui/primitives";
+import { getAgencyRevenueDetail } from "@/lib/command/revenue";
+import { AgencyBillingPanel } from "@/components/command/agency/AgencyBillingPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +71,10 @@ export default async function AgencyFilePage({
   // reachability we already fetched.
   const salesAttention = sales.filter((f) => f.escalatedChases > 0 || f.overdueChases > 0).length;
   const salesExchangeOverdue = sales.filter((f) => f.isExchangeOverdue).length;
+  // Billing tab reuses the same agency revenue loader the /command/revenue/[id]
+  // route uses. Fetched lazily — only when that tab is open — and null for
+  // internal agencies (same as the revenue route, which 404s for them).
+  const revenue = active === "billing" ? await getAgencyRevenueDetail(agencyId) : null;
 
   return (
     <div className="space-y-6">
@@ -130,7 +136,7 @@ export default async function AgencyFilePage({
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Live sales" value={String(sales.length)} href={hrefFor("sales")} />
-            <StatCard label="Need chasing attention" value={String(salesAttention)} tone={salesAttention > 0 ? "warn" : "default"} href={hrefFor("sales")} />
+            <StatCard label="Chases overdue/escalated" value={String(salesAttention)} tone={salesAttention > 0 ? "warn" : "default"} href={hrefFor("sales")} />
             <StatCard label="Exchange overdue" value={String(salesExchangeOverdue)} tone={salesExchangeOverdue > 0 ? "warn" : "default"} href={hrefFor("sales")} />
             <StatCard label="Client emails paused" value={String(reach.pausedFiles.length)} tone={reach.pausedFiles.length > 0 ? "warn" : "default"} href={hrefFor("comms")} />
           </div>
@@ -188,32 +194,34 @@ export default async function AgencyFilePage({
       )}
 
       {/* ── Billing ──────────────────────────────────────────────── */}
+      {/* The complete agency revenue experience is rendered inline here via the
+          shared <AgencyBillingPanel> (same component + loader as the
+          /command/revenue/[id] route), alongside the editable fee control.
+          Read-only VAT / Stripe / payment facts live in the panel's fact strip,
+          so they're not duplicated here. */}
       {active === "billing" && (
-        <section>
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Money &amp; billing</h2>
-            <Link href={`/command/revenue/${data.id}`} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-              Full revenue breakdown →
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <SettingsGroup title="Fee & payment">
-              <AgencyFeeEditor
-                agencyId={data.id}
-                feeTier={s.feeTier}
-                legacyOutsourcedFeePence={s.legacyOutsourcedFeePence}
-              />
-              <Row label="Monthly fee target" value={s.monthlyFeeTargetPence != null ? fmtGBP(s.monthlyFeeTargetPence) : "Not set"} />
-              <Row label="VAT" value={s.vatRegisteredAt ? `Registered ${fmtDate(s.vatRegisteredAt)}` : "Not registered"} />
-              <Row label="Stripe customer" value={s.stripeCustomerId ?? "None"} mono={!!s.stripeCustomerId} />
-              <Row
-                label="Payment"
-                value={s.newFileCreationBlockedAt ? "Blocked" : s.paymentFailedAt ? "Failed" : "Healthy"}
-                tone={s.newFileCreationBlockedAt ? "bad" : s.paymentFailedAt ? "warn" : "good"}
-              />
-            </SettingsGroup>
-          </div>
-        </section>
+        <div className="space-y-6">
+          <section>
+            <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Fee tier</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <SettingsGroup title="Fee & target">
+                <AgencyFeeEditor
+                  agencyId={data.id}
+                  feeTier={s.feeTier}
+                  legacyOutsourcedFeePence={s.legacyOutsourcedFeePence}
+                />
+                <Row label="Monthly fee target" value={s.monthlyFeeTargetPence != null ? fmtGBP(s.monthlyFeeTargetPence) : "Not set"} />
+              </SettingsGroup>
+            </div>
+          </section>
+          {revenue ? (
+            <AgencyBillingPanel data={revenue} />
+          ) : (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-6">
+              <p className="text-sm text-neutral-600">Revenue breakdown isn&apos;t available for internal agencies.</p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Comms & deliverability ───────────────────────────────── */}
