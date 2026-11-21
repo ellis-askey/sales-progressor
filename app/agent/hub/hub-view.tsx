@@ -1495,7 +1495,6 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "10px 12px",
-              background: "var(--agent-coral-bg-tint)",
               border: "0.5px solid rgba(var(--agent-coral-base-rgb),0.20)",
               borderRadius: 10,
             }}>

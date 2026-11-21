@@ -80,7 +80,7 @@ export function PipelineAtAGlance({
           sub="Here's where every file sits right now."
         />
         <Link href="/agent/transactions" className="agent-link" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap", textDecoration: "none" }}>
-          View files <ArrowRight size={13} weight="bold" />
+          View files <ArrowRight size={13} weight="bold" className="agent-arrow-i" />
         </Link>
       </div>
 

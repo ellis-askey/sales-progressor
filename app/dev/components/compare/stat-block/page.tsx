@@ -55,6 +55,19 @@ export default function StatBlockComparePage() {
           />
         </div>
 
+        <span style={{ display: "block", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--compare-muted)", marginBottom: 8 }}>Size proof — same page, same zoom</span>
+        <div className="agent-glass-strong" style={{ borderRadius: 18, padding: "20px 24px", border: "1px solid var(--compare-line)", marginBottom: 28, display: "flex", gap: 40, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div>
+            <p style={{ margin: "0 0 4px", fontSize: 10.5, color: "var(--compare-muted)" }}>StatBlock number (hub header)</p>
+            <p style={{ margin: 0, fontSize: 30, fontWeight: 750, letterSpacing: "-0.02em", lineHeight: 1.05, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>100</p>
+          </div>
+          <div>
+            <p style={{ margin: "0 0 4px", fontSize: 10.5, color: "var(--compare-muted)" }}>.pipe-count (stage card "59")</p>
+            <div className="pipe-count">100</div>
+          </div>
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--compare-body)", maxWidth: 300, lineHeight: 1.5 }}>Both are <strong>30px</strong>. If they look the same height here (they will), the hub header is also 30px — and if it looks bigger on your hub tab, that tab is at a higher browser zoom than this one. Press <strong>Ctrl+0</strong> on both to confirm.</p>
+        </div>
+
         <section style={{ borderTop: "1px solid var(--compare-line)", paddingTop: 22 }}>
           <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 650 }}>Scoping — your blast-radius concern, handled</h3>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13.5, color: "var(--compare-body)", lineHeight: 1.75 }}>
