@@ -18,10 +18,10 @@ import type { ComponentEntry } from "./registry";
 import { AREAS } from "./registry";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { LabelInput } from "@/components/ui/LabelInput";
-import { Button } from "@/components/arc/button/button";
+import { Button, buttonClasses } from "@/components/arc/button/button";
 import { GoogleIcon } from "@/components/login/GoogleIcon";
 import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
-import { House, BellRinging, WarningCircle, Eye, ArrowRight, ArrowLeft, X } from "@phosphor-icons/react";
+import { House, BellRinging, WarningCircle, Eye, ArrowRight, ArrowLeft, X, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
@@ -1078,8 +1078,134 @@ const EMPTY_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+/* Hub page — the canonical primitives every element on /agent/hub renders through
+   (catalogued 2026-11-21 so the whole page is findable in the gallery). */
+const HUB_ENTRIES: ComponentEntry[] = [
+  {
+    id: "hub-card",
+    name: "Hub attention card (shell + header)",
+    category: "cards",
+    status: "implemented",
+    keywords: ["hub card", "attention card", "collapsible", "accordion", "glass", "shell", "file at risk"],
+    summary: "The shared hub attention-card shell — a baked GlassCard + collapsible header (24px tinted icon · count-in-title · subtitle · rotating chevron) + the agent-acc drawer body. Extracted into components/hub/HubCard.tsx; six cards render through it.",
+    sources: [{ path: "components/hub/HubCard.tsx", note: "the shell" }],
+    render: () => (
+      <Stage width={360}>
+        <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(45,24,16,0.08)", background: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px" }}>
+            <WarningCircle size={24} color="#C73E3E" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 14, fontWeight: 650 }}><span style={{ color: "#C73E3E", fontWeight: 700 }}>1</span> file at risk</span>
+              <span style={{ display: "block", fontSize: 11, color: "#9a938a", marginTop: 2 }}>Our overnight checks flagged sales that may have stalled.</span>
+            </div>
+            <CaretDown size={14} weight="bold" color="#9a938a" style={{ transform: "rotate(180deg)" }} />
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-row",
+    name: "Hub property row (scaffold)",
+    category: "rows",
+    status: "implemented",
+    keywords: ["hub row", "property row", "accent bar", "thumb", "address", "tail", "flush row"],
+    summary: "The shared property-row scaffold — agent-hover-row wrapper, 3px left accent bar, flush separator, flex body, responsive hub-r-tail. components/hub/HubRow.tsx; four cards flow through it; content stays per-card slots.",
+    sources: [{ path: "components/hub/HubRow.tsx", note: "the scaffold" }],
+    render: () => (
+      <Stage width={360}>
+        <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(45,24,16,0.08)", background: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px 12px 17px", borderLeft: "3px solid #E0942E" }}>
+            <span style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, display: "grid", placeItems: "center", background: "rgba(45,24,16,0.05)", color: "#9a938a" }}><House size={18} weight="fill" /></span>
+            <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>8 Chandler Court, Altrincham</span>
+              <span style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#E0942E", marginTop: 2 }}>Awaiting solicitor reply</span>
+            </div>
+            <button className={buttonClasses({ variant: "outline", size: "sm" })} style={{ gap: 5 }}><PaperPlaneTilt size={13} weight="bold" /> Chase</button>
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-split-button",
+    name: "Hub split-button (label + caret menu)",
+    category: "buttons",
+    status: "implemented",
+    keywords: ["split button", "chase", "take off hold", "done", "caret", "dropdown", "row action menu"],
+    summary: "A label action joined to a caret that opens the canonical RowActionMenu. components/hub/HubSplitButton.tsx; the menu is the existing RowActionMenu, unchanged.",
+    sources: [{ path: "components/hub/HubSplitButton.tsx" }, { path: "components/hub/RowActionMenu.tsx", note: "the menu (unchanged)" }],
+    render: () => (
+      <Stage width={240}>
+        <div style={{ display: "inline-flex" }}>
+          <button className={buttonClasses({ variant: "outline", size: "sm" })} style={{ gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}>Take off hold</button>
+          <button className={buttonClasses({ variant: "outline", size: "sm" })} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none", padding: "0 7px" }} aria-label="More"><CaretDown size={13} weight="bold" /></button>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "icon-button",
+    name: "Icon button / circle close (✕)",
+    category: "buttons",
+    status: "implemented",
+    keywords: ["icon button", "close", "dismiss", "x", "circle", "modal close", "top right"],
+    summary: "The canonical circular icon button — the close/dismiss ✕ for modals (top-right) and row dismiss. Neutral, fades to a soft circular shade on hover. .agent-icon-btn (sm 22px / md 28px). The one X across the app.",
+    sources: [{ path: "app/agent/styles/agent-system.css", note: ".agent-icon-btn" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", gap: 14, alignItems: "center" }}>
+          <button className="agent-icon-btn agent-icon-btn-sm" aria-label="Close"><X size={14} weight="bold" /></button>
+          <button className="agent-icon-btn agent-icon-btn-md" aria-label="Close"><X size={16} weight="bold" /></button>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "sparkline",
+    name: "Sparkline (mini trend chart)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["sparkline", "chart", "trend", "line", "exchange", "mini chart", "dataviz"],
+    summary: "The canonical sparkline — resolution-accurate mini line chart (measured px, non-scaling stroke), coral line + emphasised endpoint, optional hover/touch scrub tooltip. components/ui/Sparkline.tsx (extracted from the hub's ExchangeSparkline). Pass values + an optional tooltip.",
+    sources: [{ path: "components/ui/Sparkline.tsx", note: "the canonical" }, { path: "components/hub/ExchangeSparkline.tsx", note: "hub wrapper" }],
+    render: () => (
+      <Stage width={240}>
+        <svg width={200} height={44} viewBox="0 0 200 44" style={{ display: "block", width: "100%" }} aria-hidden>
+          <polyline points="5,36 32,30 60,33 88,20 116,25 144,12 172,16 195,5" fill="none" stroke={CORAL} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={195} cy={5} r={3} fill={CORAL} />
+        </svg>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-motion",
+    name: "Hub motion (reveal · accordion · auto-animate)",
+    category: "motion",
+    status: "implemented",
+    keywords: ["animation", "motion", "reveal", "accordion", "auto-animate", "loading dots", "section reveal"],
+    summary: "The hub's motion vocabulary, catalogued: SectionReveal / AnimatedSection (staggered fade-up on load), the HubCard accordion (agent-acc grid-rows open/close + chevron rotate), auto-animate row removal (@formkit/auto-animate), and LoadingDots. Shared helpers, not per-card bespoke.",
+    sources: [
+      { path: "components/hub/SectionReveal.tsx", note: "staggered reveal" },
+      { path: "components/hub/AnimatedSection.tsx", note: "fade-up on load" },
+      { path: "components/hub/HubCard.tsx", note: "accordion drawer" },
+      { path: "components/hub/LoadingDots.module.css", note: "loading dots" },
+    ],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#5b5349" }}>
+          <span>• SectionReveal / AnimatedSection — staggered fade-up on load</span>
+          <span>• HubCard accordion — grid-rows open/close + chevron rotate</span>
+          <span>• auto-animate — row removal on dismiss</span>
+          <span>• LoadingDots — inline busy indicator</span>
+        </div>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);
