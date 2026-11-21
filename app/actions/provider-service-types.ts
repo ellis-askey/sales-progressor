@@ -99,7 +99,7 @@ export async function updateServiceType(id: string, input: ServiceTypeInput): Pr
   }).catch(() => {});
 
   revalidatePath("/command/providers/service-types");
-  revalidatePath("/command/providers");
+  revalidatePath("/command/money");
   return { ok: true };
 }
 

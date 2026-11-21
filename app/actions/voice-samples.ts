@@ -25,12 +25,12 @@ export async function saveVoiceSamplesAction(formData: FormData): Promise<void> 
   })).filter((r) => r.content.length > 0);
 
   if (records.length === 0) {
-    redirect("/command/content/drafts?error=empty");
+    redirect("/command/content?tab=create&build=drafts&error=empty");
   }
 
   await commandDb.voiceSample.createMany({ data: records });
 
-  redirect("/command/content/drafts");
+  redirect("/command/content?tab=create&build=drafts");
 }
 
 export async function addVoiceSampleAction(formData: FormData): Promise<void> {
@@ -40,7 +40,7 @@ export async function addVoiceSampleAction(formData: FormData): Promise<void> {
   const notes = (formData.get("notes") as string ?? "").trim() || null;
 
   if (!content) {
-    redirect("/command/content/voice?error=empty");
+    redirect("/command/content?tab=brand&view=voice&error=empty");
   }
 
   await commandDb.voiceSample.create({

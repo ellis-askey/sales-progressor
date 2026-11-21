@@ -78,7 +78,7 @@ export async function dismissSignalAction(signalId: string) {
 export async function startExperimentAction(experimentId: string) {
   await requireSuperAdmin();
   await startExperiment(experimentId);
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
 }
 
 // Enquiries-chase experiment: the founder ticks a chase send as "the solicitor
@@ -90,13 +90,13 @@ export async function setChaseRepliedByEmailAction(chaseSendId: string, on: bool
     where: { id: chaseSendId },
     data: { repliedByEmailAt: on ? new Date() : null },
   });
-  revalidatePath("/command/enquiries-chase");
+  revalidatePath("/command/growth");
 }
 
 export async function abandonExperimentAction(experimentId: string, reason: string) {
   await requireSuperAdmin();
   await abandonExperiment(experimentId, reason);
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
 }
 
 export async function concludeExperimentAction(
@@ -106,7 +106,7 @@ export async function concludeExperimentAction(
 ) {
   await requireSuperAdmin();
   await concludeExperiment(experimentId, outcome, conclusionNote);
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
 }
 
 const METRIC_FROM_DETECTOR: Record<string, string> = {
@@ -140,7 +140,7 @@ export async function promoteSignalToExperimentAction(signalId: string): Promise
     },
   });
 
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
   revalidatePath("/command/insights");
 
   return { experimentId: experiment.id };
@@ -171,7 +171,7 @@ export async function createExperimentFromSuggestionAction(input: {
       createdByUserId: session.user.id,
     },
   });
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
   return { experimentId: experiment.id };
 }
 
@@ -200,7 +200,7 @@ export async function createManualExperimentAction(input: {
       createdByUserId: session.user.id,
     },
   });
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
   return { experimentId: experiment.id };
 }
 
@@ -210,7 +210,7 @@ export async function updateExperimentHypothesisAction(id: string, hypothesis: s
   await requireSuperAdmin();
   if (!hypothesis.trim()) throw new Error("The hypothesis can't be empty.");
   await commandDb.experiment.update({ where: { id }, data: { hypothesis: hypothesis.trim() } });
-  revalidatePath("/command/experiments");
+  revalidatePath("/command/growth");
 }
 
 // AI wildcard ideas — grounded in the same live numbers as the catalogue, but

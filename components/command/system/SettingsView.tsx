@@ -1,0 +1,82 @@
+import Link from "next/link";
+import { aiEnabled } from "@/lib/ai/enabled";
+import { AiMasterSwitch } from "@/components/command/AiMasterSwitch";
+
+// System workspace → Settings tab. Verbatim from /command/settings
+// (consolidation): the AI master switch + occasional tools + signposts to where
+// config lives. The AiMasterSwitch write + its guard are unchanged. The
+// Connections tile still points at the kept /command/settings/connections detail
+// route; the "Activity log" tile is repointed to the Monitoring → Audit view.
+// The former page <h1> is dropped (shell + tab strip label it).
+
+function Tile({ href, title, body }: { href: string; title: string; body: string }) {
+  return (
+    <Link
+      href={href}
+      className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:border-neutral-700 transition-colors block"
+    >
+      <p className="text-sm font-semibold text-neutral-100">{title}</p>
+      <p className="text-[12.5px] text-neutral-500 mt-1 leading-relaxed">{body}</p>
+      <span className="text-xs text-blue-400 mt-2 inline-block">Open →</span>
+    </Link>
+  );
+}
+
+export async function SettingsView() {
+  const aiOn = await aiEnabled();
+  const envForcedOff = process.env.AI_GLOBAL_DISABLE === "true";
+
+  return (
+    <div className="space-y-8">
+      <p className="text-sm text-neutral-400">Occasional tools, and where the platform&rsquo;s configuration lives.</p>
+
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">AI &amp; automation</h2>
+        <AiMasterSwitch enabled={aiOn} envForcedOff={envForcedOff} />
+      </section>
+
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Tile
+            href="/admin/migrate"
+            title="Migrate a sale"
+            body="Move an existing sale onto the platform and set its milestones to where it really is."
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Integrations</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Tile
+            href="/command/settings/connections"
+            title="Connections"
+            body="Connect your Microsoft Outlook mailbox so emails can be linked to the right property file."
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-3">Configuration</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Tile
+            href="/command/platform?tab=engine&view=rules"
+            title="Rules"
+            body="The steps of a sale and the reminder rules. Read-only reference for how the engine is set up."
+          />
+          <Tile
+            href="/command/agencies"
+            title="Agency fees"
+            body="Set a per-agency legacy fee override, or leave an agency on the standard sliding scale."
+          />
+          <Tile
+            href="/command/system?tab=monitoring&view=audit"
+            title="Activity log"
+            body="Every milestone, note, status and message change across files."
+          />
+        </div>
+      </section>
+    </div>
+  );
+}

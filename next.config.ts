@@ -1,5 +1,11 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { CONTENT_REDIRECTS } from "./lib/content-redirects";
+import { GROWTH_REDIRECTS } from "./lib/growth-redirects";
+import { MONEY_REDIRECTS } from "./lib/money-redirects";
+import { OPERATIONS_REDIRECTS } from "./lib/operations-redirects";
+import { PLATFORM_REDIRECTS } from "./lib/platform-redirects";
+import { SYSTEM_REDIRECTS } from "./lib/system-redirects";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "prisma"],
@@ -60,6 +66,40 @@ const nextConfig: NextConfig = {
         destination: "/agent/account/billing",
         permanent: true,
       },
+      // Command Centre content consolidation (Phase 4A): the ten legacy
+      // /command/content/* pages now redirect into the single tabbed workspace
+      // at /command/content. These run before the filesystem routes, so the
+      // legacy page files stay in place (rollback-able) but are shadowed until
+      // Phase 4B retires them. See lib/content-redirects.ts for the full map +
+      // the query-preservation / route-safety reasoning.
+      ...CONTENT_REDIRECTS,
+      // Command Centre growth-analytics consolidation (Phase 5A): the nine
+      // retired /command/* dashboard pages redirect into the single tabbed
+      // workspace at /command/growth. Same shadow-before-filesystem mechanism;
+      // legacy page files stay in place until Phase 5B. /command/growth itself,
+      // /command/prospects, /command/ai-outreach and /command/timeframes are NOT
+      // redirected. See lib/growth-redirects.ts.
+      ...GROWTH_REDIRECTS,
+      // Command Centre Money consolidation: the three Money landing pages
+      // (Revenue / Quote inbox / Surveyor firms) redirect into the tabbed
+      // workspace at /command/money. Exact sources — the detail/config/breakdown
+      // routes under /command/revenue/* and /command/providers/* are not
+      // cascaded. See lib/money-redirects.ts.
+      ...MONEY_REDIRECTS,
+      // Command Centre Operations consolidation: the eight Operations landing
+      // pages redirect into the tabbed workspace at /command/operations. Exact
+      // sources — the Files ?tx= drawer stays on the same route. See
+      // lib/operations-redirects.ts.
+      ...OPERATIONS_REDIRECTS,
+      // Command Centre Platform consolidation: the seven Platform areas (incl.
+      // Timeframes, moved from Growth) redirect into the tabbed workspace at
+      // /command/platform. Exact sources. See lib/platform-redirects.ts.
+      ...PLATFORM_REDIRECTS,
+      // Command Centre System consolidation (final section): the six System
+      // landing pages redirect into the tabbed workspace at /command/system.
+      // Exact sources — the Settings → Connections detail route stays. See
+      // lib/system-redirects.ts.
+      ...SYSTEM_REDIRECTS,
     ];
   },
 };

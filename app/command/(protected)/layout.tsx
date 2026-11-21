@@ -90,7 +90,6 @@ export default async function CommandProtectedLayout({
         savedAgencyIds={savedAgencyIds}
         adminEmail={(session as Session).user?.email ?? ""}
         showBackToAdmin={isHybrid}
-        aiOn={aiOn}
       />
       {/* Global ⌘K search — one instance for the whole Command Centre. */}
       <CommandGlobalSearch />

@@ -60,7 +60,7 @@ export default async function RevenueBreakdownPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/command/revenue" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+        <Link href="/command/money?tab=revenue" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
           ← Revenue
         </Link>
         <h1 className="mt-1 text-2xl font-semibold text-neutral-100">{meta.title} · breakdown</h1>

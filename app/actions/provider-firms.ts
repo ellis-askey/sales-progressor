@@ -119,7 +119,7 @@ export async function createProviderFirm(input: FirmInput): Promise<ActionResult
     afterValue: { name: firm.name, email: firm.email, kind: firm.kind },
   }).catch(() => {});
 
-  revalidatePath("/command/providers");
+  revalidatePath("/command/money");
   return { ok: true, data: { id: firm.id } };
 }
 
@@ -171,7 +171,7 @@ export async function updateProviderFirm(id: string, input: FirmInput): Promise<
     afterValue: input,
   }).catch(() => {});
 
-  revalidatePath("/command/providers");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/${id}`);
   return { ok: true };
 }
@@ -195,7 +195,7 @@ export async function toggleProviderFirmActive(id: string): Promise<ActionResult
     afterValue: { active: !firm.active },
   }).catch(() => {});
 
-  revalidatePath("/command/providers");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/${id}`);
   return { ok: true };
 }

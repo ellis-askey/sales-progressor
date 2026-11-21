@@ -37,7 +37,7 @@ export default async function ServiceTypesPage() {
   return (
     <div>
       <Link
-        href="/command/providers"
+        href="/command/money?tab=firms"
         className="inline-flex items-center gap-1 text-[11px] text-[#525252] hover:text-[#a3a3a3] transition-colors mb-3"
       >
         <ChevronLeft className="w-3 h-3" /> All providers

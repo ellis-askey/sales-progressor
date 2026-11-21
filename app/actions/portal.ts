@@ -343,7 +343,7 @@ export async function recordPortalSurveyBookingAction(input: {
   const result = await applySurveyBooking(contact.propertyTransactionId, input.choice, null);
   if (result.ok) {
     revalidatePath(`/portal/${input.token}`, "page");
-    revalidatePath("/command/providers/quotes");
+    revalidatePath("/command/money");
   }
   return result;
 }

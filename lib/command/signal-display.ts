@@ -99,7 +99,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     whatItMeans: "Quote requests sitting as 'pending' in the inbox past 5 days without being actioned.",
     experimentable: false,
     title: (p) => `${num(p, "pendingCount")} quotes pending, oldest ${num(p, "oldestDaysWaiting")}d`,
-    href: () => "/command/providers/quotes",
+    href: () => "/command/money?tab=quotes",
   },
   solicitor_confirm_pending: {
     group: "Solicitor confirmation stuck",

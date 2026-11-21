@@ -49,6 +49,6 @@ export async function recordSurveyBooking(input: {
   if (!tx) return { ok: false, error: "File not found." };
 
   const result = await applySurveyBooking(input.transactionId, input.choice, session.user.id);
-  if (result.ok) revalidatePath("/command/providers/quotes");
+  if (result.ok) revalidatePath("/command/money");
   return result;
 }

@@ -12,7 +12,7 @@ export default function ConnectionsPage() {
     <div className="space-y-8">
       <div>
         <Link
-          href="/command/settings"
+          href="/command/system?tab=settings"
           className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
         >
           ← Settings

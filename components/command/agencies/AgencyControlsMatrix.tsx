@@ -152,7 +152,7 @@ export function AgencyControlsMatrix({
           >
             {chaseMasterOn ? "ON" : "OFF"}
           </span>
-          <Link href="/command/solicitor-chase" className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+          <Link href="/command/platform?tab=chasing" className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
             Change on Solicitor chasing →
           </Link>
         </div>

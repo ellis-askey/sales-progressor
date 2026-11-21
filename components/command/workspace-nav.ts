@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard, Lightbulb, TrendingUp, Zap, RefreshCw, Activity, Send,
-  HeartPulse, FlaskConical, Shield, PoundSterling, RotateCcw, Handshake, Inbox,
-  FolderOpen, Users, Settings, MailCheck, ListChecks, Mails, MessageSquare, Mail,
-  MailPlus, AtSign, Smartphone, Link2, BarChart3, UserPlus, Globe, BookOpen,
-  PenLine, Fingerprint, Sparkle, Megaphone, Compass, Timer, CalendarDays, Radar,
-  Camera, Building2, Gavel, Rocket,
+  LayoutDashboard, Lightbulb, TrendingUp,
+  PoundSterling, RotateCcw,
+  FolderOpen, Users, Settings,
+  UserPlus, BookOpen,
+  PenLine, Radar,
+  Building2, Rocket,
 } from "lucide-react";
 
 export interface WorkspaceNavItem {
@@ -61,81 +61,83 @@ export const WORKSPACE_NAV: WorkspaceNavSection[] = [
     id: "money",
     label: "Money",
     items: [
-      { href: "/command/revenue", label: "Revenue", Icon: PoundSterling },
-      { href: "/command/providers/quotes", label: "Quote inbox", Icon: Inbox },
-      { href: "/command/providers", label: "Surveyor firms", Icon: Handshake },
+      // Collapsed (consolidation): Revenue / Quote inbox / Surveyor firms are now
+      // the Revenue / Quotes / Firms tabs inside /command/money, and the legacy
+      // routes redirect there (see lib/money-redirects.ts). exact:true keeps this
+      // highlighted across every tab (the tab lives in ?tab=).
+      { href: "/command/money", label: "Money", Icon: PoundSterling, exact: true },
     ],
   },
   {
     id: "operations",
     label: "Operations",
     items: [
-      { href: "/command/files", label: "Files", Icon: FolderOpen },
-      { href: "/command/outbound", label: "Messages", Icon: Send },
-      { href: "/command/whatsapp", label: "WhatsApp", Icon: MessageSquare },
-      { href: "/command/proposals", label: "Proposed updates", Icon: Inbox },
-      { href: "/command/crm-requests", label: "CRM requests", Icon: Link2 },
-      { href: "/command/email-senders", label: "Email senders", Icon: AtSign },
-      { href: "/command/agent-emails", label: "Agent emails", Icon: Mail },
-      { href: "/command/email-threading", label: "Email threading", Icon: Mails },
+      // Collapsed (consolidation): Files / Messages / WhatsApp / Proposed updates
+      // / CRM requests / Email senders / Agent emails / Email threading are now
+      // the Files / Messaging / Email / Requests tabs inside /command/operations,
+      // and the legacy routes redirect there (see lib/operations-redirects.ts).
+      // exact:true keeps this highlighted across every tab (the tab lives in
+      // ?tab=).
+      { href: "/command/operations", label: "Operations", Icon: FolderOpen, exact: true },
     ],
   },
   {
     id: "growth",
     label: "Growth",
     items: [
-      { href: "/command/website-growth", label: "Website & Growth", Icon: Globe },
+      // Collapsed (consolidation Phase 5A): the nine analytics dashboards
+      // (Trends / Website & Growth / Chain invites / Getting started / Feature
+      // usage / App adoption / Repeat use / Growth tests / Chase experiment) are
+      // now the Trends / Acquisition / Activation / Engagement / Retention /
+      // Experiments tabs inside /command/growth, and the legacy routes redirect
+      // there (see lib/growth-redirects.ts). exact:true keeps this highlighted
+      // across every tab (the tab lives in ?tab=, so the pathname is always this).
+      { href: "/command/growth", label: "Growth", Icon: TrendingUp, exact: true },
+      // Operational feature arcs — kept as their own destinations (write-heavy,
+      // not analytics dashboards).
       { href: "/command/prospects", label: "Prospects", Icon: UserPlus },
       { href: "/command/ai-outreach", label: "AI Outreach", Icon: Radar },
-      { href: "/command/activation", label: "Getting started", Icon: Zap },
-      { href: "/command/chain-invites", label: "Chain invites", Icon: Link2 },
-      { href: "/command/adoption", label: "App adoption", Icon: Smartphone },
-      { href: "/command/followup-usage", label: "Feature usage", Icon: BarChart3 },
-      { href: "/command/retention", label: "Repeat use", Icon: RefreshCw },
-      { href: "/command/growth", label: "Trends", Icon: TrendingUp },
-      { href: "/command/timeframes", label: "Timeframes", Icon: Timer },
-      { href: "/command/experiments", label: "Growth tests", Icon: FlaskConical },
-      { href: "/command/enquiries-chase", label: "Chase experiment", Icon: MailCheck },
+      // Timeframes moved to the Platform workspace (Engine tab) in the Platform
+      // consolidation — it's engine timing, not a growth metric.
     ],
   },
   {
     id: "content",
     label: "Content",
     items: [
-      { href: "/command/content", label: "Overview", Icon: LayoutDashboard, exact: true },
-      { href: "/command/content/inbox", label: "Content inbox", Icon: Inbox },
-      { href: "/command/content/opportunities", label: "Brand opportunities", Icon: Megaphone },
-      { href: "/command/content/strategy", label: "Strategy", Icon: Compass },
-      { href: "/command/content/create", label: "Create", Icon: Sparkle },
-      { href: "/command/content/calendar", label: "Calendar", Icon: CalendarDays },
-      { href: "/command/content/performance", label: "Performance", Icon: BarChart3 },
-      { href: "/command/content/thoughts", label: "Things you think", Icon: Lightbulb },
-      { href: "/command/content/brand", label: "Your brand", Icon: Fingerprint },
-      { href: "/command/content/drafts", label: "Drafts & images", Icon: PenLine },
+      // Collapsed to one canonical entry (consolidation Phase 4A): the former ten
+      // content links are now the Overview / Ideas / Create / Plan / Measure /
+      // Brand tabs inside /command/content, and the legacy routes redirect there
+      // (see lib/content-redirects.ts). exact:true keeps this highlighted across
+      // every tab (the tab lives in ?tab=, so the pathname is always this).
+      { href: "/command/content", label: "Content", Icon: PenLine, exact: true },
     ],
   },
   {
     id: "platform",
     label: "Platform",
     items: [
-      { href: "/command/emails", label: "Email catalogue", Icon: BookOpen },
-      { href: "/command/milestone-emails", label: "Milestone emails", Icon: Mails },
-      { href: "/command/email-templates", label: "Other client emails", Icon: MailPlus },
-      { href: "/command/milestone-updates", label: "Milestone updates", Icon: MessageSquare },
-      { href: "/command/solicitor-chase", label: "Solicitor chasing", Icon: Gavel },
-      { href: "/command/rules", label: "Rules", Icon: ListChecks },
+      // Collapsed (consolidation): Email catalogue / Milestone emails / Other
+      // client emails / Milestone updates / Solicitor chasing / Rules, plus
+      // Timeframes (moved from Growth), are now the Emails / Updates / Chasing /
+      // Engine tabs inside /command/platform; the legacy routes redirect there
+      // (see lib/platform-redirects.ts). exact:true keeps this highlighted across
+      // every tab (the tab lives in ?tab=).
+      { href: "/command/platform", label: "Platform", Icon: BookOpen, exact: true },
     ],
   },
   {
     id: "system",
     label: "System",
     items: [
-      { href: "/command/health", label: "System status", Icon: HeartPulse },
-      { href: "/command/activity", label: "Activity", Icon: Activity },
-      { href: "/command/audit", label: "Audit log", Icon: Shield },
-      { href: "/command/updates", label: "Platform updates", Icon: Megaphone },
-      { href: "/command/critique", label: "Critique", Icon: Camera },
-      { href: "/command/settings", label: "Settings", Icon: Settings },
+      // Collapsed (consolidation, final section): System status / Activity /
+      // Audit log / Platform updates / Critique / Settings are now the
+      // Monitoring / Updates / Critique / Settings tabs inside /command/system,
+      // and the legacy routes redirect there (see lib/system-redirects.ts).
+      // exact:true keeps this highlighted across every tab (the tab lives in
+      // ?tab=).
+      { href: "/command/system", label: "System", Icon: Settings, exact: true },
+      // Standalone tool — not one of the six consolidated System pages.
       { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
     ],
   },

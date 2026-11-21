@@ -832,7 +832,7 @@ export default async function OverviewPage({
       {activeExperimentsCount + proposedExperimentsCount > 0 && (
         <section>
           <Link
-            href="/command/experiments"
+            href="/command/growth?tab=experiments&view=tests"
             className="flex items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-3.5 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
           >
             <span className="text-sm text-neutral-300">

@@ -63,7 +63,7 @@ export async function markQuoteWon(
     afterValue: { status: "won", saleFeePence: sale, referralFeePence: referral },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }
@@ -98,7 +98,7 @@ export async function updateQuoteFee(
     afterValue: { saleFeePence: sale, referralFeePence: referral },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }
@@ -130,7 +130,7 @@ export async function markQuoteLost(
     afterValue: { status: "lost", reason: input.reason },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }
@@ -158,7 +158,7 @@ export async function markQuoteExpired(id: string): Promise<ActionResult> {
     afterValue: { status: "expired" },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }
@@ -187,7 +187,7 @@ export async function reopenQuote(id: string): Promise<ActionResult> {
     afterValue: { status: "pending" },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }
@@ -213,7 +213,7 @@ export async function markReferralFeeCollected(
     afterValue: { collected },
   }).catch(() => {});
 
-  revalidatePath("/command/providers/quotes");
+  revalidatePath("/command/money");
   revalidatePath(`/command/providers/quotes/${id}`);
   return { ok: true };
 }

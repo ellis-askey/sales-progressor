@@ -23,7 +23,7 @@ export default async function AgencyRevenueDrillPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/command/revenue" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+        <Link href="/command/money?tab=revenue" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
           ← Revenue
         </Link>
         <div className="flex items-baseline justify-between mt-2 gap-4 flex-wrap">

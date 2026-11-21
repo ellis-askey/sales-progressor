@@ -37,7 +37,7 @@ export function SignalActions({
 
       {experimentable && (
         promotedTo ? (
-          <Link href={`/command/experiments`} className="text-xs text-emerald-500 hover:text-emerald-400">
+          <Link href={`/command/growth?tab=experiments&view=tests`} className="text-xs text-emerald-500 hover:text-emerald-400">
             Added → view
           </Link>
         ) : (
