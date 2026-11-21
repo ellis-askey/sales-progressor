@@ -21,6 +21,7 @@ import { confirmDiaryEventAction } from "@/app/actions/milestones";
 import { recalibrateExchangeDateAction, saveCompletionDateAction } from "@/app/actions/transactions";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
+import { HubSplitButton } from "@/components/hub/HubSplitButton";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 import { DateField } from "@/components/ui/DateField";
 import { toUKDateStr } from "@/lib/utils";
@@ -173,20 +174,18 @@ export function DiaryEventRow({
             <Check size={13} weight="bold" /> {c.doneLabel}
           </span>
         ) : showConfirmButton ? (
-          <span style={{ display: "inline-flex", alignItems: "stretch" }}>
-            <button
-              type="button"
-              onClick={() => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); }}
-              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-              style={{ color: c.accent, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-            >
+          <HubSplitButton
+            onClick={() => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); }}
+            buttonStyle={{ color: c.accent }}
+            items={menuItems}
+            disabled={busy}
+            label={<>
               {/* Narrow rows drop to the one-word label so the address keeps its
                   room — swapped by row width (container query), not viewport. */}
               <span className="diary-cta-full">Confirm {c.verb}</span>
               <span className="diary-cta-short">{c.verbShort}</span>
-            </button>
-            <RowActionMenu joined items={menuItems} disabled={busy} />
-          </span>
+            </>}
+          />
         ) : (
           // Exchange not yet gate-ready: a "Not ready" button (not bare text) that
           // opens the options menu, so the row keeps the button footprint of the

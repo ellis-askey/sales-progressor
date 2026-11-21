@@ -25,6 +25,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
 import { DateField } from "@/components/ui/DateField";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
+import { HubSplitButton } from "@/components/hub/HubSplitButton";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -241,7 +242,7 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
 
                     {/* Split action: Confirm + ▾ floating menu (shared) */}
                     <div className="hub-r-tail">
-                      <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
+                      <span className="hub-r-meta-m hub-r-meta-m--2line" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }}>
                         <span>{row.subtext}</span>
                       </span>
                       <div className="hub-r-actions" style={{ display: "inline-flex", flexShrink: 0 }}>
@@ -280,18 +281,12 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                             />
                           )
                         ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setOpenId(isOpen ? null : row.transactionId)}
-                              disabled={busy}
-                              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                              style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                            >
-                              {isOpen ? "Close" : "Confirm"}
-                            </button>
-                            <RowActionMenu joined disabled={busy} items={menuItems} />
-                          </>
+                          <HubSplitButton
+                            label={isOpen ? "Close" : "Confirm"}
+                            onClick={() => setOpenId(isOpen ? null : row.transactionId)}
+                            disabled={busy}
+                            items={menuItems}
+                          />
                         )}
                       </div>
                     </div>

@@ -53,6 +53,7 @@ import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { buttonClasses } from "@/components/arc/button/button";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
@@ -302,7 +303,7 @@ export default async function Hub() {
         {claimedFirstSale ? (
           // While the welcome hero is up, the hero carries "Add another sale",
           // so this points at the one thing they haven't done: their profile.
-          <Link href="/agent/account/profile" className="agent-btn agent-btn-sm hub-profile-cta" style={{ textDecoration: "none" }}>
+          <Link href="/agent/account/profile" className={buttonClasses({ variant: "outline", size: "sm" })} style={{ textDecoration: "none" }}>
             <UserCircle size={15} weight="regular" />
             Complete your profile
           </Link>

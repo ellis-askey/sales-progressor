@@ -8,6 +8,7 @@
 // on the left via grid-template-areas).
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import {
   CaretRight,
   CheckCircle,
@@ -17,6 +18,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { FirstSalePhoto } from "@/components/hub/FirstSalePhoto";
 import { Pill } from "@/components/ui/Pill";
+import { buttonClasses } from "@/components/arc/button/button";
 
 export function FirstSaleHero({
   sale,
@@ -76,23 +78,15 @@ export function FirstSaleHero({
       <div className="fsh-ctas" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Link
           href={`/agent/transactions/${sale.id}`}
-          className="agent-btn agent-btn-primary"
-          style={{ textDecoration: "none", justifyContent: "center", padding: "11px 18px", fontSize: 14 }}
+          className={buttonClasses({ variant: "primary" })}
+          style={{ textDecoration: "none", padding: "11px 18px", fontSize: 14, ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
         >
           Continue with {line1} <ArrowRight size={15} weight="bold" />
         </Link>
         <Link
           href="/agent/transactions/new"
-          className="agent-btn"
-          style={{
-            textDecoration: "none",
-            justifyContent: "center",
-            padding: "11px 18px",
-            fontSize: 14,
-            background: "var(--agent-surface-glass, #fff)",
-            border: "1px solid rgba(var(--agent-coral-rgb), 0.35)",
-            color: "var(--agent-coral-deep)",
-          }}
+          className={buttonClasses({ variant: "outline" })}
+          style={{ textDecoration: "none", padding: "11px 18px", fontSize: 14 }}
         >
           <Plus size={15} weight="bold" /> Add another sale
         </Link>
