@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { CaretDown } from "@phosphor-icons/react";
 import { Popover } from "@/components/ui/Popover";
+import { buttonClasses } from "@/components/arc/button/button";
 
 export type RowMenuItem = {
   key: string;
@@ -57,8 +58,8 @@ export function RowActionMenu({
       disabled={disabled}
       aria-label={label ?? ariaLabel}
       aria-expanded={open}
-      className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: label ? 5 : 0, ...joinedStyle }}
+      className={buttonClasses({ variant: "outline", size: "sm" })}
+      style={{ gap: label ? 5 : 0, ...joinedStyle }}
     >
       {label}
       <CaretDown size={13} weight="bold" style={{ transition: "transform 160ms", transform: open ? "rotate(180deg)" : "none" }} />

@@ -57,7 +57,7 @@ import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck } from "@phosphor-icons/react/dist/ssr";
+import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck, Warning } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -476,16 +476,18 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
         className="agent-glass-strong"
         style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", opacity: 0.35, pointerEvents: "none" }}
       >
+        {/* Mirror the REAL card header anatomy (24px Warning + column title/subtitle
+            + chevron), so the ghost doesn't preview the wrong shape and cause a jump. */}
         <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          display: "flex", alignItems: "center", gap: 12,
           padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <Clock size={15} color="var(--agent-text-muted)" />
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-primary)" }}>
-              Needs your attention
-            </p>
+          <Warning size={24} color="var(--agent-text-muted)" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="agent-skeleton" style={{ height: 12, width: 120, borderRadius: 4, marginBottom: 6 }} />
+            <div className="agent-skeleton" style={{ height: 9, width: 190, borderRadius: 4 }} />
           </div>
+          <div className="agent-skeleton" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0 }} />
         </div>
         {[0.55, 0.38, 0.47].map((w, i) => (
           <div key={i} style={{
@@ -498,7 +500,7 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
               <div className="agent-skeleton" style={{ height: 12, borderRadius: 4, width: `${w * 100}%`, marginBottom: 6 }} />
               <div className="agent-skeleton" style={{ height: 11, borderRadius: 4, width: `${w * 60}%` }} />
             </div>
-            <div className="agent-skeleton" style={{ height: 18, width: 58, borderRadius: 99, flexShrink: 0 }} />
+            <div className="agent-skeleton" style={{ height: 28, width: 76, borderRadius: 8, flexShrink: 0 }} />
           </div>
         ))}
       </div>
