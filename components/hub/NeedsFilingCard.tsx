@@ -17,6 +17,7 @@ import type { CSSProperties } from "react";
 import { ArrowDown, ArrowUp, Check, X, Envelope } from "@phosphor-icons/react";
 import { HubCard } from "@/components/hub/HubCard";
 import { buttonClasses } from "@/components/arc/button/button";
+import { Pill } from "@/components/ui/Pill";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
   filePendingEmailAction,
@@ -202,28 +203,15 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
               {/* Who + when */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                 {multi ? (
-                  <span
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0,
-                      fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 999,
-                      color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb), 0.10)",
-                    }}
-                  >
+                  <Pill glass tone="brand" size="sm" style={{ flexShrink: 0 }}>
                     <Envelope size={10} weight="bold" />
                     {t.rows.length} emails
-                  </span>
+                  </Pill>
                 ) : (
-                  <span
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0,
-                      fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 999,
-                      color: sent ? "var(--agent-coral-deep)" : "#0f766e",
-                      background: sent ? "rgba(var(--agent-coral-rgb), 0.10)" : "rgba(16,185,129,0.12)",
-                    }}
-                  >
+                  <Pill glass tone={sent ? "brand" : "success"} size="sm" style={{ flexShrink: 0 }}>
                     {sent ? <ArrowUp size={10} weight="bold" /> : <ArrowDown size={10} weight="bold" />}
                     {sent ? "Sent" : "Received"}
-                  </span>
+                  </Pill>
                 )}
                 <span style={{ fontSize: 11.5, color: "var(--agent-text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {multi ? "With " : r.direction === "outbound" ? "To " : "From "}{partyLine}

@@ -22,6 +22,7 @@ import { recalibrateExchangeDateAction, saveCompletionDateAction } from "@/app/a
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
 import { HubSplitButton } from "@/components/hub/HubSplitButton";
+import { buttonClasses } from "@/components/arc/button/button";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 import { DateField } from "@/components/ui/DateField";
 import { toUKDateStr } from "@/lib/utils";
@@ -222,8 +223,8 @@ export function DiaryEventRow({
           {gateMsg && <p style={{ margin: "12px 0 0", fontSize: 13, fontWeight: 500, color: "var(--agent-warning)" }}>{gateMsg}</p>}
         </ModalBody>
         <ModalFooter>
-          <button type="button" onClick={() => { if (!busy) setOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
-          <button type="button" onClick={confirm} disabled={busy || (item.type === "exchange" && !exchCompletionDate)} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Confirming…" : c.cta}</button>
+          <button type="button" onClick={() => { if (!busy) setOpen(false); }} disabled={busy} className={buttonClasses({ variant: "outline", size: "sm" })}>Cancel</button>
+          <button type="button" onClick={confirm} disabled={busy || (item.type === "exchange" && !exchCompletionDate)} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as React.CSSProperties}>{busy ? "Confirming…" : c.cta}</button>
         </ModalFooter>
       </Modal>
 
@@ -247,8 +248,8 @@ export function DiaryEventRow({
           <DateField value={compDate} min={todayStr} onChange={(e) => setCompDate(e.target.value)} className="agent-input" style={{ marginTop: 12, padding: "8px 10px", fontSize: 14 }} wrapperStyle={{ display: "block" }} autoFocus />
         </ModalBody>
         <ModalFooter>
-          <button type="button" onClick={() => { if (!busy) setCompDateOpen(false); }} disabled={busy} className="agent-btn agent-btn-sm agent-btn-ghost-bordered">Cancel</button>
-          <button type="button" onClick={saveCompDate} disabled={busy || !compDate} className="agent-btn agent-btn-sm agent-btn-primary">{busy ? "Saving…" : "Save date"}</button>
+          <button type="button" onClick={() => { if (!busy) setCompDateOpen(false); }} disabled={busy} className={buttonClasses({ variant: "outline", size: "sm" })}>Cancel</button>
+          <button type="button" onClick={saveCompDate} disabled={busy || !compDate} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as React.CSSProperties}>{busy ? "Saving…" : "Save date"}</button>
         </ModalFooter>
       </Modal>
     </div>

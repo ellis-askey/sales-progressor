@@ -18,7 +18,6 @@ import { Clock, Bank, Warning, X } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { HubCard } from "@/components/hub/HubCard";
 import { HubRow } from "@/components/hub/HubRow";
-import { buttonClasses } from "@/components/arc/button/button";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { dismissHubCardAction } from "@/app/actions/hub-cards";
 
@@ -136,7 +135,6 @@ export function HubListCard({
                   accent={t.accent}
                   separated={i > 0}
                   bodyClassName="hub-r-body"
-                  tailClassName="hub-r-tail--x"
                   thumb={
                     <Link href={row.href} unstable_dynamicOnHover className="hub-thumb-link" aria-label={`Open ${row.address}`}>
                       <PropertyThumb photoUrl={row.photoUrl} />
@@ -147,34 +145,19 @@ export function HubListCard({
                       type="button"
                       onClick={() => dismiss(row)}
                       disabled={busyId === row.transactionId}
-                      className={buttonClasses({ variant: "outline", size: "sm", className: "hub-r-actions" })}
-                      style={{ gap: 5, flexShrink: 0 }}
+                      className="agent-icon-btn agent-icon-btn-md hub-r-actions"
+                      aria-label={`Dismiss ${row.address}`}
                       title="Hide this for 2 weeks. It comes back if it still applies."
                     >
-                      <X size={12} weight="bold" />
-                      Dismiss
+                      <X size={16} weight="bold" />
                     </button>
                   }
                   after={
-                    <>
-                      {/* Phone-only subtext: full-width line BELOW the photo+address
-                          row, so the two-line address sits level with the photo. */}
-                      <p className="hub-r-meta-below" style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
-                        {row.subtext}
-                      </p>
-                      {/* Phone-only dismiss: a neat ✕ top-right, since the tail
-                          (with the full Dismiss button) is hidden there. */}
-                      <button
-                        type="button"
-                        onClick={() => dismiss(row)}
-                        disabled={busyId === row.transactionId}
-                        className="hub-r-x"
-                        aria-label={`Dismiss ${row.address}`}
-                        title="Hide this for 2 weeks. It comes back if it still applies."
-                      >
-                        <X size={14} weight="bold" />
-                      </button>
-                    </>
+                    /* Phone-only subtext: full-width line BELOW the photo+address
+                       row, so the two-line address sits level with the photo. */
+                    <p className="hub-r-meta-below" style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
+                      {row.subtext}
+                    </p>
                   }
                 >
                     {/* Mobile: the pill becomes a small toned word above the

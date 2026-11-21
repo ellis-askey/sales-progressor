@@ -16,6 +16,7 @@
 // Empty list → renders nothing. See docs/active/booking-reminders/00-plan.md.
 
 import { useState, useTransition } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit, Question } from "@phosphor-icons/react";
@@ -26,6 +27,7 @@ import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/acti
 import { DateField } from "@/components/ui/DateField";
 import { RowActionMenu, type RowMenuItem } from "@/components/hub/RowActionMenu";
 import { HubSplitButton } from "@/components/hub/HubSplitButton";
+import { buttonClasses } from "@/components/arc/button/button";
 
 export type BookingConfirmRow = {
   transactionId: string;
@@ -255,7 +257,7 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                               type="button"
                               onClick={() => logPast(row, "silent")}
                               disabled={busy}
-                              className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                              className={buttonClasses({ variant: "outline", size: "sm" })}
                             >
                               {busy ? "Logging…" : "Log it"}
                             </button>
@@ -268,7 +270,7 @@ export function BookingsToConfirmCard({ rows: initialRows, defaultCollapsed = fa
                                   type="button"
                                   aria-expanded={open}
                                   disabled={busy}
-                                  className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                                  className={buttonClasses({ variant: "outline", size: "sm" })}
                                 >
                                   {busy ? "Logging…" : "Log it"}
                                 </button>
@@ -373,8 +375,8 @@ export function ConfirmPanel({
           type="button"
           onClick={() => onConfirm(keys, date || null)}
           disabled={busy || !date || (blockPast && isPast)}
-          className="agent-btn agent-btn-sm agent-btn-color-primary"
-          style={{ minWidth: 140 }}
+          className={buttonClasses({ variant: "primary", size: "sm" })}
+          style={{ minWidth: 140, ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
         >
           {busy ? "Confirming…" : "Confirm booking"}
         </button>
