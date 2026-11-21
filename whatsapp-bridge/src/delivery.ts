@@ -53,6 +53,7 @@ export class Delivery {
 
   private async drainAll() {
     await this.drainQueue();
+    if (process.env.MEDIA_DRAIN_PAUSED === "true") return; // temp cost mitigation 2026-11-20: pause media re-drain, queue left intact
     await this.drainMediaQueue();
   }
 
