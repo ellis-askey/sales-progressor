@@ -12,7 +12,8 @@
 // (was critique #276, previously hand-handled).
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import type { CSSProperties } from "react";
+import { Button } from "@/components/arc/button/button";
 import { DateField } from "@/components/ui/DateField";
 import { Popover } from "@/components/ui/Popover";
 import { BellSimpleZ } from "@phosphor-icons/react";
@@ -130,7 +131,7 @@ export function SnoozeMenu({
                   <button
                     key={opt.hours}
                     onClick={() => { setHours(opt.hours); setDateVal(""); }}
-                    className={`rem-snz-chip${on ? " on" : ""}`}
+                    className={`agent-segment-pill agent-segment-pill-sm${on ? " on" : ""}`}
                   >
                     {opt.label}
                   </button>
@@ -158,7 +159,7 @@ export function SnoozeMenu({
               style={{ width: "100%", fontSize: 12, resize: "none", marginBottom: 10, lineHeight: 1.4, minHeight: 52, padding: "8px 10px" }}
             />
 
-            <Button onClick={confirm} disabled={!canConfirm} size="sm" style={{ width: "100%" }}>
+            <Button onClick={confirm} disabled={!canConfirm} size="sm" style={{ width: "100%", ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}>
               Snooze{count && count > 1 ? ` all ${count}` : ""}
             </Button>
 

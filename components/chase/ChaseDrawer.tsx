@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { buttonClasses } from "@/components/arc/button/button";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, CaretDown, CaretUp, Plus, ArrowSquareOut, ArrowsClockwise } from "@phosphor-icons/react";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { LabelInput } from "@/components/ui/LabelInput";
 import { ChaseComposer, type ChaseAttachment, type SigStyle } from "@/components/chase/ChaseComposer";
 import type { SignatureStyleOption } from "@/lib/email/signature-options";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
@@ -1147,12 +1150,12 @@ export function ChaseDrawer({
                             </button>
                           ))}
                         </div>
-                        <input className="agent-field" value={solFirm} onChange={(e) => setSolFirm(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolFirm(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Firm" style={addInputStyle} />
-                        <input className="agent-field" value={solHandler} onChange={(e) => setSolHandler(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolHandler(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Handler name" style={addInputStyle} />
-                        <input className="agent-field" value={solEmail} onChange={(e) => setSolEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" type="email" style={addInputStyle} />
-                        <input className="agent-field" value={solPhone} onChange={(e) => setSolPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setSolPhone(formatUKPhone(e.target.value)); }} placeholder="Direct line" type="tel" style={addInputStyle} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Firm" type="text" value={solFirm} onChange={(e) => setSolFirm(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolFirm(titleCaseKeepAcronyms(e.target.value)); }} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Handler name" type="text" value={solHandler} onChange={(e) => setSolHandler(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolHandler(titleCaseKeepAcronyms(e.target.value)); }} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Email" type="email" inputMode="email" value={solEmail} onChange={(e) => setSolEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolEmail(e.target.value.trim().toLowerCase()); }} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Direct line" type="tel" inputMode="tel" value={solPhone} onChange={(e) => setSolPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setSolPhone(formatUKPhone(e.target.value)); }} />
                         {solMore ? (
-                          <input className="agent-field" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolSecondary(e.target.value.trim().toLowerCase()); }} placeholder="Assistant email (optional)" type="email" style={addInputStyle} />
+                          <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Assistant email (optional)" type="email" inputMode="email" value={solSecondary} onChange={(e) => setSolSecondary(e.target.value)} onBlur={e => { if (e.target.value.trim()) setSolSecondary(e.target.value.trim().toLowerCase()); }} />
                         ) : (
                           <button onClick={() => setSolMore(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontSize: 11, color: "var(--agent-coral-deep)", cursor: "pointer", fontWeight: 600 }}>
                             + Assistant email
@@ -1162,9 +1165,9 @@ export function ChaseDrawer({
                       </>
                     ) : (
                       <>
-                        <input className="agent-field" value={addName} onChange={(e) => setAddName(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddName(titleCaseKeepAcronyms(e.target.value)); }} placeholder="Name" style={addInputStyle} />
-                        <input className="agent-field" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddEmail(e.target.value.trim().toLowerCase()); }} placeholder="Email" type="email" style={addInputStyle} />
-                        <input className="agent-field" value={addPhone} onChange={(e) => setAddPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setAddPhone(formatUKPhone(e.target.value)); }} placeholder="Phone (optional)" style={addInputStyle} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Name" type="text" value={addName} onChange={(e) => setAddName(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddName(titleCaseKeepAcronyms(e.target.value)); }} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Email" type="email" inputMode="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} onBlur={e => { if (e.target.value.trim()) setAddEmail(e.target.value.trim().toLowerCase()); }} />
+                        <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Phone (optional)" type="tel" inputMode="tel" value={addPhone} onChange={(e) => setAddPhone(cleanPhone(e.target.value))} onBlur={e => { if (e.target.value.trim()) setAddPhone(formatUKPhone(e.target.value)); }} />
                       </>
                     )}
                   </div>
@@ -1176,7 +1179,7 @@ export function ChaseDrawer({
                     <button
                       type="button"
                       onClick={() => { resetAddForm(); setAddError(null); }}
-                      className="agent-btn agent-btn-neutral agent-btn-sm"
+                      className={buttonClasses({ variant: "secondary", size: "sm" })}
                     >
                       Cancel
                     </button>
@@ -1328,8 +1331,8 @@ export function ChaseDrawer({
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="agent-btn agent-btn-md agent-btn-primary"
-              style={{ width: "100%" }}
+              className={buttonClasses({ variant: "primary", size: "md" })}
+              style={{ width: "100%", ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
             >
               {isGenerating
                 ? <><CircleNotch size={15} className="animate-spin" />Generating…</>
@@ -1447,8 +1450,8 @@ export function ChaseDrawer({
           <button
             onClick={handleSend}
             disabled={bodyEmpty || isSending}
-            className={`agent-btn agent-btn-md agent-btn-primary${channel === "whatsapp" ? " chase-primary-green" : ""}`}
-            style={{ width: "100%" }}
+            className={buttonClasses({ variant: "primary", size: "md" })}
+            style={{ width: "100%", ["--foreground"]: channel === "whatsapp" ? "#22c55e" : "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
           >
             {isSending
               ? <><CircleNotch size={15} className="animate-spin" />Sending…</>
@@ -1463,7 +1466,7 @@ export function ChaseDrawer({
                 onClick={handleOpenInMyEmail}
                 disabled={bodyEmpty || !selectedRecipient?.email || isSending || hasAttachments}
                 title={hasAttachments ? "Remove attachments to use your own email app" : "Opens your own email app with this ready to send"}
-                className="agent-btn agent-btn-md agent-btn-secondary chase-secondary"
+                className={buttonClasses({ variant: "secondary", size: "md" })}
                 style={{ width: "100%", marginTop: 8 }}
               >
                 <ArrowSquareOut size={15} weight="bold" /> Open in my email

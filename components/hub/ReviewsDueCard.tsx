@@ -216,7 +216,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                         >
                           Set date
                         </button>
-                        <button onClick={() => setDateFor(null)} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
+                        <button onClick={() => setDateFor(null)} className={buttonClasses({ variant: "ghost", size: "xs" })}>Cancel</button>
                       </div>
                     ) : (
                       <HubSplitButton

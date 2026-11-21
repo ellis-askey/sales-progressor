@@ -14,7 +14,8 @@
 import { useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Button } from "@/components/ui/Button";
+import type { CSSProperties } from "react";
+import { Button } from "@/components/arc/button/button";
 import { reviseOverdueExchangeDateAction } from "@/app/actions/transactions";
 import { DateField } from "@/components/ui/DateField";
 
@@ -112,7 +113,7 @@ export function ReviseExchangeDateModal({
           <Button variant="ghost" onClick={close} disabled={pending}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={save} disabled={!canSave}>
+          <Button variant="primary" onClick={save} disabled={!canSave} style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}>
             {pending ? "Saving" : "Save new date"}
           </Button>
         </div>

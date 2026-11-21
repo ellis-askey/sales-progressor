@@ -11,6 +11,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { buttonClasses } from "@/components/arc/button/button";
 
 function ResumeOptionCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
   return (
@@ -85,8 +86,7 @@ export function ResumeFileModal({ address, onCancel, onResume }: {
           <button
             type="button"
             onClick={handleCancel}
-            className="agent-link"
-            style={{ padding: "10px 6px", fontSize: 13, fontWeight: 500 }}
+            className={buttonClasses({ variant: "secondary", size: "sm" })}
           >
             Cancel
           </button>

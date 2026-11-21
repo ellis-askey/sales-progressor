@@ -9,8 +9,10 @@
 // behaviour is byte-identical to before the extraction.
 
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import { buttonClasses } from "@/components/arc/button/button";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import type { WithdrawalReason } from "@prisma/client";
 
@@ -173,17 +175,7 @@ export function WithdrawFileModal({
             <button
               type="button"
               onClick={onCancel}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--agent-text-secondary, #4b5563)",
-                background: "transparent",
-                border: "0.5px solid var(--agent-border-default, rgba(0,0,0,0.12))",
-                cursor: "pointer",
-              }}
-              className="hover:bg-black/[0.04]"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               Cancel
             </button>
@@ -191,21 +183,12 @@ export function WithdrawFileModal({
               type="button"
               onClick={confirmWithdrawal}
               disabled={!pickedReason}
+              className={buttonClasses({ variant: "primary", size: "sm" })}
               style={{
-                padding: "8px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#fff",
-                background: confirmTone === "primary" ? "var(--agent-coral-deep, #e8542f)" : "var(--agent-danger, #C73E3E)",
-                border: "none",
-                cursor: !pickedReason ? "default" : "pointer",
-                opacity: !pickedReason ? 0.5 : 1,
                 minWidth: 150,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+                ["--foreground"]: confirmTone === "primary" ? "#FF6B4A" : "var(--agent-danger, #C73E3E)",
+                ["--background"]: "#ffffff",
+              } as CSSProperties}
             >
               {confirmLabel}
             </button>

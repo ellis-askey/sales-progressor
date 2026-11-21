@@ -12,7 +12,8 @@
 
 import { useState } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
+import type { CSSProperties } from "react";
+import { Button, buttonClasses } from "@/components/arc/button/button";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getEventDateLabel } from "@/lib/portal-copy";
 import { DateField } from "@/components/ui/DateField";
@@ -74,10 +75,10 @@ export function ConfirmMilestoneDateModal({
       </ModalBody>
       <ModalFooter>
         <div className="flex justify-end gap-2">
-          <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" onClick={onClose} disabled={loading}>
+          <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} onClick={onClose} disabled={loading}>
             Cancel
           </button>
-          <Button variant="primary" size="sm" loading={loading} disabled={!date} onClick={() => onConfirm(date)}>
+          <Button variant="primary" size="sm" loading={loading} disabled={!date} onClick={() => onConfirm(date)} style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}>
             Confirm
           </Button>
         </div>

@@ -9,7 +9,9 @@
 import { useState, useRef, useEffect } from "react";
 import { CheckCircle, CaretDown, Check } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
+import type { CSSProperties } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { buttonClasses } from "@/components/arc/button/button";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SavingPulse } from "@/components/ui/SavingPulse";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -181,12 +183,12 @@ export function AddClientEmailModal({
           </Modal.Body>
 
           <Modal.Footer style={{ padding: "16px 24px 20px", gap: 12, justifyContent: undefined }}>
-            <button type="button" onClick={onClose} className="agent-btn agent-btn-neutral agent-btn-md">Cancel</button>
+            <button type="button" onClick={onClose} className={buttonClasses({ variant: "secondary", size: "md" })}>Cancel</button>
             <button
               type="submit"
               disabled={!selected || !emailValid || saving}
-              className="flex-1 py-2.5 agent-btn-color-primary text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              className={buttonClasses({ variant: "primary", size: "md", className: "flex-1" })}
+              style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
             >
               {saving ? <SavingPulse label="Saving…" tone="muted" /> : "Save email"}
             </button>

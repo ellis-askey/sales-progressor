@@ -392,7 +392,7 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
       >
         {isPending ? "…" : "Save"}
       </button>
-      <button onClick={() => setOpen(false)} className="agent-link" style={{ fontSize: 11 }}>
+      <button onClick={() => setOpen(false)} className={buttonClasses({ variant: "ghost", size: "xs" })}>
         Cancel
       </button>
     </div>
@@ -1032,7 +1032,7 @@ function AttentionRow({
               >
                 Indefinitely
               </button>
-              <button onClick={onCloseExtender} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
+              <button onClick={onCloseExtender} className={buttonClasses({ variant: "ghost", size: "xs" })}>Cancel</button>
             </div>
           ) : (
             <>

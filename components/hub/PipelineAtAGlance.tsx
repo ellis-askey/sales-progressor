@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages, PipelineSample, PipelineMoreItem } from "@/lib/services/hub";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { StatNumber } from "@/components/ui/StatNumber";
 
 type CardDef = {
   key: string;
@@ -75,9 +76,9 @@ export function PipelineAtAGlance({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 18 }}>
         <div style={{ minWidth: 0 }}>
           <p className="agent-eyebrow" style={{ marginBottom: 6 }}>Pipeline at a glance</p>
-          <p style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.05, color: "var(--agent-text-primary)" }}>
+          <StatNumber>
             {activeFiles} active {activeFiles === 1 ? "sale" : "sales"}
-          </p>
+          </StatNumber>
           <p className="agent-card-subtitle" style={{ marginTop: 4 }}>Here&apos;s where every file sits right now.</p>
         </div>
         <Link href="/agent/transactions" className="agent-link" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap", textDecoration: "none" }}>

@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { WeekBucket } from "@/lib/services/hub";
 import { fmtCurrencyPence } from "@/lib/utils";
-import { useIsDarkTheme } from "./PipelineStageHover";
-import { ChartTipPortal } from "@/components/agent/ChartTipPortal";
 import { Donut } from "@/components/ui/Donut";
 import { ProgressRing } from "@/components/ui/ProgressRing";
+import { HeatBand } from "@/components/ui/HeatBand";
 import { buttonClasses } from "@/components/arc/button/button";
 
 // ── Refresh button ─────────────────────────────────────────────────────────────
@@ -68,95 +66,38 @@ function weekPhrase(w: WeekBucket): string {
 }
 
 export function ForecastHeatBand({ data }: { data: WeekBucket[] }) {
-  const isDark = useIsDarkTheme();
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const max = Math.max(...data.map((d) => d.count), 0);
-  const open = openIdx !== null ? data[openIdx] : null;
-
   return (
-    <div style={{ position: "relative" }}>
-      <div style={{ display: "flex", gap: 6, height: 56, marginTop: 4 }}>
-        {data.map((w, i) => {
-          const t = max > 0 ? w.count / max : 0;
-          const zero = w.count === 0;
-          const solid = !zero && t === 1; // the busiest week gets the full glass gradient
-          const cellBg = zero
-            ? "var(--agent-hover-shade)"
-            : solid
-              ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))"
-              : `linear-gradient(180deg, rgba(var(--agent-coral-base-rgb), ${(0.12 + 0.3 * t).toFixed(2)}), rgba(var(--agent-coral-base-rgb), ${(0.2 + 0.38 * t).toFixed(2)}))`;
-          const numColor = zero ? "var(--agent-text-muted)" : solid ? "#fff" : "var(--agent-coral-deep)";
-          const labelColor = solid
-            ? "rgba(255,255,255,0.85)"
-            : w.isCurrentWeek
-              ? "var(--agent-coral-deep)"
-              : "var(--agent-text-muted)";
-          const highlight = isDark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.55)";
-          return (
-            <button
-              key={w.label}
-              type="button"
-              aria-label={`${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.feesPence > 0 ? `, ${fmtCurrencyPence(w.feesPence)} in fees` : ""}`}
-              onMouseEnter={(e) => { if (!zero) { setOpenIdx(i); setAnchor(e.currentTarget.getBoundingClientRect()); } }}
-              onMouseLeave={() => setOpenIdx((cur) => (cur === i ? null : cur))}
-              onFocus={(e) => { if (!zero) { setOpenIdx(i); setAnchor(e.currentTarget.getBoundingClientRect()); } }}
-              onBlur={() => setOpenIdx((cur) => (cur === i ? null : cur))}
-              style={{
-                flex: 1, minWidth: 0, borderRadius: 10, padding: 0,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
-                background: cellBg,
-                border: zero ? "0.5px solid transparent" : `0.5px solid ${highlight}`,
-                boxShadow: zero
-                  ? "none"
-                  : `inset 0 1px 0 ${highlight}, 0 5px 12px rgba(var(--agent-coral-base-rgb), ${(0.08 + 0.16 * t).toFixed(2)})`,
-                cursor: zero ? "default" : "pointer",
-                fontFamily: "inherit",
-                transition: "filter 150ms ease",
-                filter: openIdx === i ? "brightness(0.96)" : "none",
-              }}
-            >
-              <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15, color: numColor, fontVariantNumeric: "tabular-nums" }}>
-                {w.count}
-              </span>
-              <span style={{ fontSize: 9.5, fontWeight: w.isCurrentWeek ? 700 : 600, textTransform: "uppercase", letterSpacing: "0.05em", color: labelColor }}>
-                {w.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {open && openIdx !== null && anchor && (
-        // Portalled to <body> so the frosted glass escapes the GlassCard backdrop
-        // context (which otherwise flattened it to see-through). Anchored above
-        // the hovered cell from its viewport rect.
-        <ChartTipPortal
-          x={anchor.left + anchor.width / 2}
-          y={anchor.top}
-          place="above"
-          maxWidth={250}
-          style={{ padding: "8px 12px" }}
-        >
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
-            {open.feesPence > 0
-              ? `${fmtCurrencyPence(open.feesPence)} in fees due ${weekPhrase(open)}`
-              : `${open.count} ${open.count === 1 ? "exchange" : "exchanges"} ${weekPhrase(open)}`}
-          </p>
-          {open.files.slice(0, 3).map((f) => (
-            <p key={f.address} style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {f.address}
-              {f.feePence > 0 && ` · ${fmtCurrencyPence(f.feePence)}`}
+    <HeatBand
+      cells={data.map((w) => ({
+        label: w.label,
+        value: w.count,
+        strong: w.isCurrentWeek,
+        ariaLabel: `${w.label}: ${w.count} ${w.count === 1 ? "exchange" : "exchanges"} due${w.feesPence > 0 ? `, ${fmtCurrencyPence(w.feesPence)} in fees` : ""}`,
+      }))}
+      tooltip={(i) => {
+        const open = data[i];
+        return (
+          <>
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
+              {open.feesPence > 0
+                ? `${fmtCurrencyPence(open.feesPence)} in fees due ${weekPhrase(open)}`
+                : `${open.count} ${open.count === 1 ? "exchange" : "exchanges"} ${weekPhrase(open)}`}
             </p>
-          ))}
-          {open.files.length > 3 && (
-            <p style={{ margin: "4px 0 0", fontSize: 11, opacity: 0.6 }}>
-              +{open.files.length - 3} more
-            </p>
-          )}
-        </ChartTipPortal>
-      )}
-    </div>
+            {open.files.slice(0, 3).map((f) => (
+              <p key={f.address} style={{ margin: "4px 0 0", fontSize: 11.5, opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {f.address}
+                {f.feePence > 0 && ` · ${fmtCurrencyPence(f.feePence)}`}
+              </p>
+            ))}
+            {open.files.length > 3 && (
+              <p style={{ margin: "4px 0 0", fontSize: 11, opacity: 0.6 }}>
+                +{open.files.length - 3} more
+              </p>
+            )}
+          </>
+        );
+      }}
+    />
   );
 }
 

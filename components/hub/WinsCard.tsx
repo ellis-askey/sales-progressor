@@ -23,6 +23,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Trophy, Flag, Sparkle, Rocket } from "@phosphor-icons/react";
 import { fmtCurrencyPence } from "@/lib/utils";
+import { StatNumber } from "@/components/ui/StatNumber";
 import type { HubWins } from "@/lib/services/hub";
 
 type Tier = "exchanges" | "completions" | "progress" | "fresh";
@@ -252,12 +253,12 @@ export function WinsCard({ wins }: { wins: HubWins }) {
           >
             {/* Kicker in sentence case (not all-caps) + capitalised label
                 (founder, 2026-10-15). */}
-            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em", color: "var(--agent-coral-deep)" }}>
+            <p className="agent-eyebrow" style={{ marginBottom: 6 }}>
               {s.kicker}
             </p>
-            <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: s.bigColor ?? "var(--agent-text-primary)", lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+            <StatNumber color={s.bigColor ?? undefined}>
               {s.big}
-            </p>
+            </StatNumber>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", fontWeight: 500 }}>
               {s.label.charAt(0).toUpperCase() + s.label.slice(1)}
             </p>
