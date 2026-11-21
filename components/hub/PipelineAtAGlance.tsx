@@ -22,7 +22,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import type { HubPipelineStages, PipelineSample, PipelineMoreItem } from "@/lib/services/hub";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { StatNumber } from "@/components/ui/StatNumber";
+import { StatBlock } from "@/components/ui/StatBlock";
 
 type CardDef = {
   key: string;
@@ -74,13 +74,11 @@ export function PipelineAtAGlance({
     <GlassCard glassId="hub-pipeline-glance" label="Hub · Pipeline at a glance" defaultVariant="v22" className="pipe-container" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 18 }}>
-        <div style={{ minWidth: 0 }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 6 }}>Pipeline at a glance</p>
-          <StatNumber>
-            {activeFiles} active {activeFiles === 1 ? "sale" : "sales"}
-          </StatNumber>
-          <p className="agent-card-subtitle" style={{ marginTop: 4 }}>Here&apos;s where every file sits right now.</p>
-        </div>
+        <StatBlock
+          eyebrow="Pipeline at a glance"
+          value={<>{activeFiles} active {activeFiles === 1 ? "sale" : "sales"}</>}
+          sub="Here's where every file sits right now."
+        />
         <Link href="/agent/transactions" className="agent-link" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap", textDecoration: "none" }}>
           View files <ArrowRight size={13} weight="bold" />
         </Link>

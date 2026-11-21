@@ -253,7 +253,7 @@ export function WinsCard({ wins }: { wins: HubWins }) {
           >
             {/* Kicker in sentence case (not all-caps) + capitalised label
                 (founder, 2026-10-15). */}
-            <p className="agent-eyebrow" style={{ marginBottom: 6 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.02em", color: "var(--agent-coral-deep)" }}>
               {s.kicker}
             </p>
             <StatNumber color={s.bigColor ?? undefined}>
