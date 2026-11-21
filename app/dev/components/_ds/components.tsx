@@ -1202,6 +1202,71 @@ const HUB_ENTRIES: ComponentEntry[] = [
       </Stage>
     ),
   },
+  {
+    id: "pipe-stage-card",
+    name: "Pipeline stage card",
+    category: "cards",
+    status: "implemented",
+    keywords: ["pipeline", "stage", "just in", "moving", "legal work", "pipe-card", "count", "glance"],
+    summary: "The 6 pipeline-stage tiles on the hub (Just in / Moving / Legal work / …). Label + big count (.pipe-count 30px) + sub-line + a sample property row + '+N more', tinted per stage accent. Styled by the .pipe-* classes; furthest-reached stages render as ReachedCard, the next as UpNextCard, later ones ghosted.",
+    sources: [{ path: "components/hub/PipelineAtAGlance.tsx", note: "ReachedCard / UpNextCard / GhostCard" }, { path: "app/agent/styles/agent-system.css", note: ".pipe-card / .pipe-count" }],
+    render: () => (
+      <Stage width={240}>
+        <div style={{ borderRadius: 16, padding: "16px 16px 14px", border: "1px solid rgba(45,24,16,0.08)", background: "linear-gradient(160deg, rgba(16,185,129,0.10), rgba(16,185,129,0.03))", height: 180, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#20242E", letterSpacing: "-0.01em" }}>Just in</span>
+            <Eye size={18} weight="regular" color="#0f766e" />
+          </div>
+          <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em", color: "#20242E", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>59</div>
+          <span style={{ fontSize: 11, color: "#9a938a", marginTop: 4 }}>New &amp; onboarding</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto" }}>
+            <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: "#fff", color: "#9a938a" }}><House size={14} weight="fill" /></span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#20242E" }}>Flat 3 · <span style={{ color: "#0f766e" }}>New</span></span>
+          </div>
+          <span style={{ fontSize: 11, color: "#9a938a", marginTop: 8 }}>+58 more</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "chart-tooltip",
+    name: "Chart / map tooltip (portalled)",
+    category: "tooltips",
+    status: "implemented",
+    keywords: ["tooltip", "chart", "sparkline", "heat band", "hover", "portal", "frosted glass", "popup"],
+    summary: "The frosted-glass hover tooltip for charts + the chain map — components/agent/ChartTipPortal.tsx. Portals to document.body so its backdrop-filter escapes the GlassCard backdrop root (which otherwise flattens it see-through). Used by Sparkline, HeatBand, the forecast + chain map. Pass x/y + content.",
+    sources: [{ path: "components/agent/ChartTipPortal.tsx", note: "the canonical" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-block", background: "rgba(255,255,255,0.86)", backdropFilter: "blur(10px)", border: "0.5px solid rgba(45,24,16,0.12)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: "8px 12px", maxWidth: 250 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#20242E" }}>3 exchanges +2 weeks</p>
+          <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "rgba(32,36,46,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>22 Rothamsted Avenue, Harpenden</p>
+          <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "rgba(32,36,46,0.6)" }}>22 Rothamsted Avenue, Harpenden</p>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "activity-row",
+    name: "Recent-activity row",
+    category: "rows",
+    status: "implemented",
+    keywords: ["activity", "recent", "feed", "milestone", "row", "agent-hover-row", "time ago"],
+    summary: "The Recent-activity feed row — a tappable agent-hover-row: a tinted status glyph (no faded backer), a 13/600 title, an 11px muted context line, and a right-aligned 'N days ago'. Built on the shared agent-hover-row; the whole row links to the file's Activity tab. Pattern (inline on hub-view), registered here; the hover is the canonical agent-hover-row.",
+    sources: [{ path: "app/agent/hub/hub-view.tsx", note: "Recent activity feed (inline, on agent-hover-row)" }],
+    render: () => (
+      <Stage width={420}>
+        <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 8px", borderRadius: 10 }}>
+          <span style={{ width: 22, flexShrink: 0, display: "grid", placeItems: "center", color: "var(--agent-success, #16a34a)" }}><WarningCircle size={19} weight="fill" /></span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Buyer&apos;s solicitor has received the draft contract pack</p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>9 Priory Gardens, Marlowe, ML3 6RD</p>
+          </div>
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>14 days ago</span>
+        </div>
+      </Stage>
+    ),
+  },
 ];
 
 /* All reviewed entries. Grows one batch at a time. */
