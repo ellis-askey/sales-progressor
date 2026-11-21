@@ -49,6 +49,7 @@ import {
   CalendarPlus,
   UserPlus,
   ArrowsClockwise,
+  ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { SnoozeMenu } from "@/components/reminders/SnoozeMenu";
 import { reactivateFile, extendHoldAction, pauseClientEmails } from "@/app/actions/automation";
@@ -733,7 +734,7 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
                     cursor: "pointer",
                   }}
                 >
-                  Show all ({rows.length})
+                  Show all ({rows.length}) <ArrowRight size={12} weight="bold" className="agent-arrow-i" />
                 </button>
               )}
               {/* Mobile-only footer version of "All reminders" — a small

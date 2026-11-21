@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChatCircleDots, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ChatCircleDots, PaperPlaneTilt, ArrowRight } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { HubCard } from "@/components/hub/HubCard";
 import { HubRow } from "@/components/hub/HubRow";
@@ -123,7 +123,7 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
           })}
           {hiddenCount > 0 && (
             <button type="button" onClick={() => setShowAll(true)} className="agent-link" style={{ width: "100%", padding: "10px 20px", fontSize: 12, fontWeight: 600, textAlign: "center", background: "transparent", border: "none", borderTop: "0.5px solid var(--agent-border-subtle)", cursor: "pointer" }}>
-              Show all ({visible.length})
+              Show all ({visible.length}) <ArrowRight size={12} weight="bold" className="agent-arrow-i" />
             </button>
           )}
     </HubCard>

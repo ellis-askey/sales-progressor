@@ -15,7 +15,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { NotePencil } from "@phosphor-icons/react";
+import { NotePencil, ArrowRight } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { HubCard } from "@/components/hub/HubCard";
 import { HubRow } from "@/components/hub/HubRow";
@@ -128,7 +128,7 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
                 className="agent-link"
                 style={{ width: "100%", padding: "10px 20px", fontSize: 12, fontWeight: 600, textAlign: "center", background: "transparent", border: "none", borderTop: "0.5px solid var(--agent-border-subtle)", cursor: "pointer" }}
               >
-                Show all ({items.length})
+                Show all ({items.length}) <ArrowRight size={12} weight="bold" className="agent-arrow-i" />
               </button>
             )}
     </HubCard>

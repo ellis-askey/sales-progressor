@@ -14,7 +14,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Clock, Bank, Warning, X } from "@phosphor-icons/react";
+import { Clock, Bank, Warning, X, ArrowRight } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { HubCard } from "@/components/hub/HubCard";
 import { HubRow } from "@/components/hub/HubRow";
@@ -193,7 +193,7 @@ export function HubListCard({
                 className="agent-link"
                 style={{ width: "100%", padding: "10px 20px", fontSize: 12, fontWeight: 600, textAlign: "center", background: "transparent", border: "none", borderTop: "0.5px solid var(--agent-border-subtle)", cursor: "pointer" }}
               >
-                Show all ({rows.length})
+                Show all ({rows.length}) <ArrowRight size={12} weight="bold" className="agent-arrow-i" />
               </button>
             )}
     </HubCard>

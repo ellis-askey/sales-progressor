@@ -19,7 +19,7 @@ import { useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Eye, Check, CalendarPlus, Clock, Prohibit, ArrowSquareOut, CalendarBlank } from "@phosphor-icons/react";
+import { Eye, Check, CalendarPlus, Clock, Prohibit, ArrowSquareOut, CalendarBlank, ArrowRight } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { HubCard } from "@/components/hub/HubCard";
 import { HubRow } from "@/components/hub/HubRow";
@@ -337,7 +337,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                 className="agent-link"
                 style={{ width: "100%", padding: "10px 20px", fontSize: 12, fontWeight: 600, textAlign: "center", background: "transparent", border: "none", borderTop: "0.5px solid var(--agent-border-subtle)", cursor: "pointer" }}
               >
-                Show all ({items.length})
+                Show all ({items.length}) <ArrowRight size={12} weight="bold" className="agent-arrow-i" />
               </button>
             )}
             {/* Upcoming + completed reviews stay on the To-Do page. */}
