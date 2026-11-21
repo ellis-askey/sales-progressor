@@ -23,13 +23,29 @@ const MotionButton = motion.button as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MotionSpan = motion.span as any;
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-export type ButtonSize = "sm" | "md" | "lg";
+// `outline` (coral border + coral text) and the `xs` size + `icon` (square, label-less)
+// mode are TSP additions on top of the vendored uiarc variants, so the agent-btn
+// migration (D1) is no-brand-loss and no-resize. See button.module.css.
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
+export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragEnd" | "onDragStart" | "onAnimationStart"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  /** Square, label-less icon button (matches the old agent-btn-icon-sm/md). */
+  icon?: boolean;
+}
+
+/** The arc Button's class string, for things that must be an anchor/Link rather than a
+ *  <button> (the shadcn-style escape hatch). A `<Link className={buttonClasses({…})}>`
+ *  gets the identical look — just without the press-spring / label-morph motion, which a
+ *  navigation doesn't need. This is how agent-btn-on-<Link>/<a> CTAs migrate. */
+export function buttonClasses(
+  { variant = "primary", size = "md", icon = false, className }:
+  { variant?: ButtonVariant; size?: ButtonSize; icon?: boolean; className?: string } = {},
+): string {
+  return [styles.button, styles[variant], styles[size], icon ? styles.icon : null, className].filter(Boolean).join(" ");
 }
 
 /** Icon buttons press a little deeper, wide buttons a little less, so every size reads as the same push. */
@@ -94,7 +110,7 @@ function LabelPhase({ children, icon, reduced, ref }: { children: ReactNode; ico
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = "primary", size = "md", loading = false, disabled, children, onClick, ...props },
+  { className, variant = "primary", size = "md", loading = false, icon = false, disabled, children, onClick, ...props },
   ref,
 ) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -111,7 +127,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const popup = props["aria-haspopup"];
   const anchorsLayer = (popup !== undefined && popup !== false && popup !== "false") || props.role === "combobox" || (props as Record<string, unknown>)["data-state"] !== undefined;
   const inert = disabled || loading || props["aria-disabled"] === true || props["aria-disabled"] === "true";
-  const classes = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(" ");
+  const classes = buttonClasses({ variant, size, icon, className });
 
   return (
     <MotionButton

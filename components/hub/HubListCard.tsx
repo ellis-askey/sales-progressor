@@ -14,10 +14,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Clock, Bank, Warning, CaretDown, X } from "@phosphor-icons/react";
+import { Clock, Bank, Warning, X } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
+import { HubCard } from "@/components/hub/HubCard";
+import { HubRow } from "@/components/hub/HubRow";
+import { buttonClasses } from "@/components/arc/button/button";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { dismissHubCardAction } from "@/app/actions/hub-cards";
 
@@ -116,47 +117,66 @@ export function HubListCard({
   }
 
   return (
-    <GlassCard glassId="hub-attention" label={`Hub · ${title}`} defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        aria-expanded={!collapsed}
-        className="agent-hover-ctl"
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
-      >
-        <span aria-hidden style={{ color: ht.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <HeaderIcon size={24} weight="regular" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span className="agent-card-title-emphasis" style={{ margin: 0, display: "block" }}>
-            <span style={{ color: ht.color, fontWeight: 700 }}>{rows.length}</span> {rows.length === 1 ? countWord.one : countWord.many}
-          </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{subtitle}</span>
-        </span>
-        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
-          <CaretDown size={14} weight="bold" />
-        </span>
-      </button>
-
-      {/* Collapsible body — slides via the grid-rows accordion, content stays mounted */}
-      <div className={`agent-acc${collapsed ? "" : " open"}`}>
-        <div className="agent-acc-in">
-          <div ref={listRef}>
+    <HubCard
+      glassId="hub-attention"
+      label={`Hub · ${title}`}
+      icon={<HeaderIcon size={24} weight="regular" />}
+      iconColor={ht.color}
+      title={<><span style={{ color: ht.color, fontWeight: 700 }}>{rows.length}</span> {rows.length === 1 ? countWord.one : countWord.many}</>}
+      subtitle={subtitle}
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+      bodyRef={listRef}
+    >
             {shown.map((row, i) => {
               const t = TONE[row.pillTone];
               return (
-                <div
+                <HubRow
                   key={row.transactionId}
-                  className="agent-hover-row"
-                  // De-washed 2026-09-17: no tinted resting background — the
-                  // accent bar + pill carry the tone, and the lift hover lands.
-                  style={{ position: "relative", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px", borderLeft: `3px solid ${t.accent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
+                  accent={t.accent}
+                  separated={i > 0}
+                  bodyClassName="hub-r-body"
+                  tailClassName="hub-r-tail--x"
+                  thumb={
+                    <Link href={row.href} unstable_dynamicOnHover className="hub-thumb-link" aria-label={`Open ${row.address}`}>
+                      <PropertyThumb photoUrl={row.photoUrl} />
+                    </Link>
+                  }
+                  tail={
+                    <button
+                      type="button"
+                      onClick={() => dismiss(row)}
+                      disabled={busyId === row.transactionId}
+                      className={buttonClasses({ variant: "outline", size: "sm", className: "hub-r-actions" })}
+                      style={{ gap: 5, flexShrink: 0 }}
+                      title="Hide this for 2 weeks. It comes back if it still applies."
+                    >
+                      <X size={12} weight="bold" />
+                      Dismiss
+                    </button>
+                  }
+                  after={
+                    <>
+                      {/* Phone-only subtext: full-width line BELOW the photo+address
+                          row, so the two-line address sits level with the photo. */}
+                      <p className="hub-r-meta-below" style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
+                        {row.subtext}
+                      </p>
+                      {/* Phone-only dismiss: a neat ✕ top-right, since the tail
+                          (with the full Dismiss button) is hidden there. */}
+                      <button
+                        type="button"
+                        onClick={() => dismiss(row)}
+                        disabled={busyId === row.transactionId}
+                        className="hub-r-x"
+                        aria-label={`Dismiss ${row.address}`}
+                        title="Hide this for 2 weeks. It comes back if it still applies."
+                      >
+                        <X size={14} weight="bold" />
+                      </button>
+                    </>
+                  }
                 >
-                  <Link href={row.href} unstable_dynamicOnHover className="hub-thumb-link" aria-label={`Open ${row.address}`}>
-                    <PropertyThumb photoUrl={row.photoUrl} />
-                  </Link>
-                  <div className="hub-r-body" style={{ minWidth: 0, flex: "1 1 220px" }}>
                     {/* Mobile: the pill becomes a small toned word above the
                         address (matching the Needs-attention rows' attn-label-m),
                         so it never crowds the address (critique #267). */}
@@ -171,13 +191,6 @@ export function HubListCard({
                           {a.location && <span className="hub-addr-loc">{a.location}</span>}
                         </>); })()}
                       </Link>
-                      {row.pillLabel && (
-                        <span className="hub-pill-d">
-                          <Pill glass tone={row.pillTone === "coral" ? "brand" : row.pillTone === "muted" ? "muted" : row.pillTone} size="md" style={{ flexShrink: 0 }}>
-                            {row.pillLabel}
-                          </Pill>
-                        </span>
-                      )}
                     </div>
                     <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
                       {row.subtext}
@@ -187,39 +200,7 @@ export function HubListCard({
                         {row.meta}
                       </p>
                     )}
-                  </div>
-                  {/* --x: phones hide this whole tail and dismiss via the ✕. */}
-                  <div className="hub-r-tail hub-r-tail--x">
-                    <button
-                      type="button"
-                      onClick={() => dismiss(row)}
-                      disabled={busyId === row.transactionId}
-                      className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}
-                      title="Hide this for 2 weeks. It comes back if it still applies."
-                    >
-                      <X size={12} weight="bold" />
-                      Dismiss
-                    </button>
-                  </div>
-                  {/* Phone-only subtext: full-width line BELOW the photo+address
-                      row, so the two-line address sits level with the photo. */}
-                  <p className="hub-r-meta-below" style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
-                    {row.subtext}
-                  </p>
-                  {/* Phone-only dismiss: a neat ✕ top-right, since the tail
-                      (with the full Dismiss button) is hidden there. */}
-                  <button
-                    type="button"
-                    onClick={() => dismiss(row)}
-                    disabled={busyId === row.transactionId}
-                    className="hub-r-x"
-                    aria-label={`Dismiss ${row.address}`}
-                    title="Hide this for 2 weeks. It comes back if it still applies."
-                  >
-                    <X size={14} weight="bold" />
-                  </button>
-                </div>
+                </HubRow>
               );
             })}
             {hiddenCount > 0 && (
@@ -232,9 +213,6 @@ export function HubListCard({
                 Show all ({rows.length})
               </button>
             )}
-          </div>
-        </div>
-      </div>
-    </GlassCard>
+    </HubCard>
   );
 }

@@ -16,12 +16,15 @@
 //            snooze a week, pick a new date, open the file.
 
 import { useState, useTransition } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Eye, CaretDown, Check, CalendarPlus, Clock, Prohibit, ArrowSquareOut, CalendarBlank } from "@phosphor-icons/react";
+import { Eye, Check, CalendarPlus, Clock, Prohibit, ArrowSquareOut, CalendarBlank } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { GlassCard } from "@/components/glass/GlassCard";
-import { RowActionMenu } from "@/components/hub/RowActionMenu";
+import { HubCard } from "@/components/hub/HubCard";
+import { HubRow } from "@/components/hub/HubRow";
+import { HubSplitButton } from "@/components/hub/HubSplitButton";
+import { buttonClasses } from "@/components/arc/button/button";
 import { ResumeFileModal } from "@/components/transaction/ResumeFileModal";
 import { WithdrawFileModal } from "@/components/transaction/WithdrawFileModal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -141,37 +144,17 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
 
   return (
     <>
-    <GlassCard glassId="hub-attention" label="Hub · Files to review" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        aria-expanded={!collapsed}
-        className="agent-hover-ctl"
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
-      >
-        <span aria-hidden style={{ color: "var(--agent-info)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Eye size={24} weight="regular" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
-              <span style={{ color: "var(--agent-info)", fontWeight: 700 }}>{items.length}</span> file{items.length !== 1 ? "s" : ""} to review
-            </span>
-          </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            Return dates have arrived. Decide: wait on, resume, or move on.
-          </span>
-        </span>
-        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
-          <CaretDown size={14} weight="bold" />
-        </span>
-      </button>
-
-      {/* Collapsible body */}
-      <div className={`agent-acc${collapsed ? "" : " open"}`}>
-        <div className="agent-acc-in">
-          <div ref={listRef}>
+    <HubCard
+      glassId="hub-attention"
+      label="Hub · Files to review"
+      icon={<Eye size={24} weight="regular" />}
+      iconColor="var(--agent-info)"
+      title={<><span style={{ color: "var(--agent-info)", fontWeight: 700 }}>{items.length}</span> file{items.length !== 1 ? "s" : ""} to review</>}
+      subtitle="Return dates have arrived. Decide: wait on, resume, or move on."
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+      bodyRef={listRef}
+    >
             {shown.map((item, i) => {
               const busy = busyKey === item.key;
               const isHold = item.kind === "hold";
@@ -188,47 +171,21 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                 ? `${dueBackLabel(item.reviewDate)}${item.reason ? ` · ${item.reason}` : ""}${item.placedByName ? ` · Placed by ${item.placedByName}` : ""}`
                 : `${dueBackLabel(item.reviewDate)}${item.address ? ` · ${item.title}` : ""}${item.kind === "manual" && item.notes ? ` · ${item.notes}` : ""}`;
               return (
-                <div
+                <HubRow
                   key={item.key}
-                  style={{ borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
-                >
-                  <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px" }}>
-                    {item.transactionId ? (
+                  accent={pillColor}
+                  separated={i > 0}
+                  thumb={
+                    item.transactionId ? (
                       <Link href={`/agent/transactions/${item.transactionId}`} className="hub-thumb-link" aria-label={`Open ${headline}`}>
                         <PropertyThumb photoUrl={item.photoUrl} />
                       </Link>
                     ) : (
                       <PropertyThumb photoUrl={item.photoUrl} />
-                    )}
-                    <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        {item.transactionId ? (
-                          <Link
-                            href={`/agent/transactions/${item.transactionId}`}
-                            className="hub-addr"
-                            style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
-                          >
-                            {addr ? (<>
-                              <span className="hub-addr-full">{headline}</span>
-                              <span className="hub-addr-line">{addr.line}</span>
-                              {addr.location && <span className="hub-addr-loc">{addr.location}</span>}
-                            </>) : headline}
-                          </Link>
-                        ) : (
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {headline}
-                          </p>
-                        )}
-                      </div>
-                      <p style={{ margin: "2px 0 0", fontSize: 10.5, fontWeight: 750, color: pillColor, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {pill.label}
-                      </p>
-                      <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {sub}
-                      </p>
-                    </div>
-
-                    <div className="hub-r-tail">
+                    )
+                  }
+                  tail={
+                    <>
                     <span className="hub-r-meta-m" style={{ fontSize: 11, color: "var(--agent-text-secondary)" }}>
                       {splitOnDot(sub).map((p, k) => <span key={k}>{p}</span>)}
                     </span>
@@ -254,41 +211,22 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                             }
                           }}
                           disabled={busy || !dateDraft}
-                          className="agent-btn agent-btn-xs agent-btn-primary"
+                          className={buttonClasses({ variant: "primary", size: "xs" })}
+                          style={{ ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
                         >
                           Set date
                         </button>
                         <button onClick={() => setDateFor(null)} className="agent-link" style={{ fontSize: 11 }}>Cancel</button>
                       </div>
                     ) : (
-                      <div className="hub-r-actions" style={{ display: "inline-flex", flexShrink: 0 }}>
-                        {isHold ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setResumeFor({ id: item.transactionId, address: item.address })}
-                            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                          >
-                            <Check size={13} weight="bold" />
-                            Take off hold
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => item.kind === "manual" && run(item.key, () => updateManualTaskAction(item.id, { status: "done" }), "Review done")}
-                            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                          >
-                            <Check size={13} weight="bold" />
-                            Done
-                          </button>
-                        )}
-                        <RowActionMenu
-                          joined
-                          disabled={busy}
-                          items={
+                      <HubSplitButton
+                        className="hub-r-actions"
+                        disabled={busy}
+                        label={<><Check size={13} weight="bold" />{isHold ? "Take off hold" : "Done"}</>}
+                        onClick={isHold
+                          ? () => setResumeFor({ id: item.transactionId, address: item.address })
+                          : () => { if (item.kind === "manual") run(item.key, () => updateManualTaskAction(item.id, { status: "done" }), "Review done"); }}
+                        items={
                             isHold
                               ? [
                                   {
@@ -360,11 +298,36 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
                                 ]
                           }
                         />
-                      </div>
                     )}
-                    </div>
-                  </div>
-                </div>
+                    </>
+                  }
+                >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        {item.transactionId ? (
+                          <Link
+                            href={`/agent/transactions/${item.transactionId}`}
+                            className="hub-addr"
+                            style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
+                          >
+                            {addr ? (<>
+                              <span className="hub-addr-full">{headline}</span>
+                              <span className="hub-addr-line">{addr.line}</span>
+                              {addr.location && <span className="hub-addr-loc">{addr.location}</span>}
+                            </>) : headline}
+                          </Link>
+                        ) : (
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {headline}
+                          </p>
+                        )}
+                      </div>
+                      <p style={{ margin: "2px 0 0", fontSize: 11, fontWeight: 700, color: pillColor, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {pill.label}
+                      </p>
+                      <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {sub}
+                      </p>
+                </HubRow>
               );
             })}
             {hiddenCount > 0 && (
@@ -385,10 +348,7 @@ export function ReviewsDueCard({ items: initialItems, defaultCollapsed = false }
             >
               All reviews on To-Do
             </Link>
-          </div>
-        </div>
-      </div>
-    </GlassCard>
+    </HubCard>
 
     {resumeFor && (
       <ResumeFileModal

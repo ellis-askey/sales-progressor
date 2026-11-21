@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Pill } from "@/components/ui/Pill";
 import { DiaryEventRow } from "@/components/hub/DiaryEventRow";
 import type { DiaryItem } from "@/lib/services/hub";
 
@@ -94,15 +95,9 @@ export function DiaryCard({ items }: { items: Item[] }) {
           <p className="agent-card-title-emphasis">Today&apos;s diary</p>
           <p className="diary-sub" style={{ margin: 0, fontSize: 11, color: "var(--agent-text-muted)", textWrap: "balance" }}>Exchanges and completions scheduled for today</p>
         </div>
-        <span className="diary-count-pill" style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", flexShrink: 0, whiteSpace: "nowrap",
-          color: deep, padding: "3px 11px", borderRadius: 999,
-          background: `linear-gradient(160deg, rgba(${rgb}, 0.20), rgba(${rgb}, 0.07))`,
-          border: `0.5px solid rgba(${rgb}, 0.22)`,
-          boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 3px rgba(${rgb}, 0.14)`,
-        }}>
+        <Pill glass tone="brand" size="sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
           {visible.length} {visible.length === 1 ? "event" : "events"} today
-        </span>
+        </Pill>
       </div>
       {visible.map((item, i) => (
         <DiaryEventRow key={item.transactionId} item={item} isFirst={i === 0} onSnooze={snooze} />

@@ -10,9 +10,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChatCircleDots, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ChatCircleDots, PaperPlaneTilt } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { HubCard } from "@/components/hub/HubCard";
+import { HubRow } from "@/components/hub/HubRow";
+import { buttonClasses } from "@/components/arc/button/button";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import type { StalledEnquiryItem } from "@/lib/services/hub";
 
@@ -53,34 +55,16 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
 
   return (
     <>
-    <GlassCard glassId="hub-attention" label="Hub · Enquiries gone quiet" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        aria-expanded={!collapsed}
-        className="agent-hover-ctl"
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
-      >
-        <span aria-hidden style={{ color: ICON_COLOR, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <ChatCircleDots size={24} weight="regular" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
-              <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700 }}>{visible.length}</span> {visible.length === 1 ? "enquiry needs" : "enquiries need"} a nudge
-            </span>
-          </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            Ones to chase again, or that have gone quiet.
-          </span>
-        </span>
-        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
-          <CaretDown size={14} weight="bold" />
-        </span>
-      </button>
-
-      <div className={`agent-acc${collapsed ? "" : " open"}`}>
-        <div className="agent-acc-in">
+    <HubCard
+      glassId="hub-attention"
+      label="Hub · Enquiries gone quiet"
+      icon={<ChatCircleDots size={24} weight="regular" />}
+      iconColor={ICON_COLOR}
+      title={<><span style={{ color: "var(--agent-coral-deep)", fontWeight: 700 }}>{visible.length}</span> {visible.length === 1 ? "enquiry needs" : "enquiries need"} a nudge</>}
+      subtitle="Ones to chase again, or that have gone quiet."
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+    >
           {shown.map((row, i) => {
             const href = `/agent/transactions/${row.transactionId}`;
             const photoUrl = row.photoStoragePath ? signedPhotos[row.photoStoragePath] ?? null : null;
@@ -100,37 +84,41 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
             const withText = `${withPrefix} ${forPart}`;
             const addr = splitAddress(row.address);
             return (
-              <div key={row.transactionId} style={{ borderLeft: `3px solid ${rowAccent}`, borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}>
-                <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
+              <HubRow
+                key={row.transactionId}
+                accent={rowAccent}
+                separated={i > 0}
+                thumb={
                   <Link href={href} className="hub-thumb-link" aria-label={`Open ${row.address}`}>
                     <PropertyThumb photoUrl={photoUrl} />
                   </Link>
-                  <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <Link href={href} className="hub-addr" data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}>
-                        <span className="hub-addr-full">{row.address}</span>
-                        <span className="hub-addr-line">{addr.line}</span>
-                        {addr.location && <span className="hub-addr-loc">{addr.location}</span>}
-                      </Link>
-                    </div>
-                    <span style={{ display: "block", fontSize: 11, fontWeight: 700, color: labelColor, marginTop: 2, lineHeight: 1.3 }}>{label}</span>
-                    <p className="hub-r-meta-d" style={{ margin: "1px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-sensitive="true">
-                      {withText}
-                    </p>
-                  </div>
-                  <div className="hub-r-tail">
+                }
+                tail={
+                  <>
                     {/* Phone: the context stacks (no dot) left of the Chase
                         button — "With …" line, then "Quiet N days". */}
                     <span className="hub-r-meta-m" style={{ fontSize: 12, color: "var(--agent-text-secondary)" }} data-sensitive="true">
                       <span>{withPrefix}</span>
                       <span>{forPart}</span>
                     </span>
-                    <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className="agent-btn agent-btn-sm agent-btn-ghost-bordered hub-r-actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    <button type="button" onClick={() => { setChase(row); setChaseOpen(true); }} className={buttonClasses({ variant: "outline", size: "sm", className: "hub-r-actions" })} style={{ gap: 5, flexShrink: 0 }}>
                       <PaperPlaneTilt size={13} weight="bold" /> Chase
                     </button>
-                  </div>
+                  </>
+                }
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <Link href={href} className="hub-addr" data-sensitive="true" style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}>
+                    <span className="hub-addr-full">{row.address}</span>
+                    <span className="hub-addr-line">{addr.line}</span>
+                    {addr.location && <span className="hub-addr-loc">{addr.location}</span>}
+                  </Link>
                 </div>
-              </div>
+                <span style={{ display: "block", fontSize: 11, fontWeight: 700, color: labelColor, marginTop: 2, lineHeight: 1.3 }}>{label}</span>
+                <p className="hub-r-meta-d" style={{ margin: "1px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-sensitive="true">
+                  {withText}
+                </p>
+              </HubRow>
             );
           })}
           {hiddenCount > 0 && (
@@ -138,9 +126,7 @@ export function StalledEnquiriesCard({ rows, signedPhotos, defaultCollapsed = fa
               Show all ({visible.length})
             </button>
           )}
-        </div>
-      </div>
-    </GlassCard>
+    </HubCard>
     {chaseOpen && chase && (() => {
       // Feed the SAME drawer the reminder enquiry chase uses (ChaseDrawer) in
       // enquiry mode: the court solicitor as the fixed recipient + the side's

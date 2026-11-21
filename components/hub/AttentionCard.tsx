@@ -28,6 +28,7 @@
 // "Show all" expander so nothing is silently dropped.
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
@@ -38,7 +39,8 @@ import { Pill } from "@/components/ui/Pill";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UploadablePropertyThumb } from "@/components/hub/UploadablePropertyThumb";
-import { RowActionMenu } from "@/components/hub/RowActionMenu";
+import { HubSplitButton } from "@/components/hub/HubSplitButton";
+import { buttonClasses } from "@/components/arc/button/button";
 import { ConfirmMilestoneDateModal, milestoneNeedsDatePrompt } from "@/components/milestones/ConfirmMilestoneDateModal";
 import {
   Warning,
@@ -67,6 +69,9 @@ import type {
   HubChainSetupPending,
 } from "@/lib/services/hub";
 import { DateField } from "@/components/ui/DateField";
+
+/** Coral token override — keeps arc primary buttons on brand (flat coral). */
+const CORAL_TOKENS = { ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties;
 
 // Page-level decoration: every item arrives with its photo path already
 // signed to a temporary URL (or null → icon fallback).
@@ -247,40 +252,30 @@ function ChaseSplitButton({ item, onResolved, toastSuccess, toastError }: {
           disabled={busy}
           onConfirm={(choice) => run((taskId) => snoozeTaskAction(taskId, choice, pathname), "Snoozed", `${item.reminderName} snoozed.`)}
         />
-        <div style={{ display: "inline-flex", flexShrink: 0 }}>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={openChase}
-            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-          >
-            Chase
-          </button>
-          <RowActionMenu
-            joined
-            disabled={busy}
-            items={[
-              {
-                key: "chased",
-                icon: <ArrowsClockwise size={16} weight="bold" />,
-                title: "Mark as chased",
-                sub: "Advances the next chase date. No email is sent.",
-                onClick: () => run((taskId) => advanceChaseTaskAction(taskId, pathname), "Marked as chased", "Next chase date advanced."),
+        <HubSplitButton
+          label="Chase"
+          disabled={busy}
+          onClick={openChase}
+          items={[
+            {
+              key: "chased",
+              icon: <ArrowsClockwise size={16} weight="bold" />,
+              title: "Mark as chased",
+              sub: "Advances the next chase date. No email is sent.",
+              onClick: () => run((taskId) => advanceChaseTaskAction(taskId, pathname), "Marked as chased", "Next chase date advanced."),
+            },
+            {
+              key: "done",
+              icon: <Check size={16} weight="bold" />,
+              title: "Confirm step done",
+              sub: "Marks the step complete on the file.",
+              onClick: () => {
+                if (milestoneNeedsDatePrompt(item.targetMilestoneCode)) setDateModalOpen(true);
+                else confirmDone(null);
               },
-              {
-                key: "done",
-                icon: <Check size={16} weight="bold" />,
-                title: "Confirm step done",
-                sub: "Marks the step complete on the file.",
-                onClick: () => {
-                  if (milestoneNeedsDatePrompt(item.targetMilestoneCode)) setDateModalOpen(true);
-                  else confirmDone(null);
-                },
-              },
-            ]}
-          />
-        </div>
+            },
+          ]}
+        />
       </div>
       {dateModalOpen && (
         <ConfirmMilestoneDateModal
@@ -363,8 +358,8 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
     return (
       <button
         onClick={openDropdown}
-        className="agent-btn agent-btn-sm agent-btn-primary"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+        className={buttonClasses({ variant: "primary", size: "sm" })}
+        style={{ gap: 6, flexShrink: 0, ...CORAL_TOKENS }}
       >
         <UserPlus size={13} weight="bold" />
         Assign
@@ -392,7 +387,8 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
       <button
         onClick={save}
         disabled={!selected || isPending}
-        className="agent-btn agent-btn-xs agent-btn-primary"
+        className={buttonClasses({ variant: "primary", size: "xs" })}
+        style={CORAL_TOKENS}
       >
         {isPending ? "…" : "Save"}
       </button>
@@ -1024,13 +1020,14 @@ function AttentionRow({
                   onExtend(txId, new Date(extenderDate));
                 }}
                 disabled={!extenderDate || extenderDate < formatDateInput(tomorrowAt9())}
-                className="agent-btn agent-btn-xs agent-btn-primary"
+                className={buttonClasses({ variant: "primary", size: "xs" })}
+                style={CORAL_TOKENS}
               >
                 Set date
               </button>
               <button
                 onClick={() => onExtend(txId, null)}
-                className="agent-btn agent-btn-xs agent-btn-ghost-bordered"
+                className={buttonClasses({ variant: "outline", size: "xs" })}
                 title="Hold indefinitely. Won't auto-surface again."
               >
                 Indefinitely
@@ -1041,16 +1038,16 @@ function AttentionRow({
             <>
               <button
                 onClick={() => onOpenResume(txId, address)}
-                className="agent-btn agent-btn-sm agent-btn-primary"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                className={buttonClasses({ variant: "primary", size: "sm" })}
+                style={{ gap: 6, ...CORAL_TOKENS }}
               >
                 <Check size={13} weight="bold" />
                 Take off hold
               </button>
               <button
                 onClick={() => onOpenExtender(txId)}
-                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                className={buttonClasses({ variant: "outline", size: "sm" })}
+                style={{ gap: 6 }}
               >
                 <CalendarPlus size={13} weight="bold" />
                 Extend hold
@@ -1066,7 +1063,8 @@ function AttentionRow({
             type="button"
             onClick={() => onAcknowledge(row.item.roundId)}
             disabled={busyId === row.item.roundId}
-            className="agent-btn agent-btn-sm agent-btn-primary"
+            className={buttonClasses({ variant: "primary", size: "sm" })}
+            style={CORAL_TOKENS}
           >
             {busyId === row.item.roundId ? "…" : "Acknowledge"}
           </button>
@@ -1076,7 +1074,7 @@ function AttentionRow({
             type="button"
             onClick={() => onDismissChain(txId)}
             disabled={busyId === txId}
-            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            className={buttonClasses({ variant: "outline", size: "sm" })}
           >
             {busyId === txId ? "…" : "Mark as done"}
           </button>

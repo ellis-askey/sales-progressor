@@ -63,9 +63,27 @@
 .primary:active:not(:disabled) { opacity: .84; }
 .secondary:active:not(:disabled), .ghost:active:not(:disabled) { color: var(--foreground); background: var(--surface-muted); }
 .danger:active:not(:disabled) { border-color: var(--danger); background: var(--surface-muted); }
+/* TSP addition — the coral-outlined CTA (ports agent-btn-ghost-bordered): coral
+   border + coral text, neutral shade on hover, border/text darken. */
+.outline { color: var(--agent-coral-deep, #e0562f); background: transparent; border-color: var(--agent-coral-deep, #e0562f); }
+.outline:disabled { opacity: .45; }
+@media (hover: hover) and (pointer: fine) {
+  .outline:hover:not(:disabled) { background: var(--agent-hover-shade); border-color: var(--agent-coral-darker, #c0431f); color: var(--agent-coral-darker, #c0431f); }
+}
+.outline:active:not(:disabled) { background: var(--agent-hover-shade); border-color: var(--agent-coral-darker, #c0431f); color: var(--agent-coral-darker, #c0431f); }
+
+/* TSP addition — xs micro-button (ports agent-btn-xs: 26px / 11px / radius-sm). */
+.xs { min-height: 26px; border-radius: var(--agent-radius-sm, 8px); padding-inline: 10px; font-size: 11px; }
 .sm { min-height: var(--control-height-sm); border-radius: calc(var(--radius-control) - 2px); padding-inline: var(--space-3); font-size: var(--text-sm); }
 .md { min-height: var(--control-height-md); }
 .lg { min-height: var(--control-height-lg); border-radius: calc(var(--radius-control) + 2px); padding-inline: var(--space-5); font-size: var(--text-sm); }
+
+/* TSP addition — square icon-only mode (ports agent-btn-icon-sm/md): width == height, no inline padding. */
+.icon { padding-inline: 0; gap: 0; }
+.icon.xs { width: 26px; }
+.icon.sm { width: var(--control-height-sm); }
+.icon.md { width: var(--control-height-md); }
+.icon.lg { width: var(--control-height-lg); }
 /* On touch screens small buttons keep a 44px tap target without growing visually. */
 @media (pointer: coarse) { .sm::after { position: absolute; inset: calc((44px - var(--control-height-sm)) / -2) 0; content: ""; } }
 .loader { position: absolute; left: 50%; top: 50%; display: grid; width: var(--space-4); height: var(--space-4); margin: calc(var(--space-4) / -2); }

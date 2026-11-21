@@ -15,9 +15,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { NotePencil, CaretDown } from "@phosphor-icons/react";
+import { NotePencil } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { HubCard } from "@/components/hub/HubCard";
+import { HubRow } from "@/components/hub/HubRow";
 import { ExchangeOverdueActions } from "@/components/hub/ExchangeOverdueActions";
 import type { HubAttentionItem } from "@/lib/services/hub";
 
@@ -59,68 +60,29 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
   const hiddenCount = items.length - shown.length;
 
   return (
-    <GlassCard glassId="hub-attention" label="Hub · Exchange dates passed" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        aria-expanded={!collapsed}
-        className="agent-hover-ctl"
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
-      >
-        <span aria-hidden style={{ color: "var(--agent-warning)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <NotePencil size={24} weight="regular" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
-              <span style={{ color: "var(--agent-warning)", fontWeight: 700 }}>{items.length}</span> exchange date{items.length !== 1 ? "s" : ""} passed
-            </span>
-          </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            Update the date, recalculate the estimate or snooze while you chase.
-          </span>
-        </span>
-        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
-          <CaretDown size={14} weight="bold" />
-        </span>
-      </button>
-
-      {/* Collapsible body */}
-      <div className={`agent-acc${collapsed ? "" : " open"}`}>
-        <div className="agent-acc-in">
-          <div ref={listRef}>
+    <HubCard
+      glassId="hub-attention"
+      label="Hub · Exchange dates passed"
+      icon={<NotePencil size={24} weight="regular" />}
+      iconColor="var(--agent-warning)"
+      title={<><span style={{ color: "var(--agent-warning)", fontWeight: 700 }}>{items.length}</span> exchange date{items.length !== 1 ? "s" : ""} passed</>}
+      subtitle="Update the date, recalculate the estimate or snooze while you chase."
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+      bodyRef={listRef}
+    >
             {shown.map((item, i) => (
-              <div
+              <HubRow
                 key={item.id}
-                style={{ borderLeft: "3px solid var(--agent-warning)", borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined }}
-              >
-                <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 20px 12px 17px" }}>
+                accent="var(--agent-warning)"
+                separated={i > 0}
+                thumb={
                   <Link href={`/agent/transactions/${item.transaction.id}`} className="hub-thumb-link" aria-label={`Open ${item.transaction.propertyAddress}`}>
                     <PropertyThumb photoUrl={item.photoUrl} />
                   </Link>
-                  <div style={{ minWidth: 0, flex: "1 1 220px" }}>
-                    <Link
-                      href={`/agent/transactions/${item.transaction.id}`}
-                      className="hub-addr"
-                      style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
-                    >
-                      {/* Desktop: full address on one line. Mobile (≤450px): first
-                          line + town/postcode stacked (CSS toggles the spans). */}
-                      <span className="hub-addr-full">{item.transaction.propertyAddress}</span>
-                      {(() => { const a = splitAddress(item.transaction.propertyAddress); return (<>
-                        <span className="hub-addr-line">{a.line}</span>
-                        {a.location && <span className="hub-addr-loc">{a.location}</span>}
-                      </>); })()}
-                    </Link>
-                    {/* Desktop meta: under the address, dot-joined. */}
-                    <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {(() => { const m = passedParts(item); return m.date ? `${m.date} · ${m.past}` : m.past; })()}
-                    </p>
-                  </div>
-                  {/* Display/placement comes from .hub-r-tail (never inline — the
-                      breakpoints own it). */}
-                  <div className="hub-r-tail">
+                }
+                tail={
+                  <>
                     {/* Mobile meta: the displaced context line, stacked (no dot),
                         sitting to the left of the button. Hidden on desktop. */}
                     {(() => { const m = passedParts(item); return (
@@ -137,9 +99,27 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
                         onDone={() => setItems((prev) => prev.filter((x) => x.id !== item.id))}
                       />
                     </div>
-                  </div>
-                </div>
-              </div>
+                  </>
+                }
+              >
+                <Link
+                  href={`/agent/transactions/${item.transaction.id}`}
+                  className="hub-addr"
+                  style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", minWidth: 0 }}
+                >
+                  {/* Desktop: full address on one line. Mobile (≤450px): first
+                      line + town/postcode stacked (CSS toggles the spans). */}
+                  <span className="hub-addr-full">{item.transaction.propertyAddress}</span>
+                  {(() => { const a = splitAddress(item.transaction.propertyAddress); return (<>
+                    <span className="hub-addr-line">{a.line}</span>
+                    {a.location && <span className="hub-addr-loc">{a.location}</span>}
+                  </>); })()}
+                </Link>
+                {/* Desktop meta: under the address, dot-joined. */}
+                <p className="hub-r-meta-d" style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {(() => { const m = passedParts(item); return m.date ? `${m.date} · ${m.past}` : m.past; })()}
+                </p>
+              </HubRow>
             ))}
             {hiddenCount > 0 && (
               <button
@@ -151,9 +131,6 @@ export function ExchangeOverdueCard({ items: initialItems, defaultCollapsed = fa
                 Show all ({items.length})
               </button>
             )}
-          </div>
-        </div>
-      </div>
-    </GlassCard>
+    </HubCard>
   );
 }

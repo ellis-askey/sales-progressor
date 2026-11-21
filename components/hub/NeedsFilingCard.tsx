@@ -13,8 +13,10 @@
 // email in one tap. Single emails render exactly as before.
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Check, X, Envelope, CaretDown } from "@phosphor-icons/react";
-import { GlassCard } from "@/components/glass/GlassCard";
+import type { CSSProperties } from "react";
+import { ArrowDown, ArrowUp, Check, X, Envelope } from "@phosphor-icons/react";
+import { HubCard } from "@/components/hub/HubCard";
+import { buttonClasses } from "@/components/arc/button/button";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
   filePendingEmailAction,
@@ -166,37 +168,16 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
   };
 
   return (
-    <GlassCard glassId="hub-attention" label="Hub · Needs filing" defaultVariant="v27" style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-      {/* Header — full-width toggle, matching the other hub cards: icon at 24/bold,
-          title with the count as a subtitle beneath, chevron, click-anywhere collapse. */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        aria-expanded={!collapsed}
-        className="agent-hover-ctl"
-        style={{ width: "100%", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, border: "none", borderBottom: collapsed ? "none" : "0.5px solid var(--agent-border-subtle)", cursor: "pointer", textAlign: "left" }}
-      >
-        <span aria-hidden style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Envelope size={24} weight="regular" />
-        </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="agent-card-title-emphasis" style={{ margin: 0 }}>
-              <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700 }}>{visible.length}</span> email{visible.length !== 1 ? "s" : ""} to file
-            </span>
-          </span>
-          <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", marginTop: 2, lineHeight: 1.4 }}>
-            Emails to place on a file.
-          </span>
-        </span>
-        <span aria-hidden style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", transition: "transform 180ms ease", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", flexShrink: 0 }}>
-          <CaretDown size={14} weight="bold" />
-        </span>
-      </button>
-
-      {/* Collapsible body — same accordion as the other hub cards */}
-      <div className={`agent-acc${collapsed ? "" : " open"}`}>
-        <div className="agent-acc-in">
+    <HubCard
+      glassId="hub-attention"
+      label="Hub · Needs filing"
+      icon={<Envelope size={24} weight="regular" />}
+      iconColor="var(--agent-coral-deep)"
+      title={<><span style={{ color: "var(--agent-coral-deep)", fontWeight: 700 }}>{visible.length}</span> email{visible.length !== 1 ? "s" : ""} to file</>}
+      subtitle="Emails to place on a file."
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+    >
           <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 16px 14px" }}>
         {threads.map((t) => {
           const multi = t.rows.length > 1;
@@ -288,8 +269,8 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
                           disabled={rowBusy}
                           onClick={() => fileThread(t, c)}
                           title={c.address || undefined}
-                          className="agent-btn agent-btn-sm agent-btn-primary"
-                          style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
+                          className={buttonClasses({ variant: "primary", size: "sm" })}
+                          style={{ gap: 4, maxWidth: "100%", ["--foreground"]: "#FF6B4A", ["--background"]: "#ffffff" } as CSSProperties}
                         >
                           <Check size={12} weight="bold" />
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -318,8 +299,6 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
           );
         })}
           </div>
-        </div>
-      </div>
-    </GlassCard>
+    </HubCard>
   );
 }
