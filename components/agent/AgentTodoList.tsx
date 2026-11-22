@@ -15,6 +15,8 @@ import { TodoTabs, type TodoTab } from "@/components/agent/TodoTabs";
 import { Card } from "@/components/ui/Card";
 import { toUKDateStr } from "@/lib/utils";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { DateField } from "@/components/ui/DateField";
+import { buttonClasses } from "@/components/arc/button/button";
 
 // First line + town/postcode split (last two comma parts) — matches the address
 // treatment on the reminders / enquiries / completions cards.
@@ -231,7 +233,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
   // tabs that have an add form, and hidden while the form is open.
   const canAdd = safeActive === "internal" || safeActive === "mine" || safeActive === "reviews";
   const addAction = canAdd && !addOpen ? (
-    <button type="button" onClick={() => setAddOpen(true)} className="agent-btn agent-btn-sm agent-btn-primary">
+    <button type="button" onClick={() => setAddOpen(true)} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties}>
       {safeActive === "reviews" ? (
         <CalendarPlus size={12} weight="bold" />
       ) : (
@@ -601,7 +603,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
         {task.progressorNote && (
           noteIsProgressorReply ? (
             <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-warning-bg)", borderLeft: "2px solid var(--agent-warning-border)" }}>
-              <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-warning)" }}>
+              <p className="agent-eyebrow" style={{ margin: "0 0 2px", color: "var(--agent-warning)" }}>
                 Your progressor{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
               </p>
               <p style={{ margin: 0, fontSize: 12, color: "var(--agent-warning)", lineHeight: "1.4" }}>
@@ -610,7 +612,7 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
             </div>
           ) : (
             <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 6, background: "var(--agent-surface-subtle, rgba(0,0,0,0.03))", borderLeft: "2px solid var(--agent-border-default)" }}>
-              <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>
+              <p className="agent-eyebrow" style={{ margin: "0 0 2px" }}>
                 Latest update{task.progressorNoteAt ? ` · ${fmtDate(task.progressorNoteAt)}` : ""}
               </p>
               <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: "1.4" }}>
@@ -648,30 +650,27 @@ function TaskRow({ task, onToggle, hasBorder, progressor, isProgressorView = fal
           >
             {(close) => (
               <div style={{ textAlign: "left" }}>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)", marginBottom: 5 }}>
-                  New Date
-                </label>
-                <input
-                  type="date"
+                <p className="agent-eyebrow" style={{ margin: "0 0 5px" }}>New date</p>
+                <DateField
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="glass-input"
-                  style={{ width: "100%", fontSize: 12, padding: "6px 8px", boxSizing: "border-box" }}
+                  className="agent-input agent-input-sm"
+                  style={{ width: "100%", fontSize: 12 }}
                 />
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)", margin: "10px 0 5px" }}>
+                <p className="agent-eyebrow" style={{ margin: "10px 0 5px" }}>
                   Update <span style={{ fontWeight: 500 }}>(optional)</span>
-                </label>
+                </p>
                 <textarea
                   value={updateText}
                   onChange={(e) => setUpdateText(e.target.value)}
                   placeholder="What's happened?"
                   rows={2}
-                  className="glass-input"
+                  className="agent-textarea"
                   style={{ width: "100%", fontSize: 12, lineHeight: 1.45, padding: "6px 8px", resize: "vertical", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
-                  <button type="button" onClick={close} className="agent-btn agent-btn-neutral agent-btn-sm">Cancel</button>
-                  <button type="button" onClick={async () => { await saveResched(); close(); }} disabled={!newDate || savingResched} className="agent-btn agent-btn-primary agent-btn-sm">
+                  <button type="button" onClick={close} className={buttonClasses({ variant: "ghost", size: "sm" })}>Cancel</button>
+                  <button type="button" onClick={async () => { await saveResched(); close(); }} disabled={!newDate || savingResched} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as React.CSSProperties}>
                     {savingResched ? "Saving…" : "Save"}
                   </button>
                 </div>

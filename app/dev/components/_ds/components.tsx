@@ -36,6 +36,9 @@ import { CountPill } from "@/components/ui/CountPill";
 import { AnimatedClock } from "@/components/ui/AnimatedClock";
 import { StatCards } from "@/components/ui/StatCards";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
+import { TodoTabs } from "@/components/agent/TodoTabs";
+import { SectionHeader } from "@/components/agent/SectionHeader";
+import { ListChecks as ListChecksI } from "@phosphor-icons/react";
 import { WarningCircle as WarningCircleI, CheckCircle as CheckCircleI, CalendarBlank as CalendarBlankI, ClockCountdown as ClockCountdownI, ChatCircleDots as ChatCircleDotsI, PaperPlaneTilt as PaperPlaneTiltI } from "@phosphor-icons/react";
 
 // Dev-gallery placeholders: Checkbox / OtpInput / RadioGroup / CookieConsent come from the
@@ -1982,8 +1985,72 @@ const ENQUIRIES_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+/* To-Do (/agent/to-do) canonical pass — the parts kept as-is and registered. */
+function TodoTabsSpec() {
+  const [active, setActive] = useState("todo");
+  return (
+    <div style={{ width: "100%" }}>
+      <TodoTabs tabs={[{ key: "todo", label: "Internal", count: 18 }, { key: "agents", label: "From agents" }, { key: "reviews", label: "Reviews", count: 1 }]} active={active} onChange={setActive} glassId="todo-tabs-gallery" glassLabel="Gallery · tabs"><span /></TodoTabs>
+    </div>
+  );
+}
+function TaskCheckSpec({ done = false, tone = "info" }: { done?: boolean; tone?: "info" | "warning" }) {
+  const [hovered, setHovered] = useState(false);
+  const border = done ? "none" : `1.5px solid ${hovered ? "var(--agent-success)" : tone === "warning" ? "var(--agent-warning)" : "var(--agent-info-border)"}`;
+  return (
+    <button className="agent-circle-btn" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} aria-label={done ? "Reopen" : "Mark as done"}
+      style={{ width: 18, height: 18, borderRadius: "50%", border, background: done ? "var(--agent-success)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 150ms", position: "relative" }}>
+      {done ? (
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+      ) : (
+        <svg className={`todo-hover-tick${hovered ? " todo-hover-tick-show" : ""}`} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--agent-success)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute" }}><polyline className="todo-tick-path" points="20 6 9 17 4 12" /></svg>
+      )}
+    </button>
+  );
+}
+const TODO_ENTRIES: ComponentEntry[] = [
+  {
+    id: "todo-tabs",
+    name: "To-Do tab row (count tabs)",
+    category: "tabs",
+    status: "implemented",
+    keywords: ["tabs", "segmented", "count", "pill", "to-do", "internal", "reviews", "glass"],
+    summary: "The To-Do page tab row — glass segmented tabs with count pills + an action slot (Add). A richer sibling of the arc SegmentedControl (counts + action). The selection cross-fades on change. Live render of components/agent/TodoTabs.tsx.",
+    sources: [{ path: "components/agent/TodoTabs.tsx" }],
+    render: () => <Stage width={460}><TodoTabsSpec /></Stage>,
+  },
+  {
+    id: "section-header",
+    name: "Section header (icon + title + sub)",
+    category: "navigation",
+    status: "implemented",
+    keywords: ["section header", "icon circle", "title", "subtitle", "count", "to-do"],
+    summary: "The section header — an icon in a coral-tinted circle, a title + subtitle, and an optional glassed count pill. Used atop To-Do sections and the no-comms card. Live render of components/agent/SectionHeader.tsx.",
+    sources: [{ path: "components/agent/SectionHeader.tsx" }],
+    render: () => <Stage width={420}><div style={{ width: "100%" }}><SectionHeader icon={<ListChecksI size={22} weight="regular" />} title="Internal to-dos" subtitle="Your team's notes and follow-ups." /></div></Stage>,
+  },
+  {
+    id: "task-check",
+    name: "Task checkbox (circle + hover tick)",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["checkbox", "circle", "toggle", "task", "to-do", "tick", "hover", "done"],
+    summary: "The 18px circle task toggle — an empty ring that hovers a draw-on tick, fills green with a check when done, and spins while saving. Tinted per owner (info / warning). agent-circle-btn + the todo-hover-tick draw animation. Hover the open one.",
+    sources: [{ path: "app/agent/styles/agent-system.css", note: ".agent-circle-btn / .todo-hover-tick" }, { path: "components/agent/AgentTodoList.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 22, alignItems: "center" }}>
+          <div style={{ textAlign: "center" }}><TaskCheckSpec tone="info" /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 6 }}>open (hover)</span></div>
+          <div style={{ textAlign: "center" }}><TaskCheckSpec tone="warning" /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 6 }}>progressor</span></div>
+          <div style={{ textAlign: "center" }}><TaskCheckSpec done /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 6 }}>done</span></div>
+        </div>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

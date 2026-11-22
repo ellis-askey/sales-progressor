@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 import { DateField } from "@/components/ui/DateField";
+import { buttonClasses } from "@/components/arc/button/button";
 import { AccordionBody } from "@/components/ui/AccordionBody";
 
 export function AddManualTaskForm({
@@ -157,7 +158,7 @@ export function AddManualTaskForm({
     return (
       // Primary to match the add trigger on the To-Do page itself (critique
       // #300) — treatment only, same agent-btn-sm size.
-      <button onClick={handleOpen} className="agent-btn agent-btn-sm agent-btn-primary">
+      <button onClick={handleOpen} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties}>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
