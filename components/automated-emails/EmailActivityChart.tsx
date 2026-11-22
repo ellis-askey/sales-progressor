@@ -7,6 +7,7 @@
 // stacks, so this is the first — catalogued in the folder README per Law 14).
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { LegendItem } from "@/components/ui/LegendItem";
 import type { DayBucket } from "@/lib/services/automated-emails-overview";
 
 const CHASE = "var(--agent-coral)";
@@ -37,8 +38,8 @@ export function EmailActivityChart({ data }: { data: DayBucket[] }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
-        <LegendKey color={CHASE} label="Chase" />
-        <LegendKey color={NOTIF} label="Notification" />
+        <LegendItem color={CHASE} label="Chase" />
+        <LegendItem color={NOTIF} label="Notification" />
       </div>
       <div style={{ width: "100%", height: 140 }} aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
@@ -64,14 +65,5 @@ export function EmailActivityChart({ data }: { data: DayBucket[] }) {
         </ResponsiveContainer>
       </div>
     </div>
-  );
-}
-
-function LegendKey({ color, label }: { color: string; label: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--agent-text-secondary)" }}>
-      <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: "inline-block" }} />
-      {label}
-    </span>
   );
 }

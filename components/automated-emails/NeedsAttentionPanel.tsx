@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { resendQueuedEmailAction } from "@/app/actions/resend-queued-email";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { Pill } from "@/components/ui/Pill";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type { NeedsAttention, NeedsAttentionItem } from "@/lib/services/automated-emails-overview";
@@ -42,7 +42,7 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Needs attention</h2>
-          <Pill glass tone="danger" size="sm">{data.total}{data.truncated ? "+" : ""}</Pill>
+          <CountBadge count={data.truncated ? `${data.total}+` : data.total} tone="danger" />
         </div>
         <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
           Across {data.affectedFiles} {data.affectedFiles === 1 ? "file" : "files"}

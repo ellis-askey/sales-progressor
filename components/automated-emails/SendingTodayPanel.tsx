@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendPendingEmailNow, cancelPendingEmail } from "@/app/actions/automated-emails";
@@ -34,7 +35,7 @@ export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: Se
         {/* "Still to send" is the honest name — this list is the remaining
             queue, not today's activity (truth pass 2026-10-21). */}
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Still to send today</h2>
-        {total > 0 && <Pill glass tone="info" size="sm">{total}</Pill>}
+        {total > 0 && <CountBadge count={total} tone="accent" />}
       </div>
 
       {total === 0 ? (

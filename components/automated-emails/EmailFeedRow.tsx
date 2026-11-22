@@ -6,6 +6,8 @@
 // one hand-coloured copy) and the row lived privately inside the list view.
 
 import { Pill } from "@/components/ui/Pill";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { StatusDot } from "@/components/ui/StatusDot";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { deliveryStatusMeta } from "./deliveryStatus";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -43,11 +45,11 @@ export function groupByDay(rows: EmailRow[]): { key: string; label: string; rows
   return Array.from(groups.entries()).map(([key, g]) => ({ key, label: g.label, rows: g.rows }));
 }
 
-// The ONE category chip — canonical Pill tones, proper-cased labels, never the
-// raw internal word.
+// The ONE category chip — canonical Pill, sentence-case, de-tinted: a tone dot +
+// outline (no soft fill wash), warning for chases, info for notifications.
 export function CategoryChip({ category }: { category: "chase" | "notification" }) {
   return (
-    <Pill glass tone={category === "chase" ? "warning" : "info"} size="sm" style={{ textTransform: "uppercase", letterSpacing: "0.03em", fontSize: 9.5, flexShrink: 0 }}>
+    <Pill tone={category === "chase" ? "warning" : "info"} size="sm" dot outline style={{ flexShrink: 0 }}>
       {category === "chase" ? "Chase" : "Notification"}
     </Pill>
   );
@@ -77,6 +79,7 @@ export function CompactRow({ row, onOpen, timeText }: { row: EmailRow; onOpen: (
       <span className="hidden sm:block" style={{ fontSize: 11, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums", width: 42, flexShrink: 0 }}>
         {timeText ?? timeLabel(t)}
       </span>
+      <PropertyThumb photoUrl={row.photoUrl ?? null} size={36} />
       <CategoryChip category={row.category} />
       <div className="min-w-0 flex-1">
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -100,7 +103,7 @@ export function CompactRow({ row, onOpen, timeText }: { row: EmailRow; onOpen: (
             <Pill tone="muted" size="sm" outline>Predicted</Pill>
           </>
         ) : (
-          <Pill glass tone={meta.tone} size="sm">{meta.label}</Pill>
+          <StatusDot tone={meta.tone} label={meta.label} />
         )}
       </span>
     </button>

@@ -12,7 +12,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Pill } from "@/components/ui/Pill";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { Tray } from "@phosphor-icons/react";
 import { CompactRow, dayKey, dayLabel, rowTime } from "./EmailFeedRow";
 import { nextChaseSendDay } from "@/lib/emails/working-hours";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
@@ -124,9 +125,9 @@ export function OutboxView({
   if (ordered.length === 0) {
     return (
       <EmptyState
+        icon={<Tray size={24} weight="regular" />}
         title={filtersActive ? "No matching emails" : "Nothing sent today and nothing scheduled"}
         description={filtersActive ? "Try clearing the search or filters. Predictions are hidden while filters are on." : "When an automated email sends or gets queued, it appears here."}
-        compact
       />
     );
   }

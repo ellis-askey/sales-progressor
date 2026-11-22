@@ -7,6 +7,9 @@
 
 import Link from "next/link";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Donut } from "@/components/ui/Donut";
+import { StatNumber } from "@/components/ui/StatNumber";
+import { LegendItem } from "@/components/ui/LegendItem";
 import type { AutomationCoverage } from "@/lib/services/automated-emails-coverage";
 
 const COVERED = "var(--agent-success)";
@@ -15,14 +18,6 @@ const OPTED = "#6366f1"; // indigo — informational (they chose to unsubscribe)
 const PAUSED = "var(--agent-text-muted)";
 
 const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" } as const;
-
-function ringBackground(c: AutomationCoverage): string {
-  if (c.total === 0) return "var(--agent-border-subtle, rgba(15,23,42,0.10))";
-  const a1 = (c.covered / c.total) * 360;
-  const a2 = a1 + (c.needInfo / c.total) * 360;
-  const a3 = a2 + (c.optedOut / c.total) * 360;
-  return `conic-gradient(${COVERED} 0 ${a1}deg, ${NEED} ${a1}deg ${a2}deg, ${OPTED} ${a2}deg ${a3}deg, ${PAUSED} ${a3}deg 360deg)`;
-}
 
 export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCoverage }) {
   const { total, covered, needInfo, optedOut, paused } = coverage;
@@ -40,19 +35,20 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
           <div
             role="img"
             aria-label={`${covered} of ${total} files fully covered, ${needInfo} need information, ${optedOut} opted out, ${paused} paused`}
-            style={{ position: "relative", width: 148, height: 148 }}
+            style={{ position: "relative", width: 148, height: 148, display: "grid", placeItems: "center" }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                position: "absolute", inset: 0, borderRadius: "50%",
-                background: ringBackground(coverage),
-                WebkitMaskImage: "radial-gradient(circle, transparent 53%, #000 54%)",
-                maskImage: "radial-gradient(circle, transparent 53%, #000 54%)",
-              }}
+            <Donut
+              size={148}
+              thickness={14}
+              segments={[
+                { value: covered, color: COVERED },
+                { value: needInfo, color: NEED },
+                { value: optedOut, color: OPTED },
+                { value: paused, color: PAUSED },
+              ].filter((s) => s.value > 0)}
             />
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <span style={{ fontSize: 30, fontWeight: 720, letterSpacing: "-0.02em", color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{total}</span>
+              <StatNumber>{total}</StatNumber>
               <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{total === 1 ? "File" : "Files"}</span>
             </div>
           </div>
@@ -75,14 +71,9 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
 
 function LegendRow({ colour, value, title, sub }: { colour: string; value: number; title: string; sub: string }) {
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-      <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 3, marginTop: 4, flexShrink: 0, background: colour }} />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, color: "var(--agent-text-primary)" }}>
-          <b style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{value}</b> {title}
-        </div>
-        <div style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{sub}</div>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+      <LegendItem color={colour} value={value} label={title} />
+      <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)" }}>{sub}</span>
     </div>
   );
 }

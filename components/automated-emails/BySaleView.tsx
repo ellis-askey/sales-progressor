@@ -17,7 +17,8 @@ import { ContactAvatar } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { asRole, roleShortLabel } from "@/components/ui/RoleIcon";
 import { StatusPill } from "@/components/reminders/StatusPill";
-import { Pill } from "@/components/ui/Pill";
+import { CountBadge } from "@/components/ui/CountBadge";
+import { StepDots } from "@/components/ui/StepDots";
 import { previewChaseEmailAction } from "@/app/actions/chase-timeline";
 import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
 import type { Cockpit, CockpitNeedKind, CockpitChaseRow } from "@/lib/services/automated-emails-cockpit";
@@ -33,7 +34,7 @@ function GroupHeader({ title, count, tone, hint }: { title: string; count: numbe
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "0 2px 10px" }}>
       <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</h2>
-      <Pill tone={count === 0 ? "muted" : tone} size="sm" glass>{count}</Pill>
+      <CountBadge count={count} tone={count === 0 ? "muted" : (tone === "danger" ? "danger" : "accent")} hideZero={false} />
       {hint != null && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--agent-text-muted)" }}>{hint}</span>}
     </div>
   );
@@ -90,13 +91,7 @@ const CARD_STYLE = { borderRadius: 14 } as const;
 const ROW_INNER = { padding: "11px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const };
 
 function Dots({ n, max }: { n: number; max: number }) {
-  return (
-    <span style={{ display: "inline-flex", gap: 3, verticalAlign: "middle" }} aria-hidden>
-      {Array.from({ length: Math.max(max, n) }).map((_, i) => (
-        <i key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i < n ? "var(--agent-coral)" : "var(--agent-border-default)" }} />
-      ))}
-    </span>
-  );
+  return <StepDots done={n} total={max} style={{ verticalAlign: "middle" }} />;
 }
 
 // One "Chasing now" row. The file identity + its send day sit up top (View file

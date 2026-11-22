@@ -7,6 +7,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { StatNumber } from "@/components/ui/StatNumber";
+import { DeltaIndicator } from "@/components/ui/DeltaIndicator";
 import { EmailActivityChart } from "./EmailActivityChart";
 import type { AutomationOverview } from "@/lib/services/automated-emails-overview";
 
@@ -111,9 +113,7 @@ function StatTile({
       <p className="agent-eyebrow" style={{ margin: 0, marginBottom: 2 }} title={hint}>
         {label}
       </p>
-      <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>
-        {value}
-      </p>
+      <StatNumber size="sm">{value}</StatNumber>
       {delta !== undefined && delta !== null && (
         <DeltaChip pct={delta} goodWhenUp={deltaGoodWhenUp ?? true} />
       )}
@@ -123,17 +123,5 @@ function StatTile({
 }
 
 function DeltaChip({ pct, goodWhenUp }: { pct: number; goodWhenUp: boolean }) {
-  if (pct === 0) {
-    return <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>No change vs previous period</p>;
-  }
-  const up = pct > 0;
-  const good = up === goodWhenUp;
-  const colour = good ? "var(--agent-success)" : "var(--agent-danger)";
-  return (
-    <p style={{ margin: "2px 0 0", fontSize: 11, color: colour, display: "flex", alignItems: "center", gap: 3 }}>
-      <span aria-hidden="true">{up ? "↑" : "↓"}</span>
-      <span>{Math.abs(pct)}%</span>
-      <span style={{ color: "var(--agent-text-muted)" }}>vs prev</span>
-    </p>
-  );
+  return <DeltaIndicator pct={pct} goodWhenUp={goodWhenUp} />;
 }

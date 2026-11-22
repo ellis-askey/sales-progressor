@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
 import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
 import { sidesWithNoEmail, sidesOptedOut } from "@/lib/contacts/round-scope";
+import { signPhotosByTx } from "@/lib/services/property-photos";
 
 // The chase cron's global gate (mirrors automated-emails-preview.ts). Anything
 // other than the literal "true" leaves every file's chases dormant.
@@ -82,6 +83,7 @@ export type FileCoverageStatus = "covered" | "needInfo" | "paused";
 export type FileAutomationRow = {
   txId: string;
   address: string;
+  photoUrl?: string | null;    // signed property photo (null → house fallback)
   status: FileCoverageStatus;
   pauseReason: "global" | "agency" | "file" | null;
   pendingCount: number;
@@ -185,5 +187,10 @@ export async function getAutomationFiles(input: EmailScopeInput, search?: string
     b.pendingCount - a.pendingCount ||
     a.address.localeCompare(b.address),
   );
+
+  // Property photos — one query + batch-sign, so each file row shows its property.
+  const photoByTx = await signPhotosByTx(rows.map((r) => r.txId));
+  for (const r of rows) r.photoUrl = photoByTx.get(r.txId) ?? null;
+
   return rows;
 }

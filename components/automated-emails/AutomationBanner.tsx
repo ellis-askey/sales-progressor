@@ -7,6 +7,8 @@
 // (automated-emails-overview.ts), so it never shows more than the viewer may see.
 
 import { GlassCard } from "@/components/glass/GlassCard";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { StatNumber } from "@/components/ui/StatNumber";
 import type { AutomationBanner as BannerData } from "@/lib/services/automated-emails-overview";
 
 function nextSendLabel(at: Date | null): string {
@@ -117,11 +119,11 @@ function Stat({
         display: "flex", flexDirection: "column", justifyContent: "center",
       }}
     >
-      <span style={{ fontSize: 21, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.15, fontVariantNumeric: "tabular-nums", color: alert ? "var(--agent-warning)" : "var(--agent-text-primary)" }}>
-        {value.toLocaleString()}
-      </span>
-      <span style={{ fontSize: 11.5, color: "var(--agent-text-secondary)" }}>{label}</span>
-      <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>{sub}</span>
+      <StatBlock
+        eyebrow={label}
+        value={<StatNumber size="sm" color={alert ? "var(--agent-warning)" : undefined}>{value.toLocaleString()}</StatNumber>}
+        sub={sub}
+      />
     </div>
   );
 }

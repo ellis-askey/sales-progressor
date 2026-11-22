@@ -41,6 +41,7 @@ import { getAutomatedEmailsForTransaction } from "@/lib/services/automated-email
 import { queueProblemOr, solicitorProblemWhere } from "@/lib/services/automated-emails-overview";
 import { mapLimit } from "@/lib/services/automated-emails-upcoming";
 import { resolveEmailScope, type EmailScopeInput } from "@/lib/services/automated-emails-scope";
+import { signPhotosByTx } from "@/lib/services/property-photos";
 
 export type EmailListTab = "pending" | "sent" | "errored" | "upcoming";
 
@@ -84,6 +85,7 @@ export type EmailRow = {
   category: "chase" | "notification";
   transactionId: string;
   transactionAddress: string;
+  photoUrl?: string | null;    // signed property photo (null → house fallback)
   recipientName: string;
   recipientRole: string;       // "vendor" | "purchaser" | "solicitor" etc
   subject: string;
@@ -496,6 +498,11 @@ export async function listAutomatedEmails(input: EmailListInput): Promise<EmailL
   } else {
     rows = await buildUpcomingRows(txIds, txAddressById, input);
   }
+
+  // Property photos for the rows on screen — one query + batch-sign, so every
+  // feed row can show its property (previously address-only).
+  const photoByTx = await signPhotosByTx([...new Set(rows.map((r) => r.transactionId))]);
+  rows = rows.map((r) => ({ ...r, photoUrl: photoByTx.get(r.transactionId) ?? null }));
 
   return { rows, counts, hasMore };
 }

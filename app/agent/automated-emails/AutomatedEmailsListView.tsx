@@ -26,7 +26,10 @@ import { CompactRow, groupByDay } from "@/components/automated-emails/EmailFeedR
 import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 import type { FileAutomationRow } from "@/lib/services/automated-emails-coverage";
 import type { ChasePerformance, EmailHealth } from "@/lib/services/automated-emails-analytics";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { CountBadge } from "@/components/ui/CountBadge";
+import { DateField } from "@/components/ui/DateField";
+import { Tray, ChartLineUp, EnvelopeSimple, FolderOpen } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { BySaleView } from "@/components/automated-emails/BySaleView";
@@ -151,22 +154,28 @@ export function AutomatedEmailsListView(props: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1" role="tablist" aria-label="Email views">
-        {TABS.map((t) => {
-          const n = countForTab(t.value, counts, needsTotal, forecast);
-          return (
-            <Link
-              key={t.value}
-              href={hrefWith({ tab: t.value })}
-              role="tab"
-              aria-selected={t.value === tab}
-              className={`agent-segment-pill agent-segment-pill-sm${t.value === tab ? " on" : ""}`}
-            >
-              {t.label}{n !== null ? ` · ${n}` : ""}
-            </Link>
-          );
-        })}
+      {/* Tabs — a glass segmented track; selected tab sits on an elevated
+          surface, the count rides as a canonical CountBadge (not inline text). */}
+      <div className="flex" role="tablist" aria-label="Email views">
+        <div style={{ display: "inline-flex", gap: 3, padding: 4, borderRadius: 12, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-subtle)", flexWrap: "wrap", maxWidth: "100%" }}>
+          {TABS.map((t) => {
+            const n = countForTab(t.value, counts, needsTotal, forecast);
+            const sel = t.value === tab;
+            return (
+              <Link
+                key={t.value}
+                href={hrefWith({ tab: t.value })}
+                role="tab"
+                aria-selected={sel}
+                className="agent-tab-chip"
+                data-on={sel}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9, textDecoration: "none", fontSize: 12.5, fontWeight: 600 }}
+              >
+                {t.label}{n !== null && <CountBadge count={n} tone={sel ? "accent" : "muted"} soft={!sel} hideZero={false} />}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Toolbar: search + filters — hidden on Insights and the By-sale cockpit
@@ -199,7 +208,7 @@ export function AutomatedEmailsListView(props: Props) {
         <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <input type="date" className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} style={{ width: 150, flex: "0 1 auto" }} />
+        <DateField className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} style={{ width: 150, flex: "0 1 auto" }} />
         {anyFilter && (
           <button type="button" className="agent-link agent-link-muted" style={{ fontSize: 12 }} onClick={() => { setSearchDraft(""); go({ q: null, category: null, role: null, status: null, from: null }); }}>
             Clear filters
@@ -241,7 +250,7 @@ export function AutomatedEmailsListView(props: Props) {
 
       {/* Feed */}
       {tab === "sale" ? (
-        cockpit ? <BySaleView cockpit={cockpit} /> : <EmptyState title="Nothing to show yet" description="When files start chasing, they appear here." compact />
+        cockpit ? <BySaleView cockpit={cockpit} /> : <EmptyState icon={<FolderOpen size={24} weight="regular" />} title="Nothing to show yet" description="When files start chasing, they appear here." />
       ) : tab === "outbox" ? (
         <OutboxView
           sentToday={sentTodayRows}
@@ -258,18 +267,18 @@ export function AutomatedEmailsListView(props: Props) {
           </section>
           <section>
             <p className="agent-eyebrow" style={{ marginBottom: 8 }}>Chase performance</p>
-            {chasePerformance ? <ChasePerformanceView data={chasePerformance} /> : <EmptyState title="No chase performance yet" compact />}
+            {chasePerformance ? <ChasePerformanceView data={chasePerformance} /> : <EmptyState icon={<ChartLineUp size={24} weight="regular" />} title="No chase performance yet" description="It'll build up as chases send." />}
           </section>
           <section>
             <p className="agent-eyebrow" style={{ marginBottom: 8 }}>Email health</p>
-            {emailHealth ? <EmailHealthView data={emailHealth} /> : <EmptyState title="No automated email activity in this period" compact />}
+            {emailHealth ? <EmailHealthView data={emailHealth} /> : <EmptyState icon={<EnvelopeSimple size={24} weight="regular" />} title="No automated email activity in this period" description="It'll build up as emails send." />}
           </section>
         </div>
       ) : rows.length === 0 && !(tab === "problems" && missingItems.length > 0) ? (
         <EmptyState
+          icon={<Tray size={24} weight="regular" />}
           title={emptyTitle(tab, anyFilter || !!fileId)}
-          description={emptyDescription(tab, anyFilter || !!fileId)}
-          compact
+          description={emptyDescription(tab, anyFilter || !!fileId) ?? "Nothing to show here right now."}
         />
       ) : (
         <div className="space-y-4">

@@ -38,6 +38,11 @@ import { StatCards } from "@/components/ui/StatCards";
 import { FilterCheckbox } from "@/components/ui/FilterCheckbox";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { StatusDot } from "@/components/ui/StatusDot";
+import { StepDots } from "@/components/ui/StepDots";
+import { StackedBar } from "@/components/ui/StackedBar";
+import { LegendItem } from "@/components/ui/LegendItem";
+import { DeltaIndicator } from "@/components/ui/DeltaIndicator";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { SectionHeader } from "@/components/agent/SectionHeader";
@@ -2190,8 +2195,117 @@ const COMMS_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+const AUTOEMAILS_ENTRIES: ComponentEntry[] = [
+  {
+    id: "status-dot",
+    name: "Status dot (dot + label)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["status", "dot", "label", "delivered", "covered", "bounced", "pill", "de-tint", "no fill", "automated emails"],
+    summary: "The canonical status indicator — a tone dot + sentence-case label, no fill. Replaces the soft tinted glass status Pills (Delivered / Covered / Chase / Bounced) so status reads from a coloured dot, not a washed background (the 'no faded fills' rule). Tones: success / info / warning / danger / muted. Live render of components/ui/StatusDot.tsx.",
+    sources: [{ path: "components/ui/StatusDot.tsx" }, { path: "components/automated-emails/EmailFeedRow.tsx", note: "delivery status" }, { path: "components/automated-emails/FilesView.tsx", note: "coverage status" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+          <StatusDot tone="success" label="Delivered" />
+          <StatusDot tone="info" label="Sent" />
+          <StatusDot tone="warning" label="Deferred" />
+          <StatusDot tone="danger" label="Bounced" />
+          <StatusDot tone="muted" label="Paused" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "count-badge-ae",
+    name: "Count badge — see Badges",
+    category: "badges",
+    status: "implemented",
+    keywords: ["count", "badge", "tab", "section", "automated emails"],
+    summary: "The tab counts and section counts on Automated emails use the canonical CountBadge (outline). See the Count badge entry above.",
+    sources: [{ path: "components/ui/CountBadge.tsx" }],
+    render: () => <Stage><span style={{ display: "inline-flex", gap: 10 }}><CountBadge count={65} /><CountBadge count={338} /><CountBadge count={0} tone="muted" hideZero={false} /></span></Stage>,
+  },
+  {
+    id: "step-dots",
+    name: "Step dots (chase progress)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["step", "dots", "progress", "chase", "coral", "count", "automated emails"],
+    summary: "Small step / progress dots — filled coral for completed steps, hollow for the rest; the active step can widen into a coral pill. For a countable number of steps (e.g. 'chase 2 of 2'); for a continuous percentage use ProgressBar / ProgressRing. Live render of components/ui/StepDots.tsx.",
+    sources: [{ path: "components/ui/StepDots.tsx" }, { path: "components/automated-emails/BySaleView.tsx", note: "chase progress" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><StepDots done={1} total={2} /><span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>chase 1 of 2</span></span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><StepDots done={2} total={2} /><span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>chase 2 of 2</span></span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}><StepDots done={2} total={3} widenActive /><span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>widen active</span></span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "stacked-bar",
+    name: "Stacked proportion bar",
+    category: "progress",
+    status: "implemented",
+    keywords: ["stacked", "bar", "proportion", "breakdown", "segments", "chase performance", "email health", "automated emails"],
+    summary: "A horizontal stacked proportion bar — a rounded track split into tone segments by percentage, on a nested-surface track. Pairs with LegendItem for the key. For the proportions of a single whole (differs from HeatBand, which encodes one value per cell). Live render of components/ui/StackedBar.tsx.",
+    sources: [{ path: "components/ui/StackedBar.tsx" }, { path: "components/automated-emails/ChasePerformanceView.tsx" }, { path: "components/automated-emails/EmailHealthView.tsx" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ width: 320, display: "flex", flexDirection: "column", gap: 12 }}>
+          <StackedBar segments={[{ pct: 46, color: "var(--agent-success)" }, { pct: 34, color: "var(--agent-info)" }, { pct: 20, color: "var(--agent-text-muted)" }]} />
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <LegendItem color="var(--agent-success)" value={156} label="Replied" />
+            <LegendItem color="var(--agent-info)" value={115} label="Opened" />
+            <LegendItem color="var(--agent-text-muted)" value={67} label="No reply" />
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "legend-item",
+    name: "Legend item (chart key)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["legend", "key", "swatch", "chart", "donut", "stacked bar", "automated emails"],
+    summary: "A chart / legend key — a rounded tone swatch, an optional emphasised value, then a label. One key across donut legends, stacked-bar legends and chart keys (previously three near-identical bespoke spans). Live render of components/ui/LegendItem.tsx.",
+    sources: [{ path: "components/ui/LegendItem.tsx" }, { path: "components/automated-emails/AutomationCoveragePanel.tsx" }, { path: "components/automated-emails/EmailActivityChart.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <LegendItem color="var(--agent-coral)" label="Chase" />
+          <LegendItem color="var(--agent-info)" label="Notification" />
+          <LegendItem color="var(--agent-success)" value={37} label="Fully covered" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "delta-indicator",
+    name: "Delta indicator (trend)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["delta", "trend", "change", "arrow", "percent", "up", "down", "vs prev", "automated emails"],
+    summary: "A delta / trend indicator — an ↑/↓ glyph + percent in success/danger, with a muted 'vs prev' suffix. goodWhenUp flips which direction reads as good (down is good for e.g. bounce rate); zero renders a muted 'No change'. Live render of components/ui/DeltaIndicator.tsx.",
+    sources: [{ path: "components/ui/DeltaIndicator.tsx" }, { path: "components/automated-emails/AutomationActivityPanel.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <DeltaIndicator pct={12} />
+          <DeltaIndicator pct={-8} />
+          <DeltaIndicator pct={-5} goodWhenUp={false} />
+          <DeltaIndicator pct={0} />
+        </div>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

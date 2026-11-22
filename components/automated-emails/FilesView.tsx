@@ -11,8 +11,10 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pill } from "@/components/ui/Pill";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { StatusDot } from "@/components/ui/StatusDot";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { House } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { pauseClientEmails, resumeClientEmails } from "@/app/actions/automation";
 import type { FileAutomationRow, FileCoverageStatus } from "@/lib/services/automated-emails-coverage";
@@ -40,7 +42,7 @@ function nextLabel(at: Date | null): string {
 
 export function FilesView({ rows }: { rows: FileAutomationRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState title="No active files to monitor" description="Files appear here while a sale is in progress." compact />;
+    return <EmptyState icon={<House size={24} weight="regular" />} title="No active files to monitor" description="Files appear here while a sale is in progress." />;
   }
 
   return (
@@ -79,6 +81,7 @@ function FileRow({ row: r }: { row: FileAutomationRow }) {
       className="agent-email-feed-row w-full flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
       style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-md, 8px)", border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass, transparent)" }}
     >
+      <PropertyThumb photoUrl={r.photoUrl ?? null} size={40} />
       <div className="min-w-0 flex-1">
         <Link
           href={`/agent/transactions/${r.txId}`}
@@ -92,13 +95,11 @@ function FileRow({ row: r }: { row: FileAutomationRow }) {
         </span>
       </div>
 
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
         {r.issuesCount > 0 && (
-          <Pill glass tone="danger" size="sm">{r.issuesCount} {r.issuesCount === 1 ? "problem" : "problems"}</Pill>
+          <StatusDot tone="danger" label={`${r.issuesCount} ${r.issuesCount === 1 ? "problem" : "problems"}`} />
         )}
-        <Pill glass tone={filePaused || lockedPause ? "muted" : meta.tone} size="sm">
-          {filePaused ? PAUSE_LABEL.file : lockedPause && r.pauseReason ? PAUSE_LABEL[r.pauseReason] : meta.label}
-        </Pill>
+        <StatusDot tone={filePaused || lockedPause ? "muted" : meta.tone} label={filePaused ? PAUSE_LABEL.file : lockedPause && r.pauseReason ? PAUSE_LABEL[r.pauseReason] : meta.label} />
         {!lockedPause && (
           <button
             type="button"
