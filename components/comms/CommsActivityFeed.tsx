@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { CaretDown, Tag, ChatCircle, Paperclip, Bell, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
+import { FilterCheckbox } from "@/components/ui/FilterCheckbox";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
@@ -161,10 +164,10 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium" style={{ color: primary, lineHeight: 1.4 }}>{main}</p>
         {u.kind === "note" && (
-          <p className="text-[10.5px]" style={{ color: muted, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>Shared with client</p>
+          <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>Shared with client</p>
         )}
         {u.kind === "notification" && u.pill && (
-          <p className="text-[10.5px]" style={{ color: muted, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>{u.pill}</p>
+          <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>{u.pill}</p>
         )}
         {secondary && (
           <p className="text-[12px]" style={{ color: muted, marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -223,11 +226,7 @@ function TxCard({ tx }: { tx: TxGroup }) {
             {status && <Pill glass tone={status.tone} size="sm">{status.label}</Pill>}
             {snap && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{snap.percent}%</span>}
           </div>
-          {snap && (
-            <div style={{ width: 132, height: 4, borderRadius: 999, background: "var(--agent-hero-track, rgba(15,23,42,0.08))", overflow: "hidden" }}>
-              <div style={{ width: `${snap.percent}%`, height: "100%", borderRadius: 999, background: "var(--agent-coral)" }} />
-            </div>
-          )}
+          {snap && <ProgressBar percent={snap.percent} width={132} />}
           <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right" }}>
             {snap?.stage ?? ""}{snap?.stage && exchange ? " · " : ""}{exchange ?? ""}
           </span>
@@ -285,14 +284,6 @@ const CF_STYLES = `
   .cf-sec-hdr:hover { background-color:var(--agent-hover-tint); }
   .cf-sec .cf-caret { color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
   .cf-sec.open .cf-caret { transform:rotate(180deg); }
-  .cf-badge { font-size:10px; font-weight:700; color:#fff; background:var(--agent-coral); border-radius:999px; min-width:16px; height:16px; padding:0 5px; display:inline-flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
-  .cf-row { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:7px 9px; border:none; background:none; border-radius:8px; font-family:inherit; font-size:13px; font-weight:500; color:var(--agent-text-primary); cursor:pointer; transition:background-color .14s ease, box-shadow .14s ease; }
-  .cf-row:hover { background-color:var(--agent-hover-tint); box-shadow:var(--agent-hover-lift); }
-  .cf-chk { width:17px; height:17px; border-radius:5px; border:1.5px solid var(--agent-border-strong); flex-shrink:0; position:relative; transition:background-color .18s ease, border-color .18s ease, transform .18s cubic-bezier(.34,1.56,.64,1); }
-  .cf-chk svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
-  .cf-chk svg path { fill:none; stroke:#fff; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:18; stroke-dashoffset:18; transition:stroke-dashoffset .24s ease .04s; }
-  .cf-row[data-on="true"] .cf-chk { background:var(--agent-coral); border-color:var(--agent-coral); transform:scale(1.06); }
-  .cf-row[data-on="true"] .cf-chk svg path { stroke-dashoffset:0; }
   .cf-drops { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .cf-dd { position:relative; }
   .cf-dd-btn { display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:10px; padding:8px 12px; cursor:pointer; transition:border-color .14s ease; }
@@ -302,24 +293,13 @@ const CF_STYLES = `
   .cf-dd-btn[data-open="true"] .cf-caret { transform:rotate(180deg); }
   .cf-side-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px; }
   .cf-count { font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
-  .cf-search { display:flex; align-items:center; gap:9px; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:11px; padding:10px 13px; transition:border-color .14s ease, box-shadow .14s ease; }
-  .cf-search:hover { border-color:var(--agent-coral); }
-  .cf-search:focus-within { border-color:var(--agent-coral-deep); box-shadow:none; }
-  .cf-search-ico { color:var(--agent-text-muted); flex-shrink:0; }
-  .cf-search-input { flex:1; min-width:0; border:none; background:none; outline:none; font-family:inherit; font-size:13.5px; color:var(--agent-text-primary); }
-  .cf-search-input::placeholder { color:var(--agent-text-muted); }
-  .cf-search-clear { border:none; background:none; cursor:pointer; color:var(--agent-text-muted); display:inline-flex; align-items:center; justify-content:center; padding:3px; border-radius:6px; transition:color .14s ease, background .14s ease; }
-  .cf-search-clear:hover { color:var(--agent-text-primary); background:var(--agent-hover-tint); }
 `;
 
 function CheckRows({ options, selected, onToggle }: { options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void }) {
   return (
     <>
       {options.map((o) => (
-        <button key={o.key} type="button" role="menuitemcheckbox" aria-checked={selected.has(o.key)} className="cf-row" data-on={selected.has(o.key)} onClick={() => onToggle(o.key)}>
-          <span className="cf-chk" aria-hidden><svg viewBox="0 0 18 18"><path d="M4.5 9.2l2.7 2.7L13.7 5.6" /></svg></span>
-          {o.label}
-        </button>
+        <FilterCheckbox key={o.key} checked={selected.has(o.key)} label={o.label} onChange={() => onToggle(o.key)} />
       ))}
     </>
   );
@@ -329,7 +309,7 @@ function RailSection({ heading, options, selected, onToggle, open, onToggleOpen 
   return (
     <div className={`cf-sec${open ? " open" : ""}`}>
       <div className="cf-sec-hdr" role="button" tabIndex={0} aria-expanded={open} onClick={onToggleOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleOpen(); } }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{heading}{selected.size > 0 && <span className="cf-badge">{selected.size}</span>}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{heading}{selected.size > 0 && <CountBadge count={selected.size} solid />}</span>
         <CaretDown className="cf-caret" style={{ width: 13, height: 13 }} />
       </div>
       <div className={`agent-acc${open ? " open" : ""}`}>
@@ -348,7 +328,7 @@ function FilterDropdown({ heading, options, selected, onToggle, open, onOpenChan
   return (
     <div className="cf-dd">
       <button ref={btnRef} type="button" className="cf-dd-btn" data-open={open} aria-haspopup="menu" aria-expanded={open} onClick={() => onOpenChange(!open)}>
-        {heading}{selected.size > 0 && <span className="cf-badge">{selected.size}</span>}<span className="cf-caret">▼</span>
+        {heading}{selected.size > 0 && <CountBadge count={selected.size} solid />}<span className="cf-caret">▼</span>
       </button>
       <AnchoredPanel anchorRef={btnRef} open={open} onClose={() => onOpenChange(false)} placement="bottom-start" width={200} bare>
         <div style={{ padding: 7 }} role="menu">
@@ -385,7 +365,6 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   const [openDd, setOpenDd] = useState<string | null>(null);
   const dropsRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
-  const searchTag = useGlassTag("updates-search", "Updates · search bar", { dark: "v04" });
   const railTag = useGlassTag("updates-filter-rail", "Updates · filter rail", { dark: "v05" });
 
   function toggleIn<T>(setter: Dispatch<SetStateAction<Set<T>>>) {
@@ -516,19 +495,22 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
         <div className="cf-feed space-y-4 agent-bloom-stagger">
 
-      {/* Address search — sits above the day buckets. Partial match, any part. */}
-      <div className={`cf-search ${searchTag.className}`} {...searchTag.props}>
-        <MagnifyingGlass size={16} weight="regular" className="cf-search-ico" />
+      {/* Address search — sits above the day buckets. Partial match, any part.
+          Canonical agent-input with a leading magnifier and the canonical clear
+          control (agent-icon-btn) on the right while there's a query. */}
+      <div style={{ position: "relative" }}>
+        <MagnifyingGlass size={16} weight="regular" aria-hidden style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }} />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by address"
-          className="cf-search-input"
+          className="agent-input"
           aria-label="Search updates by address"
+          style={{ paddingLeft: 38, paddingRight: query ? 40 : 14 }}
         />
         {query && (
-          <button type="button" className="cf-search-clear" onClick={() => setQuery("")} aria-label="Clear search">
+          <button type="button" className="agent-icon-btn agent-icon-btn-sm" onClick={() => setQuery("")} aria-label="Clear search" style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)" }}>
             <X size={13} weight="bold" />
           </button>
         )}

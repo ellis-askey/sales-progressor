@@ -35,6 +35,9 @@ import { ProgressRing } from "@/components/ui/ProgressRing";
 import { CountPill } from "@/components/ui/CountPill";
 import { AnimatedClock } from "@/components/ui/AnimatedClock";
 import { StatCards } from "@/components/ui/StatCards";
+import { FilterCheckbox } from "@/components/ui/FilterCheckbox";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { SectionHeader } from "@/components/agent/SectionHeader";
@@ -2066,8 +2069,77 @@ const TODO_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+/* Interactive filter-checkbox demo — faithful to the real FilterCheckbox: a
+   rounded box that fills coral and springs on check, with the canonical
+   AnimatedTick drawing its stroke in. Click to toggle. */
+function FilterCheckboxSpec({ initial = true, label = "Awaiting reply" }: { initial?: boolean; label?: string }) {
+  const [on, setOn] = useState(initial);
+  return (
+    <div style={{ width: 200 }}>
+      <FilterCheckbox checked={on} label={label} onChange={setOn} />
+    </div>
+  );
+}
+
+const COMMS_ENTRIES: ComponentEntry[] = [
+  {
+    id: "filter-checkbox",
+    name: "Filter checkbox (rail toggle)",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["checkbox", "filter", "rail", "toggle", "tick", "coral", "box", "square", "updates", "comms"],
+    summary: "The compact filter-rail toggle — a rounded box that fills coral and springs on check, with the canonical AnimatedTick drawing its stroke in. The whole row is an agent-hover-row. De-dupes the bespoke cf-chk (Updates) tick. Live render of components/ui/FilterCheckbox.tsx. Click to toggle.",
+    sources: [{ path: "components/ui/FilterCheckbox.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "first consumer (filter rail)" }],
+    exceptions: [{ title: "Files filter checkbox (.fm-cbx) not yet migrated", detail: "The Files workspace filter menu uses a larger (20px) gradient-fill checkbox (.fm-cbx). Left grandfathered until the Files page comes up for its own pass; this canonical matches the Updates (17px flat) treatment.", source: "app/agent/styles/agent-system.css (.fm-cbx)", scope: "specific" }],
+    render: () => <Stage width={260}><FilterCheckboxSpec /></Stage>,
+  },
+  {
+    id: "progress-bar",
+    name: "Progress bar (linear)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["progress", "bar", "linear", "track", "fill", "coral", "percent", "file", "updates"],
+    summary: "The thin linear progress bar — a rounded track with a coral fill that eases to width. The linear sibling of ProgressRing, for inline file progress (the Updates file snapshot). Live render of components/ui/ProgressBar.tsx.",
+    sources: [{ path: "components/ui/ProgressBar.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "first consumer (file snapshot)" }],
+    render: () => (
+      <Stage width={260}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%" }}>
+          <div><span style={LBL}>32%</span><ProgressBar percent={32} /></div>
+          <div><span style={LBL}>68%</span><ProgressBar percent={68} /></div>
+          <div><span style={LBL}>100%</span><ProgressBar percent={100} /></div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "count-badge",
+    name: "Count badge (filter / tab / bell count)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["count", "badge", "number", "filter", "tab", "bell", "coral", "filled", "solid", "outline", "pill", "updates", "to-do", "nav"],
+    summary: "The canonical count / number badge. Two treatments kept side by side pending a merge: outline (default — transparent fill, hairline tone border, tone number; the To-Do tab / nav counts) and solid (coral fill, white number; the Updates filter group count + the notification bell). Tones: accent / muted / danger. Sizes: md (18px) / sm (15px); a soft form fades the border for inactive tabs. Deliberately NOT the tinted Pill. Live render of components/ui/CountBadge.tsx.",
+    sources: [{ path: "components/ui/CountBadge.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "solid — filter group count" }, { path: "components/agent/SectionHeader.tsx", note: "outline — section count" }, { path: "components/layout/AgentBell.tsx", note: "solid — bell corner (sm)" }],
+    variants: [
+      { id: "outline", label: "Outline", note: "Transparent fill, hairline border, tone number — tab / nav counts.", render: () => <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--agent-text-primary)" }}>To-do <CountBadge count={7} /></span> },
+      { id: "solid", label: "Solid (filled)", note: "Coral fill, white number — the Updates filter count + the bell.", render: () => <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--agent-text-primary)" }}>Needs attention <CountBadge count={3} solid /></span> },
+      { id: "soft", label: "Soft outline", note: "Faded border — inactive tabs.", render: () => <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--agent-text-primary)" }}>Parked <CountBadge count={2} soft /></span> },
+    ],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ textAlign: "center" }}><CountBadge count={7} /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 8 }}>outline</span></div>
+          <div style={{ textAlign: "center" }}><CountBadge count={3} solid /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 8 }}>solid</span></div>
+          <div style={{ textAlign: "center" }}><CountBadge count={2} tone="muted" /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 8 }}>muted</span></div>
+          <div style={{ textAlign: "center" }}><CountBadge count={5} tone="danger" /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 8 }}>danger</span></div>
+          <div style={{ textAlign: "center" }}><CountBadge count={9} size="sm" solid /><span style={{ display: "block", fontSize: 10, color: "#9a938a", marginTop: 8 }}>sm solid</span></div>
+        </div>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);
