@@ -34,6 +34,9 @@ import { HeatBand } from "@/components/ui/HeatBand";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { CountPill } from "@/components/ui/CountPill";
 import { AnimatedClock } from "@/components/ui/AnimatedClock";
+import { StatCards } from "@/components/ui/StatCards";
+import { ChaseBar } from "@/components/enquiries/ChaseBar";
+import { WarningCircle as WarningCircleI, CheckCircle as CheckCircleI, CalendarBlank as CalendarBlankI, ClockCountdown as ClockCountdownI, ChatCircleDots as ChatCircleDotsI, PaperPlaneTilt as PaperPlaneTiltI } from "@phosphor-icons/react";
 
 // Dev-gallery placeholders: Checkbox / OtpInput / RadioGroup / CookieConsent come from the
 // arc library that is not yet committed to this branch. Stubbed to null so the prod build
@@ -1902,8 +1905,85 @@ const REMINDERS_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+/* Enquiries (/agent/enquiries) canonical pass — the parts kept as-is and registered. */
+const ENQUIRIES_ENTRIES: ComponentEntry[] = [
+  {
+    id: "stat-cards",
+    name: "Summary stat cards",
+    category: "cards",
+    status: "implemented",
+    keywords: ["stat", "cards", "summary", "tiles", "overview", "icon circle", "enquiries"],
+    summary: "The canonical summary-tile row — a fixed grid of glass cards, each an icon circle + value + label + sub, tone-mapped (coral / warning / info / neutral / danger / success). 4-up desktop, 2-up tablet/phone. The Enquiries overview + other dashboards use it. Live render of components/ui/StatCards.tsx.",
+    sources: [{ path: "components/ui/StatCards.tsx" }],
+    render: () => (
+      <Stage width={460}>
+        <StatCards ariaLabel="Summary" cards={[
+          { key: "a", icon: <ChatCircleDotsI size={22} weight="regular" />, tone: "coral", value: "13", label: "In enquiries", sub: "6 with sellers" },
+          { key: "b", icon: <WarningCircleI size={22} weight="fill" />, tone: "warning", value: "1", label: "Need checking", sub: "Overdue" },
+          { key: "c", icon: <PaperPlaneTiltI size={22} weight="regular" />, tone: "info", value: "10", label: "Awaiting replies", sub: "With a solicitor" },
+        ]} />
+      </Stage>
+    ),
+  },
+  {
+    id: "enq-status-tag",
+    name: "Status tag (enquiries)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["status", "tag", "pill", "enquiries", "overdue", "chase again", "reviewing", "tone"],
+    summary: "The enquiries status tag — a tinted tag with a leading state icon, four tones (danger overdue / amber chase-again / green reviewing / blue awaiting). A distinct status-tag kept as its own canonical (not the plain Pill); the colour carries the triage state. .enq-pill2 / .enq-pill-{tone} in agent-system.css.",
+    sources: [{ path: "app/agent/styles/agent-system.css", note: ".enq-pill2" }, { path: "components/enquiries/EnquiriesTriageList.tsx", note: "statusPill()" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <span className="enq-pill2 enq-pill-danger"><WarningCircleI size={12} weight="fill" />Replies overdue</span>
+          <span className="enq-pill2 enq-pill-amber"><CalendarBlankI size={12} />Chase again</span>
+          <span className="enq-pill2 enq-pill-green"><CheckCircleI size={12} weight="fill" />Being reviewed</span>
+          <span className="enq-pill2 enq-pill-blue"><ClockCountdownI size={12} />Awaiting replies</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "chase-bar",
+    name: "Court chase-bar",
+    category: "progress",
+    status: "implemented",
+    keywords: ["chase bar", "court", "handover", "slider", "progress", "ball", "escalate", "hold", "enquiries"],
+    summary: "The court-handover progress bar — a clear ball on the side the enquiries sit with, a coloured fill growing toward the other side (coral chase 0–7 days → red escalate → blue holding to a date), draggable to hand over with a staged dance. The dynamic stage colour is the signal. Live render of components/enquiries/ChaseBar.tsx.",
+    sources: [{ path: "components/enquiries/ChaseBar.tsx" }],
+    render: () => (
+      <Stage width={340}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><span style={{ display: "block", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9a938a", marginBottom: 6 }}>Chase (coral)</span><ChaseBar stage="chase" progress={0.45} isSeller /></div>
+          <div><span style={{ display: "block", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9a938a", marginBottom: 6 }}>Escalate (red)</span><ChaseBar stage="escalate" progress={0.92} isSeller={false} /></div>
+          <div><span style={{ display: "block", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9a938a", marginBottom: 6 }}>Hold (blue)</span><ChaseBar stage="hold" progress={0.5} isSeller /></div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "enq-timeline",
+    name: "Chase-history timeline",
+    category: "rows",
+    status: "implemented",
+    keywords: ["timeline", "history", "chase", "activity", "dots", "enquiries", "log"],
+    summary: "The chase-history timeline in the enquiry expand drawer — a dot (tone-coloured by event) + date + label per row. Token-based dots and typography; registered as-is. .enq-timeline / .enq-dot / .enq-tl-* in agent-system.css.",
+    sources: [{ path: "app/agent/styles/agent-system.css", note: ".enq-timeline" }, { path: "components/enquiries/EnquiriesTriageList.tsx", note: "ExpandedDetail" }],
+    render: () => (
+      <Stage width={340}>
+        <ul className="enq-timeline">
+          {[["Wed 4 Nov", "Chased · Ellis Askey", "coral"], ["Wed 4 Nov", "Whose-court corrected · Ellis Askey", "neutral"], ["Mon 19 Oct", "Chased · Ellis Askey", "coral"], ["Mon 5 Oct", "Chase email sent", "coral"]].map(([d, l, t], i) => (
+            <li key={i}><span className={`enq-dot enq-dot-${t}`} /><span className="enq-tl-date">{d}</span><span className="enq-tl-label">{l}</span></li>
+          ))}
+        </ul>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

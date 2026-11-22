@@ -29,6 +29,10 @@ import { EnquiryLogSheet } from "@/components/enquiries/EnquiryLogSheet";
 import { EnquiryEmailPreview } from "@/components/enquiries/EnquiryEmailPreview";
 import { ChaseDrawer } from "@/components/chase/ChaseDrawer";
 import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
+import { Select } from "@/components/ui/Select";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { DateField } from "@/components/ui/DateField";
+import { buttonClasses } from "@/components/arc/button/button";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -163,8 +167,6 @@ export function EnquiriesTriageList({
   // current look (no variant class until a pick exists). The two filter selects
   // share one id so the Lab shows a single "filters" row that drives both.
   // Baked Enquiries defaults (Ellis's export, 2026-10-25); all Lab-overridable.
-  const searchTag = useGlassTag("enquiries-search", "Enquiries · search bar", { light: "cs-b7c9ec28", dark: "v05" });
-  const filtersTag = useGlassTag("enquiries-filters", "Enquiries · filters", { dark: "v05" });
   const cardTag = useGlassTag("enquiries-card", "Enquiries · enquiry card", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
 
   // FLIP the list: actioned rows glide to their new sorted slot (with a lift)
@@ -310,21 +312,19 @@ export function EnquiriesTriageList({
 
       {/* Toolbar */}
       <div className="enq-toolbar" data-bloom>
-        <div className={`enq-search ${searchTag.className}`} {...searchTag.props}>
-          <MagnifyingGlass size={15} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => enableAnim(false)} onBlur={() => enableAnim(true)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" />
+        {/* Canonical agent-input search (leading magnifier). */}
+        <div style={{ position: "relative", flex: "1 1 260px", minWidth: 200 }}>
+          <MagnifyingGlass size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => enableAnim(false)} onBlur={() => enableAnim(true)} placeholder="Search by address, client or solicitor…" aria-label="Search enquiries" className="agent-input agent-input-sm" style={{ width: "100%", paddingLeft: 34, fontSize: 13.5, height: 38 }} />
         </div>
-        <select className={`enq-select ${filtersTag.className}`} {...filtersTag.props} value={side} onChange={(e) => setSide(e.target.value as typeof side)} aria-label="Filter by side">
-          <option value="all">All sides</option>
-          <option value="seller_solicitor">With seller&apos;s solicitor</option>
-          <option value="buyer_solicitor">With buyer&apos;s solicitor</option>
-        </select>
-        <label className="enq-sort-label" htmlFor="enq-sort">Sort:</label>
-        <select id="enq-sort" className={`enq-select ${filtersTag.className}`} {...filtersTag.props} value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort">
-          <option value="attention">Needs attention</option>
-          <option value="quietest">Quietest first</option>
-          <option value="recent">Recently updated</option>
-        </select>
+        {/* Canonical Select, sized to sit level with the toolbar (38px / radius 10). */}
+        <div style={{ minWidth: 150 }}>
+          <Select value={side} onChange={(v) => setSide(v as typeof side)} fullWidth={false} height={38} radius={10} options={[{ value: "all", label: "All sides" }, { value: "seller_solicitor", label: "With seller's solicitor" }, { value: "buyer_solicitor", label: "With buyer's solicitor" }]} />
+        </div>
+        <label className="enq-sort-label">Sort:</label>
+        <div style={{ minWidth: 150 }}>
+          <Select value={sort} onChange={(v) => setSort(v as SortKey)} fullWidth={false} height={38} radius={10} options={[{ value: "attention", label: "Needs attention" }, { value: "quietest", label: "Quietest first" }, { value: "recent", label: "Recently updated" }]} />
+        </div>
       </div>
 
       {/* Rows */}
@@ -357,12 +357,7 @@ export function EnquiriesTriageList({
                 {/* Photo + address are one link: hovering anywhere (photo or
                     town) highlights the address, clicking opens the file. */}
                 <Link href={withFrom(`/agent/transactions/${r.transactionId}`, "/agent/enquiries")} className="enq-idlink" aria-label={`Open ${line1.trim()}`}>
-                  {signedPhoto ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img className="enq-thumb" src={signedPhoto} alt="" aria-hidden />
-                  ) : (
-                    <div className="enq-thumb property-photo-fallback" aria-hidden />
-                  )}
+                  <PropertyThumb photoUrl={signedPhoto} size={52} />
                   <div className="enq-idcol">
                     {/* Address + town stay a block on the left; tenure/price is a
                         sibling so mobile can float it to the right of them,
@@ -653,19 +648,29 @@ function RowActions({
   return (
     <div className="enq-actions2" ref={wrapRef}>
       {/* Desktop: I've-chased + send-a-chase + calendar + split button */}
-      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="I've chased" aria-label="I've chased them myself (quiet for 2 working days)" onClick={onMarkChased}>
+      {/* Canonical icon buttons (.agent-icon-btn); enq-a-desktop keeps the responsive hide. */}
+      <button type="button" className="agent-icon-btn agent-icon-btn-md enq-a-desktop" disabled={busy} title="I've chased" aria-label="I've chased them myself (quiet for 2 working days)" onClick={onMarkChased}>
         <ArrowClockwise size={15} />
       </button>
-      <button type="button" className="enq-iconbtn enq-a-desktop" title="Send a chase" aria-label="Send a chase to the solicitor" onClick={onSendChase}>
+      <button type="button" className="agent-icon-btn agent-icon-btn-md enq-a-desktop" title="Send a chase" aria-label="Send a chase to the solicitor" onClick={onSendChase}>
         <PaperPlaneTilt size={15} />
       </button>
-      <button type="button" className="enq-iconbtn enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" aria-expanded={bdOpen} onClick={() => (bdOpen ? closeBackdate() : openBackdate())}>
+      <button type="button" className="agent-icon-btn agent-icon-btn-md enq-a-desktop" disabled={busy} title="Happened earlier" aria-label="Happened earlier" aria-expanded={bdOpen} onClick={() => (bdOpen ? closeBackdate() : openBackdate())}>
         <CalendarBlank size={15} />
       </button>
-      <span className="enq-split enq-a-desktop">
-        <button type="button" disabled={busy} className={`enq-btn enq-split-main ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={onPrimary}>{primaryIcon} {primaryLabel}</button>
-        <button type="button" disabled={busy} aria-label="More actions" aria-expanded={menuOpen} className={`enq-btn enq-split-caret ${primaryGreen ? "enq-btn-satisfied" : "enq-btn-primary2"}`} onClick={() => changeMenu(!menuOpen)}><CaretDown size={13} weight="bold" /></button>
-      </span>
+      {/* Canonical split-button; the colour (green = satisfied / coral = primary) is a
+          token override at the call site, so it's the one canonical button either way. */}
+      {(() => {
+        const splitColor = primaryGreen ? "#16a34a" : "#FF6B4A";
+        const base = buttonClasses({ variant: "primary", size: "sm" });
+        const tokens = { ["--foreground" as string]: splitColor, ["--background" as string]: "#fff" } as React.CSSProperties;
+        return (
+          <span className="enq-a-desktop" style={{ display: "inline-flex", opacity: busy ? 0.55 : 1 }}>
+            <button type="button" disabled={busy} className={base} style={{ ...tokens, borderTopRightRadius: 0, borderBottomRightRadius: 0, gap: 5 }} onClick={onPrimary}>{primaryIcon} {primaryLabel}</button>
+            <button type="button" disabled={busy} aria-label="More actions" aria-expanded={menuOpen} className={base} style={{ ...tokens, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "1px solid rgba(255,255,255,0.32)", padding: "0 7px" }} onClick={() => changeMenu(!menuOpen)}><CaretDown size={13} weight="bold" /></button>
+          </span>
+        );
+      })()}
 
       {/* Tablet/mobile: single Update menu trigger */}
       <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => changeMenu(!menuOpen)}>Update <CaretDown size={13} weight="bold" /></button>
@@ -773,11 +778,11 @@ function ExpandedDetail({
   return (
     <div className="enq-detail">
       <div className="enq-detail-col">
-        <div className="enq-detail-h">Enquiry round</div>
+        <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Enquiry round</p>
         <div className="enq-detail-b">Raised {fmtDay(row.openedAt)} by the buyer&apos;s solicitor</div>
       </div>
       <div className="enq-detail-col">
-        <div className="enq-detail-h">Last update</div>
+        <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Last update</p>
         {row.lastMovement ? (
           <>
             <div className="enq-detail-b">&ldquo;{row.lastMovement.note}&rdquo;</div>
@@ -786,7 +791,7 @@ function ExpandedDetail({
         ) : <div className="enq-detail-b" style={{ color: "var(--agent-text-muted)" }}>No updates logged yet.</div>}
       </div>
       <div className="enq-detail-col">
-        <div className="enq-detail-h">Expected</div>
+        <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Expected</p>
         {row.expectedDate && new Date(row.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0) ? (
           <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="enq-linkbtn" disabled={busy} onClick={() => onExpected(null)}>Clear</button></div>
         ) : (
@@ -795,31 +800,27 @@ function ExpandedDetail({
           // iOS cancel the picker the instant it stole focus (#3). Earliest is
           // tomorrow: a same-day "hold until" can't apply, so it would silently
           // no-op (critique F1). An expired date falls back to this add field (W1).
-          <div className="enq-bd-field enq-exp-field">
-            <CalendarBlank size={15} className="enq-bd-cal" />
-            <span className="enq-bd-ph">Add expected date</span>
-            <input
-              type="date"
-              className="enq-exp-native"
-              min={tomorrowISO()}
-              disabled={busy}
-              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* iOS opens on tap anyway */ } }}
-              onChange={(e) => { if (e.target.value) onExpected(e.target.value); }}
-              aria-label="Expected replies date"
-            />
-          </div>
+          <DateField
+            value=""
+            min={tomorrowISO()}
+            disabled={busy}
+            placeholder="Add expected date"
+            onChange={(e) => { if (e.target.value) onExpected(e.target.value); }}
+            className="agent-input agent-input-sm"
+            aria-label="Expected replies date"
+          />
         )}
         <div className="enq-detail-chase">
           <span className="enq-detail-meta">Log a chase:</span>
-          <button type="button" className="enq-chip" disabled={busy} onClick={() => onLog("phone")}><Phone size={12} /> Phone</button>
+          <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} style={{ gap: 5 }} disabled={busy} onClick={() => onLog("phone")}><Phone size={12} /> Phone</button>
           {/* Email: one-tap when the mailbox ingest is connected (their sent email
               is captured automatically); otherwise open the logger so they can
               record it themselves (#6). */}
-          <button type="button" className="enq-chip" disabled={busy} onClick={() => (emailConnected ? onChase("email") : onLog("email"))}><EnvelopeSimple size={12} /> Email</button>
+          <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} style={{ gap: 5 }} disabled={busy} onClick={() => (emailConnected ? onChase("email") : onLog("email"))}><EnvelopeSimple size={12} /> Email</button>
         </div>
       </div>
       <div className="enq-detail-col">
-        <div className="enq-detail-h">Chase history</div>
+        <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Chase history</p>
         {history === "loading" || history === undefined ? (
           <div className="enq-detail-meta">Loading…</div>
         ) : history.length === 0 ? (
