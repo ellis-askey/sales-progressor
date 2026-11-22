@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { AnchoredPanel } from "@/components/ui/Popover";
+import { AnchoredPanel, PopoverMenuItem, PopoverDivider } from "@/components/ui/Popover";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { AutoAnimationPlugin } from "@formkit/auto-animate";
 import {
@@ -601,8 +601,8 @@ function RowActions({
     return (
       <div className="enq-actions2" ref={wrapRef}>
         <span className="enq-confirm-q">Mark satisfied? This opens exchange.</span>
-        <button type="button" disabled={busy} className="enq-btn enq-btn-satisfied" onClick={() => { setSatisfyArmed(false); onSatisfy(); }}><Check size={14} weight="bold" /> Confirm</button>
-        <button type="button" disabled={busy} className="enq-btn enq-btn-flip" onClick={() => setSatisfyArmed(false)}>Cancel</button>
+        <button type="button" disabled={busy} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#16a34a", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties} onClick={() => { setSatisfyArmed(false); onSatisfy(); }}><Check size={14} weight="bold" /> Confirm</button>
+        <button type="button" disabled={busy} className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setSatisfyArmed(false)}>Cancel</button>
       </div>
     );
   }
@@ -673,49 +673,31 @@ function RowActions({
       })()}
 
       {/* Tablet/mobile: single Update menu trigger */}
-      <button type="button" disabled={busy} className="enq-btn enq-btn-flip enq-a-mobile" aria-expanded={menuOpen} onClick={() => changeMenu(!menuOpen)}>Update <CaretDown size={13} weight="bold" /></button>
+      <button type="button" disabled={busy} className={`${buttonClasses({ variant: "secondary", size: "sm" })} enq-a-mobile`} style={{ gap: 5 }} aria-expanded={menuOpen} onClick={() => changeMenu(!menuOpen)}>Update <CaretDown size={13} weight="bold" /></button>
 
       <AnchoredPanel anchorRef={wrapRef} open={menuOpen} onClose={() => changeMenu(false)} placement="bottom-end" width={240} bare>
         <div className="enq-menu" role="menu" style={{ position: "static", background: "none", border: "none", boxShadow: "none" }}>
-          <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onMarkChased)}>
-            <span className="enq-mi-ico"><ArrowClockwise size={16} /></span>
-            <span className="enq-mi-txt">I&apos;ve chased<small>Quiet for 2 working days, then resurfaces</small></span>
-          </button>
-          <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(onSendChase)}>
-            <span className="enq-mi-ico"><PaperPlaneTilt size={16} /></span>
-            <span className="enq-mi-txt">Send a chase<small>Email the solicitor now</small></span>
-          </button>
-          <div className="enq-mi-div" />
+          <PopoverMenuItem icon={<ArrowClockwise size={16} />} description="Quiet for 2 working days, then resurfaces" onClick={() => pick(onMarkChased)}>I&apos;ve chased</PopoverMenuItem>
+          <PopoverMenuItem icon={<PaperPlaneTilt size={16} />} description="Email the solicitor now" onClick={() => pick(onSendChase)}>Send a chase</PopoverMenuItem>
+          <PopoverDivider />
           {items.map((mi, i) => (
-            <button key={i} type="button" role="menuitem" className="enq-mi" onClick={() => pick(mi.onClick)}>
-              <span className="enq-mi-ico">{mi.icon}</span>
-              <span className="enq-mi-txt">{mi.label}<small>{mi.desc}</small></span>
-            </button>
+            <PopoverMenuItem key={i} icon={mi.icon} description={mi.desc} onClick={() => pick(mi.onClick)}>{mi.label}</PopoverMenuItem>
           ))}
           {/* Waiting-on-pack hold (Stage 3): offered on leasehold / managed-freehold
               files; becomes "Pack received" to lift the hold once set. */}
           {row.awaitingPack ? (
             <>
-              <div className="enq-mi-div" />
-              <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(() => onPackHold(false))}>
-                <span className="enq-mi-ico"><CheckCircle size={16} /></span>
-                <span className="enq-mi-txt">Pack received<small>Lift the hold, the loop resumes</small></span>
-              </button>
+              <PopoverDivider />
+              <PopoverMenuItem icon={<CheckCircle size={16} />} description="Lift the hold, the loop resumes" onClick={() => pick(() => onPackHold(false))}>Pack received</PopoverMenuItem>
             </>
           ) : row.canHoldForPack ? (
             <>
-              <div className="enq-mi-div" />
-              <button type="button" role="menuitem" className="enq-mi" onClick={() => pick(() => onPackHold(true))}>
-                <span className="enq-mi-ico"><ClockCountdown size={16} /></span>
-                <span className="enq-mi-txt">Waiting on management pack<small>Hold the chase until the pack lands</small></span>
-              </button>
+              <PopoverDivider />
+              <PopoverMenuItem icon={<ClockCountdown size={16} />} description="Hold the chase until the pack lands" onClick={() => pick(() => onPackHold(true))}>Waiting on management pack</PopoverMenuItem>
             </>
           ) : null}
-          <div className="enq-mi-div" />
-          <button type="button" role="menuitem" className="enq-mi" onClick={openBackdate}>
-            <span className="enq-mi-ico"><CalendarBlank size={16} /></span>
-            <span className="enq-mi-txt">Happened earlier…<small>Backdate so the timer&apos;s right</small></span>
-          </button>
+          <PopoverDivider />
+          <PopoverMenuItem icon={<CalendarBlank size={16} />} description="Backdate so the timer's right" onClick={openBackdate}>Happened earlier…</PopoverMenuItem>
         </div>
       </AnchoredPanel>
 
@@ -725,38 +707,23 @@ function RowActions({
           {/* Tap-to-open: the native input covers the field and is directly
               tappable, so a tap opens the OS picker on iOS (the old hidden-input +
               showPicker pattern silently did nothing on iPhone — critique W2). */}
-          <div className="enq-bd-field">
-            <CalendarBlank size={15} className="enq-bd-cal" />
-            <span className={bdISO ? "enq-bd-val" : "enq-bd-ph"}>{bdISO ? fmtBd(bdISO) : "Choose a date"}</span>
-            <input
-              type="date"
-              className="enq-exp-native"
-              min={dateToISO(row.openedAt)}
-              max={todayISO()}
-              value={bdISO}
-              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* iOS opens on tap anyway */ } }}
-              onChange={(e) => setBdISO(e.target.value)}
-              aria-label="When did this happen"
-            />
-          </div>
-          <div className="enq-mi-div" />
+          <DateField
+            value={bdISO}
+            min={dateToISO(row.openedAt)}
+            max={todayISO()}
+            placeholder="Choose a date"
+            onChange={(e) => setBdISO(e.target.value)}
+            className="agent-input agent-input-sm"
+            aria-label="When did this happen"
+          />
+          <PopoverDivider />
           {bdActs.map((a) => (
-            <button
-              key={a.k}
-              type="button"
-              role="menuitem"
-              className="enq-mi"
-              disabled={busy || !bdISO}
-              onClick={() => { a.run(bdISO); closeBackdate(); }}
-            >
-              <span className="enq-mi-ico">{a.icon}</span>
-              <span className="enq-mi-txt">{a.label}<small>{a.desc}</small></span>
-            </button>
+            <PopoverMenuItem key={a.k} icon={a.icon} description={a.desc} disabled={busy || !bdISO} onClick={() => { a.run(bdISO); closeBackdate(); }}>{a.label}</PopoverMenuItem>
           ))}
         </div>
       </AnchoredPanel>
 
-      <button type="button" className="enq-expand" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={onToggleExpand}>
+      <button type="button" className="agent-icon-btn agent-icon-btn-md" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} onClick={onToggleExpand}>
         <CaretDown size={15} weight="bold" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
       </button>
     </div>
@@ -793,7 +760,7 @@ function ExpandedDetail({
       <div className="enq-detail-col">
         <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Expected</p>
         {row.expectedDate && new Date(row.expectedDate).getTime() >= new Date().setHours(0, 0, 0, 0) ? (
-          <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="enq-linkbtn" disabled={busy} onClick={() => onExpected(null)}>Clear</button></div>
+          <div className="enq-detail-b">{fmtDay(row.expectedDate)} <button type="button" className="agent-link" disabled={busy} style={{ fontSize: 12.5, fontWeight: 600 }} onClick={() => onExpected(null)}>Clear</button></div>
         ) : (
           // Tap-to-open: a real (invisible) date input covers the field, so a tap
           // opens the OS picker directly. No autoFocus + onBlur — that combo made

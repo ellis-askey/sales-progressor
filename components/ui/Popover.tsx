@@ -152,11 +152,15 @@ export function Popover({ trigger, children, placement = "bottom-start", preset 
   );
 }
 
-export function PopoverMenuItem({ icon, children, onClick, tone = "default", disabled }: { icon?: ReactNode; children: ReactNode; onClick?: () => void; tone?: "default" | "danger"; disabled?: boolean }) {
+export function PopoverMenuItem({ icon, children, description, onClick, tone = "default", disabled }: { icon?: ReactNode; children: ReactNode; description?: ReactNode; onClick?: () => void; tone?: "default" | "danger"; disabled?: boolean }) {
   return (
-    <button type="button" role="menuitem" disabled={disabled} className={`ui-pop-item${tone === "danger" ? " danger" : ""}`} onClick={onClick}>
+    <button type="button" role="menuitem" disabled={disabled} className={`ui-pop-item${description ? " has-desc" : ""}${tone === "danger" ? " danger" : ""}`} onClick={onClick}>
       {icon && <span className="ui-pop-item-ic">{icon}</span>}
-      <span>{children}</span>
+      {description ? (
+        <span className="ui-pop-item-txt">{children}<small>{description}</small></span>
+      ) : (
+        <span>{children}</span>
+      )}
     </button>
   );
 }

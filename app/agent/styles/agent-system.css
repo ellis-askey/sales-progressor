@@ -5576,6 +5576,10 @@ body[data-demo-file] [data-onboarding-checklist] {
 .ui-pop-item.danger { color: var(--agent-danger); }
 .ui-pop-item:disabled { opacity: 0.5; cursor: default; }
 .ui-pop-item:disabled:hover { background: none; transform: none; box-shadow: none; }
+/* Two-line variant: a muted description under the label (PopoverMenuItem `description`). */
+.ui-pop-item.has-desc { align-items: flex-start; }
+.ui-pop-item.has-desc .ui-pop-item-ic { margin-top: 1px; }
+.ui-pop-item-txt small { display: block; font-weight: 400; font-size: 11px; color: var(--agent-text-muted); margin-top: 1px; }
 .ui-pop-div { height: 1px; background: var(--agent-border-subtle); margin: 5px 8px; }
 /* Typeahead picker rows (AnchoredPanel + bare): edge-to-edge list rows with
    hairline separators and the neutral Lift hover; the "add new" row reads coral. */
