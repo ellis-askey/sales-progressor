@@ -1,11 +1,26 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/Button";
 import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 import { DateField } from "@/components/ui/DateField";
 import { buttonClasses } from "@/components/arc/button/button";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+
+// arc SegmentedControl tokened to the agent look + shipped coral pill.
+const OWNER_TOKENS: React.CSSProperties = {
+  ["--surface-muted" as string]: "rgba(15,23,42,0.05)",
+  ["--border" as string]: "var(--agent-border-default)",
+  ["--text-muted" as string]: "var(--agent-text-secondary)",
+  ["--foreground" as string]: "var(--agent-text-primary)",
+  ["--radius-control" as string]: "9px",
+  ["--control-height-sm" as string]: "28px",
+  ["--text-sm" as string]: "13px",
+  ["--sc-selection-bg" as string]: "var(--agent-coral-deep)",
+  ["--sc-selection-fg" as string]: "var(--agent-text-on-coral)",
+  ["--sc-selection-border" as string]: "transparent",
+  ["--shadow-resting" as string]: "0 2px 6px rgba(255,107,74,0.30)",
+};
 import { AccordionBody } from "@/components/ui/AccordionBody";
 
 export function AddManualTaskForm({
@@ -176,7 +191,7 @@ export function AddManualTaskForm({
       data-glass-variant={formVariant}
     >
       {transactionAddress && (
-        <p className="text-xs text-blue-500 font-medium truncate">{transactionAddress}</p>
+        <p className="text-xs text-[color:var(--agent-info)] font-medium truncate">{transactionAddress}</p>
       )}
       <input
         ref={titleRef}
@@ -185,14 +200,14 @@ export function AddManualTaskForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="w-full text-base text-slate-900/80 placeholder:text-slate-900/30 border-0 outline-none bg-transparent font-medium"
+        className="w-full text-base text-[color:var(--agent-text-primary)] placeholder:text-[color:var(--agent-text-muted)] border-0 outline-none bg-transparent font-medium"
       />
       <textarea
         placeholder="Notes (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={2}
-        className="w-full text-base text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none"
+        className="w-full text-base text-[color:var(--agent-text-secondary)] placeholder:text-[color:var(--agent-text-muted)] border-0 outline-none bg-transparent resize-none"
       />
       {/* Attach to a property (To-Do page). A pre-set transactionId hides this. */}
       {showPicker && (
@@ -210,7 +225,7 @@ export function AddManualTaskForm({
                 placeholder="Attach to a property (optional)"
                 value={propSearch}
                 onChange={(e) => setPropSearch(e.target.value)}
-                className="w-full text-sm text-slate-900/70 placeholder:text-slate-900/30 border-0 outline-none bg-transparent"
+                className="w-full text-sm text-[color:var(--agent-text-secondary)] placeholder:text-[color:var(--agent-text-muted)] border-0 outline-none bg-transparent"
               />
               {propMatches.length > 0 && (
                 // Self-contained dropdown: an OPAQUE bordered, elevated box with
@@ -249,22 +264,14 @@ export function AddManualTaskForm({
       )}
       {showOwnership && (
         <div>
-          <p className="text-xs text-slate-900/40 mb-1.5">Who&apos;s responsible?</p>
-          <div style={{ display: "flex", gap: 4 }}>
-            <button
-              type="button"
-              onClick={() => setOwner("mine")}
-              className={`agent-segment-pill agent-segment-pill-sm${owner === "mine" ? " on" : ""}`}
-            >
-              Mine
-            </button>
-            <button
-              type="button"
-              onClick={() => setOwner("progressor")}
-              className={`agent-segment-pill agent-segment-pill-sm${owner === "progressor" ? " on" : ""}`}
-            >
-              Your progressor
-            </button>
+          <p className="text-xs text-[color:var(--agent-text-muted)] mb-1.5">Who&apos;s responsible?</p>
+          <div className="arc-scope" style={{ ...OWNER_TOKENS, display: "inline-block" }}>
+            <SegmentedControl
+              label="Who's responsible?"
+              value={owner}
+              onValueChange={(v) => setOwner(v as typeof owner)}
+              options={[{ value: "mine", label: "Mine" }, { value: "progressor", label: "Your progressor" }]}
+            />
           </div>
         </div>
       )}
@@ -276,7 +283,7 @@ export function AddManualTaskForm({
             onChange={(e) => setIsReview(e.target.checked)}
             style={{ width: 15, height: 15, accentColor: "var(--agent-coral-base, #FF6B4A)", cursor: "pointer" }}
           />
-          <span className="text-xs text-slate-900/60">Mark as a review. We&apos;ll bring this file back on the date below.</span>
+          <span className="text-xs text-[color:var(--agent-text-secondary)]">Mark as a review. We&apos;ll bring this file back on the date below.</span>
         </label>
       )}
       <div className="flex items-center gap-3 pt-1" style={{ borderTop: "0.5px solid var(--agent-border-subtle)" }}>
@@ -285,18 +292,18 @@ export function AddManualTaskForm({
             value={dueDate}
             min={todayStr()}
             onChange={(e) => { setDueDate(e.target.value); setDateError(""); }}
-            className="text-base text-slate-900/50 border-0 outline-none bg-transparent"
+            className="text-base text-[color:var(--agent-text-secondary)] border-0 outline-none bg-transparent"
             wrapperStyle={{ display: "inline-block" }}
           />
-          {dateError && <p className="text-xs text-red-500 mt-0.5">{dateError}</p>}
+          {dateError && <p className="text-xs text-[color:var(--agent-danger)] mt-0.5">{dateError}</p>}
         </div>
         <div className="flex-1" />
         <button type="button" onClick={handleCancel} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>
           Cancel
         </button>
-        <Button type="submit" size="sm" disabled={saving || !title.trim()}>
+        <button type="submit" disabled={saving || !title.trim()} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as React.CSSProperties}>
           {saving ? "Saving…" : "Add"}
-        </Button>
+        </button>
       </div>
     </form>
   );
