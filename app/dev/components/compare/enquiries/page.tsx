@@ -279,7 +279,9 @@ const INVENTORY: { item: string; cls: Cls; verdict: string }[] = [
 export default function EnquiriesComparePage() {
   const restore = useRef<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
-  useEffect(() => { const h = document.documentElement; if (restore.current === null) restore.current = h.getAttribute("data-theme"); h.setAttribute("data-theme", theme); }, [theme]);
+  // Light maps to the app's real default light theme "sunset" (there is no
+  // [data-theme="light"]) so the full --agent-* token set is defined.
+  useEffect(() => { const h = document.documentElement; if (restore.current === null) restore.current = h.getAttribute("data-theme"); h.setAttribute("data-theme", theme === "light" ? "sunset" : "dark"); }, [theme]);
   useEffect(() => () => { const h = document.documentElement; if (restore.current) h.setAttribute("data-theme", restore.current); else h.removeAttribute("data-theme"); }, []);
 
   const vars: CSSProperties = {
@@ -296,7 +298,7 @@ export default function EnquiriesComparePage() {
   const counts = INVENTORY.reduce((a, r) => { a[r.cls] = (a[r.cls] ?? 0) + 1; return a; }, {} as Record<Cls, number>);
 
   return (
-    <div className="agent-shell-root nv2-night" data-theme={theme} style={{ ...vars, minHeight: "100vh", background: "var(--compare-bg)", color: "var(--compare-ink)", fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
+    <div className="agent-shell-root nv2-night" data-theme={theme === "light" ? "sunset" : "dark"} style={{ ...vars, minHeight: "100vh", background: "var(--compare-bg)", color: "var(--compare-ink)", fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--compare-bg)", borderBottom: "1px solid var(--compare-line)", padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6 }}>
           <button type="button" style={tog(theme === "light")} onClick={() => setTheme("light")}>Light</button>

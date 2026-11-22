@@ -93,7 +93,9 @@ function ProposedCard() {
 export default function EmailSetupPromptComparePage() {
   const restore = useRef<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
-  useEffect(() => { const h = document.documentElement; if (restore.current === null) restore.current = h.getAttribute("data-theme"); h.setAttribute("data-theme", theme); }, [theme]);
+  // Light maps to the app's real default light theme "sunset" (there is no
+  // [data-theme="light"]) so the full --agent-* token set is defined.
+  useEffect(() => { const h = document.documentElement; if (restore.current === null) restore.current = h.getAttribute("data-theme"); h.setAttribute("data-theme", theme === "light" ? "sunset" : "dark"); }, [theme]);
   useEffect(() => () => { const h = document.documentElement; if (restore.current) h.setAttribute("data-theme", restore.current); else h.removeAttribute("data-theme"); }, []);
 
   const vars: CSSProperties = {
@@ -108,7 +110,7 @@ export default function EmailSetupPromptComparePage() {
   const toggle = (a: boolean): CSSProperties => ({ fontSize: 12.5, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", border: "1px solid var(--compare-line)", background: a ? CORAL : "transparent", color: a ? "#fff" : "var(--compare-body)" });
 
   return (
-    <div className="agent-shell-root nv2-night" data-theme={theme} style={{ ...vars, minHeight: "100vh", background: "var(--compare-bg)", color: "var(--compare-ink)", fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
+    <div className="agent-shell-root nv2-night" data-theme={theme === "light" ? "sunset" : "dark"} style={{ ...vars, minHeight: "100vh", background: "var(--compare-bg)", color: "var(--compare-ink)", fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "var(--compare-bg)", borderBottom: "1px solid var(--compare-line)", padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6 }}>
           <button type="button" style={toggle(theme === "light")} onClick={() => setTheme("light")}>Light</button>
@@ -150,7 +152,7 @@ export default function EmailSetupPromptComparePage() {
         <Block
           n="3"
           title="Coral link → .agent-link"
-          note={<>Current: an inline <code>&lt;Link&gt;</code> with hard-coded <code>#FF6B4A</code> and a state-driven hover to <code>#E55B3D</code>. Proposed: <code>.agent-link</code> — the one coral-link language (same colour, same hover-darken) shared across the app, so a future tweak to the link colour ripples here too.</>}
+          note={<>Current: an inline <code>&lt;Link&gt;</code> with hard-coded <code>#FF6B4A</code> → <code>#E55B3D</code> and <strong>no hover underline</strong> — this is the one coral link in the app without it. Proposed: <code>.agent-link</code>, the shared coral-link language. Rest state identical; on <em>hover</em> it gains the app-standard spreading underline + darken that every other coral link already has. That hover change is the decision — align it to match the rest, or grandfather this link&apos;s bespoke no-underline hover.</>}
           current={<span style={{ fontSize: 12.5, color: "var(--agent-text-muted)" }}>Want to change what those emails say? <a style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "none" }}>Personalise your client emails</a></span>}
           proposed={<span style={{ fontSize: 12.5, color: "var(--agent-text-muted)" }}>Want to change what those emails say? <a className="agent-link" style={{ fontWeight: 600 }}>Personalise your client emails</a></span>}
         />
