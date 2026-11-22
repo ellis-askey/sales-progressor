@@ -1,0 +1,27 @@
+/* Canonical animated clock icon — the animation lives on the ICON, not the button. */
+@keyframes clock-tick { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.hand { transform-box: view-box; transform-origin: 12px 12px; }
+
+/* Systematic trigger: an AnimatedClock inside ANY hovered or keyboard-focused
+   button / link / role=button ticks — no per-button class, no hand-rolling.
+   Drop the icon into a canonical button and it just works. */
+:global(button:hover) .hand,
+:global(a:hover) .hand,
+:global([role="button"]:hover) .hand,
+:global(button:focus-visible) .hand,
+:global(a:focus-visible) .hand,
+:global([role="button"]:focus-visible) .hand {
+  animation: clock-tick 2s steps(12) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(button:hover) .hand,
+  :global(a:hover) .hand,
+  :global([role="button"]:hover) .hand,
+  :global(button:focus-visible) .hand,
+  :global(a:focus-visible) .hand,
+  :global([role="button"]:focus-visible) .hand {
+    animation: none;
+  }
+}

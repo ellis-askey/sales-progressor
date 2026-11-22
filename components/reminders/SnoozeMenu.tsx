@@ -16,6 +16,7 @@ import type { CSSProperties } from "react";
 import { Button } from "@/components/arc/button/button";
 import { DateField } from "@/components/ui/DateField";
 import { Popover } from "@/components/ui/Popover";
+import { AnimatedClock } from "@/components/ui/AnimatedClock";
 import { BellSimpleZ } from "@phosphor-icons/react";
 // Pure date helpers (client-safe) — mirror the server's wake maths so the
 // subtext can preview the exact morning the reminder resurfaces.
@@ -85,14 +86,11 @@ export function SnoozeMenu({
       title="Snooze"
       variant={variant === "all" ? "ghost" : "secondary"}
       size="sm"
-      className="rem-clock-btn"
       style={{ flexShrink: 0, whiteSpace: "nowrap" }}
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="12" cy="12" r="8.5" />
-        <line x1="12" y1="12" x2="15" y2="12" />
-        <g className="rem-clock-hand"><line x1="12" y1="12" x2="12" y2="6.5" /></g>
-      </svg>
+      {/* Canonical animated clock — ticks on hover/focus of this button via the
+          icon's own shared rule (no rem-clock-btn class needed). */}
+      <AnimatedClock />
       {variant === "all" ? ` ${label}${count ? ` (${count})` : ""}` : null}
     </Button>
   );

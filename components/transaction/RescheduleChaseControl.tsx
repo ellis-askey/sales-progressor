@@ -12,6 +12,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
+import { AnimatedClock } from "@/components/ui/AnimatedClock";
 import { DateField } from "@/components/ui/DateField";
 import { Popover } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
@@ -62,12 +63,9 @@ export function RescheduleChaseControl({
           aria-label={`Next chase ${fmtDate(currentISO)}. Move it to another day.`}
         >
           <span>{fmtDate(dueAtISO)}</span>
-          {/* The reminders snooze clock — hand ticks on hover via .rem-clock-hand. */}
-          <svg className="chase-resched-clock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="12" cy="12" r="8.5" />
-            <line x1="12" y1="12" x2="15" y2="12" />
-            <g className="rem-clock-hand"><line x1="12" y1="12" x2="12" y2="6.5" /></g>
-          </svg>
+          {/* Canonical animated clock — ticks on hover/focus of this button via
+              the icon's own shared rule. */}
+          <span className="chase-resched-clock" style={{ display: "inline-flex" }}><AnimatedClock size={16} /></span>
         </button>
       }
     >
