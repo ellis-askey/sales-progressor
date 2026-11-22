@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { buttonClasses } from "@/components/arc/button/button";
+import { CountPill } from "@/components/ui/CountPill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
@@ -1661,13 +1662,9 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
                       expand/collapse, so a separate title + circled count just
                       repeated it — so the pill (count + label) replaces both, with
                       the subtitle to its right. */}
-                  <span
-                    className={`agent-stat-glass ${grp.key === "needs-you" ? "agent-stat-glass--danger" : grp.you ? "agent-stat-glass--warning" : "agent-stat-glass--muted"}`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, flexShrink: 0 }}
-                  >
-                    <span className="agent-stat-dot" aria-hidden />
+                  <CountPill tone={grp.key === "needs-you" ? "danger" : grp.you ? "warning" : "muted"}>
                     {grp.logs.length + enquiryCards.length} {grp.label.toLowerCase()}
-                  </span>
+                  </CountPill>
                   <span className="hidden sm:inline" style={{ fontSize: 11, color: "var(--agent-text-muted)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{grp.sub}</span>
                 </div>
                 <CaretDown size={12} weight="bold" aria-hidden style={{ flexShrink: 0, color: "var(--agent-text-muted)", transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(0deg)" : "rotate(180deg)" }} />

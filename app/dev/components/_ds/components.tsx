@@ -32,6 +32,8 @@ import { MiniTable } from "@/components/ui/MiniTable";
 import { Donut } from "@/components/ui/Donut";
 import { HeatBand } from "@/components/ui/HeatBand";
 import { ProgressRing } from "@/components/ui/ProgressRing";
+import { CountPill } from "@/components/ui/CountPill";
+import { AnimatedClock } from "@/components/ui/AnimatedClock";
 
 // Dev-gallery placeholders: Checkbox / OtpInput / RadioGroup / CookieConsent come from the
 // arc library that is not yet committed to this branch. Stubbed to null so the prod build
@@ -1792,8 +1794,116 @@ function ListChecksMini() {
   return <PaperPlaneTilt size={16} weight="fill" color={CORAL} />;
 }
 
+/* Reminders (/agent/work-queue) canonical pass — the parts registered from that
+   page's alignment review. */
+const REMINDERS_ENTRIES: ComponentEntry[] = [
+  {
+    id: "count-pill",
+    name: "Count pill (live count badge)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["count", "pill", "badge", "live", "dot", "section", "needs you", "autopilot", "reminders"],
+    summary: "The canonical count badge — a tinted pill with a live pulsing dot, for section / group counts that update (\"5 needs you\", \"49 on autopilot\"). Deliberately distinct from the plain Pill: the dot signals a live, changing count. Tones map to the semantic set (danger / warning / muted). Live render of components/ui/CountPill.tsx.",
+    sources: [{ path: "components/ui/CountPill.tsx" }, { path: "components/reminders/AgentRemindersList.tsx", note: "section bars" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <CountPill tone="danger">5 needs you</CountPill>
+          <CountPill tone="warning">3 coming up</CountPill>
+          <CountPill tone="muted">49 on autopilot</CountPill>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "animated-clock",
+    name: "Animated clock icon",
+    category: "motion",
+    status: "implemented",
+    keywords: ["animated", "clock", "icon", "snooze", "reschedule", "tick", "hover", "motion"],
+    summary: "Canonical animated clock icon. The animation lives on the ICON, not the button: drop it in any canonical button/link and its hand sweeps on hover / keyboard-focus via one shared rule (\"an AnimatedClock inside a hovered/focused button ticks\") — no per-button class. Replaced the hand-rolled rem-clock-btn (reminders snooze) + chase-resched-btn (hub reschedule). Respects reduced-motion. Hover the button to see it tick. Live render of components/ui/AnimatedClock.tsx.",
+    sources: [{ path: "components/ui/AnimatedClock.tsx" }, { path: "components/ui/AnimatedClock.module.css", note: "the shared hover rule" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button className={buttonClasses({ variant: "secondary", size: "sm" })} style={{ padding: "0 9px" }} aria-label="Snooze"><AnimatedClock size={14} /></button>
+          <span style={{ fontSize: 12.5, color: "#9a938a" }}>hover me — the hand ticks</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "countdown-strip",
+    name: "Countdown strip (auto-chase)",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["countdown", "auto-chase", "autopilot", "timer", "live", "success", "strip", "reminders"],
+    summary: "The success-toned live status strip — a leading clock, a live \"Auto-chase tomorrow at 9:30am · 32h\" time, and a trailing action. Used on autopilot reminder rows. Registered as a canonical CountdownStrip (the source AutoChaseCountdown ticks via a client timer). Pattern shown here; the live component is components/reminders/AutoChaseCountdown.tsx.",
+    sources: [{ path: "components/reminders/AutoChaseCountdown.tsx" }],
+    render: () => (
+      <Stage width={360}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 10px", borderRadius: 9, background: "var(--agent-success-bg)", border: "0.5px solid var(--agent-success-border-strong)", fontSize: 11.5, color: "var(--agent-text-secondary)" }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--agent-success)" strokeWidth="2.4" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="8.5" /><line x1="12" y1="12" x2="15" y2="12" /><line x1="12" y1="12" x2="12" y2="6.5" /></svg>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}><span style={{ fontWeight: 500 }}>Auto-chase</span> tomorrow at 9:30am · 32h 08m 39s</span>
+          <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--agent-success)" }}>View</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "reminder-row",
+    name: "Reminder row (needs-you)",
+    category: "rows",
+    status: "implemented",
+    keywords: ["reminder", "row", "chase", "needs you", "work queue", "explanation", "status", "reminders"],
+    summary: "The needs-you reminder row — title, a \"Chasing {who}\" line, an explanation box (surface-glass + shadow), a chase-count status line and an escalation flag, with a right-hand action + due-date column divided by a hairline. Registered as a canonical ReminderRow composition (currently inline in AgentRemindersList). Pattern shown here.",
+    sources: [{ path: "components/reminders/AgentRemindersList.tsx", note: "needs-you row (inline)" }],
+    render: () => (
+      <Stage width={440}>
+        <div style={{ display: "flex", alignItems: "stretch", gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 660, color: "var(--agent-text-primary)" }}>Searches ordered by Bude Nathan Iwanier LLP</p>
+            <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>Chasing <b style={{ fontWeight: 600, color: "var(--agent-text-secondary)" }}>Bude Nathan Iwanier LLP</b></p>
+            <p style={{ margin: "7px 0 0", fontSize: 11.5, lineHeight: 1.5, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", borderRadius: 8, padding: "6px 10px", boxShadow: "0 1px 2px rgba(15,23,42,0.06)" }}>Bude Nathan Iwanier LLP need to order the property searches so this part of the legal work can move forward.</p>
+            <p style={{ margin: "7px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-text-muted)" }}>↻ Chased 6 times · No reply yet</p>
+          </div>
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, borderLeft: "0.5px solid var(--agent-border-subtle)", paddingLeft: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className={buttonClasses({ variant: "secondary", size: "sm" })} style={{ padding: "0 9px" }} aria-label="Snooze"><AnimatedClock size={14} /></button>
+              <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ "--foreground": CORAL, "--background": "#fff" } as CSSProperties}>Chase</button>
+            </div>
+            <span style={{ fontSize: 11.5, color: "#9a938a" }}>Was due 19 Nov</span>
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "semantic-tones",
+    name: "Semantic urgency tones",
+    category: "badges",
+    status: "implemented",
+    keywords: ["semantic", "urgency", "danger", "warning", "escalated", "colour", "tokens", "reminders"],
+    summary: "The urgency semantic tokens in use — danger (escalated / overdue), warning (due today), muted (coming up), and the coral escalation flag. These are canonical semantic-token usages (--agent-danger / --agent-warning / --agent-text-muted): the colour carries the urgency meaning, so it is kept, never flattened to the brand coral.",
+    sources: [{ path: "app/agent/styles/agent-system.css", note: "semantic tokens" }, { path: "components/reminders/AgentRemindersList.tsx", note: "GROUP_CONFIG tones" }],
+    render: () => (
+      <Stage width={360}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <CountPill tone="danger">Escalated</CountPill>
+            <CountPill tone="danger">Overdue</CountPill>
+            <CountPill tone="warning">Due today</CountPill>
+            <CountPill tone="muted">Coming up</CountPill>
+          </div>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>⚑ Auto-escalated, no response after repeated chases</p>
+        </div>
+      </Stage>
+    ),
+  },
+];
+
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES];
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

@@ -711,11 +711,12 @@
 
   /* ── Eyebrow label ───────────────────────────────────────────────────────── */
 
+  /* Canonical eyebrow (2026-11-20): sentence case, 600, no tracking — the shouty
+     uppercase + wide tracking are retired app-wide (matches .glass-section-label). */
   .agent-eyebrow {
     font-size: var(--agent-text-eyebrow);
-    font-weight: var(--agent-weight-medium);
-    text-transform: uppercase;
-    letter-spacing: var(--agent-tracking-eyebrow);
+    font-weight: var(--agent-weight-semibold);
+    letter-spacing: 0;
     color: var(--agent-text-muted);
     line-height: var(--agent-line-tight);
   }
@@ -4024,8 +4025,10 @@
     }
     .rem-row-actions { width: 100%; }
     .rem-row-actions > :last-child { flex: 1; min-width: 0; }
-    .rem-row-actions .rem-chase { display: flex; width: 100%; }
-    .rem-row-actions .rem-chase-go { flex: 1; justify-content: center; }
+    .rem-row-actions .rem-chase,
+    .rem-row-actions .rem-chase-split { display: flex; width: 100%; }
+    .rem-row-actions .rem-chase-go,
+    .rem-row-actions .rem-chase-split > button:first-child { flex: 1; justify-content: center; }
     .rem-row-info { max-width: none !important; }
   }
 
@@ -4285,10 +4288,15 @@
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 .nsf-commission-box:hover {
-  border-color: var(--agent-info);
+  border-color: var(--agent-coral-deep, #FF6B4A);
 }
 .nsf-commission-box:focus-within {
-  border-color: var(--agent-info);
+  border-color: var(--agent-coral-deep, #FF6B4A);
+  background: var(--nv2-surface-raised);
+}
+/* A filled box keeps the raised ("selected") background even when not focused, so a
+   set commission reads as settled rather than reverting to the faint rest tint. */
+.nsf-commission-box[data-filled] {
   background: var(--nv2-surface-raised);
 }
 
