@@ -50,6 +50,8 @@ import { FilterRail, FilterDropdowns, type FilterRailGroup } from "@/components/
 import { IconChip } from "@/components/ui/IconChip";
 import { ActivityRow } from "@/components/ui/ActivityRow";
 import { OnboardingHero } from "@/components/ui/OnboardingHero";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { Pill } from "@/components/ui/Pill";
 import { Tag as TagI, ChatCircle as ChatCircleII } from "@phosphor-icons/react";
 import { StatusPill } from "@/components/reminders/StatusPill";
 import { EmailActivityChart } from "@/components/automated-emails/EmailActivityChart";
@@ -73,9 +75,9 @@ const CORAL = "#FF6B4A";
 
 /** The native light auth surface these specimens live on, so they read exactly
  *  as they do in production regardless of the workspace theme. */
-function Stage({ children, pad = 22, width = 360 }: { children: ReactNode; pad?: number; width?: number }) {
+function Stage({ children, pad = 22, width = 360, wide = false }: { children: ReactNode; pad?: number; width?: number; wide?: boolean }) {
   return (
-    <div style={{ background: "#ffffff", borderRadius: 14, border: "1px solid rgba(23,23,30,0.06)", padding: pad, width: "100%", maxWidth: width, boxShadow: "0 1px 3px rgba(30,20,15,0.06)" }}>
+    <div style={{ background: "#ffffff", borderRadius: 14, border: "1px solid rgba(23,23,30,0.06)", padding: pad, width: "100%", maxWidth: wide ? "100%" : width, boxShadow: "0 1px 3px rgba(30,20,15,0.06)" }}>
       {children}
     </div>
   );
