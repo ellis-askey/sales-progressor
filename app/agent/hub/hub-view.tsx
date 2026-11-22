@@ -54,11 +54,13 @@ import { SectionReveal } from "@/components/hub/SectionReveal";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { buttonClasses } from "@/components/arc/button/button";
+import { StatNumber } from "@/components/ui/StatNumber";
+import { MiniTable } from "@/components/ui/MiniTable";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck, Warning } from "@phosphor-icons/react/dist/ssr";
+import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck, Warning, ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -1118,9 +1120,9 @@ async function PipelineHealthCard({
           ).map(({ value, label, color, href, delta, deltaTone, sub, subTone }, i) => {
             const inner = (
               <>
-                <span style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                <StatNumber size="sm" color={color}>
                   {value}
-                </span>
+                </StatNumber>
                 <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>{label}</span>
                 {delta && (
                   <span style={{ fontSize: 10.5, fontWeight: 600, marginTop: 3, color: deltaTone === "down" ? "var(--agent-warning)" : deltaTone === "flat" ? "var(--agent-text-muted)" : "var(--agent-success)" }}>
@@ -1371,25 +1373,26 @@ async function ClientsBreakdownCard({ ctx }: { ctx: Ctx }) {
         {clients.length === 0 ? (
           <p style={{ margin: "16px 0 4px", fontSize: 13, color: "var(--agent-text-muted)" }}>No active sales with your clients yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 6 }}>
-              <span style={{ flex: 1, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600 }}>Client</span>
-              <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 54, textAlign: "right" }}>Active</span>
-              <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 64, textAlign: "right" }}>Pipeline</span>
-              {showFee && <span style={{ fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600, minWidth: 56, textAlign: "right" }}>Your fee</span>}
-            </div>
-            {clients.map((c) => (
-              <div key={c.agencyId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: "0.5px solid var(--agent-border-subtle)" }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.agencyName}</span>
-                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 54, textAlign: "right" }}>{c.activeSales}</span>
-                <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", fontVariantNumeric: "tabular-nums", minWidth: 64, textAlign: "right" }}>{fmtCompact(c.pipelinePence)}</span>
-                {showFee && (
-                  c.feeSet
-                    ? <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-coral-deep)", fontVariantNumeric: "tabular-nums", minWidth: 56, textAlign: "right" }}>{fmtCompact(c.feePence)}</span>
-                    : <Link href={`/agent/clients/${c.agencyId}`} className="agent-link" style={{ fontSize: 12, fontWeight: 600, minWidth: 56, textAlign: "right" }}>Set fee</Link>
-                )}
-              </div>
-            ))}
+          <div style={{ marginTop: 6 }}>
+            <MiniTable
+              columns={[
+                { key: "client", header: "Client", flex: true },
+                { key: "active", header: "Active", width: 54 },
+                { key: "pipeline", header: "Pipeline", width: 64 },
+                ...(showFee ? [{ key: "fee", header: "Your fee", width: 56 }] : []),
+              ]}
+              rows={clients.map((c) => ({
+                key: c.agencyId,
+                client: c.agencyName,
+                active: c.activeSales,
+                pipeline: fmtCompact(c.pipelinePence),
+                ...(showFee ? {
+                  fee: c.feeSet
+                    ? <span style={{ fontWeight: 600, color: "var(--agent-coral-deep)" }}>{fmtCompact(c.feePence)}</span>
+                    : <Link href={`/agent/clients/${c.agencyId}`} className="agent-link" style={{ fontSize: 12, fontWeight: 600 }}>Set fee <ArrowRight size={11} weight="bold" className="agent-arrow-i" /></Link>,
+                } : {}),
+              }))}
+            />
           </div>
         )}
       </GlassCard>
