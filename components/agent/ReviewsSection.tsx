@@ -16,7 +16,9 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useRevealStagger, useMergedRefs } from "@/lib/agent/use-reveal-stagger";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import Link from "next/link";
-import { CaretDown, Check, CalendarPlus, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
+import { CaretDown, Check, CalendarPlus, CalendarCheck, PencilSimple, Trash, XCircle } from "@phosphor-icons/react";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { buttonClasses } from "@/components/arc/button/button";
 import type { ReviewItem, ReviewOrigin } from "@/lib/services/reviews";
 import { reactivateFile, extendHoldAction } from "@/app/actions/automation";
 import { createManualTaskAction, updateManualTaskAction, deleteManualTaskAction } from "@/app/actions/manual-tasks";
@@ -398,18 +400,14 @@ export function ReviewsSection({
 
       {openCount === 0 && done.length === 0 ? (
         !addOpen ? (
-          // Rich empty state, mirroring the empty-chain hero (critique #261).
-          <div className="agent-glass-strong agent-empty-card" style={{ padding: "40px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-            <span style={{ display: "inline-flex", width: 52, height: 52, borderRadius: 999, alignItems: "center", justifyContent: "center", background: "rgba(var(--agent-coral-rgb),0.12)", color: "var(--agent-coral-deep)", marginBottom: 16 }}>
-              <CalendarPlus size={26} weight="regular" />
-            </span>
-            <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 680, letterSpacing: "-0.01em", color: "var(--agent-text-primary)" }}>No reviews yet</h3>
-            <p style={{ margin: "0 auto 18px", fontSize: 13.5, color: "var(--agent-text-muted)", maxWidth: 360, lineHeight: 1.55 }}>
-              Set a date to come back to a file: a quiet one to keep an eye on, a promised update, anything worth a second look. It surfaces here the day it&rsquo;s due.
-            </p>
-            <button type="button" onClick={() => setAddOpen(true)} className="agent-btn agent-btn-color-primary" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 11, fontSize: 14, fontWeight: 600 }}>
-              <CalendarPlus size={16} weight="bold" /> Add a review
-            </button>
+          // Canonical animated empty state (arc EmptyState).
+          <div className="agent-glass-strong agent-empty-card" style={{ borderRadius: "var(--agent-radius-xl)", padding: 8 }}>
+            <EmptyState
+              icon={<CalendarCheck size={24} weight="regular" />}
+              title="No reviews scheduled"
+              description="Set a date to revisit a sale so nothing gets forgotten."
+              action={<button type="button" onClick={() => setAddOpen(true)} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties}><CalendarPlus size={14} weight="bold" /> Add review</button>}
+            />
           </div>
         ) : null
       ) : (

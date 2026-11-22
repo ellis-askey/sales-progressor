@@ -4,7 +4,8 @@ import { useState, useEffect, createContext, useContext, type ReactNode } from "
 import { createPortal } from "react-dom";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
-import { ListChecks, UsersThree, CalendarPlus, CalendarCheck, CalendarBlank } from "@phosphor-icons/react";
+import { ListChecks, UsersThree, CalendarPlus, CalendarCheck, CalendarBlank, PaperPlaneTilt } from "@phosphor-icons/react";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { ReviewAddContext } from "@/components/agent/ReviewsSection";
 import { SectionHeader } from "@/components/agent/SectionHeader";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
@@ -287,6 +288,10 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
             onToggleShowDone={() => setShowOwnDone((v) => !v)}
             onToggle={handleToggle}
             isProgressorView={false}
+            emptyIcon={<ListChecks size={24} weight="regular" />}
+            emptyTitle="Nothing on your to-do list"
+            emptyDescription="Keep track of notes, reminders and anything you need to follow up."
+            emptyAction={<button type="button" onClick={() => setAddOpen(true)} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as React.CSSProperties}>Add to-do</button>}
           />
         </div>
       )}
@@ -308,7 +313,10 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
             onToggleShowDone={() => setShowInternalDone((v) => !v)}
             onToggle={handleToggle}
             isProgressorView={isProgressor}
-            emptyText="No internal to-dos yet. Add one above to get started."
+            emptyIcon={<ListChecks size={24} weight="regular" />}
+            emptyTitle="No internal to-dos yet"
+            emptyDescription="Your team's notes and follow-ups land here."
+            emptyAction={<button type="button" onClick={() => setAddOpen(true)} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as React.CSSProperties}>Add internal to-do</button>}
           />
         </div>
       )}
@@ -330,7 +338,9 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
           onToggle={handleToggle}
           progressor
           isProgressorView={isProgressor}
-          emptyText={isProgressor ? "No pending requests from agents." : "Nothing sent to your progressor yet."}
+          emptyIcon={isProgressor ? <UsersThree size={24} weight="regular" /> : <PaperPlaneTilt size={24} weight="regular" />}
+          emptyTitle={isProgressor ? "No pending requests from agents" : "Nothing sent to your progressor"}
+          emptyDescription={isProgressor ? "Requests from your agents will appear here." : "Requests you send to your progressor will appear here."}
         />
       )}
 
@@ -348,6 +358,7 @@ export function AgentTodoList({ initialTasks, role, hasOutsourced = false, photo
 function Section({
   id, title, subtitle, icon, hideHeader = false, overdueGroups, openGroups, doneGroups, doneCount, showDone,
   onToggleShowDone, onToggle, progressor = false, isProgressorView = false, emptyText,
+  emptyTitle, emptyDescription, emptyIcon, emptyAction,
 }: {
   id: string;
   title: string;
@@ -366,6 +377,10 @@ function Section({
   progressor?: boolean;
   isProgressorView?: boolean;
   emptyText?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyIcon?: ReactNode;
+  emptyAction?: ReactNode;
 }) {
   const hasOpen = overdueGroups.length > 0 || openGroups.length > 0;
 
@@ -398,13 +413,13 @@ function Section({
           Standard empty-state pattern across comms/completions/work-queue.
           2026-08-10 (fix missed in the Aug-9 empty-state sweep). */}
       {!hasOpen ? (
-        <div
-          className="agent-glass-strong agent-empty-card agent-bloom"
-          style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}
-        >
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>
-            {emptyText ?? (progressor ? "All caught up." : "All clear.")}
-          </p>
+        <div className="agent-glass-strong agent-empty-card agent-bloom" style={{ borderRadius: "var(--agent-radius-xl)", padding: 8 }}>
+          <EmptyState
+            icon={emptyIcon ?? <ListChecks size={24} weight="regular" />}
+            title={emptyTitle ?? (progressor ? "All caught up" : "All clear")}
+            description={emptyDescription ?? "Nothing here right now."}
+            action={emptyAction}
+          />
         </div>
       ) : openGroups.length > 0 ? (
         <div className="agent-bloom-stagger" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
