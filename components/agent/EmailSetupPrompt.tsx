@@ -12,15 +12,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { buttonClasses } from "@/components/arc/button/button";
 
 const dismissedKey = (userId: string) => `sp_email_prompt_dismissed_${userId}`;
 
 export function EmailSetupPrompt({ userId }: { userId: string }) {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [notNowHover, setNotNowHover] = useState(false);
-  const [closeHover, setCloseHover] = useState(false);
-  const [linkHover, setLinkHover] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem(dismissedKey(userId))) {
@@ -80,65 +78,23 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
           >
             Set up my email
           </Link>
-          {/* Canon ghost — quiet, matches the primary's 32px height. */}
-          <button
-            type="button"
-            onClick={dismiss}
-            onMouseEnter={() => setNotNowHover(true)}
-            onMouseLeave={() => setNotNowHover(false)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              height: 32,
-              padding: "0 12px",
-              borderRadius: "var(--agent-radius-md, 10px)",
-              fontSize: 14,
-              fontWeight: 500,
-              color: notNowHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-              background: notNowHover ? "var(--agent-surface-muted, rgba(45,24,16,0.05))" : "transparent",
-              border: "none",
-              cursor: "pointer",
-              transition: "color 120ms ease, background 120ms ease",
-            }}
-          >
+          {/* Canon ghost (arc Button) — hover / focus / active states built in. */}
+          <button type="button" onClick={dismiss} className={buttonClasses({ variant: "ghost", size: "sm" })}>
             Not now
           </button>
         </div>
         <p style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
           Want to change what those emails say?{" "}
-          {/* Canon coral text link — coral, hover darkens to #E55B3D. */}
-          <Link
-            href="/agent/account/emails"
-            onMouseEnter={() => setLinkHover(true)}
-            onMouseLeave={() => setLinkHover(false)}
-            style={{ color: linkHover ? "#E55B3D" : "#FF6B4A", fontWeight: 600, textDecoration: "none", transition: "color 120ms ease" }}
-          >
+          {/* Canon coral text link — .agent-link (shared coral + hover underline/darken). */}
+          <Link href="/agent/account/emails" className="agent-link" style={{ fontWeight: 600 }}>
             Personalise your client emails
           </Link>
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={dismiss}
-        onMouseEnter={() => setCloseHover(true)}
-        onMouseLeave={() => setCloseHover(false)}
-        aria-label="Dismiss"
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 999,
-          border: "none",
-          background: closeHover ? "var(--agent-surface-muted, rgba(45,24,16,0.07))" : "transparent",
-          cursor: "pointer",
-          color: closeHover ? "var(--agent-text-primary)" : "var(--agent-text-muted)",
-          display: "grid",
-          placeItems: "center",
-          flexShrink: 0,
-          transition: "background 120ms ease, color 120ms ease",
-        }}
-      >
-        <X size={14} />
+      {/* Canon circular dismiss — .agent-icon-btn (the one ✕ across the app). */}
+      <button type="button" onClick={dismiss} aria-label="Dismiss" className="agent-icon-btn agent-icon-btn-md" style={{ flexShrink: 0 }}>
+        <X size={14} weight="bold" />
       </button>
     </GlassCard>
   );

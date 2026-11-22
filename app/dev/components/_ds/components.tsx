@@ -1614,7 +1614,7 @@ const HUB_ENTRIES: ComponentEntry[] = [
     category: "notifications",
     status: "implemented",
     keywords: ["email", "nudge", "sender", "prompt", "glass card", "director", "dismissible", "hub"],
-    summary: "The dismissible director nudge at the top of the hub to send client emails from the agency's own address. A GlassCard in agent-canon-cta scope: canon flat-coral primary + a 'Not now' ghost + a coral text link + a round dismiss. AUDIT: the close ✕, the ghost and the coral link are currently hand-rolled inline rather than the canonical .agent-icon-btn / canon ghost / .agent-link — alignment proposed on /dev/components/compare/email-setup-prompt (awaiting approval). components/agent/EmailSetupPrompt.tsx.",
+    summary: "The dismissible director nudge at the top of the hub to send client emails from the agency's own address. A GlassCard in agent-canon-cta scope, now fully canonical: flat-coral primary (via scope) + arc ghost 'Not now' + .agent-link coral link + .agent-icon-btn round dismiss — every control references the library part, so a change to any canonical ripples here. (Before/after on /dev/components/compare/email-setup-prompt.) components/agent/EmailSetupPrompt.tsx.",
     sources: [{ path: "components/agent/EmailSetupPrompt.tsx" }],
     render: () => (
       <Stage width={460}>
