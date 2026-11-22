@@ -8,6 +8,7 @@ import { Pill } from "@/components/ui/Pill";
 import { FilterCheckbox } from "@/components/ui/FilterCheckbox";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
@@ -488,7 +489,7 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
               {filterActive ? `Showing ${visibleCount} of ${totalCount}` : `${totalCount} update${totalCount !== 1 ? "s" : ""}`}
             </span>
             {filterActive && (
-              <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear</button>
+              <button type="button" onClick={clearAll} className="agent-link">Clear</button>
             )}
           </div>
         </aside>
@@ -517,9 +518,13 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
       </div>
 
       {filterActive && visibleDays.length === 0 && (
-        <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 24px", textAlign: "center" }}>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--agent-text-muted)" }}>No updates match these filters.</p>
-          <button type="button" onClick={clearAll} className="agent-link agent-link-muted">Clear filters</button>
+        <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-lg)", padding: "12px 24px 20px" }}>
+          <EmptyState
+            icon={<MagnifyingGlass size={24} weight="regular" />}
+            title="No matching updates"
+            description="Try adjusting your search or filters to find what you're looking for."
+            action={<button type="button" onClick={clearAll} className="agent-btn agent-btn-primary agent-btn-sm">Clear filters</button>}
+          />
         </div>
       )}
 

@@ -8,7 +8,8 @@ import {
   resolveInternalVisibility,
   type UpdateFeedEntry,
 } from "@/lib/services/agent";
-import { ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { Tray } from "@phosphor-icons/react/dist/ssr";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CommsEmptyState } from "@/components/agent/CommsEmptyState";
 import { MarkBellReadOnView } from "@/components/agent/MarkBellReadOnView";
@@ -137,18 +138,16 @@ export default async function AgentCommsPage() {
 
         {entries.length === 0 && isInternalStaff && !isBusinessOwner && (
           <>
-            <div className="agent-glass-strong agent-empty-card agent-bloom" style={{ padding: "48px 24px", textAlign: "center" }}>
-              <ChartLine weight="regular" style={{ width: 32, height: 32, color: "var(--agent-text-muted)", margin: "0 auto 16px", display: "block", opacity: 0.45 }} />
-              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                No updates yet
-              </p>
-              <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                {isAdmin
+            <div className="agent-glass-strong agent-bloom" style={{ borderRadius: "var(--agent-radius-lg)", padding: "20px 24px 28px" }}>
+              <EmptyState
+                icon={<Tray size={24} weight="regular" />}
+                title="No updates yet"
+                description={isAdmin
                   ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across the platform."
                   : isProgressor
                     ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
                     : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
-              </p>
+              />
             </div>
 
             {/* Ghost day-bucket preview — abstract agent-skeleton bars. */}

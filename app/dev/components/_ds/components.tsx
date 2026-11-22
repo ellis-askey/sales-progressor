@@ -2081,7 +2081,59 @@ function FilterCheckboxSpec({ initial = true, label = "Awaiting reply" }: { init
   );
 }
 
+/* The compact collapsible filter rail — faithful to the real Updates rail
+   (components/comms/CommsActivityFeed.tsx: cf-rail + RailSection). A glass card
+   of facet sections, each a header (optional CountBadge + caret) over a list of
+   real FilterCheckboxes, with a "Showing X of Y · Clear" footer. Interactive. */
+const FILTER_RAIL_SECTIONS: { heading: string; options: string[] }[] = [
+  { heading: "Type", options: ["Milestones", "Notes", "Emails", "Uploads"] },
+  { heading: "Who", options: ["You", "Clients", "Solicitors"] },
+  { heading: "Side", options: ["Seller", "Buyer"] },
+  { heading: "Stage", options: ["Conveyancing", "Exchange"] },
+];
+function FilterRailSpec() {
+  const [open, setOpen] = useState<string | null>("Type");
+  const [sel, setSel] = useState<Set<string>>(new Set(["Clients"]));
+  const toggle = (o: string) => setSel((p) => { const n = new Set(p); if (n.has(o)) n.delete(o); else n.add(o); return n; });
+  return (
+    <div style={{ width: 236, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-subtle)", borderRadius: 14, padding: 5 }}>
+      {FILTER_RAIL_SECTIONS.map((s, i) => {
+        const isOpen = open === s.heading;
+        const count = s.options.filter((o) => sel.has(o)).length;
+        return (
+          <div key={s.heading} style={{ borderBottom: i < FILTER_RAIL_SECTIONS.length - 1 ? "1px solid var(--agent-border-subtle)" : "none" }}>
+            <div role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : s.heading)} className="agent-hover-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", borderRadius: 8, userSelect: "none" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{s.heading}{count > 0 && <CountBadge count={count} solid />}</span>
+              <CaretDown size={13} weight="bold" aria-hidden style={{ color: "var(--agent-text-muted)", transition: "transform .22s cubic-bezier(.4,0,.2,1)", transform: isOpen ? "rotate(180deg)" : "none" }} />
+            </div>
+            {isOpen && (
+              <div style={{ padding: "2px 4px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
+                {s.options.map((o) => <FilterCheckbox key={o} checked={sel.has(o)} label={o} onChange={() => toggle(o)} />)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 4px 2px" }}>
+        <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>Showing 94 of 150</span>
+        {sel.size > 0 && <button type="button" onClick={() => setSel(new Set())} className="agent-link" style={{ fontSize: 11.5 }}>Clear</button>}
+      </div>
+    </div>
+  );
+}
+
 const COMMS_ENTRIES: ComponentEntry[] = [
+  {
+    id: "filter-rail",
+    name: "Filter rail (compact collapsible)",
+    category: "search",
+    status: "implemented",
+    keywords: ["filter", "rail", "sidebar", "facet", "collapsible", "disclosure", "checkbox", "updates", "comms", "type", "who", "side", "stage"],
+    summary: "The compact sidebar filter rail — a glass card of collapsible facet sections (Type / Who / Side / Stage), each a header with an optional count badge + caret over a list of FilterCheckboxes, and a 'Showing X of Y · Clear' footer. The inside is canonical (FilterCheckbox + CountBadge); the compact card shell is its own pattern. Click a section to expand. Built from the real Updates rail.",
+    sources: [{ path: "components/comms/CommsActivityFeed.tsx", note: "cf-rail / RailSection — the Updates filter rail" }],
+    exceptions: [{ title: "Not SectionDisclosure", detail: "SectionDisclosure renders each section as a free-standing glass bar with full-width free cards and 40px bottom padding — right for the Updates day groups, wrong for a compact sidebar rail. The rail keeps its four facets tight inside one card, so it stays its own canonical rather than migrating to SectionDisclosure.", source: "components/ui/SectionDisclosure.tsx", scope: "specific" }],
+    render: () => <Stage width={280}><FilterRailSpec /></Stage>,
+  },
   {
     id: "filter-checkbox",
     name: "Filter checkbox (rail toggle)",
