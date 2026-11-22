@@ -38,6 +38,7 @@ import { StatCards } from "@/components/ui/StatCards";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { SectionHeader } from "@/components/agent/SectionHeader";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { ListChecks as ListChecksI } from "@phosphor-icons/react";
 import { WarningCircle as WarningCircleI, CheckCircle as CheckCircleI, CalendarBlank as CalendarBlankI, ClockCountdown as ClockCountdownI, ChatCircleDots as ChatCircleDotsI, PaperPlaneTilt as PaperPlaneTiltI } from "@phosphor-icons/react";
 
@@ -2028,6 +2029,22 @@ const TODO_ENTRIES: ComponentEntry[] = [
     summary: "The section header — an icon in a coral-tinted circle, a title + subtitle, and an optional glassed count pill. Used atop To-Do sections and the no-comms card. Live render of components/agent/SectionHeader.tsx.",
     sources: [{ path: "components/agent/SectionHeader.tsx" }],
     render: () => <Stage width={420}><div style={{ width: "100%" }}><SectionHeader icon={<ListChecksI size={22} weight="regular" />} title="Internal to-dos" subtitle="Your team's notes and follow-ups." /></div></Stage>,
+  },
+  {
+    id: "empty-state-animated",
+    name: "Empty state (animated)",
+    category: "empty-error",
+    status: "implemented",
+    keywords: ["empty state", "animated", "crossfade", "morph", "icon", "cta", "arc", "all clear"],
+    summary: "The canonical animated empty state — a crossfading icon, a title + description that morph/spring in when the content changes, and an optional action button. Theme-aware, respects reduced-motion. For in-card empty lists (To-Do, etc.). Live render of components/arc/empty-state/empty-state.tsx.",
+    sources: [{ path: "components/arc/empty-state/empty-state.tsx" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ width: "100%" }}>
+          <EmptyState icon={<ListChecksI size={24} weight="regular" />} title="All clear" description="Nothing on your list right now." action={<button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: CORAL, ["--background" as string]: "#fff" } as CSSProperties}>+ Add to-do</button>} />
+        </div>
+      </Stage>
+    ),
   },
   {
     id: "task-check",

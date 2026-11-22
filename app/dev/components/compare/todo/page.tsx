@@ -23,6 +23,8 @@ import { Card } from "@/components/ui/Card";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { DateField } from "@/components/ui/DateField";
 import { buttonClasses } from "@/components/arc/button/button";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 
 const CORAL = "var(--agent-coral-deep, #FF6B4A)";
 type Theme = "light" | "dark";
@@ -81,11 +83,12 @@ function TabsLive() {
   const [active, setActive] = useState("todo");
   return (
     <div style={{ width: "100%" }}>
+      {/* Just the toggle — the "+ Add to-do" primary is its own canonical (#2),
+          not part of the tab control. */}
       <TodoTabs
         tabs={[{ key: "todo", label: "Internal", count: 18 }, { key: "agents", label: "From agents" }, { key: "reviews", label: "Reviews", count: 1 }]}
         active={active}
         onChange={setActive}
-        action={<button type="button" className="agent-btn agent-btn-sm agent-btn-primary">+ Add to-do</button>}
         glassId="todo-tabs-compare"
         glassLabel="Compare · tabs"
       >
@@ -181,6 +184,65 @@ const DisclosureBar = () => (
   </button>
 );
 
+/* ---------- add-to-do form card ---------- */
+// Current: real markup — glass card + borderless inputs, but hardcoded Tailwind
+// slate/blue/red colours (NOT theme-aware → dark-mode bug), legacy segment pills,
+// a native checkbox, and the legacy ui/Button.
+function CurrentAddForm() {
+  return (
+    <div className="agent-glass-strong" style={{ borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+      <input placeholder="What needs to be done?" className="w-full text-base text-slate-900/80 placeholder:text-slate-900/30 border-0 outline-none bg-transparent font-medium" />
+      <textarea placeholder="Notes (optional)" rows={2} className="w-full text-base text-slate-900/50 placeholder:text-slate-900/30 border-0 outline-none bg-transparent resize-none" />
+      <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 10 }}>
+        <input placeholder="Attach to a property (optional)" className="w-full text-sm text-slate-900/70 placeholder:text-slate-900/30 border-0 outline-none bg-transparent" />
+      </div>
+      <div>
+        <p className="text-xs text-slate-900/40 mb-1.5">Who&apos;s responsible?</p>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="agent-segment-pill agent-segment-pill-sm on">Mine</button>
+          <button className="agent-segment-pill agent-segment-pill-sm">Your progressor</button>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 pt-1" style={{ display: "flex", alignItems: "center", gap: 12, borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 8 }}>
+        <input type="date" defaultValue="2026-11-22" className="text-base text-slate-900/50 border-0 outline-none bg-transparent" />
+        <div style={{ flex: 1 }} />
+        <button className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Cancel</button>
+        <button className="agent-btn agent-btn-sm agent-btn-primary" style={{ opacity: 0.5 }}>Add</button>
+      </div>
+    </div>
+  );
+}
+// Proposed: same layout + card, but theme-aware agent tokens, arc SegmentedControl,
+// a canonical checkbox treatment, DateField, arc Button. Register as a canonical
+// AddTaskCard. Borderless quick-add character is preserved.
+function ProposedAddForm() {
+  const [owner, setOwner] = useState("mine");
+  const [d, setD] = useState("2026-11-22");
+  const tok: CSSProperties = { ["--surface-muted" as string]: "rgba(15,23,42,0.05)", ["--sc-selection-bg" as string]: "var(--agent-coral-deep)", ["--sc-selection-fg" as string]: "var(--agent-text-on-coral)", ["--control-height-sm" as string]: "28px" };
+  const field: CSSProperties = { width: "100%", border: 0, outline: "none", background: "transparent", fontSize: 15, color: "var(--agent-text-primary)", fontWeight: 500 };
+  return (
+    <div className="agent-glass-strong" style={{ borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+      <input placeholder="What needs to be done?" style={field} />
+      <textarea placeholder="Notes (optional)" rows={2} style={{ ...field, fontWeight: 400, color: "var(--agent-text-secondary)", resize: "none" }} />
+      <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 10 }}>
+        <input placeholder="Attach to a property (optional)" style={{ ...field, fontSize: 13.5, fontWeight: 400, color: "var(--agent-text-secondary)" }} />
+      </div>
+      <div>
+        <p className="agent-eyebrow" style={{ margin: "0 0 6px" }}>Who&apos;s responsible?</p>
+        <div className="arc-scope" style={{ ...tok, display: "inline-block" }}>
+          <SegmentedControl label="Who's responsible?" value={owner} onValueChange={setOwner} options={[{ value: "mine", label: "Mine" }, { value: "progressor", label: "Your progressor" }]} />
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, borderTop: "0.5px solid var(--agent-border-subtle)", paddingTop: 8 }}>
+        <div style={{ maxWidth: 150 }}><DateField value={d} onChange={(e) => setD(e.target.value)} className="agent-input agent-input-sm" style={{ fontSize: 13 }} /></div>
+        <div style={{ flex: 1 }} />
+        <button className={buttonClasses({ variant: "ghost", size: "sm" })}>Cancel</button>
+        <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as CSSProperties}>Add</button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- inventory ---------- */
 const INVENTORY: { item: string; cls: Cls; verdict: string }[] = [
   { item: "PageHeader", cls: "A", verdict: "Shared page-header primitive" },
@@ -196,7 +258,11 @@ const INVENTORY: { item: string; cls: Cls; verdict: string }[] = [
   { item: "Due / reschedule trigger", cls: "A", verdict: "atl-date-btn — a quiet text+icon trigger, compliant (register)" },
   { item: "Reschedule popover fields", cls: "B", verdict: "glass-input date → DateField; textarea → agent-textarea; agent-btn → arc Button" },
   { item: "Completed disclosure bar", cls: "A", verdict: "Canonical SectionDisclosure" },
-  { item: "Add-to-do inline form", cls: "B", verdict: "Its inputs → canonical LabelInput / DateField; add button → arc" },
+  { item: "Add-to-do form card", cls: "C", verdict: "Register as a canonical AddTaskCard (reused across to-do/internal/reviews)" },
+  { item: "Add-form colours (Tailwind slate/blue/red)", cls: "B", verdict: "DARK-MODE BUG — hardcoded text-slate-900 → agent tokens (theme-aware)" },
+  { item: "Add-form “Who's responsible” pills", cls: "B", verdict: "Legacy agent-segment-pill → arc SegmentedControl" },
+  { item: "Add-form review checkbox", cls: "B", verdict: "Native input[checkbox] → canonical checkbox" },
+  { item: "Add-form date + button", cls: "B", verdict: "DateField kept, restyle theme-aware; ui/Button → arc" },
   { item: "Empty states (per-tab + onboarding)", cls: "A", verdict: "Canonical empty-card / SetupCard hero" },
   { item: "loading.tsx skeleton", cls: "A", verdict: "Canonical Skeleton" },
 ];
@@ -263,7 +329,7 @@ export default function TodoComparePage() {
         </div>
 
         {/* components */}
-        <Spec n="1" title="Tab row — Internal / From agents / Reviews" cls="C" wide verdict={<>The glass segmented tabs with count pills + the Add action (real <code>TodoTabs</code>). Richer than the arc SegmentedControl (counts + action slot), so proposed to register as-is. Or align to arc SegmentedControl if you&apos;d rather one tab system app-wide — your call.</>} both={<TabsLive />} />
+        <Spec n="1" title="Tab toggle — Internal / From agents / Reviews" cls="C" wide verdict={<>Just the <strong>toggle</strong> — the glass segmented tabs with count pills (real <code>TodoTabs</code>). The canonical is the tab control only; the &ldquo;+ Add to-do&rdquo; primary is its own canonical (#2) that sits in the action slot, not baked into the row. Register the toggle as-is.</>} both={<TabsLive />} />
         <Spec n="2" title="“+ Add to-do” button" cls="B" verdict={<>Current is the glossy <code>agent-btn-primary</code>. Proposed is the canonical arc primary (flat coral via token). Same glossy-vs-flat call you made on the Chase button — shown so you can pick.</>}
           before={<button className="agent-btn agent-btn-sm agent-btn-primary">+ Add to-do</button>}
           after={<button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" } as CSSProperties}>+ Add to-do</button>} />
@@ -287,6 +353,15 @@ export default function TodoComparePage() {
           before={<ReschedBefore />} after={<ReschedAfter />} />
         <Spec n="8" title="Completed disclosure bar" cls="A" verdict={<>The collapsible “Completed · N” bar is the canonical <code>SectionDisclosure</code> (shim-coupled, so reproduced here). Compliant — no change.</>}
           both={<div style={{ width: 360 }}><DisclosureBar /></div>} />
+
+        <Spec n="10" title="Card empty state → animated EmptyState" cls="C" wide verdict={<>You want the arc <code>EmptyState</code> (icon crossfade, copy that morphs/springs in) on the card empty — not the flat &ldquo;All clear.&rdquo; box. Register it as the canonical card-empty. Phrasing shown (title + a line of context). <strong>And yes — add a &ldquo;+ Add to-do&rdquo; action</strong>, so an empty list has an obvious next step. Theme-aware; toggle Dark.</>}
+          before={<div style={{ width: "100%" }}><div className="agent-glass-strong agent-empty-card" style={{ padding: "28px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}><p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "var(--agent-text-muted)" }}>All clear.</p></div></div>}
+          after={<div style={{ width: "100%" }}><div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", padding: 8 }}>
+            <EmptyState icon={<ListChecks size={24} weight="regular" />} title="All clear" description="Nothing on your list right now. Add one above, or flag it from a file and it'll land here." action={<button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff", gap: 5 } as CSSProperties}>+ Add to-do</button>} />
+          </div></div>} />
+
+        <Spec n="9" title="Add-to-do form card" cls="C" wide verdict={<><strong>Register as a canonical AddTaskCard</strong> (reused on To-Do / internal / reviews / attached-to-file). <strong>And a real dark-mode bug to fix:</strong> the inputs use hardcoded Tailwind colours (<code>text-slate-900/80</code>, <code>text-blue-500</code>, <code>text-red-500</code>) — not theme-aware, so in dark mode it&apos;s near-black text on dark glass. Proposed swaps those to agent tokens, the legacy <code>agent-segment-pill</code> owner toggle → arc SegmentedControl, the native checkbox → a canonical, the date → <code>DateField</code>, and <code>ui/Button</code> → arc. The borderless quick-add character is kept. Toggle Dark above to see the bug in the Before.</>}
+          before={<CurrentAddForm />} after={<ProposedAddForm />} />
       </div>
     </div>
   );
