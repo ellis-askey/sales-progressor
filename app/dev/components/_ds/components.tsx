@@ -24,6 +24,14 @@ import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
 import { House, BellRinging, WarningCircle, Eye, ArrowRight, ArrowLeft, X, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
+// Real hub dataviz + stat canonicals — rendered live below (not reproduced inline),
+// so a gallery specimen can never drift from the shipped component.
+import { StatNumber } from "@/components/ui/StatNumber";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { MiniTable } from "@/components/ui/MiniTable";
+import { Donut } from "@/components/ui/Donut";
+import { HeatBand } from "@/components/ui/HeatBand";
+import { ProgressRing } from "@/components/ui/ProgressRing";
 
 // Dev-gallery placeholders: Checkbox / OtpInput / RadioGroup / CookieConsent come from the
 // arc library that is not yet committed to this branch. Stubbed to null so the prod build
@@ -44,6 +52,9 @@ function Stage({ children, pad = 22, width = 360 }: { children: ReactNode; pad?:
     </div>
   );
 }
+
+/** Tiny uppercase caption used to label dataviz specimens in the gallery. */
+const LBL: CSSProperties = { fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)", display: "block", marginBottom: 4, fontWeight: 600 };
 
 /* Interactive demos for the stateful register elements — faithful to the real
    markup in app/register/RegisterForm.tsx. */
@@ -1263,6 +1274,246 @@ const HUB_ENTRIES: ComponentEntry[] = [
             <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>9 Priory Gardens, Marlowe, ML3 6RD</p>
           </div>
           <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>14 days ago</span>
+        </div>
+      </Stage>
+    ),
+  },
+
+  /* ---- Stat + dataviz atoms (the canonicals the hub insight cards compose from) ---- */
+  {
+    id: "stat-number",
+    name: "Stat numeral",
+    category: "cards",
+    status: "implemented",
+    keywords: ["stat", "number", "numeral", "count", "figure", "tabular", "headline", "dataviz"],
+    summary: "The canonical headline figure — one scale (30px md / 24px sm · 750 weight · tight tracking · tabular-nums), colour overridable for celebratory stats. Replaces the per-card inline 28/800 · 32/700 · 34/800 numerals so every hub number reads as one family. Live render of components/ui/StatNumber.tsx.",
+    sources: [{ path: "components/ui/StatNumber.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 36, alignItems: "flex-end" }}>
+          <div><span style={LBL}>md · 30px</span><StatNumber>128</StatNumber></div>
+          <div><span style={LBL}>sm · 24px</span><StatNumber size="sm">7</StatNumber></div>
+          <div><span style={LBL}>accent</span><StatNumber color={CORAL}>&pound;1.2m</StatNumber></div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "stat-block",
+    name: "Stat header block",
+    category: "cards",
+    status: "implemented",
+    keywords: ["stat", "header", "eyebrow", "value", "sub", "block", "card header", "pipeline at a glance"],
+    summary: "The canonical stat-header group — eyebrow + StatNumber + optional sub-line, self-contained on tokens (not the shared agent-eyebrow class, so it stays decoupled). The header of Pipeline-at-a-glance and the insight cards. Live render of components/ui/StatBlock.tsx.",
+    sources: [{ path: "components/ui/StatBlock.tsx" }],
+    render: () => (
+      <Stage width={260}>
+        <StatBlock eyebrow="Pipeline at a glance" value="100 active sales" sub="Across 3 clients · updated just now" />
+      </Stage>
+    ),
+  },
+  {
+    id: "mini-table",
+    name: "Mini data-table",
+    category: "rows",
+    status: "implemented",
+    keywords: ["table", "mini table", "breakdown", "clients", "key value", "compact table", "rows"],
+    summary: "The canonical compact key/value table — uppercase 10px column headers, 13px tabular rows, hairline row separators. One flex label column (grows, ellipsis, bold ink) + any number of fixed-width right-aligned columns; each cell is a node so it can carry its own accent (a coral fee, a glide-link). Extracted from the hub's clients breakdown. Live render of components/ui/MiniTable.tsx.",
+    sources: [{ path: "components/ui/MiniTable.tsx" }],
+    render: () => (
+      <Stage width={340}>
+        <MiniTable
+          columns={[
+            { key: "client", header: "Client", flex: true },
+            { key: "active", header: "Active", width: 54 },
+            { key: "fee", header: "Your fee", width: 64 },
+          ]}
+          rows={[
+            { key: "a", client: "Hunters, Altrincham", active: 18, fee: <span style={{ fontWeight: 600, color: "var(--agent-coral-deep)" }}>&pound;22k</span> },
+            { key: "b", client: "Bridgfords, Sale", active: 11, fee: <span style={{ fontWeight: 600, color: "var(--agent-coral-deep)" }}>&pound;14k</span> },
+            { key: "c", client: "Reeds Rains, Hale", active: 6, fee: <span style={{ fontWeight: 600, color: "var(--agent-coral-deep)" }}>&pound;7k</span> },
+          ]}
+        />
+      </Stage>
+    ),
+  },
+  {
+    id: "donut",
+    name: "Donut chart",
+    category: "progress",
+    status: "implemented",
+    keywords: ["donut", "ring", "pie", "service split", "proportion", "dataviz", "chart"],
+    summary: "The canonical donut — a proportion ring (recharts PieChart) with a hollow centre, empty-state fallback to a faint full ring when there is no data. The hub's Service-split chart (self-managed vs outsourced). Live render of components/ui/Donut.tsx.",
+    sources: [{ path: "components/ui/Donut.tsx" }, { path: "components/hub/HubCharts.tsx", note: "ServiceSplitDonut wrapper" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", gap: 20, alignItems: "center" }}>
+          <Donut segments={[{ value: 64, color: CORAL }, { value: 36, color: "#E0942E" }]} />
+          <div style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.8 }}>
+            <div><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: CORAL, marginRight: 7 }} />Self-managed · 64%</div>
+            <div><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: "#E0942E", marginRight: 7 }} />Outsourced · 36%</div>
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "progress-ring",
+    name: "Progress ring",
+    category: "progress",
+    status: "implemented",
+    keywords: ["progress", "ring", "percent", "momentum", "gauge", "dataviz"],
+    summary: "The canonical progress ring — a single-value percentage gauge with a centre label, animated sweep. The hub's momentum ring. Live render of components/ui/ProgressRing.tsx.",
+    sources: [{ path: "components/ui/ProgressRing.tsx" }, { path: "components/hub/HubCharts.tsx", note: "MomentumRing wrapper" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", gap: 24 }}>
+          <ProgressRing value={68} />
+          <ProgressRing value={34} label="34%" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "heat-band",
+    name: "Heat band (weekly forecast)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["heat band", "forecast", "weekly", "exchange", "bars", "intensity", "dataviz", "chart"],
+    summary: "The canonical heat band — a row of equal cells whose fill intensity encodes a per-bucket value, the strongest week emphasised, each cell an optional portalled tooltip. The hub's Exchange-forecast (expected exchanges per week). Live render of components/ui/HeatBand.tsx.",
+    sources: [{ path: "components/ui/HeatBand.tsx" }, { path: "components/hub/HubCharts.tsx", note: "ForecastHeatBand wrapper" }],
+    render: () => (
+      <Stage width={340}>
+        <HeatBand
+          cells={[
+            { label: "This wk", value: 2 },
+            { label: "+1", value: 5, strong: true },
+            { label: "+2", value: 3 },
+            { label: "+3", value: 1 },
+            { label: "+4", value: 0 },
+            { label: "+5", value: 2 },
+          ]}
+        />
+      </Stage>
+    ),
+  },
+
+  /* ---- The six hub insight cards (compositions of the atoms above, through the HubCard shell) ---- */
+  {
+    id: "hub-pipeline-health",
+    name: "Insight card · Pipeline health",
+    category: "cards",
+    status: "implemented",
+    keywords: ["pipeline health", "insight card", "stat cells", "quiet", "awaiting reply", "at risk", "hub"],
+    summary: "The Pipeline-health insight card — HubCard shell wrapping a grid of secondary stat cells (StatNumber size=\"sm\", tinted per state: quiet / awaiting reply / at risk). A composition, not bespoke: the shell, the numerals and the rows are all canonicals. Inline in app/agent/hub/hub-view.tsx (PipelineHealthCard).",
+    sources: [{ path: "app/agent/hub/hub-view.tsx", note: "PipelineHealthCard" }, { path: "components/hub/HubCard.tsx", note: "shell" }, { path: "components/ui/StatNumber.tsx", note: "stat cells" }],
+    render: () => (
+      <Stage width={340}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          {[{ n: 12, c: "var(--agent-text-primary)", l: "Quiet 7+ days" }, { n: 5, c: "#E0942E", l: "Awaiting reply" }, { n: 2, c: "#C73E3E", l: "At risk" }].map((s) => (
+            <div key={s.l}>
+              <StatNumber size="sm" color={s.c}>{s.n}</StatNumber>
+              <span style={{ ...LBL, textTransform: "none", letterSpacing: 0, marginTop: 4, fontWeight: 500 }}>{s.l}</span>
+            </div>
+          ))}
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-exchange-forecast",
+    name: "Insight card · Exchange forecast",
+    category: "cards",
+    status: "implemented",
+    keywords: ["exchange forecast", "insight card", "heat band", "sparkline", "weekly", "hub"],
+    summary: "The Exchange-forecast insight card — HubCard shell + StatBlock header + the HeatBand (expected exchanges per week). A composition of canonicals. Inline in app/agent/hub/hub-view.tsx (ExchangeForecastCard); the band is ForecastHeatBand → the canonical HeatBand.",
+    sources: [{ path: "app/agent/hub/hub-view.tsx", note: "ExchangeForecastCard" }, { path: "components/ui/HeatBand.tsx" }, { path: "components/hub/HubCharts.tsx", note: "ForecastHeatBand" }],
+    render: () => (
+      <Stage width={340}>
+        <StatBlock eyebrow="Exchange forecast" value="13 in 6 weeks" sub="Expected exchanges by week" />
+        <div style={{ marginTop: 12 }}>
+          <HeatBand cells={[{ label: "This wk", value: 2 }, { label: "+1", value: 5, strong: true }, { label: "+2", value: 3 }, { label: "+3", value: 1 }, { label: "+4", value: 0 }, { label: "+5", value: 2 }]} />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-service-split",
+    name: "Insight card · Service split",
+    category: "cards",
+    status: "implemented",
+    keywords: ["service split", "insight card", "donut", "self-managed", "outsourced", "hub"],
+    summary: "The Service-split insight card — HubCard shell + the Donut (self-managed vs outsourced) + a legend. A composition of canonicals. Inline in app/agent/hub/hub-view.tsx (ServiceSplitCard); the ring is ServiceSplitDonut → the canonical Donut.",
+    sources: [{ path: "app/agent/hub/hub-view.tsx", note: "ServiceSplitCard" }, { path: "components/ui/Donut.tsx" }, { path: "components/hub/HubCharts.tsx", note: "ServiceSplitDonut" }],
+    render: () => (
+      <Stage width={340}>
+        <div style={{ display: "inline-flex", gap: 20, alignItems: "center" }}>
+          <Donut segments={[{ value: 64, color: CORAL }, { value: 36, color: "#E0942E" }]} />
+          <div style={{ fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.9 }}>
+            <div><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: CORAL, marginRight: 7 }} />Self-managed · 64 sales</div>
+            <div><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: "#E0942E", marginRight: 7 }} />Outsourced · 36 sales</div>
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-clients",
+    name: "Insight card · Your clients",
+    category: "cards",
+    status: "implemented",
+    keywords: ["clients", "breakdown", "insight card", "mini table", "fee", "hub"],
+    summary: "The Your-clients insight card — HubCard shell + the MiniTable (per-client active / pipeline / your fee, with a coral fee or a 'Set fee' glide-link). A composition of canonicals. Inline in app/agent/hub/hub-view.tsx (ClientsBreakdownCard).",
+    sources: [{ path: "app/agent/hub/hub-view.tsx", note: "ClientsBreakdownCard" }, { path: "components/ui/MiniTable.tsx" }],
+    render: () => (
+      <Stage width={340}>
+        <MiniTable
+          columns={[{ key: "client", header: "Client", flex: true }, { key: "active", header: "Active", width: 54 }, { key: "fee", header: "Your fee", width: 64 }]}
+          rows={[
+            { key: "a", client: "Hunters, Altrincham", active: 18, fee: <span style={{ fontWeight: 600, color: "var(--agent-coral-deep)" }}>&pound;22k</span> },
+            { key: "b", client: "Bridgfords, Sale", active: 11, fee: <a className="agent-link" style={{ fontSize: 12, fontWeight: 600 }}>Set fee <ArrowRight size={11} weight="bold" className="agent-arrow-i" /></a> },
+          ]}
+        />
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-wins",
+    name: "Insight card · Recent wins",
+    category: "cards",
+    status: "implemented",
+    keywords: ["wins", "recent wins", "insight card", "stat", "exchanged", "completed", "celebrate", "hub"],
+    summary: "The Recent-wins insight card — HubCard shell + StatNumber figures (exchanges / completions this month) with celebratory accent colours and a glyph per win. A composition of canonicals. components/hub/WinsCard.tsx.",
+    sources: [{ path: "components/hub/WinsCard.tsx" }, { path: "components/ui/StatNumber.tsx" }],
+    render: () => (
+      <Stage width={340}>
+        <div style={{ display: "flex", gap: 36 }}>
+          <div><span style={LBL}>Exchanged · Nov</span><StatNumber color="#16a34a">9</StatNumber></div>
+          <div><span style={LBL}>Completed · Nov</span><StatNumber color={CORAL}>6</StatNumber></div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "hub-diary",
+    name: "Insight card · Upcoming diary",
+    category: "cards",
+    status: "implemented",
+    keywords: ["diary", "upcoming", "insight card", "event row", "completion", "exchange date", "snooze", "hub"],
+    summary: "The Upcoming-diary insight card — HubCard shell + DiaryEventRow rows (date-anchored events: exchange / completion, each confirmable or snoozable through a portalled menu). A composition built on the shared row + RowActionMenu. components/hub/DiaryCard.tsx + DiaryEventRow.tsx.",
+    sources: [{ path: "components/hub/DiaryCard.tsx" }, { path: "components/hub/DiaryEventRow.tsx" }],
+    render: () => (
+      <Stage width={360}>
+        <div className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 8px", borderRadius: 10 }}>
+          <span style={{ width: 40, flexShrink: 0, textAlign: "center" }}>
+            <span style={{ display: "block", fontSize: 16, fontWeight: 750, color: "var(--agent-text-primary)", lineHeight: 1 }}>24</span>
+            <span style={{ display: "block", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--agent-text-muted)" }}>Nov</span>
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Completion · 8 Chandler Court</p>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>Altrincham · in 2 days</p>
+          </div>
+          <button className={buttonClasses({ variant: "outline", size: "sm" })}>Confirm</button>
         </div>
       </Stage>
     ),
