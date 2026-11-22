@@ -3,16 +3,16 @@
 import { useState, useEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { CaretDown, Tag, ChatCircle, Paperclip, Bell, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { Tag, ChatCircle, Paperclip, Bell, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
-import { FilterCheckbox } from "@/components/ui/FilterCheckbox";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { CountBadge } from "@/components/ui/CountBadge";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
-import { AnchoredPanel } from "@/components/ui/Popover";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
+import { FilterRail, FilterDropdowns, type FilterRailGroup } from "@/components/ui/FilterRail";
+import { IconChip } from "@/components/ui/IconChip";
+import { ActivityRow } from "@/components/ui/ActivityRow";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { DISPLAY_STAGES, type DisplayStageKey } from "@/lib/milestones/display-stages";
 
@@ -87,23 +87,6 @@ export type DayBucket = {
   defaultOpen: boolean;
 };
 
-// Small tinted glyph used as the leading marker for the non-milestone update
-// kinds (milestones keep the confirmer's avatar, which carries more meaning).
-function KindBadge({ children }: { children: ReactNode }) {
-  return (
-    <span
-      aria-hidden
-      style={{
-        width: 26, height: 26, borderRadius: 999,
-        background: "rgba(var(--agent-info-rgb), 0.12)", color: "var(--agent-info)",
-        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
 function Leading({ u }: { u: UpdateRow }) {
   if (u.kind === "milestone" || u.kind === "note") {
     // A step confirmed by us / a note we shared: show the person's avatar.
@@ -120,16 +103,14 @@ function Leading({ u }: { u: UpdateRow }) {
       : "other";
     return <ActorAvatar name={u.byName ?? ""} role={role} image={u.byImage} size={26} className="flex-shrink-0" />;
   }
-  if (u.kind === "price") return <KindBadge><Tag size={14} weight="regular" /></KindBadge>;
-  if (u.kind === "reply") return <KindBadge><ChatCircle size={14} weight="regular" /></KindBadge>;
-  if (u.kind === "notification") return <KindBadge><Bell size={14} weight="regular" /></KindBadge>;
-  return <KindBadge><Paperclip size={14} weight="regular" /></KindBadge>;
+  if (u.kind === "price") return <IconChip><Tag size={14} weight="regular" /></IconChip>;
+  if (u.kind === "reply") return <IconChip><ChatCircle size={14} weight="regular" /></IconChip>;
+  if (u.kind === "notification") return <IconChip><Bell size={14} weight="regular" /></IconChip>;
+  return <IconChip><Paperclip size={14} weight="regular" /></IconChip>;
 }
 
 function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
   const when = relativeDate(u.atIso);
-  const muted = "var(--agent-text-muted)";
-  const primary = "var(--agent-text-primary)";
 
   // Main + optional secondary text per kind.
   let main: ReactNode;
@@ -150,35 +131,19 @@ function UpdateLine({ u, first }: { u: UpdateRow; first: boolean }) {
   } else if (u.kind === "notification") {
     main = u.sentence;
   } else {
-    // document
+    // document — the filename is the canonical link (coral hover + focus ring)
     const label = `${u.byName ?? "Your team"} uploaded ${u.filename}`;
     main = u.docUrl ? (
-      <a href={u.docUrl} target="_blank" rel="noopener noreferrer" style={{ color: primary, textDecoration: "underline", textUnderlineOffset: 2 }}>
-        {label}
-      </a>
+      <a href={u.docUrl} target="_blank" rel="noopener noreferrer" className="agent-link">{label}</a>
     ) : label;
   }
 
-  return (
-    <div className="flex items-start gap-3 px-4 py-3" style={{ borderTop: first ? undefined : "0.5px solid var(--agent-border-subtle)" }}>
-      <Leading u={u} />
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium" style={{ color: primary, lineHeight: 1.4 }}>{main}</p>
-        {u.kind === "note" && (
-          <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>Shared with client</p>
-        )}
-        {u.kind === "notification" && u.pill && (
-          <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>{u.pill}</p>
-        )}
-        {secondary && (
-          <p className="text-[12px]" style={{ color: muted, marginTop: 2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-            {secondary}
-          </p>
-        )}
-        <p className="text-[11px]" style={{ color: muted, marginTop: 2 }}>{when}</p>
-      </div>
-    </div>
-  );
+  const meta =
+    u.kind === "note" ? <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>Shared with client</p>
+    : u.kind === "notification" && u.pill ? <p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>{u.pill}</p>
+    : null;
+
+  return <ActivityRow leading={<Leading u={u} />} main={main} meta={meta} secondary={secondary} time={when} first={first} />;
 }
 
 function TxCard({ tx }: { tx: TxGroup }) {
@@ -228,11 +193,11 @@ function TxCard({ tx }: { tx: TxGroup }) {
             {snap && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", fontVariantNumeric: "tabular-nums" }}>{snap.percent}%</span>}
           </div>
           {snap && <ProgressBar percent={snap.percent} width={132} />}
-          <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right" }}>
+          <span style={{ fontSize: "var(--agent-text-micro)", color: "var(--agent-text-muted)", textAlign: "right" }}>
             {snap?.stage ?? ""}{snap?.stage && exchange ? " · " : ""}{exchange ?? ""}
           </span>
           {snap?.nextAction && (
-            <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)", textAlign: "right", maxWidth: 260, lineHeight: 1.35 }}>
+            <span style={{ fontSize: "var(--agent-text-micro)", color: "var(--agent-text-muted)", textAlign: "right", maxWidth: 260, lineHeight: 1.35 }}>
               Next: {snap.nextAction.replace(/\.$/, "")}
             </span>
           )}
@@ -274,71 +239,14 @@ const STAGE_OPTIONS: { key: DisplayStageKey; label: string }[] = DISPLAY_STAGES.
 // hover; the dropdown buttons match the inputs elsewhere (hairline border,
 // coral on hover, deeper coral when open, colour-only — the count badge is the
 // only "selected" signal). See /agent/comms.
+// Page layout only — the rail chrome lives in the canonical FilterRail now.
 const CF_STYLES = `
   .cf-layout { display:grid; grid-template-columns:1fr; gap:16px; }
   @media (min-width:900px){ .cf-layout { grid-template-columns:236px minmax(0,1fr); align-items:start; } .cf-side { position:sticky; top:16px; } .cf-drops-wrap { display:none; } }
   @media (max-width:899px){ .cf-rail-wrap { display:none; } }
-  .cf-rail { background:var(--agent-surface-glass); border:1px solid var(--agent-border-subtle); border-radius:14px; padding:5px; }
-  .cf-sec { border-bottom:1px solid var(--agent-border-subtle); }
-  .cf-sec:last-child { border-bottom:none; }
-  .cf-sec-hdr { display:flex; align-items:center; justify-content:space-between; padding:11px 10px; cursor:pointer; font-size:12px; font-weight:700; color:var(--agent-text-primary); border-radius:8px; transition:background-color .14s ease; user-select:none; }
-  .cf-sec-hdr:hover { background-color:var(--agent-hover-tint); }
-  .cf-sec .cf-caret { color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
-  .cf-sec.open .cf-caret { transform:rotate(180deg); }
-  .cf-drops { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .cf-dd { position:relative; }
-  .cf-dd-btn { display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:13px; font-weight:600; color:var(--agent-text-primary); background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:10px; padding:8px 12px; cursor:pointer; transition:border-color .14s ease; }
-  .cf-dd-btn:hover { border-color:var(--agent-coral); }
-  .cf-dd-btn[data-open="true"] { border-color:var(--agent-coral-deep); }
-  .cf-dd-btn .cf-caret { font-size:9px; color:var(--agent-text-muted); transition:transform .22s cubic-bezier(.4,0,.2,1); }
-  .cf-dd-btn[data-open="true"] .cf-caret { transform:rotate(180deg); }
   .cf-side-foot { display:flex; align-items:center; gap:12px; padding:10px 4px 2px; }
-  .cf-count { font-size:11.5px; color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
+  .cf-count { font-size:var(--agent-text-caption); color:var(--agent-text-muted); font-variant-numeric:tabular-nums; }
 `;
-
-function CheckRows({ options, selected, onToggle }: { options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void }) {
-  return (
-    <>
-      {options.map((o) => (
-        <FilterCheckbox key={o.key} checked={selected.has(o.key)} label={o.label} onChange={() => onToggle(o.key)} />
-      ))}
-    </>
-  );
-}
-
-function RailSection({ heading, options, selected, onToggle, open, onToggleOpen }: { heading: string; options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void; open: boolean; onToggleOpen: () => void }) {
-  return (
-    <div className={`cf-sec${open ? " open" : ""}`}>
-      <div className="cf-sec-hdr" role="button" tabIndex={0} aria-expanded={open} onClick={onToggleOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleOpen(); } }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{heading}{selected.size > 0 && <CountBadge count={selected.size} solid />}</span>
-        <CaretDown className="cf-caret" style={{ width: 13, height: 13 }} />
-      </div>
-      <div className={`agent-acc${open ? " open" : ""}`}>
-        <div className="agent-acc-in">
-          <div style={{ padding: "2px 4px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-            <CheckRows options={options} selected={selected} onToggle={onToggle} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterDropdown({ heading, options, selected, onToggle, open, onOpenChange }: { heading: string; options: { key: string; label: string }[]; selected: Set<string>; onToggle: (k: string) => void; open: boolean; onOpenChange: (next: boolean) => void }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  return (
-    <div className="cf-dd">
-      <button ref={btnRef} type="button" className="cf-dd-btn" data-open={open} aria-haspopup="menu" aria-expanded={open} onClick={() => onOpenChange(!open)}>
-        {heading}{selected.size > 0 && <CountBadge count={selected.size} solid />}<span className="cf-caret">▼</span>
-      </button>
-      <AnchoredPanel anchorRef={btnRef} open={open} onClose={() => onOpenChange(false)} placement="bottom-start" width={200} bare>
-        <div style={{ padding: 7 }} role="menu">
-          <CheckRows options={options} selected={selected} onToggle={onToggle} />
-        </div>
-      </AnchoredPanel>
-    </div>
-  );
-}
 
 export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
   // openDays holds ONLY days the user has explicitly toggled (true = open,
@@ -360,11 +268,8 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
   const router = useRouter();
   const pathname = usePathname();
-  // Rail sections: Type open by default, the rest collapsed. Dropdowns: one open
-  // at a time (mobile). hydrated gates the URL sync until we've read the URL.
-  const [openSec, setOpenSec] = useState<Record<string, boolean>>({ type: true });
-  const [openDd, setOpenDd] = useState<string | null>(null);
-  const dropsRef = useRef<HTMLDivElement>(null);
+  // hydrated gates the URL sync until we've read the URL. (The rail's own open
+  // state lives inside the canonical FilterRail.)
   const hydrated = useRef(false);
   const railTag = useGlassTag("updates-filter-rail", "Updates · filter rail", { dark: "v05" });
 
@@ -406,11 +311,11 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
 
   // One shape drives both the rail and the dropdowns. Sets/keys are cast to
   // strings — the components only ever pass back keys from `options`.
-  const groups: { key: string; heading: string; options: { key: string; label: string }[]; sel: Set<string>; toggle: (k: string) => void }[] = [
-    { key: "type",  heading: "Type",  options: TYPE_OPTIONS as { key: string; label: string }[],  sel: types as Set<string>,  toggle: (k) => toggleIn(setTypes)(k as UpdateKind) },
-    { key: "who",   heading: "Who",   options: WHO_OPTIONS as { key: string; label: string }[],   sel: whos as Set<string>,   toggle: (k) => toggleIn(setWhos)(k as UpdateWho) },
-    { key: "side",  heading: "Side",  options: SIDE_OPTIONS as { key: string; label: string }[],  sel: sides as Set<string>,  toggle: (k) => toggleIn(setSides)(k as "vendor" | "purchaser") },
-    { key: "stage", heading: "Stage", options: STAGE_OPTIONS as { key: string; label: string }[], sel: stages as Set<string>, toggle: (k) => toggleIn(setStages)(k as DisplayStageKey) },
+  const railGroups: FilterRailGroup[] = [
+    { key: "type",  heading: "Type",  options: TYPE_OPTIONS as { key: string; label: string }[],  selected: types as Set<string>,  onToggle: (k) => toggleIn(setTypes)(k as UpdateKind) },
+    { key: "who",   heading: "Who",   options: WHO_OPTIONS as { key: string; label: string }[],   selected: whos as Set<string>,   onToggle: (k) => toggleIn(setWhos)(k as UpdateWho) },
+    { key: "side",  heading: "Side",  options: SIDE_OPTIONS as { key: string; label: string }[],  selected: sides as Set<string>,  onToggle: (k) => toggleIn(setSides)(k as "vendor" | "purchaser") },
+    { key: "stage", heading: "Stage", options: STAGE_OPTIONS as { key: string; label: string }[], selected: stages as Set<string>, onToggle: (k) => toggleIn(setStages)(k as DisplayStageKey) },
   ];
 
   function passes(u: UpdateRow): boolean {
@@ -452,37 +357,12 @@ export function CommsActivityFeed({ days }: { days: DayBucket[] }) {
       <style>{CF_STYLES}</style>
       <div className="cf-layout">
         <aside className="cf-side agent-bloom">
-          {/* Wide screens: a left rail with collapsible sections. */}
+          {/* Wide screens: the canonical FilterRail. Small screens: its dropdown fallback. */}
           <div className="cf-rail-wrap">
-            <div className={`cf-rail ${railTag.className}`} {...railTag.props}>
-              {groups.map((g) => (
-                <RailSection
-                  key={g.key}
-                  heading={g.heading}
-                  options={g.options}
-                  selected={g.sel}
-                  onToggle={g.toggle}
-                  open={!!openSec[g.key]}
-                  onToggleOpen={() => setOpenSec((p) => ({ ...p, [g.key]: !p[g.key] }))}
-                />
-              ))}
-            </div>
+            <FilterRail groups={railGroups} railClassName={railTag.className} railProps={railTag.props} />
           </div>
-          {/* Small screens: grouped dropdowns. */}
           <div className="cf-drops-wrap">
-            <div className="cf-drops" ref={dropsRef}>
-              {groups.map((g) => (
-                <FilterDropdown
-                  key={g.key}
-                  heading={g.heading}
-                  options={g.options}
-                  selected={g.sel}
-                  onToggle={g.toggle}
-                  open={openDd === g.key}
-                  onOpenChange={(next) => setOpenDd(next ? g.key : null)}
-                />
-              ))}
-            </div>
+            <FilterDropdowns groups={railGroups} />
           </div>
           <div className="cf-side-foot">
             <span className="cf-count">

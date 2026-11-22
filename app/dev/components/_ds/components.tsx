@@ -46,6 +46,11 @@ import { DeltaIndicator } from "@/components/ui/DeltaIndicator";
 import { PanelHeader } from "@/components/ui/PanelHeader";
 import { FeedRowShell } from "@/components/ui/FeedRowShell";
 import { GlassTabs } from "@/components/ui/GlassTabs";
+import { FilterRail, FilterDropdowns, type FilterRailGroup } from "@/components/ui/FilterRail";
+import { IconChip } from "@/components/ui/IconChip";
+import { ActivityRow } from "@/components/ui/ActivityRow";
+import { OnboardingHero } from "@/components/ui/OnboardingHero";
+import { Tag as TagI, ChatCircle as ChatCircleII } from "@phosphor-icons/react";
 import { StatusPill } from "@/components/reminders/StatusPill";
 import { EmailActivityChart } from "@/components/automated-emails/EmailActivityChart";
 import { CaretRight as CaretRightI } from "@phosphor-icons/react";
@@ -2096,39 +2101,19 @@ function FilterCheckboxSpec({ initial = true, label = "Awaiting reply" }: { init
    (components/comms/CommsActivityFeed.tsx: cf-rail + RailSection). A glass card
    of facet sections, each a header (optional CountBadge + caret) over a list of
    real FilterCheckboxes, with a "Showing X of Y · Clear" footer. Interactive. */
-const FILTER_RAIL_SECTIONS: { heading: string; options: string[] }[] = [
-  { heading: "Type", options: ["Milestones", "Notes", "Emails", "Uploads"] },
-  { heading: "Who", options: ["You", "Clients", "Solicitors"] },
-  { heading: "Side", options: ["Seller", "Buyer"] },
-  { heading: "Stage", options: ["Conveyancing", "Exchange"] },
-];
+// Live render of the real FilterRail component.
 function FilterRailSpec() {
-  const [open, setOpen] = useState<string | null>("Type");
-  const [sel, setSel] = useState<Set<string>>(new Set(["Clients"]));
-  const toggle = (o: string) => setSel((p) => { const n = new Set(p); if (n.has(o)) n.delete(o); else n.add(o); return n; });
+  const [sel, setSel] = useState<Record<string, Set<string>>>({ type: new Set(["m"]), who: new Set(), side: new Set() });
+  const mk = (key: string) => (k: string) => setSel((p) => { const n = new Set(p[key]); if (n.has(k)) n.delete(k); else n.add(k); return { ...p, [key]: n }; });
+  const groups: FilterRailGroup[] = [
+    { key: "type", heading: "Type", options: [{ key: "m", label: "Milestones" }, { key: "n", label: "Notes" }, { key: "e", label: "Emails" }, { key: "u", label: "Uploads" }], selected: sel.type, onToggle: mk("type") },
+    { key: "who", heading: "Who", options: [{ key: "you", label: "You" }, { key: "clients", label: "Clients" }, { key: "sol", label: "Solicitors" }], selected: sel.who, onToggle: mk("who") },
+    { key: "side", heading: "Side", options: [{ key: "seller", label: "Seller" }, { key: "buyer", label: "Buyer" }], selected: sel.side, onToggle: mk("side") },
+  ];
   return (
-    <div style={{ width: 236, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-subtle)", borderRadius: 14, padding: 5 }}>
-      {FILTER_RAIL_SECTIONS.map((s, i) => {
-        const isOpen = open === s.heading;
-        const count = s.options.filter((o) => sel.has(o)).length;
-        return (
-          <div key={s.heading} style={{ borderBottom: i < FILTER_RAIL_SECTIONS.length - 1 ? "1px solid var(--agent-border-subtle)" : "none" }}>
-            <div role="button" tabIndex={0} onClick={() => setOpen(isOpen ? null : s.heading)} className="agent-hover-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 10px", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--agent-text-primary)", borderRadius: 8, userSelect: "none" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{s.heading}{count > 0 && <CountBadge count={count} solid />}</span>
-              <CaretDown size={13} weight="bold" aria-hidden style={{ color: "var(--agent-text-muted)", transition: "transform .22s cubic-bezier(.4,0,.2,1)", transform: isOpen ? "rotate(180deg)" : "none" }} />
-            </div>
-            {isOpen && (
-              <div style={{ padding: "2px 4px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-                {s.options.map((o) => <FilterCheckbox key={o} checked={sel.has(o)} label={o} onChange={() => toggle(o)} />)}
-              </div>
-            )}
-          </div>
-        );
-      })}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 4px 2px" }}>
-        <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>Showing 94 of 150</span>
-        {sel.size > 0 && <button type="button" onClick={() => setSel(new Set())} className="agent-link" style={{ fontSize: 11.5 }}>Clear</button>}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ width: 236 }}><FilterRail groups={groups} /></div>
+      <div><span style={LBL}>Mobile fallback — dropdowns</span><FilterDropdowns groups={groups} /></div>
     </div>
   );
 }
@@ -2139,11 +2124,63 @@ const COMMS_ENTRIES: ComponentEntry[] = [
     name: "Filter rail (compact collapsible)",
     category: "search",
     status: "implemented",
-    keywords: ["filter", "rail", "sidebar", "facet", "collapsible", "disclosure", "checkbox", "updates", "comms", "type", "who", "side", "stage"],
-    summary: "The compact sidebar filter rail — a glass card of collapsible facet sections (Type / Who / Side / Stage), each a header with an optional count badge + caret over a list of FilterCheckboxes, and a 'Showing X of Y · Clear' footer. The inside is canonical (FilterCheckbox + CountBadge); the compact card shell is its own pattern. Click a section to expand. Built from the real Updates rail.",
-    sources: [{ path: "components/comms/CommsActivityFeed.tsx", note: "cf-rail / RailSection — the Updates filter rail" }],
-    exceptions: [{ title: "Not SectionDisclosure", detail: "SectionDisclosure renders each section as a free-standing glass bar with full-width free cards and 40px bottom padding — right for the Updates day groups, wrong for a compact sidebar rail. The rail keeps its four facets tight inside one card, so it stays its own canonical rather than migrating to SectionDisclosure.", source: "components/ui/SectionDisclosure.tsx", scope: "specific" }],
-    render: () => <Stage width={280}><FilterRailSpec /></Stage>,
+    keywords: ["filter", "rail", "sidebar", "facet", "collapsible", "disclosure", "checkbox", "dropdown", "updates", "comms", "type", "who", "side", "stage"],
+    summary: "The real shared FilterRail component — a glass card of collapsible facet sections (each a header with an optional count badge + caret over FilterCheckboxes), plus a mobile dropdown fallback (FilterDropdowns). Group headers use the quieter hover-shade; the caret is the real icon. Live render of components/ui/FilterRail.tsx. Click a section to expand.",
+    sources: [{ path: "components/ui/FilterRail.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "the Updates filter rail (first consumer)" }],
+    exceptions: [{ title: "Not SectionDisclosure", detail: "SectionDisclosure renders each section as a free-standing glass bar with full-width free cards and 40px bottom padding — right for the Updates day groups, wrong for a compact sidebar rail. The rail keeps its facets tight inside one card.", source: "components/ui/SectionDisclosure.tsx", scope: "specific" }],
+    render: () => <Stage width={300}><FilterRailSpec /></Stage>,
+  },
+  {
+    id: "icon-chip",
+    name: "Icon chip (tinted circle)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["icon", "chip", "circle", "tinted", "marker", "leading", "price", "reply", "notification", "document", "updates"],
+    summary: "A small tone-tinted circle holding an icon — the leading marker for non-people list items (a price change, reply, notification, upload). Pairs with the 26px ActorAvatar so mixed lists line up. Tones: info / coral / success / warning / muted. Live render of components/ui/IconChip.tsx.",
+    sources: [{ path: "components/ui/IconChip.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "Updates feed kind markers" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 12 }}>
+          <IconChip tone="info"><TagI size={14} weight="regular" /></IconChip>
+          <IconChip tone="coral"><ChatCircleII size={14} weight="regular" /></IconChip>
+          <IconChip tone="success"><CheckCircleI size={14} weight="regular" /></IconChip>
+          <IconChip tone="muted"><Clock size={14} weight="regular" /></IconChip>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "activity-row",
+    name: "Activity row (in-card list row)",
+    category: "rows",
+    status: "implemented",
+    keywords: ["activity", "row", "list", "feed", "avatar", "sentence", "time", "divider", "updates"],
+    summary: "A quiet in-card list row — a leading marker (Avatar or IconChip), a main sentence, an optional meta eyebrow + secondary line, and a relative time, divided by a hairline. For rows INSIDE a card (the Updates feed), not standalone bordered rows (that's FeedRowShell). Type sizes are design tokens. Live render of components/ui/ActivityRow.tsx.",
+    sources: [{ path: "components/ui/ActivityRow.tsx" }, { path: "components/comms/CommsActivityFeed.tsx", note: "Updates feed (UpdateLine)" }],
+    render: () => (
+      <Stage wide>
+        <div style={{ width: "100%", maxWidth: 440 }}>
+          <ActivityRow first leading={<IconChip tone="info"><TagI size={14} weight="regular" /></IconChip>} main="Price changed from £450,000 to £435,000" secondary="Reduced after survey findings" time="2h ago" />
+          <ActivityRow leading={<IconChip tone="coral"><ChatCircleII size={14} weight="regular" /></IconChip>} main="A solicitor replied to our chase" meta={<p className="agent-eyebrow" style={{ margin: "2px 0 0" }}>Shared with client</p>} time="22h ago" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "onboarding-hero",
+    name: "Onboarding hero (empty page)",
+    category: "empty-error",
+    status: "implemented",
+    keywords: ["onboarding", "hero", "empty", "welcome", "banner", "coral", "gradient", "heroart"],
+    summary: "The coral welcome banner that leads an empty account page — a soft coral gradient, an optional HeroArt illustration, a title and a body line. Extracted from the ~15 hand-copied versions across the empty states; the others migrate onto this in a follow-up. Live render of components/ui/OnboardingHero.tsx.",
+    sources: [{ path: "components/ui/OnboardingHero.tsx" }, { path: "components/agent/CommsEmptyState.tsx", note: "first consumer" }],
+    render: () => (
+      <Stage wide>
+        <div style={{ width: "100%", maxWidth: 560 }}>
+          <OnboardingHero title="Nothing to catch up on yet" body="Updates from across your sales will appear here as they happen." />
+        </div>
+      </Stage>
+    ),
   },
   {
     id: "filter-checkbox",

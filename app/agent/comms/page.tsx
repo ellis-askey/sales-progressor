@@ -22,6 +22,9 @@ import {
 import { toUKDateStr } from "@/lib/utils";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 
+// Static placeholder fill for the empty-state ghost preview (settled, not loading).
+const GHOST = "var(--agent-border-subtle, rgba(15,23,42,0.08))";
+
 function dayLabel(d: Date | string) {
   const date = new Date(d);
   const todayStr = toUKDateStr(new Date());
@@ -121,7 +124,7 @@ export default async function AgentCommsPage() {
       <PageHeader
         title="Updates"
         subtitle={
-          isAdmin      ? "What's happened across the platform." :
+          isAdmin      ? "What's happened across every agency." :
           isProgressor ? "What's happened across your files." :
                          "What's happened across your files."
         }
@@ -143,37 +146,39 @@ export default async function AgentCommsPage() {
                 icon={<Tray size={24} weight="regular" />}
                 title="No updates yet"
                 description={isAdmin
-                  ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across the platform."
+                  ? "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen across every agency."
                   : isProgressor
                     ? "Confirmed steps, price changes, shared notes, replies, and uploads on your assigned files appear here."
                     : "Confirmed steps, price changes, shared notes, replies, and uploads appear here as they happen."}
               />
             </div>
 
-            {/* Ghost day-bucket preview — abstract agent-skeleton bars. */}
+            {/* Ghost day-bucket preview — STATIC placeholder shapes. This is a
+                settled empty state, not loading, so the bars must NOT shimmer
+                (that falsely reads as "still loading"). */}
             <div style={{ opacity: 0.35, pointerEvents: "none" }}>
               <div className="agent-glass" style={{ overflow: "hidden" }}>
                 <div className="agent-acc-hdr">
-                  <div className="agent-skeleton" style={{ width: 56, height: 11, borderRadius: 4 }} />
-                  <div className="agent-skeleton" style={{ width: 68, height: 11, borderRadius: 4 }} />
+                  <div style={{ width: 56, height: 11, borderRadius: 4, background: GHOST }} />
+                  <div style={{ width: 68, height: 11, borderRadius: 4, background: GHOST }} />
                 </div>
                 <div className="agent-acc open">
                   <div className="agent-acc-in">
                     <div className="agent-acc-body">
                       <div className="glass-card overflow-hidden">
                         <div className="px-4 py-2.5" style={{ borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
-                          <div className="agent-skeleton" style={{ width: 156, height: 10, borderRadius: 4 }} />
+                          <div style={{ width: 156, height: 10, borderRadius: 4, background: GHOST }} />
                         </div>
                         {([148, 190] as const).map((w, i) => (
                           <div key={i} className="flex items-start gap-3 px-4 py-3" style={{
                             borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
                           }}>
-                            <div className="agent-skeleton mt-0.5 w-5 h-5 flex-shrink-0" style={{ borderRadius: "50%" }} />
+                            <div className="mt-0.5 flex-shrink-0" style={{ width: 20, height: 20, borderRadius: "50%", background: GHOST }} />
                             <div className="flex-1 space-y-2">
-                              <div className="agent-skeleton h-3" style={{ maxWidth: w, borderRadius: 4 }} />
-                              <div className="agent-skeleton h-2.5" style={{ maxWidth: 52, borderRadius: 4 }} />
+                              <div style={{ height: 12, maxWidth: w, borderRadius: 4, background: GHOST }} />
+                              <div style={{ height: 10, maxWidth: 52, borderRadius: 4, background: GHOST }} />
                             </div>
-                            <div className="agent-skeleton h-2.5 w-8 flex-shrink-0" style={{ borderRadius: 4 }} />
+                            <div className="flex-shrink-0" style={{ height: 10, width: 32, borderRadius: 4, background: GHOST }} />
                           </div>
                         ))}
                       </div>
