@@ -38,11 +38,17 @@ export const STATUS_META: Record<DecisionStatus, { label: string; tone: "neutral
    What a canonical component will carry once reviewed. All optional except the
    identity + status, so an entry can start as a stub the moment we open it. */
 
-/** An intentional difference in size, appearance, density or purpose. */
-export interface EntryVariant { id: string; label: string; note?: string }
+/** A per-preview render — a state or variant can carry its own live preview so
+ *  the reviewer can click through them in the EntryCard, rather than reading a
+ *  static label. Optional: a chip without one stays a descriptive label. */
+export type EntryRender = (ctx: { theme: "light" | "dark" }) => ReactNode;
 
-/** A relevant state. Not every state applies to every component. */
-export interface EntryState { id: string; label: string }
+/** An intentional difference in size, appearance, density or purpose. */
+export interface EntryVariant { id: string; label: string; note?: string; render?: EntryRender }
+
+/** A relevant state. Not every state applies to every component. When it carries
+ *  a `render`, the state becomes a clickable step in the preview. */
+export interface EntryState { id: string; label: string; render?: EntryRender }
 
 /** A discovered existing implementation in the real app (for the Discover step). */
 export interface EntrySource { path: string; note?: string }
@@ -203,6 +209,8 @@ export const SIGNED_OFF: SignOff[] = [
   { flow: "Sign-up — step 1 (your details)", date: "20 Nov 2026", note: "Heading, two-bar step progress, LabelInput fields, password strength, arc terms checkbox, coral links, primary button, token-danger error." },
   { flow: "Sign-up — step 2 (agency / role)", date: "20 Nov 2026", note: "Agency field + focus-aware nudge, flat-coral role radio, primary + ghost buttons, token-danger error." },
   { flow: "Welcome modal (self-managed) — steps 1–3", date: "20 Nov 2026", note: "First canonical modal. Step dots, warm type (no eyebrow), flat-coral primary + ghost at equal height with press-down, muted back link, flat-coral icon circles, preference rows + canonical toggle, canonical X; in/out + drawer + step-cross-fade animation. All parts catalogued." },
+  { flow: "Empty states — 11 onboarding pages", date: "20 Nov 2026", note: "Hub, Reminders, Chains, Comms, Auto-emails, To-do, Partners, Enquiries, Analytics, All-files, Completions. Pills removed; flat-coral primary + theme-aware white/outline secondary + coral animated arrows via .agent-canon-cta; banner + info cards on canon buttons/close/link; dark-card picks fixed (auto-emails/chains); type on the 600 ramp. Shipped to prod. Inner buttons are the agent-btn treatment matched to canon; card surfaces use the Glass system. Excludes the in-page generic ui/EmptyState (deferred) + FileSetupChecklist relational empty (separate pattern)." },
+  { flow: "App shell — top bar + left nav", date: "20 Nov 2026", note: "Top bar (search → canonical arc SearchField as a ⌘K trigger; All/Mine view toggle; dark/contrast/lab icon controls; notification bell; account menu) + left nav rail (icon+label items, radial coral spotlight on active, outline count badges, New sale, dark-mode toggle). Each piece catalogued (search, account menu, view toggle, icon controls, count badge, nav rail, top bar). Signed off as interactive REPRESENTATIONS (Option A) — the live AgentShell/AgentNavRail can't mount in /dev, so the composites are faithful mocks sourced to the real files; only the SearchField is the literal component. A one-off (one top bar, one nav)." },
 ];
 
 /* ── The components themselves ───────────────────────────────────────────────

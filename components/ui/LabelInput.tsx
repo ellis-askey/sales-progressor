@@ -36,7 +36,6 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 /* the resting / minimum width; fullWidth measures the container instead */
 const W = 280;
-const H = 48;
 /* the lifted label's size, against its resting one */
 const S = 0.78;
 /* the stroke sits half a stroke inside the box so none of it
@@ -59,13 +58,34 @@ export function LabelInput({
   inputMode,
   required,
   autoFocus,
-  /* the field's corner, px — at half the height it is a pill */
-  corner = 20,
+  /* the field's corner, px — at half the height it is a pill. Defaults to the
+     size's own corner when omitted. */
+  corner,
+  /* size preset: "md" is the roomy auth field (48px / 16px / 20px corner);
+     "sm" matches the agent-app `.agent-input` footprint (40px / 14px / 8px
+     corner, no top gap) so a dense form keeps its original size — only the
+     treatment changes. Individual dims below still override. */
+  size = "md",
+  /* explicit overrides; each falls back to the size preset */
+  height: heightProp,
+  fontSize: fontSizeProp,
+  topGap: topGapProp,
   /* focus-outline colour (and the focused label); defaults to the ink ramp.
      The login passes its coral so the field stays on-brand. */
   accent,
+  /* give the field a flat opaque fill (--agent-surface-elevated) so it reads as a
+     crisp, obviously-editable field on any surface. ON by default — on a white card
+     (login / register) the fill is invisible (white on white, no change); on a tinted
+     / glass ground (the sale hero, contact cards) it lifts the field off the surface;
+     in dark mode the token is a dark slate so fields stand out on the shell. Pass
+     `solid={false}` for the rare field that should dissolve into its container. */
+  solid = true,
   /* fill the container (measured) instead of the fixed 280px */
   fullWidth = false,
+  /* the smallest width the measured outline will draw at (fullWidth only). The
+     default suits roomy forms; a tight two-up column (hero address) passes a
+     smaller value so two fields sit side by side without clipping. */
+  minBoxWidth = 160,
   /* a showcase, not a form: on a touch screen, keep the device's
      keyboard down. Off by default — a real field wants its
      keyboard — and the bench turns it on for its feed */
@@ -84,11 +104,26 @@ export function LabelInput({
   required?: boolean;
   autoFocus?: boolean;
   corner?: number;
+  size?: "md" | "sm";
+  height?: number;
+  fontSize?: number;
+  topGap?: number;
   accent?: string;
+  solid?: boolean;
   fullWidth?: boolean;
+  minBoxWidth?: number;
   showcase?: boolean;
 } = {}) {
-  const r = clamp(corner, 0, H / 2);
+  /* the two presets; explicit props below win over them. "sm" changes only the
+     height (and drops the top gap for dense forms) — corner and font stay the
+     md values so the field keeps its established look, just shorter. */
+  const preset = size === "sm"
+    ? { h: 40, fs: 16, corner: 20, top: 0 as number | undefined }
+    : { h: 48, fs: 16, corner: 20, top: undefined as number | undefined };
+  const H = heightProp ?? preset.h;
+  const FS = fontSizeProp ?? preset.fs;
+  const topGap = topGapProp ?? preset.top;
+  const r = clamp(corner ?? preset.corner, 0, H / 2);
   const secret = field === "Password";
   const label = labelProp ?? (secret ? "Password" : "Email");
   const id = `lbi-${useId().replace(/:/g, "")}`;
@@ -115,13 +150,13 @@ export function LabelInput({
     if (!fullWidth) { setBoxW(W); return; }
     const el = root.current;
     if (!el) return;
-    const measure = () => setBoxW(Math.max(160, Math.round(el.clientWidth)));
+    const measure = () => setBoxW(Math.max(minBoxWidth, Math.round(el.clientWidth)));
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [fullWidth]);
+  }, [fullWidth, minBoxWidth]);
 
   /* the notch is the label's own width, so it is measured */
   const lab = useRef<HTMLLabelElement | null>(null);
@@ -172,7 +207,12 @@ export function LabelInput({
   };
 
   return (
-    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0} data-full={fullWidth || undefined} ref={root} style={accent ? ({ "--ink": accent } as React.CSSProperties) : undefined}>
+    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0} data-full={fullWidth || undefined} data-solid={solid || undefined} ref={root} style={{
+      "--lbi-lift": `${H / 2}px`,
+      "--lbi-fs": `${FS}px`,
+      ...(accent ? { "--ink": accent } : {}),
+      ...(topGap !== undefined ? { "--lbi-top": `${topGap}px` } : {}),
+    } as React.CSSProperties}>
       <div
         className="lbi-box"
         style={{ width: boxW, height: H, borderRadius: r, "--lbi-x": `${lx}px` } as React.CSSProperties}
