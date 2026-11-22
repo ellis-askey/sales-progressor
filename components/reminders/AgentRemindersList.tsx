@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef, type ReactNode } from "react";
+import { useState, useTransition, useEffect, useRef, type ReactNode, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CaretDown, CheckCircle, CalendarBlank } from "@phosphor-icons/react";
+import { CaretDown, CheckCircle, CalendarBlank, ArrowClockwise, MagnifyingGlass } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
@@ -25,9 +25,10 @@ import { Button } from "@/components/ui/Button";
 import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { buttonClasses } from "@/components/arc/button/button";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { CountPill } from "@/components/ui/CountPill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
+import { FallbackPill } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
 import { AutoChasePreviewModal } from "@/components/reminders/AutoChasePreviewModal";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
@@ -77,12 +78,9 @@ const SIDE_FILTER_TOKENS: React.CSSProperties = {
   ["--shadow-resting" as string]: "0 2px 6px rgba(255,107,74,0.30)",
 };
 
-const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; labelCls: string; badgeCls: string }> = {
-  escalated: { label: "Escalated",  headerCls: "wq-urgency-bar wq-urgency-bar-escalated", labelCls: "text-red-700",      badgeCls: "bg-red-100 text-red-700"       },
-  overdue:   { label: "Overdue",    headerCls: "wq-urgency-bar wq-urgency-bar-overdue",   labelCls: "text-orange-700",   badgeCls: "bg-orange-100 text-orange-700" },
-  due_today: { label: "Due today",  headerCls: "wq-urgency-bar wq-urgency-bar-due-today", labelCls: "text-amber-700",    badgeCls: "bg-amber-100 text-amber-700"   },
-  upcoming:  { label: "Coming up",  headerCls: "wq-urgency-bar wq-urgency-bar-coming-up", labelCls: "text-slate-900/60", badgeCls: "bg-slate-100 text-slate-900/60" },
-};
+// Flat coral primary via the arc Button's ink/slab token override — the same
+// pattern as ChaseSplitButton's CTA. Used for the "Wake now" action.
+const CORAL_PRIMARY: CSSProperties = { ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff" };
 
 // Urgency, side and fallback chips now live in components/reminders/status-pills.tsx
 // (shared with the property-file Reminders tab).
@@ -124,55 +122,6 @@ function groupByFile(logs: AgentReminderLog[]): { txId: string; address: string;
     map.get(txId)!.logs.push(log);
   }
   return Array.from(map.values());
-}
-
-// Duration label that reads out in full on large screens ("10 days overdue")
-// and stays terse on smaller ones ("10d overdue"). Both variants render; a
-// viewport breakpoint (see .wq-dur-abbr / .wq-dur-full in agent-system.css)
-// picks which shows, matching how the pill label itself collapses on mobile.
-function durationLabel(days: number, suffix: string): ReactNode {
-  const unit = days === 1 ? "day" : "days";
-  return (
-    <>
-      <span className="wq-dur-abbr">{days}d {suffix}</span>
-      <span className="wq-dur-full">{days} {unit} {suffix}</span>
-    </>
-  );
-}
-
-// Urgency bucket + label for a reminder. Shared by the header pill (shown on a
-// single-reminder file) and the per-row rendering, so the two always agree.
-// `title` carries the plain-string tooltip when `label` is a responsive node.
-function computeUrgency(
-  log: AgentReminderLog,
-  task: { chaseCount: number; priority: string },
-): { bucket: UrgencyBucket; label: ReactNode; title?: string; hasBeenChased: boolean; isNextDate: boolean } {
-  const todayStr = toUKDateStr(new Date());
-  const dueStr = toUKDateStr(log.nextDueDate);
-  const isOverdue = dueStr < todayStr;
-  const isDueToday = dueStr === todayStr;
-  const daysOverdue = isOverdue ? Math.floor((new Date(todayStr).getTime() - new Date(dueStr).getTime()) / 86400000) : 0;
-  const hasBeenChased = (task.chaseCount ?? 0) >= 1;
-  const escalated = task.priority === "escalated";
-  const bucket: UrgencyBucket = escalated ? "escalated"
-    : isOverdue ? "overdue"
-    : isDueToday ? "due_today"
-    : "upcoming";
-  // The plain "Next {date}" form carries nothing the row's own "Next chase due
-  // · {date}" line doesn't already show (same nextDueDate source) — the header
-  // pill is suppressed in that case (founder, 2026-10-15). Every other label
-  // (Nd overdue, Was due, Due today, Escalated) adds something, so it stays.
-  const isNextDate = !escalated && !isOverdue && (hasBeenChased || !isDueToday);
-  const label: ReactNode = escalated ? "Escalated"
-    : hasBeenChased && isOverdue ? `Was due ${formatDate(log.nextDueDate)}`
-    : hasBeenChased ? `Next ${formatDate(log.nextDueDate)}`
-    : isOverdue ? durationLabel(daysOverdue, "overdue")
-    : isDueToday ? "Due today"
-    : `Next ${formatDate(log.nextDueDate)}`;
-  const title = !hasBeenChased && isOverdue && !escalated
-    ? `${daysOverdue} ${daysOverdue === 1 ? "day" : "days"} overdue`
-    : undefined;
-  return { bucket, label, title, hasBeenChased, isNextDate };
 }
 
 // Friendly label for a comm method on the chase-history line.
@@ -345,10 +294,11 @@ function SnoozedFileCard({
       type="button"
       onClick={() => sorted.forEach((l) => onWakeup(l.id))}
       title="Wake every snoozed reminder on this file"
-      className={buttonClasses({ variant: "outline", size: "sm" })}
-      style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+      className={`group ${buttonClasses({ variant: "outline", size: "sm" })}`}
+      style={{ flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}
     >
-      ↻ Wake all ({sorted.length})
+      <ArrowClockwise size={13} weight="bold" className="group-hover:animate-spin" aria-hidden />
+      Wake all ({sorted.length})
     </button>
   ) : null;
 
@@ -393,15 +343,17 @@ function SnoozedFileCard({
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 {taskId && <SnoozeMenu variant="row" onConfirm={(choice) => handleSnooze(taskId, choice)} />}
-                <Button
+                <button
+                  type="button"
                   onClick={() => onWakeup(log.id)}
                   disabled={exitingIds.has(log.id)}
                   title="Wake this reminder now. It returns to your active list"
-                  size="sm"
-                  style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                  className={`group ${buttonClasses({ variant: "primary", size: "sm" })}`}
+                  style={{ ...CORAL_PRIMARY, flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
-                  ↻ Wake now
-                </Button>
+                  <ArrowClockwise size={13} weight="bold" className="group-hover:animate-spin" aria-hidden />
+                  Wake now
+                </button>
               </div>
             </div>
           </div>
@@ -1109,7 +1061,7 @@ function SplitFileCard({
                     {!isAuto && (
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", background: "var(--agent-surface-glass)", border: "0.5px solid var(--agent-border-subtle)", borderRadius: 999, padding: "2px 8px" }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                          <CalendarBlank size={11} weight="regular" aria-hidden />
                           Due {dueDateLabel}
                         </span>
                       </div>
@@ -1362,16 +1314,6 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   const filteredActive  = nonSnoozedLogs.filter(matchesFilter);
   const filteredSnoozed = snoozedLogs.filter(matchesFilter);
 
-  const grouped: Record<UrgencyGroup, AgentReminderLog[]> = { escalated: [], overdue: [], due_today: [], upcoming: [] };
-  for (const log of filteredActive) {
-    const g = classifyActive(log, now, upcomingCutoffStr);
-    if (g) grouped[g].push(log);
-  }
-  grouped.escalated.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
-  grouped.overdue.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
-  grouped.due_today.sort((a, b) => a.reminderRule.name.localeCompare(b.reminderRule.name));
-  grouped.upcoming.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
-
   function act(id: string, fn: () => Promise<unknown>) {
     setLoading(id);
     startTransition(async () => {
@@ -1504,13 +1446,12 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
   // Full empty state (zero logs, before any filter)
   if (logs.length === 0) {
     return (
-      <div className="agent-glass-strong agent-empty-card" style={{ padding: "40px 32px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-        <CheckCircle weight="fill" style={{ width: 32, height: 32, color: "var(--agent-success)", margin: "0 auto 10px" }} />
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>All caught up</p>
-        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
-          {/* OLD: "No reminders due right now. We'll surface them here as files progress." — Rule 1 (system self-reference) */}
-          No reminders due right now. They&rsquo;ll appear here as files move forward.
-        </p>
+      <div className="agent-glass-strong" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
+        <EmptyState
+          icon={<CheckCircle size={24} weight="regular" />}
+          title="All caught up"
+          description="No reminders due right now. They'll appear here as files move forward."
+        />
       </div>
     );
   }
@@ -1575,15 +1516,16 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
 
       {/* Filtered empty states */}
       {statusFilter === "active" && !hasActiveResults && (
-        <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-            {/* OLD: "No reminders match the current filter." — Rule 3 (active/specific) — Stage 3 voice review */}
-            {sideFilter !== "all"
+        <div className="agent-glass-strong" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
+          <EmptyState
+            icon={sideFilter !== "all" || q ? <MagnifyingGlass size={24} weight="regular" /> : <CheckCircle size={24} weight="regular" />}
+            title={sideFilter !== "all" || q ? "No matches" : "No active reminders"}
+            description={sideFilter !== "all"
               ? `No reminders for ${sideFilter === "seller" ? "Seller" : "Buyer"} right now.`
               : q
-                ? "No reminders match."
-                : "No active reminders."}
-          </p>
+                ? "No reminders match your search."
+                : "Snoozed reminders are under the Snoozed tab."}
+          />
         </div>
       )}
 
@@ -1626,10 +1568,12 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
         // leaving a blank (they'll appear in "Coming up" as they approach).
         if (hasActiveResults && enquiryEscalations.length === 0 && needsYouLogs.length === 0 && comingUpLogs.length === 0 && chasedLogs.length === 0 && autoLogs.length === 0) {
           return (
-            <div className="agent-glass-strong agent-empty-card" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>
-                Nothing needs you right now. Reminders appear here as they come due.
-              </p>
+            <div className="agent-glass-strong" style={{ padding: "20px 24px", borderRadius: "var(--agent-radius-xl)" }}>
+              <EmptyState
+                icon={<CheckCircle size={24} weight="regular" />}
+                title="Nothing needs you"
+                description="Reminders appear here as they come due."
+              />
             </div>
           );
         }

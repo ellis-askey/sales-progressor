@@ -67,7 +67,9 @@ export function AutoChaseCountdown({ iso, onView, pausedUntil }: { iso: string; 
     <div style={{
       display: "flex", alignItems: "center", gap: 7, marginTop: 8,
       padding: "6px 10px", borderRadius: 9,
-      background: "var(--agent-success-bg)", border: "0.5px solid var(--agent-success-border-strong)",
+      // De-tinted (2026-11-22 sign-off): no soft green fill — a hairline border
+      // only. The green stays on the clock glyph as the semantic cue.
+      background: "transparent", border: "0.5px solid var(--agent-border-default)",
       fontSize: 11.5, color: "var(--agent-text-secondary)",
     }}>
       <Clock size={12} weight="bold" style={{ color: "var(--agent-success)", flexShrink: 0 }} />

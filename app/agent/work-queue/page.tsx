@@ -14,33 +14,8 @@ import { getMilestoneContext, getMilestoneResponsible } from "@/lib/chase/milest
 import { resolveAutopilot, type AutopilotFlags } from "@/lib/services/reminder-autopilot";
 import { Bell } from "@phosphor-icons/react/dist/ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { toUKDateStr } from "@/lib/utils";
 import { classifyReminder } from "@/lib/reminders/classify";
-
-// Bespoke composer per Skeleton.tsx's contract — encodes empty-state
-// ghost layout. Inner rows wrap the canonical Skeleton primitive with the
-// shimmer OFF: the ghost is settled decorative content, not a loading
-// state, so it must not animate (perf audit F8 — a permanent shimmer
-// reads as "still loading"). Mirrors PanelSkeletons.tsx from Wave A4 +
-// hub loading.tsx from Surface 2 D1.
-function Bar({ width, height, mt = 0, mb = 0, radius = 6 }: {
-  width: string | number;
-  height: number;
-  mt?: number;
-  mb?: number;
-  radius?: number | string;
-}) {
-  return (
-    <Skeleton
-      variant="block"
-      animated={false}
-      width={width}
-      height={height}
-      style={{ borderRadius: radius, marginTop: mt, marginBottom: mb, display: "block" }}
-    />
-  );
-}
 
 type AgentLog = Awaited<ReturnType<typeof getAgentReminderLogs>>[number];
 
@@ -205,36 +180,6 @@ export default async function WorkQueuePage() {
               </p>
             </div>
 
-            {/* Ghost reminder groups preview — skeleton lines, not mock data.
-             * Keeps group headers + row count to convey the structure agents will see;
-             * replaces hardcoded addresses/reminders/tags with .agent-skeleton shapes. */}
-            <div style={{ opacity: 0.35, pointerEvents: "none", display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
-              {[
-                { groupLabel: "Overdue",   rows: 2 },
-                { groupLabel: "Due today", rows: 1 },
-              ].map(({ groupLabel, rows }) => (
-                <div key={groupLabel}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-text-muted)" }}>{groupLabel}</span>
-                    <Bar width={22} height={18} radius={99} />
-                  </div>
-                  <div className="agent-glass-strong" style={{ borderRadius: 12, overflow: "hidden" }}>
-                    {Array.from({ length: rows }).map((_, i) => (
-                      <div key={i} style={{
-                        padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
-                        borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <Bar width="55%" height={12} mb={7} />
-                          <Bar width="38%" height={10} />
-                        </div>
-                        <Bar width={76} height={20} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
           </>
           )
         ) : (

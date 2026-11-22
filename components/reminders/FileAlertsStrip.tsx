@@ -6,6 +6,16 @@ import { CaretDown, Warning } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
 import { ALERT_CONFIG } from "@/lib/services/work-queue-alerts";
 import type { WorkQueueItem, AlertType } from "@/lib/services/work-queue-alerts";
+
+// Per-alert pill tone — the outline Pill carries the semantic colour (tone
+// border + tone text, no fill), matching the de-tinted StatusPill treatment
+// used across the reminders surface (2026-11-22 sign-off).
+const ALERT_TONE: Record<AlertType, "danger" | "warning" | "info"> = {
+  overdue_exchange: "danger",
+  missing_vendor_solicitor: "warning",
+  missing_purchaser_solicitor: "warning",
+  stale: "info",
+};
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 
@@ -59,15 +69,15 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
             {items.length} file alert{items.length !== 1 ? "s" : ""}
           </span>
           {overdueCount > 0 && (
-            <Pill glass tone="danger" size="md">{overdueCount} exchange dates overdue</Pill>
+            <Pill tone="danger" size="md" outline>{overdueCount} exchange dates overdue</Pill>
           )}
           {missingCount > 0 && (
-            <Pill glass tone="warning" size="md">{missingCount} solicitor unreachable</Pill>
+            <Pill tone="warning" size="md" outline>{missingCount} solicitor unreachable</Pill>
           )}
           {staleCount > 0 && (
             // "not progressing" (not the dev shorthand "stale"); matches the
             // per-row "No progress in 14+ days" label in active voice.
-            <Pill glass tone="info" size="md">{staleCount} not progressing</Pill>
+            <Pill tone="info" size="md" outline>{staleCount} not progressing</Pill>
           )}
         </div>
         <CaretDown
@@ -128,20 +138,11 @@ export function FileAlertsStrip({ items }: { items: WorkQueueItem[] }) {
                 {/* Badges + action — second row, badges left, action right */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex gap-1.5 flex-wrap">
-                    {item.alerts.map((alert) => {
-                      const cfg = ALERT_CONFIG[alert];
-                      return (
-                        <span
-                          key={alert}
-                          style={{
-                            padding: "2px 8px", borderRadius: 5, fontSize: 10, fontWeight: 600,
-                            color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-                          }}
-                        >
-                          {cfg.label}
-                        </span>
-                      );
-                    })}
+                    {item.alerts.map((alert) => (
+                      <Pill key={alert} tone={ALERT_TONE[alert]} size="sm" outline>
+                        {ALERT_CONFIG[alert].label}
+                      </Pill>
+                    ))}
                   </div>
                   {actionLabel && (
                     <Link
