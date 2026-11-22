@@ -21,7 +21,7 @@ import { LabelInput } from "@/components/ui/LabelInput";
 import { Button, buttonClasses } from "@/components/arc/button/button";
 import { GoogleIcon } from "@/components/login/GoogleIcon";
 import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
-import { House, BellRinging, WarningCircle, Eye, ArrowRight, ArrowLeft, X, CaretDown, PaperPlaneTilt } from "@phosphor-icons/react";
+import { House, BellRinging, WarningCircle, WarningOctagon, Eye, ArrowRight, ArrowLeft, X, CaretDown, PaperPlaneTilt, Plus, Envelope, UsersThree, MagnifyingGlass, Clock, NotePencil } from "@phosphor-icons/react";
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 // Real hub dataviz + stat canonicals — rendered live below (not reproduced inline),
@@ -1315,7 +1315,7 @@ const HUB_ENTRIES: ComponentEntry[] = [
   {
     id: "mini-table",
     name: "Mini data-table",
-    category: "rows",
+    category: "tables",
     status: "implemented",
     keywords: ["table", "mini table", "breakdown", "clients", "key value", "compact table", "rows"],
     summary: "The canonical compact key/value table — uppercase 10px column headers, 13px tabular rows, hairline row separators. One flex label column (grows, ellipsis, bold ink) + any number of fixed-width right-aligned columns; each cell is a node so it can carry its own accent (a coral fee, a glide-link). Extracted from the hub's clients breakdown. Live render of components/ui/MiniTable.tsx.",
@@ -1518,7 +1518,279 @@ const HUB_ENTRIES: ComponentEntry[] = [
       </Stage>
     ),
   },
+
+  /* ---- Empty states + prompts/banners that front the hub ---- */
+  {
+    id: "hub-empty-state",
+    name: "Hub empty state",
+    category: "empty-error",
+    status: "implemented",
+    keywords: ["empty state", "first run", "hub", "onboarding", "setup cards", "hero", "no sales"],
+    summary: "The whole-hub empty state for an agency with no live sales — the coral-tint empty hero + a row of SetupCard explainers + a 'Finish setup' prompt card, all inside an agent-canon-cta scope so the CTAs are the canonical flat-coral primary / white secondary. A composition: every piece is a registered canonical (see Empty-state hero, Info-card, Horizontal prompt card). components/agent/HubEmptyState.tsx.",
+    sources: [{ path: "components/agent/HubEmptyState.tsx" }, { path: "components/agent/SetupCard.tsx", note: "the explainers" }, { path: "components/agent/HeroArt.tsx", note: "illustration" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ borderRadius: 16, padding: "20px 22px", background: "linear-gradient(160deg, rgba(255,107,74,0.10), rgba(255,107,74,0.03))", border: "1px solid rgba(255,107,74,0.14)" }}>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 750, color: "var(--agent-text-primary)" }}>Add your first sale</p>
+            <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.5, maxWidth: 320 }}>Bring a sale onto the system and we&apos;ll start chasing, updating clients and tracking the chain for you.</p>
+            <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ "--foreground": CORAL, "--background": "#fff", gap: 6 } as CSSProperties}><Plus size={13} weight="bold" /> Add a sale</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[{ i: <ListChecksMini />, t: "Track every milestone" }, { i: <UsersThree size={16} weight="fill" color={CORAL} />, t: "Keep clients updated" }].map((c) => (
+              <div key={c.t} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 14px", borderRadius: 12, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)" }}>
+                <span style={{ flexShrink: 0, display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(255,107,74,0.10)" }}>{c.i}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{c.t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "progression-owner-empty-state",
+    name: "Progression-owner empty state",
+    category: "empty-error",
+    status: "implemented",
+    keywords: ["empty state", "progression", "external business", "owner", "clients", "setup cards", "hero"],
+    summary: "The empty-state variant for an external progression business with no client agencies yet — same canonical hero + SetupCard + agent-canon-cta composition as the hub empty state, with copy pitched at the progression owner (bring on your first client agency). components/agent/ProgressionOwnerEmptyState.tsx.",
+    sources: [{ path: "components/agent/ProgressionOwnerEmptyState.tsx" }, { path: "components/agent/SetupCard.tsx" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ borderRadius: 16, padding: "20px 22px", background: "linear-gradient(160deg, rgba(255,107,74,0.10), rgba(255,107,74,0.03))", border: "1px solid rgba(255,107,74,0.14)" }}>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 750, color: "var(--agent-text-primary)" }}>Bring on your first client</p>
+          <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.5, maxWidth: 320 }}>Invite an agency to your book and manage their sales from one place.</p>
+          <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ "--foreground": CORAL, "--background": "#fff", gap: 6 } as CSSProperties}><Plus size={13} weight="bold" /> Add a client</button>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "banner-grouped-inset",
+    name: "Grouped-inset banner (payment block)",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["banner", "payment", "failed", "blocked", "alert", "grouped inset", "frosted", "billing", "warning", "danger"],
+    summary: "The frosted grouped-inset alert banner — blurred glass material, a semantic-tinted fill glyph (amber warning / red danger), title + body, and a tinted 'Update card' link. Mirrors AgentBanner's system but is a standalone because its CTA is a navigation Link, not an onClick (documented in COMPONENT_LIBRARY_CATALOG §2.3). components/billing/PaymentBlockBanner.tsx.",
+    sources: [{ path: "components/billing/PaymentBlockBanner.tsx" }, { path: "components/ui/Banner.tsx", note: "the onClick-CTA sibling (AgentBanner)" }],
+    render: () => (
+      <Stage width={460}>
+        <div role="alert" style={{ background: "var(--agent-banner-mat-bg, rgba(255,255,255,0.55))", backdropFilter: "blur(24px) saturate(180%)", border: "1px solid var(--agent-banner-mat-border, rgba(45,24,16,0.10))", borderRadius: 18, boxShadow: "0 10px 30px rgba(15,26,46,0.10)", padding: "15px 17px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: "var(--agent-warning, #E0942E)", display: "flex" }}><WarningCircle size={19} weight="fill" /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.35 }}>A payment failed. Please update your card.</p>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>We couldn&apos;t collect your payment. We&apos;ll keep trying, but if it isn&apos;t resolved you won&apos;t be able to add new sales.</p>
+          </div>
+          <a style={{ flexShrink: 0, alignSelf: "center", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--agent-warning, #E0942E)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>Update card <ArrowRight size={12} weight="bold" className="agent-arrow-i" /></a>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "payment-method-nudge",
+    name: "Payment-method nudge banner",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["banner", "payment method", "add card", "nudge", "trial", "outsourced", "billing", "modal"],
+    summary: "The hub nudge shown to directors who owe on an outsourced sale but have no card on file — a banner joined to an embedded card-capture modal (Stripe). The gate lives in the PaymentMethodNudge server component; the banner JSX + modal state live in TrialBannerWithModal. A documented non-AgentBanner banner (COMPONENT_LIBRARY_CATALOG §2.3).",
+    sources: [{ path: "components/billing/PaymentMethodNudge.tsx", note: "server gate" }, { path: "components/billing/TrialBannerWithModal.tsx", note: "banner + modal" }],
+    render: () => (
+      <Stage width={460}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 16px", borderRadius: 16, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)" }}>
+          <span style={{ flexShrink: 0, display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 9, background: "rgba(255,107,74,0.10)", color: CORAL }}><WarningCircle size={18} weight="fill" /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add a payment method</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>You have an outsourced sale ready to bill.</p>
+          </div>
+          <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ "--foreground": CORAL, "--background": "#fff" } as CSSProperties}>Add card</button>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "email-setup-prompt",
+    name: "Email-setup nudge card",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["email", "nudge", "sender", "prompt", "glass card", "director", "dismissible", "hub"],
+    summary: "The dismissible director nudge at the top of the hub to send client emails from the agency's own address. A GlassCard in agent-canon-cta scope: canon flat-coral primary + a 'Not now' ghost + a coral text link + a round dismiss. AUDIT: the close ✕, the ghost and the coral link are currently hand-rolled inline rather than the canonical .agent-icon-btn / canon ghost / .agent-link — alignment proposed on /dev/components/compare/email-setup-prompt (awaiting approval). components/agent/EmailSetupPrompt.tsx.",
+    sources: [{ path: "components/agent/EmailSetupPrompt.tsx" }],
+    render: () => (
+      <Stage width={460}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "16px 18px", borderRadius: 16, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)", boxShadow: "0 6px 20px rgba(0,0,0,0.05)" }}>
+          <span style={{ flexShrink: 0, display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 9, background: "rgba(255,107,74,0.10)", color: CORAL }}><Envelope size={17} weight="fill" /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Send emails from your own address</p>
+            <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>Connect your agency email and client updates will come directly from you.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className={buttonClasses({ variant: "primary", size: "sm" })} style={{ "--foreground": CORAL, "--background": "#fff" } as CSSProperties}>Set up my email</button>
+              <button className={buttonClasses({ variant: "ghost", size: "sm" })}>Not now</button>
+            </div>
+          </div>
+          <button className="agent-icon-btn agent-icon-btn-md" aria-label="Dismiss"><X size={14} weight="bold" /></button>
+        </div>
+      </Stage>
+    ),
+  },
+
+  /* ---- Agent-shell chrome (the top bar + overlays that frame every page) ---- */
+  {
+    id: "shell-search",
+    name: "Global search (⌘K palette)",
+    category: "search",
+    status: "implemented",
+    keywords: ["search", "command palette", "cmd k", "global", "overlay", "spotlight", "find", "shell", "chrome"],
+    summary: "The agent app's one command palette — a ⌘K full-screen overlay (frosted backdrop, centred input, grouped results with ContactAvatar / PropertyThumb). A singleton, so it IS the canonical: there is one search across the app. components/layout/AgentGlobalSearch.tsx (+ AgentMobileSearch for the compact trigger).",
+    sources: [{ path: "components/layout/AgentGlobalSearch.tsx" }, { path: "components/layout/AgentMobileSearch.tsx", note: "mobile trigger" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)" }}>
+          <MagnifyingGlass size={17} color="var(--agent-text-muted)" />
+          <span style={{ flex: 1, fontSize: 13.5, color: "var(--agent-text-muted)" }}>Search files, people, chains…</span>
+          <kbd style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", border: "1px solid var(--agent-border-subtle)", borderRadius: 6, padding: "2px 6px", fontFamily: "inherit" }}>⌘K</kbd>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-bell",
+    name: "Notifications bell + panel",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["bell", "notifications", "alerts", "popover", "panel", "shell", "chrome", "unread"],
+    summary: "The top-bar notifications bell and its dropdown — built on the canonical Popover, with Pill (unread count), UserAvatar / ActorAvatar rows and a LinkArrow footer. A canonical composition, not a bespoke menu. components/layout/AgentBell.tsx.",
+    sources: [{ path: "components/layout/AgentBell.tsx" }, { path: "components/ui/Popover.tsx", note: "the menu surface" }],
+    render: () => (
+      <Stage>
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <button className="agent-icon-btn agent-icon-btn-md" aria-label="Notifications"><BellRinging size={18} weight="regular" /></button>
+          <span style={{ position: "absolute", top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 999, background: CORAL, color: "#fff", fontSize: 10, fontWeight: 700, display: "grid", placeItems: "center", padding: "0 4px" }}>3</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-view-toggle",
+    name: "View toggle (All / Mine)",
+    category: "tabs",
+    status: "implemented",
+    keywords: ["view toggle", "all", "mine", "segmented", "scope", "files", "shell", "chrome"],
+    summary: "The personal All-files / Just-mine scope toggle in the top bar — the canonical arc SegmentedControl with agent tokens mapped (coral selection pill that glides on a morph spring). Re-scopes every list at once. components/layout/ViewModeToggle.tsx → arc SegmentedControl.",
+    sources: [{ path: "components/layout/ViewModeToggle.tsx" }, { path: "components/arc/segmented-control/segmented-control.tsx", note: "the canonical control" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", gap: 2, padding: 3, borderRadius: 11, background: "rgba(15,23,42,0.05)" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, padding: "5px 14px", borderRadius: 9, background: "var(--agent-coral-deep, #FF6B4A)", color: "#fff", boxShadow: "0 2px 6px rgba(255,107,74,0.30)" }}>All</span>
+          <span style={{ fontSize: 13, fontWeight: 600, padding: "5px 14px", borderRadius: 9, color: "var(--agent-text-secondary)" }}>Mine</span>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-theme-controls",
+    name: "Theme controls (mode + aurora)",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["theme", "dark mode", "contrast", "aurora", "opacity", "toggle", "shell", "chrome", "appearance"],
+    summary: "The appearance controls in the shell — ThemeModeToggle (light / dark / high-contrast) and AuroraOpacityControl (dims the iridescent WebGL backdrop). The agent app's theming surface. components/theme/ThemeModeToggle.tsx + components/agent/AuroraOpacityControl.tsx.",
+    sources: [{ path: "components/theme/ThemeModeToggle.tsx" }, { path: "components/agent/AuroraOpacityControl.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", gap: 2, padding: 3, borderRadius: 11, background: "rgba(15,23,42,0.05)" }}>
+          {["Light", "Dark", "Contrast"].map((t, i) => (
+            <span key={t} style={{ fontSize: 12.5, fontWeight: 600, padding: "5px 12px", borderRadius: 9, background: i === 0 ? "var(--agent-surface, #fff)" : "transparent", color: i === 0 ? "var(--agent-text-primary)" : "var(--agent-text-secondary)", boxShadow: i === 0 ? "0 1px 3px rgba(0,0,0,0.10)" : "none" }}>{t}</span>
+          ))}
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-user-menu",
+    name: "User menu",
+    category: "navigation",
+    status: "implemented",
+    keywords: ["user menu", "account", "avatar", "sign out", "profile", "dropdown", "shell", "chrome"],
+    summary: "The account menu anchored to the user's avatar in the nav rail — UserAvatar trigger + a dropdown of account / settings / sign-out rows on the shared agent-hover-row. Inline in AgentShell. Grandfathered as a positioned dropdown (not the canon Popover) — a working chrome singleton; migration deferred per Law 19.",
+    sources: [{ path: "components/layout/AgentShell.tsx", note: "avatar + dropdown (inline)" }, { path: "components/ui/Avatar.tsx", note: "UserAvatar trigger" }],
+    render: () => (
+      <Stage width={240}>
+        <div style={{ borderRadius: 12, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)", padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px" }}>
+            <span style={{ width: 26, height: 26, borderRadius: 999, background: CORAL, color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700 }}>EA</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Ellis Askey</span>
+          </div>
+          {["Account", "Settings", "Sign out"].map((r) => (
+            <div key={r} className="agent-hover-row" style={{ fontSize: 13, color: "var(--agent-text-secondary)", padding: "8px 10px", borderRadius: 8 }}>{r}</div>
+          ))}
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-recently-viewed",
+    name: "Recently-viewed menu",
+    category: "navigation",
+    status: "implemented",
+    keywords: ["recently viewed", "history", "recent files", "menu", "thumb", "shell", "chrome"],
+    summary: "The top-bar recently-viewed files menu — a positioned panel listing the last files opened, each a PropertyThumb + address row. Uses the canonical PropertyThumb; the panel itself is a positioned singleton (grandfathered, not the canon Popover). components/layout/RecentlyViewedMenu.tsx.",
+    sources: [{ path: "components/layout/RecentlyViewedMenu.tsx" }, { path: "components/ui/PropertyThumb.tsx", note: "the thumb" }],
+    render: () => (
+      <Stage width={280}>
+        <div style={{ borderRadius: 12, border: "1px solid var(--agent-border-subtle)", background: "var(--agent-surface, #fff)", padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 10px 8px", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--agent-text-muted)" }}><Clock size={13} /> Recently viewed</div>
+          {["8 Chandler Court", "22 Rothamsted Avenue"].map((a) => (
+            <div key={a} className="agent-hover-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8 }}>
+              <span style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(45,24,16,0.05)", color: "var(--agent-text-muted)", display: "grid", placeItems: "center", flexShrink: 0 }}><House size={15} weight="fill" /></span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{a}</span>
+            </div>
+          ))}
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "quick-action-dock",
+    name: "Quick-action dock",
+    category: "navigation",
+    status: "implemented",
+    keywords: ["quick action", "dock", "new note", "new email", "floating", "pill", "shell", "chrome", "founder"],
+    summary: "The floating glass quick-action pill (New note / New email) docked in the shell — founder-gated while it lands. A glass pill that expands to its actions. components/quick-dock/QuickActionDock.tsx.",
+    sources: [{ path: "components/quick-dock/QuickActionDock.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: 5, borderRadius: 999, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(14px)", border: "1px solid var(--agent-border-subtle)", boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}>
+          <button className={buttonClasses({ variant: "ghost", size: "sm" })} style={{ gap: 6, borderRadius: 999 }}><NotePencil size={14} weight="bold" /> Note</button>
+          <button className={buttonClasses({ variant: "ghost", size: "sm" })} style={{ gap: 6, borderRadius: 999 }}><Envelope size={14} weight="bold" /> Email</button>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "shell-toaster",
+    name: "Toasts (toaster)",
+    category: "notifications",
+    status: "implemented",
+    keywords: ["toast", "toaster", "snackbar", "feedback", "confirmation", "notification", "shell", "chrome"],
+    summary: "The app-wide toast system — AgentToaster mounts in the shell and renders the canonical Toast (success / info / error, auto-dismiss, stacked). The one confirmation-feedback surface. components/layout/AgentToaster.tsx + components/layout/Toast.tsx.",
+    sources: [{ path: "components/layout/AgentToaster.tsx" }, { path: "components/layout/Toast.tsx", note: "the canonical toast" }],
+    render: () => (
+      <Stage width={360}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 14px", borderRadius: 12, background: "var(--agent-surface, #fff)", border: "1px solid var(--agent-border-subtle)", boxShadow: "0 10px 30px rgba(0,0,0,0.14)" }}>
+          <span style={{ flexShrink: 0, color: "var(--agent-success, #16a34a)", display: "flex" }}><WarningCircle size={18} weight="fill" /></span>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>Update sent to the seller</span>
+          <button className="agent-icon-btn agent-icon-btn-sm" aria-label="Dismiss"><X size={13} weight="bold" /></button>
+        </div>
+      </Stage>
+    ),
+  },
 ];
+
+/* A tiny inline glyph for the empty-state specimen (ListChecks is not in the
+   gallery's icon import set; this keeps the import surface small). */
+function ListChecksMini() {
+  return <PaperPlaneTilt size={16} weight="fill" color={CORAL} />;
+}
 
 /* All reviewed entries. Grows one batch at a time. */
 export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES];
