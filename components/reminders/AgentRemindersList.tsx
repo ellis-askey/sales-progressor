@@ -23,6 +23,8 @@ import { AddClientEmailModal } from "@/components/reminders/AddClientEmailModal"
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import { Button } from "@/components/ui/Button";
 import { ChaseSplitButton } from "@/components/reminders/ChaseSplitButton";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import { buttonClasses } from "@/components/arc/button/button";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UrgencyPill, SidePill, FallbackPill, type UrgencyBucket } from "@/components/reminders/status-pills";
 import { AutoChaseCountdown, sendMoment } from "@/components/reminders/AutoChaseCountdown";
@@ -57,6 +59,23 @@ function reminderDisplayName(log: AgentReminderLog, milestoneInfo?: MilestoneInf
 // transition between glass mode (slightly transparent pale tint) and solid mode (fully
 // solid pale tint) — matching the glass↔solid behaviour of FileAlertsStrip + filter bar.
 // Colour identity unchanged per E1; the transition is added on top.
+// Maps the canonical arc SegmentedControl onto the agent look + the shipped coral
+// selection pill, so the side filter is the arc component (one segmented control
+// app-wide, matching the hub's All/Mine toggle) without changing its appearance.
+const SIDE_FILTER_TOKENS: React.CSSProperties = {
+  ["--surface-muted" as string]: "rgba(15,23,42,0.05)",
+  ["--border" as string]: "var(--agent-border-default)",
+  ["--text-muted" as string]: "var(--agent-text-secondary)",
+  ["--foreground" as string]: "var(--agent-text-primary)",
+  ["--radius-control" as string]: "11px",
+  ["--control-height-sm" as string]: "28px",
+  ["--text-sm" as string]: "13px",
+  ["--sc-selection-bg" as string]: "var(--agent-coral-deep)",
+  ["--sc-selection-fg" as string]: "var(--agent-text-on-coral)",
+  ["--sc-selection-border" as string]: "transparent",
+  ["--shadow-resting" as string]: "0 2px 6px rgba(255,107,74,0.30)",
+};
+
 const GROUP_CONFIG: Record<UrgencyGroup, { label: string; headerCls: string; labelCls: string; badgeCls: string }> = {
   escalated: { label: "Escalated",  headerCls: "wq-urgency-bar wq-urgency-bar-escalated", labelCls: "text-red-700",      badgeCls: "bg-red-100 text-red-700"       },
   overdue:   { label: "Overdue",    headerCls: "wq-urgency-bar wq-urgency-bar-overdue",   labelCls: "text-orange-700",   badgeCls: "bg-orange-100 text-orange-700" },
@@ -325,7 +344,7 @@ function SnoozedFileCard({
       type="button"
       onClick={() => sorted.forEach((l) => onWakeup(l.id))}
       title="Wake every snoozed reminder on this file"
-      className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+      className={buttonClasses({ variant: "outline", size: "sm" })}
       style={{ flexShrink: 0, whiteSpace: "nowrap" }}
     >
       ↻ Wake all ({sorted.length})
@@ -944,7 +963,7 @@ function SplitFileCard({
                     onClick={() => optimisticChase(task.id, log.id, task.manualChaseCount)}
                     disabled={isExiting}
                     title="Mark as chased. Advances the next chase date without sending an email"
-                    className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+                    className={buttonClasses({ variant: "outline", size: "sm" })}
                     style={{ flexShrink: 0, whiteSpace: "nowrap" }}
                   >
                     ↻ Chased
@@ -1524,13 +1543,22 @@ export function AgentRemindersList({ logs, photoByTx, milestoneInfo, autopilot, 
           style={{ width: "100%", marginBottom: 10, fontSize: 13 }}
         />
         <div className={sideFilterTag.className} {...sideFilterTag.props} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "all"    ? " on" : ""}`} onClick={() => setSideFilter("all")}>All</button>
-          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "seller" ? " on" : ""}`} onClick={() => setSideFilter("seller")}>Seller</button>
-          <button className={`agent-segment-pill agent-segment-pill-sm${sideFilter === "buyer"  ? " on" : ""}`} onClick={() => setSideFilter("buyer")}>Buyer</button>
+          {/* Canonical arc SegmentedControl (agent-tokened) — one segmented control
+              app-wide, matching the hub's All/Mine toggle. Same options + coral pill. */}
+          <div className="arc-scope" style={{ ...SIDE_FILTER_TOKENS, display: "inline-block" }}>
+            <SegmentedControl
+              label="Show all reminders, or filter by side"
+              value={sideFilter}
+              onValueChange={(v) => setSideFilter(v as "all" | "seller" | "buyer")}
+              options={[{ value: "all", label: "All" }, { value: "seller", label: "Seller" }, { value: "buyer", label: "Buyer" }]}
+            />
+          </div>
+          {/* Forward toggle → coral .agent-link (reads as clickable); the "← Active"
+              back-link stays muted (the canonical back-link convention). */}
           <button
-            className="agent-link agent-link-muted"
+            className={statusFilter === "active" ? "agent-link" : "agent-link agent-link-muted"}
             onClick={() => setStatusFilter(statusFilter === "active" ? "snoozed" : "active")}
-            style={{ fontSize: 11, whiteSpace: "nowrap", marginLeft: "auto" }}
+            style={{ fontSize: 11, whiteSpace: "nowrap", marginLeft: "auto", fontWeight: statusFilter === "active" ? 600 : undefined }}
           >
             {statusFilter === "active"
               ? `Snoozed${snoozedCount > 0 ? ` (${snoozedCount})` : ""}`
