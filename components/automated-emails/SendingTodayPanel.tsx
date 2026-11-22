@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { EnvelopeSimple } from "@phosphor-icons/react";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { sendPendingEmailNow, cancelPendingEmail } from "@/app/actions/automated-emails";
@@ -29,27 +31,40 @@ export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: Se
   // a capped preview of those queued, send-now/skip-able emails; the full chase
   // forecast lives in the Outbox, labelled there as a forecast. 2026-10-26.
   const total = stillToGo ?? rows.length;
+  // Empty: the whole card becomes a centred canonical EmptyState (no header),
+  // matching Needs attention. Two reads — all-sent (links to Activity) vs nothing
+  // due today.
+  if (total === 0) {
+    return (
+      <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
+        {sentToday > 0 ? (
+          <EmptyState
+            icon={<EnvelopeSimple size={24} weight="regular" />}
+            title="All sent for today"
+            description={`${sentToday === 1 ? "1 email" : `${sentToday} emails`} already went out today.`}
+            action={<Link href="/agent/automated-emails?tab=sent" className="agent-link" style={{ fontWeight: 600 }}>View activity</Link>}
+          />
+        ) : (
+          <EmptyState
+            icon={<EnvelopeSimple size={24} weight="regular" />}
+            title="No emails scheduled"
+            description="There are no automated emails waiting to be sent today."
+          />
+        )}
+      </GlassCard>
+    );
+  }
+
   return (
     <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
         {/* "Still to send" is the honest name — this list is the remaining
             queue, not today's activity (truth pass 2026-10-21). */}
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Still to send today</h2>
-        {total > 0 && <CountBadge count={total} tone="accent" />}
+        <CountBadge count={total} tone="accent" />
       </div>
 
-      {total === 0 ? (
-        <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-          {sentToday > 0 ? (
-            <>
-              Nothing left to send today. {sentToday === 1 ? "1 email" : `${sentToday} emails`} already went out, in{" "}
-              <Link href="/agent/automated-emails?tab=sent" className="agent-link" style={{ fontWeight: 600 }}>Activity</Link>.
-            </>
-          ) : (
-            "Nothing due to go out today."
-          )}
-        </p>
-      ) : rows.length === 0 ? (
+      {rows.length === 0 ? (
         /* The whole of today's remaining sends are predicted chases not yet in
            the queue (they materialise on the next chase run). Nothing to send-now
            here yet — point to the Outbox where each can be previewed. */

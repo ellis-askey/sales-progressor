@@ -12,6 +12,8 @@ import { useState, useTransition } from "react";
 import { resendQueuedEmailAction } from "@/app/actions/resend-queued-email";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { Checks } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import type { NeedsAttention, NeedsAttentionItem } from "@/lib/services/automated-emails-overview";
@@ -29,10 +31,11 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
   if (data.total === 0) {
     return (
       <GlassCard glassId="auto-emails-attention" label="Auto emails · Needs attention" defaultVariant="v05" style={CARD_STYLE}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Needs attention</h2>
-        <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--agent-text-secondary)" }}>
-          Nothing needs you. Every automated email reached its recipient or is still in transit, and every active file has the contacts we need.
-        </p>
+        <EmptyState
+          icon={<Checks size={24} weight="regular" />}
+          title="All caught up"
+          description="No delivery issues or missing contacts need your attention."
+        />
       </GlassCard>
     );
   }
