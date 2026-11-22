@@ -18,6 +18,7 @@ import { LinkArrow } from "@/components/ui/LinkArrow";
 import { asRole, roleShortLabel } from "@/components/ui/RoleIcon";
 import { StatusPill } from "@/components/reminders/StatusPill";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import { StepDots } from "@/components/ui/StepDots";
 import { previewChaseEmailAction } from "@/app/actions/chase-timeline";
 import { previewSrcDoc } from "@/lib/email/preview-srcdoc";
@@ -32,11 +33,13 @@ function fileHref(txId: string) { return `/agent/transactions/${txId}`; }
 
 function GroupHeader({ title, count, tone, hint }: { title: string; count: number; tone: "danger" | "success" | "muted"; hint?: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "0 2px 10px" }}>
-      <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)" }}>{title}</h2>
-      <CountBadge count={count} tone={count === 0 ? "muted" : (tone === "danger" ? "danger" : "accent")} hideZero={false} />
-      {hint != null && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--agent-text-muted)" }}>{hint}</span>}
-    </div>
+    <PanelHeader
+      title={title}
+      size="sm"
+      badge={<CountBadge count={count} tone={count === 0 ? "muted" : (tone === "danger" ? "danger" : "accent")} hideZero={false} />}
+      right={hint != null ? hint : undefined}
+      style={{ margin: "0 2px 10px" }}
+    />
   );
 }
 
@@ -189,6 +192,33 @@ function ChaseRow({ r }: { r: CockpitChaseRow }) {
   );
 }
 
+// A quiet group's tap-to-expand strip: a glass summary button (icon + title +
+// subtitle + rotating caret) over a data-bloom body of file rows. Shared by the
+// "All set" and "Paused" groups, which were byte-identical but for the icon,
+// copy and which show-state they toggle.
+function QuietDisclosure({ icon, title, subtitle, open, onToggle, children }: { icon: React.ReactNode; title: React.ReactNode; subtitle: React.ReactNode; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <>
+      <GlassCard glassId="auto-cockpit-quiet" label="Cockpit · quiet" className="agent-hover-row" style={CARD_STYLE}>
+        <button type="button" onClick={onToggle} aria-expanded={open}
+          style={{ width: "100%", background: "none", border: 0, cursor: "pointer", padding: "12px 15px", display: "flex", alignItems: "center", gap: 12, textAlign: "left", color: "inherit", font: "inherit" }}>
+          {icon}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{title}</div>
+            <div style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{subtitle}</div>
+          </div>
+          <CaretRight size={16} weight="bold" style={{ marginLeft: "auto", color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 150ms ease", transform: open ? "rotate(90deg)" : "none" }} />
+        </button>
+      </GlassCard>
+      {open && (
+        <div data-bloom style={{ marginTop: 8 }} className="space-y-2">
+          {children}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
   const [showQuiet, setShowQuiet] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
@@ -242,29 +272,22 @@ export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
       {allSet.length > 0 && (
         <div data-bloom>
           <GroupHeader title="All set" count={allSet.length} tone="success" />
-          <GlassCard glassId="auto-cockpit-quiet" label="Cockpit · quiet" className="agent-hover-row" style={CARD_STYLE}>
-            <button type="button" onClick={() => setShowQuiet((s) => !s)} aria-expanded={showQuiet}
-              style={{ width: "100%", background: "none", border: 0, cursor: "pointer", padding: "12px 15px", display: "flex", alignItems: "center", gap: 12, textAlign: "left", color: "inherit", font: "inherit" }}>
-              <CheckCircle size={20} weight="fill" style={{ color: "var(--agent-success, #16a34a)", flexShrink: 0 }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{allSet.length} {allSet.length === 1 ? "sale" : "sales"} fully covered</div>
-                <div style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Every contact present, chasing on, nothing overdue. Tap to {showQuiet ? "collapse" : "expand"}.</div>
-              </div>
-              <CaretRight size={16} weight="bold" style={{ marginLeft: "auto", color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 150ms ease", transform: showQuiet ? "rotate(90deg)" : "none" }} />
-            </button>
-          </GlassCard>
-          {showQuiet && (
-            <div data-bloom style={{ marginTop: 8 }} className="space-y-2">
-              {allSet.map((r) => (
-                <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
-                  <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
-                    {r.nextLabel && <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", flexShrink: 0 }}>next {r.nextLabel}</span>}
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          )}
+          <QuietDisclosure
+            icon={<CheckCircle size={20} weight="fill" style={{ color: "var(--agent-success, #16a34a)", flexShrink: 0 }} />}
+            title={`${allSet.length} ${allSet.length === 1 ? "sale" : "sales"} fully covered`}
+            subtitle={`Every contact present, chasing on, nothing overdue. Tap to ${showQuiet ? "collapse" : "expand"}.`}
+            open={showQuiet}
+            onToggle={() => setShowQuiet((s) => !s)}
+          >
+            {allSet.map((r) => (
+              <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
+                <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
+                  {r.nextLabel && <span style={{ fontSize: 11.5, color: "var(--agent-text-muted)", flexShrink: 0 }}>next {r.nextLabel}</span>}
+                </div>
+              </GlassCard>
+            ))}
+          </QuietDisclosure>
         </div>
       )}
 
@@ -272,28 +295,21 @@ export function BySaleView({ cockpit }: { cockpit: Cockpit }) {
       {paused.length > 0 && (
         <div data-bloom>
           <GroupHeader title="Paused" count={paused.length} tone="muted" hint="automation off on these" />
-          <GlassCard glassId="auto-cockpit-quiet" label="Cockpit · quiet" className="agent-hover-row" style={CARD_STYLE}>
-            <button type="button" onClick={() => setShowPaused((s) => !s)} aria-expanded={showPaused}
-              style={{ width: "100%", background: "none", border: 0, cursor: "pointer", padding: "12px 15px", display: "flex", alignItems: "center", gap: 12, textAlign: "left", color: "inherit", font: "inherit" }}>
-              <PauseCircle size={20} weight="fill" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{paused.length} paused</div>
-                <div style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Automation is off on these. Tap to {showPaused ? "collapse" : "expand"}.</div>
-              </div>
-              <CaretRight size={16} weight="bold" style={{ marginLeft: "auto", color: "var(--agent-text-muted)", flexShrink: 0, transition: "transform 150ms ease", transform: showPaused ? "rotate(90deg)" : "none" }} />
-            </button>
-          </GlassCard>
-          {showPaused && (
-            <div data-bloom style={{ marginTop: 8 }} className="space-y-2">
-              {paused.map((r) => (
-                <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
-                  <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          )}
+          <QuietDisclosure
+            icon={<PauseCircle size={20} weight="fill" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />}
+            title={`${paused.length} paused`}
+            subtitle={`Automation is off on these. Tap to ${showPaused ? "collapse" : "expand"}.`}
+            open={showPaused}
+            onToggle={() => setShowPaused((s) => !s)}
+          >
+            {paused.map((r) => (
+              <GlassCard key={r.txId} glassId="auto-cockpit-row" label="Cockpit · row" className="agent-hover-row" style={CARD_STYLE}>
+                <div style={{ padding: "9px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <PhotoIdentity txId={r.txId} address={r.address} photoUrl={r.photoUrl} />
+                </div>
+              </GlassCard>
+            ))}
+          </QuietDisclosure>
         </div>
       )}
     </div>

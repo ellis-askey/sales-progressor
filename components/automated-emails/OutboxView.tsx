@@ -9,7 +9,6 @@
 // is true to what will land. The "automation exhausted" strip closes the view:
 // files where every automated chase has been sent and the step is still open.
 
-import Link from "next/link";
 import { useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
@@ -17,7 +16,7 @@ import { Tray } from "@phosphor-icons/react";
 import { CompactRow, dayKey, dayLabel, rowTime } from "./EmailFeedRow";
 import { nextChaseSendDay } from "@/lib/emails/working-hours";
 import type { EmailRow } from "@/lib/services/automated-emails-list";
-import type { UpcomingForecast, ExhaustedItem } from "@/lib/services/automated-emails-upcoming";
+import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming";
 
 // Predictions → feed rows, carrying the preview identity the drawer needs.
 function predictedToRows(forecast: UpcomingForecast | null): EmailRow[] {
@@ -205,7 +204,7 @@ function DayGroup({
       {rows.length > DAY_GROUP_PREVIEW && !showAll && (
         <button
           type="button"
-          className="agent-segment-pill agent-segment-pill-sm"
+          className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
           style={{ marginTop: 6 }}
           onClick={() => setShowAll(true)}
         >
@@ -216,30 +215,3 @@ function DayGroup({
   );
 }
 
-function ExhaustedCard({ item }: { item: ExhaustedItem }) {
-  return (
-    <Link
-      href={`/agent/transactions/${item.txId}`}
-      className="block"
-      style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-md, 8px)", border: "0.5px solid var(--agent-warning-border, rgba(180,83,9,0.3))", background: "var(--agent-warning-bg, rgba(251,191,36,0.08))" }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.address}</span>
-        <span style={{ fontSize: 11, color: "var(--agent-text-muted)", flexShrink: 0 }}>{item.daysOutstanding}d outstanding</span>
-      </div>
-      <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-secondary)" }}>
-        {item.milestoneLabel} · {item.recipientLabel}
-      </p>
-      <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>
-        {item.chasesSent} of {item.cap} automated chases sent{item.lastChaseAt ? ` · last chase ${timeAgo(item.lastChaseAt)}` : ""}
-      </p>
-    </Link>
-  );
-}
-
-function timeAgo(d: Date): string {
-  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
-}

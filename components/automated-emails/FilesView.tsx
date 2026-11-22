@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { FeedRowShell } from "@/components/ui/FeedRowShell";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { House } from "@phosphor-icons/react";
@@ -77,10 +78,7 @@ function FileRow({ row: r }: { row: FileAutomationRow }) {
   }
 
   return (
-    <div
-      className="agent-email-feed-row w-full flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
-      style={{ padding: "10px 12px", borderRadius: "var(--agent-radius-md, 8px)", border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass, transparent)" }}
-    >
+    <FeedRowShell padding="10px 12px" className="w-full flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
       <PropertyThumb photoUrl={r.photoUrl ?? null} size={40} />
       <div className="min-w-0 flex-1">
         <Link
@@ -112,6 +110,6 @@ function FileRow({ row: r }: { row: FileAutomationRow }) {
           </button>
         )}
       </span>
-    </div>
+    </FeedRowShell>
   );
 }

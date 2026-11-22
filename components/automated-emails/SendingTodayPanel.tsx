@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Pill } from "@/components/ui/Pill";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { EnvelopeSimple } from "@phosphor-icons/react";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
@@ -57,12 +58,13 @@ export function SendingTodayPanel({ rows, sentToday = 0, stillToGo }: { rows: Se
 
   return (
     <GlassCard glassId="auto-emails-sending-today" label="Auto emails · Still to send today" defaultVariant="v05" style={CARD_STYLE}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-        {/* "Still to send" is the honest name — this list is the remaining
-            queue, not today's activity (truth pass 2026-10-21). */}
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Still to send today</h2>
-        <CountBadge count={total} tone="accent" />
-      </div>
+      {/* "Still to send" is the honest name — this list is the remaining
+          queue, not today's activity (truth pass 2026-10-21). */}
+      <PanelHeader
+        title="Still to send today"
+        badge={<CountBadge count={total} tone="accent" />}
+        style={{ marginBottom: 12 }}
+      />
 
       {rows.length === 0 ? (
         /* The whole of today's remaining sends are predicted chases not yet in
@@ -111,7 +113,7 @@ function SendingRow({ row }: { row: SendingTodayRow }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 4px", borderBottom: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 4px", borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         <span style={{ fontSize: 11, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{timeFmt.format(row.scheduledFor)}</span>
         <CategoryChip category={row.category} />

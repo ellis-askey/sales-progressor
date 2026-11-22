@@ -43,6 +43,12 @@ import { StepDots } from "@/components/ui/StepDots";
 import { StackedBar } from "@/components/ui/StackedBar";
 import { LegendItem } from "@/components/ui/LegendItem";
 import { DeltaIndicator } from "@/components/ui/DeltaIndicator";
+import { PanelHeader } from "@/components/ui/PanelHeader";
+import { FeedRowShell } from "@/components/ui/FeedRowShell";
+import { GlassTabs } from "@/components/ui/GlassTabs";
+import { StatusPill } from "@/components/reminders/StatusPill";
+import { EmailActivityChart } from "@/components/automated-emails/EmailActivityChart";
+import { CaretRight as CaretRightI } from "@phosphor-icons/react";
 import { ChaseBar } from "@/components/enquiries/ChaseBar";
 import { TodoTabs } from "@/components/agent/TodoTabs";
 import { SectionHeader } from "@/components/agent/SectionHeader";
@@ -2195,6 +2201,14 @@ const COMMS_ENTRIES: ComponentEntry[] = [
   },
 ];
 
+// Interactive glass tab bar demo (button-driven).
+function GlassTabsSpec() {
+  const [cur, setCur] = useState("history");
+  return <GlassTabs ariaLabel="demo" current={cur} onSelect={setCur} tabs={[{ value: "sale", label: "By sale" }, { value: "schedule", label: "Schedule", count: 65 }, { value: "history", label: "History", count: 338 }, { value: "problems", label: "Problems", count: 0 }, { value: "insights", label: "Insights" }]} />;
+}
+// Mock day buckets for the activity chart specimen.
+const AE_CHART_MOCK = Array.from({ length: 14 }).map((_, i) => ({ key: `d${i}`, label: `${i + 8} Nov`, chase: 3 + ((i * 2) % 7), notification: (i % 3) + 1 }));
+
 const AUTOEMAILS_ENTRIES: ComponentEntry[] = [
   {
     id: "status-dot",
@@ -2301,6 +2315,77 @@ const AUTOEMAILS_ENTRIES: ComponentEntry[] = [
         </div>
       </Stage>
     ),
+  },
+  {
+    id: "panel-header",
+    name: "Panel / section header",
+    category: "navigation",
+    status: "implemented",
+    keywords: ["panel", "section", "card", "header", "title", "badge", "count", "meta", "automated emails"],
+    summary: "The title row at the top of a card / panel — a title, an optional count badge, optional muted sub-text beside it, and an optional right-aligned slot (meta text, a toggle, period pills). Extracted from the automated-emails panels, which each hand-wrote the same h2 and had started to drift. md (15px) for overview panels, sm (13px) for denser group headers. Live render of components/ui/PanelHeader.tsx.",
+    sources: [{ path: "components/ui/PanelHeader.tsx" }, { path: "components/automated-emails/NeedsAttentionPanel.tsx" }, { path: "components/automated-emails/BySaleView.tsx" }],
+    render: () => (
+      <Stage width={420}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+          <PanelHeader title="Needs attention" badge={<CountBadge count={3} tone="danger" />} right={<span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Across 2 files</span>} />
+          <PanelHeader title="Chasing now" size="sm" badge={<CountBadge count={18} tone="accent" hideZero={false} />} right={<span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>next run Tomorrow</span>} />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "feed-row-shell",
+    name: "Feed row frame",
+    category: "rows",
+    status: "implemented",
+    keywords: ["row", "frame", "shell", "list item", "feed", "border", "glass", "hover", "automated emails"],
+    summary: "The bordered strip a list row sits in — hairline border, rounded corners, glass ground, hover lift (agent-email-feed-row). The frame is shared; the row's inner layout stays the consumer's. Renders a button when clickable, else a div; a 'predicted' variant adds the dashed forecast edge. Live render of components/ui/FeedRowShell.tsx.",
+    sources: [{ path: "components/ui/FeedRowShell.tsx" }, { path: "components/automated-emails/EmailFeedRow.tsx" }, { path: "components/automated-emails/FilesView.tsx" }],
+    render: () => (
+      <Stage wide>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+          <FeedRowShell padding="10px 12px" className="flex items-center gap-3"><PropertyThumb photoUrl={null} size={36} /><span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>16 Deans Furlong, Tring</span><StatusDot tone="success" label="Covered" /></FeedRowShell>
+          <FeedRowShell predicted padding="10px 12px" className="flex items-center gap-3"><PropertyThumb photoUrl={null} size={36} /><span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>83 Highfield Road (predicted)</span><Pill tone="muted" size="sm" outline>Predicted</Pill></FeedRowShell>
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "glass-tabs",
+    name: "Glass tab bar",
+    category: "tabs",
+    status: "implemented",
+    keywords: ["tabs", "glass", "track", "segmented", "count", "chip", "automated emails"],
+    summary: "A glass track holding quiet tab chips — the selected chip sits on an elevated surface, the rest hover to a subtle tint, and each count rides as a CountBadge. Link-routed (hrefFor) or button-driven (onSelect). Promoted from the Automated-emails tab row to a shared component. Click to switch. Live render of components/ui/GlassTabs.tsx.",
+    sources: [{ path: "components/ui/GlassTabs.tsx" }, { path: "app/agent/automated-emails/AutomatedEmailsListView.tsx" }],
+    render: () => <Stage wide><GlassTabsSpec /></Stage>,
+  },
+  {
+    id: "status-pill",
+    name: "Status pill (icon + label)",
+    category: "badges",
+    status: "implemented",
+    keywords: ["status", "pill", "icon", "label", "reminders", "sends", "needs you", "outline", "de-tint"],
+    summary: "A status tag — a tone border + icon + sentence-case label, no soft fill (de-tinted 2026-11-22). The label collapses to icon-only on narrow screens (full label kept as a tooltip). Shared across Reminders, the file page and Automated emails. Pass glass to opt back into the tinted look. Live render of components/reminders/StatusPill.tsx.",
+    sources: [{ path: "components/reminders/StatusPill.tsx" }],
+    render: () => (
+      <Stage>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <StatusPill tone="warning" icon={<CaretRightI size={11} weight="bold" />} label="Sends Tue 24 Nov" />
+          <StatusPill tone="danger" icon={<WarningCircleI size={11} weight="fill" />} label="Needs you" />
+        </div>
+      </Stage>
+    ),
+  },
+  {
+    id: "stacked-bar-chart",
+    name: "Stacked bar chart (time series)",
+    category: "progress",
+    status: "implemented",
+    keywords: ["chart", "bar", "stacked", "time series", "recharts", "activity", "automated emails"],
+    summary: "The per-day stacked bar chart (chase + notification) — recharts, the repo's charting standard. Muted axes, no gridlines; the hover tooltip routes through the canonical ChartTipPortal so the frosted bubble escapes the GlassCard and reads crisp. Confirmed a deliberate chart (not the horizontal StackedBar). Live render of components/automated-emails/EmailActivityChart.tsx — hover a bar.",
+    sources: [{ path: "components/automated-emails/EmailActivityChart.tsx" }, { path: "components/agent/ChartTipPortal.tsx", note: "the tooltip it routes through" }],
+    render: () => <Stage wide><div style={{ width: "100%", maxWidth: 460 }}><EmailActivityChart data={AE_CHART_MOCK} /></div></Stage>,
   },
 ];
 

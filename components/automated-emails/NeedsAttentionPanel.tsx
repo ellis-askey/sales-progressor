@@ -12,6 +12,7 @@ import { useState, useTransition } from "react";
 import { resendQueuedEmailAction } from "@/app/actions/resend-queued-email";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { CountBadge } from "@/components/ui/CountBadge";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { Checks } from "@phosphor-icons/react";
 import { ContactAvatar } from "@/components/ui/Avatar";
@@ -42,15 +43,12 @@ export function NeedsAttentionPanel({ data }: { data: NeedsAttention }) {
 
   return (
     <GlassCard glassId="auto-emails-attention" label="Auto emails · Needs attention" defaultVariant="v05" style={CARD_STYLE}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Needs attention</h2>
-          <CountBadge count={data.truncated ? `${data.total}+` : data.total} tone="danger" />
-        </div>
-        <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>
-          Across {data.affectedFiles} {data.affectedFiles === 1 ? "file" : "files"}
-        </span>
-      </div>
+      <PanelHeader
+        title="Needs attention"
+        badge={<CountBadge count={data.truncated ? `${data.total}+` : data.total} tone="danger" />}
+        right={<span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Across {data.affectedFiles} {data.affectedFiles === 1 ? "file" : "files"}</span>}
+        style={{ marginBottom: 12 }}
+      />
 
       {/* Highest-priority affected files, as typed cards. The list scrolls
           inside a capped viewport so a bad day can't stretch the whole page
@@ -74,7 +72,7 @@ function IssueCard({ item }: { item: NeedsAttentionItem }) {
   const cta = ctaFor(item);
 
   return (
-    <div style={{ display: "flex", gap: 12, paddingBottom: 12, borderBottom: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.08))" }}>
+    <div style={{ display: "flex", gap: 12, paddingBottom: 12, borderBottom: "0.5px solid var(--agent-border-subtle)" }}>
       {/* The person this is about — their photo, or the side-tinted contact art
           (seller blue / buyer green / solicitor navy). Same avatar as the file's
           contact card, so the circle matches the name in the headline. */}

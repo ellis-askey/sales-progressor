@@ -150,6 +150,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -328,6 +329,7 @@
     --agent-danger-border:  rgba(199, 62, 62, 0.38);
     --agent-danger-border-strong: rgba(199, 62, 62, 0.55);
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -458,6 +460,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -633,6 +636,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -808,6 +812,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -983,6 +988,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -1158,6 +1164,7 @@
 
     /* ── Semantic — info ──────────────────────────────────────────────────── */
     --agent-info:           #3D7AB8;
+    --agent-indigo:         #6366F1;
     --agent-info-bg:        rgba(61, 122, 184, 0.08);
     --agent-info-border:    rgba(61, 122, 184, 0.30);
     --agent-info-border-strong: rgba(61, 122, 184, 0.45);
@@ -1743,6 +1750,7 @@
   --agent-warning: #FBBF24;
   --agent-danger:  #F87171;
   --agent-info:        #60A5FA;
+  --agent-indigo:         #818CF8;
   --agent-info-bg:     rgba(96, 165, 250, 0.12);
   --agent-info-border: rgba(96, 165, 250, 0.30);
 

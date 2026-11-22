@@ -4,6 +4,10 @@
 // the property-file Reminders tab so the urgency / side chips are identical
 // everywhere. See .rem-pill-label in app/agent/styles/agent-system.css for the
 // breakpoint.
+//
+// De-tinted (2026-11-22, founder-approved): default is now the OUTLINE Pill —
+// a tone border + tone text, no soft fill — in line with the app-wide
+// "no faded colour fills" rule. Pass `glass` to opt back into the tinted look.
 
 import type { ReactNode } from "react";
 import { Pill, type PillProps } from "@/components/ui/Pill";
@@ -13,7 +17,7 @@ export function StatusPill({
   icon,
   label,
   size = "sm",
-  glass = true,
+  glass = false,
   title,
   className,
 }: {
@@ -26,7 +30,7 @@ export function StatusPill({
   className?: string;
 }) {
   return (
-    <Pill tone={tone} size={size} glass={glass} className={className} title={title ?? (typeof label === "string" ? label : undefined)}>
+    <Pill tone={tone} size={size} glass={glass} outline={!glass} className={className} title={title ?? (typeof label === "string" ? label : undefined)}>
       <span className="rem-pill-icon" style={{ display: "inline-flex", flexShrink: 0 }}>{icon}</span>
       <span className="rem-pill-label">{label}</span>
     </Pill>

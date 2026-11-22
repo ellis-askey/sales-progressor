@@ -29,17 +29,25 @@ export function StatBlock({
   value,
   sub,
   valueColor,
+  numberSize = "md",
+  delta,
 }: {
   eyebrow: string;
+  /** A plain string/number — NOT a StatNumber (this wraps it in one itself). */
   value: ReactNode;
   sub?: string;
   /** Override the numeral colour (e.g. a win's accent). */
   valueColor?: string;
+  /** "md" = 30px hero numeral (default); "sm" = 24px secondary stat. */
+  numberSize?: "sm" | "md";
+  /** Optional trend indicator (e.g. DeltaIndicator) between the number and sub. */
+  delta?: ReactNode;
 }) {
   return (
     <div style={{ minWidth: 0 }}>
       <p style={EYEBROW}>{eyebrow}</p>
-      <StatNumber color={valueColor}>{value}</StatNumber>
+      <StatNumber color={valueColor} size={numberSize}>{value}</StatNumber>
+      {delta}
       {sub ? <p style={SUB}>{sub}</p> : null}
     </div>
   );

@@ -7,8 +7,8 @@
 // (automated-emails-overview.ts), so it never shows more than the viewer may see.
 
 import { GlassCard } from "@/components/glass/GlassCard";
+import { Pause, Warning, Check } from "@phosphor-icons/react";
 import { StatBlock } from "@/components/ui/StatBlock";
-import { StatNumber } from "@/components/ui/StatNumber";
 import type { AutomationBanner as BannerData } from "@/lib/services/automated-emails-overview";
 
 function nextSendLabel(at: Date | null): string {
@@ -70,11 +70,11 @@ export function AutomationBanner({
               its state colour, sized to sit level with the headline. */}
           <span aria-hidden="true" style={{ flexShrink: 0, display: "grid", placeItems: "center", color: tileFg }}>
             {state === "paused" ? (
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+              <Pause size={26} weight="fill" />
             ) : state === "attention" ? (
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+              <Warning size={26} />
             ) : (
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
+              <Check size={26} weight="bold" />
             )}
           </span>
           <div style={{ minWidth: 0 }}>
@@ -115,14 +115,16 @@ function Stat({
     <div
       style={{
         padding: "0 20px",
-        borderLeft: first ? "none" : "1px solid var(--agent-border-subtle, rgba(15,23,42,0.08))",
+        borderLeft: first ? "none" : "1px solid var(--agent-border-subtle)",
         display: "flex", flexDirection: "column", justifyContent: "center",
       }}
     >
       <StatBlock
         eyebrow={label}
-        value={<StatNumber size="sm" color={alert ? "var(--agent-warning)" : undefined}>{value.toLocaleString()}</StatNumber>}
+        value={value.toLocaleString()}
         sub={sub}
+        numberSize="sm"
+        valueColor={alert ? "var(--agent-warning)" : undefined}
       />
     </div>
   );

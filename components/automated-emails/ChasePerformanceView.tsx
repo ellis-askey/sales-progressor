@@ -7,7 +7,7 @@
 
 import { ChartLineUp } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
-import { StatNumber } from "@/components/ui/StatNumber";
+import { StatBlock } from "@/components/ui/StatBlock";
 import { StackedBar } from "@/components/ui/StackedBar";
 import { LegendItem } from "@/components/ui/LegendItem";
 import type { ChasePerformance } from "@/lib/services/automated-emails-analytics";
@@ -59,11 +59,5 @@ function rate(p: number | null): string {
 }
 
 function Tile({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div>
-      <p className="agent-eyebrow" style={{ margin: 0, marginBottom: 2 }}>{label}</p>
-      <StatNumber size="sm">{value}</StatNumber>
-      <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{sub}</p>
-    </div>
-  );
+  return <StatBlock eyebrow={label} value={value} sub={sub} numberSize="sm" />;
 }

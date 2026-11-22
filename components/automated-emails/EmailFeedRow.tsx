@@ -6,6 +6,7 @@
 // one hand-coloured copy) and the row lived privately inside the list view.
 
 import { Pill } from "@/components/ui/Pill";
+import { FeedRowShell } from "@/components/ui/FeedRowShell";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { RoleIcon, asRole, roleLabel } from "@/components/ui/RoleIcon";
@@ -64,17 +65,10 @@ export function CompactRow({ row, onOpen, timeText }: { row: EmailRow; onOpen: (
   const t = rowTime(row);
   const predicted = row.status === "upcoming";
   return (
-    <button
-      type="button"
+    <FeedRowShell
       onClick={() => onOpen(row)}
-      className="agent-email-feed-row w-full text-left flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
-      style={{
-        padding: "8px 10px",
-        borderRadius: "var(--agent-radius-md, 8px)",
-        border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))",
-        borderLeft: predicted ? "2px dashed var(--agent-border-default, rgba(15,23,42,0.2))" : undefined,
-        background: predicted ? "var(--agent-surface-nested, rgba(15,23,42,0.02))" : "var(--agent-surface-glass, transparent)",
-      }}
+      predicted={predicted}
+      className="w-full text-left flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
     >
       <span className="hidden sm:block" style={{ fontSize: 11, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums", width: 42, flexShrink: 0 }}>
         {timeText ?? timeLabel(t)}
@@ -106,6 +100,6 @@ export function CompactRow({ row, onOpen, timeText }: { row: EmailRow; onOpen: (
           <StatusDot tone={meta.tone} label={meta.label} />
         )}
       </span>
-    </button>
+    </FeedRowShell>
   );
 }

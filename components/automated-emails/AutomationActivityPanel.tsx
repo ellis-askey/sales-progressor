@@ -7,8 +7,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { StatNumber } from "@/components/ui/StatNumber";
+import { StatBlock } from "@/components/ui/StatBlock";
 import { DeltaIndicator } from "@/components/ui/DeltaIndicator";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import { EmailActivityChart } from "./EmailActivityChart";
 import type { AutomationOverview } from "@/lib/services/automated-emails-overview";
 
@@ -31,25 +32,26 @@ export function AutomationActivityPanel({ overview }: { overview: AutomationOver
       defaultVariant="v05"
       style={{ padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)" }}>Automation activity</h2>
-          <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Last {periodDays} days</span>
-        </div>
-        <div role="tablist" aria-label="Activity period" style={{ display: "inline-flex", gap: 4 }}>
-          {PERIODS.map((d) => (
-            <Link
-              key={d}
-              href={periodHref(d)}
-              role="tab"
-              aria-selected={d === periodDays}
-              className={`agent-segment-pill agent-segment-pill-sm${d === periodDays ? " on" : ""}`}
-            >
-              {d}d
-            </Link>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="Automation activity"
+        sub={`Last ${periodDays} days`}
+        right={
+          <div role="tablist" aria-label="Activity period" style={{ display: "inline-flex", gap: 4 }}>
+            {PERIODS.map((d) => (
+              <Link
+                key={d}
+                href={periodHref(d)}
+                role="tab"
+                aria-selected={d === periodDays}
+                className={`agent-segment-pill agent-segment-pill-sm${d === periodDays ? " on" : ""}`}
+              >
+                {d}d
+              </Link>
+            ))}
+          </div>
+        }
+        style={{ marginBottom: 16 }}
+      />
 
       <div
         style={{
@@ -99,7 +101,6 @@ function StatTile({
   delta,
   deltaGoodWhenUp,
   sub,
-  hint,
 }: {
   label: string;
   value: string;
@@ -109,16 +110,17 @@ function StatTile({
   hint?: string;
 }) {
   return (
-    <div>
-      <p className="agent-eyebrow" style={{ margin: 0, marginBottom: 2 }} title={hint}>
-        {label}
-      </p>
-      <StatNumber size="sm">{value}</StatNumber>
-      {delta !== undefined && delta !== null && (
-        <DeltaChip pct={delta} goodWhenUp={deltaGoodWhenUp ?? true} />
-      )}
-      {sub && <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>{sub}</p>}
-    </div>
+    <StatBlock
+      eyebrow={label}
+      value={value}
+      numberSize="sm"
+      delta={
+        delta !== undefined && delta !== null ? (
+          <DeltaChip pct={delta} goodWhenUp={deltaGoodWhenUp ?? true} />
+        ) : undefined
+      }
+      sub={sub}
+    />
   );
 }
 

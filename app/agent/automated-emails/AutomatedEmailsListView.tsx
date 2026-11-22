@@ -27,10 +27,12 @@ import type { UpcomingForecast } from "@/lib/services/automated-emails-upcoming"
 import type { FileAutomationRow } from "@/lib/services/automated-emails-coverage";
 import type { ChasePerformance, EmailHealth } from "@/lib/services/automated-emails-analytics";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
-import { CountBadge } from "@/components/ui/CountBadge";
 import { DateField } from "@/components/ui/DateField";
-import { Tray, ChartLineUp, EnvelopeSimple, FolderOpen } from "@phosphor-icons/react";
+import { Tray, ChartLineUp, EnvelopeSimple, FolderOpen, DownloadSimple } from "@phosphor-icons/react";
 import { Pill } from "@/components/ui/Pill";
+import { GlassTabs } from "@/components/ui/GlassTabs";
+import { FeedRowShell } from "@/components/ui/FeedRowShell";
+import { Select } from "@/components/ui/Select";
 import { asRole, roleLabel } from "@/components/ui/RoleIcon";
 import { BySaleView } from "@/components/automated-emails/BySaleView";
 import type { Cockpit } from "@/lib/services/automated-emails-cockpit";
@@ -154,29 +156,14 @@ export function AutomatedEmailsListView(props: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Tabs — a glass segmented track; selected tab sits on an elevated
-          surface, the count rides as a canonical CountBadge (not inline text). */}
-      <div className="flex" role="tablist" aria-label="Email views">
-        <div style={{ display: "inline-flex", gap: 3, padding: 4, borderRadius: 12, background: "var(--agent-surface-glass)", border: "1px solid var(--agent-border-subtle)", flexWrap: "wrap", maxWidth: "100%" }}>
-          {TABS.map((t) => {
-            const n = countForTab(t.value, counts, needsTotal, forecast);
-            const sel = t.value === tab;
-            return (
-              <Link
-                key={t.value}
-                href={hrefWith({ tab: t.value })}
-                role="tab"
-                aria-selected={sel}
-                className="agent-tab-chip"
-                data-on={sel}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9, textDecoration: "none", fontSize: 12.5, fontWeight: 600 }}
-              >
-                {t.label}{n !== null && <CountBadge count={n} tone={sel ? "accent" : "muted"} soft={!sel} hideZero={false} />}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      {/* Tabs — canonical GlassTabs: a glass segmented track whose selected chip
+          sits on an elevated surface, each count riding as a CountBadge. */}
+      <GlassTabs
+        tabs={TABS.map((t) => ({ value: t.value, label: t.label, count: countForTab(t.value, counts, needsTotal, forecast) }))}
+        current={tab}
+        hrefFor={(v) => hrefWith({ tab: v })}
+        ariaLabel="Email views"
+      />
 
       {/* Toolbar: search + filters — hidden on Insights and the By-sale cockpit
           (neither filters the per-email feed). */}
@@ -199,15 +186,15 @@ export function AutomatedEmailsListView(props: Props) {
         {/* .agent-input defaults to width:100%, which stacked every control on
             its own full-width row — the filter bar reads as ONE compact row
             now, wrapping only when it genuinely runs out of space. */}
-        <select className="agent-input agent-input-sm" aria-label="Email type" value={current.category} onChange={(e) => go({ category: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
-          {CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="agent-input agent-input-sm" aria-label="Recipient role" value={current.role} onChange={(e) => go({ role: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
-          {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="agent-input agent-input-sm" aria-label="Delivery status" value={current.status} onChange={(e) => go({ status: e.target.value || null })} style={{ width: "auto", flex: "0 1 auto" }}>
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <span style={{ display: "inline-block", flex: "0 1 auto", minWidth: 150 }} aria-label="Email type">
+          <Select options={CATEGORY_OPTIONS} value={current.category || null} onChange={(v) => go({ category: v || null })} placeholder="All types" fullWidth height={40} radius={8} />
+        </span>
+        <span style={{ display: "inline-block", flex: "0 1 auto", minWidth: 150 }} aria-label="Recipient role">
+          <Select options={ROLE_OPTIONS} value={current.role || null} onChange={(v) => go({ role: v || null })} placeholder="All recipients" fullWidth height={40} radius={8} />
+        </span>
+        <span style={{ display: "inline-block", flex: "0 1 auto", minWidth: 150 }} aria-label="Delivery status">
+          <Select options={STATUS_OPTIONS} value={current.status || null} onChange={(v) => go({ status: v || null })} placeholder="All statuses" fullWidth height={40} radius={8} />
+        </span>
         <DateField className="agent-input agent-input-sm" aria-label="From date" value={current.from} onChange={(e) => go({ from: e.target.value || null })} style={{ width: 150, flex: "0 1 auto" }} />
         {anyFilter && (
           <button type="button" className="agent-link agent-link-muted" style={{ fontSize: 12 }} onClick={() => { setSearchDraft(""); go({ q: null, category: null, role: null, status: null, from: null }); }}>
@@ -224,7 +211,7 @@ export function AutomatedEmailsListView(props: Props) {
           style={{ marginLeft: "auto", gap: 6, textDecoration: "none" }}
           aria-label="Export current view as CSV"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
+          <DownloadSimple size={14} weight="bold" aria-hidden />
           Export
         </a>
       </div>
@@ -240,7 +227,7 @@ export function AutomatedEmailsListView(props: Props) {
             </div>
           )}
           {fileId && fileLabel && (
-            <Pill glass tone="muted" size="sm" style={{ gap: 6 }}>
+            <Pill tone="muted" size="sm" outline style={{ gap: 6 }}>
               Filtered to: {fileLabel}
               <Link href={hrefWith({ fileId: null })} className="agent-link agent-link-muted" style={{ fontSize: 11 }}>Clear</Link>
             </Pill>
@@ -292,9 +279,10 @@ export function AutomatedEmailsListView(props: Props) {
               </p>
               <div className="space-y-1">
                 {missingItems.map((m) => (
-                  <div
+                  <FeedRowShell
                     key={m.id}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--agent-radius-md, 8px)", border: "0.5px solid var(--agent-border-subtle, rgba(15,23,42,0.07))", background: "var(--agent-surface-glass)" }}
+                    padding="9px 12px"
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
                     <Pill tone="warning" size="sm" outline>Missing</Pill>
                     <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--agent-text-primary)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -306,7 +294,7 @@ export function AutomatedEmailsListView(props: Props) {
                     <Link href={`/agent/transactions/${m.transactionId}`} className="agent-link" style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                       Add email
                     </Link>
-                  </div>
+                  </FeedRowShell>
                 ))}
               </div>
             </div>
@@ -331,7 +319,7 @@ export function AutomatedEmailsListView(props: Props) {
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 4 }}>
               <button
                 type="button"
-                className="agent-segment-pill agent-segment-pill-sm"
+                className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
                 onClick={() => go({ limit: String((Number(current.limit) || 200) + 200) })}
               >
                 Load more

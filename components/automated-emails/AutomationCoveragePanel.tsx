@@ -10,11 +10,12 @@ import { GlassCard } from "@/components/glass/GlassCard";
 import { Donut } from "@/components/ui/Donut";
 import { StatNumber } from "@/components/ui/StatNumber";
 import { LegendItem } from "@/components/ui/LegendItem";
+import { PanelHeader } from "@/components/ui/PanelHeader";
 import type { AutomationCoverage } from "@/lib/services/automated-emails-coverage";
 
 const COVERED = "var(--agent-success)";
 const NEED = "var(--agent-warning)";
-const OPTED = "#6366f1"; // indigo — informational (they chose to unsubscribe), not a problem
+const OPTED = "var(--agent-indigo)"; // indigo — informational (they chose to unsubscribe), not a problem
 const PAUSED = "var(--agent-text-muted)";
 
 const CARD_STYLE = { padding: "18px 20px", borderRadius: "var(--agent-radius-xl)" } as const;
@@ -24,7 +25,7 @@ export function AutomationCoveragePanel({ coverage }: { coverage: AutomationCove
 
   return (
     <GlassCard glassId="auto-emails-coverage" label="Auto emails · Coverage" defaultVariant="v05" style={CARD_STYLE}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--agent-text-primary)", marginBottom: 16 }}>Automation coverage</h2>
+      <PanelHeader title="Automation coverage" style={{ marginBottom: 16 }} />
 
       {total === 0 ? (
         <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
