@@ -2892,13 +2892,13 @@
   .enq-fill { position: absolute; top: 0; height: 100%; border-radius: 2px; background: var(--agent-coral); transition: width 400ms ease, opacity 300ms ease, background 250ms ease; }
   /* The ball: a clear, ringed circle marking the side the ball is with. Sits on
      top of the fill (z-index) with a white ring so it reads even on a full bar. */
-  .enq-ball { position: absolute; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--agent-coral); border: 3px solid var(--agent-surface-elevated); box-shadow: 0 1px 4px rgba(30,45,74,0.30); transition: left 220ms ease, right 220ms ease, background 250ms ease, transform 220ms ease; z-index: 2; }
+  .enq-ball { position: absolute; top: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--agent-coral); border: 3px solid var(--agent-surface-elevated); box-shadow: 0 1px 4px rgba(var(--agent-shadow-rgb), 0.30); transition: left 220ms ease, right 220ms ease, background 250ms ease, transform 220ms ease; z-index: 2; }
   /* Drag-to-confirm handle (critique #20b): grabbable, generous touch target, no
      transition mid-drag so it tracks the finger, then springs back on release. */
   .enq-ball.is-draggable { cursor: grab; touch-action: none; }
   .enq-ball.is-draggable::before { content: ""; position: absolute; inset: -12px; border-radius: 50%; }
-  .enq-ball.is-draggable:hover { box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.16), 0 1px 4px rgba(30,45,74,0.30); }
-  .enq-ball.is-dragging { cursor: grabbing; transition: background 250ms ease; box-shadow: 0 0 0 5px rgba(var(--agent-coral-rgb), 0.20), 0 2px 8px rgba(30,45,74,0.35); }
+  .enq-ball.is-draggable:hover { box-shadow: 0 0 0 4px rgba(var(--agent-coral-rgb), 0.16), 0 1px 4px rgba(var(--agent-shadow-rgb), 0.30); }
+  .enq-ball.is-dragging { cursor: grabbing; transition: background 250ms ease; box-shadow: 0 0 0 5px rgba(var(--agent-coral-rgb), 0.20), 0 2px 8px rgba(var(--agent-shadow-rgb), 0.35); }
   .enq-ends { display: flex; justify-content: space-between; font-size: 10.5px; }
   .enq-forwd { font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
 
@@ -2962,9 +2962,9 @@
      the state (critique #20a/#4, all variants incl. overdue). */
   .enq-pill2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; }
   .enq-pill-danger { color: var(--agent-coral-deep); }
-  .enq-pill-amber  { color: #b45309; }
+  .enq-pill-amber  { color: var(--agent-warning); }
   .enq-pill-green  { color: var(--agent-success); }
-  .enq-pill-blue   { color: #2563eb; }
+  .enq-pill-blue   { color: var(--agent-info); }
   .enq-substatus { display: block; font-size: 11px; color: var(--agent-text-muted); margin-top: 4px; }
 
   .enq-actions2 { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
@@ -3048,7 +3048,7 @@
   .enq-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transform: translateY(-1px); background: var(--agent-text-muted); }
   .enq-dot-chase { background: var(--agent-coral); }
   .enq-dot-reply { background: var(--agent-success); }
-  .enq-dot-raised { background: #2563eb; }
+  .enq-dot-raised { background: var(--agent-info); }
   .enq-tl-date { color: var(--agent-text-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
   .enq-tl-label { color: var(--agent-text-secondary); }
   /* Chase-email rows open a true-to-inbox preview on click; the whole row (date

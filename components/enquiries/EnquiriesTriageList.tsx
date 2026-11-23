@@ -33,6 +33,7 @@ import { Select } from "@/components/ui/Select";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { DateField } from "@/components/ui/DateField";
 import { buttonClasses } from "@/components/arc/button/button";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 
 const courtLabel = (c: EnquiryCourt) => (c === "seller_solicitor" ? "seller's solicitor" : "buyer's solicitor");
@@ -275,16 +276,6 @@ export function EnquiriesTriageList({
     }
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="agent-glass" style={{ padding: "34px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-        <ChatCircleDots size={30} weight="regular" style={{ color: "var(--agent-text-muted)", marginBottom: 8 }} />
-        <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Every enquiry loop is confirmed.</p>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--agent-text-muted)" }}>Open loops appear here to blitz through as they need a court check.</p>
-      </div>
-    );
-  }
-
   return (
     <div>
       {/* Summary overview — individual cards via the shared StatCards primitive */}
@@ -424,9 +415,18 @@ export function EnquiriesTriageList({
             </div>
           );
         })}
+        {shown.length === 0 && (
+          <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", padding: "22px 24px" }}>
+            <EmptyState
+              icon={rows.length === 0 ? <ChatCircleDots size={24} weight="regular" /> : <MagnifyingGlass size={24} weight="regular" />}
+              title={rows.length === 0 ? "No sales at enquiry stage" : "No matches"}
+              description={rows.length === 0 ? "Sales will appear here when they reach the enquiries stage." : "No enquiries match your search or filter."}
+            />
+          </div>
+        )}
       </div>
 
-      <p className="enq-foot">Showing {shown.length} of {rows.length} {rows.length === 1 ? "enquiry" : "enquiries"}</p>
+      {rows.length > 0 && <p className="enq-foot">Showing {shown.length} of {rows.length} {rows.length === 1 ? "enquiry" : "enquiries"}</p>}
 
       {dragConfirm && (() => {
         const id = dragConfirm.row.transactionId;
@@ -444,20 +444,20 @@ export function EnquiriesTriageList({
               <div className="enq-modal-actions">
                 {toBuyer ? (
                   <>
-                    <button type="button" className="enq-btn enq-btn-satisfied" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "buyer_solicitor", kind: "replies_sent", note: "Replies sent" }), "Replies sent, moved to the buyer's side"); setDragConfirm(null); }}>
+                    <button type="button" className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "var(--agent-success)", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties} onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "buyer_solicitor", kind: "replies_sent", note: "Replies sent" }), "Replies sent, moved to the buyer's side"); setDragConfirm(null); }}>
                       <Checks size={14} weight="bold" /> Yes, replies issued in full
                     </button>
-                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "touch", kind: "partial_replies", note: "Some replies sent across" }), "Logged: some replies in"); setDragConfirm(null); }}>
+                    <button type="button" className={buttonClasses({ variant: "secondary", size: "sm" })} onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "touch", kind: "partial_replies", note: "Some replies sent across" }), "Logged: some replies in"); setDragConfirm(null); }}>
                       Only some replies in
                     </button>
-                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => setDragConfirm(null)}>Cancel</button>
+                    <button type="button" className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setDragConfirm(null)}>Cancel</button>
                   </>
                 ) : (
                   <>
-                    <button type="button" className="enq-btn enq-btn-primary2" onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised" }), "Further enquiries raised, moved to the seller's side"); setDragConfirm(null); }}>
+                    <button type="button" className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties} onClick={() => { run(id, () => logEnquiryMovementAction({ transactionId: id, mode: "handover", flipsCourtTo: "seller_solicitor", kind: "raised", note: "Further enquiries raised" }), "Further enquiries raised, moved to the seller's side"); setDragConfirm(null); }}>
                       <ArrowRight size={14} weight="bold" /> Yes, raise further
                     </button>
-                    <button type="button" className="enq-btn enq-btn-flip" onClick={() => setDragConfirm(null)}>Cancel</button>
+                    <button type="button" className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setDragConfirm(null)}>Cancel</button>
                   </>
                 )}
               </div>
@@ -601,7 +601,7 @@ function RowActions({
     return (
       <div className="enq-actions2" ref={wrapRef}>
         <span className="enq-confirm-q">Mark satisfied? This opens exchange.</span>
-        <button type="button" disabled={busy} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "#16a34a", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties} onClick={() => { setSatisfyArmed(false); onSatisfy(); }}><Check size={14} weight="bold" /> Confirm</button>
+        <button type="button" disabled={busy} className={buttonClasses({ variant: "primary", size: "sm" })} style={{ ["--foreground" as string]: "var(--agent-success)", ["--background" as string]: "#fff", gap: 5 } as React.CSSProperties} onClick={() => { setSatisfyArmed(false); onSatisfy(); }}><Check size={14} weight="bold" /> Confirm</button>
         <button type="button" disabled={busy} className={buttonClasses({ variant: "ghost", size: "sm" })} onClick={() => setSatisfyArmed(false)}>Cancel</button>
       </div>
     );
@@ -661,7 +661,7 @@ function RowActions({
       {/* Canonical split-button; the colour (green = satisfied / coral = primary) is a
           token override at the call site, so it's the one canonical button either way. */}
       {(() => {
-        const splitColor = primaryGreen ? "#16a34a" : "#FF6B4A";
+        const splitColor = primaryGreen ? "var(--agent-success)" : "#FF6B4A";
         const base = buttonClasses({ variant: "primary", size: "sm" });
         const tokens = { ["--foreground" as string]: splitColor, ["--background" as string]: "#fff" } as React.CSSProperties;
         return (
