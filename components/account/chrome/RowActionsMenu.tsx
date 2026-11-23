@@ -26,20 +26,7 @@ export function RowActionsMenu({ items, label = "More actions" }: { items: RowAc
             type="button"
             aria-haspopup="menu"
             aria-label={label}
-            className="account-rowmenu-btn"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 30,
-              height: 30,
-              background: "transparent",
-              border: "none",
-              borderRadius: 7,
-              color: "var(--agent-text-muted)",
-              cursor: "pointer",
-              transition: "background 120ms, color 120ms",
-            }}
+            className="agent-icon-btn agent-icon-btn-md"
           >
             <DotsThree size={18} weight="bold" />
           </button>
@@ -51,10 +38,6 @@ export function RowActionsMenu({ items, label = "More actions" }: { items: RowAc
           </PopoverMenuItem>
         ))}
       </Popover>
-
-      <style>{`
-        .account-rowmenu-btn:hover { background: var(--agent-hover-shade); color: var(--agent-text-secondary); }
-      `}</style>
     </div>
   );
 }

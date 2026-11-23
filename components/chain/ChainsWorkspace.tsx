@@ -28,7 +28,8 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import { StatCards } from "@/components/ui/StatCards";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { BloomStage } from "@/components/agent/BloomStage";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import { ChainCard } from "@/components/chain/ChainCard";
 import { NoChainSetupCard } from "@/components/chain/NoChainSetupCard";
 import { CheckInsList } from "@/components/chain/CheckInsList";
@@ -156,7 +157,7 @@ function FilterCheck({ label, checked, onClick }: { label: string; checked: bool
           flexShrink: 0,
         }}
       >
-        {checked && <Check size={10} weight="bold" style={{ color: "#fff" }} />}
+        {checked && <AnimatedTick size={10} color="#fff" strokeWidth={3.5} />}
       </span>
     </button>
   );
@@ -302,20 +303,6 @@ export function ChainsWorkspace({
   return (
     <BloomStage style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <style>{`
-        /* Empty-state CTA (external progression business) — the canonical flat
-           coral primary (approved 2026-11-20): flat fill, no gloss, press-down. */
-        .chains-empty-cta {
-          display: inline-flex; align-items: center; gap: 8px;
-          height: 40px; padding: 0 18px; border-radius: 12px;
-          font-size: 13.5px; font-weight: 650; text-decoration: none; color: #fff;
-          background: #FF6B4A;
-          box-shadow: none;
-          transition: opacity 140ms ease, box-shadow 160ms ease, transform 110ms ease;
-        }
-        .chains-empty-cta:hover { opacity: 0.91; box-shadow: 0 1px 2px rgba(45,24,16,0.10); }
-        .chains-empty-cta:active { transform: scale(0.97); opacity: 0.84; }
-        @media (prefers-reduced-motion: reduce) { .chains-empty-cta { transition: none; } .chains-empty-cta:active { transform: none; } }
-
         .chains-summary-card { container-type: inline-size; }
         .chains-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
         .chains-summary-cell { border-left: 1px solid var(--agent-border-subtle); }
@@ -474,9 +461,9 @@ export function ChainsWorkspace({
           <div className={searchTag.className} {...searchTag.props} style={{ position: "relative", flex: "1 1 auto", minWidth: 0, maxWidth: 360 }}>
             <MagnifyingGlass
               size={14}
-              weight="bold"
+              weight="regular"
               aria-hidden
-              style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }}
+              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }}
             />
             <input
               type="text"
@@ -487,16 +474,17 @@ export function ChainsWorkspace({
               className="agent-input agent-input-sm"
               // Inline font-size beats the mobile ".agent-input {16px}" zoom-guard
               // rule, so the placeholder stays compact like the top-nav search.
-              style={{ width: "100%", paddingLeft: 32, paddingRight: query ? 30 : 12, fontSize: "var(--agent-text-body-sm)" }}
+              style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: "var(--agent-text-body-sm)" }}
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
                 aria-label="Clear search"
-                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, border: "none", background: "transparent", color: "var(--agent-text-muted)", cursor: "pointer", borderRadius: 6 }}
+                className="agent-icon-btn agent-icon-btn-sm"
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
               >
-                <X size={13} weight="bold" />
+                <X size={12} weight="bold" />
               </button>
             )}
           </div>
@@ -522,16 +510,14 @@ export function ChainsWorkspace({
       {tab === "chains" ? (
         chains.length === 0 ? (
           <EmptyState
-            compact
-            iconBg="rgba(var(--agent-coral-base-rgb), 0.12)"
             title="No chains yet"
-            description="Sales you link into a chain will show here. Set one up from a sale in the Needs chain setup tab."
+            description="Sales linked to a chain will appear here. You can set one up from the Needs chain setup tab."
             action={emptyCta ? (
-              <Link href={emptyCta.href} className="chains-empty-cta">{emptyCta.label}</Link>
+              <span className="agent-canon-cta"><Link href={emptyCta.href} className="agent-btn agent-btn-md agent-btn-primary" style={{ textDecoration: "none" }}>{emptyCta.label}</Link></span>
             ) : undefined}
           />
         ) : visibleChains.length === 0 ? (
-          <EmptyState compact title="No matches" description="No chains match your search or filters." />
+          <EmptyState title="No matches" description="No chains match your search or filters." />
         ) : (
           <div className="chains-card-grid">
             {visibleChains.map((c) => (
@@ -542,13 +528,11 @@ export function ChainsWorkspace({
       ) : tab === "needs" ? (
         needsSetupAll.length === 0 ? (
           <EmptyState
-            compact
-            iconBg="var(--agent-success-bg)"
-            title="Nothing to set up"
-            description="Every live sale is either in a chain or confirmed as needing none."
+            title="All sales accounted for"
+            description="Every live sale has either been linked to a chain or confirmed as not requiring one."
           />
         ) : visibleNeeds.length === 0 ? (
-          <EmptyState compact title="No matches" description="No sales match your search." />
+          <EmptyState title="No matches" description="No sales match your search." />
         ) : (
           <div className="chains-card-grid">
             {visibleNeeds.map((s) => (
@@ -568,10 +552,8 @@ export function ChainsWorkspace({
       ) : tab === "pushexchange" ? (
         exchangePush.length === 0 ? (
           <EmptyState
-            compact
-            iconBg="var(--agent-success-bg)"
-            title="Nothing waiting to exchange"
-            description="When a sale is ready on both sides but waiting on its chain, it shows here so you can chase the rest over the line."
+            title="No sales awaiting exchange"
+            description="Sales ready to exchange but waiting on the rest of their chain will appear here."
           />
         ) : (
           <ExchangePushList files={exchangePush} />
@@ -579,25 +561,21 @@ export function ChainsWorkspace({
       ) : tab === "checkins" ? (
         checkIns.length === 0 ? (
           <EmptyState
-            compact
-            iconBg="var(--agent-success-bg)"
-            title="No one to chase"
-            description="Other agents' sales in your chains show here, quietest first, so you always know who to chase for an update."
+            title="No agents to chase"
+            description="Sales managed by other agents in your chains will appear here, ordered by how long they've been without an update."
           />
         ) : visibleCheckIns.length === 0 ? (
-          <EmptyState compact title="No matches" description="No sales match your search." />
+          <EmptyState title="No matches" description="No sales match your search." />
         ) : (
           <CheckInsList rows={visibleCheckIns} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         )
       ) : noChainAll.length === 0 ? (
         <EmptyState
-          compact
-          iconBg="var(--agent-success-bg)"
-          title="No sales marked no chain"
-          description="Sales you confirm need no chain will show here, ready to reopen if things change."
+          title="No sales without a chain"
+          description="Sales confirmed as not requiring a chain will appear here. You can revisit these if circumstances change."
         />
       ) : visibleNoChain.length === 0 ? (
-        <EmptyState compact title="No matches" description="No sales match your search." />
+        <EmptyState title="No matches" description="No sales match your search." />
       ) : (
         <div className="chains-card-grid">
           {visibleNoChain.map((s) => (

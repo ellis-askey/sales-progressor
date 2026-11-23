@@ -7,6 +7,7 @@
 // scrollable, on touch it's swipe-scrollable. A drag never counts as a tap.
 
 import { useRef } from "react";
+import { Check } from "@phosphor-icons/react";
 import { CHECK_IN_STEPS } from "@/lib/chain/check-in-steps";
 
 export function ChainStepTicks({
@@ -66,7 +67,7 @@ export function ChainStepTicks({
               aria-pressed={isDone}
               title={s.label}
             >
-              <span className="cst-node" aria-hidden>{isDone ? "✓" : ""}</span>
+              <span className="cst-node" aria-hidden>{isDone ? <Check size={11} weight="bold" /> : ""}</span>
               <span className="cst-lbl">{s.shortLabel ?? s.label}</span>
             </button>
           );

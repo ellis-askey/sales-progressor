@@ -24,6 +24,10 @@ import { AddNodeDrawer } from "@/components/chain/AddNodeDrawer";
 import { useChainAddNode } from "@/components/chain/use-chain-add-node";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { StepDots } from "@/components/ui/StepDots";
+import { Check } from "@phosphor-icons/react";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { CheckInRow } from "@/lib/services/chains";
 
@@ -405,17 +409,12 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
         display: flex; align-items: center; gap: 10px; width: 100%;
         border: 0; border-top: 1px solid var(--agent-border-subtle);
         background: transparent; font-family: inherit; cursor: pointer;
-        padding: 10px 16px; border-radius: 0 0 13px 13px;
+        padding: 10px 16px; border-radius: 0 0 14px 14px;
         transition: background 130ms ease;
       }
       .ciq-bar:hover { background: var(--agent-hover-shade, rgba(45,24,16,0.025)); }
       .ciq-bar:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.5); }
       .ciq-bar.ciq-open { border-radius: 0; }
-      .ciq-dots { display: inline-flex; align-items: center; gap: 3.5px; flex: 0 0 auto; }
-      .ciq-md { width: 7px; height: 7px; border-radius: 99px; border: 1.5px solid var(--agent-border-default); background: var(--agent-surface-elevated, #fff); transition: background 130ms ease, border-color 130ms ease; }
-      .ciq-md.on { background: var(--agent-coral-deep); border-color: var(--agent-coral-deep); }
-      .ciq-md.gap { margin-left: 4px; }
-      .ciq-allin .ciq-md.on { background: var(--agent-success); border-color: var(--agent-success); }
       .ciq-barlabel { font-size: 11.5px; font-weight: 700; color: var(--agent-text-secondary); white-space: nowrap; }
       .ciq-ready { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--agent-success); white-space: nowrap; }
       .ciq-rdot { width: 6px; height: 6px; border-radius: 99px; background: var(--agent-success); }
@@ -479,18 +478,6 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
       @keyframes ciq-logger-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
       .ciq-logger { animation: ciq-logger-in 200ms cubic-bezier(0.22,1,0.36,1); }
       @media (prefers-reduced-motion: reduce) { .ciq-logger { animation: none; } }
-      /* Collapsed "Log update" trigger — same size as before, now with hover +
-         press states (critique #298). */
-      .ciq-logbtn {
-        border: 1px solid var(--agent-border-default); border-radius: 9px;
-        padding: 8px 14px; font-family: inherit; font-size: 12.5px; font-weight: 650;
-        color: var(--agent-coral-deep); background: var(--agent-surface-elevated, #fff);
-        cursor: pointer; white-space: nowrap;
-        transition: background 130ms ease, border-color 130ms ease, transform 90ms ease;
-      }
-      .ciq-logbtn:hover { background: var(--agent-hover-shade, rgba(45,24,16,0.04)); border-color: rgba(var(--agent-coral-rgb), 0.55); }
-      .ciq-logbtn:active { transform: scale(0.97); }
-      @media (prefers-reduced-motion: reduce) { .ciq-logbtn { transition: none; } .ciq-logbtn:active { transform: none; } }
       /* Last-update line → expandable history (retires the modal). The collapsed
          line shows the latest entry; clicking reveals the rest, each laid out the
          same way (avatar + sentence + date) with a thin divider between. */
@@ -546,7 +533,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
             {...rowTag.props}
             style={{
               padding: "13px 16px",
-              borderRadius: 13,
+              borderRadius: 14,
               ...(rowTag.picked ? {} : {
                 background: "var(--agent-surface-elevated, #fff)",
                 border: "1px solid var(--agent-border-subtle)",
@@ -555,24 +542,8 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-              {/* Property photo — same signed URL / fallback as the chain drawer. */}
-              <div
-                style={{
-                  flex: "0 0 auto",
-                  width: 52,
-                  height: 52,
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  background: "var(--agent-border-subtle)",
-                }}
-              >
-                {row.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={row.photoUrl} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div className="property-photo-fallback" style={{ width: "100%", height: "100%" }} aria-hidden />
-                )}
-              </div>
+              {/* Property photo — same signed URL / self-healing fallback as the chain drawer. */}
+              <PropertyThumb photoUrl={row.photoUrl} size={52} />
 
               {/* Property + who */}
               <div style={{ flex: "1 1 220px", minWidth: 0 }}>
@@ -588,9 +559,9 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               {/* Progress (claimed nodes only) */}
               {pct != null && (
                 <div style={{ flex: "0 0 96px", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ display: "block", flex: 1, height: 6, borderRadius: 4, background: "var(--agent-border-subtle)", overflow: "hidden" }}>
-                    <i style={{ display: "block", height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, var(--agent-coral), var(--agent-coral-deep))" }} />
-                  </span>
+                  <div style={{ flex: 1 }}>
+                    <ProgressBar percent={pct} height={6} />
+                  </div>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--agent-text-secondary)", minWidth: 30, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                     {pct}%
                   </span>
@@ -603,7 +574,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                 {!isOpen && (
                   <button
                     type="button"
-                    className="ciq-logbtn"
+                    className="agent-btn agent-btn-ghost-bordered agent-btn-sm"
                     onClick={() => { setOpenId(row.linkId); setDraft(""); }}
                   >
                     Log update
@@ -668,7 +639,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
               );
             })() : (
               <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", lineHeight: 1.5 }}>
-                No updates logged yet — check in and note what you hear.
+                No updates logged yet. Check in and note what you hear.
               </p>
             )}
 
@@ -722,14 +693,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                     aria-expanded={open}
                     onClick={() => toggleStepsOpen(row.linkId)}
                   >
-                    <span className="ciq-dots" aria-hidden>
-                      {CHECK_IN_STEPS.map((step, si) => (
-                        <span
-                          key={step.key}
-                          className={`ciq-md${row.steps.includes(step.key) ? " on" : ""}${step.finale && !CHECK_IN_STEPS[si - 1]?.finale ? " gap" : ""}`}
-                        />
-                      ))}
-                    </span>
+                    <StepDots done={row.steps.length} total={CHECK_IN_STEPS.length} />
                     {allIn ? (
                       <span className="ciq-ready"><span className="ciq-rdot" aria-hidden />Ready to exchange</span>
                     ) : (
@@ -757,7 +721,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                               aria-pressed={done}
                               className={`ciq-step${done ? " done" : ""}${step.finale ? " fin" : ""}`}
                             >
-                              <span className="ciq-node" aria-hidden>✓</span>
+                              <span className="ciq-node" aria-hidden>{done ? <Check size={11} weight="bold" /> : null}</span>
                               <span className="ciq-lbl">{step.shortLabel ?? step.label}</span>
                             </button>
                           );

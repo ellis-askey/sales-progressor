@@ -11,11 +11,15 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CaretRight } from "@phosphor-icons/react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setChainLinkExchangeReadyAction } from "@/app/actions/chains";
 import type { ExchangePush, ExchangePushRow } from "@/lib/services/exchange-push";
 import { UserAvatar } from "@/components/ui/Avatar";
+import { Pill } from "@/components/ui/Pill";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { buttonClasses } from "@/components/arc/button/button";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 
 function rel(iso: string | null): string {
@@ -66,18 +70,10 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
       style={{
         border: `1px solid ${allReady ? "rgba(var(--agent-success-rgb, 31,138,74),0.4)" : "rgba(var(--agent-coral-rgb),0.22)"}`,
         borderRadius: 16,
-        background: allReady
-          ? "linear-gradient(180deg, rgba(var(--agent-success-rgb, 31,138,74),0.08), var(--agent-surface-elevated,#fff))"
-          : "linear-gradient(180deg, rgba(var(--agent-coral-rgb),0.045), var(--agent-surface-elevated,#fff))",
+        background: "var(--agent-surface-elevated, #fff)",
         overflow: "hidden",
       }}
     >
-      {/* "Chase" text button — hover + press colour (critique #298). */}
-      <style>{`
-        .exchk-chase { color: var(--agent-coral-deep); background: none; transition: color 120ms ease, opacity 120ms ease; }
-        .exchk-chase:hover { color: var(--agent-coral-darker); }
-        .exchk-chase:active { opacity: 0.7; }
-      `}</style>
       {/* Header — flips green + a Book CTA once everyone's ready. */}
       <div style={{ padding: "15px 16px 2px" }}>
         <h3 style={{ margin: "0 0 3px", fontSize: 16.5, fontWeight: 730, color: "var(--agent-text-primary)" }}>
@@ -92,9 +88,9 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
 
       {/* Progress */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px 6px" }}>
-        <span style={{ flex: 1, height: 9, borderRadius: 99, background: "rgba(42,23,16,0.06)", overflow: "hidden" }}>
-          <i style={{ display: "block", height: "100%", width: `${Math.round((readyCount / total) * 100)}%`, borderRadius: 99, background: "linear-gradient(90deg, var(--agent-success), #2bb56a)", transition: "width 450ms cubic-bezier(0.16,1,0.3,1)" }} />
-        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <ProgressBar percent={(readyCount / total) * 100} height={9} color="var(--agent-success)" />
+        </div>
         <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--agent-success)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
           {readyCount} / {total} ready
         </span>
@@ -125,7 +121,6 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
               style={{
                 borderTop: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
                 borderRadius: row.isUs ? 10 : 0,
-                background: row.isUs ? "rgba(var(--agent-success-rgb, 31,138,74),0.05)" : undefined,
               }}
             >
               <div className="exc-main">
@@ -152,17 +147,15 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
                   </span>
                 </span>
               ) : row.ready ? (
-                // A chain link that's ready — a solid green gradient pill.
-                <span style={{ fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", padding: "3px 11px", borderRadius: 99, color: "#fff", background: "linear-gradient(180deg, var(--agent-success), #17703b)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22)" }}>
-                  Ready
-                </span>
+                // A chain link that's ready — the canonical tinted success pill.
+                <Pill tone="success">Ready</Pill>
               ) : null /* not ready → no pill; the off toggle + Chase say it all */}
               {row.chaseable && !row.ready && (
                 <button
                   type="button"
-                  className="exchk-chase"
+                  className="agent-link"
                   onClick={() => setChaseTarget(row)}
-                  style={{ fontSize: 11.5, fontWeight: 650, border: 0, cursor: "pointer", padding: "4px 2px", whiteSpace: "nowrap" }}
+                  style={{ fontSize: 11.5, fontWeight: 650, border: 0, background: "none", cursor: "pointer", padding: "4px 2px", whiteSpace: "nowrap" }}
                 >
                   Chase
                 </button>
@@ -216,9 +209,11 @@ export function ExchangeChecklist({ push }: { push: ExchangePush }) {
           </p>
           <Link
             href={`/agent/transactions/${push.transactionId}`}
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg, var(--agent-success), #17703b)", color: "#fff", borderRadius: 11, padding: "11px 22px", fontSize: 14, fontWeight: 720, textDecoration: "none", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 16px rgba(var(--agent-success-rgb, 31,138,74),0.3)" }}
+            className={buttonClasses({ size: "md" })}
+            style={{ background: "var(--agent-success)", color: "#fff" }}
           >
-            Book the exchange →
+            Book the exchange
+            <CaretRight size={14} weight="bold" />
           </Link>
         </div>
       )}

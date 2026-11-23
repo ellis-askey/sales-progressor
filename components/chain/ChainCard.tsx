@@ -10,36 +10,12 @@ import { Fragment } from "react";
 import { CaretUp, CaretDown, UsersThree, Warning, CheckCircle, LinkSimpleHorizontal, XCircle } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { CountChip } from "@/components/ui/CountChip";
+import { MetaStatItem, MetaStatDivider } from "@/components/ui/MetaStatRow";
 import { ChainMiniMap } from "@/components/chain/ChainMiniMap";
 import { ViewChainButton } from "@/components/chain/ViewChainButton";
 import { saleAgreedAgo } from "@/components/chain/chain-format";
 import type { ChainsWorkspaceChain } from "@/lib/services/chains";
-
-function MetaItem({
-  icon,
-  children,
-  tone = "muted",
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  tone?: "muted" | "warning" | "success" | "danger";
-}) {
-  const color =
-    tone === "warning" ? "var(--agent-warning)"
-      : tone === "success" ? "var(--agent-success)"
-        : tone === "danger" ? "var(--agent-danger)"
-          : "var(--agent-text-muted)";
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, color, fontWeight: tone === "muted" ? 500 : 600, whiteSpace: "nowrap" }}>
-      <span style={{ display: "inline-flex", color }} aria-hidden>{icon}</span>
-      {children}
-    </span>
-  );
-}
-
-function Divider() {
-  return <span aria-hidden style={{ width: 1, height: 11, background: "var(--agent-border-subtle)", flexShrink: 0 }} />;
-}
 
 export function ChainCard({
   chain,
@@ -76,19 +52,19 @@ export function ChainCard({
   // "connected" status is the lowest, so it's the first to drop on mobile.
   const metaItems: { key: string; prio: number; node: React.ReactNode }[] = [];
   if (linksBelow > 0) {
-    metaItems.push({ key: "below", prio: 4, node: <MetaItem icon={<CaretDown size={12} weight="bold" />}>{linksBelow} below you</MetaItem> });
+    metaItems.push({ key: "below", prio: 4, node: <MetaStatItem icon={<CaretDown size={12} weight="bold" />}>{linksBelow} below you</MetaStatItem> });
   }
   if (linksAbove > 0) {
-    metaItems.push({ key: "above", prio: 5, node: <MetaItem icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaItem> });
+    metaItems.push({ key: "above", prio: 5, node: <MetaStatItem icon={<CaretUp size={12} weight="bold" />}>{linksAbove} above you</MetaStatItem> });
   }
   if (allConnected) {
     metaItems.push({
       key: "allconnected",
       prio: 6,
       node: (
-        <MetaItem icon={<CheckCircle size={13} weight="fill" />} tone="success">
+        <MetaStatItem icon={<CheckCircle size={13} weight="fill" />} tone="success">
           All agents connected
-        </MetaItem>
+        </MetaStatItem>
       ),
     });
   } else {
@@ -96,9 +72,9 @@ export function ChainCard({
       key: "connected",
       prio: 8,
       node: (
-        <MetaItem icon={<UsersThree size={13} weight="regular" />}>
+        <MetaStatItem icon={<UsersThree size={13} weight="regular" />}>
           {agentsConnected} of {length} connected
-        </MetaItem>
+        </MetaStatItem>
       ),
     });
     if (needsInviteCount > 0) {
@@ -106,9 +82,9 @@ export function ChainCard({
         key: "invite",
         prio: 3,
         node: (
-          <MetaItem icon={<Warning size={12} weight="fill" />} tone="warning">
+          <MetaStatItem icon={<Warning size={12} weight="fill" />} tone="warning">
             {needsInviteCount} to invite
-          </MetaItem>
+          </MetaStatItem>
         ),
       });
     }
@@ -120,9 +96,9 @@ export function ChainCard({
       key: "bounced",
       prio: 1,
       node: (
-        <MetaItem icon={<Warning size={12} weight="fill" />} tone="danger">
+        <MetaStatItem icon={<Warning size={12} weight="fill" />} tone="danger">
           {bouncedCount} bounced
-        </MetaItem>
+        </MetaStatItem>
       ),
     });
   }
@@ -131,9 +107,9 @@ export function ChainCard({
       key: "declined",
       prio: 2,
       node: (
-        <MetaItem icon={<XCircle size={13} weight="fill" />} tone="danger">
+        <MetaStatItem icon={<XCircle size={13} weight="fill" />} tone="danger">
           {declinedCount} declined
-        </MetaItem>
+        </MetaStatItem>
       ),
     });
   }
@@ -177,10 +153,9 @@ export function ChainCard({
               )}
             </div>
             <div className="chain-head-side" style={{ flexShrink: 0, textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-secondary)", whiteSpace: "nowrap" }}>
-                <LinkSimpleHorizontal size={13} weight="bold" aria-hidden style={{ color: "var(--agent-coral-deep)" }} />
+              <CountChip icon={<LinkSimpleHorizontal size={13} weight="bold" aria-hidden />}>
                 {length} {length === 1 ? "link" : "links"}
-              </span>
+              </CountChip>
               {/* Desktop: open-chain sits under the links chip. On mobile it moves
                   to a bottom-right footer (chain-open-bottom) for room. */}
               <span className="chain-open-top">
@@ -207,7 +182,7 @@ export function ChainCard({
         <div className="chain-meta chain-meta-desktop" style={{ alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 6 }}>
           {metaItems.map((m, i) => (
             <Fragment key={m.key}>
-              {i > 0 && <Divider />}
+              {i > 0 && <MetaStatDivider />}
               {m.node}
             </Fragment>
           ))}
@@ -215,7 +190,7 @@ export function ChainCard({
         <div className="chain-meta chain-meta-mobile" style={{ alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 6 }}>
           {mobileItems.map((m, i) => (
             <Fragment key={m.key}>
-              {i > 0 && <Divider />}
+              {i > 0 && <MetaStatDivider />}
               {m.node}
             </Fragment>
           ))}

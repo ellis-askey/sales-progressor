@@ -6,7 +6,9 @@
 // on the file too. Critique 2026-10-02.
 
 import { useState } from "react";
+import { CaretDown } from "@phosphor-icons/react";
 import { ExchangeChecklist } from "@/components/chain/ExchangeChecklist";
+import { Pill } from "@/components/ui/Pill";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { ExchangePushSummary } from "@/lib/services/exchange-push";
@@ -66,22 +68,11 @@ export function ExchangePushList({ files }: { files: ExchangePushSummary[] }) {
                   </span>
                 </span>
                 {f.allReady && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      whiteSpace: "nowrap",
-                      padding: "3px 10px",
-                      borderRadius: 99,
-                      color: "var(--agent-success)",
-                      background: "rgba(var(--agent-success-rgb, 31,138,74),0.1)",
-                      border: "1px solid rgba(var(--agent-success-rgb, 31,138,74),0.28)",
-                    }}
-                  >
-                    Ready to book
-                  </span>
+                  <Pill tone="success" outline>Ready to book</Pill>
                 )}
-                <span aria-hidden style={{ color: "var(--agent-text-muted)", fontSize: 13, transition: "transform 250ms ease", transform: isOpen ? "rotate(180deg)" : "none" }}>▾</span>
+                <span aria-hidden style={{ display: "inline-flex", transition: "transform 250ms ease", transform: isOpen ? "rotate(180deg)" : "none" }}>
+                  <CaretDown size={13} weight="bold" style={{ color: "var(--agent-text-muted)" }} />
+                </span>
               </button>
               <div style={{ display: "grid", gridTemplateRows: isOpen ? "1fr" : "0fr", transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden" }}>
