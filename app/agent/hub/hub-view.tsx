@@ -54,13 +54,15 @@ import { SectionReveal } from "@/components/hub/SectionReveal";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { buttonClasses } from "@/components/arc/button/button";
-import { StatNumber } from "@/components/ui/StatNumber";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { LegendItem } from "@/components/ui/LegendItem";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { MiniTable } from "@/components/ui/MiniTable";
 import { PaymentBlockBanner } from "@/components/billing/PaymentBlockBanner";
 import { PaymentMethodNudge } from "@/components/billing/PaymentMethodNudge";
 import Link from "next/link";
 import { withFrom } from "@/lib/agent/back-nav";
-import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck, Warning, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { Clock, CheckCircle, Envelope, ChatCircleText, Phone, ChatText, UserCircle, CalendarCheck, ArrowRight, TrendUp, TrendDown } from "@phosphor-icons/react/dist/ssr";
 import { listReviews } from "@/lib/services/reviews";
 import { ReviewsDueCard } from "@/components/hub/ReviewsDueCard";
 import { toUKDateStr, fmtCurrencyPence } from "@/lib/utils";
@@ -179,23 +181,22 @@ function fmtCompact(pence: number): string {
 
 function pickActivityGlyph(kind: "comm" | "milestone", description: string): {
   Icon: typeof CheckCircle;
-  bg: string;
   color: string;
 } {
   if (kind === "milestone") {
-    return { Icon: CheckCircle, bg: "var(--agent-success-bg)", color: "var(--agent-success)" };
+    return { Icon: CheckCircle, color: "var(--agent-success)" };
   }
   const d = description.toLowerCase();
   if (d.includes("whatsapp")) {
-    return { Icon: ChatCircleText, bg: "rgba(37, 211, 102, 0.10)", color: "#128c7e" };
+    return { Icon: ChatCircleText, color: "#128c7e" }; // WhatsApp brand teal (deliberate)
   }
   if (d.includes("call")) {
-    return { Icon: Phone, bg: "rgba(59, 130, 246, 0.10)", color: "#1d4ed8" };
+    return { Icon: Phone, color: "var(--agent-info)" };
   }
   if (d.includes("sms")) {
-    return { Icon: ChatText, bg: "rgba(139, 92, 246, 0.10)", color: "#6d28d9" };
+    return { Icon: ChatText, color: "var(--agent-indigo)" };
   }
-  return { Icon: Envelope, bg: "var(--agent-coral-bg-tint)", color: "var(--agent-coral-deep)" };
+  return { Icon: Envelope, color: "var(--agent-coral-deep)" };
 }
 
 function timeAgo(date: Date): string {
@@ -235,16 +236,6 @@ type Ctx = {
 // now show their SILHOUETTE (SectionSkeleton) instead of a "Loading X…"
 // line/dots, so a cold hub reads as the page filling in rather than the
 // app thinking. The label is kept for screen readers.
-function InlineLoadingCard({
-  label,
-  minHeight,
-}: {
-  label: string;
-  minHeight: number;
-}) {
-  const rows = minHeight >= 220 ? 4 : minHeight >= 140 ? 3 : 2;
-  return <SectionSkeleton minHeight={minHeight} rows={rows} label={label} />;
-}
 
 // ── Page — shell renders instantly, body gated behind pipelineStats+attention ─
 
@@ -436,101 +427,13 @@ async function EmptyStateBody({ ctx }: { ctx: Ctx }) {
   // Progressor: no assigned files, plus the decorative ghost preview below.
   return (
     <div data-testid="hub-empty-state" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div className="agent-glass" style={{ padding: "26px 30px", borderRadius: "var(--agent-radius-xl)" }}>
-          <p style={{ margin: "0 0 4px", fontSize: "var(--agent-text-h3)", fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)" }}>
-            {isExternalProgressor ? "No active sales yet." : "No assigned files yet."}
-          </p>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
-            {isExternalProgressor ? "When your business takes on sales, you'll see them here." : "Files assigned to you will appear here."}
-          </p>
-        </div>
-
-      {/* Ghost pipeline health + momentum (decorative). Carries the same
-          .hub-grid-* classes as the real cards so it inherits their responsive
-          collapse — inline-only grids had no narrow fallback (audit B5). */}
-      <div className="hub-grid-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
-        <div className="agent-glass" style={{ padding: "20px 24px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 20 }}>Pipeline health</p>
-          <div className="hub-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {["Active files", "Exchanging soon", "Need attention", "Pipeline value"].map((label, i) => (
-              <div key={i} style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                padding: "6px 12px", gap: 6,
-                borderLeft: i > 0 ? "1px solid var(--agent-border-subtle)" : undefined,
-              }}>
-                <div className="agent-skeleton" style={{ width: 36, height: 22, borderRadius: 4 }} />
-                <span style={{ fontSize: 11, color: "var(--agent-text-muted)", textAlign: "center" }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="agent-glass" style={{ padding: "20px 24px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Wins this month</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
-            <div className="agent-skeleton" style={{ width: 60, height: 30, borderRadius: 6 }} />
-            <div className="agent-skeleton" style={{ width: 120, height: 12, borderRadius: 4 }} />
-            <div className="agent-skeleton" style={{ width: 90, height: 10, borderRadius: 4 }} />
-          </div>
-        </div>
+      <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", padding: "22px 24px" }}>
+        <EmptyState
+          title={isExternalProgressor ? "No active sales yet" : "No assigned files yet"}
+          description={isExternalProgressor ? "When your business takes on sales, you'll see them here." : "Files assigned to you will appear here."}
+        />
       </div>
 
-      {/* Ghost attention */}
-      <div
-        className="agent-glass-strong"
-        style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden", opacity: 0.35, pointerEvents: "none" }}
-      >
-        {/* Mirror the REAL card header anatomy (24px Warning + column title/subtitle
-            + chevron), so the ghost doesn't preview the wrong shape and cause a jump. */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12,
-          padding: "14px 20px", borderBottom: "0.5px solid var(--agent-border-subtle)",
-        }}>
-          <Warning size={24} color="var(--agent-text-muted)" />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="agent-skeleton" style={{ height: 12, width: 120, borderRadius: 4, marginBottom: 6 }} />
-            <div className="agent-skeleton" style={{ height: 9, width: 190, borderRadius: 4 }} />
-          </div>
-          <div className="agent-skeleton" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0 }} />
-        </div>
-        {[0.55, 0.38, 0.47].map((w, i) => (
-          <div key={i} style={{
-            padding: "13px 20px 13px 17px",
-            borderLeft: "3px solid var(--agent-border-subtle)",
-            borderTop: i > 0 ? "0.5px solid var(--agent-border-subtle)" : undefined,
-            display: "flex", alignItems: "center", gap: 12,
-          }}>
-            <div style={{ flex: 1 }}>
-              <div className="agent-skeleton" style={{ height: 12, borderRadius: 4, width: `${w * 100}%`, marginBottom: 6 }} />
-              <div className="agent-skeleton" style={{ height: 11, borderRadius: 4, width: `${w * 60}%` }} />
-            </div>
-            <div className="agent-skeleton" style={{ height: 28, width: 76, borderRadius: 8, flexShrink: 0 }} />
-          </div>
-        ))}
-      </div>
-
-      {/* Ghost exchange forecast + service split */}
-      <div className="hub-grid-half" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, opacity: 0.35, pointerEvents: "none" }}>
-        <div className="agent-glass" style={{ padding: "20px 24px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Exchange forecast</p>
-          <div style={{ display: "flex", gap: 3, alignItems: "flex-end", marginBottom: 10 }}>
-            {[40, 68, 28, 82, 52].map((h, i) => (
-              <div key={i} className="agent-skeleton" style={{ flex: 1, height: h, borderRadius: 3 }} />
-            ))}
-          </div>
-          <div className="agent-skeleton" style={{ height: 11, borderRadius: 4, width: "65%", marginBottom: 5 }} />
-          <div className="agent-skeleton" style={{ height: 11, borderRadius: 4, width: "45%" }} />
-        </div>
-        <div className="agent-glass" style={{ padding: "20px 24px" }}>
-          <p className="agent-eyebrow" style={{ marginBottom: 16 }}>Who&apos;s managing</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 4 }}>
-            <div className="agent-skeleton" style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0 }} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-              <div className="agent-skeleton" style={{ height: 12, borderRadius: 4 }} />
-              <div className="agent-skeleton" style={{ height: 12, borderRadius: 4, width: "75%" }} />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1035,7 +938,7 @@ async function PipelineHealthCard({
   const mom = health.exchangesPrev30 > 0
     ? Math.round(((health.exchangesLast30 - health.exchangesPrev30) / health.exchangesPrev30) * 100)
     : null;
-  const momText = mom == null ? null : `${mom >= 0 ? "↑" : "↓"}${Math.abs(mom)}%`;
+  const momText = mom == null ? null : `${Math.abs(mom)}%`;
   // SLA colour by how good it actually is — never dress a low hit-rate as green.
   const slaColor = health.within12WeekPct == null
     ? "var(--agent-text-primary)"
@@ -1117,24 +1020,18 @@ async function PipelineHealthCard({
                 subTone: (isAdmin ? "fees" : "muted") as "fees" | "muted",
               },
             ] as { value: string; label: string; color: string; href: string | null; delta: string | null; deltaTone: "up" | "down" | "flat"; sub: string | null; subTone: "fees" | "muted" }[]
-          ).map(({ value, label, color, href, delta, deltaTone, sub, subTone }, i) => {
+          ).map(({ value, label, color, href, delta, deltaTone, sub }, i) => {
             const inner = (
-              <>
-                <StatNumber size="sm" color={color}>
-                  {value}
-                </StatNumber>
-                <span style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3, marginTop: 3 }}>{label}</span>
-                {delta && (
-                  <span style={{ fontSize: 10.5, fontWeight: 600, marginTop: 3, color: deltaTone === "down" ? "var(--agent-warning)" : deltaTone === "flat" ? "var(--agent-text-muted)" : "var(--agent-success)" }}>
-                    {delta}
-                  </span>
-                )}
-                {sub && (
-                  <span style={{ fontSize: 10.5, fontWeight: 600, marginTop: 3, color: subTone === "fees" ? "var(--agent-coral-deep)" : "var(--agent-text-muted)" }}>
-                    {sub}
-                  </span>
-                )}
-              </>
+              <StatBlock
+                eyebrow={label}
+                value={value}
+                numberSize="sm"
+                valueColor={color}
+                delta={delta ? (
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: deltaTone === "down" ? "var(--agent-warning)" : deltaTone === "flat" ? "var(--agent-text-muted)" : "var(--agent-success)" }}>{delta}</span>
+                ) : undefined}
+                sub={sub ?? undefined}
+              />
             );
             const cellStyle: React.CSSProperties = {
               display: "flex", flexDirection: "column", alignItems: "flex-start",
@@ -1181,7 +1078,7 @@ async function PipelineHealthCard({
                   <span className="hub-health-hero-n">
                     {health.exchangesLast30}
                     {momText && (
-                      <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 5, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)" }}>{momText}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 5, color: (mom ?? 0) >= 0 ? "var(--agent-success)" : "var(--agent-text-muted)", display: "inline-flex", alignItems: "center", gap: 2 }}>{(mom ?? 0) >= 0 ? <TrendUp size={12} weight="bold" /> : <TrendDown size={12} weight="bold" />}{momText}</span>
                     )}
                   </span>
                   <span className="hub-health-stat-l">Exchanges · last 30 days</span>
@@ -1438,10 +1335,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
                     key={label}
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-secondary)", flex: 1 }}>
-                      {label}
-                    </p>
+                    <LegendItem color={color} label={label} style={{ flex: 1 }} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
                       {count}
                     </span>
@@ -1459,7 +1353,7 @@ async function ServiceSplitCard({ ctx }: { ctx: Ctx }) {
             Agencies never see our pricing or a cross-agency breakdown. */}
         {isAdmin && (serviceSplit.feeSelfPence ?? 0) + (serviceSplit.feeOutsourcedPence ?? 0) > 0 && (
           <div style={{ borderTop: "0.5px solid var(--agent-border-subtle)", marginTop: 12, paddingTop: 12 }}>
-            <p style={{ margin: "0 0 5px", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)", fontWeight: 600 }}>
+            <p className="agent-eyebrow" style={{ marginBottom: 5 }}>
               By our fee income
             </p>
             {(() => {

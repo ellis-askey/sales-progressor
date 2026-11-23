@@ -44,7 +44,7 @@ const TONE: Record<HubRowTone, { accent: string; bg: string; iconBg: string; col
   danger: { accent: "var(--agent-danger)", bg: "rgba(var(--agent-danger-rgb),0.05)", iconBg: "rgba(var(--agent-danger-rgb),0.10)", color: "var(--agent-danger)" },
   warning: { accent: "var(--agent-warning)", bg: "rgba(var(--agent-warning-rgb),0.05)", iconBg: "rgba(var(--agent-warning-rgb),0.10)", color: "var(--agent-warning)" },
   coral: { accent: "var(--agent-coral)", bg: "var(--agent-coral-bg-tint)", iconBg: "rgba(var(--agent-coral-base-rgb),0.12)", color: "var(--agent-coral-deep)" },
-  muted: { accent: "rgba(100,116,139,0.55)", bg: "rgba(100,116,139,0.04)", iconBg: "rgba(100,116,139,0.12)", color: "#64748B" },
+  muted: { accent: "var(--agent-text-muted)", bg: "rgba(100,116,139,0.04)", iconBg: "rgba(100,116,139,0.12)", color: "var(--agent-text-muted)" },
 };
 
 const ICONS = { clock: Clock, bank: Bank, warning: Warning } as const;

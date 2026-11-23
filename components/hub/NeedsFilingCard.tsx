@@ -203,12 +203,12 @@ export function NeedsFilingCard({ rows, defaultCollapsed = false }: { rows: Pend
               {/* Who + when */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                 {multi ? (
-                  <Pill glass tone="brand" size="sm" style={{ flexShrink: 0 }}>
+                  <Pill tone="brand" size="sm" outline style={{ flexShrink: 0 }}>
                     <Envelope size={10} weight="bold" />
                     {t.rows.length} emails
                   </Pill>
                 ) : (
-                  <Pill glass tone={sent ? "brand" : "success"} size="sm" style={{ flexShrink: 0 }}>
+                  <Pill tone={sent ? "brand" : "success"} size="sm" outline style={{ flexShrink: 0 }}>
                     {sent ? <ArrowUp size={10} weight="bold" /> : <ArrowDown size={10} weight="bold" />}
                     {sent ? "Sent" : "Received"}
                   </Pill>

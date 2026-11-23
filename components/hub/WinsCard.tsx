@@ -21,7 +21,7 @@
 // Data shape from lib/services/hub.ts getHubWins(). Presentation only.
 
 import { useEffect, useRef, useState } from "react";
-import { Trophy, Flag, Sparkle, Rocket } from "@phosphor-icons/react";
+import { Trophy, Flag, Sparkle, Rocket, TrendUp, TrendDown } from "@phosphor-icons/react";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { StatNumber } from "@/components/ui/StatNumber";
 import type { HubWins } from "@/lib/services/hub";
@@ -38,8 +38,8 @@ function pickTier(wins: HubWins): Tier {
 function trendCopy(current: number, prior: number): { text: string; tone: "up" | "flat" | "down" } | null {
   if (prior === 0 && current > 0) return { text: "New this month", tone: "up" };
   const delta = current - prior;
-  if (delta > 0) return { text: `↑ ${delta} vs last month`, tone: "up" };
-  if (delta < 0) return { text: `↓ ${Math.abs(delta)} vs last month`, tone: "down" };
+  if (delta > 0) return { text: `${delta} vs last month`, tone: "up" };
+  if (delta < 0) return { text: `${Math.abs(delta)} vs last month`, tone: "down" };
   return { text: "Same as last month", tone: "flat" };
 }
 
@@ -263,7 +263,8 @@ export function WinsCard({ wins }: { wins: HubWins }) {
               {s.label.charAt(0).toUpperCase() + s.label.slice(1)}
             </p>
             {s.trend && (
-              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[s.trend.tone] }}>
+              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: toneColor[s.trend.tone], display: "inline-flex", alignItems: "center", gap: 3 }}>
+                {s.trend.tone === "up" ? <TrendUp size={11} weight="bold" /> : s.trend.tone === "down" ? <TrendDown size={11} weight="bold" /> : null}
                 {s.trend.text}
               </p>
             )}

@@ -36,6 +36,8 @@ import { FallbackPill } from "@/components/reminders/status-pills";
 import { usePathname } from "next/navigation";
 import { flaggedAgoSuffix } from "@/lib/utils";
 import { Pill } from "@/components/ui/Pill";
+import { Select } from "@/components/ui/Select";
+import { StatusDot } from "@/components/ui/StatusDot";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { UploadablePropertyThumb } from "@/components/hub/UploadablePropertyThumb";
@@ -370,21 +372,16 @@ function AssignInline({ transactionId, onAssigned }: { transactionId: string; on
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-      <select
-        value={selected}
-        onChange={(e) => setSelected(e.target.value)}
-        style={{
-          fontSize: 11, padding: "3px 6px", borderRadius: 6,
-          border: "0.5px solid var(--agent-border-default)",
-          background: "var(--agent-surface-glass)",
-          color: "var(--agent-text-primary)", maxWidth: 140,
-        }}
-      >
-        <option value="">Select…</option>
-        {users.map((u) => (
-          <option key={u.id} value={u.id}>{u.name}</option>
-        ))}
-      </select>
+      <div style={{ maxWidth: 160 }}>
+        <Select
+          value={selected}
+          onChange={(v) => setSelected(v)}
+          height={30}
+          radius={6}
+          fullWidth={false}
+          options={[{ value: "", label: "Select…" }, ...users.map((u) => ({ value: u.id, label: u.name }))]}
+        />
+      </div>
       <button
         onClick={save}
         disabled={!selected || isPending}
@@ -688,11 +685,8 @@ export function AttentionCard({ holds: initialHolds, reminders, unassigned: init
           {allClear ? (
             // Expanded-empty state. The header already says all-clear, so this
             // explains what would appear here rather than repeating the line.
-            <div style={{ padding: "20px 20px 24px", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--agent-success)", flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-secondary)" }}>
-                New reminders and anything waiting on you will show up here.
-              </p>
+            <div style={{ padding: "20px 20px 24px" }}>
+              <StatusDot tone="success" label="New reminders and anything waiting on you will show up here." />
             </div>
           ) : (
             <div ref={listRef} className="attn-rows">

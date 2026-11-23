@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { CalendarCheck, CaretDown, DesktopTower, EnvelopeSimpleOpen, Prohibit, Question, ArrowRight } from "@phosphor-icons/react";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { confirmProvisionalBookingAction, type BookingOutcome } from "@/app/actions/booking-confirmation";
@@ -354,16 +355,15 @@ export function ConfirmPanel({
             wrapperStyle={{ display: "inline-block" }}
           />
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none", fontSize: 13, color: "var(--agent-text-secondary)", paddingBottom: 6 }}>
-          <input type="checkbox" checked={keys} onChange={(e) => setKeys(e.target.checked)} />
-          {`${noun.charAt(0).toUpperCase()}${noun.slice(1)} collecting keys from us`}
-        </label>
+        <div style={{ paddingBottom: 6 }}>
+          <Checkbox checked={keys} onChange={setKeys} label={`${noun.charAt(0).toUpperCase()}${noun.slice(1)} collecting keys from us`} />
+        </div>
       </div>
 
       {/* Past-date guard: confirming still works, but warn so we don't announce a
           "will attend / access arranged" visit for a date that's already gone. */}
       {isPast && (
-        <p style={{ margin: 0, fontSize: 11.5, color: "#b45309", lineHeight: 1.4 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-warning)", lineHeight: 1.4 }}>
           {blockPast
             ? "This date has passed. To log a visit that's already taken place without emailing clients, use the Surveys & valuations to confirm card on your hub."
             : <>This date has passed. If it was a remote/desktop valuation or already happened, use the ▾ menu (Desktop valuation / Log it, don&apos;t email) so we don&apos;t email clients about a visit that&apos;s in the past.</>}

@@ -83,9 +83,9 @@ export function RowActionMenu({
           {items.map((item) => {
             const inner = (
               <>
-                <span aria-hidden style={{ color: item.danger ? "#b91c1c" : "var(--agent-coral-deep)", marginTop: 1, flexShrink: 0 }}>{item.icon}</span>
+                <span aria-hidden style={{ color: item.danger ? "var(--agent-danger)" : "var(--agent-coral-deep)", marginTop: 1, flexShrink: 0 }}>{item.icon}</span>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: item.danger ? "#b91c1c" : "var(--agent-text-primary)" }}>{item.title}</span>
+                  <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: item.danger ? "var(--agent-danger)" : "var(--agent-text-primary)" }}>{item.title}</span>
                   {item.sub && <span style={{ display: "block", fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.35, marginTop: 1 }}>{item.sub}</span>}
                 </span>
               </>
