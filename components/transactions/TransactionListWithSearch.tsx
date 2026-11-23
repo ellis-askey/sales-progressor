@@ -7,7 +7,10 @@
 // (FilesWorkspace + FilterMenu), so there is a single filter system, not two.
 
 import { useState, useMemo, useEffect } from "react";
+import { MagnifyingGlass, X } from "@phosphor-icons/react";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { CountBadge } from "@/components/ui/CountBadge";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 
@@ -88,13 +91,12 @@ export function TransactionListWithSearch({
       <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v25" data-bloom style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
         <div className="tl-card-search tl-search-row">
           <div className="tl-search-input" style={{ flex: 1 }}>
-            <svg
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--agent-text-muted)", pointerEvents: "none" }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
+            <MagnifyingGlass
+              size={14}
+              weight="regular"
+              aria-hidden
+              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }}
+            />
             <input
               type="text"
               value={query}
@@ -107,9 +109,9 @@ export function TransactionListWithSearch({
               <button
                 onClick={() => setQuery("")}
                 className="agent-icon-btn agent-icon-btn-sm"
-                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                 aria-label="Clear search"
-              >×</button>
+              ><X size={12} weight="bold" /></button>
             )}
           </div>
         </div>
@@ -131,12 +133,7 @@ export function TransactionListWithSearch({
                       style={{ background: "none", border: "none", cursor: "pointer" }}
                     >
                       {label}
-                      <span style={{
-                        fontSize: 10, fontWeight: 500,
-                        padding: "1px 7px", borderRadius: 99,
-                        background: isActive ? "rgba(var(--agent-coral-rgb), 0.12)" : "rgba(0,0,0,0.06)",
-                        color: isActive ? "var(--agent-coral-deep)" : "var(--agent-text-muted)",
-                      }}>{count}</span>
+                      <CountBadge count={count} tone={isActive ? "accent" : "muted"} soft hideZero={false} />
                     </button>
                   );
                 })}
@@ -148,23 +145,21 @@ export function TransactionListWithSearch({
 
       {/* Results */}
       {filtered.length === 0 ? (
-        <div className="agent-glass-strong" style={{ padding: "32px 20px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-          <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--agent-text-muted)" }}>
-            {query
-              ? `No files match "${query}"`
+        <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", padding: "20px 24px" }}>
+          <EmptyState
+            icon={<MagnifyingGlass size={24} weight="regular" />}
+            title={query ? "No matches" : "Nothing here"}
+            description={query
+              ? `No files match "${query}".`
               : showStatusTabs && status !== "all"
-                ? `No ${status.replace("_", "-")} files`
+                ? `No ${status.replace("_", "-")} files right now.`
                 : "No files match."}
-          </p>
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 12 }}
-            >
-              Clear search
-            </button>
-          )}
+            action={query ? (
+              <button onClick={() => setQuery("")} className="agent-link agent-link-muted" style={{ fontSize: 12 }}>
+                Clear search
+              </button>
+            ) : undefined}
+          />
         </div>
       ) : (
         <TransactionTable

@@ -5690,8 +5690,10 @@ body[data-demo-file] [data-onboarding-checklist] {
 .pboard-ic { flex: 0 0 auto; display: grid; place-items: center; }
 .pboard-ic--instructed { color: var(--agent-info); }
 .pboard-ic--draft_pack { color: var(--agent-coral-deep); }
+.pboard-ic--finances   { color: var(--agent-indigo); }
 .pboard-ic--searches   { color: var(--agent-coral-deep); }
 .pboard-ic--enquiries  { color: var(--agent-warning); }
+.pboard-ic--contracts  { color: var(--agent-coral-deep); }
 .pboard-ic--exchange   { color: var(--agent-success); }
 .pboard-ic--completion { color: var(--agent-text-muted); }
 .pboard-ch-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
@@ -5705,9 +5707,9 @@ body[data-demo-file] [data-onboarding-checklist] {
 .pboard-busy {
   display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em;
   color: var(--agent-warning); padding: 3px 9px; border-radius: 7px;
-  background: linear-gradient(180deg, rgba(var(--agent-warning-rgb), 0.20), rgba(var(--agent-warning-rgb), 0.10));
-  border: 0.5px solid rgba(var(--agent-warning-rgb), 0.34);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 2px rgba(var(--agent-warning-rgb), 0.18);
+  /* De-tinted (2026-11-23 sign-off): outline, not a wash — the column ring already carries the warning accent. */
+  background: transparent;
+  border: 1px solid rgba(var(--agent-warning-rgb), 0.45);
 }
 
 .pboard-cb { padding: 9px; display: flex; flex-direction: column; gap: 8px; }
@@ -6116,7 +6118,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 .map-seg-g { display: inline-flex; gap: 3px; padding: 3px; border-radius: 10px; background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-subtle); box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.05); }
 .map-seg-b { font: inherit; font-size: 12px; font-weight: 600; color: var(--agent-text-muted); padding: 5px 11px; border-radius: 7px; border: 1px solid transparent; background: none; cursor: pointer; transition: color 150ms ease, background 150ms ease; }
 .map-seg-b:hover:not(.on) { color: var(--agent-coral-deep); }
-.map-seg-b.on { color: #fff; background: linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep)); }
+.map-seg-b.on { color: #fff; background: var(--agent-coral); }
 .map-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--agent-text-muted); }
 /* Mobile: the four toolbar groups wrapped into four tall rows. Lay them out as
    a 2x2 grid instead — each group 50% wide with a gap, its label stacked above
@@ -6218,8 +6220,8 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .map-legend2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--agent-text-muted); }
 .map-legend2 .d { width: 8px; height: 8px; border-radius: 50%; }
-.map-legend2 .d.agreed { background: #FF6B4A; margin-left: 4px; }
-.map-legend2 .d.completed { background: #1F8A4A; margin-left: 8px; }
+.map-legend2 .d.agreed { background: var(--agent-coral); margin-left: 4px; }
+.map-legend2 .d.completed { background: var(--agent-success); margin-left: 8px; }
 .map-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 0.5px solid var(--agent-border-subtle); }
 .map-modal-addr { font-size: 14px; font-weight: 650; color: var(--agent-text-primary); }
 .map-modal-x { font: inherit; font-size: 15px; color: var(--agent-text-muted); background: none; border: none; cursor: pointer; padding: 0 4px; }

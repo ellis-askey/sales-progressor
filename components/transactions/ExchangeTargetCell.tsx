@@ -86,7 +86,7 @@ export function ExchangeTargetCell({
             }}
           />
         </label>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(15,23,42,0.30)" }}>
+        <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>
           12-wk: {twelveWeekLabel}
         </p>
       </div>
@@ -101,13 +101,13 @@ export function ExchangeTargetCell({
 
   return (
     <div>
-      <p className={`text-sm font-medium ${isPast ? "text-red-500" : "text-slate-900/70"}`}>
+      <p className="text-sm font-medium" style={{ color: isPast ? "var(--agent-danger)" : "var(--agent-text-secondary)" }}>
         W/C {formatDate(weekCommencing(effectiveDate))}
       </p>
       {isPast ? (
-        <p className="text-xs mt-0.5" style={{ color: "rgba(239,68,68,0.60)" }}>Predicted date passed</p>
+        <p className="text-xs mt-0.5" style={{ color: "var(--agent-danger)" }}>Predicted date passed</p>
       ) : (
-        <p className="text-xs text-slate-900/35 mt-0.5">
+        <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>
           {weeksAway <= 0 ? "Within a week" : `Approx ${weeksAway} ${weeksAway === 1 ? "week" : "weeks"} away`}
         </p>
       )}
