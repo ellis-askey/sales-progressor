@@ -24,6 +24,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/draft-sales-cleanup",
+      "schedule": "15 3 * * *"
+    },
+    {
       "path": "/api/cron/drain-chain-neighbour-updates",
       "schedule": "*/10 * * * *"
     },
