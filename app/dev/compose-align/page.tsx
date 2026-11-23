@@ -97,7 +97,6 @@ function Frame({
         onSigStyleChange={(s) => { setStyle(s); setHtml((prev) => swapSig(prev, s)); }}
         onTemplates={() => setTemplatesOpen((v) => !v)}
         templatesOpen={templatesOpen}
-        infoTooltip="How sending works, your signature, and what gets logged."
         onRefine={withRefine ? () => { setRefining(true); setTimeout(() => setRefining(false), 900); } : undefined}
         refining={refining}
         onRegenerate={withRegenerate ? () => { setRegenerating(true); setTimeout(() => setRegenerating(false), 900); } : undefined}
@@ -149,7 +148,7 @@ export default function ComposeAlignPreview() {
           <section style={{ background: "var(--agent-surface-elevated, #fff)", borderRadius: 16, border: "0.5px solid var(--agent-border-subtle, rgba(0,0,0,0.08))", padding: 20 }}>
             <h2 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>What each button does</h2>
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              <Check><strong>Above the box</strong> (same spot on both): templates, mic and (i). On the chase drawer a <strong>refresh / Regenerate</strong> sits furthest right, with (i) on its left.</Check>
+              <Check><strong>Above the box</strong> (same spot on both): templates and mic. On the chase drawer a <strong>refresh / Regenerate</strong> sits furthest right.</Check>
               <Check><strong>🎤 Dictate</strong>: speak your message; it types at the cursor.</Check>
               <Check><strong>B / I</strong> — bold / italic. They now <strong>light up</strong> when the text you&rsquo;re on is already bold/italic (new upgrade to the pop-up).</Check>
               <Check><strong>• / 1.</strong> — bulleted and numbered lists.</Check>

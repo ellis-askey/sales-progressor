@@ -18,7 +18,7 @@
 // shim) so this component is clean to ship on its own.
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check, Sparkle, Stack, Info, ArrowsClockwise } from "@phosphor-icons/react";
+import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check, Sparkle, Stack, ArrowsClockwise } from "@phosphor-icons/react";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import type { SignatureStyleKey, SignatureStyleOption } from "@/lib/email/signature-options";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
@@ -85,7 +85,6 @@ export function MessageEditor({
   label = "Message",
   onTemplates,
   templatesOpen = false,
-  infoTooltip,
   onRegenerate,
   regenerating = false,
 }: {
@@ -96,13 +95,12 @@ export function MessageEditor({
   onAttachmentsChange: (next: MessageAttachment[]) => void;
   charCount: number;
   // ── Eyebrow row (above the editor) ──────────────────────────────────────────
-  // The canonical New-email arrangement: label on the left; templates, mic, (i)
-  // and (chase only) a regenerate refresh on the right. All optional except the
-  // mic, so each host shows only what it has — the toolbar below stays identical.
+  // The canonical New-email arrangement: label on the left; templates, mic and
+  // (chase only) a regenerate refresh on the right. All optional except the mic,
+  // so each host shows only what it has; the toolbar below stays identical.
   label?: string;
-  onTemplates?: () => void;      // templates button (Stack icon). Absent → hidden.
+  onTemplates?: () => void;      // templates button (Stack icon). Absent -> hidden.
   templatesOpen?: boolean;       // reflects the picker's open state in the icon.
-  infoTooltip?: string;          // (i) hover help. Absent → no (i).
   onRegenerate?: () => void;     // chase "Regenerate" as a refresh icon, far right.
   regenerating?: boolean;
   // Optional signature-style control. Absent → no icon. The host swaps the
@@ -226,12 +224,7 @@ export function MessageEditor({
             </ToolButton>
           )}
           <DictationMic controls={dictation} size={17} />
-          {infoTooltip && (
-            <span title={infoTooltip} aria-label={infoTooltip} role="img" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 28, color: "var(--agent-text-muted)", cursor: "help" }}>
-              <Info size={17} weight="regular" />
-            </span>
-          )}
-          {/* Regenerate (chase) as a refresh icon, furthest right — (i) to its left. */}
+          {/* Regenerate (chase) as a refresh icon, furthest right. */}
           {onRegenerate && (
             <ToolButton title="Regenerate" disabled={regenerating} onMouseDown={(e) => { e.preventDefault(); if (!regenerating) onRegenerate(); }}>
               <ArrowsClockwise size={16} weight="regular" />
