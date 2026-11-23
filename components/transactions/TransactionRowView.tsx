@@ -264,7 +264,7 @@ function dateTime(d: Date): string {
 
 const NEXT_TONE: Record<"danger" | "warn" | "accent" | "chain" | "ready" | "auto" | "muted", string> = {
   danger: "var(--agent-danger)", warn: "var(--agent-warning)", accent: "var(--agent-coral-deep)",
-  chain: "#5b6b8c", ready: "var(--agent-success)", auto: "var(--agent-info)", muted: "var(--agent-text-muted)",
+  chain: "var(--agent-text-muted)", ready: "var(--agent-success)", auto: "var(--agent-info)", muted: "var(--agent-text-muted)",
 };
 
 /* Recent / Next step — the single most-recent activity: a party-aware verb (e.g.
@@ -295,7 +295,7 @@ function PaceLine({ pace }: { pace: NonNullable<NonNullable<TransactionRow["heal
   if (!pace) return null;
   const cfg = {
     ahead: { label: "Ahead of target", color: "var(--agent-success)", Icon: TrendUp },
-    on_track: { label: "On track", color: "#2563a8", Icon: TrendUp },
+    on_track: { label: "On track", color: "var(--agent-info)", Icon: TrendUp },
     slightly_behind: { label: "Slightly behind", color: "var(--agent-warning)", Icon: Minus },
     behind: { label: "Behind", color: "var(--agent-danger)", Icon: TrendDown },
   }[pace];
@@ -668,13 +668,13 @@ function DateCell({ d }: { d?: Date | null }) {
 
 const WITHDRAWAL_CAT_COLOR: Record<string, string> = {
   BUYER_WITHDREW: "var(--agent-danger)", SELLER_WITHDREW: "var(--agent-warning)",
-  CHAIN_COLLAPSE_ABOVE: "#5b6b8c", OTHER: "#64748b",
+  CHAIN_COLLAPSE_ABOVE: "var(--agent-text-muted)", OTHER: "var(--agent-text-muted)",
 };
 // Withdrawn — the structured category (coloured) + the free-text reason.
 function ReasonCell({ tx }: { tx: TransactionRow }) {
   const cat = tx.withdrawalReason ?? null;
   const catLabel = cat ? WITHDRAWAL_REASON_LABEL[cat] ?? null : null;
-  const catColor = cat ? WITHDRAWAL_CAT_COLOR[cat] ?? "#64748b" : "#64748b";
+  const catColor = cat ? WITHDRAWAL_CAT_COLOR[cat] ?? "var(--agent-text-muted)" : "var(--agent-text-muted)";
   const text = tx.fallThroughReason?.trim() || null;
   if (!catLabel && !text) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>No reason recorded</span>;
   return (
@@ -721,10 +721,10 @@ function rowStatusNode(tx: TransactionRow, preview?: boolean): ReactNode {
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-warning)" }}><PauseCircle size={14} weight="fill" /> On hold</span>
   );
   if (tx.status === "completed") return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#2563a8" }}><CheckCircle size={14} weight="fill" /> Completed</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-info)" }}><CheckCircle size={14} weight="fill" /> Completed</span>
   );
   if (tx.status === "withdrawn") return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "#64748b" }}><Prohibit size={14} weight="fill" /> Withdrawn</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--agent-text-muted)" }}><Prohibit size={14} weight="fill" /> Withdrawn</span>
   );
   if (preview && tx.status === "active" && tx.health) return <RiskBadgeWithPopover raw={tx.health} />;
   return null;
@@ -756,7 +756,7 @@ function StageCell({ tx, preview, showStatus = true }: { tx: TransactionRow; pre
 // stopped". boardStage is resolved for withdrawn files too (page-level), from
 // the milestone completions that survive the withdrawal, so this is real
 // furthest-stage data, not an estimate.
-const REACHED_FILL = "rgba(199,62,62,0.32)";
+const REACHED_FILL = "rgba(var(--agent-danger-rgb), 0.32)";
 function ReachedCell({ tx }: { tx: TransactionRow }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
   const idx = DISPLAY_STAGES.findIndex((s) => s.key === tx.boardStage);
@@ -792,8 +792,8 @@ function RowMarker({ tx, activeTab, preview }: { tx: TransactionRow; activeTab?:
   if (activeTab === "all") {
     if (preview) return null;
     if (tx.status === "on_hold") return mark("var(--agent-warning)", PauseCircle, "On hold");
-    if (tx.status === "completed") return mark("#2563a8", CheckCircle, "Completed");
-    if (tx.status === "withdrawn") return mark("#64748b", Prohibit, "Withdrawn");
+    if (tx.status === "completed") return mark("var(--agent-info)", CheckCircle, "Completed");
+    if (tx.status === "withdrawn") return mark("var(--agent-text-muted)", Prohibit, "Withdrawn");
     return riskBadge;
   }
   if (activeTab === "active" || activeTab === undefined) return riskBadge;

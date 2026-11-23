@@ -317,8 +317,8 @@ export function ForecastView({
       </div>
 
       <div className="fc-legend">
-        <span><span className="fc-sw fc-sw-likely" />{mode === "fees" ? "Likely — advanced & healthy" : "Firm date — advanced & healthy"}</span>
-        <span><span className="fc-sw fc-sw-risk" />{mode === "fees" ? "At risk — early or shaky" : "Shaky date — early or shaky"}</span>
+        <span><span className="fc-sw fc-sw-likely" />{mode === "fees" ? "Likely, advanced and healthy" : "Firm date, advanced and healthy"}</span>
+        <span><span className="fc-sw fc-sw-risk" />{mode === "fees" ? "At risk, early or shaky" : "Shaky date, early or shaky"}</span>
         <span><span className="fc-sw fc-sw-band" />Confidence band</span>
       </div>
     </GlassCard>

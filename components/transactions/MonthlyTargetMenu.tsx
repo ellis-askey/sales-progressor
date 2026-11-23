@@ -61,7 +61,7 @@ export function MonthlyTargetMenu({ currentPence }: { currentPence: number | nul
             {currentPence != null && (
               <button type="button" className="fc-target-remove" disabled={saving} onClick={remove}>Remove target</button>
             )}
-            {error && <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--agent-danger)" }}>{error}</p>}
+            {error && <p className="agent-helper-error" style={{ marginTop: 6 }}>{error}</p>}
           </>
         );
       }}

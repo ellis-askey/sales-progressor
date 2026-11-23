@@ -14,7 +14,7 @@ import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
 import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getProgressorCopy } from "@/lib/services/progression-clients";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BloomStage } from "@/components/agent/BloomStage";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
@@ -352,50 +352,21 @@ export default async function AllTransactionsPage({
             // hero; the owner variant points its CTA at Clients.
             <AllFilesEmptyState audience={isBusinessOwner ? "progressor" : "agency"} hasClients={ownerHasClients} />
           ) : (
-          <div className="agent-glass-strong" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--agent-radius-xl)" }}>
-            <HouseLine
-              weight="regular"
-              style={{
-                width: 32,
-                height: 32,
-                color: "var(--agent-text-muted)",
-                margin: "0 auto 16px",
-                display: "block",
-                opacity: 0.45,
-              }}
+          <div className="agent-glass-strong" style={{ borderRadius: "var(--agent-radius-xl)", padding: "22px 24px" }}>
+            <EmptyState
+              icon={<HouseLine size={24} weight="regular" />}
+              title={isProgressor
+                ? (isExternalProgressorSeeAll ? "No active sales yet" : "No files assigned yet")
+                : (isViewer ? "No files yet" : "Create your first sale")}
+              description={isProgressor
+                ? (isExternalProgressorSeeAll ? "Sales your business is progressing will show up here." : "Files assigned to you will appear here.")
+                : (isViewer ? "Files across the agency will appear here." : "Sales appear here once you submit one. Track steps, manage chases, and progress to exchange.")}
+              action={(!isProgressor && !isViewer) ? (
+                <Link href="/agent/transactions/new" className="agent-btn agent-btn-primary agent-btn-md" style={{ textDecoration: "none" }}>
+                  <Plus size={16} weight="bold" /> New sale
+                </Link>
+              ) : undefined}
             />
-            {isProgressor ? (
-              <>
-                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  {isExternalProgressorSeeAll ? "No active sales yet" : "No files assigned yet"}
-                </p>
-                <p style={{ margin: "0 auto", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 300, lineHeight: 1.5 }}>
-                  {isExternalProgressorSeeAll ? "Sales your business is progressing will show up here." : "Files assigned to you will appear here."}
-                </p>
-              </>
-            ) : (
-              <>
-                <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>
-                  {isViewer ? "No files yet" : "Create your first sale"}
-                </p>
-                {/* OLD: "Once you submit a sale, you'll see it here. Track milestones, manage chases, and progress to exchange." — Rule 1 (system-narration "you'll see it here") */}
-                <p style={{ margin: "0 auto 24px", fontSize: 13, color: "var(--agent-text-muted)", maxWidth: 340, lineHeight: 1.5 }}>
-                  {isViewer
-                    ? "Files across the agency will appear here."
-                    : "Sales appear here once you submit one. Track steps, manage chases, and progress to exchange."}
-                </p>
-                {!isViewer && (
-                  <Link
-                    href="/agent/transactions/new"
-                    className="agent-btn agent-btn-primary agent-btn-md"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Plus size={16} weight="bold" />
-                    New sale
-                  </Link>
-                )}
-              </>
-            )}
           </div>
           )
         ) : (

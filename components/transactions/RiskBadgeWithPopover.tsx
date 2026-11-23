@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { calculateRiskScore, RISK_CONFIG, type RiskLevel } from "@/lib/services/risk";
 import type { HealthRaw } from "@/components/transactions/TransactionTable";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { TrendUp, Eye, Warning, CircleDashed, Handshake } from "@phosphor-icons/react";
+import { TrendUp, Eye, Warning, CircleDashed, Handshake, Check, X } from "@phosphor-icons/react";
 
 // Icon + text colour per risk level, matching the "On hold" status marker style
 // (RowMarker in TransactionRowView) — no pill. The popover is unchanged.
@@ -167,24 +167,24 @@ export function RiskBadgeWithPopover({ raw }: { raw: HealthRaw }) {
 
           {risk.level === "exchanged" ? (
             <p style={{ margin: 0, fontSize: 12, color: "var(--agent-success)", display: "flex", alignItems: "flex-start", gap: 6, lineHeight: 1.4 }}>
-              <span>✓</span>
+              <Check size={13} weight="bold" aria-hidden style={{ marginTop: 1, flexShrink: 0 }} />
               Contracts exchanged. This sale is legally committed.
             </p>
           ) : triggered.length === 0 ? (
             <p style={{ margin: 0, fontSize: 12, color: "var(--agent-success)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span>✓</span>
+              <Check size={13} weight="bold" aria-hidden />
               No flags. All checks healthy.
             </p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
               {risk.factors.map((f) => (
                 <li key={f.label} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{
+                  <span aria-hidden style={{
                     marginTop: 2, flexShrink: 0,
-                    fontSize: 11, fontWeight: 700,
+                    display: "inline-flex",
                     color: f.triggered ? "var(--agent-danger)" : "var(--agent-success)",
                   }}>
-                    {f.triggered ? "✗" : "✓"}
+                    {f.triggered ? <X size={11} weight="bold" /> : <Check size={11} weight="bold" />}
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <p style={{

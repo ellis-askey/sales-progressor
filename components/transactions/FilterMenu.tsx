@@ -12,6 +12,7 @@
 import { Funnel, CaretDown } from "@phosphor-icons/react";
 import type { FilterKey } from "./segments";
 import { Popover } from "@/components/ui/Popover";
+import { CountBadge } from "@/components/ui/CountBadge";
 
 export type FilterItem = { key: FilterKey; label: string; dot?: string };
 export type FilterSection = { title: string; items: FilterItem[] };
@@ -40,7 +41,7 @@ export function FilterMenu({
         <button type="button" className={`fm-btn${n > 0 ? " active" : ""}`}>
           <Funnel size={15} weight={n > 0 ? "fill" : "regular"} />
           Filter
-          {n > 0 && <span className="fm-badge tabnum">{n}</span>}
+          {n > 0 && <CountBadge count={n} tone="accent" solid />}
           <CaretDown size={12} weight="bold" className="fm-caret" />
         </button>
       }
