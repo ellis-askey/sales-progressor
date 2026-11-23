@@ -149,7 +149,8 @@ export default async function AllTransactionsPage({
 
   // The exchange forecast is now a view inside the workspace (built from the
   // rows themselves), so this page no longer fetches getExchangeForecast or
-  // renders the standalone month strip — both still live for the dashboard.
+  // renders a standalone month strip. The old ForecastStrip / PostExchangeStrip
+  // components were orphaned by the dashboard merge and removed (2026-11-23).
   const allTransactions = await listTransactions(session.user.agencyId, agentId, opts, txScope ?? undefined);
 
   // Hub / month views narrow to a server-computed subset. The status tabs, by

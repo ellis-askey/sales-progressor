@@ -4,7 +4,6 @@ import { useState, useRef, type ReactNode, type FormEvent, type MouseEvent } fro
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { withFrom } from "@/lib/agent/back-nav";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tooltip, Popover } from "@/components/ui/Popover";
 import { calculateRiskScore, type RiskLevel } from "@/lib/services/risk";
 import { ExchangeTargetCell } from "@/components/transactions/ExchangeTargetCell";
@@ -12,7 +11,6 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
-import { StageBar } from "@/components/ui/StageBar";
 import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
@@ -578,7 +576,7 @@ function HoldDateForm({ txId, current, onSaved, onError, onCancel }: { txId: str
 // On-hold — how long + the typed reason, inline-editable (hover reveals a pencil).
 function PausedCell({ tx }: { tx: TransactionRow }) {
   const h = tx.health?.holdInfo;
-  if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>&ndash;</span>;
+  if (!h) return <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span>;
   return (
     <div className="paused-cell">
       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>{h.days} days</p>
@@ -757,11 +755,27 @@ function StageCell({ tx, preview, showStatus = true }: { tx: TransactionRow; pre
 // stopped". boardStage is resolved for withdrawn files too (page-level), from
 // the milestone completions that survive the withdrawal, so this is real
 // furthest-stage data, not an estimate.
+const REACHED_FILL = "rgba(199,62,62,0.32)";
+
 function ReachedCell({ tx }: { tx: TransactionRow }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
   const idx = DISPLAY_STAGES.findIndex((s) => s.key === tx.boardStage);
   if (idx < 0) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
-  return <StageBar stage={tx.boardStage} reached />;
+  const name = DISPLAY_STAGES[idx].name;
+  const total = DISPLAY_STAGES.length;
+  return (
+    <span style={{ display: "block", width: "100%" }}>
+      <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>{name}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{idx + 1} of {total}</span>
+      </span>
+      <span style={{ display: "flex", gap: 3 }}>
+        {Array.from({ length: total }).map((_, i) => (
+          <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i <= idx ? REACHED_FILL : "var(--agent-border-subtle)" }} />
+        ))}
+      </span>
+    </span>
+  );
 }
 
 // One status/risk marker beside the address. On the single-status tabs the

@@ -590,7 +590,7 @@ export async function getHubFilteredIds(
 /**
  * Returns IDs of active transactions exchanging within a specific calendar
  * month. Parallel to getHubFilteredIds but parameterised on year/month so the
- * ForecastStrip compact summary can drive per-month filtering via ?exchanging=YYYY-MM.
+ * workspace Forecast view (ForecastView.tsx) can drive per-month filtering via ?exchanging=YYYY-MM.
  *
  * The OR on expectedExchangeDate || overridePredictedDate mirrors getExchangeForecast
  * (lib/services/transactions.ts:286-289) so the pill count and the row count below

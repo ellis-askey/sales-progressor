@@ -6,10 +6,11 @@
 // /agent/transactions?filter=on_hold which renders the same status-filtered
 // list (status-tab values overlap exactly).
 //
-// AgentRequestsPanel, ForecastStrip, AgentFlagButton — all now live on
-// /agent/transactions per the merge plan. AgentRequestsPanel render is
-// suspended pending /agent/to-do redesign; component file preserved at
-// components/agent/AgentRequestsPanel.tsx for that future wire-in.
+// AgentRequestsPanel, AgentFlagButton moved to /agent/transactions per the
+// merge plan. AgentRequestsPanel render is suspended pending /agent/to-do
+// redesign; component file preserved at components/agent/AgentRequestsPanel.tsx
+// for that future wire-in. (The old ForecastStrip / PostExchangeStrip were
+// orphaned by the merge and removed 2026-11-23.)
 
 import { redirect } from "next/navigation";
 

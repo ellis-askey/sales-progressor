@@ -5932,8 +5932,6 @@ body[data-demo-file] [data-onboarding-checklist] {
 .jrn-seg { height: 5px; border-radius: 3px; flex: 1; background: var(--agent-border-default); }
 .jrn-seg.done { background: var(--agent-success); }
 .jrn-seg.cur { background: var(--agent-coral-deep); }
-.jrn-seg.reached { background: rgba(var(--agent-danger-rgb), 0.32); }
-.jrn-reached .jrn-stage { color: var(--agent-text-secondary); font-weight: 600; }
 
 /* ── All Files · redesign (2026-11-13): next-action cell, assignee avatar,
    selected row, and the table's reflow when the floating preview is open. ─── */
@@ -6222,7 +6220,7 @@ body[data-demo-file] [data-onboarding-checklist] {
 }
 .map-legend2 { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--agent-text-muted); }
 .map-legend2 .d { width: 8px; height: 8px; border-radius: 50%; }
-.map-legend2 .d.agreed { background: var(--agent-coral); margin-left: 4px; }
+.map-legend2 .d.agreed { background: #FF6B4A; margin-left: 4px; } /* matches the hardcoded #FF6B4A pin in PropertyMap.tsx — the WebGL layer can't read CSS tokens, so the legend uses the same literal */
 .map-legend2 .d.completed { background: var(--agent-success); margin-left: 8px; }
 .map-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 0.5px solid var(--agent-border-subtle); }
 .map-modal-addr { font-size: 14px; font-weight: 650; color: var(--agent-text-primary); }

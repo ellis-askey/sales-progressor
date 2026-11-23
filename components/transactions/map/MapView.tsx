@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { X } from "@phosphor-icons/react";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -327,7 +328,7 @@ export function MapView({
           <div className="map-modal" onClick={(e) => e.stopPropagation()}>
             <div className="map-modal-head">
               <span className="map-modal-addr">{selectedSale.address}</span>
-              <button type="button" className="map-modal-x" onClick={closeStreetView} aria-label="Close">✕</button>
+              <button type="button" className="map-modal-x" onClick={closeStreetView} aria-label="Close" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}><X size={16} weight="bold" /></button>
             </div>
             {streetViewKey ? (
               <iframe

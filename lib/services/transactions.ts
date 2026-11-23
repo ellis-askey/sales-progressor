@@ -694,7 +694,7 @@ export async function getExchangeForecast(agencyId: string, agentUserId?: string
 
   // Always-12 contract: build the skeleton first so empty months have a slot
   // and consumers can render a fixed-width forecast horizon. Disabled-empty
-  // pill state is rendered in components/transactions/ForecastStrip.tsx.
+  // pill state is rendered in the workspace Forecast view (components/transactions/ForecastView.tsx).
   const months: ForecastMonth[] = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);

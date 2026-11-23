@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { CaretUp, CaretDown } from "@phosphor-icons/react";
 import { calculateRiskScore } from "@/lib/services/risk";
 import { DISPLAY_STAGES } from "@/lib/milestones/display-stages";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -119,14 +120,10 @@ function SortChevron({ col, active, dir }: { col: SortKey; active: SortKey; dir:
   const isActive = col === active;
   const up = isActive && dir === "asc";
   return (
-    <span className={`files-sort-chevron inline-flex flex-col ml-1 -space-y-0.5 opacity-0 group-hover/hdr:opacity-100 group-focus-within/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
+    <span className={`files-sort-chevron inline-flex flex-col ml-1 -space-y-1 opacity-0 group-hover/hdr:opacity-100 group-focus-within/hdr:opacity-100 transition-opacity ${isActive ? "opacity-100" : ""}`}>
       {/* Theme tokens (not slate ink) so the active sort shows on dark glass. */}
-      <svg width="7" height="5" viewBox="0 0 7 5" style={{ color: isActive && up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} fill="currentColor">
-        <path d="M3.5 0L7 5H0z" />
-      </svg>
-      <svg width="7" height="5" viewBox="0 0 7 5" style={{ color: isActive && !up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} fill="currentColor">
-        <path d="M3.5 5L0 0h7z" />
-      </svg>
+      <CaretUp size={9} weight="fill" style={{ color: isActive && up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} />
+      <CaretDown size={9} weight="fill" style={{ color: isActive && !up ? "var(--agent-text-secondary)" : "var(--agent-text-muted)" }} />
     </span>
   );
 }
