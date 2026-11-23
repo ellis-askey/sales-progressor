@@ -129,7 +129,7 @@ export default function ComposeAlignPreview() {
           />
           <Frame
             title="As it looks in a Chase drawer"
-            subtitle="Byte-for-byte the same editor — chase drafts from a tone instead, so no Refine button."
+            subtitle="Byte-for-byte the same editor; chase drafts from a tone instead, so no Refine button."
           />
         </div>
 
