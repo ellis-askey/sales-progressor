@@ -18,7 +18,7 @@
 // shim) so this component is clean to ship on its own.
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check, Sparkle, Stack, ArrowsClockwise } from "@phosphor-icons/react";
+import { TextB, TextItalic, ListBullets, ListNumbers, LinkSimple, Paperclip, X, IdentificationCard, Check, Stack, ArrowsClockwise } from "@phosphor-icons/react";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import type { SignatureStyleKey, SignatureStyleOption } from "@/lib/email/signature-options";
 import { isHtmlEmpty } from "@/lib/chase/rich-text";
@@ -356,7 +356,7 @@ export function MessageEditor({
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28),0 1px 4px rgba(var(--agent-coral-rgb),0.26)",
               }}
             >
-              <Sparkle size={14} weight="fill" /> {refining ? "Refining…" : "Refine"}
+              {refining ? "Refining…" : "Refine"}
             </button>
           )}
           <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)", paddingRight: 4, whiteSpace: "nowrap" }}>

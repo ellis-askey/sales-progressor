@@ -24,6 +24,8 @@ import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
 import { House, BellRinging, WarningCircle, WarningOctagon, Eye, ArrowRight, ArrowLeft, X, CaretDown, PaperPlaneTilt, Plus, Envelope, UsersThree, MagnifyingGlass, Clock, NotePencil } from "@phosphor-icons/react";
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
+import { MessageEditor, type MessageAttachment, type SigStyle } from "@/components/compose/MessageEditor";
+import type { SignatureStyleOption } from "@/lib/email/signature-options";
 // Real hub dataviz + stat canonicals — rendered live below (not reproduced inline),
 // so a gallery specimen can never drift from the shipped component.
 import { StatNumber } from "@/components/ui/StatNumber";
@@ -2429,7 +2431,85 @@ const AUTOEMAILS_ENTRIES: ComponentEntry[] = [
 ];
 
 /* All reviewed entries. Grows one batch at a time. */
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES];
+/* ── Compose — the shared message editor (critique #1). The REAL component
+   rendered live, in both composer configurations. ─────────────────────────── */
+const ME_SIG: Record<"basic" | "logo", string> = {
+  basic: `<div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px;"><div style="font-size:14px;font-weight:700;color:#111827;">Ellis Askey</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">VIA Properties · +44 7508 862929</div></div>`,
+  logo: `<div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:14px;"><div style="font-size:14px;font-weight:700;color:#111827;">Ellis Askey</div><div style="margin-top:8px;display:inline-block;font-weight:800;letter-spacing:-0.02em;color:#111827;">VIA</div></div>`,
+};
+const ME_OPTS: SignatureStyleOption[] = [
+  { key: "basic", label: "Basic", sub: "Name and details" },
+  { key: "logo", label: "Logo", sub: "With the agency logo" },
+];
+const meSigFor = (s: SigStyle): string => (s === "logo" ? ME_SIG.logo : ME_SIG.basic);
+const meSeed = (s: SigStyle): string => `<p><br></p><p data-signoff="1">Kind regards,</p><div data-sig="1">${meSigFor(s)}</div>`;
+const meSwap = (html: string, s: SigStyle): string => {
+  const i = html.indexOf('<p data-signoff');
+  return `${i >= 0 ? html.slice(0, i) : html}<p data-signoff="1">Kind regards,</p><div data-sig="1">${meSigFor(s)}</div>`;
+};
+const meLen = (html: string): number => {
+  if (typeof document === "undefined") return 0;
+  const d = document.createElement("div");
+  d.innerHTML = html;
+  return (d.textContent || "").trim().length;
+};
+
+function MessageEditorDemo({ kind = "new-email" }: { kind?: "new-email" | "chase" }) {
+  const [style, setStyle] = useState<SigStyle>("basic");
+  const [html, setHtml] = useState<string>(() => meSeed("basic"));
+  const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
+  const [refining, setRefining] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  return (
+    <MessageEditor
+      valueHtml={html}
+      onChangeHtml={setHtml}
+      placeholder="Write your message…"
+      attachments={attachments}
+      onAttachmentsChange={setAttachments}
+      charCount={meLen(html)}
+      sigStyle={style}
+      sigOptions={ME_OPTS}
+      onSigStyleChange={(s) => { setStyle(s); setHtml((p) => meSwap(p, s)); }}
+      onTemplates={() => setTemplatesOpen((v) => !v)}
+      templatesOpen={templatesOpen}
+      onRefine={kind === "new-email" ? () => { setRefining(true); setTimeout(() => setRefining(false), 900); } : undefined}
+      refining={refining}
+      onRegenerate={kind === "chase" ? () => { setRegenerating(true); setTimeout(() => setRegenerating(false), 900); } : undefined}
+      regenerating={regenerating}
+    />
+  );
+}
+
+const COMPOSE_ENTRIES: ComponentEntry[] = [
+  {
+    id: "message-editor",
+    name: "Message editor",
+    category: "text-inputs",
+    status: "implemented",
+    keywords: ["rich text", "email", "compose", "composer", "toolbar", "signature", "wysiwyg", "bold", "italic", "chase", "refine", "regenerate", "editor", "writing"],
+    summary: "The one rich-text editor both email composers use (the New-email pop-up and the chase drawers). Built from the chase editor, the better of the two (active-state toolbar, plain-text paste, inline link box, placeholder, attachment caps), with the pop-up's in-body editable signature folded in. Templates + mic sit above; the formatting toolbar (bold, italic, lists, link, attach, signature style) sits below, with Refine on the right for the pop-up and a refresh Regenerate top-right on the chase drawer. Type and format below.",
+    variants: [
+      { id: "new-email", label: "New-email pop-up (Refine)", render: () => <Stage wide><MessageEditorDemo kind="new-email" /></Stage> },
+      { id: "chase", label: "Chase drawer (Regenerate)", render: () => <Stage wide><MessageEditorDemo kind="chase" /></Stage> },
+    ],
+    sources: [
+      { path: "components/compose/MessageEditor.tsx", note: "the shared canonical editor" },
+      { path: "components/compose/ComposeEmailModal.tsx", note: "New-email pop-up: adopts this editor + its in-body signature" },
+      { path: "components/chase/ChaseComposer.tsx", note: "the chase editor this is built from" },
+    ],
+    exceptions: [
+      { title: "Signature lives inside the editable body", detail: "The sign-off and signature block are seeded into the editor's HTML, so the user can tweak the sign-off inline; the signature-style button swaps the block in place. Both composers use this (the chase drawer moved it in-body to match the pop-up).", scope: "shared" },
+      { title: "Refine is New-email only; Regenerate is chase only", detail: "Refine (neaten existing text in the user's voice) shows only when the host passes onRefine (the pop-up). Chase drafts from a tone, so it shows Regenerate as a refresh icon at the far right. Everything else is identical.", scope: "specific" },
+      { title: "Plain-text paste, active-state toolbar, inline link", detail: "Pasting is coerced to plain text; Bold / Italic / lists light up from queryCommandState; links use an inline box, not a browser prompt. Carried from the chase editor, so the pop-up gains these.", source: "components/chase/ChaseComposer.tsx", scope: "shared" },
+      { title: "Each composer's own chrome stays in its shell", detail: "To / Cc / Bcc, scheduling and the template picker (pop-up), and the recipient picker, tone, AI generate and WhatsApp (chase) live in each composer around this editor, unchanged. This entry is the shared writing surface only.", scope: "shared" },
+    ],
+    render: () => <Stage wide><MessageEditorDemo kind="new-email" /></Stage>,
+  },
+];
+
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);
