@@ -7,10 +7,9 @@
 // (FilesWorkspace + FilterMenu), so there is a single filter system, not two.
 
 import { useState, useMemo, useEffect } from "react";
-import { MagnifyingGlass, X } from "@phosphor-icons/react";
-import { GlassCard } from "@/components/glass/GlassCard";
-import { CountBadge } from "@/components/ui/CountBadge";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { SearchTabsBar } from "@/components/ui/SearchTabsBar";
 import { TransactionTable } from "./TransactionTable";
 import type { TransactionRow } from "./TransactionTable";
 
@@ -86,62 +85,17 @@ export function TransactionListWithSearch({
 
   return (
     <div className="space-y-3">
-      {/* Paired card — white search top half + lighter tabs bottom half, one
-       * card, hairline divider at the seam. */}
-      <GlassCard glassId="myfiles-search" label="My files · Search & tabs" defaultVariant="v25" data-bloom style={{ borderRadius: "var(--agent-radius-xl)", overflow: "hidden" }}>
-        <div className="tl-card-search tl-search-row">
-          <div className="tl-search-input" style={{ flex: 1 }}>
-            <MagnifyingGlass
-              size={14}
-              weight="regular"
-              aria-hidden
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-muted)", pointerEvents: "none" }}
-            />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by address…"
-              className="agent-input agent-input-sm"
-              style={{ width: "100%", paddingLeft: 34, paddingRight: 34, fontSize: 13 }}
-            />
-            {query && (
-              <button
-                onClick={() => setQuery("")}
-                className="agent-icon-btn agent-icon-btn-sm"
-                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                aria-label="Clear search"
-              ><X size={12} weight="bold" /></button>
-            )}
-          </div>
-        </div>
-
-        {showStatusTabs && (
-          <div className="tl-card-tabs">
-            <div className="agent-tab-bar agent-tab-bar-static tl-bar-row">
-              <div className="tl-bar-tabs">
-                {STATUS_TABS.map(({ value, label }) => {
-                  const isActive = status === value;
-                  const count = statusCounts[value];
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => selectStatus(value)}
-                      className="agent-tab"
-                      aria-current={isActive ? "true" : undefined}
-                      style={{ background: "none", border: "none", cursor: "pointer" }}
-                    >
-                      {label}
-                      <CountBadge count={count} tone={isActive ? "accent" : "muted"} soft hideZero={false} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-      </GlassCard>
+      {/* Canonical search + tabs paired card (components/ui/SearchTabsBar). */}
+      <SearchTabsBar
+        query={query}
+        onQueryChange={setQuery}
+        searchPlaceholder="Search by address…"
+        glassId="myfiles-search"
+        glassLabel="My files · Search & tabs"
+        tabs={showStatusTabs ? STATUS_TABS.map((t) => ({ value: t.value, label: t.label, count: statusCounts[t.value] })) : undefined}
+        activeTab={status}
+        onTabChange={(v) => selectStatus(v as Exclude<StatusValue, "draft">)}
+      />
 
       {/* Results */}
       {filtered.length === 0 ? (

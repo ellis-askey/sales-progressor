@@ -12,6 +12,7 @@ import { RiskBadgeWithPopover } from "@/components/transactions/RiskBadgeWithPop
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
+import { StageBar } from "@/components/ui/StageBar";
 import { UserAvatar, UserAvatarStack } from "@/components/ui/Avatar";
 import { EnvelopeSimple, WhatsappLogo, ChatText, Phone, NotePencil, Check, SealCheck, PaperPlaneTilt, ArrowBendUpLeft, ChatCircleDots, ClockCounterClockwise, TrendUp, TrendDown, Minus, PauseCircle, CheckCircle, Prohibit, WarningCircle, CalendarBlank } from "@phosphor-icons/react";
 import { JourneyBar } from "./JourneyBar";
@@ -319,7 +320,7 @@ function JourneyStages({ stage }: { stage: DisplayStageKey }) {
   const upcomingDot = isNight ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.08)";
   return (
     <div>
-      <p style={{ margin: "0 0 11px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: mutedColor }}>
+      <p style={{ margin: "0 0 11px", fontSize: 10, fontWeight: 700, color: mutedColor }}>
         {idx + 1} of {DISPLAY_STAGES.length} steps
       </p>
       <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
@@ -382,7 +383,7 @@ function WithdrawnCell({ tx }: { tx: TransactionRow }) {
           placement="bottom-start"
           content={
             <>
-              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--agent-text-muted)" }}>Why it was withdrawn</p>
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)" }}>Why it was withdrawn</p>
               <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.4 }}>{reason}</p>
             </>
           }
@@ -481,7 +482,7 @@ function ExchangeCell({ tx, preview }: { tx: TransactionRow; preview?: boolean }
   if (tx.exchangedAt) {
     return (
       <div>
-        <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>Completion scheduled</p>
+        <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)" }}>Completion scheduled</p>
         <span style={{ fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
           {tx.completionDate ? longDateOrdinal(new Date(tx.completionDate)) : "To be confirmed"}
         </span>
@@ -515,7 +516,7 @@ function ReviewCell({ tx, label }: { tx: TransactionRow; label?: string }) {
   const router = useRouter();
   const { toast } = useAgentToast();
   const caption = label && h ? (
-    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--agent-text-muted)" }}>{label}</p>
+    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)" }}>{label}</p>
   ) : null;
 
   if (!h) return <div>{caption}<span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>—</span></div>;
@@ -756,26 +757,11 @@ function StageCell({ tx, preview, showStatus = true }: { tx: TransactionRow; pre
 // stopped". boardStage is resolved for withdrawn files too (page-level), from
 // the milestone completions that survive the withdrawal, so this is real
 // furthest-stage data, not an estimate.
-const REACHED_FILL = "rgba(var(--agent-danger-rgb), 0.32)";
 function ReachedCell({ tx }: { tx: TransactionRow }) {
   if (!tx.boardStage) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
   const idx = DISPLAY_STAGES.findIndex((s) => s.key === tx.boardStage);
   if (idx < 0) return <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>Not recorded</span>;
-  const name = DISPLAY_STAGES[idx].name;
-  const total = DISPLAY_STAGES.length;
-  return (
-    <span style={{ display: "block", width: "100%" }}>
-      <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>{name}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{idx + 1} of {total}</span>
-      </span>
-      <span style={{ display: "flex", gap: 3 }}>
-        {Array.from({ length: total }).map((_, i) => (
-          <span key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i <= idx ? REACHED_FILL : "var(--agent-border-subtle)" }} />
-        ))}
-      </span>
-    </span>
-  );
+  return <StageBar stage={tx.boardStage} reached />;
 }
 
 // One status/risk marker beside the address. On the single-status tabs the
@@ -991,7 +977,7 @@ export function TransactionRowView({
                 </div>
                 {bodyCols.map((col) => (
                   <div key={col}>
-                    <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
+                    <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 700, color: "var(--agent-text-muted)" }}>{colLabel(col, preview)}</p>
                     {renderCell(col, tx, preview)}
                   </div>
                 ))}

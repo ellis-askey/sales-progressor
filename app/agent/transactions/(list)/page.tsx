@@ -11,6 +11,7 @@ import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { getHubFilteredIds, getMonthExchangingIds, getGoneQuietFiles, type HubFilter } from "@/lib/services/hub";
 import { getWorkQueueItems } from "@/lib/services/work-queue";
 import { FilesWorkspace } from "@/components/transactions/FilesWorkspace";
+import { ActiveFilterBanner } from "@/components/transactions/ActiveFilterBanner";
 import { getPipelineStageMap } from "@/lib/services/pipeline";
 import { AllFilesEmptyState } from "@/components/transactions/AllFilesEmptyState";
 import { isBusinessOwnerViewer, isExternalProgressorViewer, businessHasClients, getProgressorCopy } from "@/lib/services/progression-clients";
@@ -20,7 +21,6 @@ import { BloomStage } from "@/components/agent/BloomStage";
 import { AgentFlagButton } from "@/components/agent/AgentFlagButton";
 import { agencyHasActiveOutsourcedFile } from "@/lib/agent/outsourcing";
 import { Plus, HouseLine } from "@phosphor-icons/react/dist/ssr";
-import { X } from "lucide-react";
 import type { TransactionStatus } from "@prisma/client";
 
 export const metadata: Metadata = {
@@ -283,33 +283,7 @@ export default async function AllTransactionsPage({
          * OLD: "Showing <strong>exchanging this week</strong> (3)" — Rule 1 borderline
          * ("Showing" narrated system state). Now leads with the filter phrase + count. */}
         {hubFilter && (
-          <div
-            className="tl-filter-banner"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 12px",
-              borderRadius: 10,
-            }}
-          >
-            <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", flex: 1 }}>
-              <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>
-                {FILTER_LABELS[hubFilter]}
-              </strong>
-              <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
-                · {narrowedSubset.length} {narrowedSubset.length === 1 ? "file" : "files"}
-              </span>
-            </span>
-            <Link
-              href="/agent/transactions"
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-            >
-              <X size={11} />
-              Clear filter
-            </Link>
-          </div>
+          <ActiveFilterBanner label={FILTER_LABELS[hubFilter]} count={narrowedSubset.length} clearHref="/agent/transactions" />
         )}
 
         {/* Month-filter banner — parallel to hub-filter banner, fires when
@@ -317,33 +291,7 @@ export default async function AllTransactionsPage({
          * portfolio strip's "Exchanging" tile). The banner is the explicit
          * state confirmation + escape hatch back to the full book. */}
         {monthFilter && (
-          <div
-            className="tl-filter-banner"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 12px",
-              borderRadius: 10,
-            }}
-          >
-            <span style={{ fontSize: 13, color: "var(--agent-text-secondary)", flex: 1 }}>
-              <strong style={{ color: "var(--agent-text-primary)", fontWeight: 600 }}>
-                Exchanging in {monthLabel}
-              </strong>
-              <span style={{ color: "var(--agent-text-muted)", marginLeft: 6 }}>
-                · {narrowedSubset.length} {narrowedSubset.length === 1 ? "file" : "files"}
-              </span>
-            </span>
-            <Link
-              href="/agent/transactions"
-              className="agent-link agent-link-muted"
-              style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-            >
-              <X size={11} />
-              Clear filter
-            </Link>
-          </div>
+          <ActiveFilterBanner label={`Exchanging in ${monthLabel}`} count={narrowedSubset.length} clearHref="/agent/transactions" />
         )}
 
         {allTransactions.length === 0 ? (

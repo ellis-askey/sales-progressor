@@ -253,7 +253,6 @@ export function TransactionTable({
               style={{
                 padding: "12px 16px",
                 fontSize: 11, fontWeight: 600,
-                textTransform: "uppercase", letterSpacing: "0.04em",
                 color: "var(--agent-text-muted)",
                 textAlign: "left",
                 display: "flex", alignItems: "center",
@@ -274,7 +273,6 @@ export function TransactionTable({
               style={{
                 padding: "12px 16px",
                 fontSize: 11, fontWeight: 600,
-                textTransform: "uppercase", letterSpacing: "0.04em",
                 color: "var(--agent-text-muted)",
               }}
             >
