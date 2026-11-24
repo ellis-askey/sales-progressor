@@ -18,7 +18,7 @@ export function SegmentedSwitch<T extends string>({
   fullWidth = false,
   disabled = false,
 }: {
-  options: { id: T; label: string }[];
+  options: { id: T; label: string; count?: number }[];
   value: T;
   onChange: (id: T) => void;
   size?: "sm" | "md";
@@ -103,6 +103,9 @@ export function SegmentedSwitch<T extends string>({
             }}
           >
             {o.label}
+            {o.count != null && (
+              <span style={{ marginLeft: 6, fontSize: sm ? 10.5 : 11, fontWeight: 650, opacity: on ? 0.82 : 0.6 }}>{o.count}</span>
+            )}
           </button>
         );
       })}

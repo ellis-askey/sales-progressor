@@ -16,10 +16,11 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "react";
 import { updateAgencyChasePolicy, updateBusinessChasePolicy } from "@/app/actions/automation";
-import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/arc/button/button";
+import { NumberStepper } from "@/components/ui/NumberStepper";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 
 const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
@@ -267,7 +268,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V3h13l-2.5 4.5L17 12H4" /></svg>
           </span>
           <div className="ct-esc-body">
-            <div className="ct-esc-t1">Stop chasing and alert you after <Stepper value={globalEsc} onChange={setGlobalEsc} min={ESC_MIN} max={ESC_MAX} big /> unanswered reminders</div>
+            <div className="ct-esc-t1">Stop chasing and alert you after <NumberStepper value={globalEsc} onChange={setGlobalEsc} min={ESC_MIN} max={ESC_MAX} size="lg" ariaLabel="Unanswered reminders before handing back" /> unanswered reminders</div>
             <div className="ct-esc-t2">This is your default limit for each step. Once reached, we&apos;ll stop chasing and let you take over. You can set a different limit for individual steps below.</div>
           </div>
         </div>
@@ -282,7 +283,13 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
           }}>{groups.length > 0 && groups.every((g) => openStages.has(g.stage)) ? "Collapse all" : "Open all"}</button>} />
 
         <div className="ct-toolbar">
-          <SidePicker value={sideFilter} onChange={setSideFilter} sellerCount={sellerCount} buyerCount={buyerCount} />
+          <SegmentedSwitch<Side>
+            options={[{ id: "vendor", label: "Seller", count: sellerCount }, { id: "purchaser", label: "Buyer", count: buyerCount }]}
+            value={sideFilter}
+            onChange={setSideFilter}
+            size="sm"
+            ariaLabel="Seller or buyer steps"
+          />
           <div className="ct-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a step: mortgage, enquiries, deposit…" />
@@ -334,13 +341,13 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
                                   <CadenceView grace={s.grace} repeat={s.repeat} esc={escOf(s)} view={cadenceView} onView={setCadenceView} code={s.code} side={s.side} />
                                   <div className="ct-ctrls">
                                     <Ctrl label="First nudge" unit="working days after it's due">
-                                      <Stepper value={s.grace} onChange={(n) => patch(s.code, { grace: n })} min={MIN_GRACE} max={30} />
+                                      <NumberStepper value={s.grace} onChange={(n) => patch(s.code, { grace: n })} min={MIN_GRACE} max={30} ariaLabel="First nudge, working days" />
                                     </Ctrl>
                                     <Ctrl label="Then repeat every" unit="working days">
-                                      <Stepper value={s.repeat} onChange={(n) => patch(s.code, { repeat: n })} min={MIN_REPEAT} max={30} />
+                                      <NumberStepper value={s.repeat} onChange={(n) => patch(s.code, { repeat: n })} min={MIN_REPEAT} max={30} ariaLabel="Repeat every, working days" />
                                     </Ctrl>
                                     <Ctrl label="Reaches you after" unit={s.escOverride == null ? `chases · your default of ${globalEsc}` : "chases"}>
-                                      <Stepper value={escOf(s)} onChange={(n) => patch(s.code, { escOverride: n })} min={ESC_MIN} max={ESC_MAX} />
+                                      <NumberStepper value={escOf(s)} onChange={(n) => patch(s.code, { escOverride: n })} min={ESC_MIN} max={ESC_MAX} ariaLabel="Reaches you after, chases" />
                                     </Ctrl>
                                   </div>
                                 </>
@@ -375,20 +382,6 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
         </div>
       </div>
     </div>
-  );
-}
-
-/* ── stepper ─────────────────────────────────────────────────────────────── */
-function Stepper({ value, onChange, min, max, big }: { value: number; onChange: (n: number) => void; min: number; max: number; big?: boolean }) {
-  const clamp = (n: number) => Math.max(min, Math.min(max, n));
-  return (
-    <span className={`ct-stp${big ? " ct-stp-lg" : ""}`}>
-      <button type="button" aria-label="decrease" disabled={value <= min} onClick={() => onChange(clamp(value - 1))}>−</button>
-      <input inputMode="numeric" value={value}
-        onChange={(e) => { const n = parseInt(e.target.value, 10); if (Number.isFinite(n)) onChange(clamp(n)); }}
-        onFocus={(e) => e.currentTarget.select()} />
-      <button type="button" aria-label="increase" disabled={value >= max} onClick={() => onChange(clamp(value + 1))}>+</button>
-    </span>
   );
 }
 
@@ -669,26 +662,6 @@ function Collapse({ open, children }: { open: boolean; children: React.ReactNode
 }
 
 /* ── side picker (animated sliding pill) ─────────────────────────────────── */
-function SidePicker({ value, onChange, sellerCount, buyerCount }: { value: Side; onChange: (v: Side) => void; sellerCount: number; buyerCount: number }) {
-  const options = [
-    { key: "vendor" as const, label: "Seller", n: sellerCount },
-    { key: "purchaser" as const, label: "Buyer", n: buyerCount },
-  ];
-  const activeIdx = options.findIndex((o) => o.key === value);
-  const { btnRefs, ind } = useTabIndicator(activeIdx);
-  return (
-    <div className="ct-seg">
-      <span className="ct-seg-pill" aria-hidden style={ind ? { left: ind.left, width: ind.width, opacity: 1 } : { opacity: 0 }} />
-      {options.map((o, i) => (
-        <button type="button" key={o.key} ref={(el) => { btnRefs.current[i] = el; }}
-          className={value === o.key ? "on" : ""} onClick={() => onChange(o.key)}>
-          {o.label} <span className="ct-seg-n">{o.n}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function SecHead({ n, title, optional, right }: { n: number; title: string; optional?: boolean; right?: React.ReactNode }) {
   return (
     <div className="ct-sechead">
@@ -757,23 +730,7 @@ function Styles() {
     .ct-esc-body{flex:1;min-width:0}
     .ct-esc-t1{font-size:15.5px;font-weight:620;display:flex;align-items:center;gap:10px;flex-wrap:wrap;letter-spacing:-.01em}
     .ct-esc-t2{font-size:13px;color:var(--agent-text-secondary);margin-top:5px;max-width:60ch;line-height:1.5}
-    .ct-stp{display:inline-flex;align-items:center;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:11px;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s;vertical-align:middle}
-    .ct-stp:focus-within{border-color:var(--agent-coral-deep)}
-    .ct-stp button{appearance:none;border:none;cursor:pointer;width:32px;height:36px;display:grid;place-items:center;font-size:18px;font-weight:600;line-height:1;transition:background .14s,color .14s,transform .1s;color:var(--agent-text-muted);background:transparent}
-    .ct-stp button:hover:not(:disabled){color:#fff;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
-    .ct-stp button:active:not(:disabled){transform:scale(.9);color:#fff;background:linear-gradient(180deg,var(--agent-coral-deep),var(--agent-coral-darker));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
-    .ct-stp button:disabled{opacity:.4;cursor:not-allowed}
-    .ct-stp input{width:38px;height:36px;border:none;background:none;text-align:center;font:inherit;font-size:15.5px;font-weight:700;color:var(--agent-text-primary);padding:0}
-    .ct-stp input:focus{outline:none}
-    .ct-stp-lg input{width:44px;font-size:17px}
     .ct-toolbar{display:flex;align-items:center;gap:11px;margin-bottom:15px;flex-wrap:wrap}
-    .ct-seg{position:relative;display:inline-flex;background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:3px;box-shadow:0 1px 2px rgba(60,40,22,.04)}
-    .ct-seg-pill{position:absolute;top:3px;bottom:3px;left:0;z-index:0;border-radius:999px;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 6px rgba(var(--agent-coral-rgb),.28);transition:left .24s cubic-bezier(.4,.75,.3,1),width .24s cubic-bezier(.4,.75,.3,1),opacity .2s}
-    .ct-seg button{position:relative;z-index:1;appearance:none;border:none;background:none;font:inherit;font-size:13.5px;font-weight:600;color:var(--agent-text-secondary);padding:7px 16px;border-radius:999px;cursor:pointer;transition:color .18s}
-    .ct-seg button.on{color:#fff}
-    .ct-seg button:not(.on):hover{color:var(--agent-text-primary)}
-    .ct-seg-n{font-size:11px;opacity:.6;font-weight:650}
-    .ct-seg button.on .ct-seg-n{opacity:.82}
     .ct-search{position:relative;flex:1;min-width:210px}
     .ct-search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--agent-text-muted)}
     .ct-search input{width:100%;font:inherit;font-size:14px;color:var(--agent-text-primary);background:#fff;border:1px solid var(--agent-border-default);border-radius:999px;padding:11px 16px 11px 40px;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:.15s}
