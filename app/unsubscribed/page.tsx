@@ -1,10 +1,25 @@
-import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { confirmUnsubscribeAction } from "./actions";
-import "../claim/styles/claim-flow.css";
+import { AuthNoticeShell } from "@/components/ui/AuthNoticeShell";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 // no-referrer: the confirm step carries the token in the URL; don't let it leak
 // via the Referer header.
 export const metadata = { referrer: "no-referrer" } as const;
+
+const CORAL = "#FF6B4A";
+
+function SuccessTick() {
+  return (
+    <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255,107,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={CORAL} strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+      </svg>
+    </div>
+  );
+}
+
+const supportLink: React.CSSProperties = { color: CORAL, fontWeight: 500, textDecoration: "none" };
+const supportP: React.CSSProperties = { margin: 0, fontSize: 13, color: "rgba(45,24,16,0.55)", lineHeight: 1.6 };
 
 export default async function UnsubscribedPage({
   searchParams,
@@ -20,81 +35,70 @@ export default async function UnsubscribedPage({
   const isConfirm = !status && !!t;
 
   return (
-    <div className="claim-page">
-      <ClaimBackground />
-      <header className="claim-header">
-        <a
-          href="https://www.thesalesprogressor.co.uk"
-          target="_blank"
-          rel="noopener"
-          className="claim-wordmark"
-        >
-          The Sales Progressor
-        </a>
-      </header>
-      <div className="claim-error-wrap">
-        <div className="claim-error-inner">
-          {isConfirm ? (
-            <>
-              <p className="claim-error-eyebrow">The Sales Progressor</p>
-              <h1 className="claim-error-h1">Unsubscribe?</h1>
-              <p className="claim-error-p">
-                {isContact
-                  ? "Confirm and we'll stop emailing you update reminders about your sale. We'll still contact you directly when we need something from you."
-                  : "Confirm and we'll stop sending you emails from this address."}
-              </p>
-              <form action={confirmUnsubscribeAction} style={{ marginTop: 20 }}>
-                <input type="hidden" name="t" value={t} />
-                <button type="submit" className="claim-btn">Yes, unsubscribe</button>
-              </form>
-            </>
-          ) : isOk && isContact ? (
-            // Buyer/seller contact variant. Copy is intentionally GENERIC on
-            // the address ("your sale", not "your sale at 12 Acacia Avenue")
-            // — the page does not look up the contact by ID to avoid an
-            // unauthenticated ID-keyed read. The recipient knows which sale;
-            // they were just emailed about it.
-            <>
-              <p className="claim-error-eyebrow">The Sales Progressor</p>
-              <h1 className="claim-error-h1">You&apos;re unsubscribed</h1>
-              <p className="claim-error-p">
-                We won&apos;t email you about update reminders for your sale anymore. We&apos;ll still be in touch directly when we need something from you.
-              </p>
-              <p className="claim-error-support">
-                Changed your mind? Get in touch and we can re-enable reminders for you.
-              </p>
-            </>
-          ) : isOk ? (
-            <>
-              <p className="claim-error-eyebrow">The Sales Progressor</p>
-              <h1 className="claim-error-h1">You&apos;re unsubscribed</h1>
-              <p className="claim-error-p">
-                We won&apos;t send you any more emails from this address.
-              </p>
-              <p className="claim-error-support">
+    <AuthNoticeShell>
+      {isConfirm ? (
+        <>
+          <PageTitle
+            title="Unsubscribe?"
+            subtitle={isContact
+              ? "Confirm and we'll stop emailing you update reminders about your sale. We'll still contact you directly when we need something from you."
+              : "Confirm and we'll stop sending you emails from this address."}
+            style={{ marginBottom: 20 }}
+          />
+          {/* Flat coral primary (arc Button resting look). Inline + scoped hover so
+              this stays a server component. */}
+          <style dangerouslySetInnerHTML={{ __html: `.unsub-btn:hover{background:#E85A35}` }} />
+          <form action={confirmUnsubscribeAction}>
+            <input type="hidden" name="t" value={t} />
+            <button
+              type="submit"
+              className="unsub-btn"
+              style={{ width: "100%", padding: "13px", borderRadius: 10, background: CORAL, color: "#fff", fontSize: 15, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.12s ease" }}
+            >
+              Yes, unsubscribe
+            </button>
+          </form>
+        </>
+      ) : isOk ? (
+        // Buyer/seller contact variant keeps its address GENERIC ("your sale"):
+        // the page never looks the contact up by ID, to avoid an unauthenticated
+        // ID-keyed read. The recipient knows which sale; they were just emailed.
+        <div style={{ textAlign: "center" }}>
+          <SuccessTick />
+          <PageTitle
+            title="You're unsubscribed."
+            subtitle={isContact
+              ? "We won't email you about update reminders for your sale anymore. We'll still be in touch directly when we need something from you."
+              : "We won't send you any more emails from this address."}
+            style={{ marginBottom: 12 }}
+          />
+          <p style={supportP}>
+            {isContact ? (
+              "Changed your mind? Get in touch and we can re-enable reminders for you."
+            ) : (
+              <>
                 Changed your mind?{" "}
-                <a href="mailto:support@thesalesprogressor.co.uk">
+                <a href="mailto:support@thesalesprogressor.co.uk" style={supportLink}>
                   support@thesalesprogressor.co.uk
                 </a>
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="claim-error-eyebrow">The Sales Progressor</p>
-              <h1 className="claim-error-h1">Link not recognised</h1>
-              <p className="claim-error-p">
-                This unsubscribe link isn&apos;t valid. If you&apos;re still receiving emails,
-                contact us directly.
-              </p>
-              <p className="claim-error-support">
-                <a href="mailto:support@thesalesprogressor.co.uk">
-                  support@thesalesprogressor.co.uk
-                </a>
-              </p>
-            </>
-          )}
+              </>
+            )}
+          </p>
         </div>
-      </div>
-    </div>
+      ) : (
+        <div style={{ textAlign: "center" }}>
+          <PageTitle
+            title="Link not recognised."
+            subtitle="This unsubscribe link isn't valid. If you're still receiving emails, contact us directly."
+            style={{ marginBottom: 12 }}
+          />
+          <p style={supportP}>
+            <a href="mailto:support@thesalesprogressor.co.uk" style={supportLink}>
+              support@thesalesprogressor.co.uk
+            </a>
+          </p>
+        </div>
+      )}
+    </AuthNoticeShell>
   );
 }
