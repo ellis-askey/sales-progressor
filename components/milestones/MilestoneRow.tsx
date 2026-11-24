@@ -92,6 +92,9 @@ type Props = {
   // Real party names for personalising the step label (firm + seller/buyer),
   // Steps-tab only. Absent → the plain stored label is shown unchanged.
   partyNames?: PartyNameContext;
+  // The current (confirming) user's display photo, for the optimistic
+  // "Confirmed by you" avatar so it shows the real picture instantly.
+  currentUserImage?: string | null;
 };
 
 // Codes that can be manually marked N/R regardless of purchaseType.
@@ -146,7 +149,7 @@ function fmtDateTime(d: Date | string | null): string {
   return `${formatDate(d)} at ${time}`;
 }
 
-export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, onOptimisticComplete, optimisticallyAvailable, optimisticallyRelocked, optimisticallyComplete, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames }: Props) {
+export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFailed, onNRStart, onUndoStart, onOptimisticComplete, optimisticallyAvailable, optimisticallyRelocked, optimisticallyComplete, counterpartNotice, slownessSignal, stalenessSignal, clientChase, purchaseType, partyNames, currentUserImage }: Props) {
   const { toast } = useAgentToast();
   // Steps-tab label with the real names filled in (firm + seller/buyer), falling
   // back per slot to the stored generic wording. Used for the row label + toasts.
@@ -752,9 +755,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                 const comp = def.completion;
                 const confirmer: { name: string; role: ActorRole; image: string | null; channel: "app" | "portal" | "sol" } =
                   confirmedByMeOptimistically
-                    // Image stays null (the branded agent avatar) for the optimistic
-                    // instant; the real photo lands with the server reconcile.
-                    ? { name: currentUserName ?? "your agency", role: "agent", image: null, channel: "app" }
+                    // The confirming user is the current user — show their real
+                    // display photo (server-fetched into currentUserImage) straight
+                    // away, falling back to the branded art only if they have none.
+                    ? { name: currentUserName ?? "your agency", role: "agent", image: currentUserImage ?? null, channel: "app" }
                     : comp?.confirmedByPortal
                     ? { name: def.confirmedByClientName ?? "the client", role: def.side === "vendor" ? "seller" : "buyer", image: def.confirmedByClientImage ?? null, channel: "portal" }
                     : comp?.confirmedBySolicitorFirmId

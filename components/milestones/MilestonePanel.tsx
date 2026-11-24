@@ -71,6 +71,9 @@ type Props = {
   // per person (two overlap), side-tinted person art, uploaded photo when set.
   vendorPeople?: { name: string; roleType: string; image: string | null }[];
   purchaserPeople?: { name: string; roleType: string; image: string | null }[];
+  // The current (confirming) user's display photo, so the optimistic "Confirmed
+  // by you" avatar shows the real picture instantly instead of the fallback art.
+  currentUserImage?: string | null;
 };
 
 export function MilestonePanel({
@@ -89,6 +92,7 @@ export function MilestonePanel({
   activeRoundStartedAt,
   vendorPeople,
   purchaserPeople,
+  currentUserImage,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"vendor" | "purchaser">("vendor");
   // Parse once — the floor for the staleness/slowness "became available" proxy.
@@ -529,6 +533,7 @@ export function MilestonePanel({
                             clientChase={clientChase}
                             purchaseType={purchaseType}
                             partyNames={partyNames}
+                            currentUserImage={currentUserImage}
                           />
                         );
                       })

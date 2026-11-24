@@ -22,7 +22,7 @@ type Props = {
 };
 
 export async function StepsPanel({ transactionId, agencyId, userId, purchaseType, buyerNames, partyNames }: Props) {
-  const [milestoneData, graceDaysMap, clientChaseByCode, activeRound] = await Promise.all([
+  const [milestoneData, graceDaysMap, clientChaseByCode, activeRound, me] = await Promise.all([
     getMilestonesCached(transactionId, agencyId).catch(() => null),
     getGraceDaysCached().catch(() => new Map<string, number>()),
     getClientChaseStatesCached(transactionId).catch(() => ({})),
@@ -45,6 +45,10 @@ export async function StepsPanel({ transactionId, agencyId, userId, purchaseType
         },
       })
       .catch(() => null),
+    // The confirming user's own display photo, so the optimistic "Confirmed by
+    // you" avatar shows the real picture instantly (the session carries only the
+    // name, not the image).
+    prisma.user.findUnique({ where: { id: userId }, select: { image: true } }).catch(() => null),
   ]);
 
   if (!milestoneData) {
@@ -83,6 +87,7 @@ export async function StepsPanel({ transactionId, agencyId, userId, purchaseType
         activeRoundStartedAt={activeRoundStartedAt}
         vendorPeople={vendorPeople}
         purchaserPeople={purchaserPeople}
+        currentUserImage={me?.image ?? null}
       />
     </>
   );
