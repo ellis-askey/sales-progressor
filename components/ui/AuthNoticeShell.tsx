@@ -35,8 +35,8 @@ export function AuthNoticeShell({
         background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
       }} />
 
-      {/* Canonical TSP lockup, top-right, links out to the marketing site. */}
-      <header style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "flex-end", padding: "18px 24px" }}>
+      {/* Canonical TSP lockup, top-left, links out to the marketing site. */}
+      <header style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "flex-start", padding: "18px 24px" }}>
         <a
           href="https://www.thesalesprogressor.co.uk"
           target="_blank"

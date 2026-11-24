@@ -4,11 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encryptTotpSecret } from "@/lib/command/crypto";
 import { generateTotpSecret, totpKeyUri } from "@/lib/command/totp";
+import { AuthNoticeShell } from "@/components/ui/AuthNoticeShell";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { SetupTwoFaForm } from "@/components/auth/SetupTwoFaForm";
 import QRCode from "qrcode";
 
 export const dynamic = "force-dynamic";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UserWithTotp = { id: string; email: string; totpActivatedAt: Date | null };
 
 export default async function SetupTwoFaPage() {
@@ -25,49 +27,34 @@ export default async function SetupTwoFaPage() {
 
   const secret = generateTotpSecret();
   const otpAuthUrl = totpKeyUri(user.email, "Sales Progressor Command", secret);
-  const qrDataUrl = await QRCode.toDataURL(otpAuthUrl);
+  const qrDataUrl = await QRCode.toDataURL(otpAuthUrl, { margin: 1, width: 360 });
   const encryptedSecret = encryptTotpSecret(secret);
 
   return (
-    <main style={{ padding: "2rem", maxWidth: 480, fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: "1.25rem", marginBottom: "1rem" }}>
-        Set up two-factor authentication
-      </h1>
-      <p style={{ marginBottom: "1rem", color: "#555" }}>
-        Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy).
+    <AuthNoticeShell maxWidth={440}>
+      <PageTitle
+        title="Two-step verification."
+        subtitle="Scan the code with your authenticator app, then enter the 6-digit code to switch it on."
+        style={{ marginBottom: 20 }}
+      />
+      <QrPanel qrDataUrl={qrDataUrl} />
+      <SetupTwoFaForm encryptedSecret={encryptedSecret} />
+    </AuthNoticeShell>
+  );
+}
+
+function QrPanel({ qrDataUrl }: { qrDataUrl: string }) {
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ padding: 10, background: "#fff", borderRadius: 14, border: "1px solid rgba(23,23,30,0.10)", boxShadow: "0 2px 8px rgba(45,24,16,0.06)" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrDataUrl} alt="Two-factor QR code" width={180} height={180} style={{ display: "block", borderRadius: 6 }} />
+        </div>
+      </div>
+      <p style={{ margin: "12px 0 0", textAlign: "center", fontSize: 12, color: "rgba(45,24,16,0.5)", lineHeight: 1.5 }}>
+        Use Google Authenticator, Authy, or any TOTP app.
       </p>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={qrDataUrl} alt="TOTP QR code" width={200} height={200} />
-      <form action="/api/command/setup-2fa" method="POST" style={{ marginTop: "1.5rem" }}>
-        <input type="hidden" name="encryptedSecret" value={encryptedSecret} />
-        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>
-          Enter the 6-digit code from your app
-        </label>
-        <input
-          type="text"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          required
-          style={{ fontSize: "1.25rem", letterSpacing: "0.3em", padding: "0.5rem", width: "10rem" }}
-        />
-        <button
-          type="submit"
-          style={{
-            display: "block",
-            marginTop: "1rem",
-            padding: "0.6rem 1.5rem",
-            background: "#111",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-          }}
-        >
-          Activate
-        </button>
-      </form>
-    </main>
+    </div>
   );
 }
