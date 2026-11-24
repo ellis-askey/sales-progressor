@@ -10,18 +10,14 @@ import { useState, useTransition, type CSSProperties } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { PencilSimple, Plus, X, CaretUp, CaretDown, Check, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { type WelcomeCallPoint, MAX_WELCOME_CALL_POINTS } from "@/lib/intro-call/script";
+import { Button } from "@/components/arc/button/button";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { NumberedTimeline, TimelineNumber, TimelineConnector } from "@/components/ui/NumberedTimeline";
 
 type SaveResult = { ok: true } | { ok: false; error: string };
 
-const circleStyle: CSSProperties = {
-  width: 30, height: 30, borderRadius: 99, flexShrink: 0,
-  background: "radial-gradient(circle at 50% 32%, #ffffff 0%, var(--agent-coral-bg-tint) 100%)",
-  border: "1px solid rgba(var(--agent-coral-rgb), 0.30)",
-  boxShadow: "0 1px 3px rgba(var(--agent-coral-rgb), 0.22), inset 0 1px 0 rgba(255,255,255,0.85)",
-  color: "var(--agent-coral-deep)", fontSize: 12.5, fontWeight: 800,
-  display: "inline-flex", alignItems: "center", justifyContent: "center",
-};
-const connectorStyle: CSSProperties = { flex: 1, width: 1.5, minHeight: 10, marginTop: 6, borderRadius: 2, background: "rgba(var(--agent-coral-rgb), 0.18)" };
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as CSSProperties;
+
 const fieldStyle: CSSProperties = {
   width: "100%", padding: "7px 10px", fontSize: 13, color: "var(--agent-text-primary)",
   background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)",
@@ -119,24 +115,15 @@ export function WelcomeCallScriptEditor({
             <PencilSimple size={15} weight="bold" />
           </button>
         </div>
-        <div>
-          {points.map((s, i) => {
-            const last = i === points.length - 1;
-            return (
-              <div key={i} style={{ display: "flex", gap: 14 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                  <span style={circleStyle}>{i + 1}</span>
-                  {!last && <span aria-hidden style={connectorStyle} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0, paddingTop: 4, paddingBottom: last ? 2 : 18, borderBottom: last ? "none" : "1px solid var(--agent-border-subtle)" }}>
-                  {s.title && <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.title}</p>}
-                  {s.body && <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{s.body}</p>}
-                  {s.note && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{s.note}</p>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <NumberedTimeline
+          items={points.map((s) => (
+            <>
+              {s.title && <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>{s.title}</p>}
+              {s.body && <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{s.body}</p>}
+              {s.note && <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{s.note}</p>}
+            </>
+          ))}
+        />
       </div>
     );
   }
@@ -156,13 +143,12 @@ export function WelcomeCallScriptEditor({
           return (
             <div key={i} style={{ display: "flex", gap: 12 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                <span style={circleStyle}>{i + 1}</span>
-                {!last && <span aria-hidden style={connectorStyle} />}
+                <TimelineNumber n={i + 1} />
+                {!last && <TimelineConnector />}
               </div>
               <div style={{ flex: 1, minWidth: 0, paddingBottom: last ? 2 : 16, borderBottom: last ? "none" : "1px solid var(--agent-border-subtle)", display: "flex", gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <input value={p.title} onChange={(e) => patch(i, "title", e.target.value)} placeholder="Title" className="agent-field"
-                    style={{ ...fieldStyle, fontWeight: 600 }} />
+                  <LabelInput field="Title" label="Title" value={p.title} onChange={(e) => patch(i, "title", e.target.value)} fullWidth accent="#FF6B4A" size="sm" />
                   <textarea value={p.body} onChange={(e) => patch(i, "body", e.target.value)} placeholder="What to say" rows={2} className="agent-field"
                     style={{ ...fieldStyle, resize: "vertical" }} />
                   <textarea value={p.note} onChange={(e) => patch(i, "note", e.target.value)} placeholder="A softer closing note (optional)" rows={2} className="agent-field"
@@ -180,28 +166,22 @@ export function WelcomeCallScriptEditor({
       </div>
 
       {draft.length < MAX_WELCOME_CALL_POINTS && (
-        <button type="button" onClick={add} className="agent-hover-row wcs-add"
-          style={{
-            marginTop: 12, marginLeft: 44, display: "inline-flex", alignItems: "center", gap: 7,
-            padding: "7px 12px", fontSize: 12.5, fontWeight: 600, color: "var(--agent-coral-deep)",
-            background: "rgba(var(--agent-coral-rgb),0.07)", border: "0.5px dashed rgba(var(--agent-coral-rgb),0.40)",
-            borderRadius: 9, cursor: "pointer", transition: "background 140ms, border-color 140ms",
-          }}>
-          <Plus size={13} weight="bold" /> Add a point
-        </button>
+        <div style={{ marginTop: 12, marginLeft: 44 }}>
+          <Button type="button" variant="secondary" size="sm" onClick={add}>
+            <Plus size={13} weight="bold" /> Add a point
+          </Button>
+        </div>
       )}
 
       {error && <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--agent-danger)" }}>{error}</p>}
 
       <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button type="button" onClick={save} disabled={saving} className="agent-btn-color-primary"
-          style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
-          <Check size={14} weight="bold" /> {saving ? "Saving…" : "Save script"}
-        </button>
-        <button type="button" onClick={cancel} disabled={saving} className="agent-hover-ctl"
-          style={{ padding: "9px 14px", fontSize: 13, fontWeight: 500, color: "var(--agent-text-secondary)", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer" }}>
+        <Button type="button" variant="primary" size="sm" style={coralVars} loading={saving} onClick={save}>
+          <Check size={14} weight="bold" /> Save script
+        </Button>
+        <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={cancel}>
           Cancel
-        </button>
+        </Button>
         <button type="button" onClick={reset} disabled={saving} className="agent-link wcs-reset"
           style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 4px", fontSize: 12, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: "var(--agent-text-muted)" }}>
           <ArrowCounterClockwise size={13} weight="bold" /> {resetLabel}
