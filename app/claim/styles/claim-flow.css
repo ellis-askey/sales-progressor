@@ -44,11 +44,15 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: url("/claim/invite-background.png") no-repeat center center;
+  /* Responsive invite backgrounds: desktop (landscape) by default; tablet and
+     mobile (portrait) crops swap in at their breakpoints. */
+  background: url("/invite-bg-desktop.jpg") no-repeat center center;
   background-size: cover;
   pointer-events: none;
   animation: claim-bg-fade 900ms ease-out both;
 }
+@media (max-width: 1024px) { .claim-page::before { background-image: url("/invite-bg-tablet.jpg"); } }
+@media (max-width: 640px) { .claim-page::before { background-image: url("/invite-bg-mobile.jpg"); } }
 @keyframes claim-bg-fade {
   from { opacity: 0; }
   to   { opacity: 1; }

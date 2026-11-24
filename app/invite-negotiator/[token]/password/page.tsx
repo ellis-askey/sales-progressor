@@ -14,9 +14,9 @@ const AUTH_BG_STYLE = `
   .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
   .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
-  .auth-bg-img { background-image: url(/invite-bg-desktop.jpg); }
-  @media (max-width: 1024px) { .auth-bg-img { background-image: url(/invite-bg-tablet.jpg); } }
-  @media (max-width: 640px) { .auth-bg-img { background-image: url(/invite-bg-mobile.jpg); } }
+  .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+  @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+  @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
   @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
 `;
 
