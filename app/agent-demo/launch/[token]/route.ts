@@ -23,6 +23,7 @@ function fileUrl(req: NextRequest, txId: string): URL {
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  try {
   const { token } = await params;
   const businessId = verifyDemoLaunchToken(token);
   if (!businessId) return NextResponse.redirect(new URL("/", req.url));
@@ -61,4 +62,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   const res = NextResponse.redirect(fileUrl(req, sandbox.starTxId));
   res.cookies.set(demoSessionCookieName(), value, demoSessionCookieOptions());
   return res;
+  } catch (e) {
+    // Provisioning does a lot of DB work; if it fails (e.g. connection pressure),
+    // show a friendly retry rather than a bare 500, and log for diagnosis.
+    console.error("[agent-demo] launch failed", e);
+    return new NextResponse("The demo is warming up. Please try again in a moment.", { status: 503 });
+  }
 }
