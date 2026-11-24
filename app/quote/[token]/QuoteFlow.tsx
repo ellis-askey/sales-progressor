@@ -196,7 +196,7 @@ export function QuoteFlow({
             </div>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: A.textPrimary, margin: "0 0 6px" }}>Request sent</h2>
             <p style={{ fontSize: 14, color: A.textSecondary, margin: 0, lineHeight: 1.5 }}>
-              Your {serviceLabel.toLowerCase()} request has gone to {result.count} firm{result.count === 1 ? "" : "s"}. They'll contact you directly with a quote.
+              Your request for {serviceLabel.toLowerCase()} has been sent to {result.count} firm{result.count === 1 ? "" : "s"}. They'll be in touch directly.
             </p>
           </div>
 
@@ -258,7 +258,7 @@ export function QuoteFlow({
             boxShadow: A.cardShadow,
           }}
         >
-          <p style={{ ...labelStyle, marginBottom: 10 }}>What we sent</p>
+          <p style={{ ...labelStyle, marginBottom: 10 }}>Your request</p>
 
           <ShareRow label="Service" value={serviceLabel} />
           <ShareRow label="Contact by" value={methodLabel[contactMethod]} />
@@ -301,7 +301,7 @@ export function QuoteFlow({
             transition: "all 0.15s",
           }}
         >
-          Request something else
+          Request another quote
         </button>
 
         <p style={{ fontSize: 13, color: A.textMuted, margin: 0, lineHeight: 1.5, textAlign: "center", padding: "0 8px" }}>
@@ -358,7 +358,7 @@ export function QuoteFlow({
 
       {/* Step 1: pick provider category (hidden when only one is available) */}
       {showKindStep && (
-        <StepCard number={1} title="What do you need?">
+        <StepCard number={1} title="What type of firm do you need?">
           <select
             value={kind ?? ""}
             onChange={(e) => {
@@ -380,7 +380,7 @@ export function QuoteFlow({
 
       {/* Service type (after a category is chosen) */}
       {kind && (
-      <StepCard number={n(1)} title="What service do you need?">
+      <StepCard number={n(1)} title="Which service do you need?">
         {/* Canonical arc RadioGroup — its legend is sr-only here because the
             StepCard title owns the visible heading. */}
         <div className="quote-rg-nolegend">
@@ -403,8 +403,8 @@ export function QuoteFlow({
       {serviceTypeId && (
         <StepCard
           number={n(2)}
-          title={`Pick a firm (${eligibleFirms.length})`}
-          subtitle="You can select more than one. They'll each send you a quote."
+          title={`Choose your firms (${eligibleFirms.length})`}
+          subtitle="You can select more than one to compare quotes."
         >
           {eligibleFirms.length === 0 ? (
             <p style={{ fontSize: 13, color: A.textMuted, padding: "12px 0", margin: 0 }}>
@@ -435,7 +435,7 @@ export function QuoteFlow({
         <StepCard number={n(3)} title="How should they contact you?">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <RadioRow
-              label="Best way to reach you"
+              label="Preferred contact method"
               value={contactMethod}
               onChange={(v) => setContactMethod(v as QuoteContactMethod)}
               options={[
@@ -447,7 +447,7 @@ export function QuoteFlow({
               ]}
             />
             <RadioRow
-              label="Best time of day"
+              label="Best time to contact you"
               value={contactWindow}
               onChange={(v) => setContactWindow(v as QuoteContactWindow)}
               options={[
@@ -490,20 +490,20 @@ export function QuoteFlow({
         <StepCard number={n(4)} title="Your details" subtitle="We've pre-filled from your file. Edit anything that needs updating.">
           <div style={{ display: "flex", flexDirection: "column", gap: 12, "--lbi-top": "0px" } as React.CSSProperties}>
             <LabelInput
-              label="Name" type="text" name="quote-name" accent={CORAL} fullWidth
+              label="Full name" type="text" name="quote-name" accent={CORAL} fullWidth
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
               onBlur={(e) => { if (e.target.value.trim()) setClientName(titleCaseKeepAcronyms(e.target.value)); }}
             />
             <LabelInput
-              label="Email" type="email" name="quote-email" autoComplete="email" accent={CORAL} fullWidth
+              label="Email address" type="email" name="quote-email" autoComplete="email" accent={CORAL} fullWidth
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               onBlur={(e) => { if (e.target.value.trim()) setClientEmail(e.target.value.trim().toLowerCase()); }}
             />
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <LabelInput
-                label="Phone" type="tel" name="quote-phone"
+                label="Phone number" type="tel" name="quote-phone"
                 accent={phoneRequired && !clientPhone.trim() ? A.danger : CORAL}
                 fullWidth
                 value={clientPhone}
@@ -648,14 +648,14 @@ function QuoteHeader({
         {sent ? "All done" : "Request a quote"}
       </p>
       <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
-        {sent ? `That's sorted, ${firstName}` : `${firstName}, what do you need?`}
+        {sent ? `That's sorted, ${firstName}` : `Let's get you some quotes, ${firstName}`}
       </h1>
       <p style={{ fontSize: 14, color: A.textMuted, margin: 0, lineHeight: 1.5 }}>
         {sent ? (
           `Here's everything we sent. The ${count === 1 ? "firm" : "firms"} will be in touch directly.`
         ) : (
           <>
-            For <strong style={{ color: A.textSecondary }}>{address}</strong>. We'll only pass your details to the firms you choose.
+            For <strong style={{ color: A.textSecondary }}>{address}</strong>. We'll only share your details with the firms you choose.
           </>
         )}
       </p>

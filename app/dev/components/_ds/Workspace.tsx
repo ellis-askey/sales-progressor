@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AppBackground } from "@/components/decor/AppBackground";
-import { AREAS, SIGNED_OFF, type Area, type Category } from "./registry";
+import { AREAS, SIGNED_OFF, TO_DO, type Area, type Category } from "./registry";
 import { entriesFor, searchLibrary } from "./components";
 import { EntryCard } from "./EntryCard";
 import "./workspace.css";
@@ -247,6 +247,7 @@ function SignedOff() {
       <p className="ds-lede">
         Flows and pages confirmed 100% complete — spacing, canonicals, and every element, container, popup and state
         accounted for in the library (bar anything deliberately kept bespoke). One lands here the moment you sign it off.
+        {" "}<strong>{SIGNED_OFF.length} done · {TO_DO.length} to go.</strong>
       </p>
       {SIGNED_OFF.length === 0 ? (
         <div className="ds-empty">
@@ -263,6 +264,24 @@ function SignedOff() {
             </article>
           ))}
         </div>
+      )}
+
+      {TO_DO.length > 0 && (
+        <>
+          <h2 className="ds-h1" style={{ fontSize: 22, marginTop: 40 }}>Still to do ({TO_DO.length})</h2>
+          <p className="ds-lede">
+            Pages and flows not yet through the canonical pass. Excludes the client (buyer/seller) portals, the
+            broker/solicitor portals and the command centre — separate programmes.
+          </p>
+          <div className="ds-entries">
+            {TO_DO.map((t) => (
+              <article key={t.flow} className="ds-entry">
+                <div className="ds-entry-id"><h3>{t.flow}</h3><span className="ds-badge" data-tone="neutral">To do</span></div>
+                {t.note && <p className="ds-entry-summary">{t.note}</p>}
+              </article>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

@@ -50,6 +50,11 @@ export function CheckCardGroup({ label, options, value, onValueChange, name }: C
                 checked={checked}
                 onChange={() => toggle(option.value)}
               />
+              {option.leading && <span className={styles.leading}>{option.leading}</span>}
+              <span className={styles.text}>
+                <strong>{option.label}</strong>
+                {option.description && <small>{option.description}</small>}
+              </span>
               <span className={styles.mark} aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none">
                   <MotionPath
@@ -67,11 +72,6 @@ export function CheckCardGroup({ label, options, value, onValueChange, name }: C
                     }
                   />
                 </svg>
-              </span>
-              {option.leading && <span className={styles.leading}>{option.leading}</span>}
-              <span className={styles.text}>
-                <strong>{option.label}</strong>
-                {option.description && <small>{option.description}</small>}
               </span>
             </label>
           );

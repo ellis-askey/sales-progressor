@@ -171,7 +171,7 @@ export default async function QuotePage({
         background: "transparent",
         // Extra bottom room so the footer clears the fixed submit bar without a
         // large spacer gap above it.
-        padding: "24px 20px 104px",
+        padding: "24px 20px 140px",
       }}
     >
       {/* Chain-invite background on this page (.quote-invite-bg in elevra.css),

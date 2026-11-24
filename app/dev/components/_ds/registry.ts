@@ -222,6 +222,49 @@ export const SIGNED_OFF: SignOff[] = [
   { flow: "Invitations — agency team + negotiator (/invite/[token], /invite-negotiator/[token])", date: "24 Nov 2026", note: "Both flows — landing, error card, and email+password signup — moved off the old SunriseBackground glass look onto the canonical login/register shell (photo bg, TSP lockup, white card). OAuth → arc Button (secondary); the email+password link carries the arc secondary classes (keeps real link semantics); mismatch notice → InlineAlert (warning); sign-out → arc primary; the pre-filled invited email uses the new LabelInput `locked` variant (greyed, read-only). Error states (not found / expired / already accepted) and the negotiator's email-mismatch sign-out rule preserved. Backgrounds left on the shared login photo (not the invite photo — that's the claim page). move-invite NOT yet done." },
   { flow: "Chain invite — claim landing (/claim)", date: "24 Nov 2026", note: "Flattened to the no-gradient-3D direction: flat position circles, flat solid-coral CTA, text-only status labels (Joined keeps a green tick), solid-orange 'your sale' card with white content (its sub-line now shows the invited agency, not a duplicate 'Your sale'), circular property thumbnails with the warm-peach SOLD badge placeholder (a real uploaded photo fills the same circle), thinner headline weight, trust ticks kept (new canonical ui/TrustStrip registered — ticks + plain middot variants). Inviter 'top bar' kept bespoke (avatar flattened). Page background swapped to the responsive invite backgrounds (invite-bg-*.jpg). SCOPE: the /claim landing card only — the claim SUB-pages (signup / login / confirm / decline) are NOT yet audited (they share the claim-flow.css ladder styling but their own chrome is untouched)." },
   { flow: "Terms & legal pages (/terms, /privacy, /cookie-policy, /billing-terms, /outsourced-terms, /progression-business-terms, /provider-terms, /legal/dpa)", date: "24 Nov 2026", note: "The public policy / terms set — long-form legal text on the shared policy chrome (PolicyNavBar). Signed off visually. FUNCTIONAL BUG (not visual, tracked separately): /progression-business-terms is auth-gated by a middleware allowlist gap — a logged-out visitor clicking it from the register terms checkbox is bounced to /login, while every other terms page is public. Fix is to add it (plus /chases-paused, /unsubscribed, /feedback) to the middleware public matcher." },
+  { flow: "Quote request (/quote/[token])", date: "24 Nov 2026", note: "The public provider-quote flow (TSP-progressed files only; a non-TSP file shows the 'ask your agent' dead-end). Canonicalised, wiring untouched: service selector → arc RadioGroup; contact preferences → arc ChipGroup (solid-coral chips); firm picker → the new CheckCardGroup (multi-select, white tick-in-circle top-right, firm logo in the leading slot); name/email/phone → LabelInput; uppercase field labels + header eyebrow → sentence case; both links → the canonical coral link; page background → the chain-invite backgrounds. Strings reworded (welcoming header, de-duplicated step titles, success copy). Two new canonicals registered in /dev/components (toggles): ChipGroup (solid-primary selected) + CheckCardGroup. Kept custom: the £ onward-price input + the free-text textarea (LabelInput is single-line). The submit stays disabled until required fields are filled (phone is required only when the chosen contact method needs it) — correct, not a bug." },
+];
+
+/* ── Still to do ─────────────────────────────────────────────────────────────
+   The canonical pass's open list: pages/flows not yet signed off. Deliberately
+   EXCLUDES the client (buyer/seller) portals, the broker/solicitor portals and
+   the command centre (separate programmes). Rendered under the Signed-off view
+   so the remaining count stays visible. Tick these off as each is signed off. */
+export interface ToDoItem { flow: string; note?: string }
+export const TO_DO: ToDoItem[] = [
+  // Auth / invite stragglers
+  { flow: "Claim sub-pages (/claim/signup · login · confirm · decline)", note: "The chain-invite landing is signed off; the rest of that flow isn't." },
+  { flow: "move-invite (/move-invite/[token])", note: "Last invite-family stray; flag-gated." },
+  { flow: "2FA setup (account security)", note: "The login 2FA stage is signed off; the setup screen isn't." },
+  // Client-facing notices (not the portal)
+  { flow: "Feedback survey (/feedback/[token]/survey)", note: "Client email link. Also carries the middleware auth-gate bug." },
+  { flow: "Chases paused (/chases-paused)", note: "Client email link. Also carries the middleware auth-gate bug." },
+  { flow: "Unsubscribed (/unsubscribed)", note: "Client email link. Also carries the middleware auth-gate bug." },
+  // File-detail page + tabs (the core working surface)
+  { flow: "File page · Overview + property hero" },
+  { flow: "File page · Steps / Activity tab" },
+  { flow: "File page · Chain tab" },
+  { flow: "File page · Reminders tab" },
+  { flow: "File page · Chase tab" },
+  { flow: "File page · To-Do tab" },
+  { flow: "File page · Documents tab" },
+  { flow: "File page · Client-portal tab" },
+  { flow: "File page · WhatsApp tab" },
+  { flow: "File page · Setup tab" },
+  // Settings cluster
+  { flow: "Account settings", note: "Profile, emails, chasing, client-portal, billing, team, security, notifications, connections, connect-CRM, email-templates, welcome-call." },
+  { flow: "Business settings", note: "The mirrored set (profile, billing, chases, client-portal, emails, business, connections, security, notifications, team, email-templates)." },
+  // Remaining agent pages
+  { flow: "Analytics (/agent/analytics)", note: "Empty state signed off; populated page not." },
+  { flow: "Clients (/agent/clients + agency detail)", note: "Empty state signed off; populated page not." },
+  { flow: "Completions (/agent/completions)", note: "Empty state signed off; populated page not." },
+  { flow: "Focus (/agent/focus)" },
+  { flow: "Messages (/agent/messages)" },
+  { flow: "Partners (/agent/partners + partner detail)", note: "Empty state signed off; populated page not." },
+  { flow: "Solicitors (/agent/solicitors)" },
+  { flow: "To-Do (/agent/to-do, full page)", note: "Empty state signed off; full page not." },
+  { flow: "What's new (/agent/whats-new)" },
+  { flow: "Quick-add (new sale)" },
 ];
 
 /* ── The components themselves ───────────────────────────────────────────────

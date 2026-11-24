@@ -23,7 +23,7 @@
 .option {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
   border-radius: 10px;
