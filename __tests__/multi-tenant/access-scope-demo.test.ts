@@ -48,7 +48,7 @@ function makeDemoSession(u: {
 
 const SANDBOX = ["d1", "d2", "d3"]; // the chain of demo files this visitor owns
 
-describe("getAccessScope — demo session derivation", () => {
+describe("getAccessScope - demo session derivation", () => {
   it("a session carrying sandbox ids resolves to {kind:'demo'}", () => {
     expect(getAccessScope(makeDemoSession({ demoSandboxTransactionIds: SANDBOX }))).toEqual({
       kind: "demo",
@@ -111,7 +111,7 @@ describe("scope → where helpers bound every query to the sandbox", () => {
   });
 });
 
-describe("canReadTransaction — demo isolation matrix", () => {
+describe("canReadTransaction - demo isolation matrix", () => {
   const demo: AccessScope = { kind: "demo", transactionIds: SANDBOX };
 
   it("reads ONLY files whose id is in the sandbox", () => {

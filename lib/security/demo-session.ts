@@ -53,7 +53,7 @@ export type DemoSessionSeed = {
 /** Encode the demo guest session as a NextAuth JWT (cookie value). */
 export async function encodeDemoSessionToken(seed: DemoSessionSeed): Promise<string> {
   const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) throw new Error("NEXTAUTH_SECRET is not set — cannot mint a demo session");
+  if (!secret) throw new Error("NEXTAUTH_SECRET is not set. Cannot mint a demo session.");
   return encode({
     secret,
     maxAge: AGENT_DEMO_SESSION_MAX_AGE_S,

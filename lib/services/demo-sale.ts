@@ -464,7 +464,7 @@ export async function createPreviewSale(opts: { ownerUserId: string; agencyId?: 
 // cron. Owned/managed by the per-sandbox demo agent (the visitor "is" that agent).
 // See docs/active/agent-demo/SPEC.md.
 const AGENT_DEMO_TTL_MS = 3 * 60 * 60 * 1000; // 3h idle window (resumes on activity)
-const AGENT_DEMO_AGENCY_PREFIX = "Agent demo — ";
+const AGENT_DEMO_AGENCY_PREFIX = "Agent demo · ";
 const AGENT_DEMO_PER_BUSINESS_CAP = 100;
 
 // Keep one business's live sandbox count bounded: sweep its already-expired ones
