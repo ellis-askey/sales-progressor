@@ -21,6 +21,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/arc/button/button";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import { RadioCards } from "@/components/arc/radio-cards/radio-cards";
+import { CadenceCalendar } from "@/components/automation/CadenceCalendar";
 
 const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
@@ -236,22 +238,37 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
       {/* 1 profiles */}
       <section>
         <SecHead n={1} title="Choose a rhythm" />
-        <div className="ct-profiles">
-          {PRESETS.map((p) => {
-            const on = profile === p.key && !custom;
-            return (
-              <button type="button" key={p.key} className={`ct-pcard${on ? " on" : ""}`} onClick={() => applyPreset(p)}>
-                <div className="ct-pcard-top">
-                  <span className="ct-pcard-name">{p.name}</span>
-                  <span className="ct-tick">{on && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>}</span>
-                </div>
-                <MiniPulse dots={p.dots} />
-                <div className="ct-pcard-weeks"><span className="ct-wk-affix">Approx</span>{p.weeks}<span className="ct-wk-affix">weeks</span></div>
-                <div className="ct-pcard-label">to exchange</div>
-                <p className="ct-pcard-desc">{p.desc}</p>
-              </button>
-            );
-          })}
+        {/* Canonical arc RadioCards (ring + dot selection). The arc-scope bridges
+            the arc design tokens to our agent coral + surfaces. */}
+        <div
+          className="arc-scope ct-rhythm"
+          style={{
+            ["--control-on"]: "var(--agent-coral-deep)",
+            ["--control-glyph"]: "#fff",
+            ["--surface"]: "var(--agent-surface-elevated, #fff)",
+            ["--foreground"]: "var(--agent-text-primary)",
+            ["--text-secondary"]: "var(--agent-text-secondary)",
+            ["--text-muted"]: "var(--agent-text-muted)",
+            ["--border"]: "var(--agent-border-default)",
+          } as React.CSSProperties}
+        >
+          <RadioCards
+            layout="grid"
+            minColumnWidth={210}
+            value={custom ? null : profile}
+            onValueChange={(key) => { const p = PRESETS.find((x) => x.key === key); if (p) applyPreset(p); }}
+            options={PRESETS.map((p) => ({
+              value: p.key,
+              label: p.name,
+              description: (
+                <span style={{ display: "block" }}>
+                  <MiniPulse dots={p.dots} />
+                  {p.desc}
+                </span>
+              ),
+              meta: `≈ ${p.weeks} weeks to exchange`,
+            }))}
+          />
         </div>
         <p className="ct-note">
           {custom
@@ -396,7 +413,7 @@ function MiniPulse({ dots }: { dots: number }) {
   }
   d += " L 104 17";
   return (
-    <svg className="ct-cadence" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden>
+    <svg className="ct-cadence" viewBox="0 0 120 24" width={120} height={24} aria-hidden>
       <path className="ct-cad-line" d={d} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       <circle className="ct-cad-end" cx="109" cy="17" r="3.4" />
     </svg>
@@ -409,13 +426,10 @@ function MiniPulse({ dots }: { dots: number }) {
 // illustrative "as if this step became due today" preview. Pulse + calendar both
 // anchor on the next working day from now, so they always agree.
 const CAD_DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const CAD_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function cadIsWD(d: Date) { const g = d.getDay(); return g !== 0 && g !== 6; }
 function cadRollWD(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); while (!cadIsWD(x)) x.setDate(x.getDate() + 1); return x; }
 function cadAddWD(from: Date, n: number) { const x = new Date(from); let a = 0; const t = Math.max(0, Math.round(n)); while (a < t) { x.setDate(x.getDate() + 1); if (cadIsWD(x)) a++; } return x; }
 function cadFmtShort(d: Date) { return CAD_DOW[d.getDay()] + " " + d.getDate(); }                       // "Thu 7"
-function cadFmtLong(d: Date) { return CAD_DOW[d.getDay()] + " " + d.getDate() + " " + CAD_MON[d.getMonth()]; } // "Thu 7 Nov"
-const cadOrdinal = (i: number) => (i === 1 ? "1st" : i === 2 ? "2nd" : i === 3 ? "3rd" : i + "th");
 
 function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -515,45 +529,6 @@ function PulseSchedule({ grace, repeat, esc }: { grace: number; repeat: number; 
   }, []);
 
   return <canvas ref={canvasRef} className="ct-pulse" aria-hidden />;
-}
-
-// Calendar-strip view of the same cadence — the weeks laid out with each nudge on
-// the day it actually sends, weekends hidden. Same working-day maths as the pulse.
-function CadenceCalendar({ grace, repeat, esc }: { grace: number; repeat: number; esc: number }) {
-  const anchor = cadRollWD(new Date());
-  type Ev = { d: Date; kind: "start" | "chase" | "hand"; tag: string };
-  const events: Ev[] = [{ d: anchor, kind: "start", tag: "Waiting" }];
-  for (let i = 1; i <= esc; i++) events.push({ d: cadAddWD(anchor, grace + repeat * (i - 1)), kind: "chase", tag: cadOrdinal(i) + " nudge" });
-  events.push({ d: cadAddWD(anchor, grace + repeat * esc), kind: "hand", tag: "Back to you" });
-  const kk = (d: Date) => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
-  const byKey: Record<string, Ev> = {};
-  events.forEach((e) => { byKey[kk(e.d)] = e; });
-  const end = events[events.length - 1].d;
-  const mon = new Date(anchor); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); // Monday of start week
-  const weeks: Date[] = []; const cur = new Date(mon); let guard = 0;
-  while (cur <= end && guard < 10) { weeks.push(new Date(cur)); cur.setDate(cur.getDate() + 7); guard++; }
-  return (
-    <div className="ct-cal">
-      {weeks.map((wkMon, wi) => (
-        <div className="ct-cal-wk" key={wi}>
-          <span className="ct-cal-wklab">Wk {wi + 1}</span>
-          {[0, 1, 2, 3, 4].map((i) => {
-            const d = new Date(wkMon); d.setDate(wkMon.getDate() + i);
-            const e = byKey[kk(d)];
-            return (
-              <div key={i} className={`ct-cal-cell${e ? " " + e.kind : ""}`}>
-                <span className="ct-cal-dow">{CAD_DOW[d.getDay()]}</span>
-                <span className="ct-cal-date">{d.getDate()} {CAD_MON[d.getMonth()]}</span>
-                {e && e.kind !== "start" && <span className="ct-cal-tag">{e.tag}</span>}
-                {e && e.kind === "start" && <span className="ct-cal-tag start">With client</span>}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-      <p className="ct-cal-note">Sat &amp; Sun hidden. Chasing only runs on working days.</p>
-    </div>
-  );
 }
 
 // Wraps the pulse + calendar with a discreet view switch and a crossfade (the
@@ -697,31 +672,10 @@ function Styles() {
     .ct-eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--agent-text-muted);display:flex;align-items:center;gap:9px}
     .ct-num{width:19px;height:19px;border-radius:999px;background:#fff;border:1px solid var(--agent-border-default);display:grid;place-items:center;font-size:11px;color:var(--agent-text-secondary)}
     .ct-opt{font-weight:500;text-transform:none;letter-spacing:0;color:var(--agent-text-muted);margin-left:2px}
-    .ct-profiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-    .ct-pcard{text-align:left;cursor:pointer;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:16px;padding:18px 18px;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:transform .18s,box-shadow .18s,border-color .18s}
-    .ct-pcard:hover{transform:translateY(-3px);box-shadow:0 10px 26px -16px rgba(60,40,22,.3);border-color:var(--agent-coral-pale)}
-    .ct-pcard:focus-visible{outline:none;border-color:var(--agent-coral-deep)}
-    .ct-pcard.on{border-color:transparent;background:linear-gradient(180deg,var(--agent-coral),var(--agent-coral-deep));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 26px -14px rgba(var(--agent-coral-rgb),.55)}
-    .ct-pcard.on:hover{border-color:transparent;transform:translateY(-2px)}
-    .ct-pcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .ct-pcard-name{font-size:16px;font-weight:680;letter-spacing:-.01em;color:var(--agent-text-primary)}
-    .ct-pcard.on .ct-pcard-name{color:#fff}
-    .ct-tick{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;border:1.5px solid var(--agent-border-default);transition:.15s}
-    .ct-pcard.on .ct-tick{background:#fff;border-color:#fff}
-    .ct-tick svg{width:12px;height:12px;color:var(--agent-coral-deep)}
-    .ct-cadence{display:block;width:100%;height:24px;margin-bottom:12px}
+    /* rhythm sparkline (inside the arc RadioCards description) */
+    .ct-cadence{display:block;width:120px;max-width:100%;height:24px;margin-bottom:8px}
     .ct-cad-line{stroke:var(--agent-coral-deep)}
     .ct-cad-end{fill:var(--agent-warning)}
-    .ct-pcard.on .ct-cad-line{stroke:#fff}
-    .ct-pcard.on .ct-cad-end{fill:#fff}
-    .ct-pcard-weeks{font-size:26px;font-weight:740;letter-spacing:-.025em;color:var(--agent-coral-deep);display:flex;align-items:baseline;gap:6px}
-    .ct-pcard.on .ct-pcard-weeks{color:#fff}
-    .ct-wk-affix{font-size:12.5px;font-weight:650;color:var(--agent-text-muted)}
-    .ct-pcard.on .ct-wk-affix{color:rgba(255,255,255,.82)}
-    .ct-pcard-label{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--agent-text-muted);margin-bottom:11px}
-    .ct-pcard.on .ct-pcard-label{color:rgba(255,255,255,.85)}
-    .ct-pcard-desc{margin:0;font-size:13px;line-height:1.5;color:var(--agent-text-secondary)}
-    .ct-pcard.on .ct-pcard-desc{color:rgba(255,255,255,.92)}
     .ct-note{margin:14px 3px 0;font-size:13.5px;color:var(--agent-text-muted)}
     .ct-note b{color:var(--agent-text-secondary)}
     .ct-esc{display:flex;align-items:center;gap:18px;padding:20px 22px}
@@ -789,20 +743,6 @@ function Styles() {
     .ct-cadence-box{position:relative;min-height:120px;transition:height .26s cubic-bezier(.4,0,.2,1)}
     .ct-cadence-layer{position:absolute;top:0;left:0;width:100%;opacity:0;pointer-events:none;transition:opacity .22s ease}
     .ct-cadence-layer.show{opacity:1;pointer-events:auto}
-    .ct-cal{display:flex;flex-direction:column;gap:9px;padding:2px 0 0}
-    .ct-cal-wk{display:grid;grid-template-columns:38px repeat(5,1fr);gap:6px;align-items:stretch}
-    .ct-cal-wklab{font-size:10px;font-weight:700;color:var(--agent-text-muted);align-self:center;letter-spacing:.03em}
-    .ct-cal-cell{position:relative;background:rgba(45,24,16,.025);border:1px solid var(--agent-border-subtle);border-radius:9px;min-height:56px;padding:6px 7px;display:flex;flex-direction:column;gap:2px}
-    .ct-cal-dow{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--agent-text-muted)}
-    .ct-cal-date{font-size:12px;font-weight:700;color:var(--agent-text-secondary);font-variant-numeric:tabular-nums}
-    .ct-cal-tag{margin-top:auto;font-size:10px;font-weight:700;line-height:1.2}
-    .ct-cal-cell.chase{background:var(--agent-coral-bg-tint);box-shadow:inset 0 0 0 1px var(--agent-coral-pale);border-color:transparent}
-    .ct-cal-cell.chase .ct-cal-tag{color:var(--agent-coral-deep)}
-    .ct-cal-cell.hand{background:rgba(201,125,26,.12);box-shadow:inset 0 0 0 1px rgba(201,125,26,.35);border-color:transparent}
-    .ct-cal-cell.hand .ct-cal-tag{color:var(--agent-warning,#C97D1A)}
-    .ct-cal-cell.start{box-shadow:inset 0 0 0 1.5px var(--agent-border-default)}
-    .ct-cal-tag.start{color:var(--agent-text-muted)}
-    .ct-cal-note{margin:4px 0 0;font-size:11px;color:var(--agent-text-muted)}
     @media (max-width:720px){
       .ct-profiles{grid-template-columns:1fr}
       .ct-ctrls{flex-direction:column;align-items:stretch}
