@@ -174,6 +174,9 @@ function linkIsOurs(scope: AccessScope, viewerId: string, l: LinkForPush): boole
     case "agency":   return tx.agencyId != null && scope.agencyIds.includes(tx.agencyId);
     case "business": return tx.progressionBusinessId === scope.businessId;
     case "assigned": return tx.assignedUserId === scope.userId;
+    // A demo scope can only ever load its own sandbox files, so every node it
+    // sees is the visitor's. Labelling, not access (access is gated upstream).
+    case "demo":     return true;
     case "all":
     case "platform": return tx.assignedUserId === viewerId;
   }

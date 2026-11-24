@@ -4,6 +4,24 @@ import { isHybridSuperadminEmail } from "@/lib/security/hybrid-emails";
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+// Soft per-sandbox AI cost cap for the agent demo. In-memory per edge instance
+// (a hard/global cap would use Upstash, currently flagged off), which is fine for
+// cost protection — it bounds runaway usage per visitor. Keyed on the sandbox.
+const DEMO_AI_CAP = 5;
+const DEMO_AI_WINDOW_MS = 60 * 60 * 1000;
+const demoAiHits = new Map<string, number[]>();
+function demoAiOverQuota(key: string): boolean {
+  const now = Date.now();
+  const hits = (demoAiHits.get(key) ?? []).filter((t) => now - t < DEMO_AI_WINDOW_MS);
+  if (hits.length >= DEMO_AI_CAP) {
+    demoAiHits.set(key, hits);
+    return true;
+  }
+  hits.push(now);
+  demoAiHits.set(key, hits);
+  return false;
+}
+
 // Command centre timing constants (ms) â€” kept inline to avoid Node.js module
 // imports that are unavailable in the Edge Runtime.
 const STEP_UP_MAX_AGE_MS  = 30 * 60 * 1000;
@@ -150,6 +168,49 @@ export default withAuth(
       );
     }
 
+    // ── Agent-demo guest confinement (v1 is file-only) ──────────────────────
+    // A demo session (carries sandbox ids on its token) may only reach its own
+    // sandbox file, that file's APIs, and the demo launcher/restart. Anything
+    // else bounces to the star file. Data access is ALSO hard-scoped per-query by
+    // the "demo" access-scope — this just keeps the visitor on the experience.
+    const demoIds = req.nextauth.token?.demoSandboxTransactionIds;
+    const demoStar = req.nextauth.token?.demoStarTransactionId;
+    if (Array.isArray(demoIds) && demoIds.length > 0 && demoStar) {
+      // Cap the demo's AI spend (chase drafting, memo parsing, etc.).
+      if (
+        (pathname.startsWith("/api/ai/") || pathname.startsWith("/api/agent/memo-parse")) &&
+        MUTATION_METHODS.has(req.method) &&
+        demoAiOverQuota(demoStar)
+      ) {
+        return new NextResponse(
+          JSON.stringify({ error: "You've reached the demo's AI limit. Use Start over to keep exploring." }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      // Block the few non-file endpoints that could reach a real person (inviting
+      // a teammate, referrals). File interactions all run through access-scoped,
+      // isDemo-suppressed paths; these do not. (Non-file PAGE server actions are
+      // already blocked by the navigation confinement below.)
+      if (
+        MUTATION_METHODS.has(req.method) &&
+        (pathname.startsWith("/api/agent/team") || pathname.includes("/invite") || pathname.includes("/refer"))
+      ) {
+        return new NextResponse(
+          JSON.stringify({ error: "That action is disabled in the demo." }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      const starFile = new URL(`/agent/transactions/${demoStar}`, req.url);
+      if (pathname.startsWith("/api") || pathname.startsWith("/agent-demo")) {
+        // allowed — APIs are access-scoped; launcher/restart are demo routes
+      } else if (pathname.startsWith("/agent/transactions/")) {
+        const id = pathname.split("/")[3];
+        if (!id || !demoIds.includes(id)) return NextResponse.redirect(starFile);
+      } else {
+        return NextResponse.redirect(starFile);
+      }
+    }
+
     // Viewers are read-only â€” block all mutation API calls
     if (
       role === "viewer" &&
@@ -190,6 +251,9 @@ export default withAuth(
       authorized: ({ req, token }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith("/portal")) return true;
+        // Public agent-demo launcher/restart — provisions + mints its own scoped
+        // session, so it must reach the gate logged-out (like /portal).
+        if (pathname.startsWith("/agent-demo")) return true;
         // Solicitor confirm links — token-authenticated inside the page/actions,
         // like /portal. No session required.
         if (pathname.startsWith("/s/")) return true;

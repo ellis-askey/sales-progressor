@@ -21,7 +21,8 @@ export type AccessScope =
   | { kind: "business"; businessId: string }    // external progression-business member — own business's book
   | { kind: "assigned"; userId: string }        // TSP sales_progressor — own assigned files
   | { kind: "all"; userId?: string }            // admin — TSP's book, no external business
-  | { kind: "platform"; userId?: string };      // superadmin (founder) — EVERY file (single-file reach)
+  | { kind: "platform"; userId?: string }       // superadmin (founder) — EVERY file (single-file reach)
+  | { kind: "demo"; transactionIds: string[] }; // agent-demo sandbox — ONLY its own files, nothing else
 // userId on all/platform identifies the internal user, so their everyday LISTS can
 // be limited to files they actually work (outsourced-to-TSP, or assigned to them).
 // Optional: internal see-all lookups construct { kind:"all" } without it (broad).
@@ -44,7 +45,16 @@ export const TSP_ONLY_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
 // ─── Derive scope from session ────────────────────────────────────────────────
 
 export function getAccessScope(session: Session): AccessScope {
-  const { role, agencyId, id, progressionBusinessId, progressionBusinessRole, canViewAllFiles } = session.user;
+  const { role, agencyId, id, progressionBusinessId, progressionBusinessRole, canViewAllFiles, demoSandboxTransactionIds } = session.user;
+
+  // Agent-demo sandbox session (public, no-login visitor exploring the demo).
+  // Checked FIRST and returned immediately so a demo guest can NEVER escalate to
+  // any other scope, whatever else its session fields hold — it is hard-limited
+  // to its own sandbox's transaction ids and can see or touch nothing else.
+  // See docs/active/agent-demo/SPEC.md.
+  if (demoSandboxTransactionIds && demoSandboxTransactionIds.length > 0) {
+    return { kind: "demo", transactionIds: demoSandboxTransactionIds };
+  }
 
   // Founder god scope. A superadmin (or the hybrid-superadmin email) is the
   // platform operator — they see EVERY file, including external progression
@@ -137,6 +147,9 @@ export function scopeTransactionWhere(
   // (opening a specific file from the Command Centre). When the scope carries no
   // userId — internal see-all lookups / tests construct { kind:"all" } directly —
   // the narrowing is skipped; those are deliberate broad reads.
+  // Agent-demo sandbox: ONLY this sandbox's demo files. isDemo:true is a second
+  // belt alongside the id allow-list so nothing real can ever match.
+  if (scope.kind === "demo") return { id: { in: scope.transactionIds }, isDemo: true };
   if (scope.kind === "all" || scope.kind === "platform") {
     if (!scope.userId) return { isDemo: false, ...TSP_ONLY_TX_WHERE };
     return {
@@ -166,6 +179,10 @@ export function scopeOwnershipWhere(
   scope: AccessScope,
   transactionId: string
 ): Prisma.PropertyTransactionWhereInput {
+  // Agent-demo sandbox: the id must be BOTH the requested one AND inside this
+  // sandbox's set. A demo visitor passing another sandbox's (or a real) id gets
+  // a where that matches no row.
+  if (scope.kind === "demo") return { AND: [{ id: transactionId }, { id: { in: scope.transactionIds } }], isDemo: true };
   if (scope.kind === "all")      return { id: transactionId, ...TSP_ONLY_TX_WHERE };
   // Founder: open ANY file, no business wall.
   if (scope.kind === "platform") return { id: transactionId };
@@ -183,6 +200,7 @@ export function scopeChaseTaskWhere(
   scope: AccessScope,
   taskId: string
 ): Prisma.ChaseTaskWhereInput {
+  if (scope.kind === "demo")     return { id: taskId, transaction: { id: { in: scope.transactionIds }, isDemo: true } };
   if (scope.kind === "all")      return { id: taskId, transaction: TSP_ONLY_TX_WHERE };
   if (scope.kind === "platform") return { id: taskId };
   if (scope.kind === "assigned") return { id: taskId, transaction: { assignedUserId: scope.userId } };
@@ -197,6 +215,7 @@ export function scopeReminderLogWhere(
   scope: AccessScope,
   logId: string
 ): Prisma.ReminderLogWhereInput {
+  if (scope.kind === "demo")     return { id: logId, transaction: { id: { in: scope.transactionIds }, isDemo: true } };
   if (scope.kind === "all")      return { id: logId, transaction: TSP_ONLY_TX_WHERE };
   if (scope.kind === "platform") return { id: logId };
   if (scope.kind === "assigned") return { id: logId, transaction: { assignedUserId: scope.userId } };
@@ -211,6 +230,9 @@ export function scopeReminderLogWhere(
 export function canReadTransaction(
   scope: AccessScope,
   tx: {
+    // Required for the "demo" branch. Callers that may pass a demo scope MUST
+    // select id; when absent it reads as undefined and fails closed.
+    id?: string;
     agencyId: string;
     assignedUserId: string | null;
     // Required for the "business" branch. Callers that may pass a business scope
@@ -218,6 +240,9 @@ export function canReadTransaction(
     progressionBusinessId?: string | null;
   }
 ): boolean {
+  // Agent-demo sandbox: readable ONLY if this exact tx is one of the sandbox's
+  // files. Fails closed when id was not selected.
+  if (scope.kind === "demo") return tx.id !== undefined && scope.transactionIds.includes(tx.id);
   // "all" (TSP admin) sees TSP's own files only, never an external business's.
   // Strict === null so a NOT-SELECTED field (undefined) fails closed rather than
   // reading as null and matching. Every caller passing an "all" scope MUST select

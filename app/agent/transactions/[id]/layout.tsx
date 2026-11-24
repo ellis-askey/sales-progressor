@@ -461,7 +461,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       {exchangeDayActive && !isTerminalSale(transaction.status) && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
         <ExchangeDayReadyBanner sellerReady={exchangeDayGate.sellerReady} buyerReady={exchangeDayGate.buyerReady} />
       )}
-      {transaction.isDemo && <DemoFileMarker transactionId={transaction.id} />}
+      {transaction.isDemo && <DemoFileMarker transactionId={transaction.id} demoKind={transaction.demoKind} />}
       {showExchangeOverdueBanner && (
         <ReviseExchangeBanner
           transactionId={transaction.id}

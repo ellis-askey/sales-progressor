@@ -39,6 +39,14 @@ declare module "next-auth" {
       // read-only while this is set (middleware blocks all mutations). See
       // lib/security/view-as.ts. Undefined/null in every normal session.
       viewAsOperatorId?: string | null;
+      // Agent-demo sandbox (public, no-login visitor). When set, this session is a
+      // demo guest hard-scoped to EXACTLY these transaction ids (the sandbox's
+      // files) by lib/security/access-scope.ts — it can see or touch nothing else.
+      // Undefined/null in every normal session. See docs/active/agent-demo/SPEC.md.
+      demoSandboxTransactionIds?: string[] | null;
+      // The star file of the sandbox — where the demo opens and where middleware
+      // sends a demo visitor who navigates off the file (v1 is file-only).
+      demoStarTransactionId?: string | null;
     };
   }
   interface User {
@@ -52,6 +60,7 @@ declare module "next-auth" {
     progressionBusinessId?: string | null;
     progressionBusinessRole?: "owner" | "progressor" | null;
     canViewAllFiles?: boolean;
+    demoSandboxTransactionIds?: string[] | null;
   }
 }
 
@@ -66,6 +75,13 @@ declare module "next-auth/jwt" {
     progressionBusinessId?: string | null;
     progressionBusinessRole?: "owner" | "progressor" | null;
     canViewAllFiles?: boolean;
+    // Agent-demo sandbox file ids (see Session.user). Carried on the JWT so the
+    // demo guest session survives navigation. Absent on every normal session.
+    demoSandboxTransactionIds?: string[] | null;
+    demoStarTransactionId?: string | null;
+    // Which business's demo this is — for business-scoped resume + "start over".
+    // Only on the JWT (not surfaced to the Session); never on a normal session.
+    demoBusinessId?: string | null;
   }
 }
 
@@ -313,6 +329,10 @@ export const authOptions: NextAuthOptions = {
       session.user.progressionBusinessRole = token.progressionBusinessRole ?? null;
       // Default false (see-own) when absent — fail-closed to the tighter scope.
       session.user.canViewAllFiles = token.canViewAllFiles ?? false;
+      // Agent-demo sandbox (absent on every normal session). getAccessScope reads
+      // demoSandboxTransactionIds first and returns the hard-scoped "demo" scope.
+      session.user.demoSandboxTransactionIds = token.demoSandboxTransactionIds ?? null;
+      session.user.demoStarTransactionId = token.demoStarTransactionId ?? null;
       return session;
     },
   },

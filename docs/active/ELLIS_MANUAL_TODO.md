@@ -4,7 +4,19 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-11-14
+Last updated: 2026-11-24
+
+---
+
+## Agent demo — prod image assets (2026-11-24)
+
+**What shipped:** the interactive agent demo (an external sales-progression business sends an agent a live example of the real file). A business owner gets their link at Progression settings → Client portal → "Show an agent the experience". Each agent who opens it gets their own sealed-off, isolated sandbox (no real data, nothing sends). See `docs/active/agent-demo/SPEC.md`.
+
+**Your manual steps:**
+1. **Upload the demo images to PROD image storage** (same assets the onboarding demo / portal preview use): the house photo at `demo/house.png` and the demo agent avatar at `demo-agent.png` in the public avatars bucket. Without these the demo file shows broken images on prod. (They already exist on staging if the onboarding demo works there.)
+2. **Optional env var:** `AGENT_DEMO_SECRET` signs the per-business launch link. If unset it falls back to `NEXTAUTH_SECRET` (fine). Set a dedicated one only if you want to rotate demo links independently of sessions.
+
+**Not yet built (flagged in the SPEC):** colour/logo branding of the demo per business (only the business NAME brands it today — needs a brand-colour field on the progression business). And the end-to-end flow still wants a live smoke test.
 
 ---
 

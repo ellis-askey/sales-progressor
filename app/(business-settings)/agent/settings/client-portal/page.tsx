@@ -19,6 +19,7 @@ import { ClientPortalSettings } from "@/components/account/client-portal/ClientP
 import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { BusinessInviteMode } from "@/components/account/client-portal/BusinessInviteMode";
 import { PreviewPortalLink } from "@/components/account/client-portal/PreviewPortalLink";
+import { AgentDemoLink } from "@/components/account/client-portal/AgentDemoLink";
 import type { InviteMode } from "@/app/actions/progression-clients";
 import { DeviceMobile, PaperPlaneTilt } from "@/components/icons/ph-ssr";
 
@@ -62,6 +63,7 @@ export default async function BusinessClientPortalPage() {
         >
           <BusinessInviteMode initial={inviteMode} />
           <PreviewPortalLink variant="business" />
+          <AgentDemoLink />
         </AccountCard>
         <AccountCard
           icon={<DeviceMobile size={18} weight="bold" />}

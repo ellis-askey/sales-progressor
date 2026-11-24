@@ -80,6 +80,7 @@ function holdTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInput 
   if (scope.kind === "platform") return { status: "on_hold", serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { status: "on_hold", serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { status: "on_hold", serviceType: "outsourced", progressionBusinessId: scope.businessId };
+  if (scope.kind === "demo") return { id: { in: scope.transactionIds }, isDemo: true };
   return { status: "on_hold", serviceType: "self_managed", agencyId: { in: scope.agencyIds } };
 }
 
@@ -95,6 +96,7 @@ function reviewTxFilter(scope: AccessScope): Prisma.PropertyTransactionWhereInpu
   if (scope.kind === "platform") return { serviceType: "outsourced", ...TSP_ONLY_TX_WHERE };
   if (scope.kind === "assigned") return { serviceType: "outsourced", assignedUserId: scope.userId };
   if (scope.kind === "business") return { progressionBusinessId: scope.businessId };
+  if (scope.kind === "demo") return { id: { in: scope.transactionIds }, isDemo: true };
   return { agencyId: { in: scope.agencyIds } };
 }
 

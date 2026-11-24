@@ -73,6 +73,7 @@ export async function deleteContact(contactId: string, scope: AccessScope) {
     scope.kind === "platform" ? { id: contactId } :
     scope.kind === "assigned" ? { id: contactId, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id: contactId, transaction: { progressionBusinessId: scope.businessId } } :
+    scope.kind === "demo"     ? { id: contactId, transaction: { id: { in: scope.transactionIds }, isDemo: true } } :
                                 { id: contactId, transaction: { agencyId: scope.agencyIds[0] } };
   const contact = await prisma.contact.findFirst({ where, select: { id: true } });
 

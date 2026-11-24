@@ -456,6 +456,111 @@ export async function createPreviewSale(opts: { ownerUserId: string; agencyId?: 
   return { txId, vendorToken: vendor?.portalToken ?? "" };
 }
 
+// ── Agent demo sandbox (the interactive "send to an agent" example) ──────────
+// Per-VISITOR isolation: each sandbox is its own ephemeral agency + demo agent +
+// 3-link chain, so every isolation layer (the access-scope demo scope AND any raw
+// agencyId/userId code) resolves to exactly this one sandbox — no bleed between
+// visitors. demoKind:"agent_demo" with a short idle TTL; swept by the demo-cleanup
+// cron. Owned/managed by the per-sandbox demo agent (the visitor "is" that agent).
+// See docs/active/agent-demo/SPEC.md.
+const AGENT_DEMO_TTL_MS = 3 * 60 * 60 * 1000; // 3h idle window (resumes on activity)
+const AGENT_DEMO_AGENCY_PREFIX = "Agent demo — ";
+const AGENT_DEMO_PER_BUSINESS_CAP = 100;
+
+// Keep one business's live sandbox count bounded: sweep its already-expired ones
+// and, if still at the cap, evict the oldest to make room. A cheap belt alongside
+// the nightly cron + the 3h idle TTL. Sandboxes are grouped by their ephemeral
+// agency and tagged with the businessId (isDemo-excluded from every real list).
+async function enforceBusinessSandboxCap(businessId: string): Promise<void> {
+  const files = await prisma.propertyTransaction.findMany({
+    where: { isDemo: true, demoKind: "agent_demo", progressionBusinessId: businessId },
+    select: { agencyId: true, createdAt: true, demoExpiresAt: true },
+  });
+  const now = Date.now();
+  const oldestByAgency = new Map<string, Date>();
+  for (const f of files) {
+    const prev = oldestByAgency.get(f.agencyId);
+    if (!prev || f.createdAt < prev) oldestByAgency.set(f.agencyId, f.createdAt);
+  }
+  // Remove already-expired sandboxes first.
+  const expiredAgencies = new Set(files.filter((f) => f.demoExpiresAt && f.demoExpiresAt.getTime() <= now).map((f) => f.agencyId));
+  for (const agencyId of expiredAgencies) {
+    await removeAgentDemoSandbox(agencyId).catch(() => {});
+    oldestByAgency.delete(agencyId);
+  }
+  if (oldestByAgency.size < AGENT_DEMO_PER_BUSINESS_CAP) return;
+  // Still at/over the cap: evict the oldest until there's room for one more.
+  const oldest = [...oldestByAgency.entries()].sort((a, b) => a[1].getTime() - b[1].getTime());
+  for (const [agencyId] of oldest.slice(0, oldestByAgency.size - AGENT_DEMO_PER_BUSINESS_CAP + 1)) {
+    await removeAgentDemoSandbox(agencyId).catch(() => {});
+  }
+}
+
+export async function createAgentDemoSandbox(opts: { businessId: string; businessName: string }): Promise<{
+  agencyId: string;
+  agentUserId: string;
+  agentEmail: string;
+  starTxId: string;
+  transactionIds: string[];
+  expiresAt: Date;
+}> {
+  await enforceBusinessSandboxCap(opts.businessId);
+
+  // 1. A fresh, isolated agency for THIS visitor. isInternal keeps it out of the
+  //    Command Centre's customer lists/metrics (same exclusion the preview host
+  //    uses); the name prefix lets the sweep find and remove empty ones.
+  const agency = await prisma.agency.create({
+    data: { name: `${AGENT_DEMO_AGENCY_PREFIX}${opts.businessName}`, isInternal: true },
+    select: { id: true },
+  });
+  // 2. The per-sandbox demo agent — owner, author, confirmer. The visitor's
+  //    session principal IS this user, so raw userId code also stays in-sandbox.
+  const agentUserId = await ensureDemoAgent(agency.id);
+  const agentEmail = `demo-agent+${agency.id}@example.com`;
+
+  // 3. The golden 3-link chain, flagged agent_demo (reuses the showcase machinery
+  //    so it stays byte-for-byte accurate as the real file evolves).
+  const sols = await ensureDemoSolicitors();
+  const top = await buildDemoFile(TOP, agency.id, agentUserId, sols, { demoKind: "agent_demo" });
+  const middle = await buildDemoFile(MIDDLE, agency.id, agentUserId, sols, { demoKind: "agent_demo" });
+  const bottom = await buildDemoFile(BOTTOM, agency.id, agentUserId, sols, { demoKind: "agent_demo" });
+  await buildChain(top.txId, middle.txId, bottom.txId, agency.id, agentUserId);
+  await seedStarFileActivity(middle.txId, agency.id, agentUserId);
+
+  // 4. Short idle TTL (swept by cleanupExpiredDemos).
+  const expiresAt = new Date(Date.now() + AGENT_DEMO_TTL_MS);
+  const transactionIds = [top.txId, middle.txId, bottom.txId];
+  // Tag with the business (for per-business counting) + the idle TTL. The tag is
+  // isDemo-excluded from every real list, exactly like the portal preview.
+  await prisma.propertyTransaction.updateMany({
+    where: { id: { in: transactionIds } },
+    data: { demoExpiresAt: expiresAt, progressionBusinessId: opts.businessId },
+  });
+
+  return { agencyId: agency.id, agentUserId, agentEmail, starTxId: middle.txId, transactionIds, expiresAt };
+}
+
+/** Bump a sandbox's idle TTL on activity (sliding window). No-op if already gone. */
+export async function touchAgentDemoSandbox(transactionIds: string[]): Promise<void> {
+  if (transactionIds.length === 0) return;
+  await prisma.propertyTransaction
+    .updateMany({ where: { id: { in: transactionIds }, isDemo: true, demoKind: "agent_demo" }, data: { demoExpiresAt: new Date(Date.now() + AGENT_DEMO_TTL_MS) } })
+    .catch(() => {});
+}
+
+/** Tear down a whole agent-demo sandbox (files, agent, ephemeral agency). */
+export async function removeAgentDemoSandbox(agencyId: string): Promise<void> {
+  const demos = await prisma.propertyTransaction.findMany({ where: { agencyId, isDemo: true }, select: { id: true } });
+  await deleteDemoTransactions(demos.map((d) => d.id));
+  await prisma.user.deleteMany({ where: { agencyId, isDemo: true } }).catch(() => {});
+  // Only remove the agency if it's one of ours and now empty (never the shared host).
+  const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
+  if (agency?.name.startsWith(AGENT_DEMO_AGENCY_PREFIX)) {
+    const remaining = await prisma.propertyTransaction.count({ where: { agencyId } });
+    if (remaining === 0) await prisma.agency.delete({ where: { id: agencyId } }).catch(() => {});
+  }
+}
+
 // ── Removal (chain-aware: links → chain → transactions, per seed teardown) ────
 async function deleteDemoTransactions(txIds: string[]): Promise<void> {
   if (txIds.length === 0) return;
@@ -482,7 +587,16 @@ export async function cleanupExpiredDemos(now: Date = new Date()): Promise<{ rem
     const agencyIds = [...new Set(expired.map((t) => t.agencyId).filter((a): a is string => !!a))];
     for (const aId of agencyIds) {
       const remaining = await prisma.propertyTransaction.count({ where: { agencyId: aId, isDemo: true } });
-      if (remaining === 0) await prisma.user.deleteMany({ where: { agencyId: aId, isDemo: true } }).catch(() => {});
+      if (remaining === 0) {
+        await prisma.user.deleteMany({ where: { agencyId: aId, isDemo: true } }).catch(() => {});
+        // Per-visitor agent-demo sandboxes also remove their ephemeral agency once
+        // empty (never the shared preview host — only the "Agent demo — " ones).
+        const agency = await prisma.agency.findUnique({ where: { id: aId }, select: { name: true } });
+        if (agency?.name.startsWith(AGENT_DEMO_AGENCY_PREFIX)) {
+          const anyTx = await prisma.propertyTransaction.count({ where: { agencyId: aId } });
+          if (anyTx === 0) await prisma.agency.delete({ where: { id: aId } }).catch(() => {});
+        }
+      }
     }
     return { removed: ids.length };
   } catch (err) {

@@ -10,7 +10,10 @@ import { Play } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { DEMO_TOUR_EVENTS } from "@/components/transaction/demo-tour/types";
 
-export function DemoFileMarker({ transactionId: _transactionId }: { transactionId: string }) {
+export function DemoFileMarker({ transactionId: _transactionId, demoKind }: { transactionId: string; demoKind?: string | null }) {
+  // The external agent demo (agent_demo) reads as an "Example" and offers a fresh
+  // "Start over"; the in-app onboarding showcase keeps "Demo sale".
+  const isAgentDemo = demoKind === "agent_demo";
   function replay() {
     try { window.dispatchEvent(new Event(DEMO_TOUR_EVENTS.start)); } catch { /* no-op */ }
   }
@@ -43,12 +46,18 @@ export function DemoFileMarker({ transactionId: _transactionId }: { transactionI
         }
       `}</style>
 
-      <Pill tone="brand" glass dot>Demo sale</Pill>
+      <Pill tone="brand" glass dot>{isAgentDemo ? "Example" : "Demo sale"}</Pill>
 
       <button type="button" onClick={replay} className="demo-replay-btn">
         <Play size={13} weight="fill" aria-hidden />
         Replay walkthrough
       </button>
+
+      {isAgentDemo && (
+        <a href="/agent-demo/restart" className="demo-replay-btn">
+          Start over
+        </a>
+      )}
     </div>
   );
 }
