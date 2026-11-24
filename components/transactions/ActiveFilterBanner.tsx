@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react/dist/ssr";
 
 // The active-filter banner shown above the file list when a hub / month filter
 // narrows the book (e.g. "Exchanging this week · 3 files"). One component for

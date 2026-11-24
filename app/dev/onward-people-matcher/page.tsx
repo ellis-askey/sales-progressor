@@ -10,7 +10,7 @@
 
 import { notFound } from "next/navigation";
 import { useState } from "react";
-import { Check } from "@phosphor-icons/react";
+import { Check } from "@phosphor-icons/react/dist/ssr";
 import { OnwardPeopleMatcher, type MatchContact } from "@/components/chain/OnwardPeopleMatcher";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {

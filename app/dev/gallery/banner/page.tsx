@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Banner } from "@/components/ui/Banner";
-import { Info, Warning, XCircle, CheckCircle } from "@phosphor-icons/react";
+import { Info, Warning, XCircle, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 
 export default function BannerGallery() {
   if (process.env.NODE_ENV === "production") notFound();
