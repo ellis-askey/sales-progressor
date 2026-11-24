@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
@@ -295,7 +296,7 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className={`v2-hero-card${picked && !dragOver ? ` ${surfaceClass}` : ""}`}
+      className={`v2-hero-card agent-canon-cta${picked && !dragOver ? ` ${surfaceClass}` : ""}`}
       {...tag}
       style={{
         borderRadius: 20,
@@ -436,19 +437,11 @@ export function HeroCard({ drafts, onFile, onFillManually, onLoadDraft, onDelete
       {/* File error (local validation) or a failed memo read (from the parent) —
           both render here, next to the dropzone, so the next step is in reach. */}
       {(fileError || parseError) && (
-        <p style={{
-          marginTop: 12,
-          fontSize: 12,
-          color: "var(--agent-warning)",
-          background: "rgba(251,191,36,0.12)",
-          border: "1px solid rgba(251,191,36,0.35)",
-          borderRadius: 8,
-          padding: "6px 12px",
-          textAlign: "center",
-          margin: "12px 0 0",
-        }}>
-          {fileError ?? parseError}
-        </p>
+        // Canonical inline alert — bordered, not washed (the kind colour on a
+        // hairline border + glyph + text, no colour-fill). One family with login.
+        <div style={{ margin: "12px 0 0" }}>
+          <InlineAlert kind="warning">{fileError ?? parseError}</InlineAlert>
+        </div>
       )}
 
       {/* Hidden file input */}

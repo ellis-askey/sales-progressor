@@ -11,14 +11,19 @@
 // See app/actions/brokers.ts (addBrokerForSaleAction).
 
 import { useState, useEffect, useRef } from "react";
-import { Buildings, Check } from "@phosphor-icons/react";
+import { Buildings } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
-import { PriceInput } from "@/components/ui/PriceInput";
+import { PriceField } from "@/components/ui/PriceField";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import "@/components/arc/cookie-consent/scope.css";
 import type { BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { addBrokerForSaleAction } from "@/app/actions/brokers";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
+
+const CORAL = "#FF6B4A";
 
 const emptyForm = { firmName: "", contactName: "", phone: "", email: "" };
 
@@ -29,37 +34,10 @@ function FeeRow({ value, onChange }: { value: number | null; onChange: (v: numbe
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Referral fee</p>
         <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>What you earn for referring the buyer</p>
       </div>
-      <PriceInput value={value} onChange={onChange} placeholder="" className="sale-price-pill" />
+      <div style={{ width: 150 }}>
+        <PriceField value={value} onChange={onChange} label="Referral fee" hideLabel accent height={40} fontSize={16} />
+      </div>
     </div>
-  );
-}
-
-// A rounded checkbox whose tick fades and scales in, driven by a visually
-// hidden native input (so it stays keyboard-accessible).
-function NiceCheck({ checked }: { checked: boolean }) {
-  return (
-    <span
-      className="broker-check-box"
-      aria-hidden
-      style={{
-        flexShrink: 0, width: 18, height: 18, borderRadius: 6, marginTop: 1,
-        display: "grid", placeItems: "center",
-        background: checked ? "var(--agent-coral-deep)" : "transparent",
-        boxShadow: checked ? "none" : "inset 0 0 0 1.5px var(--agent-border-default)",
-        transition: "background 160ms ease, box-shadow 160ms ease",
-      }}
-    >
-      <Check
-        size={12}
-        weight="bold"
-        color="#fff"
-        style={{
-          opacity: checked ? 1 : 0,
-          transform: checked ? "scale(1)" : "scale(0.5)",
-          transition: "opacity 160ms ease, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      />
-    </span>
   );
 }
 
@@ -95,7 +73,7 @@ export function BrokerField({
   // agency's recommended broker — the referral fee belongs to it (the passed
   // preferredBroker prop won't reflect the just-saved one this render).
   const [savedAsRecommended, setSavedAsRecommended] = useState(false);
-  const firmRef = useRef<HTMLInputElement>(null);
+  const fieldsRef = useRef<HTMLDivElement>(null);
 
   const assigned = !!value;
   const isUsual = !!value && preferredBroker?.firmId === value.firmId;
@@ -104,10 +82,11 @@ export function BrokerField({
   // Focus the firm field when the agent opens the section to enter a broker
   // (only when there's no usual broker to one-tap, so we don't push past it).
   // The collapse keeps the form mounted, so we focus on open rather than via
-  // autoFocus (which would fire while hidden on first render).
+  // autoFocus (which would fire while hidden on first render). LabelInput owns
+  // its input, so we focus the first field inside the entry container.
   useEffect(() => {
     if (open && !assigned && !hasUsual) {
-      const t = setTimeout(() => firmRef.current?.focus(), 60);
+      const t = setTimeout(() => fieldsRef.current?.querySelector<HTMLInputElement>(".lbi-field")?.focus(), 60);
       return () => clearTimeout(t);
     }
   }, [open, assigned, hasUsual]);
@@ -244,50 +223,49 @@ export function BrokerField({
                 {/* ── Entry ─────────────────────────────────────────────── */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* This buyer's broker */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div>
-                    <label style={labelStyle}>Brokerage name</label>
-                    <input
-                      ref={firmRef}
-                      value={form.firmName}
-                      onChange={(e) => setForm({ ...form, firmName: e.target.value })}
-                      onBlur={() => setForm((f) => ({ ...f, firmName: titleCaseKeepAcronyms(f.firmName) }))}
-                      placeholder="e.g. Bright Future Mortgages"
-                      className="agent-input"
+                <div ref={fieldsRef} style={{ display: "flex", flexDirection: "column", gap: 12, ["--lbi-top" as string]: "0px" } as React.CSSProperties}>
+                  <LabelInput
+                    field="brokerage"
+                    label="Brokerage name"
+                    type="text"
+                    accent={CORAL}
+                    fullWidth
+                    value={form.firmName}
+                    onChange={(e) => setForm({ ...form, firmName: e.target.value })}
+                    onBlur={() => setForm((f) => ({ ...f, firmName: titleCaseKeepAcronyms(f.firmName) }))}
+                  />
+                  <LabelInput
+                    field="contact"
+                    label="Contact name"
+                    type="text"
+                    accent={CORAL}
+                    fullWidth
+                    value={form.contactName}
+                    onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                    onBlur={() => setForm((f) => ({ ...f, contactName: titleCaseKeepAcronyms(f.contactName) }))}
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, ["--lbi-top" as string]: "0px" } as React.CSSProperties}>
+                    <LabelInput
+                      field="phone"
+                      label="Phone"
+                      type="tel"
+                      inputMode="tel"
+                      accent={CORAL}
+                      fullWidth
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: cleanPhone(e.target.value) })}
+                      onBlur={() => setForm((f) => ({ ...f, phone: formatUKPhone(f.phone) }))}
                     />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Contact name</label>
-                    <input
-                      value={form.contactName}
-                      onChange={(e) => setForm({ ...form, contactName: e.target.value })}
-                      onBlur={() => setForm((f) => ({ ...f, contactName: titleCaseKeepAcronyms(f.contactName) }))}
-                      placeholder="e.g. Aisha Rahman"
-                      className="agent-input"
+                    <LabelInput
+                      field="email"
+                      label="Email"
+                      type="email"
+                      inputMode="email"
+                      accent={CORAL}
+                      fullWidth
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase() })}
                     />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>
-                      <label style={labelStyle}>Phone</label>
-                      <input
-                        value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: cleanPhone(e.target.value) })}
-                        onBlur={() => setForm((f) => ({ ...f, phone: formatUKPhone(f.phone) }))}
-                        placeholder="020 …"
-                        inputMode="tel"
-                        className="agent-input"
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Email</label>
-                      <input
-                        value={form.email}
-                        onChange={(e) => setForm({ ...form, email: e.target.value.toLowerCase() })}
-                        placeholder="name@firm.co.uk"
-                        inputMode="email"
-                        className="agent-input"
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -315,18 +293,22 @@ export function BrokerField({
                     adding a client's file never sees it. */}
                 {!hasUsual && canSaveToPartners && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <label className="broker-check" style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer", userSelect: "none", position: "relative" }}>
-                      <input
-                        type="checkbox"
+                    <div className="arc-scope" style={{
+                      ["--control-on"]: "var(--agent-coral-deep)",
+                      ["--surface"]: "var(--agent-surface-elevated)",
+                      ["--border-strong"]: "var(--agent-border-default)",
+                      ["--foreground"]: "var(--agent-text-secondary)",
+                      ["--text-muted"]: "var(--agent-text-muted)",
+                      ["--text-sm"]: "12px",
+                      ["--control-height-md"]: "20px",
+                      ["--radius-control"]: "6px",
+                    } as React.CSSProperties}>
+                      <Checkbox
                         checked={saveAsRecommended}
-                        onChange={(e) => { const c = e.target.checked; setSaveAsRecommended(c); if (!c) onReferralFeeChange(null); }}
-                        style={{ position: "absolute", opacity: 0, width: 1, height: 1, margin: 0 }}
+                        onCheckedChange={(c) => { const v = c === true; setSaveAsRecommended(v); if (!v) onReferralFeeChange(null); }}
+                        label="This is our recommended broker. Save it to Partners so it’s ready next time."
                       />
-                      <NiceCheck checked={saveAsRecommended} />
-                      <span style={{ fontSize: 12, color: "var(--agent-text-secondary)", lineHeight: 1.45 }}>
-                        This is our recommended broker. Save it to Partners so it&rsquo;s ready next time.
-                      </span>
-                    </label>
+                    </div>
                     {saveAsRecommended && (
                       <div style={{ paddingLeft: 27 }}>
                         <FeeRow value={referralFee} onChange={onReferralFeeChange} />
@@ -356,7 +338,3 @@ export function BrokerField({
   );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 10.5, fontWeight: 650, letterSpacing: "0.04em",
-  textTransform: "uppercase", color: "var(--nv2-text-ghost, #9C9086)", marginBottom: 5,
-};

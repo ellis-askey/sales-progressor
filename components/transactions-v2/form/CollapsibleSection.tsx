@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 type Props = {
@@ -30,7 +30,7 @@ export function CollapsibleSection({ title, summary, defaultOpen = false, glassI
         aria-expanded={open}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)", flexShrink: 0 }}>
             {title}
           </span>
           {!open && summary && (

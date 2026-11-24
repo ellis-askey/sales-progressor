@@ -20,6 +20,8 @@ import { resolveBusinessMember } from "@/lib/services/progression-clients";
 import { prisma } from "@/lib/prisma";
 import { AccountShell } from "@/components/account/chrome/AccountShell";
 import { brandThemeCss } from "@/lib/agent/brand-theme";
+import { IconModeProvider } from "@/components/icons/shim-core";
+import { ICON_MIGRATION_ENABLED } from "@/components/icons/flag";
 import "@/app/agent/styles/themes.css";
 import "@/app/agent/styles/agent-system.css";
 
@@ -44,18 +46,20 @@ export default async function BusinessSettingsLayout({ children }: { children: R
       {/* Brand colour → --agent-* palette, so the business settings match the app
           and recolour live when the owner changes it (see BrandColorPicker). */}
       <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
-      <AccountShell
-        role={role}
-        agencyHasDirector={true}
-        displayName={displayName}
-        image={userRecord?.image ?? null}
-        theme="custom"
-        variant="business"
-        roleLabel={member.isOwner ? "Business owner" : "Team member"}
-        isOwner={member.isOwner}
-      >
-        {children}
-      </AccountShell>
+      <IconModeProvider mode={ICON_MIGRATION_ENABLED ? "solar" : "current"}>
+        <AccountShell
+          role={role}
+          agencyHasDirector={true}
+          displayName={displayName}
+          image={userRecord?.image ?? null}
+          theme="custom"
+          variant="business"
+          roleLabel={member.isOwner ? "Business owner" : "Team member"}
+          isOwner={member.isOwner}
+        >
+          {children}
+        </AccountShell>
+      </IconModeProvider>
     </>
   );
 }

@@ -10,6 +10,7 @@ import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { Button } from "@/components/arc/button/button";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { Checkbox } from "@/components/arc/checkbox/checkbox";
@@ -384,16 +385,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
                   />
                 )}
 
-                {error && (
-                  <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", borderRadius: "8px", border: "1px solid rgba(199,62,62,0.30)", background: "#ffffff", margin: 0 }}>
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flex: "none" }}>
-                      <circle cx="8" cy="8" r="6.6" stroke="#C73E3E" strokeWidth="1.3" />
-                      <path d="M8 4.7v4" stroke="#C73E3E" strokeWidth="1.5" strokeLinecap="round" />
-                      <circle cx="8" cy="11" r="0.5" fill="#C73E3E" stroke="#C73E3E" strokeWidth="0.6" />
-                    </svg>
-                    <span style={{ fontSize: "12.5px", color: "#C73E3E", fontWeight: 500 }}>{error}</span>
-                  </div>
-                )}
+                {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
                 {/* Hover wrapper — disabled buttons don't fire mouse events in
                     most browsers, so the nudge handler lives on the parent. The

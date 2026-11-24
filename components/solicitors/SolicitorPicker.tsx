@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import type { CSSProperties } from "react";
 import { AddFirmModal } from "./AddFirmModal";
 import { AnchoredPanel } from "@/components/ui/Popover";
+import { SearchField } from "@/components/arc/search-field/search-field";
+import "@/components/arc/cookie-consent/scope.css";
 import { titleCaseKeepAcronyms, normalizePhone, validateHandlerContact } from "@/lib/utils";
 
 type Firm = { id: string; name: string };
@@ -287,13 +289,28 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
           </div>
         )}
 
-        {/* Firm typeahead */}
-        <div ref={wrapperRef} className="relative sol-search-wrap">
-          <span className="sol-search-mag"><MagnifyingGlass size={16} weight="regular" /></span>
-          <input
-            type="text"
+        {/* Firm typeahead — canonical arc SearchField. The wrapper stays the
+            anchor for the results panel; onFocus/onBlur pass through to the inner
+            input so the reopen-on-focus + unconfirmed-on-blur behaviour is intact.
+            State (picked firm = blue, unconfirmed = amber) is driven via tokens. */}
+        <div
+          ref={wrapperRef}
+          className="relative sol-search-wrap arc-scope"
+          style={{
+            ["--control-height-md"]: "40px",
+            ["--radius-control"]: "10px",
+            ["--foreground"]: "var(--agent-text-primary)",
+            ["--text-muted"]: "var(--agent-text-muted)",
+            ["--sf-focus"]: "var(--agent-coral-deep)",
+            ["--surface"]: firmSelected ? "rgba(239,246,255,0.5)" : "var(--agent-surface-elevated)",
+            ["--border-strong"]: firmSelected ? "#93c5fd" : unconfirmed ? "var(--agent-warning)" : "var(--agent-border-default)",
+          } as CSSProperties}
+        >
+          <style>{".sol-search-wrap label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}"}</style>
+          <SearchField
+            label="Firm"
             value={query}
-            onChange={(e) => { handleQueryChange(e.target.value); setInputBlurred(false); }}
+            onValueChange={(v) => { handleQueryChange(v); setInputBlurred(false); }}
             onFocus={() => {
               if (query.trim() && !firmSelected) {
                 setShowDropdown(true);
@@ -302,7 +319,6 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             }}
             onBlur={() => { if (!showDropdown) setInputBlurred(true); }}
             placeholder="Search firm name…"
-            className={`sol-search-a${firmSelected ? " !border-blue-300 !bg-blue-50/30" : unconfirmed ? " agent-input-warning" : ""}`}
           />
           {unconfirmed && (
             <p className="agent-helper-warning">Firm not saved — choose from results or add as new</p>

@@ -43,7 +43,7 @@ import { roleLabel, asRole } from "@/components/ui/RoleIcon";
 import { Pill } from "@/components/ui/Pill";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, Sparkle, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@phosphor-icons/react";
+import { Envelope, ArrowSquareOut, ArrowsClockwise, Phone, Sparkle, ChatCircleText, EnvelopeSimple, DotsThreeVertical, PencilSimple, Trash, GlobeSimple, ClipboardText } from "@/components/icons/ph";
 import { ComposeEmailButton } from "@/components/compose/ComposeEmailButton";
 import { ComposeEmailModal } from "@/components/compose/ComposeEmailModal";
 import { useRouter } from "next/navigation";
@@ -55,6 +55,9 @@ import type { ContactRole } from "@prisma/client";
 import { LastContactedPill } from "./LastContactedPill";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu";
+import "@/components/arc/dropdown-menu/scope.css";
 
 function whatsappHref(phone: string): string {
   let digits = phone.replace(/[\s\-().+]/g, "");
@@ -966,30 +969,47 @@ export function ContactsSection({
           <h3 className="text-sm font-semibold text-slate-900/90 mb-4">New contact</h3>
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
-                  Full name <span className="text-red-500">*</span>
-                </label>
-                <input ref={addNameRef} type="text" name="name" value={form.name} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }} required placeholder="Full name or company" className={INPUT} />
+              <LabelInput
+                fullWidth
+                size="sm" accent="#FF6B4A"
+                label="Full name *"
+                type="text"
+                name="name"
+                autoFocus
+                required
+                value={form.name}
+                onChange={handleChange}
+                onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, name: titleCaseKeepAcronyms(e.target.value) })); }}
+              />
+              <div className="arc-scope ddm-field" data-accent="coral">
+                <DropdownMenu
+                  fullWidth
+                  label={CONTACT_ROLES.find((r) => r.value === form.roleType)?.label ?? "Select role"}
+                  items={CONTACT_ROLES.map((r) => ({ label: r.label, onSelect: () => setForm((p) => ({ ...p, roleType: r.value })) }))}
+                />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">
-                  Role <span className="text-red-500">*</span>
-                </label>
-                <select name="roleType" value={form.roleType} onChange={handleChange} className={SELECT}>
-                  {CONTACT_ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Email</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, email: e.target.value.trim().toLowerCase() })); }} placeholder="name@example.com" className={INPUT} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-900/50 mb-1.5">Phone</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, phone: normalizePhone(e.target.value) })); }} placeholder="07700 900 000" className={INPUT} />
-              </div>
+              <LabelInput
+                fullWidth
+                size="sm" accent="#FF6B4A"
+                label="Email"
+                type="email"
+                name="email"
+                inputMode="email"
+                value={form.email}
+                onChange={handleChange}
+                onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, email: e.target.value.trim().toLowerCase() })); }}
+              />
+              <LabelInput
+                fullWidth
+                size="sm" accent="#FF6B4A"
+                label="Phone"
+                type="tel"
+                name="phone"
+                inputMode="tel"
+                value={form.phone}
+                onChange={handleChange}
+                onBlur={e => { if (e.target.value.trim()) setForm((p) => ({ ...p, phone: normalizePhone(e.target.value) })); }}
+              />
             </div>
 
             {/* Quiet business nudge: only appears when the name looks like a
@@ -1000,13 +1020,13 @@ export function ContactsSection({
                   <span className="text-[12px] text-slate-700">Looks like a <b>company</b>. Who should we address?</span>
                   <button type="button" onClick={() => setForm((p) => ({ ...p, bizDismissed: true, contactPerson: "" }))} className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 whitespace-nowrap">Not a company</button>
                 </div>
-                <input type="text" value={form.contactPerson} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} placeholder="Contact person (e.g. Jane Smith)" className={INPUT} />
+                <LabelInput fullWidth size="sm" accent="#FF6B4A" label="Contact person" type="text" value={form.contactPerson} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} />
                 <p className="text-[11px] text-slate-500 mt-1.5">We&rsquo;ll keep the company name and greet the person. Leave blank to keep it to the company.</p>
               </div>
             )}
 
             {(form.roleType === "vendor" || form.roleType === "purchaser") && (
-              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
+              <div className="rounded-xl border border-slate-200 p-3 space-y-2.5">
                 <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer">
                   <span>They&rsquo;re helping on the {form.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {form.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                   <AnimatedCheckbox checked={form.isHelper} onChange={(v) => setForm((p) => ({ ...p, isHelper: v }))} className="mt-0.5" />
@@ -1247,28 +1267,36 @@ export function ContactsSection({
                     className={isExiting ? "agent-reveal-out" : "agent-reveal-in"}
                     style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6 }}
                   >
-                    <input
+                    <LabelInput
+                      fullWidth
+                      size="sm" accent="#FF6B4A"
+                      label="Full name"
+                      type="text"
                       value={editForm.name}
                       onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                       onBlur={e => { if (e.target.value.trim()) setEditForm((f) => ({ ...f, name: titleCaseKeepAcronyms(e.target.value) })); }}
-                      placeholder="Full name"
-                      className={INPUT}
                     />
-                    <input
+                    <LabelInput
+                      fullWidth
+                      size="sm" accent="#FF6B4A"
+                      label="Phone"
+                      type="tel"
+                      inputMode="tel"
                       value={editForm.phone}
                       onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                      placeholder="Phone"
-                      className={INPUT}
                     />
-                    <input
+                    <LabelInput
+                      fullWidth
+                      size="sm" accent="#FF6B4A"
+                      label="Email"
+                      type="email"
+                      inputMode="email"
                       value={editForm.email}
                       onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
                       onBlur={e => { if (e.target.value.trim()) setEditForm((f) => ({ ...f, email: e.target.value.trim().toLowerCase() })); }}
-                      placeholder="Email"
-                      className={INPUT}
                     />
                     {(editForm.roleType === "vendor" || editForm.roleType === "purchaser") && (
-                      <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-2.5">
+                      <div className="rounded-xl border border-slate-200 p-3 space-y-2.5">
                         <label className="flex items-start justify-between gap-2.5 text-[12px] text-slate-700 cursor-pointer">
                           <span>They&rsquo;re helping on the {editForm.roleType === "vendor" ? "seller" : "buyer"}&rsquo;s behalf, rather than being the {editForm.roleType === "vendor" ? "seller" : "buyer"} themselves (for example, a relative, assistant or representative). Their name won&rsquo;t appear in confirmations.</span>
                           <AnimatedCheckbox checked={editForm.isHelper} onChange={(v) => setEditForm((f) => ({ ...f, isHelper: v }))} className="mt-0.5" />

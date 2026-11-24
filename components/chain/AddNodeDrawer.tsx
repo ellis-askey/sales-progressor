@@ -9,6 +9,10 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { AddressFields, parseAddressForEdit } from "@/components/transactions-v2/form/AddressFields";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { FormSectionHeader as SectionHeader } from "@/components/ui/FormSectionHeader";
+import { SearchField } from "@/components/ui/SearchField";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import { LabelInput } from "@/components/ui/LabelInput";
 import { getSavedChainAgents, type SavedChainAgent } from "@/app/actions/chain-agents";
 import { OnwardPeopleMatcher, type MatchContact } from "@/components/chain/OnwardPeopleMatcher";
 import { getOnwardMatchContextAny, saveOnwardPersonTiesAction } from "@/app/actions/onward-people";
@@ -92,123 +96,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Richer section header for the stub form: an outline icon, a bold title with
-// an optional inline "(optional)" note, and a one-line description beneath.
-function SectionHeader({
-  icon,
-  title,
-  note,
-  description,
-  badge,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  note?: string;
-  description?: string;
-  badge?: React.ReactNode;
-}) {
-  return (
-    <div className={`flex gap-3 mb-3 ${description ? "items-start" : "items-center"}`}>
-      <span className={`shrink-0${description ? " mt-0.5" : ""}`} style={{ color: "var(--agent-text-secondary)" }}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="text-[15px] font-bold leading-tight" style={{ color: "var(--agent-text-primary)" }}>
-            {title}
-            {note && (
-              <span className="ml-1.5 text-xs font-normal" style={{ color: "var(--agent-text-muted)" }}>
-                ({note})
-              </span>
-            )}
-          </h3>
-          {badge}
-        </div>
-        {description && (
-          <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--agent-text-muted)" }}>
-            {description}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
+// SectionHeader is the canonical FormSectionHeader (imported above).
 
-const GHOST_INPUT_CLASS =
-  "w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all";
-
-// Text field with inline ghost completion (critique #248): as you type, the
-// rest of a previously-used value extends what you've typed at placeholder
-// weight. Tab (or the tap chip) accepts it. The overlay repeats the typed text
-// invisibly so the completion starts exactly where the caret is — same font,
-// same padding, pointer-events off.
-function GhostField({
-  label,
-  value,
-  onChange,
-  onBlur,
-  placeholder,
-  maxLength,
-  required,
-  completion,
-  onAccept,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  onBlur?: () => void;
-  placeholder?: string;
-  maxLength?: number;
-  required?: boolean;
-  completion: string | null; // the REMAINDER beyond what's typed, null = no ghost
-  onAccept: () => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="block text-xs font-semibold text-slate-900/65">
-        {label}
-        {required && <span className="text-red-400 ml-0.5">*</span>}
-      </label>
-      <div className="relative">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          onKeyDown={(e) => {
-            if (!completion) return;
-            const atEnd = e.currentTarget.selectionStart === value.length && e.currentTarget.selectionEnd === value.length;
-            if (e.key === "Tab" || (e.key === "ArrowRight" && atEnd)) {
-              e.preventDefault();
-              onAccept();
-            }
-          }}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          className={GHOST_INPUT_CLASS}
-          autoComplete="off"
-        />
-        {completion && (
-          <>
-            <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center px-3 text-sm overflow-hidden">
-              <span className="invisible whitespace-pre">{value}</span>
-              <span className="whitespace-pre text-slate-900/30">{completion}</span>
-            </div>
-            <button
-              type="button"
-              tabIndex={-1}
-              onMouseDown={(e) => { e.preventDefault(); onAccept(); }}
-              aria-label={`Use ${value}${completion}`}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-slate-900/45 border border-slate-900/15 bg-white/60 hover:text-slate-900/70 hover:border-slate-900/30 transition-colors"
-            >
-              Tab
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+// The agency / agent inputs use the canonical LabelInput (same pill field as the
+// address fields) with its opt-in `completion` / `onAccept` ghost autocomplete —
+// so the inline Tab-to-complete behaviour is preserved without a bespoke field.
 
 function Field({
   label,
@@ -234,12 +126,12 @@ function Field({
   rows?: number;
 }) {
   const inputClass =
-    "w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all";
+    "w-full agent-field agent-focus text-sm px-3 py-2 rounded-lg transition-all";
 
   return (
     <div className="space-y-1">
       {label && (
-        <label className="block text-xs font-semibold text-slate-900/65">
+        <label className="block text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>
           {label}
           {required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
@@ -686,27 +578,16 @@ export function AddNodeDrawer({
           {/* Mode toggle — placeholder vs one of your own files. Only on an
               existing chain (self-link needs the API). */}
           {canSelfLink && (
-            <div className="chain-addmode" role="tablist" aria-label="What to add" data-mode={mode}>
-              <span className="chain-addmode-thumb" aria-hidden />
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "stub"}
-                onClick={() => setMode("stub")}
-                className={`chain-addmode-tab${mode === "stub" ? " is-active" : ""}`}
-              >
-                Add a placeholder
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "own"}
-                onClick={() => setMode("own")}
-                className={`chain-addmode-tab${mode === "own" ? " is-active" : ""}`}
-              >
-                One of my sales
-              </button>
-            </div>
+            <SegmentedSwitch
+              ariaLabel="What to add"
+              fullWidth
+              options={[
+                { id: "stub", label: "Add a placeholder" },
+                { id: "own", label: "One of my sales" },
+              ]}
+              value={mode}
+              onChange={setMode}
+            />
           )}
 
           {/* Own-file search (self-link) */}
@@ -716,19 +597,20 @@ export function AddNodeDrawer({
               {selectedFile ? (
                 <div className="rounded-xl bg-[var(--agent-surface-subtle)] border border-[var(--agent-border-default)] px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <p className="text-sm font-semibold text-slate-900/90 flex-1 min-w-0 truncate">
+                    <p className="text-sm font-semibold flex-1 min-w-0 truncate" style={{ color: "var(--agent-text-primary)" }}>
                       {selectedFile.propertyAddress}
                     </p>
                     <button
                       type="button"
                       onClick={() => { setSelectedFile(null); setFileQuery(""); }}
-                      className="text-xs font-semibold text-slate-900/55 hover:text-slate-900/80 transition-colors"
+                      className="text-xs font-semibold transition-colors"
+                      style={{ color: "var(--agent-text-muted)" }}
                     >
                       Change
                     </button>
                   </div>
                   {selectedFile.chain && (
-                    <p className="mt-1 text-xs text-slate-900/55">
+                    <p className="mt-1 text-xs" style={{ color: "var(--agent-text-muted)" }}>
                       {selectedFile.chain.others === 0
                         ? "This sale has its own chain. The two chains will be joined into one."
                         : selectedFile.chain.others === 1
@@ -739,20 +621,19 @@ export function AddNodeDrawer({
                 </div>
               ) : (
                 <div className="rounded-xl bg-[var(--agent-surface-subtle)] border border-[var(--agent-border-default)] px-4 py-3 space-y-2">
-                  <input
-                    type="text"
+                  <SearchField
                     value={fileQuery}
-                    onChange={(e) => setFileQuery(e.target.value)}
+                    onChange={setFileQuery}
                     placeholder="Search your files by address…"
-                    className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
+                    ariaLabel="Search your files"
                     autoFocus
                   />
                   <div className="max-h-52 overflow-y-auto -mx-1">
                     {searching && fileResults.length === 0 && (
-                      <p className="px-2 py-2 text-xs text-slate-900/45">Searching…</p>
+                      <p className="px-2 py-2 text-xs" style={{ color: "var(--agent-text-muted)" }}>Searching…</p>
                     )}
                     {!searching && fileResults.length === 0 && (
-                      <p className="px-2 py-2 text-xs text-slate-900/45">
+                      <p className="px-2 py-2 text-xs" style={{ color: "var(--agent-text-muted)" }}>
                         {fileQuery.trim()
                           ? "No matching files that can be added."
                           : "No files ready to add. Only your active sales show here."}
@@ -766,11 +647,12 @@ export function AddNodeDrawer({
                           type="button"
                           disabled={blocked}
                           onClick={() => { if (!blocked) setSelectedFile(f); }}
-                          className={`chain-menu-item block w-full text-left px-2 py-2 rounded-lg text-sm ${blocked ? "text-slate-900/40 cursor-not-allowed" : "text-slate-900/85"}`}
+                          className="chain-menu-item block w-full text-left px-2 py-2 rounded-lg text-sm"
+                          style={{ color: blocked ? "var(--agent-text-disabled)" : "var(--agent-text-primary)", cursor: blocked ? "not-allowed" : undefined }}
                         >
                           <span className="block truncate">{f.propertyAddress}</span>
                           {f.chain && (
-                            <span className={`block text-[11px] ${blocked ? "text-slate-900/35" : "text-slate-900/50"}`}>
+                            <span className="block text-[11px]" style={{ color: blocked ? "var(--agent-text-disabled)" : "var(--agent-text-muted)" }}>
                               {blocked
                                 ? "In a chain that can't be joined from here"
                                 : f.chain.others === 0
@@ -786,7 +668,7 @@ export function AddNodeDrawer({
                   </div>
                 </div>
               )}
-              <p className="mt-2 text-[11px] text-slate-900/45">
+              <p className="mt-2 text-[11px]" style={{ color: "var(--agent-text-muted)" }}>
                 {selectedFile?.chain
                   ? "We'll link your file directly and fold its chain into this one. Nothing is sent to anyone."
                   : "We'll link your file directly, with its real progress. No invite needed."}
@@ -797,7 +679,7 @@ export function AddNodeDrawer({
           {/* Stub form — hand-typed placeholder link. Sections divided by
               hairlines, each led by an icon + title + one-line description. */}
           {mode === "stub" && (
-            <div>
+            <div style={{ ["--lbi-top" as string]: "0px" } as React.CSSProperties}>
               {/* Property */}
               <section className="pb-5">
                 <SectionHeader
@@ -822,14 +704,16 @@ export function AddNodeDrawer({
                   icon={<Buildings size={22} />}
                   title="Agency"
                 />
-                <GhostField
-                  label="Agency name"
-                  required
-                  value={form.stubAgencyName}
-                  onChange={update("stubAgencyName")}
-                  onBlur={applyTitleCase("stubAgencyName")}
-                  placeholder="e.g. Bristol Estates"
+                <LabelInput
+                  field="agency"
+                  label="Agency name *"
+                  type="text"
+                  accent="#FF6B4A"
+                  fullWidth
                   maxLength={100}
+                  value={form.stubAgencyName}
+                  onChange={(e) => update("stubAgencyName")(e.target.value)}
+                  onBlur={applyTitleCase("stubAgencyName")}
                   completion={agencyGhost}
                   onAccept={acceptAgency}
                 />
@@ -844,42 +728,48 @@ export function AddNodeDrawer({
                   description="Add their details to invite them to follow the sale."
                 />
                 <div className="space-y-3">
-                  <GhostField
+                  <LabelInput
+                    field="agentName"
                     label="Agent name"
-                    value={form.stubAgentName}
-                    onChange={update("stubAgentName")}
-                    onBlur={applyTitleCase("stubAgentName")}
-                    placeholder="e.g. Sarah Jones"
+                    type="text"
+                    accent="#FF6B4A"
+                    fullWidth
                     maxLength={100}
+                    value={form.stubAgentName}
+                    onChange={(e) => update("stubAgentName")(e.target.value)}
+                    onBlur={applyTitleCase("stubAgentName")}
                     completion={agentGhost}
                     onAccept={acceptAgent}
                   />
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-semibold text-slate-900/65">Agent email</label>
-                      <input
-                        ref={emailInputRef}
-                        type="email"
-                        value={form.stubAgentEmail}
-                        onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
-                        onBlur={() => { validateEmail(); if (form.stubAgentEmail.trim()) update("stubAgentEmail")(form.stubAgentEmail.trim().toLowerCase()); }}
-                        placeholder="agent@agency.co.uk"
-                        className="w-full glass-input agent-focus text-sm px-3 py-2 rounded-lg text-slate-900/90 placeholder:text-slate-900/30 transition-all"
-                      />
-                    </div>
-                    <Field
+                    <LabelInput
+                      field="agentEmail"
+                      label="Agent email"
+                      type="email"
+                      accent="#FF6B4A"
+                      fullWidth
+                      minBoxWidth={120}
+                      inputRef={emailInputRef}
+                      value={form.stubAgentEmail}
+                      onChange={(e) => { update("stubAgentEmail")(e.target.value); setEmailError(""); }}
+                      onBlur={() => { validateEmail(); if (form.stubAgentEmail.trim()) update("stubAgentEmail")(form.stubAgentEmail.trim().toLowerCase()); }}
+                    />
+                    <LabelInput
+                      field="agentPhone"
                       label="Contact number"
                       type="tel"
+                      accent="#FF6B4A"
+                      fullWidth
+                      minBoxWidth={120}
                       value={form.stubAgentPhone}
-                      onChange={(v) => update("stubAgentPhone")(cleanPhone(v))}
+                      onChange={(e) => update("stubAgentPhone")(cleanPhone(e.target.value))}
                       onBlur={() => {
                         const formatted = formatUKPhone(form.stubAgentPhone);
                         if (formatted !== form.stubAgentPhone) update("stubAgentPhone")(formatted);
                       }}
-                      placeholder="07700 900000"
                     />
                   </div>
-                  {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                  {emailError && <p className="text-xs" style={{ color: "var(--agent-danger)" }}>{emailError}</p>}
                 </div>
               </section>
 
@@ -915,22 +805,22 @@ export function AddNodeDrawer({
 
         {/* Footer */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--agent-border-default)] bg-[var(--agent-surface-subtle)]">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="agent-canon-cta flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="agent-btn agent-btn-neutral py-3 px-5 rounded-xl text-sm font-semibold"
+              className="agent-btn agent-btn-md agent-btn-neutral"
             >
               Cancel
             </button>
             <button
               onClick={() => { void handleSave(); }}
               disabled={!canSubmit || saving}
-              className="flex-1 py-3 text-sm font-semibold rounded-xl agent-btn-color-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="agent-btn agent-btn-md agent-btn-primary flex-1"
             >
               {saving ? "Saving…" : submitLabel}
             </button>
           </div>
-          <p className="text-[11px] text-slate-900/45 text-center">
+          <p className="text-[11px] text-center" style={{ color: "var(--agent-text-muted)" }}>
             {mode === "own"
               ? (selectedFile ? "We'll link this file to the chain now." : "Pick one of your files to add.")
               : helperText()}

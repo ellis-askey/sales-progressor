@@ -19,9 +19,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { withFrom } from "@/lib/agent/back-nav";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText, DeviceMobile } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "@/components/icons/lu";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, ChatCircle, WhatsappLogo, LinkSimple, ClipboardText, DeviceMobile } from "@/components/icons/ph-ssr";
+import type { Icon } from "@/components/icons/ph";
 import { TabContext } from "./TabContext";
 import { TabBadgeContext, type TabBadgeUpdater } from "./TabBadgeContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
@@ -37,6 +37,7 @@ const TAB_ICONS: Record<string, Icon> = {
   activity: Pulse,
   documents: FileText,
   chase: PaperPlaneTilt,
+  messages: ChatCircle,
   whatsapp: WhatsappLogo,
   portal: DeviceMobile,
 };

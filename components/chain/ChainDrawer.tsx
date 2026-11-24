@@ -7,6 +7,7 @@ import { X, Plus, CheckCircle, Circle, PaperPlaneTilt } from "@phosphor-icons/re
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { setChainCompleteAction } from "@/app/actions/chain-intel";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { DrawerEmptyState } from "@/components/ui/DrawerEmptyState";
 import { LinkCard, ChainConnector, ChainCardExpand, isChainCardExpandable, chainStatusMeta, chainChasedMeta, chainWithdrawalBadges } from "@/components/chain/LinkCard";
 import { ChaseNeighbourDrawer } from "@/components/chase/ChaseNeighbourDrawer";
 import type { NeighbourChaseDirection } from "@/lib/services/neighbour-chase";
@@ -1459,27 +1460,23 @@ export function ChainView({
             />
           )}
 
-          {/* No chain linked — primary "build the chain" moment, given a
-              larger hero treatment than the icon+EmptyState used elsewhere. */}
+          {/* No chain linked — the primary "build the chain" moment. Uses the
+              canonical drawer hero empty state (theme-aware, flat coral CTA). */}
           {!loading && !chain && !notAParticipant && (
-            <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-              <h3 className={`text-2xl font-bold tracking-tight ${isNight ? "text-white" : "text-slate-900"}`}>
-                Build this sale&rsquo;s chain
-              </h3>
-              <p className={`text-sm mt-2 max-w-sm leading-relaxed ${isNight ? "text-white/60" : "text-slate-900/50"}`}>
-                Add the properties above and below this sale to see the full chain and keep track of progress across it.
-              </p>
-              <button
-                onClick={handleCreateChain}
-                className="mt-6 inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-xl agent-btn-color-primary transition-colors"
-              >
-                <Plus weight="bold" className="w-4 h-4" />
-                Create chain
-              </button>
-              <p className={`text-xs mt-4 ${isNight ? "text-white/40" : "text-slate-900/35"}`}>
-                You can add or change links at any time.
-              </p>
-            </div>
+            <DrawerEmptyState
+              title="Build this sale’s chain"
+              description="Add the properties above and below this sale to see the full chain and keep track of progress across it."
+              action={
+                <button
+                  onClick={handleCreateChain}
+                  className="agent-btn agent-btn-md agent-btn-primary"
+                >
+                  <Plus weight="bold" className="w-4 h-4" />
+                  Create chain
+                </button>
+              }
+              footnote="You can add or change links at any time."
+            />
           )}
 
           {/* Chain exists but no links yet */}

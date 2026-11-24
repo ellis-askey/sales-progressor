@@ -6,8 +6,7 @@
 // routes straight into the demo's star file. See lib/services/demo-sale.ts,
 // app/actions/demo.ts and docs/active/demo-sale/SPEC.md.
 
-import { Play } from "@phosphor-icons/react";
-import { Pill } from "@/components/ui/Pill";
+import { Play } from "@/components/icons/ph";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
@@ -20,6 +19,7 @@ export function DemoHeroCard() {
           surface: swapping its chrome strips the image, and it's separate from
           the property hero. */}
       <div
+        className="agent-canon-cta"
         style={{
           position: "relative",
           overflow: "hidden",
@@ -34,10 +34,7 @@ export function DemoHeroCard() {
         {/* Glass-house artwork, right side, fading into the card. */}
         <HeroArt light="/demo-hero-bg.png" dark="/demo-hero-bg-dark.png" maxWidth="44%" maskStart="42%" />
         <div style={{ position: "relative", maxWidth: 540 }}>
-          <Pill glass tone="brand" size="sm" style={{ marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
-            New here?
-          </Pill>
-          <p style={{ margin: "0 0 8px", fontSize: 27, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 600, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.15 }}>
             Let&apos;s add your first sale
           </p>
           <p style={{ margin: "0 0 22px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.6, maxWidth: 430 }}>

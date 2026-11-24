@@ -1,5 +1,4 @@
 import { ClaimCountUp } from "@/components/claim/ClaimCountUp";
-import { ClaimHouseGlyph } from "@/components/claim/ClaimHouseGlyph";
 
 // The white chain ladder (photo thumbnails, numbered circle badges, status
 // pills). Shared by the /claim landing card (ClaimInviteCard) and the signup
@@ -131,7 +130,9 @@ export function ClaimChainLadder({
         const { line1, line2 } = splitAddress(row.address || (row.status === "pending" ? pendingFallback : "Your sale"));
         const pill = PILL[row.status];
         const pillLabel = shareMode && row.status === "pending" ? "Not joined yet" : pill.label;
-        const subLabel = row.status === "you" ? "Your sale" : row.agency;
+        // The claimer's own ("you") row shows the invited agency here, so "Your
+        // sale" isn't duplicated with the right-hand label.
+        const subLabel = row.agency;
         const showContact =
           shareMode && row.status !== "you" && !!(row.contactName || row.contactEmail || row.contactPhone);
         const showProgress = shareMode && row.progressPercent != null;
@@ -147,7 +148,7 @@ export function ClaimChainLadder({
                 {row.photoUrl ? (
                   <img src={row.photoUrl} alt="" className="claim-b-thumb-img" />
                 ) : (
-                  <ClaimHouseGlyph className="claim-b-thumb-house" />
+                  <img src="/claim/sold-badge.png" alt="" className="claim-b-thumb-img" />
                 )}
               </span>
               <span className="claim-b-rowmain">
@@ -178,7 +179,7 @@ export function ClaimChainLadder({
               </span>
               {showPill && (
                 <span className={`claim-b-pill claim-b-pill--${row.status}`}>
-                  {pill.icon}
+                  {row.status === "joined" && pill.icon}
                   {pillLabel}
                   {showProgress && (
                     <span className="claim-b-pill-pct" aria-label={`${row.progressPercent}% complete`}>

@@ -42,6 +42,27 @@
   background: transparent;
   cursor: text;}
 
+/* opt-in flat fill (solid prop): an opaque surface so the field reads as a crisp,
+   editable field on a tinted / glass ground (the sale hero) instead of dissolving
+   into it. The box's own radius (set inline) rounds the fill. */
+.lbi[data-solid] .lbi-box { background: var(--fill-slab); }
+
+/* ── locked (read-only, display-only) ───────────────────────
+   A field tied to upstream data (e.g. an invited email): the same outline and
+   lifted label, but a faint grey fill, muted text, and no focus — so it reads
+   as a filled, locked field rather than an editable one. Placed after the solid
+   rule so its fill wins when both are set. */
+.lbi[data-locked] .lbi-box {
+  background: color-mix(in srgb, var(--fill-on, #17181a) 4%, var(--fill-slab, #ffffff));
+  cursor: default;}
+
+.lbi[data-locked] .lbi-field {
+  color: var(--ink-4);
+  pointer-events: none;
+  cursor: default;}
+
+.lbi[data-locked] .lbi-label { cursor: default; }
+
 /* ── the outline ────────────────────────────────────────────
    Always whole. At rest a hairline of grey; focused, the ink
    at a hair heavier; left filled, a grey a step darker than
@@ -50,7 +71,11 @@
   position: absolute;
   inset: 0;
   overflow: visible;
-  pointer-events: none;}
+  pointer-events: none;
+  /* above the input so the outline survives an autofilled field's inset repaint
+     (the input paints later in the DOM; the ring must sit over it). Harmless at
+     rest — it is a 1px edge stroke with no pointer events. */
+  z-index: 1;}
 
 .lbi-ring path {
   fill: none;
@@ -85,7 +110,10 @@
   position: absolute;
   left: var(--lbi-x);
   top: 50%;
-  font-size: 16px;
+  /* above the input so the lifted label isn't covered when an autofilled field
+     repaints its box (same reason as the ring). */
+  z-index: 2;
+  font-size: var(--lbi-fs, 16px);
   line-height: 1;
   letter-spacing: -0.01em;
   white-space: pre;
@@ -98,8 +126,8 @@
   user-select: none;}
 
 .lbi[data-up="true"] .lbi-label {
-  /* lift onto the top edge — half the 48px height (was -26 for 52) */
-  transform: translateY(-50%) translateY(-24px) scale(0.78);
+  /* lift onto the top edge — half the field height, so it scales with size */
+  transform: translateY(-50%) translateY(calc(var(--lbi-lift, 24px) * -1)) scale(0.78);
   color: var(--ink-3);}
 
 .lbi[data-focus="true"] .lbi-label { color: var(--fill-on, var(--ink)); }
@@ -122,10 +150,24 @@
   border-radius: inherit;
   background: transparent;
   font: inherit;
-  font-size: 16px;
+  font-size: var(--lbi-fs, 16px);
   letter-spacing: -0.01em;
   color: var(--fill-on, var(--ink));
   outline: none;}
+
+/* Autofill stays functional, but the browser's blue/yellow box is suppressed: the
+   inset shadow repaints the field in its own surface token and the fill-colour keeps
+   the warm ink, so an autofilled value looks identical to a typed one. The 9999s
+   transition defeats Chrome's background flash on focus. */
+.lbi-field:-webkit-autofill,
+.lbi-field:-webkit-autofill:hover,
+.lbi-field:-webkit-autofill:focus,
+.lbi-field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--fill-on, var(--ink));
+  -webkit-box-shadow: inset 0 0 0 1000px var(--fill-slab, #ffffff);
+  box-shadow: inset 0 0 0 1000px var(--fill-slab, #ffffff);
+  caret-color: var(--fill-on, var(--ink));
+  transition: background-color 9999s ease-in-out 0s, color 9999s ease-in-out 0s;}
 
 /* the reveal: the text passes through a soft blur rather than
    snapping between dots and letters. Two names so a second

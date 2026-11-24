@@ -1649,8 +1649,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ffd9cc, #ffb69f);
-  box-shadow: inset 0 0 0 1px rgba(255, 107, 74, 0.25);
+  /* Flat canonical fill — no gradient. */
+  background: #ffe3d9;
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 74, 0.2);
 }
 .claim-b-avatar--photo {
   background: #f0ece8;
@@ -1709,9 +1710,9 @@
 .claim-b-headline {
   margin: 22px 0 0;
   font-size: 33px;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   color: var(--claim-text-1);
   text-wrap: balance;
 }
@@ -1794,26 +1795,22 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-  /* Polished light token — soft crown-to-base gradient, inset highlight, hairline ring. */
-  color: #464e60;
-  background: linear-gradient(180deg, #ffffff 0%, #eef0f4 100%);
-  box-shadow:
-    0 1px 3px rgba(26, 29, 41, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 0 0 1px rgba(26, 29, 41, 0.06);
+  /* Flat canonical badge — a single neutral fill, no gradient or shadow. */
+  color: #525b6b;
+  background: #eef0f4;
+  box-shadow: none;
 }
 .claim-b-badge--you {
+  /* Flat coral — the user's primary, no gradient or shadow. */
   color: #fff;
-  background: linear-gradient(180deg, #ff8365 0%, var(--claim-coral) 52%, var(--claim-coral-dark) 100%);
-  box-shadow:
-    0 3px 10px rgba(255, 107, 74, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -2px 5px rgba(150, 44, 18, 0.28);
+  background: var(--claim-coral);
+  box-shadow: none;
 }
 .claim-b-badge--ghost {
   color: var(--claim-text-3);
   font-size: 15px;
-  background: linear-gradient(180deg, #ffffff, #f1f2f5);
+  background: #eef0f4;
+  box-shadow: none;
 }
 
 .claim-b-rowcard {
@@ -1828,11 +1825,17 @@
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(26, 29, 41, 0.04);
 }
+/* The claimer's own sale — a confident solid-orange card (flat, no gradient),
+   with its content turned white to read on the fill. */
 .claim-b-rowcard--you {
-  border-color: rgba(255, 107, 74, 0.35);
-  background: linear-gradient(180deg, #fff4f0, #ffe9e1);
-  box-shadow: 0 2px 10px rgba(255, 107, 74, 0.14);
+  border-color: var(--claim-coral-dark);
+  background: var(--claim-coral);
+  box-shadow: none;
 }
+.claim-b-rowcard--you .claim-b-addr1 { color: #fff; }
+.claim-b-rowcard--you .claim-b-addr2 { color: rgba(255, 255, 255, 0.82); }
+.claim-b-rowcard--you .claim-b-addr3--you { color: #fff; }
+.claim-b-rowcard--you .claim-b-pill--you { color: #fff; }
 .claim-b-rowcard--ghost {
   justify-content: center;
   color: var(--claim-text-3);
@@ -1931,7 +1934,7 @@
   width: 52px;
   height: 52px;
   flex: none;
-  border-radius: 10px;
+  border-radius: 50%;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -2036,55 +2039,45 @@
 }
 
 /* Status pills — gradient + polish, never flat. */
+/* Flat status labels — just the writing, no pill chrome or icons. */
 .claim-b-pill {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px 5px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 .claim-b-pill svg {
   width: 13px;
   height: 13px;
   flex: none;
+  color: #12905f;
 }
 .claim-b-pill--you {
-  color: #fff;
-  background: linear-gradient(180deg, #ff8365 0%, var(--claim-coral) 55%, var(--claim-coral-dark) 100%);
-  box-shadow:
-    0 2px 8px rgba(255, 107, 74, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  padding-left: 11px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 10.5px;
+  /* "Your sale" — sentence case, the user's primary colour, no pill. */
+  color: var(--claim-coral);
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12px;
 }
 .claim-b-pill--joined {
   color: #0a6b46;
-  background: linear-gradient(180deg, #e4f7ec 0%, #bfe7cf 100%);
-  box-shadow:
-    0 1px 4px rgba(15, 122, 82, 0.2),
-    inset 0 0 0 1px rgba(15, 122, 82, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-.claim-b-pill--joined svg {
-  color: #12905f;
+  background: none;
+  box-shadow: none;
 }
 .claim-b-pill--pending {
   color: #525b6b;
-  background: linear-gradient(180deg, #eef1f5 0%, #d8dde6 100%);
-  box-shadow:
-    0 1px 4px rgba(26, 29, 41, 0.12),
-    inset 0 0 0 1px rgba(26, 29, 41, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-.claim-b-pill--pending svg {
-  color: #78808f;
+  background: none;
+  box-shadow: none;
 }
 
 /* CTA + trust */
@@ -2096,6 +2089,19 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Canonical flat primary — solid coral, no gradient / sheen / shine / glow. */
+  background: var(--claim-coral);
+  box-shadow: none;
+}
+.claim-b-cta .claim-btn::before,
+.claim-b-cta .claim-btn::after {
+  display: none;
+}
+.claim-b-cta .claim-btn:hover:not(:disabled) {
+  background: var(--claim-coral-dark);
+  transform: translateY(-1px);
+  box-shadow: none;
+  filter: none;
 }
 .claim-b-cta-arrow {
   width: 18px;

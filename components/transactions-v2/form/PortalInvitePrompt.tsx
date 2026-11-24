@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link as LinkIcon } from "@phosphor-icons/react";
+import { Link as LinkIcon } from "@/components/icons/ph";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 
@@ -40,38 +40,31 @@ export function PortalInvitePrompt() {
         gap: 12,
         borderRadius: 14,
         padding: "12px 16px",
-        // Default surface; a Design Lab pick takes over.
+        // Canonical banner recipe: a neutral frosted surface, NOT a coral wash.
+        // A Design Lab pick takes over.
         ...(surface.picked ? {} : {
           background: isSolid ? "var(--nv2-surface-solid)" : "var(--nv2-surface-glass)",
-          border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid rgba(var(--agent-coral-base-rgb), 0.15)",
+          border: isSolid ? "1px solid var(--nv2-border-solid)" : "0.5px solid var(--nv2-border-glass)",
         }),
       }}
     >
-      <div style={{
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: "rgba(var(--agent-coral-base-rgb), 0.08)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        marginTop: 1,
-      }}>
-        <LinkIcon size={14} color="var(--agent-coral-deep)" />
-      </div>
+      {/* The brand colour is carried only by the icon — no faded chip fill. */}
+      <span style={{ color: "var(--agent-coral-deep)", flexShrink: 0, display: "flex", marginTop: 1 }}>
+        <LinkIcon size={18} />
+      </span>
       <div style={{ flex: 1 }}>
-        <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 600, color: "var(--nv2-text-primary)", lineHeight: 1.4 }}>
+        <p style={{ margin: "0 0 3px", fontSize: 12.5, fontWeight: 600, color: "var(--nv2-text-primary)", lineHeight: 1.4 }}>
           Want to invite the buyer or seller to the client portal?
         </p>
-        <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 11.5, color: "var(--nv2-text-secondary)", lineHeight: 1.55 }}>
           Add their contact details below and you can send the invite once the file is created.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <button
             type="button"
             onClick={handleDismiss}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 500, color: "var(--nv2-text-muted)", padding: 0 }}
+            className="agent-link"
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)", padding: 0 }}
           >
             I won&apos;t be using the client portal
           </button>

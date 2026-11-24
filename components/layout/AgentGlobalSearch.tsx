@@ -9,6 +9,8 @@ import { usePickForCard } from "@/lib/glass/context";
 import { classFor } from "@/lib/glass/variants";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { phoneSearchVariants } from "@/lib/utils";
+import { SearchField } from "@/components/arc/search-field/search-field";
+import "@/components/arc/cookie-consent/scope.css";
 
 // Capitalised, friendly role words for the Clients sub-line.
 const ROLE_LABELS: Record<string, string> = {
@@ -120,7 +122,6 @@ export function AgentGlobalSearch({ onOpenChange, showSelfPages = true }: { onOp
   // everyone but Ellis, so the default look is unchanged).
   const searchPick = usePickForCard("nav-search");
   // Coral (primary) border on hover for the closed trigger, both themes.
-  const [triggerHovered, setTriggerHovered] = useState(false);
   const [open, setOpen]         = useState(false);
   // Exit animation (critique, 2026-09-23): closing keeps the overlay mounted
   // while the backdrop + panel play their out animations, then unmounts on a
@@ -239,44 +240,52 @@ export function AgentGlobalSearch({ onOpenChange, showSelfPages = true }: { onOp
   // longer vanishes while the modal is open and reappears when it closes.
   return (
     <>
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => { setClosing(false); setOpen(true); }}
-      onMouseEnter={() => setTriggerHovered(true)}
-      onMouseLeave={() => setTriggerHovered(false)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setClosing(false); setOpen(true); } }}
+      // Keep focus off the read-only inner input on click; onClick still opens.
+      onMouseDown={(e) => e.preventDefault()}
       title="Search (⌘K)"
+      aria-label="Search"
       data-glass-id="nav-search"
       data-glass-label="Nav · Search bar"
       data-glass-variant={searchPick ?? "v00"}
+      // The canonical arc SearchField, rendered as a TRIGGER (read-only, opens the
+      // modal). Arc tokens are mapped to the agent top-bar look + height; the glass
+      // pick drops the surface/border so its class takes over, exactly as before.
+      className={`agent-search-trigger arc-scope${searchPick ? " " + classFor(searchPick) : ""}`}
       style={{
-        width: "100%", height: 32, display: "flex", alignItems: "center", gap: 8,
-        padding: "0 10px", borderRadius: 8, cursor: "pointer",
-        // When a Design Lab glass pick is active, drop the inline background +
-        // border so the glass class (background + blur + border) takes over; an
-        // inline value would otherwise beat the class and nothing would change.
-        background: searchPick ? undefined : "var(--agent-surface-elevated)",
-        // Primary-colour border on hover, both themes. Inline so it beats a
-        // glass-variant border; idle falls back to the glass border (when a pick
-        // is active) or the default hairline.
-        border: triggerHovered
-          ? "0.5px solid var(--agent-coral)"
-          : searchPick ? undefined : "0.5px solid var(--agent-border-default)",
-        color: "var(--agent-text-muted)", fontSize: 12,
-        transition: "background 150ms, box-shadow 150ms, border-color 150ms",
-      }}
-      className={`hover:shadow-sm${searchPick ? " " + classFor(searchPick) : ""}`}
+        position: "relative", width: "100%", cursor: "pointer",
+        // The wrapper carries the glass pick's background, so it needs the radius
+        // too — otherwise a square glass box shows behind the rounded field.
+        borderRadius: "12px",
+        ["--control-height-md"]: "32px",
+        ["--radius-control"]: "12px",
+        ["--text-field"]: "12px",
+        ["--space-2"]: "8px",
+        ["--space-3"]: "10px",
+        ["--surface"]: searchPick ? "transparent" : "var(--agent-surface-elevated)",
+        ["--border-strong"]: searchPick ? "transparent" : "var(--agent-border-default)",
+        ["--foreground"]: "var(--agent-coral)",
+        ["--text-muted"]: "var(--agent-text-muted)",
+      } as CSSProperties}
     >
-      <svg style={{ width: 14, height: 14, flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/>
-      </svg>
-      <span style={{ flex: 1, textAlign: "left" }}>Search…</span>
+      {/* Hide the SearchField's visible label — the trigger is a single pill. */}
+      <style>{`.agent-search-trigger label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}`}</style>
+      <span aria-hidden="true" style={{ display: "block" }}>
+        <SearchField label="Search" value="" onValueChange={() => {}} readOnly tabIndex={-1} placeholder="Search…" />
+      </span>
       <span className="kbd-hint" style={{
+        position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none",
         fontSize: 10, fontWeight: 500,
         background: "var(--agent-surface-overlay)", border: "0.5px solid var(--agent-border-default)",
-        borderRadius: 4, padding: "1px 5px", letterSpacing: "0.02em",
+        borderRadius: 4, padding: "1px 5px", letterSpacing: "0.02em", color: "var(--agent-text-muted)",
       }}>
         ⌘K
       </span>
-    </button>
+    </div>
     {(open || closing) && createPortal(
     <div
       data-theme={theme}

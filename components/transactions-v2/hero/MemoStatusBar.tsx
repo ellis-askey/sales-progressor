@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
+import { CheckCircle, WarningCircle } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import type { ExtractedMemoData } from "@/components/transactions-v2/types";
 
@@ -213,10 +213,8 @@ export function MemoStatusBar({
                 <p
                   style={{
                     margin: "0 0 2px",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
+                    fontSize: 11,
+                    fontWeight: 600,
                     color: "var(--nv2-text-muted)",
                   }}
                 >

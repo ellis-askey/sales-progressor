@@ -5,30 +5,15 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
 
-// Matches the register / "Create your account" treatment: white backdrop + card,
-// #F4F4F6 inputs with a coral hover/focus, coral primary button.
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#F4F4F6",
-  border: "0.5px solid rgba(45,24,16,0.12)",
-  borderRadius: "10px",
-  padding: "9px 14px",
-  color: "#20242E",
-  fontSize: "16px",
-  outline: "none",
-  transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "12px",
-  fontWeight: 600,
-  color: "#3F3F46",
-  marginBottom: "6px",
-  letterSpacing: "0.005em",
-};
+// Canonical auth shell — matches /login and /register: sunlit interior photo
+// background + white veil, TSP lockup, solid white card, shared LabelInput /
+// arc Button controls. Coral primary via the arc token override.
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 function ResetForm() {
   const params = useSearchParams();
@@ -38,7 +23,6 @@ function ResetForm() {
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -47,7 +31,7 @@ function ResetForm() {
     return (
       <div style={{ textAlign: "center", padding: "8px 0" }}>
         <p style={{ fontSize: "13px", color: "#8B2500", marginBottom: "12px" }}>Invalid reset link. Please request a new one.</p>
-        <Link href="/forgot-password" style={{ fontSize: "13px", color: "#FF6B4A", fontWeight: 600, textDecoration: "none" }}>
+        <Link href="/forgot-password" style={{ fontSize: "13px", color: CORAL, fontWeight: 600, textDecoration: "none" }}>
           Request new link
         </Link>
       </div>
@@ -96,90 +80,58 @@ function ResetForm() {
     );
   }
 
-  const canSubmit = !!password && !!confirm && !loading;
-
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", "--lbi-top": "0px" } as React.CSSProperties}>
 
-      <div>
-        <label style={labelStyle}>New password</label>
-        <div style={{ position: "relative" }}>
-          <input
-            className="ri ri-pr"
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoFocus
-            autoComplete="new-password"
-            placeholder="Min. 10 characters"
-            style={inputStyle}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            tabIndex={-1}
-            style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "rgba(32,36,46,0.40)", padding: 0, display: "flex" }}
-          >
-            {showPassword ? (
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            )}
-          </button>
-        </div>
+      {/* Password group — the field, length hint and strength meter sit close
+          together, apart from the 14px rhythm. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <LabelInput
+          field="Password"
+          label="New password"
+          name="password"
+          autoComplete="new-password"
+          accent={CORAL}
+          fullWidth
+          required
+          autoFocus
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {password.length > 0 && password.length < 10 && (
+          <p style={{ fontSize: "11px", color: "#C97D1A", margin: 0 }}>At least 10 characters required</p>
+        )}
         <PasswordStrength password={password} />
       </div>
 
-      <div>
-        <label style={labelStyle}>Confirm new password</label>
-        <input
-          className="ri"
-          type={showPassword ? "text" : "password"}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          required
-          autoComplete="new-password"
-          placeholder="Re-enter password"
-          style={inputStyle}
-        />
-      </div>
+      <LabelInput
+        field="Password"
+        label="Confirm new password"
+        name="confirm"
+        autoComplete="new-password"
+        accent={CORAL}
+        fullWidth
+        required
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+      />
 
-      {error && (
-        <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
-          {error}
-        </p>
-      )}
+      {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
-      <button
+      <Button
         type="submit"
-        disabled={!canSubmit}
-        className="rbtn"
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: "8px",
-          background: canSubmit ? "#FF6B4A" : "rgba(255,107,74,0.40)",
-          color: "white",
-          fontSize: "14px",
-          fontWeight: 500,
-          border: "none",
-          cursor: canSubmit ? "pointer" : "not-allowed",
-          boxShadow: "0 4px 20px rgba(255,107,74,0.30)",
-          transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-        }}
+        variant="primary"
+        size="lg"
+        loading={loading}
+        disabled={!password || !confirm}
+        style={{ ...coralVars, width: "100%" }}
       >
-        {loading ? "Saving…" : "Set new password"}
-      </button>
+        Set new password
+      </Button>
 
       <p style={{ textAlign: "center", fontSize: "12px", color: "#8A8A94", margin: 0 }}>
         Remember it?{" "}
-        <Link href="/login" style={{ color: "#FF6B4A", fontWeight: 500, textDecoration: "none" }}>
+        <Link href="/login" className="rp-link" style={{ color: CORAL, fontWeight: 500, textDecoration: "none" }}>
           Sign in
         </Link>
       </p>
@@ -191,12 +143,26 @@ function ResetForm() {
 export default function ResetPasswordPage() {
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
-      {/* Architectural line-drawing background (matches /register). Centre is
-          clean white space for the card; a faint white veil keeps it legible. */}
-      <div aria-hidden style={{
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
+        .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+        @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+        @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
+        @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
+        .rp-link:hover { color: #E55B3D !important; }
+        @keyframes rp-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.6; transform: scale(0.85); }
+        }
+      ` }} />
+
+      {/* Sunlit interior background photo (matches /login + /register). */}
+      <div aria-hidden className="auth-bg-enter auth-bg-img" style={{
         position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
         backgroundColor: "#ffffff",
-        backgroundImage: "url(/register-bg.png)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -206,22 +172,9 @@ export default function ResetPasswordPage() {
         background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
       }} />
 
-      <style>{`
-        .ri::placeholder { color: rgba(32,36,46,0.38); }
-        .ri:hover:not(:focus) { border-color: rgba(255,138,101,0.45) !important; }
-        .ri:focus { background: #ffffff !important; border-color: #FF6B4A !important; box-shadow: none !important; }
-        .ri-pr { padding-right: 42px !important; }
-        .rbtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(255,107,74,0.45) !important; }
-        .rbtn:active:not(:disabled) { transform: scale(0.98); }
-        @keyframes rp-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.6; transform: scale(0.85); }
-        }
-      `}</style>
+      <div className="auth-enter" style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
-
-        {/* Brand mark + heading */}
+        {/* Brand lockup + heading */}
         <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "1.1rem" }}>
             <BrandMark size={38} />
@@ -230,10 +183,10 @@ export default function ResetPasswordPage() {
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.9rem", fontWeight: 800, color: "#20242E", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
+          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
             Choose a new password
           </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "#8A8A94" }}>
+          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
             Make it at least 10 characters
           </p>
         </div>

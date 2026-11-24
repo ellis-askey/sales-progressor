@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 
 type Props = {
@@ -31,7 +31,7 @@ export function SectionAccordion({ title, badge, defaultExpanded = true, glassId
         aria-expanded={expanded}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)" }}>
             {title}
           </span>
           {badge}

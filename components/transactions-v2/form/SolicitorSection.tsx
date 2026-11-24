@@ -1,11 +1,13 @@
 "use client";
 
-import { Buildings, CheckCircle } from "@phosphor-icons/react";
+import { Buildings, CheckCircle } from "@/components/icons/ph";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { BrokerField } from "@/components/brokers/BrokerField";
 import type { MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import "@/components/arc/cookie-consent/scope.css";
 export { autoFillSolicitor } from "@/lib/utils/solicitor-autofill";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -122,15 +124,13 @@ function PopulatedCard({
 
       {/* Referral checkbox */}
       {isRecommended && (
-        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}>
-          <input
-            type="checkbox"
+        <div className="arc-scope" style={{ ["--control-on" as string]: "#FF6B4A", ["--control-glyph" as string]: "#ffffff" } as React.CSSProperties}>
+          <Checkbox
             checked={isReferral}
-            onChange={(e) => { onReferralChange(e.target.checked); onEdit(); }}
-            style={{ width: 13, height: 13, borderRadius: 4, accentColor: "var(--agent-coral-deep)", cursor: "pointer" }}
+            onCheckedChange={(c) => { onReferralChange(c === true); onEdit(); }}
+            label="Referred by us"
           />
-          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-coral-deep)" }}>Referred by us</span>
-        </label>
+        </div>
       )}
     </div>
   );
@@ -211,7 +211,7 @@ export function SolicitorSection({
 
         {!isFillingVendor && !vendorSolicitor && vendorHint && (
           <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-warning)", flexShrink: 0, display: "inline-block" }} />
             <strong style={{ fontWeight: 600 }}>{vendorHint}</strong> is in the memo. Search above to add.
           </p>
         )}
@@ -262,7 +262,7 @@ export function SolicitorSection({
 
         {!isFillingPurchaser && !purchaserSolicitor && purchaserHint && (
           <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--agent-warning)", display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", flexShrink: 0, display: "inline-block" }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--agent-warning)", flexShrink: 0, display: "inline-block" }} />
             <strong style={{ fontWeight: 600 }}>{purchaserHint}</strong> is in the memo. Search above to add.
           </p>
         )}
@@ -273,7 +273,7 @@ export function SolicitorSection({
 
       {/* Broker — full width below solicitors */}
       <div style={{ borderTop: "0.5px solid var(--nv2-border-dark)", paddingTop: 16 }}>
-        <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
+        <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
           Mortgage broker
           {broker?.firmId && (
             <CheckCircle size={14} weight="fill" color="var(--agent-success)" />
@@ -295,7 +295,7 @@ export function SolicitorSection({
           added above them in the chain). A second referral + fee. */}
       {showOnwardBroker && (
         <div style={{ borderTop: "0.5px solid var(--nv2-border-dark)", paddingTop: 16 }}>
-          <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
             Seller&rsquo;s onward broker
             {onwardBroker?.firmId && (
               <CheckCircle size={14} weight="fill" color="var(--agent-success)" />

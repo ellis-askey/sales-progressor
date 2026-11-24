@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LinkSimple, Plus } from "@phosphor-icons/react";
+import { LinkSimple, Plus } from "@/components/icons/ph";
 import { AddNodeDrawer, type StubFormData, type EditingLinkData } from "@/components/chain/AddNodeDrawer";
 import { Pill } from "@/components/ui/Pill";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
@@ -109,10 +109,11 @@ function OriginatorCard({ address }: { address: string }) {
       {...tag}
       style={{
         borderRadius: 13,
-        // Coral-tinted "your file" node by default; a Design Lab pick takes over.
+        // "Your file" node: a neutral surface with a coral RING accent (no coral
+        // wash — the ring carries the identity). A Design Lab pick takes over.
         ...(picked ? {} : {
-          background: "rgba(var(--agent-coral-rgb), 0.06)",
-          boxShadow: "inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.30)",
+          background: "var(--agent-surface-elevated)",
+          boxShadow: "inset 0 0 0 1.5px rgba(var(--agent-coral-rgb), 0.45)",
         }),
       }}
     >
@@ -229,13 +230,9 @@ export function ChainSection({
   const collapsedCard = (
     <div className={chainSurface.surfaceClass} {...chainSurface.tag} style={{ borderRadius: cardRadius, padding: "16px 18px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 13 }}>
-        <span style={{
-          flexShrink: 0, width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center",
-          color: "#fff",
-          background: "linear-gradient(135deg, var(--agent-coral-deep), color-mix(in srgb, var(--agent-coral) 70%, #ffffff))",
-          boxShadow: "0 6px 14px -6px rgba(var(--agent-coral-rgb), 0.6)",
-        }}>
-          <LinkSimple size={18} weight="bold" />
+        {/* The brand colour is carried by the icon — no glossy gradient chip. */}
+        <span style={{ flexShrink: 0, color: "var(--agent-coral-deep)", display: "flex", marginTop: 1 }}>
+          <LinkSimple size={22} weight="regular" />
         </span>
         <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 14.5, fontWeight: 650, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>

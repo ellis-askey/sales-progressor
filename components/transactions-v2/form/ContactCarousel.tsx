@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { X } from "@phosphor-icons/react";
 import { ContactCard } from "./ContactsSection";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldHint } from "./FieldIndicator";
-import { Pill } from "@/components/ui/Pill";
 
 const MAX_ENTRIES = 4;
 
@@ -41,27 +41,10 @@ function isSectionFilled(contacts: ContactEntry[]): boolean {
 // "Needed" pill, shown only in the strict (outsourced) context. Once the section
 // is valid (a name + a contact method) it fades and collapses away, so the box
 // tightens rather than leaving a stale "Needed" badge (critique #194).
-function SectionPill({ isOutsourced, filled }: { isOutsourced: boolean; filled: boolean }) {
-  if (!isOutsourced) return null;
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        overflow: "hidden",
-        opacity: filled ? 0 : 1,
-        maxWidth: filled ? 0 : 90,
-        marginLeft: filled ? 0 : 5,
-        transition: "opacity 200ms ease, max-width 260ms ease, margin-left 260ms ease",
-      }}
-    >
-      {/* No outer drop shadow here: the collapse wrapper's overflow:hidden would
-          clip the glass pill's 0 3px 10px shadow flat. On this opaque card the
-          top sheen alone reads clean. */}
-      <Pill glass tone="warning" size="sm" style={{ flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em", verticalAlign: "middle", whiteSpace: "nowrap", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
-        Needed
-      </Pill>
-    </span>
-  );
+// "Needed" badge retired (2026-11) — the required asterisk + the per-section
+// reachability hint already carry the signal; the pill was visual noise.
+function SectionPill(_: { isOutsourced: boolean; filled: boolean }) {
+  return null;
 }
 
 // ── Empty state (count === 0) ─────────────────────────────────────────────────
@@ -115,7 +98,7 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
   const singular = label.slice(0, -1).toLowerCase();
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isOutsourced ? 4 : 10 }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)", display: "flex", alignItems: "center" }}>
         {label}
         {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
         <SectionPill isOutsourced={isOutsourced} filled={filled} />
@@ -125,9 +108,10 @@ function SectionLabel({ label, isOutsourced, memoSource, canAdd, onAdd, progress
           type="button"
           onClick={onAdd}
           className="agent-link"
+          aria-label={`Add ${singular}`}
           style={{ fontSize: 12, fontWeight: 600, padding: 0 }}
         >
-          + Add {singular}
+          + Add
         </button>
       )}
     </div>
@@ -285,73 +269,67 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
       {/* Header — same shape as single-entry: label on the left, the "+ Add"
           line top-right (kept here rather than moved into a tab-strip pill). */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 2 }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)", display: "flex", alignItems: "center", gap: 2 }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", fontWeight: 700, marginLeft: 1 }}>*</span>}
           <SectionPill isOutsourced={isOutsourced} filled={filled} />
         </p>
         {canAdd && (
-          <button type="button" onClick={addEntry} className="agent-link" style={{ fontSize: 12, fontWeight: 600, padding: 0 }}>
-            + Add {singular}
+          <button type="button" onClick={addEntry} className="agent-link" aria-label={`Add ${singular}`} style={{ fontSize: 12, fontWeight: 600, padding: 0 }}>
+            + Add
           </button>
         )}
       </div>
 
-      {/* Tab strip — one pill per contact. Pills show the contact's name once
-          entered; otherwise a "{Singular} N" fallback. Active pill is filled
-          coral; invalid pill shows an amber dot. (Add now lives in the header.) */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+      {/* People pills — one per contact. Click a pill to switch; the active one
+          carries the remove-× inside it. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {contacts.map((c, i) => {
           const isActive = i === activeIndex;
-          // hasErr drives the amber dot. It fires when this card is
-          // outsourced-invalid OR it has a phone/email conflict with
-          // another contact on the file.
           const hasErr = (!!error && isEntryInvalid(c, isOutsourced)) || !!conflicts?.[i];
           const name = c.name?.trim();
-          const tabLabel = name
-            ? name.length > 18 ? name.slice(0, 16) + "…" : name
-            : `${capitalisedSingular} ${i + 1}`;
+          const tabLabel = name ? (name.length > 18 ? name.slice(0, 16) + "…" : name) : `${capitalisedSingular} ${i + 1}`;
           return (
-            <button
+            <span
               key={i}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={`Switch to ${singular} ${i + 1}`}
-              aria-pressed={isActive}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 11px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: isActive ? 600 : 500,
-                background: isActive ? "var(--agent-coral)" : "transparent",
-                color: isActive ? "white" : hasErr ? "var(--agent-warning)" : "var(--nv2-text-secondary)",
-                border: isActive
-                  ? "1px solid var(--agent-coral)"
-                  : hasErr
-                    ? "1px solid rgba(245,158,11,0.55)"
-                    : "1px solid var(--nv2-border-medium)",
-                cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: isActive ? "5px 7px 5px 11px" : "5px 11px",
+                borderRadius: 999, fontSize: 12, fontWeight: isActive ? 600 : 500,
+                // Active = coral RING (not a fill) with coral text — the no-wash rule.
+                background: "var(--agent-surface-elevated)",
+                color: isActive ? "var(--agent-coral-deep)" : hasErr ? "var(--agent-warning)" : "var(--nv2-text-secondary)",
+                border: isActive ? "1.5px solid var(--agent-coral-deep)" : hasErr ? "1px solid rgba(245,158,11,0.55)" : "1px solid var(--nv2-border-medium)",
                 transition: "background 150ms ease, color 150ms ease, border-color 150ms ease",
                 lineHeight: 1.2,
               }}
             >
-              {hasErr && !isActive && (
-                <span
-                  aria-hidden
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "#f59e0b",
-                    display: "inline-block",
-                  }}
-                />
+              <button
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Switch to ${singular} ${i + 1}`}
+                aria-pressed={isActive}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer", color: "inherit", font: "inherit", fontWeight: "inherit", lineHeight: "inherit" }}
+              >
+                {hasErr && !isActive && (
+                  <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} />
+                )}
+                {tabLabel}
+              </button>
+              {isActive && (
+                // Canonical X: bare glyph at rest, the circle appears on hover
+                // (decision 4). .nsf-pill-remove carries the hover tint.
+                <button
+                  type="button"
+                  onClick={() => removeEntry(i)}
+                  aria-label={`Remove ${singular} ${i + 1}`}
+                  className="nsf-pill-remove"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "transparent", border: "none", color: "var(--agent-coral-deep)", cursor: "pointer", lineHeight: 1, padding: 0, flexShrink: 0, transition: "background 140ms ease" }}
+                >
+                  <X size={11} weight="bold" aria-hidden />
+                </button>
               )}
-              {tabLabel}
-            </button>
+            </span>
           );
         })}
       </div>
@@ -360,15 +338,11 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
         <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--agent-danger)", fontWeight: 500 }}>{error}</p>
       )}
 
-      {/* Active card — single, clean. Slide-in on switch, x in the corner
-          to remove. No background slivers or depth illusions. */}
+      {/* Active card — slide-in on switch. */}
       <div
         key={animKey}
         ref={cardRef}
-        style={{
-          position: "relative",
-          animation: `carousel-slide-${lastDir === "next" ? "left" : "right"} 240ms cubic-bezier(0.16,1,0.3,1) both`,
-        }}
+        style={{ animation: `carousel-slide-${lastDir === "next" ? "left" : "right"} 240ms cubic-bezier(0.16,1,0.3,1) both` }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -384,20 +358,6 @@ export function ContactCarousel({ label, contacts, memoSource, isOutsourced, pro
           onRemove={() => removeEntry(activeIndex)}
           onEdit={onEdit}
         />
-        <button
-          type="button"
-          onClick={() => removeEntry(activeIndex)}
-          aria-label={`Remove ${singular} ${activeIndex + 1}`}
-          className="agent-icon-btn agent-icon-btn-sm"
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            zIndex: 2,
-          }}
-        >
-          ×
-        </button>
       </div>
 
       <FieldHint source={memoSource} failedText="Couldn't read this. Add contact details manually." />

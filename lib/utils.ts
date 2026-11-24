@@ -79,7 +79,14 @@ export function titleCase(str: string): string {
  * "Someone'S" (founder report, 2026-10-05).
  */
 export function titleCaseKeepAcronyms(str: string): string {
-  return str.trim().replace(/\S+/g, (word) =>
+  const trimmed = str.trim();
+  // Fully-uppercase MULTI-WORD input (e.g. Land Registry addresses like
+  // "53 THE MEADWAY") isn't a string of acronyms — it's shouting data. With no
+  // lowercase to anchor the heuristic, "keep acronyms" would wrongly keep every
+  // word caps, so normalise it to lowercase first and title-case it cleanly. A
+  // lone token with no space ("UK", "BBC") is left as the acronym it is.
+  const normalised = !/[a-z]/.test(trimmed) && /\s/.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+  return normalised.replace(/\S+/g, (word) =>
     /[A-Z]{2,}/.test(word)
       ? word
       : word.toLowerCase().replace(/(^|[-'’])\p{L}/gu, (match, sep, offset) => {

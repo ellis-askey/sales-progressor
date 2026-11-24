@@ -98,7 +98,7 @@ export default function PropertyLocationMap({ postcode }: { postcode: string | n
           width: 14px;
           height: 14px;
           border-radius: 999px;
-          background: #2563eb;
+          background: var(--agent-info, #3D7AB8);
           border: 2.5px solid #fff;
           box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
         }
@@ -109,7 +109,7 @@ export default function PropertyLocationMap({ postcode }: { postcode: string | n
           width: 18px;
           height: 18px;
           border-radius: 999px;
-          background: rgba(37, 99, 235, 0.35);
+          background: color-mix(in srgb, var(--agent-info, #3D7AB8) 35%, transparent);
           animation: hero-loc-pulse 2.4s ease-out infinite;
         }
         @keyframes hero-loc-pulse {

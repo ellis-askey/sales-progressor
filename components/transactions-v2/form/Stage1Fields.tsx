@@ -68,7 +68,7 @@ function Pill({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+    <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)", display: "flex", alignItems: "center" }}>
       {children}
     </p>
   );

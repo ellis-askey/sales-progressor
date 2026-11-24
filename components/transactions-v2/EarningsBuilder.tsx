@@ -8,8 +8,12 @@
 // free-plan agencies). Same net logic as the property-file Fees card — reuses
 // calculateOurFee from lib/services/fees.
 
+import type { CSSProperties } from "react";
 import type { ClientType } from "@prisma/client";
-import { PriceInput } from "@/components/ui/PriceInput";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import "@/components/arc/cookie-consent/scope.css";
+import { PriceField } from "@/components/ui/PriceField";
+import { PercentField } from "@/components/ui/PercentField";
 import { calculateOurFee } from "@/lib/services/fees";
 import { calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { type MilestoneDefinitionSlim } from "@/components/transactions-v2/milestone-visibility";
@@ -20,6 +24,8 @@ function fmt(pence: number): string {
   return "£" + Math.round(pence / 100).toLocaleString("en-GB");
 }
 
+// The canonical segmented control (arc), coral-preserving, sized small/medium —
+// one family with the top-bar All/Mine. Drives Fixed/Percent + VAT.
 function Seg({ options, value, onChange, size = "md" }: {
   options: { label: string; value: string }[];
   value: string;
@@ -27,31 +33,22 @@ function Seg({ options, value, onChange, size = "md" }: {
   size?: "md" | "sm";
 }) {
   const sm = size === "sm";
-  const n = options.length;
-  const idx = Math.max(0, options.findIndex((o) => o.value === value));
+  const tok = {
+    ["--surface-muted"]: "rgba(15,23,42,0.05)",
+    ["--border"]: "var(--agent-border-default, rgba(45,24,16,0.10))",
+    ["--text-muted"]: "var(--agent-text-secondary)",
+    ["--foreground"]: "var(--agent-text-primary)",
+    ["--radius-control"]: sm ? "8px" : "10px",
+    ["--control-height-sm"]: sm ? "22px" : "26px",
+    ["--text-sm"]: sm ? "11px" : "12px",
+    ["--sc-selection-bg"]: "var(--agent-coral-deep, #FF6B4A)",
+    ["--sc-selection-fg"]: "var(--agent-text-on-coral, #fff)",
+    ["--sc-selection-border"]: "transparent",
+    ["--shadow-resting"]: "0 2px 6px rgba(255,107,74,0.28)",
+  } as CSSProperties;
   return (
-    <div style={{ position: "relative", display: "inline-flex", padding: 2, borderRadius: sm ? 6 : 8, background: "rgba(var(--agent-coral-base-rgb), 0.05)", border: "0.5px solid rgba(var(--agent-coral-base-rgb), 0.14)", flexShrink: 0 }}>
-      {/* Sliding highlight — springs across to the active slot instead of the
-          fill snapping between buttons. Equal-width slots (buttons flex:1) keep
-          the translate honest. */}
-      <span aria-hidden style={{
-        position: "absolute", top: 2, bottom: 2, left: 2, width: `calc((100% - 4px) / ${n})`,
-        transform: `translateX(${idx * 100}%)`, borderRadius: sm ? 4 : 6,
-        background: "var(--nv2-surface-raised)", boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
-        transition: "transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-      }} />
-      {options.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <button key={opt.value} type="button" onClick={() => onChange(opt.value)} style={{
-            position: "relative", zIndex: 1, flex: 1,
-            padding: sm ? "3px 8px" : "4px 10px", fontSize: sm ? 10 : 11, fontWeight: 600, borderRadius: sm ? 4 : 6, border: "none",
-            background: "transparent",
-            color: active ? "var(--agent-coral-deep)" : "var(--nv2-text-muted)",
-            cursor: "pointer", whiteSpace: "nowrap", transition: "color 180ms",
-          }}>{opt.label}</button>
-        );
-      })}
+    <div className="arc-scope" style={{ ...tok, display: "inline-flex", flexShrink: 0 }}>
+      <SegmentedControl label="Choose" options={options} value={value} onValueChange={onChange} />
     </div>
   );
 }
@@ -151,18 +148,21 @@ export function EarningsBuilder({
       {/* Commission editor */}
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 7 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Your commission</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)" }}>Your commission</span>
           <Seg options={[{ label: "Fixed £", value: "amount" }, { label: "Percent %", value: "percent" }]} value={fields.agentFeeType} onChange={(v) => onUpdate({ agentFeeType: v as "amount" | "percent" })} />
         </div>
-        <div className="nsf-commission-box" style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 12, padding: "8px 12px" }}>
+        <div
+          className="nsf-commission-box"
+          // Once a commission is entered, keep the "selected" (focus) background so a
+          // filled box reads as settled, not reverting to the faint rest tint.
+          data-filled={(fields.agentFeeType === "amount" ? fields.agentFeeAmount != null && fields.agentFeeAmount > 0 : Number(fields.agentFeePercentStr) > 0) || undefined}
+          style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 12, padding: "8px 12px" }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
             {fields.agentFeeType === "amount" ? (
-              <PriceInput value={fields.agentFeeAmount} onChange={(v) => onUpdate({ agentFeeAmount: v })} placeholder="0" className="price-hero-input" />
+              <PriceField bare value={fields.agentFeeAmount} onChange={(v) => onUpdate({ agentFeeAmount: v })} label="Commission amount" hideLabel height={34} fontSize={20} />
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <input type="number" className="price-hero-input-native" value={fields.agentFeePercentStr} onChange={(e) => onUpdate({ agentFeePercentStr: e.target.value })} placeholder="0" inputMode="decimal" step="0.01" min="0" max="10" />
-                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--nv2-text-faint)", flexShrink: 0 }}>%</span>
-              </div>
+              <PercentField bare hideLabel value={fields.agentFeePercentStr} onChange={(v) => onUpdate({ agentFeePercentStr: v })} fontSize={20} max={10} />
             )}
           </div>
           <Seg size="sm" options={[{ label: "+ VAT", value: "exclusive" }, { label: "Inc VAT", value: "inclusive" }]} value={fields.agentFeeVat} onChange={(v) => onUpdate({ agentFeeVat: v as "inclusive" | "exclusive" })} />

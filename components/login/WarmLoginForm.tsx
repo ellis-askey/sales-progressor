@@ -7,6 +7,7 @@ import { GoogleIcon } from "./GoogleIcon"
 import { MicrosoftIcon } from "./MicrosoftIcon"
 import { loginPrecheck } from "@/app/actions/login-precheck"
 import { LabelInput } from "@/components/ui/LabelInput"
+import { InlineAlert } from "@/components/ui/InlineAlert"
 import { Button } from "@/components/arc/button/button"
 import { OtpInput } from "@/components/arc/otp-input/otp-input"
 import "@/components/arc/cookie-consent/scope.css"
@@ -241,14 +242,7 @@ export function WarmLoginForm() {
         {/* Form-level error. In OTP mode the field shows its own inline error (and
             shakes), so the banner is suppressed there to avoid saying it twice. */}
         {error && !(stage === "totp" && !useBackupCode) && (
-          <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 12px", borderRadius: "8px", border: "1px solid rgba(199,62,62,0.30)", background: "#ffffff", margin: 0 }}>
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flex: "none" }}>
-              <circle cx="8" cy="8" r="6.6" stroke="#C73E3E" strokeWidth="1.3" />
-              <path d="M8 4.7v4" stroke="#C73E3E" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="8" cy="11" r="0.5" fill="#C73E3E" stroke="#C73E3E" strokeWidth="0.6" />
-            </svg>
-            <span style={{ fontSize: "12.5px", color: "#C73E3E", fontWeight: 500 }}>{error}</span>
-          </div>
+          <InlineAlert kind="danger">{error}</InlineAlert>
         )}
 
         {stage === "password" && (

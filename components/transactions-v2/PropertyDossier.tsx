@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, X } from "@phosphor-icons/react";
+import { ArrowRight, X } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
@@ -50,10 +50,8 @@ function Tile({
     }}>
       <p style={{
         margin: "0 0 4px",
-        fontSize: 9,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
+        fontSize: 11,
+        fontWeight: 600,
         color: accent ? "var(--agent-success)" : "var(--agent-text-muted)",
       }}>
         {label}
@@ -104,10 +102,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
       margin: "0 0 6px",
-      fontSize: 9,
-      fontWeight: 700,
-      textTransform: "uppercase",
-      letterSpacing: "0.08em",
+      fontSize: 11,
+      fontWeight: 600,
       color: "var(--agent-text-muted)",
     }}>
       {children}
@@ -142,13 +138,11 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
             margin: "0 0 3px",
-            fontSize: 9,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
+            fontSize: 11,
+            fontWeight: 600,
             color: "var(--agent-text-muted)",
           }}>
-            {isModeB ? "Property Record" : `Area Research · ${data.address.postcode}`}
+            {isModeB ? "Property record" : `Area research · ${data.address.postcode}`}
           </p>
           {isModeB ? (
             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>
@@ -163,18 +157,16 @@ export function PropertyDossier({ data, formTenure, onUseTenure, onClear, fromMe
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {fromMemo && (
-            <Pill glass tone="success" size="sm" style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <Pill glass tone="success" size="sm">
               From memo
             </Pill>
           )}
+          {/* Canonical close — the shared round icon button (hover tint + focus ring). */}
           <button
             type="button"
             onClick={onClear}
             aria-label="Clear property research"
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--agent-text-muted)", display: "flex", alignItems: "center", padding: 2,
-            }}
+            className="agent-icon-btn agent-icon-btn-md"
           >
             <X size={14} weight="bold" />
           </button>

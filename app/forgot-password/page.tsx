@@ -2,21 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { SunriseBackground } from "@/components/login/SunriseBackground";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "rgba(255,255,255,0.50)",
-  border: "0.5px solid rgba(255,255,255,0.70)",
-  borderRadius: "8px",
-  padding: "9px 14px",
-  color: "#3D1F0E",
-  fontSize: "16px",
-  outline: "none",
-  transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
-  boxSizing: "border-box",
-};
+// Canonical auth shell — matches /login and /register: the sunlit interior photo
+// background + white veil, the TSP lockup, a solid white card, and the shared
+// LabelInput / arc Button controls. Coral primary via the arc token override.
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -48,118 +43,111 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <SunriseBackground />
+    <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", overflow: "hidden" }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
+        .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+        @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+        @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
+        @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
+        .fp-link:hover { color: #E55B3D !important; }
+      ` }} />
 
-      <style>{`
-        .fp-input::placeholder { color: rgba(61,31,14,0.42); }
-        .fp-input:focus {
-          background: rgba(255,255,255,0.62) !important;
-          border-color: rgba(255,255,255,0.95) !important;
-          box-shadow: none;
-        }
-        .fp-btn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 28px rgba(216,90,53,0.45) !important;
-        }
-        .fp-btn:active:not(:disabled) { transform: scale(0.98); }
-        .fp-link:hover { color: #3D1F0E !important; }
-      `}</style>
+      {/* Sunlit interior background photo (matches /login + /register). */}
+      <div aria-hidden className="auth-bg-enter auth-bg-img" style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
+        backgroundColor: "#ffffff",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }} />
+      <div aria-hidden style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 1,
+        background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
+      }} />
 
-      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "380px" }}>
+      <div className="auth-enter" style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "400px" }}>
 
-        <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-          <div style={{ display: "inline-flex", marginBottom: "1.25rem" }}>
-            <BrandMark />
+        {/* Brand lockup + heading */}
+        <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginBottom: "1.1rem" }}>
+            <BrandMark size={38} />
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1 }}>
+              <span style={{ fontSize: "20px", fontWeight: 800, color: "#FF6B4A", letterSpacing: "0.02em" }}>TSP</span>
+              <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
+            </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "1.625rem", fontWeight: 600, color: "#3D1F0E", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
             Reset your password
           </h1>
-          <p style={{ margin: "0.4rem 0 0", fontSize: "12px", color: "#7A4A2E", opacity: 0.85 }}>
+          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
             We&apos;ll send a reset link to your email
           </p>
         </div>
 
+        {/* Card */}
         <div style={{
-          background: "rgba(255,255,255,0.38)",
-          backdropFilter: "blur(40px) saturate(180%)",
-          WebkitBackdropFilter: "blur(40px) saturate(180%)",
-          borderRadius: "16px",
-          border: "0.5px solid rgba(255,255,255,0.60)",
-          borderTop: "0.5px solid rgba(255,255,255,0.82)",
+          background: "#ffffff",
+          borderRadius: "18px",
+          border: "1px solid rgba(23,23,30,0.06)",
+          boxShadow: "0 18px 50px rgba(30,20,15,0.10), 0 4px 14px rgba(30,20,15,0.05)",
           padding: "1.75rem",
-          boxShadow: "0 20px 60px rgba(200,80,30,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.14)",
         }}>
 
           {sent ? (
             <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
               <div style={{
                 width: 48, height: 48, borderRadius: "50%",
-                background: "rgba(255,138,101,0.15)",
+                background: "rgba(255,107,74,0.12)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 margin: "0 auto 1rem",
               }}>
-                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#D85A35" strokeWidth={2}>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#FF6B4A" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </div>
-              <p style={{ fontSize: "14px", fontWeight: 600, color: "#3D1F0E", margin: "0 0 6px" }}>Check your email</p>
-              <p style={{ fontSize: "12px", color: "#7A4A2E", margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: "14px", fontWeight: 600, color: "#2D1810", margin: "0 0 6px" }}>Check your email</p>
+              <p style={{ fontSize: "12px", color: "rgba(45,24,16,0.55)", margin: 0, lineHeight: 1.5 }}>
                 If an account exists for <strong>{email}</strong>, a reset link has been sent. It expires in 1 hour.
               </p>
-              <Link href="/login" className="fp-link" style={{ display: "inline-block", marginTop: "1.25rem", fontSize: "12px", color: "#7A4A2E", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
+              <Link href="/login" className="fp-link" style={{ display: "inline-block", marginTop: "1.25rem", fontSize: "12px", color: "rgba(45,24,16,0.55)", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
                 ← Back to sign in
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 500, color: "#7A4A2E", marginBottom: "6px", letterSpacing: "0.01em" }}>
-                  Email address
-                </label>
-                <input
-                  className="fp-input"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-                  required
-                  autoFocus
-                  autoComplete="email"
-                  placeholder="you@agency.co.uk"
-                  style={inputStyle}
-                />
-              </div>
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", "--lbi-top": "0px" } as React.CSSProperties}>
+              <LabelInput
+                label="Email address"
+                type="email"
+                name="email"
+                autoComplete="email"
+                accent={CORAL}
+                fullWidth
+                required
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+              />
 
-              {error && (
-                <p style={{ fontSize: "12px", color: "#8B2500", background: "rgba(255,210,190,0.55)", padding: "8px 12px", borderRadius: "8px", margin: 0 }}>
-                  {error}
-                </p>
-              )}
+              {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
-              <button
+              <Button
                 type="submit"
-                disabled={loading || !email.trim()}
-                className="fp-btn"
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  background: loading || !email.trim() ? "rgba(220,90,55,0.45)" : "#D85A35",
-                  color: "white",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  border: "none",
-                  cursor: loading || !email.trim() ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 20px rgba(216,90,53,0.35)",
-                  transition: "transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
-                }}
+                variant="primary"
+                size="lg"
+                loading={loading}
+                disabled={!email.trim()}
+                style={{ ...coralVars, width: "100%" }}
               >
-                {loading ? "Sending…" : "Send reset link"}
-              </button>
+                Send reset link
+              </Button>
 
-              <p style={{ textAlign: "center", fontSize: "12px", color: "#7A4A2E", margin: 0 }}>
-                <Link href="/login" className="fp-link" style={{ color: "#D2553A", fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
+              <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(45,24,16,0.55)", margin: 0 }}>
+                <Link href="/login" className="fp-link" style={{ color: CORAL, fontWeight: 500, textDecoration: "none", transition: "color 0.12s ease" }}>
                   Back to sign in
                 </Link>
               </p>

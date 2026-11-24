@@ -18,6 +18,8 @@ import { getAgencyDirectorStatus } from "@/lib/agency/director-status";
 import { prisma } from "@/lib/prisma";
 import { AccountShell } from "@/components/account/chrome/AccountShell";
 import { brandThemeCss } from "@/lib/agent/brand-theme";
+import { IconModeProvider } from "@/components/icons/shim-core";
+import { ICON_MIGRATION_ENABLED } from "@/components/icons/flag";
 import "@/app/agent/styles/themes.css";
 import "@/app/agent/styles/agent-system.css";
 
@@ -44,15 +46,17 @@ export default async function AccountLayout({ children }: { children: React.Reac
           settings area matches the app. The brand-colour picker appends its own
           <style> at the end of <body> to recolour this live before saving. */}
       <style dangerouslySetInnerHTML={{ __html: brandThemeCss(brandColor) }} />
-      <AccountShell
-        role={role}
-        agencyHasDirector={agencyHasDirector}
-        displayName={displayName}
-        image={userRecord?.image ?? null}
-        theme="custom"
-      >
-        {children}
-      </AccountShell>
+      <IconModeProvider mode={ICON_MIGRATION_ENABLED ? "solar" : "current"}>
+        <AccountShell
+          role={role}
+          agencyHasDirector={agencyHasDirector}
+          displayName={displayName}
+          image={userRecord?.image ?? null}
+          theme="custom"
+        >
+          {children}
+        </AccountShell>
+      </IconModeProvider>
     </>
   );
 }

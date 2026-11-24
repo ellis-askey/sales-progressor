@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { X, Check, CircleNotch, ArrowRight } from "@phosphor-icons/react";
+import { X, Check, CircleNotch, ArrowRight } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { getOrCreateDemoSaleAction } from "@/app/actions/demo";
 import { DemoSalePreview } from "@/components/agent/DemoSalePreview";
@@ -109,8 +109,7 @@ export function useDemoExplore() {
   );
   const promoHead = (
     <>
-      <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#FF6B4A" }}>See it for yourself</span>
-      <h2 style={{ margin: "14px 0 0", fontSize: 34, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.8px", color: "#0F1B2D" }}>
+      <h2 style={{ margin: 0, fontSize: 34, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.8px", color: "#0F1B2D" }}>
         Step inside a sale<span style={{ color: "#FF6B4A" }}>.</span>
       </h2>
       <p style={{ margin: "14px 0 0", fontSize: 15, lineHeight: 1.55, color: "#54617d", maxWidth: 360 }}>

@@ -10,7 +10,7 @@ import {
   ArrowLeft, CaretDown, EnvelopeSimple, CurrencyGbp, UserCircle, HouseSimple,
   CalendarBlank, Clock, Fire, Heartbeat, Phone, ChatCircleText, DotsThree, Plus,
   WhatsappLogo, House, ListChecks, Bell, PaperPlaneTilt, CheckSquare, FileText, Pulse,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import { ContactAvatar } from "@/components/ui/Avatar";
 
 const CARD: React.CSSProperties = {
@@ -23,22 +23,22 @@ const CARD: React.CSSProperties = {
 function StatCell({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   // No tinted box — bare coral icon + text, matching the "Added / clock" meta cell.
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
       <span style={{ flexShrink: 0, color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {icon}
       </span>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>{value}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.2 }}>{value}</div>
         <div style={{ fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.3 }}>{label}</div>
       </div>
     </div>
   );
 }
 
-function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function Row({ label, value, valueColor, labelStyle }: { label: string; value: string; valueColor?: string; labelStyle?: React.CSSProperties }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ fontSize: 12, color: "var(--agent-text-muted)" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "var(--agent-text-muted)", ...labelStyle }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: valueColor ?? "var(--agent-text-primary)", textAlign: "right" }}>{value}</span>
     </div>
   );
@@ -78,16 +78,14 @@ export function DemoSalePreview() {
           {/* Status + progress (progress now runs to the right edge) */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-              {/* Polished green Active pill */}
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px 5px 10px", borderRadius: 999, background: "linear-gradient(180deg, #34D399 0%, #10B981 100%)", color: "#fff", fontSize: 12, fontWeight: 700, boxShadow: "0 2px 8px rgba(16,185,129,0.30), inset 0 1px 0 rgba(255,255,255,0.4)" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", boxShadow: "0 0 0 3px rgba(255,255,255,0.35)" }} />
-                Active
-              </span>
+              {/* Canonical status badge — matches the live file (agent-pill-active:
+                  tinted success bg + green text + border, no dot). */}
+              <span className="agent-pill agent-pill-active">Active</span>
               <CaretDown size={12} weight="bold" style={{ color: "var(--agent-text-muted)" }} />
             </span>
             <div style={{ flex: "1 1 220px", maxWidth: 340 }}>
               <p style={{ margin: "0 0 5px", textAlign: "right", fontSize: 12, color: "var(--agent-text-muted)" }}>
-                <span style={{ fontWeight: 700, color: "var(--agent-text-primary)" }}>41%</span> complete
+                <span style={{ fontWeight: 600, color: "var(--agent-text-primary)" }}>41%</span> complete
               </p>
               <div style={{ height: 5, borderRadius: 999, background: "var(--agent-hero-track, rgba(45,24,16,0.10))", overflow: "hidden" }}>
                 <div style={{ width: "41%", height: "100%", background: "var(--agent-coral)", borderRadius: 999 }} />
@@ -150,23 +148,24 @@ export function DemoSalePreview() {
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Next action */}
+          {/* Matches the live NextActionCard: eyebrow row, flame BESIDE the
+              [title / due-line], indented description, coral primary + secondary. */}
           <div style={{ ...CARD, padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <Fire size={18} weight="fill" style={{ color: "var(--agent-coral-deep)" }} />
-                <span className="agent-eyebrow" style={{ fontSize: 11 }}>Next action</span>
-              </span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span className="agent-eyebrow" style={{ margin: 0 }}>Next action</span>
               <CalendarBlank size={16} weight="regular" style={{ color: "var(--agent-text-muted)" }} />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)" }}>Chase: Search results received</p>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "linear-gradient(180deg, #FF8365 0%, #F0511A 100%)", borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(240,81,26,0.30), inset 0 1px 0 rgba(255,255,255,0.35)" }}>Due in 5 days</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+              <span style={{ flexShrink: 0, display: "inline-flex", color: "var(--agent-coral-deep)" }}><Fire size={24} weight="fill" /></span>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--agent-text-primary)", lineHeight: 1.3 }}>Search results received</p>
+                <div style={{ marginTop: 2, fontSize: 12.5, fontWeight: 600, color: "var(--agent-coral-deep)", lineHeight: 1.3 }}>Due in 5 days</div>
+              </div>
             </div>
-            <p style={{ margin: "7px 0 0", fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Waiting on: Seller&apos;s solicitor has received initial enquiries.</p>
-            <div style={{ marginTop: 14 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 10, border: "0.5px solid var(--agent-border-default)", background: "var(--agent-surface-elevated)", fontSize: 13, fontWeight: 600, color: "var(--agent-text-secondary)" }}>
-                <EnvelopeSimple size={15} weight="regular" /> View reminders
-              </span>
+            <p style={{ margin: "9px 0 0", paddingLeft: 35, fontSize: 13, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Seller&apos;s solicitor has received initial enquiries.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#fff", background: "var(--agent-coral)" }}><Phone size={14} weight="regular" /> Call progressor</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", background: "var(--agent-surface-elevated)", border: "0.5px solid var(--agent-border-default)" }}><EnvelopeSimple size={14} weight="regular" /> Send email</span>
             </div>
           </div>
 
@@ -182,14 +181,14 @@ export function DemoSalePreview() {
             <div style={{ padding: "12px 14px 14px" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Contacts</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb),0.14)", borderRadius: 999, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>1</span>
-                  </div>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>People associated with this transaction</p>
+                  {/* "{count} Contacts" — number prefixed, matching the real card (not a badge). */}
+                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>1</span> Contacts
+                  </h3>
+                  <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--agent-text-muted)" }}>People associated with this transaction</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, background: "linear-gradient(135deg, var(--agent-coral-deep), var(--agent-coral-light))", color: "#fff", fontSize: 12.5, fontWeight: 600 }}><Plus size={13} weight="bold" /> Add contact</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, background: "var(--agent-coral-deep)", color: "#fff", fontSize: 12.5, fontWeight: 600 }}><Plus size={13} weight="bold" /> Add contact</span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, border: "0.5px solid var(--agent-border-default)", fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-secondary)" }}><WhatsappLogo size={14} weight="fill" style={{ color: "#25D366" }} /> Set up WhatsApp group</span>
                 </div>
               </div>
@@ -219,12 +218,12 @@ export function DemoSalePreview() {
           {/* Sale health */}
           <div style={{ ...CARD, padding: "14px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Heartbeat size={19} weight="regular" style={{ color: "#047857" }} />
+              <Heartbeat size={24} weight="regular" style={{ color: "#047857" }} />
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Sale health</span>
-              <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "#047857" }}>On track</span>
+              <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 600, color: "#047857" }}>On track</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 12 }}>
-              <Row label="Time on file" value="Under a minute" />
+              <Row label="Time on file" value="5h 48m" />
               <Row label="Stage" value="Conveyancing" />
               <Row label="Risk level" value="Low" valueColor="#047857" />
               <Row label="Last activity" value="Yesterday, 11:00" />
@@ -238,15 +237,16 @@ export function DemoSalePreview() {
           {/* Key dates */}
           <div style={{ ...CARD, padding: "14px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <CalendarBlank size={19} weight="regular" style={{ color: "var(--agent-coral-deep)" }} />
+              <CalendarBlank size={24} weight="regular" style={{ color: "var(--agent-coral-deep)" }} />
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>Key dates</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 12 }}>
               <Row label="12-week target" value="29 November 2026" />
+              <Row label="Est. ready to exchange" value="W/C 2 November 2026" />
               <Row label="Completion" value="Awaiting exchange" />
-              <Row label="Est. time to exchange" value="12 weeks" />
+              <Row label="Time to exchange" value="Approx 1 week" />
             </div>
-            <p style={{ margin: "11px 0 0", fontSize: 10, fontStyle: "italic", color: "var(--agent-text-muted)", lineHeight: 1.4 }}>Chain not factored. This prediction is for this sale alone.</p>
+            <p style={{ margin: "11px 0 0", fontSize: 10, fontStyle: "italic", color: "var(--agent-text-muted)", lineHeight: 1.4 }}>Estimated ready-to-exchange date for this sale only. Chain not included.</p>
           </div>
         </div>
       </div>

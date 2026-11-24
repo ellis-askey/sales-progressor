@@ -1,33 +1,67 @@
 "use client";
 
-import { CheckCircle, Link as LinkIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
+import { CheckCircle, Check, Link as LinkIcon } from "@/components/icons/ph";
 import type { ContactEntry, MemoSource } from "@/components/transactions-v2/types";
 import { FieldIndicator, FieldHint } from "./FieldIndicator";
 import { Pill } from "@/components/ui/Pill";
+import { LabelInput } from "@/components/ui/LabelInput";
 import { titleCaseKeepAcronyms, isValidEmail } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { looksLikeBusiness } from "@/lib/contacts/business";
 
-function HealthDots({ level }: { level: 0 | 1 | 2 | 3 }) {
-  if (level === 0) return null;
-  const dot = (filled: boolean) => (
-    <span style={{
-      width: 7, height: 7, borderRadius: "50%",
-      background: filled
-        ? level === 3 ? "var(--agent-success)" : "var(--agent-coral-deep)"
-        : "var(--nv2-border-medium)",
-      transition: "background 250ms",
-      display: "inline-block",
-      flexShrink: 0,
-    }} />
-  );
+const CORAL = "#FF6B4A";
+
+// ── Per-field status rail ──────────────────────────────────────────────────────
+// A numbered circle beside each input: grey (empty) → coral (typing, not yet
+// valid) → green tick (valid). The circles are joined by a vertical line.
+type FieldState = "empty" | "typing" | "valid";
+
+function FieldCircle({ n, state, last }: { n: number; state: FieldState; last?: boolean }) {
+  // An opaque fill (not transparent) so the connector line is hidden behind the
+  // number rather than showing through it.
+  const c = state === "valid"
+    ? { border: "var(--agent-success)", color: "#fff", bg: "var(--agent-success)" }
+    : state === "typing"
+    ? { border: "var(--agent-coral-deep)", color: "var(--agent-coral-deep)", bg: "var(--agent-surface-elevated, #fff)" }
+    : { border: "var(--agent-border-strong, rgba(45,24,16,0.22))", color: "var(--agent-text-muted)", bg: "var(--agent-surface-elevated, #fff)" };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      {dot(level >= 1)}
-      {dot(level >= 2)}
-      {dot(level === 3)}
+    <div style={{ position: "relative", width: 22, height: 48, flexShrink: 0, display: "grid", placeItems: "center" }}>
+      {/* Connector down to the next circle (centre-to-centre = row 48 + gap 10). */}
+      {!last && <span aria-hidden style={{ position: "absolute", top: 24, left: "calc(50% - 1px)", width: 2, height: 58, background: "var(--agent-border-default)", zIndex: 0 }} />}
+      <span style={{
+        position: "relative", zIndex: 1, width: 22, height: 22, borderRadius: "50%",
+        display: "grid", placeItems: "center", fontSize: 11, fontWeight: 600,
+        border: `1.5px solid ${c.border}`, color: c.color, background: c.bg,
+        fontVariantNumeric: "tabular-nums",
+        transition: "border-color 220ms ease, color 220ms ease, background 220ms ease",
+      }}>
+        {state === "valid" ? <Check size={12} weight="bold" /> : n}
+      </span>
     </div>
   );
+}
+
+function FieldRow({ n, state, last, children }: { n: number; state: FieldState; last?: boolean; children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+      <FieldCircle n={n} state={state} last={last} />
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+function nameFieldState(name: string): FieldState {
+  const t = name.trim();
+  return !t ? "empty" : t.length >= 2 ? "valid" : "typing";
+}
+function phoneFieldState(phone: string): FieldState {
+  if (!phone.trim()) return "empty";
+  return phone.replace(/\D/g, "").length >= 10 ? "valid" : "typing";
+}
+function emailFieldState(email: string): FieldState {
+  if (!email.trim()) return "empty";
+  return isValidEmail(email) ? "valid" : "typing";
 }
 
 export function ContactCard({
@@ -81,21 +115,24 @@ export function ContactCard({
     <div
       style={{
         // No inner border/card — the content spreads across the section card.
+        // A small top inset gives the first input's floating label room so it isn't
+        // tight against the header / people-pills above (matches the inter-field rhythm).
         padding: 0,
+        paddingTop: 6,
         display: "flex",
         flexDirection: "column",
         gap: 10,
-      }}
+        // LabelInput label-lift room off: the floating label overhangs into the
+        // gap between fields instead of adding a block of space above each.
+        ["--lbi-top" as string]: "0px",
+      } as React.CSSProperties}
     >
-      {/* Header row: label + dots + remove */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {canRemove && (
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{numbered}</span>
-          )}
-          <HealthDots level={healthLevel} />
-        </div>
-        {canRemove && (
+      {/* Numbered / remove header only when the card removes itself (the carousel
+          handles remove + numbering via the stepper). The ●●● health dots are
+          retired — completion now reads off the stepper tick. */}
+      {canRemove && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--nv2-text-muted)" }}>{numbered}</span>
           <button
             type="button"
             onClick={onRemove}
@@ -103,26 +140,26 @@ export function ContactCard({
           >
             Remove
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Name (or company name, when the entry reads like a business) */}
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>
-          {isBiz ? "Company" : "Full name"}{isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2 }}>*</span>}
-        </label>
-        <input
-          className="agent-input"
+      {/* Full name — circle 1 */}
+      <FieldRow n={1} state={nameFieldState(contact.name)}>
+        <LabelInput
+          field="name"
+          label={`${isBiz ? "Company" : "Full name"}${isOutsourced ? " *" : ""}`}
+          type="text"
+          accent={CORAL}
+          fullWidth
           value={contact.name}
           onChange={(e) => { onChange({ name: e.target.value }); onEdit(); }}
           onBlur={(e) => { if (e.target.value.trim()) onChange({ name: titleCaseKeepAcronyms(e.target.value) }); }}
-          placeholder="e.g. Sarah Johnson"
-          maxLength={80}
         />
         {isBiz && (
           <div style={{ marginTop: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span>Who should we address? <span style={{ color: "var(--nv2-text-muted)", fontWeight: 400 }}>(optional)</span></span>
+            {/* "Not a company" moves to a right-aligned link above the field, since the
+                canonical LabelInput owns its own floating "Who should we address?" label. */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 2 }}>
               <button
                 type="button"
                 onClick={() => { onChange({ bizDismissed: true, contactPerson: "" }); onEdit(); }}
@@ -130,71 +167,72 @@ export function ContactCard({
               >
                 Not a company
               </button>
-            </label>
-            <input
-              className="agent-input"
-              value={contact.contactPerson ?? ""}
-              onChange={(e) => { onChange({ contactPerson: e.target.value }); onEdit(); }}
-              onBlur={(e) => { if (e.target.value.trim()) onChange({ contactPerson: titleCaseKeepAcronyms(e.target.value) }); }}
-              placeholder="e.g. the director or signatory"
-              maxLength={80}
-            />
+            </div>
+            <div style={{ ["--lbi-top" as string]: "0px" } as React.CSSProperties}>
+              <LabelInput
+                field="contactPerson"
+                label="Who should we address?"
+                type="text"
+                accent={CORAL}
+                fullWidth
+                value={contact.contactPerson ?? ""}
+                onChange={(e) => { onChange({ contactPerson: e.target.value }); onEdit(); }}
+                onBlur={(e) => { if (e.target.value.trim()) onChange({ contactPerson: titleCaseKeepAcronyms(e.target.value) }); }}
+              />
+            </div>
             <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--nv2-text-muted)" }}>
               Looks like a company. We&rsquo;ll greet this person in emails, or keep it general if you leave it blank.
             </p>
           </div>
         )}
-      </div>
+      </FieldRow>
 
-      {/* Phone + Email */}
-      <div>
-        <div className="contact-detail-grid">
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>Phone</label>
-            <input
-              className="agent-input"
-              value={contact.phone}
-              onChange={(e) => { onChange({ phone: cleanPhone(e.target.value) }); onEdit(); }}
-              onBlur={(e) => {
-                const formatted = formatUKPhone(e.target.value);
-                if (formatted !== e.target.value) onChange({ phone: formatted });
-              }}
-              placeholder="07700 900000"
-              maxLength={20}
-              type="tel"
-            />
-            {conflict?.kind === "phone" && (
-              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
-                {conflict.withName} already has this phone on this sale.
-              </p>
-            )}
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--nv2-text-secondary)", marginBottom: 5 }}>Email</label>
-            <input
-              className="agent-input"
-              value={contact.email}
-              onChange={(e) => { onChange({ email: e.target.value }); onEdit(); }}
-              onBlur={e => { if (e.target.value.trim()) onChange({ email: e.target.value.trim().toLowerCase() }); }}
-              placeholder="sarah@example.com"
-              maxLength={120}
-              type="email"
-            />
-            {conflict?.kind === "email" ? (
-              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
-                {conflict.withName} already has this email on this sale.
-              </p>
-            ) : emailInvalid ? (
-              <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>
-                Enter a valid email address.
-              </p>
-            ) : null}
-          </div>
-        </div>
-        {/* No "At least one required" here: the per-contact reachability line
-            below ("Add a phone or email so we can reach them" / "We can reach
-            this {label}") is the single, actionable signal. */}
-      </div>
+      {/* Phone — circle 2 */}
+      <FieldRow n={2} state={phoneFieldState(contact.phone)}>
+        <LabelInput
+          field="phone"
+          label="Phone"
+          type="tel"
+          inputMode="tel"
+          accent={CORAL}
+          fullWidth
+          value={contact.phone}
+          onChange={(e) => { onChange({ phone: cleanPhone(e.target.value) }); onEdit(); }}
+          onBlur={(e) => {
+            const formatted = formatUKPhone(e.target.value);
+            if (formatted !== e.target.value) onChange({ phone: formatted });
+          }}
+        />
+        {conflict?.kind === "phone" && (
+          <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
+            {conflict.withName} already has this phone on this sale.
+          </p>
+        )}
+      </FieldRow>
+
+      {/* Email — circle 3 */}
+      <FieldRow n={3} state={emailFieldState(contact.email)} last>
+        <LabelInput
+          field="email"
+          label="Email"
+          type="email"
+          inputMode="email"
+          accent={CORAL}
+          fullWidth
+          value={contact.email}
+          onChange={(e) => { onChange({ email: e.target.value }); onEdit(); }}
+          onBlur={(e) => { if (e.target.value.trim()) onChange({ email: e.target.value.trim().toLowerCase() }); }}
+        />
+        {conflict?.kind === "email" ? (
+          <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-danger)" }}>
+            {conflict.withName} already has this email on this sale.
+          </p>
+        ) : emailInvalid ? (
+          <p style={{ margin: "4px 0 0", fontSize: 11, fontWeight: 500, color: "var(--agent-warning)" }}>
+            Enter a valid email address.
+          </p>
+        ) : null}
+      </FieldRow>
 
       {/* Bottom hint */}
       {isComplete ? (
@@ -263,7 +301,7 @@ export function ContactGroup({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isOutsourced ? 4 : 10 }}>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--nv2-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center" }}>
+        <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--nv2-text-faint)", display: "flex", alignItems: "center" }}>
           {label}
           {isOutsourced && <span style={{ color: "var(--agent-coral-deep)", marginLeft: 2, fontWeight: 700 }}>*</span>}
           <FieldIndicator source={memoSource} />
@@ -272,9 +310,10 @@ export function ContactGroup({
           <button
             type="button"
             onClick={addContact}
+            aria-label={`Add ${label.slice(0, -1).toLowerCase()}`}
             style={{ fontSize: 12, color: "var(--agent-coral-deep)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}
           >
-            + Add {label.slice(0, -1).toLowerCase()}
+            + Add
           </button>
         )}
       </div>

@@ -1,56 +1,28 @@
 "use client";
 
-// Uses the canonical agent-banner recipe documented in components/ui/AgentBanner.tsx:
-// white-90% background + blur + 1px coloured border + tinted icon + heading
-// in the kind colour + secondary body. AgentBanner only exposes
-// info / warning / danger / success kinds; this banner is the "primary
-// coral" variant for the outsourced/PM workflow, so it applies the same
-// recipe inline with coral tokens rather than introducing a fifth kind.
+// The outsourced / PM "who is handling this sale" banner. Now rendered through the
+// canonical AgentBanner with the coral kind (added 2026-11-20, decision 7) — the same
+// neutral frosted surface as every other banner, with coral on the icon + border, so it
+// reads in one family instead of re-implementing the recipe inline with a coral wash.
+// Message, audience logic and behaviour are unchanged — this is a visual move only.
 
-import { Headset } from "@phosphor-icons/react";
-import { useCardSurface } from "@/lib/glass/use-card-surface";
+import { Headset } from "@/components/icons/ph";
+import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export function OutsourcedBanner({ progressorName = null, hasExternalProgressor = false }: { progressorName?: string | null; hasExternalProgressor?: boolean } = {}) {
-  const { surfaceClass, tag, picked } = useCardSurface("new-sale-outsourced-banner", "New sale · Outsourced banner", "");
   // "Our team" only fits when the sale goes to TSP. An agency that works with an
   // external progressor is handing it to THEM, so name them (or a generic
   // fallback before one is picked in the multi-progressor case).
   const who = progressorName && progressorName.trim()
     ? progressorName.trim()
     : hasExternalProgressor ? "Your progressor" : "Our team";
-  return (
-    <div
-      // Surface (light white / dark "coral wash") lives in .outsourced-banner CSS
-      // so it can switch by theme (critique #193). A Design Lab pick takes over the
-      // surface via surfaceClass. Text colours are on .ob-banner so they apply in
-      // both cases.
-      className={`agent-reveal-in ob-banner ${picked ? "" : "outsourced-banner"} ${surfaceClass}`.trim()}
-      {...tag}
-      role="status"
-      style={{
-        borderRadius: 10,
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-      }}
-    >
-      <span
-        aria-hidden
-        className="ob-icon"
-        style={{ flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center" }}
-      >
-        <Headset size={16} weight="fill" />
-      </span>
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <p className="ob-title" style={{ margin: 0, fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
-          {who} is handling this sale.
-        </p>
-        <p className="ob-sub" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
-          Add at least one seller and one buyer, with a name and either a phone number or email address.
-        </p>
-      </div>
-    </div>
+  return (
+    <AgentBanner
+      kind="coral"
+      icon={<Headset size={18} weight="fill" />}
+      title={`${who} is handling this sale.`}
+      body="Add at least one seller and one buyer, with a name and either a phone number or email address."
+    />
   );
 }

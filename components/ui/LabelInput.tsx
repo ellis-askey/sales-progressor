@@ -90,6 +90,19 @@ export function LabelInput({
      keyboard down. Off by default — a real field wants its
      keyboard — and the bench turns it on for its feed */
   showcase = false,
+  /* a display-only field tied to upstream data (e.g. an invited email): keeps
+     the same outline + lifted label, but reads as read-only and greyed, and
+     takes no focus. Off by default. */
+  locked = false,
+  /* ghost completion: the REMAINDER beyond what's typed (null = none). With
+     onAccept, Tab / ArrowRight-at-end accepts it and a tap "Tab" chip shows at
+     the right. Lets a field carry inline autocomplete without leaving the canonical. */
+  completion = null,
+  onAccept,
+  /* hard character cap, forwarded to the input */
+  maxLength,
+  /* forward a ref to the underlying <input> (the internal ref is kept too) */
+  inputRef,
 }: {
   field?: string;
   label?: string;
@@ -113,6 +126,11 @@ export function LabelInput({
   fullWidth?: boolean;
   minBoxWidth?: number;
   showcase?: boolean;
+  locked?: boolean;
+  completion?: string | null;
+  onAccept?: () => void;
+  maxLength?: number;
+  inputRef?: React.Ref<HTMLInputElement>;
 } = {}) {
   /* the two presets; explicit props below win over them. "sm" changes only the
      height (and drops the top gap for dense forms) — corner and font stay the
@@ -207,7 +225,7 @@ export function LabelInput({
   };
 
   return (
-    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0} data-full={fullWidth || undefined} data-solid={solid || undefined} ref={root} style={{
+    <div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0} data-full={fullWidth || undefined} data-solid={solid || undefined} data-locked={locked || undefined} ref={root} style={{
       "--lbi-lift": `${H / 2}px`,
       "--lbi-fs": `${FS}px`,
       ...(accent ? { "--ink": accent } : {}),
@@ -231,7 +249,11 @@ export function LabelInput({
         </label>
 
         <input
-          ref={input}
+          ref={(el) => {
+            input.current = el;
+            if (typeof inputRef === "function") inputRef(el);
+            else if (inputRef) (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+          }}
           id={id}
           className="lbi-field"
           data-flip={flip % 2}
@@ -260,6 +282,19 @@ export function LabelInput({
           spellCheck={false}
           required={required}
           autoFocus={autoFocus}
+          maxLength={maxLength}
+          onKeyDown={(e) => {
+            if (!completion) return;
+            const el = e.currentTarget;
+            const atEnd = el.selectionStart === value.length && el.selectionEnd === value.length;
+            if (e.key === "Tab" || (e.key === "ArrowRight" && atEnd)) {
+              e.preventDefault();
+              onAccept?.();
+            }
+          }}
+          readOnly={locked}
+          aria-readonly={locked || undefined}
+          tabIndex={locked ? -1 : undefined}
           /* ── no keyboard, when it is only being shown ─────
              In a feed you are scrolling on a phone, a tap that
              lands on the field threw the keyboard up over the
@@ -289,6 +324,40 @@ export function LabelInput({
             <Eye size={16} strokeWidth={2} aria-hidden="true" />
             <EyeOff size={16} strokeWidth={2} aria-hidden="true" />
           </button>
+        )}
+
+        {/* Inline ghost completion — the remainder of a matched value at muted
+            weight, starting exactly where the caret is (an invisible copy of the
+            typed text pushes it there). A "Tab" chip accepts it. */}
+        {completion && (
+          <>
+            <div
+              aria-hidden
+              style={{
+                position: "absolute", inset: 0, display: "flex", alignItems: "center",
+                paddingLeft: "var(--lbi-x)", paddingRight: lx,
+                fontSize: "var(--lbi-fs, 16px)", letterSpacing: "-0.01em",
+                whiteSpace: "pre", overflow: "hidden", pointerEvents: "none",
+              }}
+            >
+              <span style={{ visibility: "hidden" }}>{value}</span>
+              <span style={{ color: "var(--ink-4)" }}>{completion}</span>
+            </div>
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => { e.preventDefault(); onAccept?.(); }}
+              aria-label={`Use ${value}${completion}`}
+              style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                zIndex: 3, padding: "2px 6px", borderRadius: 6, fontSize: 10, fontWeight: 600,
+                color: "var(--ink-4)", border: "0.5px solid var(--agent-border-default)",
+                background: "var(--fill-slab)", cursor: "pointer",
+              }}
+            >
+              Tab
+            </button>
+          </>
         )}
       </div>
     </div>

@@ -21,9 +21,9 @@
 //   - Mount animation: agent-reveal-in
 
 import type { ReactNode } from "react";
-import { X, CaretRight } from "@phosphor-icons/react";
+import { X, CaretRight } from "@/components/icons/ph";
 
-export type BannerKind = "info" | "warning" | "danger" | "success";
+export type BannerKind = "info" | "warning" | "danger" | "success" | "coral";
 
 type Props = {
   kind: BannerKind;
@@ -60,6 +60,9 @@ const TOKEN_FOR_KIND: Record<BannerKind, { tint: string; border: string }> = {
   warning: { tint: "var(--agent-warning)", border: "var(--agent-warning-border-strong)" },
   danger:  { tint: "var(--agent-danger)",  border: "var(--agent-danger-border-strong)"  },
   success: { tint: "var(--agent-success)", border: "var(--agent-success-border-strong)" },
+  // Brand/coral kind (added 2026-11-20, decision 7) — the outsourced/PM banner. Same
+  // neutral frosted surface as every other kind; coral lands on the icon + border + action.
+  coral:   { tint: "var(--agent-coral-deep, #FF6B4A)", border: "rgba(255,107,74,0.45)" },
 };
 
 export function AgentBanner({ kind, icon, title, body, action, actionPlacement = "inline", rightSlot, rightSlotPlacement = "inline", dismissible, className }: Props) {

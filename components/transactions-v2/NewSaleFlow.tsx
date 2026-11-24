@@ -1,7 +1,10 @@
 ﻿"use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import "@/components/arc/cookie-consent/scope.css";
 import { MemoStatusBar } from "@/components/transactions-v2/hero/MemoStatusBar";
 import { HeroCard } from "@/components/transactions-v2/HeroCard";
 import { ResearchPanel } from "@/components/transactions-v2/ResearchPanel";
@@ -18,10 +21,13 @@ import { ChainBuildMap } from "@/components/chain/ChainBuildMap";
 import { FormChainSection } from "@/components/transactions-v2/form/FormChainSection";
 import type { StubFormData } from "@/components/chain/AddNodeDrawer";
 import { RequiredPrompt } from "@/components/transactions-v2/form/RequiredPrompt";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Select } from "@/components/ui/Select";
+import { Button } from "@/components/arc/button/button";
+import "@/components/arc/cookie-consent/scope.css";
 import { NotesSection } from "@/components/transactions-v2/form/NotesSection";
 import { CollapsibleSection } from "@/components/transactions-v2/form/CollapsibleSection";
 import { ChangeFileModal } from "@/components/transactions-v2/form/ChangeFileModal";
-import { AgentPicker } from "@/components/agent-picker/AgentPicker";
 import { NavAwayModal } from "@/components/transactions-v2/NavAwayModal";
 import { DuplicateAddressModal } from "@/components/transactions-v2/DuplicateAddressModal";
 import { RelistCatchModal } from "@/components/transactions-v2/RelistCatchModal";
@@ -45,6 +51,21 @@ import { looksLikeBusiness } from "@/lib/contacts/business";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 const SLOW_THRESHOLD_MS = 15_000;
+
+// Coral-preserving tokens for the File-worth / Sold-prices segmented control.
+const WORTH_TAB_TOK = {
+  ["--surface-muted"]: "rgba(15,23,42,0.05)",
+  ["--border"]: "var(--agent-border-default, rgba(45,24,16,0.10))",
+  ["--text-muted"]: "var(--agent-text-secondary)",
+  ["--foreground"]: "var(--agent-text-primary)",
+  ["--radius-control"]: "10px",
+  ["--control-height-sm"]: "30px",
+  ["--text-sm"]: "12px",
+  ["--sc-selection-bg"]: "var(--agent-coral-deep, #FF6B4A)",
+  ["--sc-selection-fg"]: "var(--agent-text-on-coral, #fff)",
+  ["--sc-selection-border"]: "transparent",
+  ["--shadow-resting"]: "0 2px 6px rgba(255,107,74,0.28)",
+} as CSSProperties;
 
 // Resolve a form contact into the shape we persist. A business (name looks
 // like a company and the nudge wasn't dismissed) stores the person in `name`
@@ -245,70 +266,44 @@ function SubmitButton({
   buttonText: string;
   onClick: () => void;
 }) {
+  // Canonical arc Button, coral primary via the token override.
   return (
-    <button
+    <Button
       type="button"
-      onClick={onClick}
+      variant="primary"
+      size="lg"
+      loading={isSubmitting}
       disabled={isDisabled}
-      className="agent-btn-color-primary"
-      style={{
-        width: "100%", padding: "14px", borderRadius: 14,
-        fontWeight: 600, fontSize: 15, border: "none",
-        cursor: isDisabled ? "not-allowed" : "pointer",
-        opacity: isSubmitting ? 0.75 : 1,
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        transition: "opacity 150ms",
-      }}
+      onClick={onClick}
+      style={{ ["--foreground" as string]: "#FF6B4A", ["--background" as string]: "#ffffff", flex: "2 1 220px", minWidth: 0 }}
     >
-      {isSubmitting && (
-        <span className="agent-btn-spinner" style={{ width: 16, height: 16, borderTopColor: "rgba(255,255,255,0.9)", borderColor: "rgba(255,255,255,0.3)" }} />
-      )}
-      {isSubmitting ? "Creating..." : buttonText}
-    </button>
+      {isSubmitting ? "Creating…" : buttonText}
+    </Button>
   );
 }
 
-function OutsourcedHintCard({ text, isSolid }: { text: string; isSolid: boolean }) {
+function OutsourcedHintCard({ text }: { text: string }) {
+  // Canonical InlineAlert (bordered warning, not a washed card).
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: isSolid ? "rgba(245,158,11,0.14)" : "rgba(245,158,11,0.07)",
-      border: isSolid ? "1px solid rgba(245,158,11,0.40)" : "0.5px solid rgba(245,158,11,0.22)",
-      borderRadius: 10,
-      padding: "8px 12px",
-      marginBottom: 8,
-      fontSize: 11,
-      fontWeight: 500,
-      color: "var(--agent-warning)",
-    }}>
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="6.5" cy="6.5" r="5.75" stroke="currentColor" strokeWidth="1.1" />
-        <path d="M6.5 4.5v3M6.5 9v.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      </svg>
-      {text}
+    <div style={{ marginBottom: 8 }}>
+      <InlineAlert kind="warning">{text}</InlineAlert>
     </div>
   );
 }
 
 function SaveDraftButton({ isSaving, onClick }: { isSaving: boolean; onClick: () => void }) {
+  // Canonical arc Button, secondary (white / outline), peer height to the primary.
   return (
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      size="lg"
+      loading={isSaving}
       onClick={onClick}
-      disabled={isSaving}
-      style={{
-        display: "block", width: "100%", marginTop: 10, padding: "8px",
-        background: "none", border: "none", cursor: isSaving ? "default" : "pointer",
-        fontSize: 12, fontWeight: 500,
-        color: isSaving ? "rgba(15,23,42,0.30)" : undefined,
-        textAlign: "center",
-      }}
+      style={{ flex: "1 1 150px", minWidth: 0 }}
     >
-      {/* Underline hugs the text, not the full-width button. */}
-      <span className={isSaving ? undefined : "agent-link"}>{isSaving ? "Saving draft…" : "Save draft"}</span>
-    </button>
+      {isSaving ? "Saving draft…" : "Save draft"}
+    </Button>
   );
 }
 
@@ -505,7 +500,6 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
   // ── Right column mode ─────────────────────────────────────────────────────
   const [rightColumnMode, setRightColumnMode] = useState<"earnings" | "research">("earnings");
-  const [hoveredTab, setHoveredTab] = useState<"earnings" | "research" | null>(null);
   const isSolid = useSolidMode();
 
   // Right-column Notes: open by default on desktop, closed on smaller
@@ -1422,19 +1416,17 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
                 URL). Always shown so the card never renders empty and the agency
                 stays visible. */}
             {!clientAgencyId ? (
-              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
-                <select
-                  className="agent-input"
-                  value={selectedClientAgencyId}
-                  onChange={(e) => setSelectedClientAgencyId(e.target.value)}
-                >
-                  <option value="">Select a client…</option>
-                  {clientAgencies.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}{a.feeSet ? "" : " · fee not set"}</option>
-                  ))}
-                </select>
-              </label>
+                <Select
+                  value={selectedClientAgencyId || null}
+                  onChange={(v) => setSelectedClientAgencyId(v)}
+                  placeholder="Select a client…"
+                  options={clientAgencies.map((a) => ({ value: a.id, label: `${a.name}${a.feeSet ? "" : " · fee not set"}` }))}
+                  height={40}
+                  radius={8}
+                />
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Which client is this sale for?</span>
@@ -1444,36 +1436,27 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               </div>
             )}
             {progressorFeeMissing && (
-              <div style={{ margin: 0, padding: "12px 14px", borderRadius: 10, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--agent-warning)" }}>
-                  Set a fee for {selectedClient?.name ?? "this client"} first
-                </span>
-                <span style={{ fontSize: 12.5, color: "var(--nv2-text-secondary)", lineHeight: 1.5 }}>
-                  You need a fee set for this client before you can add a sale for them. It takes a few seconds on their page, then come back here.
-                </span>
-                {effectiveClientAgencyId && (
-                  <a href={`/agent/clients/${effectiveClientAgencyId}`} className="agent-link" style={{ fontWeight: 700, fontSize: 12.5 }}>
-                    Set fee for {selectedClient?.name ?? "this client"} →
-                  </a>
-                )}
-              </div>
+              <InlineAlert
+                kind="warning"
+                action={effectiveClientAgencyId ? <a href={`/agent/clients/${effectiveClientAgencyId}`} style={{ color: "inherit", textDecoration: "none" }}>Set fee →</a> : undefined}
+              >
+                Set a fee for {selectedClient?.name ?? "this client"} before you can add a sale for them.
+              </InlineAlert>
             )}
             {/* Who's progressing it — a picker when the business has more than one
                 member; otherwise a read-only row naming the sole progressor, so the
                 card always shows who the file is assigned to. */}
             {businessMembers.length > 1 ? (
-              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
-                <select
-                  className="agent-input"
+                <Select
                   value={formFields.assignToUserId || currentUserId}
-                  onChange={(e) => updateFormFields({ assignToUserId: e.target.value })}
-                >
-                  {businessMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </label>
+                  onChange={(v) => updateFormFields({ assignToUserId: v })}
+                  options={businessMembers.map((m) => ({ value: m.id, label: m.name }))}
+                  height={40}
+                  radius={8}
+                />
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
@@ -1487,55 +1470,63 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
         {inHouseProgressionEnabled && !isOutsourced ? (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
             {assignableAgents.length > 1 && (
-              <AgentPicker
-                value={formFields.assignToUserId || currentUserId}
-                onChange={(v) => updateFormFields({ assignToUserId: v })}
-                agents={assignableAgents}
-                currentUserId={currentUserId}
-                label="Who agreed this sale?"
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who agreed this sale?</span>
+                <Select
+                  value={formFields.assignToUserId || currentUserId}
+                  onChange={(v) => updateFormFields({ assignToUserId: v })}
+                  options={assignableAgents.map((a) => ({ value: a.id, label: a.id === currentUserId ? `${a.name} (you)` : a.name }))}
+                  height={40}
+                  radius={8}
+                />
+              </div>
             )}
-            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Who&rsquo;s progressing it?</span>
-              <select
-                className="agent-input"
+              <Select
                 value={formFields.inHouseProgressorId}
-                onChange={(e) => updateFormFields({ inHouseProgressorId: e.target.value })}
-              >
-                <option value="">Decide later</option>
-                {inHouseProgressors.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </label>
+                onChange={(v) => updateFormFields({ inHouseProgressorId: v })}
+                options={[{ value: "", label: "Decide later" }, ...inHouseProgressors.map((p) => ({ value: p.id, label: p.name }))]}
+                height={40}
+                radius={8}
+              />
+            </div>
           </div>
         ) : isDirector && !isOutsourced && assignableAgents.length > 1 ? (
           <div className="glass-card" style={{ padding: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-            <AgentPicker
-              value={formFields.assignToUserId || currentUserId}
-              onChange={(v) => updateFormFields({ assignToUserId: v })}
-              agents={assignableAgents}
-              currentUserId={currentUserId}
-              label="Assign this file to"
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--nv2-text-secondary)" }}>Assign this file to</span>
+              <Select
+                value={formFields.assignToUserId || currentUserId}
+                onChange={(v) => updateFormFields({ assignToUserId: v })}
+                options={assignableAgents.map((a) => ({ value: a.id, label: a.id === currentUserId ? `${a.name} (you)` : a.name }))}
+                height={40}
+                radius={8}
+              />
+            </div>
           </div>
         ) : null}
         {isOutsourced && !outsourcedReady && !isSubmitting && (
-          <OutsourcedHintCard text={submitButtonText} isSolid={isSolid} />
+          <OutsourcedHintCard text={submitButtonText} />
         )}
-        <SubmitButton
-          isSubmitting={isSubmitting}
-          isDisabled={isSubmitDisabled}
-          buttonText={needsCard ? "Add a card to continue" : salesNotice ? "Set up billing to continue" : submitButtonText}
-          onClick={() => handleSubmit()}
-        />
-        {/* Drafts are stored against a customer agency; a progression business owner
-            has none of their own (a sale is for a CLIENT agency chosen in-flow), so
-            saving one currently can't succeed. Rather than offer a control that
-            errors, hide it for the progressor create flow. Full draft support for
-            progression businesses (draft carries its client + scoped list/promote) is
-            a tracked follow-up. */}
-        {!isProgressorCreate && <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />}
+        {/* Action row — Submit (primary) + Save draft (secondary) share a row on
+            wider screens and wrap to stacked full-width on narrow ones (flex-wrap
+            + flex-basis; each grows to fill its line). */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
+          <SubmitButton
+            isSubmitting={isSubmitting}
+            isDisabled={isSubmitDisabled}
+            buttonText={needsCard ? "Add a card to continue" : salesNotice ? "Set up billing to continue" : submitButtonText}
+            onClick={() => handleSubmit()}
+          />
+          {/* Drafts are stored against a customer agency; a progression business owner
+              has none of their own (a sale is for a CLIENT agency chosen in-flow), so
+              saving one currently can't succeed. Rather than offer a control that
+              errors, hide it for the progressor create flow. Full draft support for
+              progression businesses (draft carries its client + scoped list/promote) is
+              a tracked follow-up. */}
+          {!isProgressorCreate && <SaveDraftButton isSaving={isSavingDraft} onClick={saveDraft} />}
+        </div>
       </div>
     </>
   );
@@ -1713,47 +1704,16 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
               (this + the "Add what you have" line) start level; marginBottom
               matches the left column's gap so the cards below line up. */}
           {(flowState === "extracted" || flowState === "manual") && (
-            <div style={{ display: "flex", gap: 6, marginTop: 16, marginBottom: 12 }}>
-              {(["earnings", "research"] as const).map((mode) => {
-                const active = rightColumnMode === mode;
-                const tabHovered = hoveredTab === mode && !active;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setRightColumnMode(mode)}
-                    onMouseEnter={() => setHoveredTab(mode)}
-                    onMouseLeave={() => setHoveredTab(null)}
-                    style={{
-                      flex: 1,
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      border: active
-                        ? "1.5px solid transparent"
-                        : tabHovered
-                        ? "1.5px solid var(--agent-coral)"
-                        : isSolid ? "1.5px solid var(--nv2-border-solid)" : "1.5px solid var(--agent-border-default)",
-                      background: active
-                        ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))"
-                        : "transparent",
-                      color: active
-                        ? "var(--agent-text-on-coral)"
-                        : tabHovered
-                        ? "var(--agent-coral-deep)"
-                        : "var(--nv2-text-secondary)",
-                      boxShadow: active
-                        ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)"
-                        : "none",
-                      cursor: "pointer",
-                      transition: "border-color 150ms, background 160ms, color 150ms, box-shadow 220ms",
-                    }}
-                  >
-                    {mode === "earnings" ? "File worth" : "Sold prices"}
-                  </button>
-                );
-              })}
+            // Canonical segmented control (arc) — same family as the top-bar
+            // All/Mine and the commission toggles. fullWidth to fill the column.
+            <div className="arc-scope" style={{ marginTop: 16, marginBottom: 12, ...WORTH_TAB_TOK }}>
+              <SegmentedControl
+                label="Right column"
+                fullWidth
+                options={[{ value: "earnings", label: "File worth" }, { value: "research", label: "Sold prices" }]}
+                value={rightColumnMode}
+                onValueChange={(v) => setRightColumnMode(v as "earnings" | "research")}
+              />
             </div>
           )}
 

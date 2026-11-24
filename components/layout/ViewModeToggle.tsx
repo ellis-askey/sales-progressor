@@ -9,31 +9,52 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
+import "@/components/arc/cookie-consent/scope.css";
 import { updateFileViewMode } from "@/app/actions/agent-preferences";
+
+// Canonical segmented control (arc) — its selection glides between options on a
+// morph spring (layoutId), upgraded from the old left/width transition. Arc tokens
+// are mapped to the agent look + the shipped coral pill, so the control is the arc
+// component without changing its appearance or the view-persistence behaviour.
+const TOKENS: React.CSSProperties = {
+  ["--surface-muted" as string]: "rgba(15,23,42,0.05)",
+  ["--border" as string]: "var(--agent-border-default)",
+  ["--text-muted" as string]: "var(--agent-text-secondary)",
+  ["--foreground" as string]: "var(--agent-text-primary)",
+  ["--radius-control" as string]: "11px",
+  ["--control-height-sm" as string]: "28px",
+  ["--text-sm" as string]: "13px",
+  ["--sc-selection-bg" as string]: "var(--agent-coral-deep)",
+  ["--sc-selection-fg" as string]: "var(--agent-text-on-coral)",
+  ["--sc-selection-border" as string]: "transparent",
+  ["--shadow-resting" as string]: "0 2px 6px rgba(255,107,74,0.30)",
+};
 
 export function ViewModeToggle({ initialMode, fullWidth = false }: { initialMode: "all" | "mine"; fullWidth?: boolean }) {
   const [mode, setMode] = useState<"all" | "mine">(initialMode);
   const [, start] = useTransition();
   const router = useRouter();
 
-  function choose(next: "all" | "mine") {
-    if (next === mode) return;
-    setMode(next); // optimistic — the pill moves immediately
+  function choose(next: string) {
+    const m = next as "all" | "mine";
+    if (m === mode) return;
+    setMode(m); // optimistic — the pill glides immediately
     start(async () => {
-      await updateFileViewMode(next);
+      await updateFileViewMode(m);
       router.refresh();
     });
   }
 
   return (
-    <SegmentedSwitch
-      size="sm"
-      fullWidth={fullWidth}
-      ariaLabel="Show all files or just mine"
-      options={[{ id: "all", label: "All" }, { id: "mine", label: "Mine" }]}
-      value={mode}
-      onChange={(id) => choose(id as "all" | "mine")}
-    />
+    <div className="arc-scope" style={{ ...TOKENS, ...(fullWidth ? { display: "block", width: "100%" } : { display: "inline-block" }) }}>
+      <SegmentedControl
+        label="Show all files or just mine"
+        options={[{ value: "all", label: "All" }, { value: "mine", label: "Mine" }]}
+        value={mode}
+        onValueChange={choose}
+        fullWidth={fullWidth}
+      />
+    </div>
   );
 }

@@ -14,9 +14,9 @@
 
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { PencilSimple, CheckCircle, Trash, Camera } from "@phosphor-icons/react";
+import { PencilSimple, CheckCircle, Trash, Camera, Check, MapPin } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { PriceInput } from "@/components/ui/PriceInput";
+import { PriceField } from "@/components/ui/PriceField";
 import { AddPhotoCircle } from "@/components/transaction/HeroPhotoUpload";
 
 // Postcode → mini location map, the same visual the property-file hero shows
@@ -25,6 +25,9 @@ const PropertyLocationMap = dynamic(() => import("@/components/transaction/Prope
 // A trailing/standalone UK postcode — only then can we place the map.
 const POSTCODE_RE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 import { AddressFields } from "@/components/transactions-v2/form/AddressFields";
+import { Button } from "@/components/arc/button/button";
+import { EditConfirmActions } from "@/components/ui/EditConfirmActions";
+import "@/components/arc/cookie-consent/scope.css";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
 import { useCardSurface } from "@/lib/glass/use-card-surface";
 import type { FormFields } from "@/components/transactions-v2/form/types";
@@ -54,24 +57,36 @@ const PURCHASE_TYPES: { value: "mortgage" | "cash_buyer" | "cash_from_proceeds";
 // the brand colour on hover; selected fills with the brand gradient + gloss —
 // the option-select treatment used on the claim-flow choice cards. Everything
 // derives from --agent-coral*, so it follows the agency's chosen colour.
+// Filter-chip treatment (matches the Liquid Glass GlassChip): solid coral + an
+// animated check tick when selected, a clean outline that warms to coral on
+// hover otherwise. Rendered with agent tokens so it lives natively in the hero.
 function Choice({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        display: "inline-flex", alignItems: "center",
         fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap",
         padding: "6px 15px", borderRadius: 999, cursor: "pointer",
         border: selected ? "1.5px solid transparent" : `1.5px solid ${hover ? "var(--agent-coral)" : "var(--agent-border-default)"}`,
-        background: selected ? "linear-gradient(180deg, var(--agent-coral), var(--agent-coral-deep))" : "transparent",
+        background: selected ? "var(--agent-coral-deep)" : "transparent",
         color: selected ? "var(--agent-text-on-coral)" : hover ? "var(--agent-coral-deep)" : "var(--agent-text-secondary)",
-        boxShadow: selected ? "0 4px 13px -2px rgba(var(--agent-coral-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.3)" : "none",
-        transition: "background 160ms, border-color 150ms, color 150ms, box-shadow 220ms",
+        boxShadow: "none",
+        transition: "background 160ms, border-color 150ms, color 150ms",
       }}
     >
+      <span aria-hidden style={{
+        display: "inline-flex", alignItems: "center", overflow: "hidden",
+        width: selected ? 17 : 0, opacity: selected ? 1 : 0,
+        transition: "width 200ms cubic-bezier(0.16,1,0.3,1), opacity 150ms ease",
+      }}>
+        <Check size={13} weight="bold" />
+      </span>
       {children}
     </button>
   );
@@ -111,6 +126,17 @@ export function SaleHeroEditable({
 
   const addressLine = [fields.streetAddress, fields.city, fields.postcode].map((s) => s.trim()).filter(Boolean).join(", ");
   const [editingAddress, setEditingAddress] = useState<boolean>(!addressLine);
+  // Snapshot the address when the editor opens, so the cancel (X) can revert to it.
+  // Editing writes live via onUpdate, so without this there's nothing to roll back to.
+  const addressSnapshot = useRef<{ streetAddress: string; city: string; postcode: string } | null>(null);
+  const openAddressEditor = () => {
+    addressSnapshot.current = { streetAddress: fields.streetAddress, city: fields.city, postcode: fields.postcode };
+    setEditingAddress(true);
+  };
+  const cancelAddressEdit = () => {
+    if (addressSnapshot.current) onUpdate(addressSnapshot.current);
+    setEditingAddress(false);
+  };
   // Split like the property-file hero: street on top, town + postcode below.
   const [line1, ...restAddr] = addressLine.split(",");
   const line2 = restAddr.join(",").trim();
@@ -247,35 +273,59 @@ export function SaleHeroEditable({
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => setEditingAddress(true)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingAddress(true); } }}
+                onClick={openAddressEditor}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openAddressEditor(); } }}
                 className="hero-address-edit"
                 aria-label="Edit address"
                 style={{ minWidth: 0 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{line1}</p>
-                  <span className="hero-edit-pencil" aria-hidden style={{ flexShrink: 0, display: "inline-flex", color: "var(--agent-text-muted)" }}>
-                    <PencilSimple size={15} weight="regular" />
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  {/* Location pin — shown only once an address is entered, in the map's
+                      own --agent-info blue so the pin and the map agree. */}
+                  {addressLine && (
+                    <MapPin size={42} weight="fill" color="var(--agent-info, #3D7AB8)" aria-hidden style={{ flexShrink: 0 }} />
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "var(--agent-text-h2, 22px)", fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "var(--agent-tracking-tight)", lineHeight: 1.2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{line1}</p>
+                      <span className="hero-edit-pencil" aria-hidden style={{ flexShrink: 0, display: "inline-flex", color: "var(--agent-text-muted)" }}>
+                        <PencilSimple size={15} weight="regular" />
+                      </span>
+                    </div>
+                    {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
+                  </div>
                 </div>
-                {line2 && <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--agent-text-muted)", lineHeight: 1.35 }}>{line2}</p>}
               </div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateRows: editingAddress ? "1fr" : "0fr", transition: "grid-template-rows 300ms var(--agent-ease, cubic-bezier(0.16,1,0.3,1))" }}>
             <div style={{ overflow: "hidden", minHeight: 0 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
-                <AddressFields
-                  streetAddress={fields.streetAddress}
-                  city={fields.city}
-                  postcode={fields.postcode}
-                  onStreetAddressChange={(v) => onUpdate({ streetAddress: v })}
-                  onCityChange={(v) => onUpdate({ city: v })}
-                  onPostcodeChange={(v) => onUpdate({ postcode: v })}
-                />
-                {addressLine && (
-                  <button type="button" onClick={() => setEditingAddress(false)} className="agent-btn agent-btn-secondary agent-btn-sm" style={{ width: "fit-content" }}>Done</button>
+              {/* The collapsed address line sizes this column to ~190px; editing
+                  needs room for two canonical fields side by side, so the editor
+                  claims a working width (wraps under the price on narrow heroes). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 2, minWidth: "min(390px, 100%)", width: 390, maxWidth: "100%" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <AddressFields
+                    solid
+                    streetAddress={fields.streetAddress}
+                    city={fields.city}
+                    postcode={fields.postcode}
+                    onStreetAddressChange={(v) => onUpdate({ streetAddress: v })}
+                    onCityChange={(v) => onUpdate({ city: v })}
+                    onPostcodeChange={(v) => onUpdate({ postcode: v })}
+                  />
+                </div>
+                {/* Confirm / cancel sit to the RIGHT of the fields, vertically centred.
+                    Gated on editingAddress so they re-mount — and re-run their spring-in /
+                    tick-draw — every time the editor opens (not just once on page mount). */}
+                {addressLine && editingAddress && (
+                  <EditConfirmActions
+                    startDelay={0.33}
+                    confirmLabel="Done editing address"
+                    cancelLabel="Cancel address edit"
+                    onConfirm={() => setEditingAddress(false)}
+                    onCancel={cancelAddressEdit}
+                  />
                 )}
               </div>
             </div>
@@ -285,8 +335,10 @@ export function SaleHeroEditable({
         {/* Price — a simple £ pill you click and type into (shows just "£" when
             empty, "£230,000" once typed). No placeholder text, no save. */}
         <div style={{ flexShrink: 0 }}>
-          <p style={{ margin: "0 0 5px", fontSize: 10, fontWeight: 700, color: "var(--agent-text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Sale price</p>
-          <PriceInput value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} placeholder="" className="sale-price-pill" />
+          <p style={{ margin: "0 0 5px", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)" }}>Sale price</p>
+          <div style={{ width: 190 }}>
+            <PriceField accent value={fields.purchasePricePence} onChange={(v) => onUpdate({ purchasePricePence: v })} label="Sale price" hideLabel height={46} fontSize={22} />
+          </div>
         </div>
         </div>{/* end address + price row */}
 

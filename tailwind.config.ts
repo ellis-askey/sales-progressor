@@ -4,6 +4,10 @@ const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    // Vendored uiarc /dev gallery components use CSS modules, not Tailwind
+    // utilities — exclude them so Tailwind's file-watcher never scans the churny
+    // folder (it was ENOENT-ing there and taking down globals.css / the app).
+    "!./components/arc/**",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
