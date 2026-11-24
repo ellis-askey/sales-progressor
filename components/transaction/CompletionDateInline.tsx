@@ -5,7 +5,7 @@
 // edit it in place; saves via saveCompletionDateAction (logged server-side).
 
 import { useState } from "react";
-import { PencilSimple } from "@phosphor-icons/react";
+import { PencilSimple } from "@/components/icons/ph";
 import { saveCompletionDateAction } from "@/app/actions/transactions";
 import { DateField } from "@/components/ui/DateField";
 

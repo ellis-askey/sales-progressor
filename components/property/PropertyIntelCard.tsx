@@ -8,7 +8,7 @@
 // the page. Keeps all prior EPC + sold-price functionality.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Info, ArrowSquareOut } from "@phosphor-icons/react";
+import { Info, ArrowSquareOut } from "@/components/icons/ph";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 

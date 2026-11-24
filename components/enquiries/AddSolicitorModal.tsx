@@ -9,7 +9,7 @@
 // both a firm and a handler are chosen. See the enquiries round-4 drawer changes.
 
 import { useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { SolicitorPicker, type SolicitorSelection } from "@/components/solicitors/SolicitorPicker";
 import { saveSolicitorsAction } from "@/app/actions/transactions";
 import type { EnquiryParty } from "@/lib/services/enquiries";

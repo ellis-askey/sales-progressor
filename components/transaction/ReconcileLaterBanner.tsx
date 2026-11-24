@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Clock, X, ArrowRight, ArrowLeft, Check } from "@phosphor-icons/react";
+import { Clock, X, ArrowRight, ArrowLeft, Check } from "@/components/icons/ph";
 import {
   ReconcileMilestonePicker,
   type MilestoneDefinitionLite,

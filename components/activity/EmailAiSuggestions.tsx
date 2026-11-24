@@ -7,7 +7,7 @@
 // the server rejects it.
 
 import { useState, useTransition } from "react";
-import { Sparkle, Check, X } from "@phosphor-icons/react";
+import { Sparkle, Check, X } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { applyEmailSuggestionAction, dismissEmailSuggestionAction } from "@/app/actions/email-suggestions";
 import type { EmailSuggestion } from "@/lib/services/email-read";

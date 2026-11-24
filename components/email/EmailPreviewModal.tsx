@@ -21,7 +21,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X, Pencil } from "@phosphor-icons/react";
+import { X, Pencil } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { updateEmailPayload, getEmailForPreview } from "@/app/actions/automation";
 import { useAgentToast } from "@/components/agent/AgentToaster";

@@ -9,7 +9,7 @@
 // revalidates). Domain-specific (hub) rather than a ui/ primitive because it
 // composes the transaction-domain upload hook; the passive thumb stays
 // components/ui/PropertyThumb.
-import { Camera, CircleNotch } from "@phosphor-icons/react";
+import { Camera, CircleNotch } from "@/components/icons/ph";
 import { usePropertyPhoto } from "@/components/transaction/HeroPhotoUpload";
 
 export function UploadablePropertyThumb({

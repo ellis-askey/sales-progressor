@@ -20,7 +20,7 @@
 // seller: client-facing copy only.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { EmailLookCard, type EmailLookContent } from "@/components/account/emails/EmailLook";
 import type { StudioTheme } from "@/lib/email/email-theme-studio";

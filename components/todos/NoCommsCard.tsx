@@ -13,7 +13,7 @@ import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { SnoozeMenu, type SnoozeChoice } from "@/components/reminders/SnoozeMenu";
 import { ReachOutModal, type ReachChannel } from "@/components/todos/ReachOutModal";
 import { snoozeNoCommsSideAction } from "@/app/actions/no-comms";
-import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt, ChatSlash, ArrowRight, CaretDown } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt, ChatSlash, ArrowRight, CaretDown } from "@/components/icons/ph";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
 import { roleLabel } from "@/components/ui/RoleIcon";

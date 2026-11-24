@@ -8,7 +8,7 @@
 // app/actions/two-factor.ts; the login flow enforces the code.
 
 import { useEffect, useState } from "react";
-import { ShieldCheck, Check } from "@phosphor-icons/react";
+import { ShieldCheck, Check } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {

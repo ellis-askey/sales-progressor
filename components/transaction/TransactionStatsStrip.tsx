@@ -2,8 +2,8 @@
 // stats with a small coral icon per column. Labels + date value shrink
 // on mobile so the 3-column grid stays readable on narrow viewports.
 
-import { Tag, Receipt, CalendarBlank } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { Tag, Receipt, CalendarBlank } from "@/components/icons/ph-ssr";
+import type { Icon } from "@/components/icons/ph-ssr";
 import type { PurchaseType } from "@prisma/client";
 
 type Props = {

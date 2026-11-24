@@ -10,7 +10,7 @@
 // so it reads as one system with every other alert. Copy grades to whichever
 // side is outstanding. See docs/active/exchange-day-SPEC.md (Decision A — gated).
 
-import { Handshake } from "@phosphor-icons/react/dist/ssr";
+import { Handshake } from "@/components/icons/ph-ssr";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export function ExchangeDayReadyBanner({

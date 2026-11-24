@@ -10,8 +10,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowUpRight } from "@/components/icons/ph-ssr";
+import type { Icon } from "@/components/icons/ph-ssr";
 
 export type QuickLinkItem = {
   key: string;

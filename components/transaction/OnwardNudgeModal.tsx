@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useCallback, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

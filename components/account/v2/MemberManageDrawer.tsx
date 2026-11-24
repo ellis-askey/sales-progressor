@@ -10,7 +10,7 @@
 // email is shown locked.
 
 import { useRef, useState } from "react";
-import { Camera, Lock } from "@phosphor-icons/react";
+import { Camera, Lock } from "@/components/icons/ph";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { titleCaseKeepAcronyms } from "@/lib/utils";

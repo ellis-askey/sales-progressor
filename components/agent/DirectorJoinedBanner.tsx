@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@/components/icons/ph";
 import { dismissDirectorJoined } from "@/app/actions/dismiss-director-joined";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 

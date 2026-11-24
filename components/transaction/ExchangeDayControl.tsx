@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { CaretRight, Lock } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, Lock } from "@/components/icons/ph-ssr";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { useAgentToast } from "@/components/agent/AgentToaster";

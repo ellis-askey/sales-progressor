@@ -11,7 +11,7 @@
 // stored body (client chases) so the preview is true-to-inbox regardless.
 
 import { useEffect, useState } from "react";
-import { PaperPlaneTilt, ArrowSquareOut } from "@phosphor-icons/react";
+import { PaperPlaneTilt, ArrowSquareOut } from "@/components/icons/ph";
 import { Drawer } from "@/components/ui/Drawer";
 import { SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { getEnquiryChaseEmailAction, type EnquiryChaseEmail } from "@/app/actions/enquiries";

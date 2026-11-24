@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { Plus } from "@/components/icons/ph-ssr";
 
 export function HubEmptyWelcomeCard() {
   return (

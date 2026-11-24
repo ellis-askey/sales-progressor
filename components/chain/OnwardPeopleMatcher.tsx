@@ -14,7 +14,7 @@
 // candidates on the neighbour, and an onSave that persists them.
 
 import { useState } from "react";
-import { CaretDown, LinkSimple } from "@phosphor-icons/react";
+import { CaretDown, LinkSimple } from "@/components/icons/ph";
 
 export type MatchContact = { id: string; name: string; email: string | null; roleLabel: string };
 

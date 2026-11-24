@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type FeedbackType = "bug" | "idea" | "general";

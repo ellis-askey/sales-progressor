@@ -6,7 +6,7 @@
 // this just keeps the demo clearly labelled and offers a way back in.
 // See lib/services/demo-sale.ts and docs/DEMO_SALE_GUIDED_EXPERIENCE_PLAN.md.
 
-import { Play } from "@phosphor-icons/react";
+import { Play } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import { DEMO_TOUR_EVENTS } from "@/components/transaction/demo-tour/types";
 

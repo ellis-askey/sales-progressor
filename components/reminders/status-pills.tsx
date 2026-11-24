@@ -4,7 +4,7 @@
 // compose the canonical StatusPill (icon + collapsible label).
 
 import type { ReactNode } from "react";
-import { Clock, Warning, CalendarBlank, HandTap, LockSimple } from "@phosphor-icons/react";
+import { Clock, Warning, CalendarBlank, HandTap, LockSimple } from "@/components/icons/ph";
 import { RoleIcon } from "@/components/ui/RoleIcon";
 import { StatusPill } from "./StatusPill";
 

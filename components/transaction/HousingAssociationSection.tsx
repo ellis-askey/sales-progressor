@@ -7,7 +7,7 @@
 // only when the file is marked shared ownership.
 
 import { useState } from "react";
-import { Buildings, Phone, EnvelopeSimple } from "@phosphor-icons/react";
+import { Buildings, Phone, EnvelopeSimple } from "@/components/icons/ph";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { useAgentToast } from "@/components/agent/AgentToaster";

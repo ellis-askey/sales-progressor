@@ -7,7 +7,7 @@
 // re-target the new day on its own.
 
 import { useRef, useState } from "react";
-import { CalendarBlank } from "@phosphor-icons/react";
+import { CalendarBlank } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

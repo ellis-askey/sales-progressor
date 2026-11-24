@@ -17,7 +17,7 @@ import { useRef, useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { setPropertyPhotoAction, removePropertyPhotoAction } from "@/app/actions/property-extras";
 import { prepareImageForUpload, describeUploadError, SAFE_UPLOAD_BYTES } from "@/lib/images/prepare-upload";
-import { Camera, X } from "@phosphor-icons/react";
+import { Camera, X } from "@/components/icons/ph";
 
 export function PropertyPhotoField({
   transactionId,

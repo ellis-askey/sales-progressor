@@ -13,7 +13,7 @@
 import { useState, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt } from "@phosphor-icons/react";
+import { EnvelopeSimple, WhatsappLogo, Phone, PaperPlaneTilt } from "@/components/icons/ph";
 import { DictationMic } from "@/components/dictation/DictationMic";
 import { useTextareaDictation } from "@/components/dictation/useDictation";
 import { logCommAction } from "@/app/actions/comms";

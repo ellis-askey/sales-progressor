@@ -16,7 +16,7 @@
 // is designable, so there are no size sliders that wouldn't affect the real app.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Palette, SquaresFour, Cursor, ArrowCounterClockwise, Check, Warning, ArrowRight, ArrowLeft } from "@phosphor-icons/react";
+import { Palette, SquaresFour, Cursor, ArrowCounterClockwise, Check, Warning, ArrowRight, ArrowLeft } from "@/components/icons/ph";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import {
   DEFAULT_APP_COLOUR,

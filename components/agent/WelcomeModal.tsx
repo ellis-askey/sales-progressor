@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
-import { Plus, ArrowRight, Play, X } from "@phosphor-icons/react";
+import { Plus, ArrowRight, Play, X } from "@/components/icons/ph";
 import { TourSlides } from "@/components/agent/TourSlides";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { extractFirstName } from "@/lib/contacts/displayName";

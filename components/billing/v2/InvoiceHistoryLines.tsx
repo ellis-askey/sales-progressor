@@ -4,7 +4,7 @@
 // on the clean canvas. Status pill stays for at-a-glance recognition.
 // PDF link per row uses the same /api/billing/invoice-pdf/[id] route.
 
-import { FilePdf } from "@phosphor-icons/react/dist/ssr";
+import { FilePdf } from "@/components/icons/ph-ssr";
 import { Pill, type PillProps } from "@/components/ui/Pill";
 
 type HistoryRow = {

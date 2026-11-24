@@ -12,7 +12,7 @@
 // See docs/active/three-notes-distilled-2026-08-26.md (Note 1, Scenario D).
 
 import { useState } from "react";
-import { WarningCircle } from "@phosphor-icons/react";
+import { WarningCircle } from "@/components/icons/ph";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 import { ReviseExchangeDateModal } from "@/components/transaction/ReviseExchangeDateModal";
 

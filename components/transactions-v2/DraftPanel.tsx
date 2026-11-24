@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import type { DraftEntry } from "@/components/transactions-v2/types";
 import { useSolidMode } from "@/lib/hooks/useSolidMode";
 

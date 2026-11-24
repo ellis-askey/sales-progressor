@@ -3,7 +3,7 @@
 // with the audience-aware "fees due" line as its own note card below. Figures
 // come from getCompletionsMomentum + the page's in-flight totals.
 
-import { Trophy, Timer, CheckCircle, Airplane } from "@phosphor-icons/react/dist/ssr";
+import { Trophy, Timer, CheckCircle, Airplane } from "@/components/icons/ph-ssr";
 import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 
 function fmtCompact(pence: number): string {

@@ -7,7 +7,7 @@
 // non-removed links. A single-progressor agency never sees this (the one
 // progressor is resolved server-side as before).
 
-import { Check } from "@phosphor-icons/react";
+import { Check } from "@/components/icons/ph";
 import { calculateClientFee, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { AgencyMeshMark } from "@/components/progression/AgencyMeshMark";
 

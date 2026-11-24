@@ -12,7 +12,7 @@ import {
   StickyNote,
   Check, MinusCircle,
   Circle,
-} from "lucide-react";
+} from "@/components/icons/lu";
 import type { ComponentType, CSSProperties } from "react";
 
 export type TimelineEntryType =

@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gauge } from "@phosphor-icons/react";
+import { Gauge } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { useAgentToast } from "@/components/agent/AgentToaster";

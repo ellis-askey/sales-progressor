@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Clock, XCircle, PaperPlaneTilt, Trash } from "@phosphor-icons/react";
+import { CheckCircle, Clock, XCircle, PaperPlaneTilt, Trash } from "@/components/icons/ph";
 
 type VerifiedEmail = {
   id: string;

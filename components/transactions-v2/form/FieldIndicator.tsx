@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@/components/icons/ph";
 import type { MemoSource } from "@/components/transactions-v2/types";
 
 type Props = {

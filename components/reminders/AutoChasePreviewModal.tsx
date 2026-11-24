@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { EmailPreviewFrame } from "@/components/email/EmailPreviewFrame";

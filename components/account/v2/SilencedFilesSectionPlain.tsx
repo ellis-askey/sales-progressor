@@ -9,7 +9,7 @@
 // paused, with a link to each file — it no longer silences or resumes here.
 
 import Link from "next/link";
-import { Bell, BellSlash, ArrowRight } from "@phosphor-icons/react";
+import { Bell, BellSlash, ArrowRight } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 
 type FileRow = {

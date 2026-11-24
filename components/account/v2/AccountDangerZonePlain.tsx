@@ -13,7 +13,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { signOut } from "next-auth/react";
-import { X, DownloadSimple, Trash, CaretRight } from "@phosphor-icons/react";
+import { X, DownloadSimple, Trash, CaretRight } from "@/components/icons/ph";
 import { deleteMyAccount } from "@/app/actions/delete-my-account";
 import { exportMyData } from "@/app/actions/export-my-data";
 import { useAgentToast } from "@/components/agent/AgentToaster";

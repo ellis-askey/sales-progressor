@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr";
+import { EnvelopeSimple } from "@/components/icons/ph-ssr";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";

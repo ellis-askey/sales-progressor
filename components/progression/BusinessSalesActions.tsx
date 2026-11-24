@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ArrowRight } from "@phosphor-icons/react";
+import { Plus, ArrowRight } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { MilestoneDefinitionLite } from "@/components/milestones/ReconcileMilestonePicker";
 import { AddCardGateModal, type CardGatePreview, type GateNotice } from "./AddCardGateModal";

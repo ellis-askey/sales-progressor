@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { XCircle } from "@phosphor-icons/react";
+import { XCircle } from "@/components/icons/ph";
 import { dismissChainDecline } from "@/app/actions/dismiss-chain-decline";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 

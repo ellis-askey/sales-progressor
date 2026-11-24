@@ -7,7 +7,7 @@
 // cleared) are called out loudly at the top, because reversing confirmed
 // work is the one consequence an agent must not miss.
 
-import { Warning } from "@phosphor-icons/react";
+import { Warning } from "@/components/icons/ph";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { SaleDetailsDeltaPreview } from "./SaleDetailsDeltaPreview";

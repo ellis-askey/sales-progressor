@@ -6,7 +6,7 @@
 // chrome is local; the surface + positioning + behaviour come from Tooltip.
 
 import { useEffect, type ReactNode } from "react";
-import { Info } from "@phosphor-icons/react";
+import { Info } from "@/components/icons/ph";
 import { Tooltip } from "@/components/ui/Popover";
 
 let stylesInjected = false;

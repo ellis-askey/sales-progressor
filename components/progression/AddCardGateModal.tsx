@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { BusinessCardCapture } from "./BusinessCardCapture";
 
 // Plain, client-safe shape mirrored from BusinessFirstChargePreview

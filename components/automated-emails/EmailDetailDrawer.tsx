@@ -24,7 +24,7 @@ import {
   ArrowSquareOut,
   DotsThree,
   PencilSimple,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import { Drawer } from "@/components/ui/Drawer";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { LinkArrow } from "@/components/ui/LinkArrow";

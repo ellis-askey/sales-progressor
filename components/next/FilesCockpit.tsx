@@ -9,7 +9,7 @@
 import { useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
-import { Phone, EnvelopeSimple, WhatsappLogo } from "@phosphor-icons/react";
+import { Phone, EnvelopeSimple, WhatsappLogo } from "@/components/icons/ph";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";

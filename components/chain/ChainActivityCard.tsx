@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Lock } from "@phosphor-icons/react";
+import { Lock } from "@/components/icons/ph";
 import type { ChainActivityEvent } from "@/lib/services/chains";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";

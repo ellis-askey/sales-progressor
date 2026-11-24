@@ -8,7 +8,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Users, BellRinging, WarningCircle, Storefront, Plus, ArrowRight, ArrowLeft, X } from "@phosphor-icons/react";
+import { Users, BellRinging, WarningCircle, Storefront, Plus, ArrowRight, ArrowLeft, X } from "@/components/icons/ph";
 import { markProgressorWelcomeSeenAction } from "@/app/actions/profile";
 import { saveProgressorChasePrefsAction } from "@/app/actions/progression-clients";
 import { useDarkMode } from "@/lib/agent/use-theme";

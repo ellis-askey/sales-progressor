@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tag, ChartBar, Percent, House, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch, WarningCircle } from "@phosphor-icons/react";
+import { Tag, ChartBar, Percent, House, Coins, TrendUp, CalendarBlank, PencilSimple, CheckCircle, CircleNotch, WarningCircle } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { RowActionsMenu } from "@/components/account/chrome/RowActionsMenu";
 import { fmtCurrencyPence } from "@/lib/utils";

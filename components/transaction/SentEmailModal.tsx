@@ -8,7 +8,7 @@
 // server-side through the branded shell (flagged `reconstructed`).
 
 import { useState, useEffect } from "react";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { getSentChaseEmailAction, type SentChaseEmail } from "@/app/actions/sent-chase-email";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

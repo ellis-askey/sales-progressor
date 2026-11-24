@@ -26,7 +26,7 @@ import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
 import Link from "next/link";
-import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon, PaperPlaneTilt } from "@/components/icons/ph-ssr";
 
 export const dynamic = "force-dynamic";
 

@@ -19,7 +19,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, CurrencyGbp, UploadSimple, CheckCircle, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowLeft, CurrencyGbp, UploadSimple, CheckCircle, WarningCircle } from "@/components/icons/ph-ssr";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { PriceInput } from "@/components/ui/PriceInput";

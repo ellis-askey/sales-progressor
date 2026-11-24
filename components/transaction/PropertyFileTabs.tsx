@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, createContext, useContext, useCallback, Children } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "@/components/icons/lu";
+import { House, ListChecks, Bell, CheckSquare, Pulse, FileText, PaperPlaneTilt, WhatsappLogo, LinkSimple, ClipboardText } from "@/components/icons/ph-ssr";
+import type { Icon } from "@/components/icons/ph";
 import { TabContext } from "./TabContext";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { CountBadge } from "@/components/ui/CountBadge";

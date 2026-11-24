@@ -21,8 +21,8 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { CaretRight } from "@/components/icons/ph";
+import type { Icon } from "@/components/icons/ph";
 
 export type NavRailItem = {
   href: string;

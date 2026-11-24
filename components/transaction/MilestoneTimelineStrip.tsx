@@ -24,7 +24,7 @@
 // summary read.
 
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight } from "@/components/icons/ph-ssr";
 import { formatDate } from "@/lib/utils";
 import { AnimatedTick } from "@/components/ui/AnimatedTick";
 import type { DisplayStageKey, StageStatus } from "@/lib/milestones/display-stages";

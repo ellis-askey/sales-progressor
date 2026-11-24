@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Gift, CreditCard, Clock, ArrowRight } from "@phosphor-icons/react";
+import { Gift, CreditCard, Clock, ArrowRight } from "@/components/icons/ph";
 import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";

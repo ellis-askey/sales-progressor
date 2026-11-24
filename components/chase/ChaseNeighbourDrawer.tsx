@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@phosphor-icons/react";
+import { X, PaperPlaneTilt, CircleNotch, WarningCircle, ArrowsClockwise, ArrowSquareOut, CaretDown, CaretUp, ChatText, EnvelopeSimple, Sparkle } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { AnchoredPanel } from "@/components/ui/Popover";
 import { titleCaseKeepAcronyms } from "@/lib/utils";

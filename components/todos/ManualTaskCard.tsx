@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CalendarBlank } from "@phosphor-icons/react";
+import { CalendarBlank } from "@/components/icons/ph";
 import { Popover } from "@/components/ui/Popover";
 import Link from "next/link";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";

@@ -11,7 +11,7 @@
 //   error      - inline error + retry.
 
 import { useState, useTransition } from "react";
-import { ShieldCheck, CalendarBlank, WarningCircle, Robot } from "@phosphor-icons/react/dist/ssr";
+import { ShieldCheck, CalendarBlank, WarningCircle, Robot } from "@/components/icons/ph-ssr";
 import { generateTransactionSummaryAction, type SummaryJson } from "@/app/actions/transaction-summary";
 import { GlassCard } from "@/components/glass/GlassCard";
 

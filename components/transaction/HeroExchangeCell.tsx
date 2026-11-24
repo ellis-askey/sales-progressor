@@ -6,7 +6,7 @@
 // other hero stat cells exactly.
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import { CalendarBlank, PencilSimple } from "@phosphor-icons/react";
+import { CalendarBlank, PencilSimple } from "@/components/icons/ph";
 import { saveOverrideDateAction } from "@/app/actions/transactions";
 import { DateField } from "@/components/ui/DateField";
 

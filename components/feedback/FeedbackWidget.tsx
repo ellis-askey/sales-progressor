@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle } from "@/components/icons/lu";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToastCount } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

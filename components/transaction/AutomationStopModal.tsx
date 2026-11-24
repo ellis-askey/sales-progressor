@@ -17,7 +17,7 @@ import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { DateField } from "@/components/ui/DateField";
-import { Pause } from "@phosphor-icons/react";
+import { Pause } from "@/components/icons/ph";
 
 type Choice = "pause" | "hold";
 

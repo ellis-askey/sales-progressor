@@ -5,7 +5,7 @@
 // Pass initialTransactionId to pre-select the sale (e.g. from a file).
 
 import { useState } from "react";
-import { PaperPlaneTilt } from "@phosphor-icons/react";
+import { PaperPlaneTilt } from "@/components/icons/ph";
 import { useIsFounder } from "@/components/layout/FounderGate";
 import { ComposeEmailModal, type ComposeSaleHint } from "@/components/compose/ComposeEmailModal";
 

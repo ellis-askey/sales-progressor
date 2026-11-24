@@ -7,7 +7,7 @@
 // too. Only rendered when there's at least one quote to choose from.
 
 import { useRef, useState } from "react";
-import { CalendarBlank } from "@phosphor-icons/react";
+import { CalendarBlank } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

@@ -23,7 +23,7 @@
 // gradient choice-card for the method selector.
 
 import { useState, useEffect, useCallback } from "react";
-import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft, LinkSimple } from "@phosphor-icons/react";
+import { EnvelopeSimple, GlobeSimple, Clock, Sparkle, ArrowBendUpLeft, LinkSimple } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DomainAuthFlow } from "@/components/verified-emails/DomainAuthFlow";
 import { extractFirstName } from "@/lib/contacts/displayName";

@@ -9,7 +9,7 @@
 //   - Snooze          → hush it for a few days without a fake date (one tap).
 
 import { useState, useTransition } from "react";
-import { CalendarPlus, ArrowsClockwise, Clock } from "@phosphor-icons/react";
+import { CalendarPlus, ArrowsClockwise, Clock } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { recalibrateExchangeDateAction, snoozeExchangeReminderAction } from "@/app/actions/transactions";
 import { RowActionMenu } from "@/components/hub/RowActionMenu";

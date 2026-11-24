@@ -6,7 +6,7 @@
 // canonical (proven in rehearsal item 9b); this banner is convenience.
 
 import { useState } from "react";
-import { ArrowsClockwise } from "@phosphor-icons/react";
+import { ArrowsClockwise } from "@/components/icons/ph";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 import { RelistFileModal } from "./RelistFileModal";
 

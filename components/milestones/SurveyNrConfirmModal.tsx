@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "@phosphor-icons/react";
+import { Info } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";

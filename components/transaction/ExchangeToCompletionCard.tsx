@@ -6,7 +6,7 @@
 // Shown only when the file has exchanged and is still active.
 
 import Link from "next/link";
-import { CalendarCheck, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { CalendarCheck, ArrowRight } from "@/components/icons/ph-ssr";
 
 function fmt(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "to be confirmed";

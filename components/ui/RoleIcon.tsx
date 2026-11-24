@@ -22,7 +22,7 @@
 import {
   UserCircle, User, Briefcase, ChartLineUp,
   type Icon,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 
 export type Role = "vendor" | "purchaser" | "solicitor" | "broker" | "other";
 

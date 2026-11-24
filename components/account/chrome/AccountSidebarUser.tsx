@@ -6,7 +6,7 @@
 // agent shell's user block). Avatar + name + role; clicking opens a small menu
 // above it with Sign out. Light Account register.
 
-import { CaretUp, SignOut } from "@phosphor-icons/react";
+import { CaretUp, SignOut } from "@/components/icons/ph";
 import { signOut } from "next-auth/react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";

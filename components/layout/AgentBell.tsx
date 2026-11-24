@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Bell } from "@phosphor-icons/react";
+import { Bell } from "@/components/icons/ph";
 import { Popover } from "@/components/ui/Popover";
 import { UserAvatar, ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";

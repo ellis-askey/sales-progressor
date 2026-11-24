@@ -10,7 +10,7 @@
 // tick (founder-approved copy) gates linking and is recorded server-side.
 
 import { useCallback, useEffect, useState } from "react";
-import { WhatsappLogo, CheckCircle, Warning } from "@phosphor-icons/react";
+import { WhatsappLogo, CheckCircle, Warning } from "@/components/icons/ph";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 
 type Connection = {

@@ -15,8 +15,8 @@ import { useState, useEffect } from "react";
 import { useTabContext } from "./TabContext";
 import {
   CheckCircle, MinusCircle, NoteBlank, EnvelopeSimple, Phone, ChatCircleText, Circle,
-} from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+} from "@/components/icons/ph";
+import type { Icon } from "@/components/icons/ph";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import { GlassCard } from "@/components/glass/GlassCard";

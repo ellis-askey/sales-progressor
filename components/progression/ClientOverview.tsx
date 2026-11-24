@@ -10,7 +10,7 @@
 // needs a per-client rate-card model and lands in its own build.
 
 import Link from "next/link";
-import { CaretRight, Check, Circle } from "@phosphor-icons/react";
+import { CaretRight, Check, Circle } from "@/components/icons/ph";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { withFrom } from "@/lib/agent/back-nav";
 import { salePill } from "@/lib/progression/sale-pill";

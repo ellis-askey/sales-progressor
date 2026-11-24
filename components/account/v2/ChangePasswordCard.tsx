@@ -7,7 +7,7 @@
 // server-side via changePasswordAction; clears the fields on success.
 
 import { useState } from "react";
-import { Lock } from "@phosphor-icons/react";
+import { Lock } from "@/components/icons/ph";
 import { changePasswordAction } from "@/app/actions/change-password";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";

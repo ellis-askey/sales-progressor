@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { useTabContext } from "@/components/transaction/TabContext";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import * as analytics from "@/lib/analytics/posthog";

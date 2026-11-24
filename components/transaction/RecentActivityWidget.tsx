@@ -27,9 +27,9 @@ import {
   Phone,
   ChatCircleText,
   Circle,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import type { ActivityEntry } from "@/lib/services/comms";
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/components/icons/ph";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 

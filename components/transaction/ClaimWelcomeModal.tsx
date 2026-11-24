@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { CheckCircle, UsersThree, House } from "@phosphor-icons/react";
+import { CheckCircle, UsersThree, House } from "@/components/icons/ph";
 
 export type ChainMember = {
   address: string;

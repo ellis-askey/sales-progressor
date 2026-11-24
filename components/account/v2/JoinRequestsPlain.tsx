@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { approveJoinRequestAction, rejectJoinRequestAction } from "@/app/actions/join-requests";
-import { UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { UserPlus } from "@/components/icons/ph-ssr";
 
 type Req = {
   id: string;

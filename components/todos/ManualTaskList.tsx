@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { ManualTaskCard } from "./ManualTaskCard";
 import { AddManualTaskForm } from "./AddManualTaskForm";
 import { useTabBadge } from "@/components/transaction/TabBadgeContext";

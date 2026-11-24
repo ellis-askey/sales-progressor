@@ -18,7 +18,7 @@ import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction
 import type { SignatureSource } from "@/lib/email/signature-source";
 import { SIGN_OFF_CHOICES, normalizeSignOff } from "@/lib/email/sign-off";
 import { hasGmailHostedSignatureImage } from "@/lib/email/gmail-signature-image";
-import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
+import { PenNib, UploadSimple, Link as LinkIcon, Trash, CheckCircle, PaperPlaneTilt } from "@/components/icons/ph";
 
 export interface SignatureInitial {
   mode: EmailSignatureMode;

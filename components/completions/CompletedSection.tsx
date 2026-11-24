@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@/components/icons/ph";
 import { SectionDisclosure } from "@/components/ui/SectionDisclosure";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";

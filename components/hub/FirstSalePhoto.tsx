@@ -6,7 +6,7 @@
 // via the existing property-photo flow (usePropertyPhoto), which becomes the
 // file's picture.
 
-import { Camera, CircleNotch } from "@phosphor-icons/react";
+import { Camera, CircleNotch } from "@/components/icons/ph";
 import { usePropertyPhoto } from "@/components/transaction/HeroPhotoUpload";
 
 export function FirstSalePhoto({

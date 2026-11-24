@@ -5,7 +5,7 @@
 // catches it and spawns a fresh note. Decoupled on purpose, so the button and the
 // layer don't need a shared provider wrapping the whole file page.
 
-import { Note } from "@phosphor-icons/react/dist/ssr";
+import { Note } from "@/components/icons/ph-ssr";
 import "@/components/sticky/sticky.css";
 
 // Fire the spawn event StickyLayer listens for. Shared so the mobile menu row

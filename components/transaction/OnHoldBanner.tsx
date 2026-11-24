@@ -12,7 +12,7 @@
 // buyer step survives that transition.
 
 import { useState, useTransition } from "react";
-import { Warning } from "@phosphor-icons/react";
+import { Warning } from "@/components/icons/ph";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 import { WithdrawFileModal } from "./WithdrawFileModal";
 import { RelistFileModal } from "./RelistFileModal";

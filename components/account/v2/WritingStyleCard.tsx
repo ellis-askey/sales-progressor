@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PenNib } from "@phosphor-icons/react";
+import { PenNib } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { resetVoiceProfileAction } from "@/app/actions/chase-voice";
 

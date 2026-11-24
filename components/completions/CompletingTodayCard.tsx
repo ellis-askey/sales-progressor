@@ -10,7 +10,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarCheck, CheckCircle, Circle } from "@phosphor-icons/react";
+import { CalendarCheck, CheckCircle, Circle } from "@/components/icons/ph";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { completeFileAction, setKeysReleasedAction } from "@/app/actions/completions";

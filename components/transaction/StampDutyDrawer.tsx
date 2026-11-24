@@ -12,7 +12,7 @@
 // figure. Rendered only when the file has a purchase price.
 
 import { useState } from "react";
-import { Calculator, ArrowRight, CaretDown } from "@phosphor-icons/react";
+import { Calculator, ArrowRight, CaretDown } from "@/components/icons/ph";
 import { Drawer } from "@/components/ui/Drawer";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";

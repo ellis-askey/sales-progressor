@@ -1,5 +1,5 @@
 import { type CSSProperties } from "react";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight } from "@/components/icons/ph-ssr";
 
 // Inline arrow for agent-app "→" links. Replaces the literal "→" glyph (and
 // static <ArrowRight> icons) so the arrow can NUDGE on hover (.agent-arrow-i,

@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { X, Clock } from "@phosphor-icons/react";
+import { X, Clock } from "@/components/icons/ph";
 import type { Tenure, PurchaseType } from "@prisma/client";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {

@@ -7,7 +7,7 @@
 // master switch. Picking a preset, or flipping the switch, sets every toggle in
 // that section at once via onSetAll.
 
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 

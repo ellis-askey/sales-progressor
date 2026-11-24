@@ -9,7 +9,7 @@
 // uses, so preview == send. See docs/active/chase-consolidation/00-spec.md.
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { PencilSimple, Prohibit, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { PencilSimple, Prohibit, ArrowCounterClockwise } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { DictationMic } from "@/components/dictation/DictationMic";
 import { useTextareaDictation } from "@/components/dictation/useDictation";

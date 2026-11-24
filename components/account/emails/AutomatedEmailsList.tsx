@@ -8,7 +8,7 @@
 // "not sending yet" note (its send trigger lands in a follow-up).
 
 import { useState } from "react";
-import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight, EnvelopeOpen } from "@phosphor-icons/react";
+import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight, EnvelopeOpen } from "@/components/icons/ph";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { PortalInviteEditor } from "./PortalInviteEditor";

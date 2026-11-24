@@ -20,7 +20,7 @@ import { examplePreviewKeyDates } from "@/lib/portal/preview-key-dates";
 import { BusinessInviteMode } from "@/components/account/client-portal/BusinessInviteMode";
 import { PreviewPortalLink } from "@/components/account/client-portal/PreviewPortalLink";
 import type { InviteMode } from "@/app/actions/progression-clients";
-import { DeviceMobile, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { DeviceMobile, PaperPlaneTilt } from "@/components/icons/ph-ssr";
 
 export const dynamic = "force-dynamic";
 

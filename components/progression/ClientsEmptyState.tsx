@@ -9,7 +9,7 @@
 // primary2). Panel gradient/glow + lift honour reduced-motion.
 
 import { useState, useRef, useLayoutEffect, useEffect } from "react";
-import { UserPlus, PaperPlaneTilt } from "@phosphor-icons/react";
+import { UserPlus, PaperPlaneTilt } from "@/components/icons/ph";
 import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
 import { useConnectAgencyForm } from "./useConnectAgencyForm";

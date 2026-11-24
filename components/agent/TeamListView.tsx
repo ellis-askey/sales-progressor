@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeSlash, Crown, Trash, UserPlus, EnvelopeSimple, X } from "@phosphor-icons/react";
+import { Eye, EyeSlash, Crown, Trash, UserPlus, EnvelopeSimple, X } from "@/components/icons/ph";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
 

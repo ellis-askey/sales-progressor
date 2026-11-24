@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { Pill } from "@/components/ui/Pill";
 import type { ManualTaskWithRelations } from "@/lib/services/manual-tasks";
 

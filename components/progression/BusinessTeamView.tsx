@@ -13,7 +13,7 @@
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Clock, UserPlus } from "@phosphor-icons/react";
+import { Clock, UserPlus } from "@/components/icons/ph";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";

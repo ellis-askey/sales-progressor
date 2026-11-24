@@ -22,7 +22,7 @@ import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import type { BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { SenderDomainSection } from "@/components/progression/SenderDomainSection";
 import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
-import { ShareNetwork, EnvelopeSimple, Palette, PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { ShareNetwork, EnvelopeSimple, Palette, PaperPlaneTilt } from "@/components/icons/ph-ssr";
 
 export default async function BusinessEmailsPage() {
   if (!progressionBusinessesEnabled()) notFound();

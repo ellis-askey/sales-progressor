@@ -9,7 +9,7 @@
 // is reused as-is.
 
 import { useState } from "react";
-import { CreditCard, Lock, ArrowsClockwise } from "@phosphor-icons/react/dist/ssr";
+import { CreditCard, Lock, ArrowsClockwise } from "@/components/icons/ph-ssr";
 import { CardCaptureForm } from "@/components/billing/CardCaptureForm";
 
 type CardOnFile = {

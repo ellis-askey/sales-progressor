@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle, Circle, CaretDown, X, ListChecks } from "@phosphor-icons/react";
+import { CheckCircle, Circle, CaretDown, X, ListChecks } from "@/components/icons/ph";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

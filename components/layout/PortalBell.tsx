@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell } from "@phosphor-icons/react";
+import { Bell } from "@/components/icons/ph";
 
 export function PortalBell({ userKey }: { userKey: string }) {
   const router = useRouter();

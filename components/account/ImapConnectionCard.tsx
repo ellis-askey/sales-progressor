@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneTilt } from "@phosphor-icons/react";
+import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneTilt } from "@/components/icons/ph";
 import { presetForEmail, type ImapProviderPreset } from "@/lib/integrations/imap/config";
 import { GmailLogo, YahooLogo, ICloudLogo, ZohoLogo, ExpLogo, GenericMailLogo, ProviderLogo } from "./provider-logos";
 

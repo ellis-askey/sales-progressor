@@ -10,7 +10,7 @@
 // content can carry the colour.
 
 import Link from "next/link";
-import { ArrowLeft, FolderOpen } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, FolderOpen } from "@/components/icons/ph-ssr";
 
 export function BillingChromeHeader() {
   return (

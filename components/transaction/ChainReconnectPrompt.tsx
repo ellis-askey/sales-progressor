@@ -8,7 +8,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LinkSimpleBreak } from "@phosphor-icons/react";
+import { LinkSimpleBreak } from "@/components/icons/ph";
 import { clearChainReconnectPendingAction } from "@/app/actions/transactions";
 
 export function ChainReconnectPrompt({ transactionId }: { transactionId: string }) {

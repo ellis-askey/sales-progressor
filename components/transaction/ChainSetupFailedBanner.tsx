@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Warning } from "@phosphor-icons/react";
+import { Warning } from "@/components/icons/ph";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 
 export function ChainSetupFailedBanner() {

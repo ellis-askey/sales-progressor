@@ -9,7 +9,7 @@
 // bracket the dynamic body. All optional; blank everywhere = our default.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Content = { subject: string; intro: string; outro: string };

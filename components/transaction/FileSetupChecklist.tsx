@@ -11,7 +11,7 @@
 // each item is the nudge: the more of this that's done, the smoother the sale.
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { Check, CheckCircle, ArrowRight, CaretDown, Briefcase, User, Scales, LinkSimple, PaperPlaneTilt, Eye, BellSlash, WarningCircle } from "@phosphor-icons/react";
+import { Check, CheckCircle, ArrowRight, CaretDown, Briefcase, User, Scales, LinkSimple, PaperPlaneTilt, Eye, BellSlash, WarningCircle } from "@/components/icons/ph";
 import { Button } from "@/components/ui/Button";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { GlassCard } from "@/components/glass/GlassCard";

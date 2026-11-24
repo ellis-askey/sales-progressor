@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
-import { Devices } from "@phosphor-icons/react";
+import { Devices } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { signOutAllDevicesAction } from "@/app/actions/sessions";
 

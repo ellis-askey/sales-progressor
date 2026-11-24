@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, UserPlus, ArrowClockwise, Clock, Check, CaretDown, ArrowUUpLeft } from "@phosphor-icons/react";
+import { Crown, UserPlus, ArrowClockwise, Clock, Check, CaretDown, ArrowUUpLeft } from "@/components/icons/ph";
 import { Button } from "@/components/ui/Button";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { Modal } from "@/components/ui/Modal";

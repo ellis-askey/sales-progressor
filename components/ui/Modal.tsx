@@ -37,7 +37,7 @@ import type { ReactNode, HTMLAttributes } from "react";
 import { useEffect, useRef, useCallback, useState, createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { classFor, type GlassVariantId } from "@/lib/glass/variants";
 import { glassFooterStyle } from "./Drawer";
 

@@ -9,7 +9,7 @@
 // AccountCard with a master switch + All-on/All-off/Custom preset in the header.
 
 import { useState, useTransition } from "react";
-import { EnvelopeSimple } from "@phosphor-icons/react";
+import { EnvelopeSimple } from "@/components/icons/ph";
 import {
   updateAgentNotificationPrefAction,
   updateRetentionEmailOptOutAction,

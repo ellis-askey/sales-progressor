@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Warning } from "@phosphor-icons/react";
+import { Warning } from "@/components/icons/ph";
 import { useTabContext } from "./TabContext";
 import { AgentBanner } from "@/components/ui/AgentBanner";
 

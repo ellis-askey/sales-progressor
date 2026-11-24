@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Buildings } from "@phosphor-icons/react";
+import { Buildings } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateBusinessIdentityAction } from "@/app/actions/progression-clients";

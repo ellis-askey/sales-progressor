@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "@phosphor-icons/react";
+import { Check } from "@/components/icons/ph";
 import { useAgentTheme, useAgentMobileTheme } from "@/lib/agent/use-theme";
 import { AGENT_THEMES, MOBILE_AGENT_THEMES, type AgentTheme, type MobileAgentTheme } from "@/lib/agent/themes";
 

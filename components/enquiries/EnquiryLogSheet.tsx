@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Phone, EnvelopeSimple, Plus, X } from "@phosphor-icons/react";
+import { Phone, EnvelopeSimple, Plus, X } from "@/components/icons/ph";
 import type { EnquiryCallOutcome } from "@/app/actions/enquiries";
 import type { EnquiryParty } from "@/lib/services/enquiries";
 import { AddSolicitorModal } from "@/components/enquiries/AddSolicitorModal";

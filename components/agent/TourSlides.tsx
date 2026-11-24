@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { X } from "@/components/icons/ph";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type AgencyModeProfile = "self_progressed" | "progressor_managed" | "mixed";

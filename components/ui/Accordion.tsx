@@ -25,7 +25,7 @@
 
 import type { ReactNode, HTMLAttributes } from "react";
 import { useState, useId, useCallback, createContext, useContext } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 
 type AccordionContext = {
   open: boolean;

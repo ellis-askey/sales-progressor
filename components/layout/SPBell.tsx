@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Bell } from "@phosphor-icons/react";
+import { Bell } from "@/components/icons/ph";
 
 // Sales Progressor bell. Polls /api/sp/notifications for the unread count
 // (DB-backed, no localStorage). Clicking the bell POSTs to the same endpoint

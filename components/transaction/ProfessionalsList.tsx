@@ -8,7 +8,7 @@
 // superadmin-only (founder checking pass) — ungated by the parent, not here.
 
 import { useState } from "react";
-import { IdentificationBadge, Phone, EnvelopeSimple, PencilSimple } from "@phosphor-icons/react";
+import { IdentificationBadge, Phone, EnvelopeSimple, PencilSimple } from "@/components/icons/ph";
 import { GlassCard } from "@/components/glass/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { useAgentToast } from "@/components/agent/AgentToaster";

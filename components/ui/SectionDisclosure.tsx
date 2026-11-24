@@ -21,7 +21,7 @@
 // sections' state (and deep-link / default-open logic) in one place.
 
 import { type ReactNode, type KeyboardEvent } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown } from "@/components/icons/ph";
 import { useRevealStagger } from "@/lib/agent/use-reveal-stagger";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { GlassPick } from "@/lib/glass/variants";

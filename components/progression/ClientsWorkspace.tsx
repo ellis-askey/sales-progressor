@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus, LinkSimpleHorizontal, PaperPlaneTilt } from "@phosphor-icons/react";
+import { UserPlus, CaretRight, Clock, Buildings, TrendUp, CurrencyGbp, Handshake, Gear, UsersThree, ArrowCounterClockwise, Plus, LinkSimpleHorizontal, PaperPlaneTilt } from "@/components/icons/ph";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { StatCards, type StatCardSpec } from "@/components/ui/StatCards";
 import { Button } from "@/components/ui/Button";

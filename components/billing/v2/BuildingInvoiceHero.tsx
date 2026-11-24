@@ -23,7 +23,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCountUp } from "@/lib/hooks/useCountUp";
-import { FilePdf, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { FilePdf, ArrowRight } from "@/components/icons/ph-ssr";
 import { Pill } from "@/components/ui/Pill";
 
 type Line = {

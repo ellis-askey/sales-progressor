@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt } from "@phosphor-icons/react";
+import { Receipt } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { updateBusinessVatAction } from "@/app/actions/progression-clients";

@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserSound, PaperPlaneTilt } from "@phosphor-icons/react";
+import { UserSound, PaperPlaneTilt } from "@/components/icons/ph";
 
 type Tab = "style" | "words" | "sender";
 

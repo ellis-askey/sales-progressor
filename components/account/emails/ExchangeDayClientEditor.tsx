@@ -9,7 +9,7 @@
 // Full prose control — their version, or ours.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Variant = "morning" | "authority";

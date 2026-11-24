@@ -9,7 +9,7 @@
 // ClientChaseEditor shape (single variant, base prop for agency vs business).
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Content = { subject: string; headline: string; body: string; note: string; cta: string };

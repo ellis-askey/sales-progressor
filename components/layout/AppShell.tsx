@@ -12,7 +12,7 @@ import {
   SquaresFour, ClipboardText, ListChecks, CalendarCheck, ChartBar,
   FileText, Buildings, ChatTeardropDots, EyeSlash, PlusCircle, House,
   Gauge,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { ChangelogDropdown } from "@/components/layout/ChangelogDropdown";

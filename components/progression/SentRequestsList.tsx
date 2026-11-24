@@ -9,7 +9,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { Clock } from "@phosphor-icons/react";
+import { Clock } from "@/components/icons/ph";
 import { AgencyMeshMark } from "./AgencyMeshMark";
 import { withdrawConnectionRequestAction } from "@/app/actions/progression-clients";
 import type { OutgoingConnectionRequest } from "@/lib/services/progression-clients";

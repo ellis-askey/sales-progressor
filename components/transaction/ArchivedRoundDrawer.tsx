@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { WarningCircle, CurrencyGbp } from "@phosphor-icons/react";
+import { WarningCircle, CurrencyGbp } from "@/components/icons/ph";
 import { formatTimestamp } from "@/lib/utils";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { Drawer } from "@/components/ui/Drawer";

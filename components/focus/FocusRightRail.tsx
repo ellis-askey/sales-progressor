@@ -7,7 +7,7 @@
 // Both scoped to TSP's own book by the page's data feed.
 
 import Link from "next/link";
-import { ArrowRight, MagnifyingGlass, ChatCircleDots } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, ChatCircleDots } from "@/components/icons/ph";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
 import type { FocusEnquiry, FocusSearch } from "@/lib/services/focus";
 

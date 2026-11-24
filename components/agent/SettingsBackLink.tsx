@@ -7,7 +7,7 @@
 // the className passed in, so it drops into the existing back-link CSS unchanged.
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft } from "@/components/icons/ph";
 import { readReturnPath } from "@/lib/agent/return-path";
 
 export function SettingsBackLink({

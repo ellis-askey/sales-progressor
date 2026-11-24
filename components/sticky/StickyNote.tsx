@@ -5,7 +5,7 @@
 // the sandbox can use localStorage and the real feature can hit an API later.
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
-import { X, CaretDown } from "@phosphor-icons/react";
+import { X, CaretDown } from "@/components/icons/ph";
 
 export type StickyColour = "butter" | "coral" | "sage" | "sky" | "lilac" | "slate";
 

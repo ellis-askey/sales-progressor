@@ -8,7 +8,7 @@
 // ours. Same light Account register as the milestone editor.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Content = { subject: string; opening: string; bullets: string[] };

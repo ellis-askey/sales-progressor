@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise } from "@/components/icons/ph";
 
 const TRIGGER = 64; // px pulled (after resistance) to fire a refresh
 const MAX = 96;     // clamp the indicator travel

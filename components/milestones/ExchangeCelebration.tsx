@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Key, Handshake, CalendarBlank, ArrowRight } from "@phosphor-icons/react";
+import { X, Key, Handshake, CalendarBlank, ArrowRight } from "@/components/icons/ph";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 
 type Props = {

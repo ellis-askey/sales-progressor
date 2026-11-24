@@ -20,7 +20,7 @@ import { getDefaultCard } from "@/lib/stripe";
 import { fmtCurrencyPence } from "@/lib/utils";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
-import { Receipt, CreditCard } from "@phosphor-icons/react/dist/ssr";
+import { Receipt, CreditCard } from "@/components/icons/ph-ssr";
 import { BusinessPaymentMethod } from "@/components/progression/BusinessPaymentMethod";
 import { CancelPlanButton } from "@/components/progression/CancelPlanButton";
 import { SettingsNote } from "@/components/ui/SettingsNote";

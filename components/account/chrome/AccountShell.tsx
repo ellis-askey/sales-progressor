@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { List, X } from "@phosphor-icons/react";
+import { List, X } from "@/components/icons/ph";
 import type { UserRole } from "@prisma/client";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { AccountLeftNav } from "./AccountLeftNav";

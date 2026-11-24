@@ -9,7 +9,7 @@
 // carried over from the former BrokerSection unchanged.
 
 import { useState, useRef, useTransition } from "react";
-import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple } from "@phosphor-icons/react";
+import { Phone, ChatCircleText, EnvelopeSimple, PencilSimple } from "@/components/icons/ph";
 import { usePeopleOpenIntent } from "@/lib/transaction/people-open-intent";
 import { BrokerPicker, type BrokerSelection } from "@/components/brokers/BrokerPicker";
 import { saveBrokerReferralAction } from "@/app/actions/transactions";

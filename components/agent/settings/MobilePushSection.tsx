@@ -17,7 +17,7 @@
 // gate the device-push duplicate.
 
 import { useState, useTransition, useEffect } from "react";
-import { DeviceMobile } from "@phosphor-icons/react";
+import { DeviceMobile } from "@/components/icons/ph";
 import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
 import { Pill } from "@/components/ui/Pill";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";

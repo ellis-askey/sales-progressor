@@ -9,7 +9,7 @@
 // closing line. All optional; blank everywhere = our default behaviour.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning, Sparkle } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Warning, Sparkle } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Content = { subject: string; intro: string; toneGuidance: string; closing: string };

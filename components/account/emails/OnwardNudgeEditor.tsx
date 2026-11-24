@@ -9,7 +9,7 @@
 // ours. Mirrors ExchangeDayClientEditor's load / save / reset / preview shape.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@phosphor-icons/react";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 type Direction = "onward" | "related";

@@ -5,7 +5,7 @@
 // the agent taps. Optimistic — hides on tap, returns if the server rejects it.
 
 import { useState, useTransition } from "react";
-import { Phone, Check, X } from "@phosphor-icons/react";
+import { Phone, Check, X } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import {
   applyContactPhoneSuggestionAction,

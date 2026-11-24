@@ -16,7 +16,7 @@
 // Catalog: docs/reference/COMPONENT_LIBRARY_CATALOG.md §1.x.
 
 import type { CSSProperties, ReactNode } from "react";
-import { Info, CheckCircle, Warning, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { Info, CheckCircle, Warning, WarningOctagon } from "@/components/icons/ph-ssr";
 
 export type SettingsNoteTone = "info" | "success" | "warning" | "danger" | "neutral";
 

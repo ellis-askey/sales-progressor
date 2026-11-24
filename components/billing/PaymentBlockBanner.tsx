@@ -14,7 +14,7 @@
 // use AgentBanner directly because its CTA is a navigation Link, not an onClick.
 
 import Link from "next/link";
-import { WarningOctagon, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { WarningOctagon, WarningCircle } from "@/components/icons/ph-ssr";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { getPaymentBlockState } from "@/lib/billing/payment-block";
 
