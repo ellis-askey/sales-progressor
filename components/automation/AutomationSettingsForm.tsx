@@ -18,6 +18,10 @@ import { useState, useRef, useEffect, useLayoutEffect, useTransition } from "rea
 import { updateAgencyChasePolicy, updateBusinessChasePolicy } from "@/app/actions/automation";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 type Side = "vendor" | "purchaser";
 
@@ -272,7 +276,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
       {/* 3 steps */}
       <section>
         <SecHead n={3} title="Fine-tune individual steps" optional
-          right={<button type="button" className="ct-link" onClick={() => {
+          right={<button type="button" className="agent-link" onClick={() => {
             const everyOpen = groups.length > 0 && groups.every((g) => openStages.has(g.stage));
             setOpenStages(everyOpen ? new Set() : new Set(groups.map((g) => g.stage)));
           }}>{groups.length > 0 && groups.every((g) => openStages.has(g.stage)) ? "Collapse all" : "Open all"}</button>} />
@@ -296,7 +300,7 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
               <button type="button" className="ct-stage-head" onClick={() => toggleSet(openStages, key, setOpenStages)}>
                 <svg className="ct-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
                 <span className="ct-stitle">{g.stage}</span>
-                {chg > 0 && <span className="ct-badge">{chg} changed</span>}
+                {chg > 0 && <Badge tone="accent" caps={false}>{chg} changed</Badge>}
                 <span className="ct-smeta">{g.items.length} {g.items.length === 1 ? "step" : "steps"}</span>
               </button>
               <Collapse open={open}>
@@ -360,14 +364,14 @@ export function AutomationSettingsForm({ initialChaseEmailsEnabled, initialRules
       <div className={`ct-savebar${dirty || error ? " show" : ""}`}>
         <div className="ct-savebar-inner">
           <span className="ct-savebar-stat">
-            {error ? <span style={{ color: "#b42318" }}>{error}</span>
+            {error ? <span style={{ color: "var(--agent-danger, #C73E3E)" }}>{error}</span>
               : changedCount > 0 ? <>You&apos;ve <b>{changedCount}</b> {changedCount === 1 ? "step" : "steps"} fine-tuned. </>
               : dirty ? <>Unsaved changes.</>
               : savedAt ? <>Saved at {savedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.</>
               : null}
           </span>
-          <button type="button" className="ct-btn ghost" onClick={() => applyPreset(active)} disabled={isPending}>Reset</button>
-          <button type="button" className="ct-btn primary" onClick={handleSubmit} disabled={isPending || !dirty}>{isPending ? "Saving…" : "Save changes"}</button>
+          <Button variant="secondary" size="sm" onClick={() => applyPreset(active)} disabled={isPending}>Reset</Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit} loading={isPending} disabled={!dirty} style={coralVars}>Save changes</Button>
         </div>
       </div>
     </div>
@@ -554,7 +558,7 @@ function CadenceCalendar({ grace, repeat, esc }: { grace: number; repeat: number
           })}
         </div>
       ))}
-      <p className="ct-cal-note">Sat &amp; Sun hidden — chasing only runs on working days.</p>
+      <p className="ct-cal-note">Sat &amp; Sun hidden. Chasing only runs on working days.</p>
     </div>
   );
 }
@@ -631,9 +635,9 @@ function ChaseEmailPreview({ code, side, active }: { code: string; side: Side; a
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "0 2px 8px" }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-secondary)" }}>What your client gets when we chase them</span>
         {state === "ready" && (
-          <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, color: source === "custom" ? "var(--agent-coral-deep)" : "var(--agent-text-muted)", background: source === "custom" ? "rgba(var(--agent-coral-rgb),0.12)" : "var(--agent-surface-subtle)" }}>
+          <Badge tone={source === "custom" ? "accent" : "neutral"} caps={false}>
             {source === "custom" ? "Your customised copy" : "Our default copy"}
-          </span>
+          </Badge>
         )}
       </div>
       <div style={{ height: 452, borderRadius: 12, overflow: "hidden", border: "1px solid var(--agent-border-subtle)", background: "#f5f5f5", position: "relative" }}>
@@ -707,7 +711,7 @@ function Styles() {
   return (
     <style>{`
     .ct-root{font-variant-numeric:tabular-nums}
-    .ct-summary{display:flex;gap:15px;align-items:flex-start;padding:17px 19px;border-radius:16px;background:linear-gradient(180deg,var(--agent-coral-bg-tint),rgba(255,255,255,.5));border:1px solid var(--agent-border-default)}
+    .ct-summary{display:flex;gap:15px;align-items:flex-start;padding:17px 19px;border-radius:16px;background:var(--agent-surface-elevated,#fff);border:1px solid var(--agent-border-default)}
     .ct-summary-ic{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#fff;border:1px solid var(--agent-border-default);color:var(--agent-coral-deep)}
     .ct-summary-ic svg{width:19px;height:19px}
     .ct-summary p{margin:0;font-size:14.5px;line-height:1.55;color:var(--agent-text-secondary)}
@@ -716,20 +720,10 @@ function Styles() {
     .ct-master{display:flex;align-items:center;gap:18px;padding:19px 22px}
     .ct-master h2{margin:0;font-size:16px;font-weight:680}
     .ct-master p{margin:5px 0 0;font-size:13.5px;line-height:1.5;color:var(--agent-text-secondary);max-width:58ch}
-    .ct-switch{position:relative;flex:none;width:46px;height:26px;border-radius:999px;border:none;cursor:pointer;background:rgba(45,24,16,.18);transition:background .18s}
-    .ct-switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .18s}
-    .ct-switch.on{background:var(--agent-coral-deep)}
-    .ct-switch.on::after{transform:translateX(20px)}
-    .ct-switch.sm{width:40px;height:23px}
-    .ct-switch.sm::after{width:17px;height:17px}
-    .ct-switch.sm.on::after{transform:translateX(17px)}
-    .ct-switch:focus-visible{outline:2px solid var(--agent-coral-deep);outline-offset:2px}
     .ct-sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 15px}
     .ct-eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--agent-text-muted);display:flex;align-items:center;gap:9px}
     .ct-num{width:19px;height:19px;border-radius:999px;background:#fff;border:1px solid var(--agent-border-default);display:grid;place-items:center;font-size:11px;color:var(--agent-text-secondary)}
     .ct-opt{font-weight:500;text-transform:none;letter-spacing:0;color:var(--agent-text-muted);margin-left:2px}
-    .ct-link{appearance:none;background:none;border:none;font:inherit;font-size:13.5px;font-weight:650;color:var(--agent-coral-deep);cursor:pointer;padding:5px 3px;border-radius:7px}
-    .ct-link:hover{text-decoration:underline;text-underline-offset:3px}
     .ct-profiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
     .ct-pcard{text-align:left;cursor:pointer;background:#fff;border:1.5px solid var(--agent-border-default);border-radius:16px;padding:18px 18px;box-shadow:0 1px 2px rgba(60,40,22,.04);transition:transform .18s,box-shadow .18s,border-color .18s}
     .ct-pcard:hover{transform:translateY(-3px);box-shadow:0 10px 26px -16px rgba(60,40,22,.3);border-color:var(--agent-coral-pale)}
@@ -826,12 +820,6 @@ function Styles() {
     .ct-savebar-inner{padding:13px 18px;display:flex;align-items:center;gap:14px}
     .ct-savebar-stat{font-size:14px;color:var(--agent-text-secondary);flex:1}
     .ct-savebar-stat b{color:var(--agent-text-primary);font-weight:680}
-    .ct-btn{appearance:none;font:inherit;font-weight:650;font-size:14.5px;border-radius:12px;cursor:pointer;padding:11px 22px;transition:.15s;border:1.5px solid transparent}
-    .ct-btn:disabled{opacity:.5;cursor:not-allowed}
-    .ct-btn.ghost{background:none;border-color:var(--agent-border-default);color:var(--agent-text-secondary)}
-    .ct-btn.ghost:hover:not(:disabled){color:var(--agent-text-primary);border-color:var(--agent-text-muted)}
-    .ct-btn.primary{background:var(--agent-coral-deep);color:#fff;box-shadow:0 7px 18px -7px rgba(255,107,74,.6)}
-    .ct-btn.primary:hover:not(:disabled){background:var(--agent-coral-darker);transform:translateY(-1px)}
     /* ── dated cadence preview: view switch + crossfade + calendar ── */
     .ct-cadence-wrap{position:relative}
     .ct-cadence-head{display:flex;justify-content:flex-end;margin:0 0 6px}

@@ -16,7 +16,10 @@ import { useRouter } from "next/navigation";
 import { Gauge } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { InfoTip } from "@/components/ui/InfoTip";
+import { Button } from "@/components/arc/button/button";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 import { saveAgentChasePrefsAction } from "@/app/actions/automation";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import type { ProgressorChasePrefs } from "@/lib/services/progressor-chase-prefs";
@@ -25,7 +28,7 @@ type Key = keyof ProgressorChasePrefs;
 
 const CHASES: Array<{ key: Key; title: string; desc: string; info: string }> = [
   { key: "client",    title: "Client chases",         desc: "Remind buyers and sellers to confirm outstanding steps through their portal.",
-    info: "Automatically remind buyers and sellers about outstanding steps through their portal. If they don't respond after the scheduled follow-ups, you'll be alerted to take over." },
+    info: "We'll remind buyers and sellers about outstanding steps through their portal. If they don't respond after the scheduled follow-ups, you'll be alerted to take over." },
   { key: "solicitor", title: "Solicitor chases",      desc: "Follow up with solicitors to confirm the steps they're responsible for.",
     info: "Follow up with solicitors on outstanding legal milestones, including contract packs, searches and replies. Chases stop once the relevant step is confirmed." },
   { key: "enquiries", title: "Enquiry chases",        desc: "Chase solicitors to raise enquiries and provide replies. You'll still be alerted if enquiries stall, even with this switched off.",
@@ -33,7 +36,7 @@ const CHASES: Array<{ key: Key; title: string; desc: string; info: string }> = [
   { key: "weekly",    title: "Weekly client updates", desc: "Send buyers and sellers a short weekly update on their sale's progress.",
     info: "Keep buyers and sellers informed during quieter weeks with a short progress update, without sending unnecessary emails when there's already been activity." },
   { key: "chain",     title: "Chain updates",         desc: "Keep connected agents informed when something changes on a linked sale.",
-    info: "Automatically notify connected agents when important dates or statuses change on linked sales, keeping everyone informed as the chain progresses." },
+    info: "We'll notify connected agents when important dates or statuses change on linked sales, keeping everyone informed as the chain progresses." },
 ];
 
 export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) {
@@ -64,15 +67,9 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
   );
 
   const saveButton = (cls: string) => (
-    <button
-      type="button"
-      onClick={handleSave}
-      disabled={saving || !dirty}
-      className={`account-btn-primary ${cls}`}
-      style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: saving || !dirty ? "default" : "pointer" }}
-    >
-      {saving ? "Saving…" : "Save changes"}
-    </button>
+    <Button variant="primary" size="sm" className={cls} onClick={handleSave} disabled={!dirty} loading={saving} style={coralVars}>
+      Save changes
+    </Button>
   );
 
   return (
@@ -105,13 +102,9 @@ export function AgencyChaseGrid({ initial }: { initial: ProgressorChasePrefs }) 
         .acg-row { display: flex; gap: 14px; align-items: flex-start; padding: 15px; background: #fff; border-top: 1px solid rgba(0,0,0,0.07); }
         .acg-row:first-child { border-top: 0; }
         .acg-tx { flex: 1; min-width: 0; }
-        .acg-t { display: block; font-size: 13.8px; font-weight: 700; color: #111827; letter-spacing: -0.2px; }
-        .acg-d { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: #6b7280; }
-        .acg-note { margin: 12px 2px 0; font-size: 12px; line-height: 1.5; color: #9ca3af; }
-        .acg-switch { position: relative; height: 24px; width: 42px; border-radius: 999px; border: 0; padding: 0; flex-shrink: 0; margin-top: 1px; background: rgba(0,0,0,0.18); cursor: pointer; transition: background 140ms ease; }
-        .acg-switch.on { background: #FF6B4A; }
-        .acg-knob { position: absolute; top: 2px; left: 2px; height: 20px; width: 20px; border-radius: 999px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.22); transition: transform 150ms cubic-bezier(0.34,1.3,0.64,1); }
-        .acg-switch.on .acg-knob { transform: translateX(18px); }
+        .acg-t { display: block; font-size: 13.8px; font-weight: 700; color: var(--agent-text-primary); letter-spacing: -0.2px; }
+        .acg-d { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--agent-text-muted); }
+        .acg-note { margin: 12px 2px 0; font-size: 12px; line-height: 1.5; color: var(--agent-text-tertiary); }
         .acg-save-mobile { display: none; }
         @media (max-width: 640px) {
           .acg-save-desktop { display: none !important; }
