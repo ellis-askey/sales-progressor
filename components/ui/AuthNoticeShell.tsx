@@ -1,0 +1,69 @@
+import type { ReactNode } from "react";
+import { BrandMark } from "@/components/brand/BrandMark";
+
+// Shared shell for the standalone, token-authed notice pages (feedback survey,
+// chases-paused, unsubscribe) — the canonical sign-in look: the sunlit interior
+// photo + white veil from /login, the TSP lockup top-right (links out to the
+// marketing site), and a centred white card. Server component (no client state),
+// so it can wrap server-rendered notice pages directly.
+export function AuthNoticeShell({
+  children,
+  maxWidth = 460,
+}: {
+  children: ReactNode;
+  maxWidth?: number;
+}) {
+  return (
+    <div style={{ position: "relative", minHeight: "100vh" }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        .auth-enter { animation: auth-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes auth-bg-fade { from { opacity: 0; } to { opacity: 1; } }
+        .auth-bg-enter { animation: auth-bg-fade 820ms ease both; }
+        .auth-bg-img { background-image: url(/auth-bg-desktop.png); }
+        @media (max-width: 1024px) { .auth-bg-img { background-image: url(/auth-bg-tablet.png); } }
+        @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
+        @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
+      ` }} />
+
+      <div aria-hidden className="auth-bg-enter auth-bg-img" style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 0,
+        backgroundColor: "#ffffff", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
+      }} />
+      <div aria-hidden style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: "100vh", zIndex: 1,
+        background: "radial-gradient(60% 55% at 50% 48%, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.20) 55%, rgba(255,255,255,0) 100%)",
+      }} />
+
+      {/* Canonical TSP lockup, top-right, links out to the marketing site. */}
+      <header style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "flex-end", padding: "18px 24px" }}>
+        <a
+          href="https://www.thesalesprogressor.co.uk"
+          target="_blank"
+          rel="noopener"
+          aria-label="The Sales Progressor"
+          style={{ display: "inline-flex", alignItems: "center", gap: "10px", textDecoration: "none" }}
+        >
+          <BrandMark size={34} />
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1 }}>
+            <span style={{ fontSize: "18px", fontWeight: 800, color: "#FF6B4A", letterSpacing: "0.02em" }}>TSP</span>
+            <span style={{ fontSize: "9px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
+          </span>
+        </a>
+      </header>
+
+      <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem 1rem 3rem", minHeight: "calc(100vh - 76px)" }}>
+        <div className="auth-enter" style={{ width: "100%", maxWidth }}>
+          <div style={{
+            background: "#ffffff", borderRadius: 18,
+            border: "1px solid rgba(23,23,30,0.06)",
+            boxShadow: "0 18px 50px rgba(30,20,15,0.10), 0 4px 14px rgba(30,20,15,0.05)",
+            padding: "1.75rem",
+          }}>
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

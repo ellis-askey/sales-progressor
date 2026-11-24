@@ -170,8 +170,11 @@ export default withAuth(
       return NextResponse.redirect(new URL(`/agent/transactions/${id}`, req.url));
     }
 
-    // Agent users can only access the agent area, APIs, and portal â€” nowhere else
-    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/a/", "/quote", "/claim", "/invite", "/invite-negotiator", "/outsource", "/help", "/helpdrawertest", "/drawertest", "/bgtest"];
+    // Agent users can only access the agent area, APIs, and portal â€” nowhere else.
+    // The client-facing email-link pages (chases-paused / unsubscribed / feedback)
+    // are public + token-gated in-page; included here so a signed-in agent opening
+    // one (e.g. to preview it) isn't bounced to the hub.
+    const agentAllowed = ["/agent", "/api", "/portal", "/s/", "/a/", "/quote", "/claim", "/invite", "/invite-negotiator", "/outsource", "/help", "/helpdrawertest", "/drawertest", "/bgtest", "/chases-paused", "/unsubscribed", "/feedback"];
     if (isAgentUser && !agentAllowed.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/agent/hub", req.url));
     }
@@ -200,6 +203,12 @@ export default withAuth(
         if (pathname.startsWith("/outsource")) return true;
         if (pathname.startsWith("/invite")) return true;
         if (pathname.startsWith("/invite-negotiator")) return true;
+        // Client-facing email-link pages — reached logged-out from an email, each
+        // token/param-gated in-page (same model as /quote). Without these, a client
+        // clicking "pause reminders" / "unsubscribe" / a survey link hits the login wall.
+        if (pathname.startsWith("/chases-paused")) return true;
+        if (pathname.startsWith("/unsubscribed")) return true;
+        if (pathname.startsWith("/feedback")) return true;
         // Cron routes authenticate by CRON_SECRET bearer inside each handler.
         // Validate it fail-CLOSED here too (audit AUTO-003): the per-route checks
         // compare `authorization !== "Bearer " + CRON_SECRET`, which would ACCEPT

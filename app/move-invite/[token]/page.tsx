@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { moveInvitesEnabled } from "@/lib/auth/move-invites";
 import { MoveInviteClient } from "./MoveInviteClient";
 import { PageTitle } from "@/components/ui/PageTitle";
-import { buttonClasses } from "@/components/arc/button/button";
 
 // Self-contained confirm page for invite-to-move. Deliberately NOT wired into the
 // public negotiator-invite landing (which only supports OAuth / set-a-password
@@ -14,21 +13,24 @@ import { buttonClasses } from "@/components/arc/button/button";
 
 // Canonical warm card shell — matches the sign-in family + MoveInviteClient.
 const CORAL = "#FF6B4A";
-const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 const shell = {
   wrap: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", background: "#F6F1EC" } as const,
   card: { width: "100%", maxWidth: 440, background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", boxShadow: "0 18px 50px rgba(45,24,16,0.10), 0 4px 14px rgba(45,24,16,0.05)", border: "1px solid rgba(23,23,30,0.06)", textAlign: "center" } as const,
   p: { margin: "10px 0 20px", fontSize: 14, lineHeight: 1.6, color: "rgba(45,24,16,0.60)" } as const,
+  // Flat coral primary (arc Button resting look). Inline + scoped hover so this
+  // stays a server component — buttonClasses can't be called server-side.
+  cta: { display: "block", width: "100%", boxSizing: "border-box", textAlign: "center", padding: "13px", borderRadius: 10, background: CORAL, color: "#fff", fontSize: 15, fontWeight: 600, textDecoration: "none", transition: "background 0.12s ease" } as const,
 };
 
 function Card({ title, body, cta }: { title: string; body: string; cta?: { href: string; label: string } }) {
   return (
     <div style={shell.wrap}>
+      <style dangerouslySetInnerHTML={{ __html: `.mi-cta:hover{background:#E85A35}` }} />
       <div style={shell.card}>
         <PageTitle title={title} style={{ marginBottom: 10 }} />
         <p style={shell.p}>{body}</p>
         {cta && (
-          <a href={cta.href} className={buttonClasses({ variant: "primary", size: "lg" })} style={{ ...coralVars, width: "100%", textDecoration: "none" }}>
+          <a href={cta.href} className="mi-cta" style={shell.cta}>
             {cta.label}
           </a>
         )}

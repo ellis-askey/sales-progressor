@@ -26,6 +26,8 @@ import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { MessageEditor, type MessageAttachment, type SigStyle } from "@/components/compose/MessageEditor";
 import { TrustStrip } from "@/components/ui/TrustStrip";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { StarRating } from "@/components/ui/StarRating";
 import type { SignatureStyleOption } from "@/lib/email/signature-options";
 // Real hub dataviz + stat canonicals — rendered live below (not reproduced inline),
 // so a gallery specimen can never drift from the shipped component.
@@ -166,6 +168,35 @@ function CheckCardGroupDemo() {
           { value: "harbor", label: "Harbor & Co Surveyors", description: "RICS HomeBuyer and building surveys.", leading: avatar("H") },
         ]}
       />
+    </div>
+  );
+}
+
+function ChoiceCardsDemo() {
+  const [sel, setSel] = useState("freehold");
+  const Card = ({ id, label, icon }: { id: string; label: string; icon: ReactNode }) => {
+    const on = sel === id;
+    return (
+      <button type="button" onClick={() => setSel(id)} aria-pressed={on} style={{
+        position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+        padding: "12px 10px", borderRadius: 14, border: `1.5px solid ${on ? "transparent" : "rgba(26,29,41,0.14)"}`,
+        background: on ? CORAL : "#fff", cursor: "pointer", color: on ? "#fff" : "#20242e", font: "inherit",
+        boxShadow: on ? "none" : "0 1px 2px rgba(26,29,41,0.04)",
+      }}>
+        {on && (
+          <span style={{ position: "absolute", top: 8, right: 8, width: 18, height: 18, borderRadius: 9, background: "#fff", color: "#E85A35", display: "grid", placeItems: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }}>
+            <svg width={11} height={11} viewBox="0 0 20 20" fill="none"><path d="m4 10.5 3.5 3.5L16 6" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+        )}
+        {icon}
+        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{label}</span>
+      </button>
+    );
+  };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, width: "100%" }}>
+      <Card id="freehold" label="Freehold" icon={<House size={22} weight="regular" />} />
+      <Card id="leasehold" label="Leasehold" icon={<NotePencil size={22} weight="regular" />} />
     </div>
   );
 }
@@ -413,20 +444,23 @@ const LOGIN_ENTRIES: ComponentEntry[] = [
   },
   {
     id: "type-auth",
-    name: "Auth page type",
+    name: "Page title (coral accent stop)",
     category: "typography",
-    status: "approved",
-    summary: "The page title (“Welcome back.”) — aligned to the scale (28px / semibold / warm #2D1810) — with its coral accent stop over the muted subtitle.",
-    sources: [{ path: "app/login/page.tsx", note: "h1 + subtitle" }],
+    status: "implemented",
+    keywords: ["heading", "title", "h1", "welcome back", "coral stop", "full stop", "subtitle", "auth"],
+    summary: "The canonical page heading (“Welcome back.”) — 28px / semibold / warm #2D1810 — with its coral accent stop over the muted subtitle. Now a reusable component (PageTitle): a trailing full stop renders coral, titles without one get no accent, and it inherits its parent's alignment.",
+    sources: [
+      { path: "components/ui/PageTitle.tsx", note: "the canonical component" },
+      { path: "app/login/page.tsx", note: "the h1 + subtitle this was taken from (still inline; migrates to PageTitle on sign-off)" },
+      { path: "components/claim/ClaimSignupForm.tsx", note: "first adopter" },
+    ],
     exceptions: [
-      { title: "Coral accent stop", detail: "The full stop in “Welcome back.” is coral (#FF6B4A) — a brand accent, not a period colour.", scope: "specific" },
+      { title: "Coral accent stop", detail: "A trailing full stop in the title is coral (#FF6B4A) — a brand accent, not a period colour. Titles without a stop (e.g. “Create your account”) get none.", source: "components/ui/PageTitle.tsx", scope: "shared" },
+      { title: "Auth pages still inline", detail: "Login / register / forgot / reset still hand-write this heading; repointing them at PageTitle is a follow-up pending sign-off (they're already signed off).", scope: "shared" },
     ],
     render: () => (
       <Stage>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
-          Welcome back<span style={{ color: CORAL }}>.</span>
-        </h1>
-        <p style={{ margin: "0.45rem 0 0", fontSize: 13, color: "rgba(45,24,16,0.55)" }}>Sign in to Sales Progressor</p>
+        <PageTitle title="Welcome back." subtitle="Sign in to Sales Progressor" />
       </Stage>
     ),
   },
@@ -2632,9 +2666,51 @@ const CHOICE_ENTRIES: ComponentEntry[] = [
     ],
     render: () => <Stage wide><CheckCardGroupDemo /></Stage>,
   },
+  {
+    id: "choice-cards",
+    name: "Choice cards (icon)",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["choice", "card", "radio", "tenure", "purchase", "icon", "select", "grid", "tick", "sale type"],
+    summary: "Elevated icon cards in a grid for a single-select choice (tenure, purchase type). A chosen card is a flat solid coral with a white tick in a corner circle and a white icon + label; unselected cards hover-lift to a coral border. The claim flow's sale-type selectors, shared across confirm / login / signup.",
+    variants: [
+      { id: "tenure", label: "Tenure (2-up)", render: () => <Stage wide><ChoiceCardsDemo /></Stage> },
+    ],
+    sources: [
+      { path: "components/claim/ClaimSaleTypeFields.tsx", note: "the live component (tenure + purchase)" },
+      { path: "app/claim/styles/claim-flow.css", note: ".claim-choice-card (flat solid-coral when selected)" },
+    ],
+    exceptions: [
+      { title: "Flat solid selected (not gradient)", detail: "The chosen card is a flat solid coral (was a glossy gradient); the corner tick circle stays white with a coral tick. Layout and hover-lift are unchanged.", source: "app/claim/styles/claim-flow.css", scope: "shared" },
+      { title: "Distinct from arc radio-cards", detail: "arc radio-cards is the generic selectable-card canonical; this keeps the claim flow's exact icon-top / tick-corner layout, so it's registered as its own pattern rather than force-migrated.", source: "components/arc/radio-cards/radio-cards.tsx", scope: "specific" },
+    ],
+    render: () => <Stage wide><ChoiceCardsDemo /></Stage>,
+  },
 ];
 
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES, ...TRUST_ENTRIES, ...CHOICE_ENTRIES];
+function StarDemo() {
+  const [v, setV] = useState<number | null>(4);
+  return <StarRating value={v} onChange={setV} size={44} ariaLabel="Example rating" />;
+}
+
+const STAR_ENTRIES: ComponentEntry[] = [
+  {
+    id: "star-rating",
+    name: "Star rating",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["star", "stars", "rating", "rate", "review", "feedback", "survey", "score", "five star"],
+    summary:
+      "A row of pressable stars that fill up to the hovered or selected value. Light surface, coral fill. No hover text label (the count is self-explanatory, and a label that shows / hides reflows the card). Keyboard + screen-reader friendly (a radiogroup of star buttons).",
+    sources: [
+      { path: "components/ui/StarRating.tsx", note: "the canonical component" },
+      { path: "components/feedback/SurveyForm.tsx", note: "the completion-survey rating" },
+    ],
+    render: () => <Stage><StarDemo /></Stage>,
+  },
+];
+
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES, ...TRUST_ENTRIES, ...CHOICE_ENTRIES, ...STAR_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);
