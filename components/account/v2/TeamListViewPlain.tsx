@@ -11,6 +11,8 @@
 import { Crown, EnvelopeSimple, CaretDown } from "@phosphor-icons/react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { RowActionsMenu, type RowAction } from "@/components/account/chrome/RowActionsMenu";
+import { Badge } from "@/components/ui/Badge";
+import { TeamMemberRow } from "@/components/account/v2/TeamMemberRow";
 
 export type TeamMember = {
   id: string;
@@ -56,37 +58,6 @@ function daysUntil(isoDate: string): number {
   return Math.ceil((new Date(isoDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-const ROW_STYLE: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  padding: "13px 2px",
-  borderBottom: "0.5px solid rgba(0,0,0,0.06)",
-};
-
-function Badge({ label, tone }: { label: string; tone: "director" | "neutral" }) {
-  const styles =
-    tone === "director"
-      ? { background: "#fef3c7", color: "#92400e" }
-      : { background: "#f3f4f6", color: "#6b7280" };
-  return (
-    <span
-      style={{
-        flexShrink: 0,
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-        padding: "3px 8px",
-        borderRadius: 5,
-        ...styles,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
 function FileAccessSelect({ member, onToggle, saving }: { member: TeamMember; onToggle?: (m: TeamMember) => void; saving?: boolean }) {
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
@@ -102,7 +73,7 @@ function FileAccessSelect({ member, onToggle, saving }: { member: TeamMember; on
           padding: "6px 28px 6px 11px",
           fontSize: 12.5,
           fontWeight: 500,
-          color: "#374151",
+          color: "var(--agent-text-secondary)",
           background: "#fff",
           border: "0.5px solid rgba(0,0,0,0.16)",
           borderRadius: 8,
@@ -117,7 +88,7 @@ function FileAccessSelect({ member, onToggle, saving }: { member: TeamMember; on
       <CaretDown
         size={11}
         weight="bold"
-        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", pointerEvents: "none" }}
+        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--agent-text-tertiary)", pointerEvents: "none" }}
       />
     </div>
   );
@@ -146,38 +117,30 @@ export function TeamListViewPlain({
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {directors.map((m) => (
-        <div key={m.id} style={ROW_STYLE}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-            }}
-          >
-            <Crown style={{ width: 16, height: 16, color: "#fff" }} weight="fill" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {m.name}
-            </p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {memberDetail(m)}
-            </p>
-          </div>
-          <Badge label="Director" tone="director" />
-        </div>
+        <TeamMemberRow
+          key={m.id}
+          leading={
+            <div
+              style={{
+                width: 34, height: 34, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+              }}
+            >
+              <Crown style={{ width: 16, height: 16, color: "#fff" }} weight="fill" />
+            </div>
+          }
+          name={m.name}
+          sub={memberDetail(m)}
+          trailing={<Badge tone="amber">Director</Badge>}
+        />
       ))}
 
       {negotiators.length === 0 && pendingInvitations.length === 0 && (
         <div style={{ padding: "22px 4px", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>No negotiators yet.</p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)" }}>No negotiators yet.</p>
           {!readOnly && (
-            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "var(--agent-text-tertiary)" }}>
               Add a team member to give them access to Sales Progressor.
             </p>
           )}
@@ -191,20 +154,19 @@ export function TeamListViewPlain({
           actions.push({ label: "Remove from team", onClick: () => onRemove(m.id, m.name), danger: true });
         }
         return (
-          <div key={m.id} style={ROW_STYLE}>
-            <UserAvatar user={{ name: m.name, image: m.image ?? null, imageFocusX: m.imageFocusX ?? undefined, imageFocusY: m.imageFocusY ?? undefined }} size={34} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {m.name}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {m.email}
-              </p>
-            </div>
-            <Badge label="Negotiator" tone="neutral" />
-            {!readOnly && <FileAccessSelect member={m} onToggle={onToggleViewAll} saving={savingAccessId === m.id} />}
-            {!readOnly && <RowActionsMenu items={actions} />}
-          </div>
+          <TeamMemberRow
+            key={m.id}
+            leading={<UserAvatar user={{ name: m.name, image: m.image ?? null, imageFocusX: m.imageFocusX ?? undefined, imageFocusY: m.imageFocusY ?? undefined }} size={34} />}
+            name={m.name}
+            sub={m.email}
+            trailing={
+              <>
+                <Badge tone="neutral">Negotiator</Badge>
+                {!readOnly && <FileAccessSelect member={m} onToggle={onToggleViewAll} saving={savingAccessId === m.id} />}
+                {!readOnly && <RowActionsMenu items={actions} />}
+              </>
+            }
+          />
         );
       })}
 
@@ -215,38 +177,38 @@ export function TeamListViewPlain({
         if (onCancelInvitation) actions.push({ label: "Cancel invitation", onClick: () => onCancelInvitation(inv.id, inv.name, inv.role), danger: true });
         const roleLabel = inv.role === "director" ? "Director" : "Negotiator";
         return (
-          <div key={inv.id} style={ROW_STYLE}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                background: "#f3f4f6",
-              }}
-            >
-              <EnvelopeSimple style={{ width: 16, height: 16, color: "#9ca3af" }} weight="regular" />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {inv.name}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <TeamMemberRow
+            key={inv.id}
+            leading={
+              <div
+                style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  background: "#f3f4f6",
+                }}
+              >
+                <EnvelopeSimple style={{ width: 16, height: 16, color: "var(--agent-text-tertiary)" }} weight="regular" />
+              </div>
+            }
+            name={inv.name}
+            sub={
+              <>
                 {inv.email}
                 {" · "}
                 <span>Invited as {roleLabel.toLowerCase()}</span>
                 {" · "}
-                <span style={{ color: days <= 0 ? "#dc2626" : "#9ca3af" }}>
+                <span style={{ color: days <= 0 ? "#dc2626" : "var(--agent-text-tertiary)" }}>
                   {days <= 0 ? "Expired" : `Expires in ${days}d`}
                 </span>
-              </p>
-            </div>
-            <Badge label={roleLabel} tone={inv.role === "director" ? "director" : "neutral"} />
-            <RowActionsMenu items={actions} />
-          </div>
+              </>
+            }
+            trailing={
+              <>
+                <Badge tone={inv.role === "director" ? "amber" : "neutral"}>{roleLabel}</Badge>
+                <RowActionsMenu items={actions} />
+              </>
+            }
+          />
         );
       })}
     </div>

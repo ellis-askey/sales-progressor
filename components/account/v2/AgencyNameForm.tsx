@@ -19,7 +19,12 @@ import { updateAgencyNameAction } from "@/app/actions/agency";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 const CORAL_DEEP = "#E2452A";
 const CORAL_TINT = "#FFF1EC";
 
@@ -124,22 +129,10 @@ export function AgencyNameForm({
     }
   }
 
-  const fieldStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: 13.5,
-    color: "#111827",
-    background: "#fff",
-    border: "0.5px solid rgba(0,0,0,0.16)",
-    borderRadius: 8,
-    outline: "none",
-    transition: "border-color 120ms, box-shadow 120ms",
-  };
-
   const labelStyle: React.CSSProperties = {
     display: "block",
     fontSize: 10,
-    color: "#6b7280",
+    color: "var(--agent-text-muted)",
     textTransform: "uppercase",
     letterSpacing: 0.7,
     fontWeight: 500,
@@ -153,15 +146,17 @@ export function AgencyNameForm({
         title="Agency details"
         subtitle="The name and logo shown across Sales Progressor and in client communications."
         headerAction={
-          <button
+          <Button
             type="button"
-            onClick={handleSave}
+            variant="primary"
+            size="sm"
+            loading={saving}
             disabled={saving || !dirty || !valid}
-            className="account-btn-primary"
-            style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: saving || !dirty || !valid ? "default" : "pointer" }}
+            onClick={handleSave}
+            style={coralVars}
           >
-            {saving ? "Saving…" : "Save changes"}
-          </button>
+            Save changes
+          </Button>
         }
       >
         {/* Logo — shown as the brand band clients see at the top of emails. */}
@@ -213,39 +208,35 @@ export function AgencyNameForm({
               </span>
             </>
           ) : (
-            <span style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, color: "#6b7280" }}>
+            <span style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, color: "var(--agent-text-muted)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "50%", background: CORAL_TINT, color: CORAL_DEEP, marginBottom: 2 }}>
                 <ImageSquare size={16} weight="bold" />
               </span>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: "#111827" }}>Add your logo</span>
-              <span style={{ fontSize: 11, color: "#9ca3af" }}>Shown at the top of every client email</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>Add your logo</span>
+              <span style={{ fontSize: 11, color: "var(--agent-text-tertiary)" }}>Shown at the top of every client email</span>
             </span>
           )}
         </button>
         <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" onChange={onFile} style={{ display: "none" }} />
         {shownLogo && !busy && (
           <div style={{ marginTop: 8 }}>
-            <button type="button" onClick={handleRemove} style={{ background: "none", border: "none", padding: 0, fontSize: 11.5, fontWeight: 600, color: "#9ca3af", cursor: "pointer", letterSpacing: 0.2 }}>
+            <button type="button" onClick={handleRemove} style={{ background: "none", border: "none", padding: 0, fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-tertiary)", cursor: "pointer", letterSpacing: 0.2 }}>
               Remove
             </button>
           </div>
         )}
 
         {/* Name */}
-        <div style={{ marginTop: 16 }}>
-          <label style={labelStyle}>Agency name</label>
-          <input
-            type="text"
+        <div style={{ marginTop: 16, "--lbi-top": "0px" } as React.CSSProperties}>
+          <LabelInput
+            label="Agency name" type="text" accent={CORAL} fullWidth
+            autoComplete="organization"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
-            placeholder="e.g. Hartwell & Partners"
-            autoComplete="organization"
-            className="account-input"
-            style={fieldStyle}
           />
         </div>
-        {error && <p style={{ fontSize: 12.5, color: "#dc2626", margin: "10px 0 0" }}>{error}</p>}
+        {error && <div style={{ marginTop: 10 }}><InlineAlert kind="danger">{error}</InlineAlert></div>}
       </AccountCard>
       <style>{`
         .agency-details-reflow { container-type: inline-size; }

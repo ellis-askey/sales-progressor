@@ -33,6 +33,12 @@ import {
   cancelDirectorInvitation,
 } from "@/app/actions/invite-director";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 type TeamMember = {
   id: string;
@@ -213,11 +219,12 @@ export function TeamManagementPlain({
   const negotiators = team.filter((m) => m.role === "negotiator");
   const directors = team.filter((m) => m.role === "director");
 
+  // Used by the role <select> (LabelInput can't replace a select).
   const fieldStyle: React.CSSProperties = {
     width: "100%",
     padding: "9px 12px",
     fontSize: 13,
-    color: "#111827",
+    color: "var(--agent-text-primary)",
     background: "#fff",
     border: "0.5px solid rgba(0,0,0,0.18)",
     borderRadius: 8,
@@ -263,7 +270,7 @@ export function TeamManagementPlain({
 
       {removed.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <p style={{ margin: "0 0 6px", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#9ca3af" }}>
+          <p style={{ margin: "0 0 6px", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-text-tertiary)" }}>
             Removed
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -272,31 +279,26 @@ export function TeamManagementPlain({
                 key={r.id}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-                  padding: "10px 14px", background: "#fafafa",
+                  padding: "10px 14px", background: "var(--agent-surface-subtle, #fafafa)",
                   border: "0.5px solid rgba(0,0,0,0.08)", borderRadius: 10,
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#6b7280" }}>{r.name}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-muted)" }}>{r.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {r.email} · can no longer sign in
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => reinstateMember(r.id, r.name)}
                   disabled={reinstatingId === r.id}
-                  className="account-btn-coral-outline"
-                  style={{
-                    flexShrink: 0, padding: "7px 12px", fontSize: 12, fontWeight: 600,
-                    color: "var(--agent-coral-deep, #E2452A)", background: "#fff",
-                    border: "0.5px solid rgba(255,107,74,0.5)", borderRadius: 9,
-                    cursor: reinstatingId === r.id ? "default" : "pointer",
-                    opacity: reinstatingId === r.id ? 0.6 : 1,
-                  }}
+                  loading={reinstatingId === r.id}
                 >
-                  {reinstatingId === r.id ? "Reinstating…" : "Reinstate"}
-                </button>
+                  Reinstate
+                </Button>
               </div>
             ))}
           </div>
@@ -320,83 +322,59 @@ export function TeamManagementPlain({
             borderRadius: 10,
             display: "flex",
             flexDirection: "column",
-            gap: 10,
-          }}
+            gap: 12,
+            "--lbi-top": "0px",
+          } as React.CSSProperties}
         >
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#111827" }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)" }}>
             Invite a team member
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="tmp-invite-role" style={{ fontSize: 11.5, fontWeight: 600, color: "#6b7280" }}>
-              Role
-            </label>
-            <select
-              id="tmp-invite-role"
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as "director" | "negotiator")}
-              className="account-input"
-              style={{ ...fieldStyle, appearance: "auto" as React.CSSProperties["appearance"], cursor: "pointer" }}
-            >
-              <option value="negotiator">Negotiator</option>
-              <option value="director">Director</option>
-            </select>
-            <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af" }}>
-              {inviteRole === "director"
-                ? "Directors can manage the team, billing and settings, and see every sale."
-                : "Negotiators work their sales. You choose whether they see their own files or all of them."}
+          <form onSubmit={(e) => { e.preventDefault(); sendInvite(); }} style={{ display: "contents" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label htmlFor="tmp-invite-role" style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-muted)" }}>
+                Role
+              </label>
+              <select
+                id="tmp-invite-role"
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as "director" | "negotiator")}
+                className="account-input"
+                style={{ ...fieldStyle, appearance: "auto" as React.CSSProperties["appearance"], cursor: "pointer" }}
+              >
+                <option value="negotiator">Negotiator</option>
+                <option value="director">Director</option>
+              </select>
+              <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-tertiary)" }}>
+                {inviteRole === "director"
+                  ? "Directors can manage the team, billing and settings, and see every sale."
+                  : "Negotiators work their sales. You choose whether they see their own files or all of them."}
+              </p>
+            </div>
+            <LabelInput
+              label="Full name" type="text" accent={CORAL} fullWidth autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
+            />
+            <LabelInput
+              label="Email address" type="email" accent={CORAL} fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+            />
+            <p style={{ margin: 0, fontSize: 11.5, color: "var(--agent-text-tertiary)" }}>
+              They&apos;ll receive an email with a link to set up their own account.
             </p>
-          </div>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
-            placeholder="Full name"
-            autoFocus
-            className="account-input"
-            style={fieldStyle}
-          />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-            placeholder="Email address"
-            onKeyDown={(e) => e.key === "Enter" && sendInvite()}
-            className="account-input"
-            style={fieldStyle}
-          />
-          <p style={{ margin: 0, fontSize: 11.5, color: "#9ca3af" }}>
-            They&apos;ll receive an email with a link to set up their own account.
-          </p>
-          {addError && (
-            <p style={{ margin: 0, fontSize: 12, color: "#dc2626" }}>{addError}</p>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={sendInvite}
-              disabled={adding || !name.trim() || !email.trim()}
-              className="account-btn-primary"
-              style={{ padding: "8px 14px", fontSize: 13, fontWeight: 500, cursor: adding || !name.trim() || !email.trim() ? "default" : "pointer" }}
-            >
-              {adding ? "Sending…" : "Send invitation"}
-            </button>
-            <button
-              onClick={resetAddForm}
-              style={{
-                padding: "8px 14px",
-                fontSize: 13,
-                color: "#6b7280",
-                background: "transparent",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-              className="hover:bg-black/[0.04]"
-            >
-              Cancel
-            </button>
-          </div>
+            {addError && <InlineAlert kind="danger">{addError}</InlineAlert>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button type="submit" variant="primary" size="sm" loading={adding} disabled={adding || !name.trim() || !email.trim()} style={coralVars}>
+                Send invitation
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={resetAddForm}>
+                Cancel
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -406,22 +384,22 @@ export function TeamManagementPlain({
           display: "flex",
           gap: 12,
           padding: "14px 16px",
-          background: "rgba(255,107,74,0.05)",
-          border: "0.5px solid rgba(0,0,0,0.06)",
+          background: "transparent",
+          border: "1px solid rgba(var(--agent-coral-rgb), 0.35)",
           borderRadius: 12,
         }}
       >
         <Info size={18} weight="fill" style={{ color: "var(--agent-coral-deep, #E2452A)", flexShrink: 0, marginTop: 1 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 12.5, fontWeight: 700, color: "#111827" }}>File access</p>
+          <p style={{ margin: "0 0 8px", fontSize: 12.5, fontWeight: 700, color: "var(--agent-text-primary)" }}>File access</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "10px 22px" }}>
-            <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-              <strong style={{ color: "#374151", fontWeight: 600 }}>Own files</strong>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>Own files</strong>
               <br />
               Team members only see sales assigned to them.
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
-              <strong style={{ color: "#374151", fontWeight: 600 }}>All files</strong>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--agent-text-secondary)", fontWeight: 600 }}>All files</strong>
               <br />
               Team members can see every sale across the agency.
             </p>

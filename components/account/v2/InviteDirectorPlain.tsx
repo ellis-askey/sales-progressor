@@ -18,6 +18,12 @@ import { useState, useTransition } from "react";
 import { inviteDirector, resendInvitation } from "@/app/actions/invite-director";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 export interface LatestInvitation {
   id: string;
@@ -62,27 +68,6 @@ export function InviteDirectorPlain({ latestInvitation }: InviteDirectorPlainPro
     });
   }
 
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 10,
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-    fontWeight: 500,
-    marginBottom: 5,
-  };
-
-  const fieldStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: 13.5,
-    color: "#111827",
-    background: "#fff",
-    border: "0.5px solid rgba(0,0,0,0.16)",
-    borderRadius: 8,
-    outline: "none",
-  };
-
   // ── ACTIVE PENDING INVITATION ──────────────────────────────────────────────
   if (hasActiveInvitation) {
     return (
@@ -99,13 +84,13 @@ export function InviteDirectorPlain({ latestInvitation }: InviteDirectorPlainPro
         }}
       >
         <div>
-          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
+          <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>
             {latestInvitation.directorName}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)" }}>
             {latestInvitation.directorEmail}
           </p>
-          <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "#9ca3af" }}>
+          <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--agent-text-tertiary)" }}>
             Sent {formatRelativeTime(latestInvitation.createdAt)} · Expires{" "}
             {formatRelativeDate(latestInvitation.expiresAt)}
           </p>
@@ -122,84 +107,46 @@ export function InviteDirectorPlain({ latestInvitation }: InviteDirectorPlainPro
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
     >
       {hasExpiredInvitation && (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: "#92400e",
-            background: "#fef3c7",
-            border: "0.5px solid #fde68a",
-            borderRadius: 8,
-            padding: "8px 12px",
-          }}
-        >
-          Your previous invitation to {latestInvitation.directorName} expired. You can send a
-          new one below.
-        </p>
+        <InlineAlert kind="warning">
+          Your previous invitation to {latestInvitation.directorName} expired. You can send a new one below.
+        </InlineAlert>
       )}
 
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 12,
-        }}
+          gap: "16px 12px",
+          "--lbi-top": "0px",
+        } as React.CSSProperties}
       >
-        <div>
-          <label htmlFor="invite-director-name" style={labelStyle}>
-            Director&apos;s name
-          </label>
-          <input
-            id="invite-director-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
-            placeholder="e.g. James Hartwell"
-            required
-            disabled={isPending}
-            style={fieldStyle}
-          />
-        </div>
-        <div>
-          <label htmlFor="invite-director-email" style={labelStyle}>
-            Director&apos;s email
-          </label>
-          <input
-            id="invite-director-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-            placeholder="director@youragency.co.uk"
-            required
-            disabled={isPending}
-            style={fieldStyle}
-          />
-        </div>
+        <LabelInput
+          label="Director's name" type="text" accent={CORAL} fullWidth required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={(e) => { if (e.target.value.trim()) setName(titleCaseKeepAcronyms(e.target.value)); }}
+        />
+        <LabelInput
+          label="Director's email" type="email" accent={CORAL} fullWidth required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+        />
       </div>
 
-      {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+      {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button
+        <Button
           type="submit"
+          variant="primary"
+          size="sm"
+          loading={isPending}
           disabled={isPending || !name.trim() || !email.trim()}
-          style={{
-            padding: "9px 18px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#fff",
-            background: "var(--agent-coral, #FF6B4A)",
-            border: "none",
-            borderRadius: 8,
-            cursor:
-              isPending || !name.trim() || !email.trim() ? "default" : "pointer",
-            opacity: isPending || !name.trim() || !email.trim() ? 0.45 : 1,
-          }}
+          style={coralVars}
         >
-          {isPending ? "Sending…" : "Send invitation"}
-        </button>
+          Send invitation
+        </Button>
       </div>
     </form>
   );
@@ -222,29 +169,11 @@ function ResendButton({ invitationId }: { invitationId: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleResend}
-      disabled={isPending}
-      style={{
-        flexShrink: 0,
-        padding: "5px 10px",
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#6b7280",
-        background: "transparent",
-        border: "none",
-        borderRadius: 6,
-        cursor: isPending ? "default" : "pointer",
-        textDecoration: "underline",
-        textUnderlineOffset: 2,
-        opacity: isPending ? 0.4 : 1,
-        transition: "color 150ms, background 150ms",
-      }}
-      className="hover:bg-black/[0.04]"
-    >
-      {isPending ? "Resending…" : "Resend"}
-    </button>
+    <div style={{ flexShrink: 0 }}>
+      <Button type="button" variant="ghost" size="sm" onClick={handleResend} disabled={isPending} loading={isPending}>
+        Resend
+      </Button>
+    </div>
   );
 }
 

@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { approveJoinRequestAction, rejectJoinRequestAction } from "@/app/actions/join-requests";
 import { UserPlus } from "@/components/icons/ph-ssr";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 type Req = {
   id: string;
@@ -73,26 +77,30 @@ export function JoinRequestsPlain({ requests }: { requests: Req[] }) {
                 <option value="negotiator">Negotiator</option>
                 <option value="director">Director</option>
               </select>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="xs"
                 onClick={() => decide(r.id, "approve")}
                 disabled={busy === r.id}
-                className="agent-btn agent-btn-xs agent-btn-primary disabled:opacity-50"
+                loading={busy === r.id}
+                style={coralVars}
               >
-                {busy === r.id ? "Working…" : "Approve"}
-              </button>
-              <button
+                Approve
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => decide(r.id, "reject")}
                 disabled={busy === r.id}
-                className="agent-btn agent-btn-xs disabled:opacity-50"
               >
                 Decline
-              </button>
+              </Button>
             </div>
           </div>
         ))}
-        {error && <p className="agent-helper-error">{error}</p>}
+        {error && <InlineAlert kind="danger">{error}</InlineAlert>}
       </div>
     </AccountCard>
   );
