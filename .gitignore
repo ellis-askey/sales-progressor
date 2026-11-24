@@ -58,6 +58,10 @@ tsconfig.tsbuildinfo
 
 # Claude Code tool artifacts
 .claude/scheduled_tasks.lock
+.claude/agents/
+.claude/skills/
+.impeccable/
+skills-lock.json
 
 # Playwright screenshots (ephemeral test output)
 e2e/screenshots/
