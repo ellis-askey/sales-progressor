@@ -26,6 +26,7 @@ import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { ChaseComposer } from "@/components/chase/ChaseComposer";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { ContactAvatar } from "@/components/ui/Avatar";
+import { RecipientHeaderCard } from "@/components/ui/RecipientHeaderCard";
 import { textToHtml, htmlToText, isHtmlEmpty } from "@/lib/chase/rich-text";
 import {
   draftNeighbourChaseAction,
@@ -92,6 +93,9 @@ type Props = {
   // switch to the exchange-readiness chase. `transactionId` is then the file the
   // push checklist is open on.
   chainLinkId?: string | null;
+  // DEV-ONLY (/dev/sheets): seed the recipient context so the drawer renders
+  // populated without a server round-trip. Production never passes this.
+  previewContext?: { name: string; email: string; address: string; stepName?: string | null } | null;
 };
 
 function reasonMessage(reason: string, direction: NeighbourChaseDirection, linkMode = false): string {
@@ -132,7 +136,7 @@ function relativeAgo(value: Date | string | null): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent, targetStepName, chainLinkId }: Props) {
+export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, neighbourAddress, onClose, onSent, targetStepName, chainLinkId, previewContext }: Props) {
   const { theme, isNight } = usePortalTheme();
   const { toast } = useAgentToast();
   // LINK mode (#285) targets a specific chain link to confirm ready-to-exchange;
@@ -182,10 +186,23 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
   const [savingAgent, setSavingAgent] = useState(false);
 
   const hasGenerated = !isHtmlEmpty(bodyHtml);
+  // Address split for the header card (street bold, town/postcode beneath).
+  const nCommaIdx = address ? address.indexOf(",") : -1;
+  const nAddrLine1 = nCommaIdx >= 0 ? address!.slice(0, nCommaIdx).trim() : (address ?? "");
+  const nAddrLine2 = nCommaIdx >= 0 ? address!.slice(nCommaIdx + 1).trim() : "";
 
   const loadContext = useCallback(async () => {
     setLoadingContext(true);
     setErrorReason(null);
+    // Dev harness: render populated from the seeded context, no server call.
+    if (previewContext) {
+      setName(previewContext.name);
+      setEmail(previewContext.email);
+      setAddress(previewContext.address);
+      if (previewContext.stepName !== undefined) setStepName(previewContext.stepName ?? null);
+      setLoadingContext(false);
+      return;
+    }
     if (linkMode && chainLinkId) {
       const res = await getLinkChaseContextAction({ fileTransactionId: transactionId, chainLinkId }).catch(() => null);
       setLoadingContext(false);
@@ -215,7 +232,7 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
     setLastChasedAt(c.lastChasedAt);
     setCcCandidates(c.ccCandidates);
     setSubject(`Quick update on ${c.neighbourAddress ?? neighbourAddress ?? "your side of the chain"}?`);
-  }, [transactionId, dir, targetStepName, neighbourAddress, linkMode, chainLinkId]);
+  }, [transactionId, dir, targetStepName, neighbourAddress, linkMode, chainLinkId, previewContext]);
 
   useEffect(() => { void loadContext(); }, [loadContext]);
 
@@ -413,30 +430,22 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
             </div>
           ) : (
             <>
-              {/* Recipient — glowing card matching the real chase drawer. */}
-              <div
-                className="rounded-xl px-4 py-3 flex items-start gap-3"
-                style={{
-                  background: "var(--agent-surface-glass)",
-                  border: "0.5px solid var(--agent-border-subtle)",
-                  boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
+              {/* Property + recipient — the canonical two-zone header card (the
+                  neighbour's address on top, the agent you're chasing beneath). */}
+              <RecipientHeaderCard
+                addressLine1={nAddrLine1 || "This sale's chain"}
+                addressLine2={nAddrLine2 || undefined}
+                recipient={{
+                  name: name ?? `The agent ${whichNeighbour} in the chain`,
+                  avatar: <ContactAvatar contact={{ name: name ?? "Agent", roleType: "agent" }} size={34} />,
+                  meta: (
+                    <>
+                      {email && <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</span>}
+                      {lastChasedAt && <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", marginTop: 2 }}>Last chased {relativeAgo(lastChasedAt)}</span>}
+                    </>
+                  ),
                 }}
-              >
-                <ContactAvatar contact={{ name: name ?? "Agent", roleType: "agent" }} size={34} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold" style={{ color: "var(--agent-text-secondary)" }}>To</p>
-                  <p className="text-sm font-semibold mt-0.5" style={{ color: "var(--agent-text-primary)" }}>
-                    {name ?? `The agent ${whichNeighbour} in the chain`}
-                  </p>
-                  {email && <p className="text-xs mt-0.5 truncate" style={{ color: "var(--agent-text-muted)" }}>{email}</p>}
-                  {address && <p className="text-xs mt-0.5" style={{ color: "var(--agent-text-muted)" }}>{address}</p>}
-                  {lastChasedAt && (
-                    <p className="text-xs mt-1.5" style={{ color: "var(--agent-text-muted)" }}>
-                      Last chased {relativeAgo(lastChasedAt)}
-                    </p>
-                  )}
-                </div>
-              </div>
+              />
 
               {/* What we're asking */}
               <p className="text-xs" style={{ color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>

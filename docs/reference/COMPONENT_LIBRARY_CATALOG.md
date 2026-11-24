@@ -95,6 +95,12 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Purpose:** the standalone search bar — magnifier + canonical `agent-input-sm` + X clear. Caller owns the query and renders its own results beneath; the bar is identical everywhere, results differ per surface.
 - **Used by:** `AddNodeDrawer` (own-file search). Extracted 2026-11-23 from the pattern duplicated in `SearchTabsBar` and `ChainsWorkspace`, which can adopt it next.
 
+### 1.3d `RecipientHeaderCard` ✓ canonical
+
+- **Purpose:** drawer header card with two zones split by a hairline — a property zone (photo + street bold on line 1, town/postcode beneath) and a recipient zone (non-caps "To" label + avatar + name/role). When the recipient is pickable the recipient zone is the dropdown trigger; the picker menu stays with the caller, anchored to the forwarded ref.
+- **Theme-aware:** token-based (light + dark). Label uses `agent-section-label agent-section-label-plain` (canonical, not uppercased).
+- **Used by:** `ChaseDrawer`. Other send/compose drawers with a property + recipient header can adopt it.
+
 ### 1.4 `PageHeader` ✓ canonical
 
 - **Purpose:** title + subtitle + optional actions slot at the top of a route.

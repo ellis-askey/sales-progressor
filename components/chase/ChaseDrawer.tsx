@@ -23,6 +23,7 @@ import { sendEnquiryChaseAction } from "@/app/actions/enquiries";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { RecipientHeaderCard } from "@/components/ui/RecipientHeaderCard";
 
 type Channel = "email" | "whatsapp";
 type Tone = "Friendly" | "Professional" | "Polite Yet Firm" | "Chase Up" | "Urgent" | "Final Reminder";
@@ -306,6 +307,11 @@ export function ChaseDrawer({
   // clients), editable. Not driven by the AI draft; recomputed when the
   // recipient changes until the agent edits it (subjectDirty).
   const defaultSubject = recipientSubject(selectedRecipient, propertyAddress);
+  // Address split: street on line 1 (bold), town/postcode beneath — the app-wide
+  // card pattern (first comma splits the two lines).
+  const addrCommaIdx = propertyAddress.indexOf(",");
+  const addrLine1 = addrCommaIdx >= 0 ? propertyAddress.slice(0, addrCommaIdx).trim() : propertyAddress;
+  const addrLine2 = addrCommaIdx >= 0 ? propertyAddress.slice(addrCommaIdx + 1).trim() : "";
   const [subject, setSubject] = useState(defaultSubject);
   const [subjectDirty, setSubjectDirty] = useState(false);
   // message holds the composer's HTML body; plain-text forms are derived on send.
@@ -987,65 +993,30 @@ export function ChaseDrawer({
             )}
           </div>
 
-          {/* Property + recipient card — the recipient lives here (no separate
-              "To" row). When there's more than one candidate the whole card is a
-              button that opens the recipient picker. */}
+          {/* Property + recipient card — the canonical two-zone header card.
+              When there's more than one candidate the recipient zone opens the
+              picker (anchored to the card). */}
           <div style={{ padding: "12px 20px 14px" }}>
-            <div ref={toMenuRef} style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => {
+            <div style={{ position: "relative" }}>
+              <RecipientHeaderCard
+                ref={toMenuRef}
+                photoUrl={propertyPhotoUrl}
+                addressLine1={addrLine1}
+                addressLine2={addrLine2 || undefined}
+                recipient={selectedRecipient ? {
+                  name: selectedRecipient.name,
+                  role: recipientRoleLabel(selectedRecipient),
+                  avatar: <RecipientAvatar contact={selectedRecipient} size={34} />,
+                } : null}
+                interactive={!enquiry && recipientCandidates.length > 1}
+                open={toMenuOpen}
+                onToggle={() => {
                   // Enquiry mode: the recipient is fixed to the court solicitor
                   // (the send is hardwired to them server-side), so no picking.
                   if (enquiry || recipientCandidates.length <= 1) return;
                   setToMenuOpen((o) => !o);
                 }}
-                style={{
-                  width: "100%", textAlign: "left",
-                  background: "var(--agent-surface-glass)", border: "0.5px solid rgba(var(--agent-coral-rgb), 0.18)",
-                  borderRadius: 14, padding: "10px 14px",
-                  display: "flex", alignItems: "center", gap: 12,
-                  boxShadow: "0 2px 12px rgba(var(--agent-coral-rgb), 0.10)",
-                  cursor: (!enquiry && recipientCandidates.length > 1) ? "pointer" : "default",
-                  transition: "border-color 140ms",
-                }}
-              >
-                {/* Property photo when the file has one, else the universal
-                    property-photo placeholder illustration (light/dark). */}
-                <div style={{
-                  width: 42, height: 42, borderRadius: 10, flexShrink: 0, overflow: "hidden",
-                  background: "transparent",
-                  border: propertyPhotoUrl ? "0.5px solid rgba(var(--agent-coral-rgb), 0.18)" : "none",
-                }}>
-                  {propertyPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={propertyPhotoUrl} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  ) : (
-                    <span className="property-photo-fallback" aria-hidden style={{ display: "block", width: "100%", height: "100%" }} />
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
-                    {propertyAddress}
-                  </p>
-                  {selectedRecipient && (
-                    // Recipient reads like a picker-menu row: a larger avatar,
-                    // the name on top, the role/firm (or Buyer/Seller) beneath.
-                    <div style={{ margin: "7px 0 0", display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <RecipientAvatar contact={selectedRecipient} size={34} />
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedRecipient.name}</span>
-                        <span style={{ display: "block", fontSize: 11.5, color: "var(--agent-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{recipientRoleLabel(selectedRecipient)}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {recipientCandidates.length > 1 && (
-                  <span style={{ color: "var(--agent-text-muted)", display: "flex", flexShrink: 0 }}>
-                    {toMenuOpen ? <CaretUp size={14} /> : <CaretDown size={14} />}
-                  </span>
-                )}
-              </button>
+              />
               <AnchoredPanel anchorRef={toMenuRef} open={toMenuOpen} onClose={() => setToMenuOpen(false)} matchWidth bare placement="bottom-start">
                 {recipientCandidates.map((c) => {
                   const sol = isSolicitorRecipient(c);

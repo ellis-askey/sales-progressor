@@ -55,6 +55,16 @@ import type { EmailRow } from "@/lib/services/automated-emails-list";
 
 // ── Shared local fixtures ────────────────────────────────────────────────────
 
+// Seeds ChaseNeighbourDrawer's populated header card in the harness (the demo tx
+// has no live chain, so without this it renders the "no one to chase" state).
+// Module-level so its identity is stable across re-renders.
+const NEIGHBOUR_CHASE_PREVIEW = {
+  name: "Hartley & Co",
+  email: "hello@hartleyandco.co.uk",
+  address: "9 Elmfield Terrace, Harrogate, HG1 5LT",
+  stepName: "Searches ordered",
+};
+
 // A stub link to drive AddNodeDrawer's edit mode (superset structurally accepted).
 const EDITING_LINK: EditingLinkData = {
   id: "demo-link-0001",
@@ -964,7 +974,7 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
     usedIn: "Chain tab · onward / related trackers",
     file: "components/chase/ChaseNeighbourDrawer.tsx",
     componentName: "ChaseNeighbourDrawer",
-    note: "Drafts via a server action on open — the demo id surfaces the loading → error state (valid to inspect).",
+    note: "Seeded with a preview context so the populated header card renders without a server round-trip.",
     preview: "overlay",
     states: [
       { id: "onward", label: "Onward purchase (seller side)" },
@@ -976,6 +986,7 @@ export const DRAWER_ENTRIES: SheetEntry[] = [
         direction={ctx.stateId === "related" ? "related" : "onward"}
         neighbourName="Hartley & Co"
         neighbourAddress="9 Elmfield Terrace, Harrogate"
+        previewContext={NEIGHBOUR_CHASE_PREVIEW}
         onClose={ctx.onClose}
         onSent={ctx.onClose}
         targetStepName="Searches ordered"
