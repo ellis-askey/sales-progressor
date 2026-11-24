@@ -531,12 +531,15 @@ body {
 
 .feedback-trigger-wrap {
   position: fixed;
-  bottom: 24px;
+  /* Lifted clear of the 60px-tall cookie reopen chip (16px offset + 44px) that
+     pins to the same bottom-right corner app-wide, so the two no longer overlap
+     on a phone. The portal overrides this via [data-surface="portal"] below. */
+  bottom: 76px;
   right: 24px;
 }
 .feedback-panel-wrap {
   position: fixed;
-  bottom: 80px;
+  bottom: 132px;
   right: 24px;
   z-index: 50;
 }

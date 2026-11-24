@@ -9,6 +9,7 @@ import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { CookieConsentBanner } from "@/components/analytics/CookieConsentBanner";
 import { getSession } from "@/lib/session";
 import { canUseCritique } from "@/lib/agent-session";
+import { isExternalProgressorViewer } from "@/lib/services/progression-clients";
 import { CritiqueLauncher } from "@/components/command/critique/CritiqueLauncher";
 
 const geistSans = Geist({
@@ -69,6 +70,12 @@ export default async function RootLayout({
 }) {
   const session = await getSession();
   const isInternalStaff = session?.user?.role === "admin" || session?.user?.role === "sales_progressor" || session?.user?.role === "superadmin";
+  // External progression-business members are external users — GDPR cookie
+  // consent applies to them like any agency user — so they get the banner even
+  // though their role is sales_progressor. Only genuine TSP internal staff are
+  // excluded. isExternalProgressorViewer only hits the DB for a sales_progressor
+  // session (early-returns for every other role), so this is cheap.
+  const isTspStaff = isInternalStaff && !(session ? await isExternalProgressorViewer(session) : false);
   // Founder Critique launcher: superadmin (or an allowlisted founder test account),
   // mounted here at the app root so it's available above everything on every surface
   // (not rendered for anyone else, so the screenshot lib never enters their bundle).
@@ -83,7 +90,7 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider session={session}>
           <PostHogProvider>
-            {!isInternalStaff && <CookieConsentBanner />}
+            {!isTspStaff && <CookieConsentBanner />}
             {children}
             {showCritique && <CritiqueLauncher />}
           </PostHogProvider>
