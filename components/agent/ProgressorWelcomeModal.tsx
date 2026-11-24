@@ -176,7 +176,6 @@ export function ProgressorWelcomeModal({
           <div className={`pw-stepbody${phase === "out" ? " is-out" : ""}`}>
           {step === 0 && (
             <>
-              <span className="pw-eyebrow">You&apos;re in</span>
               <h2 className="pw-title">Welcome to TSP{firstName ? `, ${firstName}` : ""}.</h2>
               <p className="pw-lede">Your workspace is ready. Here’s how TSP helps you manage your clients, their sales and the chasing that comes with them.</p>
 
@@ -211,7 +210,6 @@ export function ProgressorWelcomeModal({
 
           {step === 1 && (
             <>
-              <span className="pw-eyebrow">Set up · your chases</span>
               <h2 className="pw-title">We&apos;ll handle the routine chasing.</h2>
               <p className="pw-lede">These run automatically across the sales you’re progressing. They’re all switched on, but you can turn off anything you’d rather handle yourself.</p>
 
@@ -250,7 +248,6 @@ export function ProgressorWelcomeModal({
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand-icon.png" alt="TSP" className="pw-ready-logo" width={54} height={54} />
-              <span className="pw-eyebrow" style={{ marginTop: 16 }}>All set</span>
               <h2 className="pw-title">You&apos;re ready to go.</h2>
               <p className="pw-lede">Add your first client to get started, or have a quick look around first.</p>
 
