@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { acceptMoveInviteAction } from "@/app/actions/accept-move-invite";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button, buttonClasses } from "@/components/arc/button/button";
 
 interface Props {
   token: string;
@@ -13,12 +16,14 @@ interface Props {
   inviteEmail?: string;
 }
 
-const wrap: React.CSSProperties = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", background: "#F4F4F6" };
-const card: React.CSSProperties = { width: "100%", maxWidth: 440, background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", boxShadow: "0 10px 40px rgba(32,36,46,0.10)", textAlign: "center" };
-const h1: React.CSSProperties = { margin: "0 0 12px", fontSize: 20, fontWeight: 700, color: "#20242E", letterSpacing: "-0.01em", lineHeight: 1.25 };
-const p: React.CSSProperties = { margin: "0 0 20px", fontSize: 14, lineHeight: 1.6, color: "rgba(32,36,46,0.62)" };
-const primary: React.CSSProperties = { width: "100%", padding: "13px", borderRadius: 10, background: "#FF6B4A", color: "#fff", fontSize: 15, fontWeight: 600, border: "none", cursor: "pointer" };
-const ghost: React.CSSProperties = { marginTop: 12, background: "none", border: "none", color: "rgba(32,36,46,0.55)", fontSize: 13, textDecoration: "underline", cursor: "pointer" };
+// Canonical warm card shell — matches the sign-in family (PageTitle heading,
+// arc Button controls, InlineAlert for errors). Single column, centred.
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
+
+const wrap: React.CSSProperties = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem", background: "#F6F1EC" };
+const card: React.CSSProperties = { width: "100%", maxWidth: 440, background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", boxShadow: "0 18px 50px rgba(45,24,16,0.10), 0 4px 14px rgba(45,24,16,0.05)", border: "1px solid rgba(23,23,30,0.06)", textAlign: "center" };
+const body: React.CSSProperties = { margin: "10px 0 20px", fontSize: 14, lineHeight: 1.6, color: "rgba(45,24,16,0.60)" };
 
 export function MoveInviteClient({ token, agencyName, invitedByName, mismatchEmail, inviteEmail }: Props) {
   const [state, setState] = useState<"idle" | "working" | "moved" | "flagged" | "error">("idle");
@@ -28,14 +33,14 @@ export function MoveInviteClient({ token, agencyName, invitedByName, mismatchEma
     return (
       <div style={wrap}>
         <div style={card}>
-          <h1 style={h1}>Signed in as someone else</h1>
-          <p style={p}>
+          <PageTitle title="Signed in as someone else." style={{ marginBottom: 10 }} />
+          <p style={body}>
             You&apos;re signed in as <strong>{mismatchEmail}</strong>, but this invitation is for{" "}
             <strong>{inviteEmail}</strong>. Sign out and sign back in with that account to continue.
           </p>
-          <button style={primary} onClick={() => signOut({ callbackUrl: `/move-invite/${token}` })}>
+          <Button variant="primary" size="lg" style={{ ...coralVars, width: "100%" }} onClick={() => signOut({ callbackUrl: `/move-invite/${token}` })}>
             Sign out and continue
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -45,11 +50,11 @@ export function MoveInviteClient({ token, agencyName, invitedByName, mismatchEma
     return (
       <div style={wrap}>
         <div style={card}>
-          <h1 style={h1}>You&apos;re now part of {agencyName}</h1>
-          <p style={p}>Please sign in again to load your new agency.</p>
-          <button style={primary} onClick={() => signOut({ callbackUrl: "/login" })}>
+          <PageTitle title={`You're now part of ${agencyName}.`} style={{ marginBottom: 10 }} />
+          <p style={body}>Please sign in again to load your new agency.</p>
+          <Button variant="primary" size="lg" style={{ ...coralVars, width: "100%" }} onClick={() => signOut({ callbackUrl: "/login" })}>
             Sign in to continue
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -59,12 +64,12 @@ export function MoveInviteClient({ token, agencyName, invitedByName, mismatchEma
     return (
       <div style={wrap}>
         <div style={card}>
-          <h1 style={h1}>We&apos;re on it</h1>
-          <p style={p}>
+          <PageTitle title="We're on it." style={{ marginBottom: 10 }} />
+          <p style={body}>
             We&apos;ll move your existing sales into {agencyName} carefully and be in touch. Nothing has changed yet,
             so you can keep working as normal in the meantime.
           </p>
-          <a href="/agent/hub" style={{ ...primary, display: "block", textDecoration: "none", boxSizing: "border-box" }}>
+          <a href="/agent/hub" className={buttonClasses({ variant: "primary", size: "lg" })} style={{ ...coralVars, width: "100%", textDecoration: "none" }}>
             Back to your dashboard
           </a>
         </div>
@@ -92,21 +97,29 @@ export function MoveInviteClient({ token, agencyName, invitedByName, mismatchEma
   return (
     <div style={wrap}>
       <div style={card}>
-        <h1 style={h1}>Join {agencyName}?</h1>
-        <p style={p}>
+        <PageTitle title={`Join ${agencyName}.`} style={{ marginBottom: 10 }} />
+        <p style={body}>
           <strong>{invitedByName}</strong> has invited you to move your account into {agencyName}. You&apos;ll leave your
           current setup and join their team. If you have any live sales, we&apos;ll carry those across for you.
         </p>
         {state === "error" && (
-          <p style={{ ...p, color: "#8B2500", background: "rgba(255,210,190,0.5)", padding: "8px 12px", borderRadius: 8 }}>{error}</p>
+          <div style={{ marginBottom: 16, textAlign: "left" }}>
+            <InlineAlert kind="danger">{error}</InlineAlert>
+          </div>
         )}
-        <button style={{ ...primary, opacity: state === "working" ? 0.7 : 1 }} disabled={state === "working"} onClick={confirm}>
-          {state === "working" ? "Confirming…" : `Join ${agencyName}`}
-        </button>
-        <div>
-          <button style={ghost} onClick={() => signOut({ callbackUrl: "/login" })}>
+        <Button
+          variant="primary"
+          size="lg"
+          loading={state === "working"}
+          style={{ ...coralVars, width: "100%" }}
+          onClick={confirm}
+        >
+          Join {agencyName}
+        </Button>
+        <div style={{ marginTop: 6 }}>
+          <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/login" })}>
             Not now
-          </button>
+          </Button>
         </div>
       </div>
     </div>

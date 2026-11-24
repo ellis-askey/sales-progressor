@@ -182,12 +182,11 @@ export function QuoteFlow({
                 width: 44,
                 height: 44,
                 borderRadius: 22,
-                background: A.coralGradient,
+                background: A.coralDeep,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 marginBottom: 12,
-                boxShadow: "0 4px 14px rgba(255,107,74,0.3)",
               }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
@@ -384,17 +383,23 @@ export function QuoteFlow({
         {/* Canonical arc RadioGroup — its legend is sr-only here because the
             StepCard title owns the visible heading. */}
         <div className="quote-rg-nolegend">
-          <RadioGroup
-            label="Service"
-            name="quote-service"
-            value={serviceTypeId ?? ""}
-            onValueChange={(v) => {
-              setServiceTypeId(v);
-              // Clear firm selection when switching service — some firms might not offer the new one
-              setSelectedFirms(new Set());
-            }}
-            options={kindServiceTypes.map((s) => ({ value: s.id, label: s.label, description: s.description ?? undefined }))}
-          />
+          {kindServiceTypes.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 14, color: A.textMuted, lineHeight: 1.5 }}>
+              Nothing available here yet. Please ask your agent for a recommendation.
+            </p>
+          ) : (
+            <RadioGroup
+              label="Service"
+              name="quote-service"
+              value={serviceTypeId ?? ""}
+              onValueChange={(v) => {
+                setServiceTypeId(v);
+                // Clear firm selection when switching service — some firms might not offer the new one
+                setSelectedFirms(new Set());
+              }}
+              options={kindServiceTypes.map((s) => ({ value: s.id, label: s.label, description: s.description ?? undefined }))}
+            />
+          )}
         </div>
       </StepCard>
       )}
@@ -598,18 +603,23 @@ export function QuoteFlow({
                 padding: "14px",
                 borderRadius: 14,
                 border: "none",
-                background: canSubmit ? A.coralGradient : A.bgWarm,
+                background: canSubmit ? A.coralDeep : A.bgWarm,
                 color: canSubmit ? "white" : A.textFaint,
                 fontSize: 15,
                 fontWeight: 700,
                 cursor: canSubmit ? "pointer" : "not-allowed",
                 transition: "all 0.15s",
-                boxShadow: canSubmit ? "0 6px 22px -6px rgba(255, 107, 74, 0.5)" : "none",
+                boxShadow: "none",
               }}
             >
-              {pending
-                ? "Sending…"
-                : `Request quote${selectedFirms.size > 1 ? "s" : ""} from ${selectedFirms.size} firm${selectedFirms.size === 1 ? "" : "s"}`}
+              {pending ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                  <span className="quote-spinner" aria-hidden="true" />
+                  Sending…
+                </span>
+              ) : (
+                `Request quote${selectedFirms.size > 1 ? "s" : ""} from ${selectedFirms.size} firm${selectedFirms.size === 1 ? "" : "s"}`
+              )}
             </button>
             <p style={{ margin: "12px 0 0", fontSize: 12, color: A.textFaint, textAlign: "center", lineHeight: 1.5 }}>
               By requesting a quote you agree to our{" "}
@@ -713,7 +723,7 @@ function StepCard({
             width: 24,
             height: 24,
             borderRadius: 12,
-            background: A.coralGradient,
+            background: A.coralDeep,
             color: "white",
             fontSize: 12,
             fontWeight: 700,

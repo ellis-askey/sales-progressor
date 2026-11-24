@@ -10,10 +10,15 @@ import {
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
-import { ClaimPasswordToggle } from "@/components/claim/ClaimPasswordToggle";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { Button } from "@/components/arc/button/button";
 import { GoogleIcon } from "@/components/login/GoogleIcon";
 import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
 import { loginPrecheck } from "@/app/actions/login-precheck";
+
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 type Props = {
   token: string;
@@ -38,7 +43,6 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
   // account has 2FA on. authorize() still enforces the code server-side.
   const [stage, setStage] = useState<"password" | "totp">(initialStage);
   const [totp, setTotp] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tenure, setTenure] = useState<"freehold" | "leasehold" | null>(null);
@@ -156,12 +160,15 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
     <form onSubmit={handleSubmit} className="claim-login-grid">
       {/* ── Left — log in ── */}
       <div className="claim-form-card">
-        <h1 className="claim-sub-h1">Log in to claim</h1>
-        <p className="claim-sub-p">
-          {emailLocked
+        <PageTitle
+          title="Log in to claim."
+          subtitle={emailLocked
             ? <>There&apos;s already an account for <strong>{stubEmail}</strong>. Log in to link your sale.</>
             : <>Log in to your account and we&apos;ll link this sale to it.</>}
-        </p>
+          style={{ marginBottom: 16 }}
+          color="#20242E"
+          subtitleColor="#3F3F46"
+        />
 
         {stage === "password" && (
           <>
@@ -192,40 +199,35 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
             <div className="claim-oauth-divider"><span>or log in with email</span></div>
 
             {/* Email — locked when the invite carried one; editable on share links */}
-            <div className="claim-field" style={{ marginBottom: 14 }}>
-              <label className="claim-field-label">Email</label>
-              <input
-                className="claim-field-input"
+            <div style={{ marginBottom: 14 }}>
+              <LabelInput
+                label="Email"
                 type="email"
+                name="email"
+                autoComplete="email"
+                accent={CORAL}
+                fullWidth
+                required
+                locked={emailLocked}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-                readOnly={emailLocked}
-                required
-                autoComplete="email"
-                placeholder="you@youragency.co.uk"
-                style={emailLocked ? { color: "var(--claim-text-3)", cursor: "not-allowed" } : undefined}
-                title={emailLocked ? "Email address is set by the invite" : undefined}
               />
             </div>
 
             {/* Password */}
-            <div className="claim-field">
-              <label className="claim-field-label">Password</label>
-              <div className="claim-field-row">
-                <input
-                  className="claim-field-input"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  style={{ paddingRight: 42 }}
-                  autoFocus
-                />
-                <ClaimPasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
-              </div>
+            <div>
+              <LabelInput
+                field="Password"
+                name="password"
+                autoComplete="current-password"
+                accent={CORAL}
+                fullWidth
+                required
+                autoFocus
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               <p className="claim-forgot-row">
                 <a href="/forgot-password">Forgot password?</a>
               </p>
@@ -234,17 +236,17 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
         )}
 
         {stage === "totp" && (
-          <div className="claim-field">
-            <label className="claim-field-label">Authenticator code</label>
-            <input
-              className="claim-field-input"
+          <div>
+            <LabelInput
+              label="Authenticator code"
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              accent={CORAL}
+              fullWidth
+              autoFocus
               value={totp}
               onChange={(e) => setTotp(e.target.value)}
-              autoFocus
-              placeholder="123 456"
             />
             <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--claim-text-3)", lineHeight: 1.5 }}>
               Enter the 6-digit code from your authenticator app, or one of your backup codes.
@@ -262,14 +264,16 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
         {error && <div className="claim-error" style={{ marginTop: 14 }}>{error}</div>}
 
         {onPurchaserStep && (
-          <button
+          <Button
             type="submit"
-            disabled={!canSubmit || loading}
-            className="claim-btn"
-            style={{ marginTop: 18 }}
+            variant="primary"
+            size="lg"
+            loading={loading}
+            disabled={!canSubmit}
+            style={{ ...coralVars, width: "100%", marginTop: 18 }}
           >
-            {loading ? "Signing in…" : stage === "totp" ? "Verify & claim" : "Log in & claim"}
-          </button>
+            {stage === "totp" ? "Verify & claim" : "Log in & claim"}
+          </Button>
         )}
 
         <p className="claim-link-row" style={{ marginTop: 16 }}>

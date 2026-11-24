@@ -7,7 +7,14 @@ import { markWelcomeSeenAction } from "@/app/actions/profile";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 import { ClaimChainLadder, type LadderRow } from "@/components/claim/ClaimChainLadder";
-import { ClaimPasswordToggle } from "@/components/claim/ClaimPasswordToggle";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { Button } from "@/components/arc/button/button";
+import { TrustStrip } from "@/components/ui/TrustStrip";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { PasswordStrength } from "@/components/auth/PasswordStrength";
+
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 // Canonical name tidy: title-case each word but keep all-caps acronyms (BWK, CJ).
 const capitalizeWords = titleCaseKeepAcronyms;
@@ -47,7 +54,6 @@ export function ClaimSignupForm({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState(stubEmail);
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [firmName, setFirmName] = useState(capitalizeWords(stubAgencyName));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -132,52 +138,72 @@ export function ClaimSignupForm({
       {/* ── Left — create your account ── */}
       <div className="claim-signup-account">
         <div className="claim-form-card">
-          <h1 className="claim-sub-h1">You&apos;ve been invited to join the chain.</h1>
-          <p className="claim-sub-p" style={{ marginBottom: 16 }}>Create your free account to connect your sale and stay updated as the chain progresses.</p>
+          <PageTitle
+            title="You're invited to join the chain."
+            subtitle="Create your free account to connect your sale and stay updated as the chain progresses."
+            style={{ marginBottom: 16 }}
+            color="#20242E"
+            subtitleColor="#3F3F46"
+          />
 
-          {/* Benefit strip (signup mock, 2026-10-13) — orange icons, hairline below. */}
+          {/* Canonical TrustStrip (the benefit strip). */}
           <div className="claim-benefits">
-            <span className="claim-benefit"><Gift size={16} weight="regular" /> Free to use</span>
-            <span className="claim-benefit"><CreditCard size={16} weight="regular" /> No card required</span>
-            <span className="claim-benefit"><Clock size={16} weight="regular" /> Less than 60 seconds</span>
+            <TrustStrip
+              items={[
+                { label: "Free to use", icon: <Gift size={16} weight="regular" /> },
+                { label: "No card required", icon: <CreditCard size={16} weight="regular" /> },
+                { label: "Less than 60 seconds", icon: <Clock size={16} weight="regular" /> },
+              ]}
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="claim-form-tight" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <form onSubmit={handleSubmit} className="claim-form-tight" style={{ display: "flex", flexDirection: "column", gap: 14, "--lbi-top": "0px" } as React.CSSProperties}>
             {/* Name row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="claim-field">
-                <label className="claim-field-label">First name</label>
-                <input className="claim-field-input" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => setFirstName((v) => capitalizeWords(v))} required autoComplete="given-name" autoCapitalize="words" placeholder="Jane" />
-              </div>
-              <div className="claim-field">
-                <label className="claim-field-label">Last name</label>
-                <input className="claim-field-input" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName((v) => capitalizeWords(v))} required autoComplete="family-name" autoCapitalize="words" placeholder="Smith" />
-              </div>
+              <LabelInput
+                label="First name" type="text" name="first-name" autoComplete="given-name" autoCapitalize="words"
+                accent={CORAL} fullWidth minBoxWidth={120} required
+                value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => setFirstName((v) => capitalizeWords(v))}
+              />
+              <LabelInput
+                label="Last name" type="text" name="last-name" autoComplete="family-name" autoCapitalize="words"
+                accent={CORAL} fullWidth minBoxWidth={120} required
+                value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => setLastName((v) => capitalizeWords(v))}
+              />
             </div>
 
             {/* Email — editable, pre-filled from the invite */}
-            <div className="claim-field">
-              <label className="claim-field-label">Email</label>
-              <input className="claim-field-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }} required autoComplete="email" autoCapitalize="off" placeholder="you@youragency.co.uk" />
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--claim-text-3)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <LabelInput
+                label="Email" type="email" name="email" autoComplete="email"
+                accent={CORAL} fullWidth required
+                value={email} onChange={(e) => setEmail(e.target.value)} onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
+              />
+              <p style={{ margin: 0, fontSize: 11, color: "var(--claim-text-3)" }}>
                 We&apos;ve filled this in from the invite. Change it if needed.
               </p>
             </div>
 
-            {/* Password */}
-            <div className="claim-field claim-field-gap">
-              <label className="claim-field-label">Password</label>
-              <div className="claim-field-row">
-                <input className="claim-field-input" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" placeholder="At least 10 characters" style={{ paddingRight: 42 }} />
-                <ClaimPasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
-              </div>
+            {/* Password — 10-char hint + canonical strength meter, so the rule is
+                visible before the Create button can enable (the gate is length >= 10). */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <LabelInput
+                field="Password" name="password" autoComplete="new-password"
+                accent={CORAL} fullWidth required
+                value={password} onChange={(e) => setPassword(e.target.value)}
+              />
+              {password.length > 0 && password.length < 10 && (
+                <p style={{ fontSize: 11, color: "#C97D1A", margin: 0 }}>Use at least 10 characters.</p>
+              )}
+              <PasswordStrength password={password} />
             </div>
 
             {/* Agency */}
-            <div className="claim-field">
-              <label className="claim-field-label">Agency name</label>
-              <input className="claim-field-input" type="text" value={firmName} onChange={(e) => setFirmName(e.target.value)} onBlur={() => setFirmName((v) => capitalizeWords(v))} required autoComplete="organization" placeholder="Your estate agency" />
-            </div>
+            <LabelInput
+              label="Agency name" type="text" name="agency" autoComplete="organization"
+              accent={CORAL} fullWidth required
+              value={firmName} onChange={(e) => setFirmName(e.target.value)} onBlur={() => setFirmName((v) => capitalizeWords(v))}
+            />
 
             <div className="claim-form-divider" aria-hidden />
 
@@ -193,11 +219,9 @@ export function ClaimSignupForm({
               </div>
             )}
 
-            <button type="submit" disabled={!canSubmit || loading} className="claim-btn">
-              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                {loading ? "Creating your account…" : <>Create account &amp; join chain <ArrowRight size={17} weight="bold" /></>}
-              </span>
-            </button>
+            <Button type="submit" variant="primary" size="lg" loading={loading} disabled={!canSubmit} style={{ ...coralVars, width: "100%" }}>
+              Create account &amp; join chain <ArrowRight size={17} weight="bold" />
+            </Button>
 
             <p className="claim-form-terms">
               By creating an account you agree to our <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.

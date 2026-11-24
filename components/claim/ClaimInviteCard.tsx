@@ -1,5 +1,6 @@
 import { ClaimCtaButton } from "@/components/claim/ClaimCtaButton";
 import { ClaimChainLadder, type LadderRow, type LadderStatus } from "@/components/claim/ClaimChainLadder";
+import { TrustStrip } from "@/components/ui/TrustStrip";
 
 // The chain-invite claim landing card: a light editorial card with the inviter's
 // avatar, headline, the shared chain ladder (ClaimChainLadder), CTA and trust
@@ -29,7 +30,7 @@ export interface ClaimInviteCardProps {
 
 function IconCheck() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="100%" height="100%">
       <path d="m4 10.5 3.5 3.5L16 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -37,7 +38,7 @@ function IconCheck() {
 
 function IconUsers() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="100%" height="100%">
       <circle cx="7.3" cy="7" r="2.6" stroke="currentColor" strokeWidth="1.5" />
       <path d="M2.6 16c0-2.6 2.1-4.3 4.7-4.3s4.7 1.7 4.7 4.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M13.4 5.1a2.6 2.6 0 0 1 0 5M14.3 11.9c2 .3 3.6 1.9 3.6 4.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -47,7 +48,7 @@ function IconUsers() {
 
 function IconLock() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="100%" height="100%">
       <rect x="4.5" y="8.75" width="11" height="7.25" rx="1.75" stroke="currentColor" strokeWidth="1.6" />
       <path d="M6.75 8.75V6.5a3.25 3.25 0 0 1 6.5 0v2.25" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
@@ -127,15 +128,13 @@ export function ClaimInviteCard({
 
         {!shareMode && (
         <div className="claim-b-trust">
-          <span className="claim-b-trust-item">
-            <IconCheck /> Free to self-progress
-          </span>
-          <span className="claim-b-trust-item">
-            <IconUsers /> No card required
-          </span>
-          <span className="claim-b-trust-item">
-            <IconLock /> Secure &amp; private
-          </span>
+          <TrustStrip
+            items={[
+              { label: "Free to self-progress", icon: <IconCheck /> },
+              { label: "No card required", icon: <IconUsers /> },
+              { label: "Secure & private", icon: <IconLock /> },
+            ]}
+          />
         </div>
         )}
       </div>

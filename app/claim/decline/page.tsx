@@ -4,6 +4,7 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
+import { PageTitle } from "@/components/ui/PageTitle";
 import "../styles/claim-flow.css";
 
 // Performs the decline on page load (side effect in server component, mirrors
@@ -33,7 +34,7 @@ export default async function ClaimDeclinePage({
         <div className="claim-error-wrap">
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
-            <h1 className="claim-error-h1">Invalid invite link</h1>
+            <PageTitle title="Invalid invite link." color="#20242E" subtitleColor="#3F3F46" />
             <p className="claim-error-p">This link doesn&apos;t look right. Try copying it again, or ask the inviting agent for a new one.</p>
             <p className="claim-error-support">
               Need help?{" "}
@@ -74,7 +75,7 @@ export default async function ClaimDeclinePage({
         <div className="claim-error-wrap">
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
-            <h1 className="claim-error-h1">Invite not found</h1>
+            <PageTitle title="Invite not found." color="#20242E" subtitleColor="#3F3F46" />
             <p className="claim-error-p">
               This invite has expired or been replaced. Ask the inviting agent for a new one.
             </p>
@@ -96,7 +97,7 @@ export default async function ClaimDeclinePage({
         <div className="claim-error-wrap">
           <div className="claim-error-inner">
             <p className="claim-error-eyebrow">The Sales Progressor</p>
-            <h1 className="claim-error-h1">This sale has been claimed.</h1>
+            <PageTitle title="This sale has been claimed." color="#20242E" subtitleColor="#3F3F46" />
             <p className="claim-error-p">No need to decline. Someone has already joined.</p>
           </div>
         </div>
@@ -114,16 +115,21 @@ export default async function ClaimDeclinePage({
         <div className="claim-decline-wrap">
           <div className="claim-decline-bloom" />
           <div className="claim-decline-body">
-            <h1 className="claim-decline-h1">This invite has expired.</h1>
-            <p className="claim-decline-sub">
-              This invite has expired. No action needed. We haven&apos;t notified anyone.
-            </p>
+            <p className="claim-error-eyebrow">The Sales Progressor</p>
+            <PageTitle
+              title="This invite has expired."
+              subtitle="No action needed. We haven't notified anyone."
+              style={{ marginBottom: 20 }}
+              color="#20242E"
+              subtitleColor="#3F3F46"
+            />
             <p className="claim-about">
-              What is The Sales Progressor? Estate agents use it to track every sale in a chain
-              together, so everyone knows where the hold-up is before they pick up the phone.
+              <strong>What is The Sales Progressor?</strong>{" "}We connect estate agents across a property chain, giving
+              everyone visibility of how each sale is progressing, what&apos;s holding things up and
+              what needs to happen next.
             </p>
             <p className="claim-support">
-              Questions?{" "}
+              Need a hand?{" "}
               <a href="mailto:support@thesalesprogressor.co.uk">
                 support@thesalesprogressor.co.uk
               </a>
@@ -149,26 +155,31 @@ export default async function ClaimDeclinePage({
         <div className="claim-decline-wrap">
           <div className="claim-decline-bloom" />
           <div className="claim-decline-body">
-            <h1 className="claim-decline-h1">Already noted.</h1>
-            <p className="claim-decline-sub">
-              We already let them know. Nothing more needed from you.
-            </p>
+            <p className="claim-error-eyebrow">The Sales Progressor</p>
+            <PageTitle
+              title="Invitation declined."
+              subtitle="We've let the inviting agent know. There's nothing else you need to do."
+              style={{ marginBottom: 20 }}
+              color="#20242E"
+              subtitleColor="#3F3F46"
+            />
             {expiryDate && (
               <div className="claim-nudge-card">
                 <p className="claim-nudge-text">
-                  Changed your mind? This link is valid until {expiryDate}.
+                  Changed your mind? You can still join the chain until {expiryDate}.
                 </p>
-                <a href={`/claim?token=${token}`} className="claim-btn claim-btn--ghost">
-                  Claim after all
+                <a href={`/claim?token=${token}`} className="claim-btn claim-btn--flat-primary">
+                  Join the chain
                 </a>
               </div>
             )}
             <p className="claim-about">
-              What is The Sales Progressor? Estate agents use it to track every sale in a chain
-              together, so everyone knows where the hold-up is before they pick up the phone.
+              <strong>What is The Sales Progressor?</strong>{" "}We connect estate agents across a property chain, giving
+              everyone visibility of how each sale is progressing, what&apos;s holding things up and
+              what needs to happen next.
             </p>
             <p className="claim-support">
-              Questions?{" "}
+              Need a hand?{" "}
               <a href="mailto:support@thesalesprogressor.co.uk">
                 support@thesalesprogressor.co.uk
               </a>
@@ -224,27 +235,28 @@ export default async function ClaimDeclinePage({
       <div className="claim-decline-wrap">
         <div className="claim-decline-bloom" />
         <div className="claim-decline-body">
-          <h1 className="claim-decline-h1">All noted.</h1>
-          <p className="claim-decline-sub">
-            We&apos;ve let them know this isn&apos;t your sale. Estate agencies are busy,
-            and that helps.
-          </p>
+          <PageTitle
+            title="Invitation declined."
+            subtitle="We've let the inviting agent know. There's nothing else you need to do."
+            style={{ marginBottom: 20 }}
+          />
           {expiryDate && (
             <div className="claim-nudge-card">
               <p className="claim-nudge-text">
-                Changed your mind? This link is valid until {expiryDate}.
+                Changed your mind? You can still join the chain until {expiryDate}.
               </p>
-              <a href={`/claim?token=${token}`} className="claim-btn claim-btn--ghost">
-                Claim after all
+              <a href={`/claim?token=${token}`} className="claim-btn claim-btn--flat-primary">
+                Join the chain
               </a>
             </div>
           )}
           <p className="claim-about">
-            What is The Sales Progressor? Estate agents use it to track every sale in a chain
-            together, so everyone knows where the hold-up is before they pick up the phone.
+            <strong>What is The Sales Progressor?</strong>{" "}We connect estate agents across a property chain, giving
+            everyone visibility of how each sale is progressing, what&apos;s holding things up and
+            what needs to happen next.
           </p>
           <p className="claim-support">
-            Questions?{" "}
+            Need a hand?{" "}
             <a href="mailto:support@thesalesprogressor.co.uk">
               support@thesalesprogressor.co.uk
             </a>

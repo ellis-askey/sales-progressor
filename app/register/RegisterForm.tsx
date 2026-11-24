@@ -10,6 +10,7 @@ import { attributionFromParams, hasAttribution, ATTRIBUTION_COOKIE, ATTRIBUTION_
 import * as analytics from "@/lib/analytics/posthog";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { Button } from "@/components/arc/button/button";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
@@ -235,9 +236,7 @@ export default function RegisterForm({ progressorEnabled = false }: { progressor
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
-            Create your account
-          </h1>
+          <PageTitle title="Create your account" />
         </div>
 
         {/* Step indicator — the step name sits centred above a two-segment track;

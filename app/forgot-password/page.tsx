@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { Button } from "@/components/arc/button/button";
 
@@ -15,6 +16,7 @@ const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -80,12 +82,7 @@ export default function ForgotPasswordPage() {
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
-            Reset your password
-          </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
-            We&apos;ll send a reset link to your email
-          </p>
+          <PageTitle title="Reset your password" subtitle="We'll send a reset link to your email" />
         </div>
 
         {/* Card */}
@@ -119,19 +116,26 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", "--lbi-top": "0px" } as React.CSSProperties}>
-              <LabelInput
-                label="Email address"
-                type="email"
-                name="email"
-                autoComplete="email"
-                accent={CORAL}
-                fullWidth
-                required
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) setEmail(e.target.value.trim().toLowerCase()); }}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <LabelInput
+                  label="Email address"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  accent={emailError ? "#C73E3E" : CORAL}
+                  fullWidth
+                  required
+                  autoFocus
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(false); }}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v) setEmail(v.toLowerCase());
+                    setEmailError(v.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v));
+                  }}
+                />
+                {emailError && <p style={{ fontSize: "11px", color: "#C73E3E", margin: 0 }}>Enter a valid email address</p>}
+              </div>
 
               {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 

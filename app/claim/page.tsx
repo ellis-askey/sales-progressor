@@ -8,6 +8,7 @@ import { getFileProgressPercent } from "@/lib/services/chains";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
 import { ClaimInviteCard, type LadderRow } from "@/components/claim/ClaimInviteCard";
+import { PageTitle } from "@/components/ui/PageTitle";
 import "./styles/claim-flow.css";
 
 function Shell({
@@ -50,7 +51,7 @@ function ClaimError({
       <div className="claim-error-wrap">
         <div className="claim-error-inner">
           <p className="claim-error-eyebrow">The Sales Progressor</p>
-          <h1 className="claim-error-h1">{title}</h1>
+          <PageTitle title={title} color="#20242E" subtitleColor="#3F3F46" />
           <p className="claim-error-p">{body}</p>
           {contact && (
             <div className="claim-warn-card" style={{ marginTop: 16 }}>
@@ -80,7 +81,7 @@ export default async function ClaimPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
+    return <ClaimError title="Invalid invite link." body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const link = await prisma.chainLink.findFirst({
     // Reached by the emailed invite token OR a manually-shared share token — the
@@ -134,7 +135,7 @@ export default async function ClaimPage({
   if (!link)
     return (
       <ClaimError
-        title="Invite not found"
+        title="Invite not found."
         body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
@@ -143,7 +144,7 @@ export default async function ClaimPage({
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
-        title="Already claimed"
+        title="Already claimed."
         body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
@@ -151,7 +152,7 @@ export default async function ClaimPage({
     return (
       <ClaimError
         title="This invite has expired."
-        body="This invite link has expired. Ask the inviting agent to resend it."
+        body="The link was valid for 7 days after it was sent. Ask the inviting agent to resend it."
       />
     );
 

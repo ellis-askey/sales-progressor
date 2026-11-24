@@ -8,6 +8,10 @@ import {
   type ReconciliationState,
 } from "@/components/milestones/ReconcileMilestonePicker";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
+import { Button } from "@/components/arc/button/button";
+
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 type DuplicateEntry = {
   transactionId: string;
@@ -286,15 +290,17 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
           </div>
         )}
         {onPurchaserStep && (
-          <button
+          <Button
             ref={submitRef}
-            onClick={handleClaim}
+            variant="primary"
+            size="lg"
+            loading={loading}
             disabled={!canSubmit}
-            className="claim-btn"
-            style={{ marginTop: 8 }}
+            onClick={handleClaim}
+            style={{ ...coralVars, width: "100%", marginTop: 8 }}
           >
-            {loading ? "Claiming…" : "Claim this sale"}
-          </button>
+            Claim this sale
+          </Button>
         )}
       </div>
     );
@@ -358,19 +364,17 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       )}
 
       {onPurchaserStep && (
-        <button
+        <Button
           ref={submitRef}
-          onClick={handleClaim}
+          variant="primary"
+          size="lg"
+          loading={loading}
           disabled={!canSubmit}
-          className="claim-btn"
-          style={{ marginTop: 4 }}
+          onClick={handleClaim}
+          style={{ ...coralVars, width: "100%", marginTop: 4 }}
         >
-          {loading
-            ? "Claiming…"
-            : dupChoice === "link"
-            ? "Link this sale to the chain"
-            : "Claim this sale"}
-        </button>
+          {dupChoice === "link" ? "Link this sale to the chain" : "Claim this sale"}
+        </Button>
       )}
     </div>
   );

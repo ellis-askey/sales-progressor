@@ -3,6 +3,8 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { WarmLoginForm } from "@/components/login/WarmLoginForm";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { TrustStrip } from "@/components/ui/TrustStrip";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -61,12 +63,7 @@ export default async function LoginPage() {
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
-            Welcome back<span style={{ color: "#FF6B4A" }}>.</span>
-          </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
-            Sign in to Sales Progressor
-          </p>
+          <PageTitle title="Welcome back." subtitle="Sign in to Sales Progressor" />
         </div>
 
         <div style={{
@@ -79,13 +76,11 @@ export default async function LoginPage() {
           <WarmLoginForm />
         </div>
 
-        <div style={{ marginTop: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
-          {["SSL encrypted", "GDPR compliant", "UK data"].map((item, i, arr) => (
-            <span key={item} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.45)" }}>{item}</span>
-              {i < arr.length - 1 && <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.22)" }}>·</span>}
-            </span>
-          ))}
+        <div style={{ marginTop: "1.25rem", display: "flex", justifyContent: "center" }}>
+          <TrustStrip
+            variant="plain"
+            items={[{ label: "SSL encrypted" }, { label: "GDPR compliant" }, { label: "UK data" }]}
+          />
         </div>
 
       </div>

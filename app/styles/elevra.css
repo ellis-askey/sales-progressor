@@ -111,3 +111,12 @@ html.elevra-bg {
 /* Canonical inline link (matches the login/register coral link). */
 .quote-link { color: #FF6B4A; font-weight: 500; text-decoration: none; transition: color 0.12s ease; }
 .quote-link:hover { color: #E55B3D; }
+
+/* Submit spinner — shown in the sticky "Request quotes" button while sending. */
+@keyframes quote-spin { to { transform: rotate(360deg); } }
+.quote-spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%;
+  animation: quote-spin 0.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .quote-spinner { animation-duration: 1.4s; } }

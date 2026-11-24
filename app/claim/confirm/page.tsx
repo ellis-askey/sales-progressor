@@ -7,7 +7,7 @@ import { ClaimConfirmForm } from "@/components/claim/ClaimConfirmForm";
 import { getOnwardInheritanceForLink, getRelatedSaleInheritanceForLink } from "@/lib/services/onward";
 import { ClaimBackground } from "@/components/claim/ClaimBackground";
 import { ClaimLogo } from "@/components/claim/ClaimLogo";
-import { ClaimHouseGlyph } from "@/components/claim/ClaimHouseGlyph";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { displayChainPosition } from "@/lib/chain/positions";
 import { recordClaimStarted } from "@/lib/chain/funnel";
@@ -25,9 +25,12 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Shared claim-flow house glyph (gradient keek house) for the no-photo tile.
+// No-photo placeholder — the warm peach "SOLD" floor-plan badge, shared with the
+// chain ladder (/claim/sold-badge.png). Inherits `.claim-confirm-prop-photo img`
+// (object-fit: cover), so it fills the tile exactly like the ladder thumb.
 function HousePlaceholder() {
-  return <ClaimHouseGlyph className="claim-b-thumb-house" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/claim/sold-badge.png" alt="" />;
 }
 
 function ClaimError({ title, body }: { title: string; body: string }) {
@@ -36,7 +39,7 @@ function ClaimError({ title, body }: { title: string; body: string }) {
       <div className="claim-error-wrap">
         <div className="claim-error-inner">
           <p className="claim-error-eyebrow">The Sales Progressor</p>
-          <h1 className="claim-error-h1">{title}</h1>
+          <PageTitle title={title} color="#20242E" subtitleColor="#3F3F46" />
           <p className="claim-error-p">{body}</p>
           <p className="claim-error-support">
             Need help?{" "}
@@ -58,7 +61,7 @@ export default async function ClaimConfirmPage({
   const { token } = await searchParams;
 
   if (!token)
-    return <ClaimError title="Invalid invite link" body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
+    return <ClaimError title="Invalid invite link." body="This link doesn't look right. Try copying it again, or ask the inviting agent for a new one." />;
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -93,14 +96,14 @@ export default async function ClaimConfirmPage({
   if (!link)
     return (
       <ClaimError
-        title="Invite not found"
+        title="Invite not found."
         body="This invite has expired or been replaced. Ask the inviting agent for a new one."
       />
     );
   if (link.transactionId !== null || link.inviteStatus === "CLAIMED")
     return (
       <ClaimError
-        title="Already claimed"
+        title="Already claimed."
         body="This invite has already been used. If you think that's wrong, contact support."
       />
     );
@@ -119,7 +122,7 @@ export default async function ClaimConfirmPage({
   if (link.chain.createdByUserId === session.user.id)
     return (
       <ClaimError
-        title="Can't claim your own invite"
+        title="Can't claim your own invite."
         body="You created this chain. You can't claim an invite you sent."
       />
     );
@@ -250,16 +253,16 @@ export default async function ClaimConfirmPage({
               )}
             </div>
             <div className="claim-confirm-prop-main">
-              <div className="claim-confirm-prop-addr">{addr1 || "Your sale"}</div>
-              {addr2 && <div className="claim-confirm-prop-sub">{addr2}</div>}
-              <div className="claim-confirm-prop-badges">
+              <div className="claim-confirm-prop-addr-row">
                 {chainPosition !== null && (
                   <span className="claim-confirm-badge-num">
                     {String(chainPosition).padStart(2, "0")}
                   </span>
                 )}
-                <span className="claim-confirm-badge-you">Your sale</span>
+                <div className="claim-confirm-prop-addr">{addr1 || "Your sale"}</div>
               </div>
+              {addr2 && <div className="claim-confirm-prop-sub">{addr2}</div>}
+              <span className="claim-confirm-badge-you">Your sale</span>
             </div>
           </div>
 

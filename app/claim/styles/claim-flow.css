@@ -445,8 +445,8 @@
   display: block;
   width: 100%;
   padding: 17px 24px;
-  /* Glossy coral: lighter crown, deeper base — reads as a raised, polished key. */
-  background: linear-gradient(180deg, #FF8365 0%, var(--claim-coral) 52%, var(--claim-coral-dark) 100%);
+  /* Flat canonical primary — solid coral, no gradient or gloss. */
+  background: var(--claim-coral);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -457,57 +457,18 @@
   text-align: center;
   text-decoration: none;
   transition: transform 120ms ease, box-shadow 160ms ease, filter 160ms ease;
-  /* Drop shadow for lift + inset top-highlight and bottom-shade for glass depth. */
-  box-shadow:
-    0 6px 18px rgba(255,107,74,.34),
-    0 1px 2px rgba(150,44,18,.20),
-    inset 0 1px 0 rgba(255,255,255,.45),
-    inset 0 -2px 6px rgba(150,44,18,.28);
+  box-shadow: none;
   box-sizing: border-box;
   font-family: inherit;
 }
-/* Static top-sheen — the glass crown. Primary button only. */
-.claim-btn:not(.claim-btn--ghost):not(.claim-btn--secondary)::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 52%;
-  background: linear-gradient(180deg, rgba(255,255,255,.36), rgba(255,255,255,0));
-  border-radius: 12px 12px 0 0;
-  pointer-events: none;
-}
-/* Sweeping shine — toggled by .claim-btn--shine (throttled on card hover). */
-.claim-btn:not(.claim-btn--ghost):not(.claim-btn--secondary)::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 45%;
-  height: 100%;
-  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,.55) 50%, transparent 100%);
-  transform: skewX(-18deg);
-  opacity: 0;
-  pointer-events: none;
-}
-.claim-btn--shine::after {
-  animation: claim-btn-shine 850ms ease-out;
-}
-@keyframes claim-btn-shine {
-  0%   { left: -60%; opacity: 0; }
-  14%  { opacity: 1; }
-  100% { left: 130%; opacity: 0; }
-}
+/* Flattened: the glossy sheen + sweeping shine are off (canonical flat primary). */
+.claim-btn:not(.claim-btn--ghost):not(.claim-btn--secondary)::before { display: none; }
+.claim-btn:not(.claim-btn--ghost):not(.claim-btn--secondary)::after { display: none; }
 .claim-btn:hover:not(:disabled) {
-  /* Hover lift to match the main login's primary button. */
   transform: translateY(-1px);
-  box-shadow:
-    0 9px 26px rgba(255,107,74,.46),
-    0 1px 2px rgba(150,44,18,.22),
-    inset 0 1px 0 rgba(255,255,255,.5),
-    inset 0 -2px 6px rgba(150,44,18,.3);
-  filter: saturate(1.06) brightness(1.02);
+  background: var(--claim-coral-dark);
+  box-shadow: none;
+  filter: none;
 }
 .claim-btn:active:not(:disabled) { transform: scale(0.985); }
 .claim-btn:disabled {
@@ -525,6 +486,20 @@
 .claim-btn--ghost:hover {
   background: rgba(255,107,74,.05);
   box-shadow: none;
+}
+/* Flat canonical primary — solid coral, no gradient / sheen / shine. */
+.claim-btn--flat-primary {
+  background: var(--claim-coral);
+  color: #fff;
+  box-shadow: none;
+}
+.claim-btn--flat-primary::before,
+.claim-btn--flat-primary::after { display: none; }
+.claim-btn--flat-primary:hover:not(:disabled) {
+  background: var(--claim-coral-dark);
+  box-shadow: none;
+  filter: none;
+  transform: translateY(-1px);
 }
 .claim-microcopy {
   font-size: 12px;
@@ -588,12 +563,14 @@
   line-height: 1.7;
   margin: 0 0 8px;
 }
+.claim-about strong { font-weight: 600; color: var(--claim-text-1); }
 .claim-support {
   font-size: 12px;
   color: var(--claim-text-3);
   text-align: center;
 }
-.claim-support a { color: var(--claim-text-3); text-decoration: none; }
+.claim-support a { color: var(--claim-coral); text-decoration: none; font-weight: 500; transition: color 0.12s ease; }
+.claim-support a:hover { color: var(--claim-coral-dark); }
 
 /* ─── Context strip (sub-pages) ──────────────────────────────────────────── */
 /* Light frosted card to match the white claim style (was a coral gradient band,
@@ -615,11 +592,13 @@
 .claim-context-back {
   font-size: 12px;
   font-weight: 600;
-  color: var(--claim-coral-dark);
+  color: var(--claim-coral);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: color 0.12s ease;
 }
+.claim-context-back:hover { color: var(--claim-coral-dark); }
 .claim-context-info { min-width: 0; }
 .claim-context-label {
   font-size: 10px;
@@ -785,7 +764,8 @@
   margin-top: 12px;
   text-align: center;
 }
-.claim-form-terms a { color: var(--claim-text-3); text-decoration: underline; }
+.claim-form-terms a { color: var(--claim-coral); text-decoration: none; font-weight: 500; transition: color 0.12s ease; }
+.claim-form-terms a:hover { color: var(--claim-coral-dark); }
 .claim-form-forgot {
   font-size: 12px;
   color: var(--claim-text-3);
@@ -1006,7 +986,7 @@
 }
 .claim-confirm-back {
   display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 16px;
-  font-size: 13.5px; font-weight: 600; color: var(--claim-text-2); text-decoration: none;
+  font-size: 13.5px; font-weight: 600; color: var(--claim-coral); text-decoration: none;
 }
 .claim-confirm-back:hover { color: var(--claim-coral-dark); }
 /* The arrow nudges left while hovered, easing back on hover-off. */
@@ -1045,7 +1025,14 @@
 /* Bigger house in the confirm tile — 30px looked lost in a 92x74 tile. */
 .claim-confirm-prop-photo .claim-b-thumb-house { width: 46px; height: 46px; }
 .claim-confirm-prop-main { min-width: 0; }
-.claim-confirm-prop-addr { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--claim-text-1); }
+.claim-confirm-prop-addr {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--claim-text-1);
+  /* Clamp a long street line to two tidy lines so it can't shove the number
+     badge / "Your sale" caption out of place. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; min-width: 0;
+}
+.claim-confirm-prop-addr-row { min-width: 0; }
 .claim-confirm-prop-sub { font-size: 14px; color: var(--claim-text-2); margin-top: 2px; }
 .claim-confirm-prop-badges { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
 /* Number circle and YOUR SALE pill share one 26px height so they sit level. */
@@ -1053,18 +1040,19 @@
   width: 26px; height: 26px; border-radius: 50%; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 11.5px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums;
-  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
-  box-shadow: 0 3px 10px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 5px rgba(150, 44, 18, 0.28);
+  background: var(--claim-coral);
+  box-shadow: none;
 }
+.claim-confirm-prop-addr-row { display: flex; align-items: center; gap: 10px; }
 .claim-confirm-badge-you {
-  display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #fff;
-  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
-  box-shadow: 0 2px 8px rgba(255, 107, 74, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  display: block; margin-top: 4px;
+  font-size: 12px; font-weight: 700; color: var(--claim-coral);
 }
 .claim-confirm-prop-divider { height: 1px; background: var(--claim-border); margin: 18px 0; }
 .claim-confirm-account { margin: 16px 0 0; text-align: center; font-size: 12.5px; color: var(--claim-text-3); }
 .claim-confirm-account strong { color: var(--claim-text-2); font-weight: 700; }
+.claim-confirm-account a { color: var(--claim-coral); font-weight: 500; text-decoration: none; transition: color 0.12s ease; }
+.claim-confirm-account a:hover { color: var(--claim-coral-dark); }
 @media (max-width: 480px) {
   .claim-confirm-title { font-size: 28px; }
   .claim-confirm-prop-photo { width: 76px; height: 64px; }
@@ -1555,9 +1543,9 @@
 .claim-choice-card > svg { width: 22px; height: 22px; color: var(--claim-text-2); transition: color .18s; }
 .claim-choice-label { font-size: 13.5px; font-weight: 600; color: var(--claim-text-1); }
 .claim-choice-card.on {
-  background: linear-gradient(180deg, #ff8365 0%, #FF6B4A 52%, #E85A35 100%);
+  background: var(--claim-coral);
   border-color: transparent;
-  box-shadow: 0 10px 24px rgba(255, 107, 74, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: none;
 }
 .claim-choice-card.on > svg, .claim-choice-card.on .claim-choice-label { color: #fff; }
 .claim-choice-tick {

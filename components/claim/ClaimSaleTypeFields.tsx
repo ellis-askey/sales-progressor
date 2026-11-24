@@ -1,5 +1,10 @@
 "use client";
 
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import "@/components/arc/cookie-consent/scope.css";
+
+const CORAL = "#FF6B4A";
+
 // Elevated-card selectors for the two sale details every claim flow needs:
 // tenure (freehold / leasehold) and purchase type (mortgage / cash / cash from
 // proceeds). Shared by ClaimConfirmForm, ClaimLoginForm and ClaimSignupForm so the
@@ -126,10 +131,9 @@ export function ClaimSaleTypeFields({
       </div>
 
       {tenure === "leasehold" && (
-        <label className="claim-share-of-freehold">
-          <input type="checkbox" checked={isShareOfFreehold} onChange={(e) => onShareOfFreehold(e.target.checked)} />
-          Share of freehold
-        </label>
+        <div className="arc-scope" style={{ marginTop: 2, "--control-on": CORAL, "--control-glyph": "#ffffff" } as React.CSSProperties}>
+          <Checkbox checked={isShareOfFreehold} onCheckedChange={(v) => onShareOfFreehold(v === true)} label="Share of freehold" />
+        </div>
       )}
     </div>
   );

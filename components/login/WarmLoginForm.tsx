@@ -157,7 +157,7 @@ export function WarmLoginForm() {
               setEmailError(v && !emailLooksValid(v) ? "Enter a valid email address" : "");
             }}
           />
-          {emailError && <p style={{ fontSize: "12px", color: "#C73E3E", fontWeight: 500, margin: 0 }}>{emailError}</p>}
+          {emailError && <p style={{ fontSize: "11px", color: "#C73E3E", fontWeight: 500, margin: 0 }}>{emailError}</p>}
         </div>
 
         <LabelInput

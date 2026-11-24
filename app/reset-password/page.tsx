@@ -6,7 +6,9 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { InlineAlert } from "@/components/ui/InlineAlert";
+import { TrustStrip } from "@/components/ui/TrustStrip";
 import { Button } from "@/components/arc/button/button";
 
 // Canonical auth shell — matches /login and /register: sunlit interior photo
@@ -74,8 +76,8 @@ function ResetForm() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
-        <p style={{ fontSize: "14px", fontWeight: 600, color: "#20242E", marginBottom: 4 }}>Password updated</p>
-        <p style={{ fontSize: "12px", color: "#8A8A94" }}>Redirecting you to sign in…</p>
+        <p style={{ fontSize: "14px", fontWeight: 600, color: "#2D1810", marginBottom: 4 }}>Password updated</p>
+        <p style={{ fontSize: "12px", color: "rgba(45,24,16,0.55)" }}>Redirecting you to sign in…</p>
       </div>
     );
   }
@@ -153,10 +155,6 @@ export default function ResetPasswordPage() {
         @media (max-width: 640px) { .auth-bg-img { background-image: url(/auth-bg-mobile.png); } }
         @media (prefers-reduced-motion: reduce) { .auth-enter, .auth-bg-enter { animation: none; } }
         .rp-link:hover { color: #E55B3D !important; }
-        @keyframes rp-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.6; transform: scale(0.85); }
-        }
       ` }} />
 
       {/* Sunlit interior background photo (matches /login + /register). */}
@@ -183,12 +181,7 @@ export default function ResetPasswordPage() {
               <span style={{ fontSize: "9.5px", fontWeight: 700, color: "#8A7A72", letterSpacing: "0.14em", marginTop: "3px" }}>SALES PROGRESSOR</span>
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: 600, color: "#2D1810", letterSpacing: "-0.01em", lineHeight: 1.15 }}>
-            Choose a new password
-          </h1>
-          <p style={{ margin: "0.45rem 0 0", fontSize: "13px", color: "rgba(45,24,16,0.55)" }}>
-            Make it at least 10 characters
-          </p>
+          <PageTitle title="Choose a new password" subtitle="Make it at least 10 characters" />
         </div>
 
         {/* Card */}
@@ -204,20 +197,12 @@ export default function ResetPasswordPage() {
           </Suspense>
         </div>
 
-        {/* Trust footer */}
-        <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
-            {["SSL encrypted", "GDPR compliant", "UK data"].map((item, i, arr) => (
-              <span key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.52)" }}>{item}</span>
-                {i < arr.length - 1 && <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.25)" }}>·</span>}
-              </span>
-            ))}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "#4CAF50", animation: "rp-pulse 2s ease-in-out infinite" }} />
-            <span style={{ fontSize: "11px", color: "rgba(32,36,46,0.50)" }}>All systems operational</span>
-          </div>
+        {/* Trust footer — canonical plain row (SSL · GDPR · UK data). */}
+        <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "center" }}>
+          <TrustStrip
+            variant="plain"
+            items={[{ label: "SSL encrypted" }, { label: "GDPR compliant" }, { label: "UK data" }]}
+          />
         </div>
 
       </div>
