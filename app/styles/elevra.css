@@ -95,3 +95,19 @@ html.elevra-bg {
   .quote-enter,
   .quote-fade { animation: none; }
 }
+
+/*
+ * Chain-invite backgrounds on the quote flow (replaces the shared portal
+ * ambient wash on this page only). Responsive crops, like /claim.
+ */
+.quote-invite-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background: url("/invite-bg-desktop.jpg") no-repeat center center;
+  background-size: cover;
+}
+@media (max-width: 1024px) { .quote-invite-bg { background-image: url("/invite-bg-tablet.jpg"); } }
+@media (max-width: 640px)  { .quote-invite-bg { background-image: url("/invite-bg-mobile.jpg"); } }
+
+/* Canonical inline link (matches the login/register coral link). */
+.quote-link { color: #FF6B4A; font-weight: 500; text-decoration: none; transition: color 0.12s ease; }
+.quote-link:hover { color: #E55B3D; }

@@ -74,7 +74,7 @@ export default async function QuotePage({
   if (!(await txOffersTspProviders(contact.transaction.id))) {
     return (
       <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
-        <div aria-hidden className="portal-ambient" />
+        <div aria-hidden className="quote-invite-bg" />
         <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
             Arranging your survey
@@ -99,7 +99,7 @@ export default async function QuotePage({
     if (!sig.onwardAddress) {
       return (
         <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
-          <div aria-hidden className="portal-ambient" />
+          <div aria-hidden className="quote-invite-bg" />
           <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
               We need your onward address first
@@ -174,9 +174,9 @@ export default async function QuotePage({
         padding: "24px 20px 104px",
       }}
     >
-      {/* Same fixed ambient wash the client portal uses (.portal-ambient in
-       * globals.css), so this page and the portal read as one product. */}
-      <div aria-hidden className="portal-ambient" />
+      {/* Chain-invite background on this page (.quote-invite-bg in elevra.css),
+       * replacing the shared portal ambient wash. */}
+      <div aria-hidden className="quote-invite-bg" />
 
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         {/* The header lives inside QuoteFlow so it can react to where you are in
@@ -205,7 +205,7 @@ export default async function QuotePage({
         <footer style={{ marginTop: 20, textAlign: "center" }}>
           <p style={{ fontSize: 11, color: A.textFaint }}>
             Your details are only shared with the firms you select. Read our{" "}
-            <a href="/privacy" style={{ color: A.coralDeep, textDecoration: "underline" }}>
+            <a href="/privacy" className="quote-link">
               privacy policy
             </a>
             .

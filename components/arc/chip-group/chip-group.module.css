@@ -16,13 +16,15 @@
 .body[data-selected="true"] .slot { width: 18px; }
 .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Selected reads as a quiet tint of the accent (neutral by default) plus the check, never color alone. */
-.body[data-selected="true"] .surface { border-color: color-mix(in oklab, var(--accent) 42%, var(--border)); background: color-mix(in oklab, var(--accent) 11%, var(--surface)); }
-.chip[aria-pressed="true"] { color: var(--foreground); }
+/* TSP canonical: selected is a solid flat accent fill with a white check + white
+   label (not the arc default quiet tint). Unselected hover is unchanged. */
+.body[data-selected="true"] .surface { border-color: var(--accent); background: var(--accent); }
+.body[data-selected="true"] .check { color: var(--accent-foreground); }
+.chip[aria-pressed="true"] { color: var(--accent-foreground); }
 @media (hover: hover) and (pointer: fine) {
   .chip:hover { color: var(--foreground); }
   .chip:hover .surface { border-color: var(--border-strong); }
-  .chip[aria-pressed="true"]:hover .surface { border-color: color-mix(in oklab, var(--accent) 60%, var(--border)); background: color-mix(in oklab, var(--accent) 16%, var(--surface)); }
+  .chip[aria-pressed="true"]:hover .surface { border-color: var(--accent); background: var(--accent); }
 }
 
 /* The overflow chip travels under the chips it reveals, so they seem to come out of it. */

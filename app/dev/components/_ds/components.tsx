@@ -66,13 +66,15 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { ListChecks as ListChecksI } from "@phosphor-icons/react";
 import { WarningCircle as WarningCircleI, CheckCircle as CheckCircleI, CalendarBlank as CalendarBlankI, ClockCountdown as ClockCountdownI, ChatCircleDots as ChatCircleDotsI, PaperPlaneTilt as PaperPlaneTiltI } from "@phosphor-icons/react";
 
-// Dev-gallery placeholders: Checkbox / OtpInput / RadioGroup / CookieConsent come from the
-// arc library that is not yet committed to this branch. Stubbed to null so the prod build
-// resolves; restore the real imports once the arc library lands. (Dev tooling only.)
-const Checkbox = (_: Record<string, unknown>) => null;
-const OtpInput = (_: Record<string, unknown>) => null;
-const RadioGroup = (_: Record<string, unknown>) => null;
-const CookieConsent = (_: Record<string, unknown>) => null;
+// The arc primitives — now committed on this branch, so the gallery renders the
+// real components (previously stubbed to null while the arc library was pending).
+import { Checkbox } from "@/components/arc/checkbox/checkbox";
+import { OtpInput } from "@/components/arc/otp-input/otp-input";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { CookieConsent } from "@/components/arc/cookie-consent/cookie-consent";
+import { ChipGroup } from "@/components/arc/chip-group/chip-group";
+import { CheckCardGroup } from "@/components/arc/check-card-group/check-card-group";
+import "@/components/arc/cookie-consent/scope.css";
 
 const CORAL = "#FF6B4A";
 
@@ -121,6 +123,47 @@ function RoleRadioDemo() {
         options={[
           { value: "director", label: "Director", description: "Manage your agency, view all sales and oversee your team." },
           { value: "negotiator", label: "Negotiator", description: "View your sales and request support from your sales progressor." },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ChipGroupDemo() {
+  const [v, setV] = useState<string[]>(["either"]);
+  return (
+    <div className="arc-scope" style={{ "--accent": CORAL, "--accent-strong": CORAL, "--accent-foreground": "#ffffff", "--foreground": "#E55B3D" } as CSSProperties}>
+      <ChipGroup
+        label="Best way to reach you"
+        multiple={false}
+        value={v}
+        onValueChange={(next) => { const x = next[0]; if (x) setV([x]); }}
+        options={[
+          { value: "either", label: "Either phone or email" },
+          { value: "phone", label: "Phone" },
+          { value: "email", label: "Email" },
+          { value: "text", label: "Text message" },
+          { value: "whatsapp", label: "WhatsApp" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function CheckCardGroupDemo() {
+  const [v, setV] = useState<string[]>(["beacon"]);
+  const avatar = (letter: string) => (
+    <span style={{ width: 36, height: 36, borderRadius: 9, background: "#F4F4F6", display: "grid", placeItems: "center", fontWeight: 700, color: "#8A7A72" }}>{letter}</span>
+  );
+  return (
+    <div style={{ width: "100%" }}>
+      <CheckCardGroup
+        label="Pick a firm"
+        value={v}
+        onValueChange={setV}
+        options={[
+          { value: "beacon", label: "Beacon Mortgage Advice", description: "Whole-of-market, no broker fee.", leading: avatar("B") },
+          { value: "harbor", label: "Harbor & Co Surveyors", description: "RICS HomeBuyer and building surveys.", leading: avatar("H") },
         ]}
       />
     </div>
@@ -2546,7 +2589,52 @@ const TRUST_ENTRIES: ComponentEntry[] = [
   },
 ];
 
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES, ...TRUST_ENTRIES];
+const CHOICE_ENTRIES: ComponentEntry[] = [
+  {
+    id: "chip-group",
+    name: "Chip group (pills)",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["chip", "pill", "pills", "filter", "select", "options", "single", "multi", "tags", "preferences"],
+    summary: "Selectable pill chips — single or multi-select. TSP canonical: a chosen chip is a solid flat primary (coral) with a white tick + white label; the tick grows in and the row re-flows on a spring, neighbours gliding to their new places. Unselected chips hover to a quiet border. Used for the quote flow's contact preferences.",
+    variants: [
+      { id: "single", label: "Single-select (coral solid)", render: () => <Stage wide><ChipGroupDemo /></Stage> },
+    ],
+    sources: [
+      { path: "components/arc/chip-group/chip-group.tsx", note: "the component (uiarc, MIT)" },
+      { path: "components/arc/chip-group/chip-group.module.css", note: "TSP solid-primary selected state" },
+      { path: "app/quote/[token]/QuoteFlow.tsx", note: "contact preferences" },
+    ],
+    exceptions: [
+      { title: "Solid-primary selected (TSP)", detail: "The arc default is a quiet accent tint; TSP fills the chosen chip solid --accent with a white tick + label. Coral comes from the --accent override in an .arc-scope wrapper.", source: "components/arc/chip-group/chip-group.module.css", scope: "shared" },
+      { title: "Single-select keeps one chosen", detail: "In single mode, clicking the chosen chip would clear it; the quote flow ignores the empty so one option always stays selected.", source: "app/quote/[token]/QuoteFlow.tsx", scope: "specific" },
+    ],
+    render: () => <Stage wide><ChipGroupDemo /></Stage>,
+  },
+  {
+    id: "check-card-group",
+    name: "Check-card group",
+    category: "toggles",
+    status: "implemented",
+    keywords: ["checkbox", "card", "multi-select", "tick", "firm", "pick", "radio", "list", "choose", "check"],
+    summary: "A multi-select sibling of Radio group: each row is a card that fills solid coral when chosen, with a white tick that draws itself into a circle (the radio's dot, inverted to a tick). An optional leading slot carries a logo/avatar. Rows never resize. Built for the quote flow's firm picker.",
+    variants: [
+      { id: "firms", label: "Firm picker (multi-select)", render: () => <Stage wide><CheckCardGroupDemo /></Stage> },
+    ],
+    sources: [
+      { path: "components/arc/check-card-group/check-card-group.tsx", note: "the component" },
+      { path: "components/arc/radio-group/radio-group.tsx", note: "the single-select sibling it echoes" },
+      { path: "app/quote/[token]/QuoteFlow.tsx", note: "the firm picker" },
+    ],
+    exceptions: [
+      { title: "No single sliding highlight", detail: "Radio group slides one coral highlight (single-select). This is multi-select, so each chosen row fills on its own; the tick animates in instead of a travelling highlight.", source: "components/arc/radio-group/radio-group.tsx", scope: "shared" },
+      { title: "Leading slot", detail: "Each option takes an optional `leading` node — the quote flow passes the firm's logo tile (or a letter avatar).", source: "app/quote/[token]/QuoteFlow.tsx", scope: "specific" },
+    ],
+    render: () => <Stage wide><CheckCardGroupDemo /></Stage>,
+  },
+];
+
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES, ...TRUST_ENTRIES, ...CHOICE_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

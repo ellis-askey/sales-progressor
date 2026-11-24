@@ -1,0 +1,88 @@
+/* Multi-select card group. Mirrors radio-group's coral "filled" look, but each
+   selected row fills on its own (no single sliding highlight, since several can
+   be chosen), and the mark is an animated tick in a circle (inverted to white
+   when selected). Light-only, like the radio-group it echoes. */
+
+.group { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+.group legend {
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3f46;
+  letter-spacing: 0.005em;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(32, 36, 46, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+.option[data-checked] {
+  border-color: transparent;
+  background: #ff6b4a;
+  box-shadow: 0 10px 24px rgba(255, 107, 74, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.option input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+
+/* The tick-in-circle: a grey ring at rest; a white ring holding a coral tick
+   when chosen (the tick's pathLength is drawn in by the component). */
+.mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(32, 36, 46, 0.3);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #ff6b4a;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.option[data-checked] .mark { border-color: #ffffff; background: #ffffff; }
+.mark svg { display: block; overflow: visible; }
+
+.leading { flex-shrink: 0; display: flex; }
+
+.text { flex: 1; min-width: 0; }
+.text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #20242e;
+  transition: color 200ms ease;
+}
+.text small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(32, 36, 46, 0.55);
+  line-height: 1.4;
+  transition: color 200ms ease;
+}
+.option[data-checked] .text strong { color: #ffffff; }
+.option[data-checked] .text small { color: rgba(255, 255, 255, 0.82); }
+
+.option:focus-within { outline: none; }
+.option:focus-within:not([data-checked]) { border-color: rgba(255, 107, 74, 0.55); }
+@media (hover: hover) and (pointer: fine) {
+  .option:not([data-checked]):hover { border-color: rgba(255, 107, 74, 0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option, .mark, .text strong, .text small { transition: none; }
+}

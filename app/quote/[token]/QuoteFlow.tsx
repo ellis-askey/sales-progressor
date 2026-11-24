@@ -6,6 +6,15 @@ import type { QuoteContactMethod, QuoteContactWindow, QuoteUrgency } from "@pris
 import { A } from "./ui";
 import { titleCaseKeepAcronyms } from "@/lib/utils";
 import { cleanPhone, formatUKPhone } from "@/lib/utils/address";
+import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { ChipGroup } from "@/components/arc/chip-group/chip-group";
+import { CheckCardGroup } from "@/components/arc/check-card-group/check-card-group";
+import { LabelInput } from "@/components/ui/LabelInput";
+import "@/components/arc/cookie-consent/scope.css";
+
+// The brand coral, for the arc token overrides (radio highlight + chip tint).
+const CORAL = "#FF6B4A";
+const chipScope = { "--accent": CORAL, "--accent-strong": CORAL, "--accent-foreground": "#ffffff", "--foreground": A.coralDark } as React.CSSProperties;
 
 type Kind = { kind: string; label: string };
 type ServiceType = { id: string; kind: string; label: string; description: string | null };
@@ -101,13 +110,6 @@ export function QuoteFlow({
   // Step numbers shift by one when the category dropdown is shown.
   const showKindStep = kinds.length > 1;
   const n = (base: number) => base + (showKindStep ? 1 : 0);
-
-  function toggleFirm(id: string) {
-    const next = new Set(selectedFirms);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedFirms(next);
-  }
 
   function submit() {
     if (pending) return;
@@ -351,6 +353,7 @@ export function QuoteFlow({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <style>{`.quote-rg-nolegend legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }`}</style>
       <QuoteHeader sent={false} firstName={firstName} address={propertyAddress} count={0} />
 
       {/* Step 1: pick provider category (hidden when only one is available) */}
@@ -378,33 +381,20 @@ export function QuoteFlow({
       {/* Service type (after a category is chosen) */}
       {kind && (
       <StepCard number={n(1)} title="What service do you need?">
-        <div role="radiogroup" aria-label="Service" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {kindServiceTypes.map((s) => (
-            <button
-              key={s.id}
-              role="radio"
-              aria-checked={serviceTypeId === s.id}
-              onClick={() => {
-                setServiceTypeId(s.id);
-                // Clear firm selection when switching service — some firms might not offer the new one
-                setSelectedFirms(new Set());
-              }}
-              style={{
-                textAlign: "left",
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: serviceTypeId === s.id ? `2px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
-                background: serviceTypeId === s.id ? A.coralTint : A.inputBg,
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              <p style={{ fontSize: 14, fontWeight: 600, color: A.textPrimary, margin: "0 0 3px" }}>{s.label}</p>
-              {s.description && (
-                <p style={{ fontSize: 12, color: A.textMuted, margin: 0, lineHeight: 1.4 }}>{s.description}</p>
-              )}
-            </button>
-          ))}
+        {/* Canonical arc RadioGroup — its legend is sr-only here because the
+            StepCard title owns the visible heading. */}
+        <div className="quote-rg-nolegend">
+          <RadioGroup
+            label="Service"
+            name="quote-service"
+            value={serviceTypeId ?? ""}
+            onValueChange={(v) => {
+              setServiceTypeId(v);
+              // Clear firm selection when switching service — some firms might not offer the new one
+              setSelectedFirms(new Set());
+            }}
+            options={kindServiceTypes.map((s) => ({ value: s.id, label: s.label, description: s.description ?? undefined }))}
+          />
         </div>
       </StepCard>
       )}
@@ -421,81 +411,20 @@ export function QuoteFlow({
               None of the available firms offer this service. Try picking a different service above.
             </p>
           ) : (
-            <div role="group" aria-label="Firms" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {eligibleFirms.map((f) => {
-                const isSelected = selectedFirms.has(f.id);
-                return (
-                  <button
-                    key={f.id}
-                    role="checkbox"
-                    aria-checked={isSelected}
-                    aria-label={f.name}
-                    onClick={() => toggleFirm(f.id)}
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                      textAlign: "left",
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      border: isSelected ? `2px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
-                      background: isSelected ? A.coralTint : A.inputBg,
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {f.logoUrl ? (
-                      <img
-                        src={f.logoUrl}
-                        alt=""
-                        style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0, background: A.paper }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 10,
-                          background: A.bgMid,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <span style={{ fontSize: 18, fontWeight: 700, color: A.textFaint }}>
-                          {f.name.slice(0, 1).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: A.textPrimary, margin: "0 0 3px" }}>{f.name}</p>
-                      {f.notes && (
-                        <p style={{ fontSize: 12, color: A.textMuted, margin: 0, lineHeight: 1.4 }}>{f.notes}</p>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: 11,
-                        border: isSelected ? "none" : `2px solid ${A.inputBorder}`,
-                        background: isSelected ? A.coralDeep : "transparent",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isSelected && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+            // Canonical arc CheckCardGroup — legend sr-only (StepCard owns the heading).
+            <div className="quote-rg-nolegend">
+              <CheckCardGroup
+                label="Firms"
+                name="quote-firms"
+                value={Array.from(selectedFirms)}
+                onValueChange={(ids) => setSelectedFirms(new Set(ids))}
+                options={eligibleFirms.map((f) => ({
+                  value: f.id,
+                  label: f.name,
+                  description: f.notes ?? undefined,
+                  leading: <FirmLogo firm={f} />,
+                }))}
+              />
             </div>
           )}
         </StepCard>
@@ -559,41 +488,31 @@ export function QuoteFlow({
       {/* Step 4: your contact details */}
       {serviceTypeId && selectedFirms.size > 0 && (
         <StepCard number={n(4)} title="Your details" subtitle="We've pre-filled from your file. Edit anything that needs updating.">
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Name</label>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) setClientName(titleCaseKeepAcronyms(e.target.value)); }}
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                type="email"
-                value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) setClientEmail(e.target.value.trim().toLowerCase()); }}
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>
-                Phone {phoneRequired ? "(required for the way you chose to be contacted)" : "(optional but recommended)"}
-              </label>
-              <input
-                type="tel"
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, "--lbi-top": "0px" } as React.CSSProperties}>
+            <LabelInput
+              label="Name" type="text" name="quote-name" accent={CORAL} fullWidth
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              onBlur={(e) => { if (e.target.value.trim()) setClientName(titleCaseKeepAcronyms(e.target.value)); }}
+            />
+            <LabelInput
+              label="Email" type="email" name="quote-email" autoComplete="email" accent={CORAL} fullWidth
+              value={clientEmail}
+              onChange={(e) => setClientEmail(e.target.value)}
+              onBlur={(e) => { if (e.target.value.trim()) setClientEmail(e.target.value.trim().toLowerCase()); }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <LabelInput
+                label="Phone" type="tel" name="quote-phone"
+                accent={phoneRequired && !clientPhone.trim() ? A.danger : CORAL}
+                fullWidth
                 value={clientPhone}
                 onChange={(e) => setClientPhone(cleanPhone(e.target.value))}
                 onBlur={(e) => { if (e.target.value.trim()) setClientPhone(formatUKPhone(e.target.value)); }}
-                style={{
-                  ...inputStyle,
-                  border: phoneRequired && !clientPhone.trim() ? `1.5px solid ${A.dangerBorder}` : inputStyle.border,
-                }}
               />
+              <p style={{ fontSize: 11, color: phoneRequired && !clientPhone.trim() ? A.danger : A.textMuted, margin: 0, lineHeight: 1.4 }}>
+                {phoneRequired ? "Required for the way you chose to be contacted" : "Optional but recommended"}
+              </p>
             </div>
             {onward && (
               <div>
@@ -694,7 +613,7 @@ export function QuoteFlow({
             </button>
             <p style={{ margin: "12px 0 0", fontSize: 12, color: A.textFaint, textAlign: "center", lineHeight: 1.5 }}>
               By requesting a quote you agree to our{" "}
-              <a href="/provider-terms" target="_blank" rel="noopener noreferrer" style={{ color: A.coralDark, textDecoration: "underline", textUnderlineOffset: 2 }}>
+              <a href="/provider-terms" target="_blank" rel="noopener noreferrer" className="quote-link">
                 Provider Request Service Terms
               </a>
               .
@@ -725,7 +644,7 @@ function QuoteHeader({
 }) {
   return (
     <header key={sent ? "sent" : "ask"} className="quote-enter" style={{ marginBottom: 4 }}>
-      <p style={{ fontSize: 11, fontWeight: 600, color: A.coralDeep, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: A.coralDeep, margin: "0 0 6px" }}>
         {sent ? "All done" : "Request a quote"}
       </p>
       <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 6px", lineHeight: 1.15 }}>
@@ -741,6 +660,18 @@ function QuoteHeader({
         )}
       </p>
     </header>
+  );
+}
+
+// The firm's logo tile (or a letter avatar), used as the CheckCardGroup leading.
+function FirmLogo({ firm }: { firm: Firm }) {
+  return firm.logoUrl ? (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img src={firm.logoUrl} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover", background: A.paper }} />
+  ) : (
+    <div style={{ width: 44, height: 44, borderRadius: 10, background: A.bgMid, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: 18, fontWeight: 700, color: A.textFaint }}>{firm.name.slice(0, 1).toUpperCase()}</span>
+    </div>
   );
 }
 
@@ -820,28 +751,16 @@ function RadioRow({
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <div role="radiogroup" aria-label={label} style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {options.map((o) => (
-          <button
-            key={o.value}
-            role="radio"
-            aria-checked={value === o.value}
-            onClick={() => onChange(o.value)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: value === o.value ? `1.5px solid ${A.coralTintBorder}` : `1px solid ${A.inputBorder}`,
-              background: value === o.value ? A.coralTint : A.inputBg,
-              color: value === o.value ? A.coralDark : A.textSecondary,
-              fontSize: 13,
-              fontWeight: value === o.value ? 600 : 500,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            {o.label}
-          </button>
-        ))}
+      {/* Canonical arc ChipGroup — single-select, coral accent. Clicking the
+          chosen chip would clear it; we ignore the empty so one stays chosen. */}
+      <div className="arc-scope" style={chipScope}>
+        <ChipGroup
+          label={label}
+          multiple={false}
+          options={options}
+          value={value ? [value] : []}
+          onValueChange={(next) => { const v = next[0]; if (v) onChange(v); }}
+        />
       </div>
     </div>
   );
@@ -849,11 +768,9 @@ function RadioRow({
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 600,
-  color: A.textMuted,
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
+  color: A.textSecondary,
   marginBottom: 6,
 };
 
