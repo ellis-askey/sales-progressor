@@ -12,7 +12,14 @@ import {
   Stack, MagnifyingGlass, Plus, Eye, CaretDown, X, Check, CircleNotch, Buildings, User as UserIcon, LockSimple,
 } from "@phosphor-icons/react";
 import { RowActionsMenu } from "@/components/account/chrome/RowActionsMenu";
+import { Button } from "@/components/arc/button/button";
+import { Badge } from "@/components/ui/Badge";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+
+// Flat coral primary for the arc Button (matches the app-wide primary).
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { TemplateRichEditor } from "./TemplateRichEditor";
 import { renderTemplateBody, type TemplateVarValues } from "@/lib/email/templates/variables";
@@ -81,7 +88,7 @@ export function EmailTemplatesManager({ canManageCompany }: { canManageCompany: 
             <MagnifyingGlass size={16} weight="bold" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search templates…" aria-label="Search templates" />
           </div>
-          <button type="button" className="etm-create" onClick={openNew}><Plus size={15} weight="bold" /> Create template</button>
+          <Button variant="primary" size="sm" onClick={openNew} style={coralVars}><Plus size={15} weight="bold" /> Create template</Button>
         </div>
       )}
 
@@ -94,7 +101,7 @@ export function EmailTemplatesManager({ canManageCompany }: { canManageCompany: 
             <div className="etm-empty-ic"><Stack size={26} weight="fill" /></div>
             <div className="etm-empty-h">No email templates yet</div>
             <p className="etm-empty-p">Create your first template to save time and keep your communication consistent.</p>
-            <button type="button" className="etm-create" onClick={openNew}><Plus size={15} weight="bold" /> Create your first template</button>
+            <Button variant="primary" size="sm" onClick={openNew} style={coralVars}><Plus size={15} weight="bold" /> Create your first template</Button>
           </div>
         ) : (
           <div className="etm-empty"><div className="etm-empty-h">No templates match &ldquo;{query}&rdquo;</div><p className="etm-empty-p">Try a different search.</p></div>
@@ -115,8 +122,9 @@ export function EmailTemplatesManager({ canManageCompany }: { canManageCompany: 
                 <span className="etm-name-text">
                   <span className="etm-name">
                     {t.name}
-                    {t.scope === "company" ? <span className="etm-chip etm-chip-co"><Buildings size={11} weight="fill" /> Company</span>
-                      : <span className="etm-chip etm-chip-me"><UserIcon size={11} weight="fill" /> Personal</span>}
+                    {t.scope === "company"
+                      ? <Badge tone="neutral" caps={false}><Buildings size={11} weight="fill" style={{ marginRight: 4 }} /> Company</Badge>
+                      : <Badge tone="neutral" caps={false}><UserIcon size={11} weight="fill" style={{ marginRight: 4 }} /> Personal</Badge>}
                   </span>
                   {t.description && <span className="etm-desc">{t.description}</span>}
                 </span>
@@ -126,7 +134,7 @@ export function EmailTemplatesManager({ canManageCompany }: { canManageCompany: 
                 <RowActionsMenu items={[
                   ...(t.canEdit ? [{ label: "Edit template", onClick: () => openEdit(t) }] : []),
                   { label: "Duplicate", onClick: () => onDuplicate(t) },
-                  ...(t.canEdit ? [{ label: "Delete template", onClick: () => setConfirmDelete(t), danger: true }] : []),
+                  ...(t.canEdit ? [{ label: "Remove template", onClick: () => setConfirmDelete(t), danger: true }] : []),
                 ]} />
               </span>
             </div>
@@ -194,17 +202,18 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
         <div className="etm-modal-hd">
           <span className="etm-modal-ic"><Stack size={18} weight="fill" /></span>
           <span className="etm-modal-title">{d.id ? "Edit email template" : "Create email template"}</span>
-          <button type="button" className="etm-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button type="button" className="etm-x" onClick={onClose} aria-label="Close"><X size={16} weight="bold" /></button>
         </div>
 
         <div className="etm-modal-body">
           <div className="etm-form">
-            <Field label="Template name" required>
-              <input className="etm-input" value={d.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Exchange readiness" autoFocus />
-            </Field>
-            <Field label="Description" hint="optional">
-              <input className="etm-input" value={d.description} onChange={(e) => set("description", e.target.value)} placeholder="A short note so you remember when to use it" />
-            </Field>
+            <LabelInput field="Template name" label="Template name" required autoFocus fullWidth accent="#FF6B4A"
+              value={d.name} onChange={(e) => set("name", e.target.value)} />
+            <div>
+              <LabelInput field="Description" label="Description" fullWidth accent="#FF6B4A"
+                value={d.description} onChange={(e) => set("description", e.target.value)} />
+              <span className="etm-sub-hint">A short note so you remember when to use it.</span>
+            </div>
             {canManageCompany && (
               <Field label="Visibility">
                 <div className="etm-seg">
@@ -217,9 +226,11 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
                 </div>
               </Field>
             )}
-            <Field label="Subject" hint="optional">
-              <input className="etm-input" value={d.subject} onChange={(e) => set("subject", e.target.value)} placeholder="Applied only when the email has no subject yet" />
-            </Field>
+            <div>
+              <LabelInput field="Subject" label="Subject" fullWidth accent="#FF6B4A"
+                value={d.subject} onChange={(e) => set("subject", e.target.value)} />
+              <span className="etm-sub-hint">Applied only when the email has no subject yet.</span>
+            </div>
             <Field label="Message" required>
               <TemplateRichEditor initialHtml={d.body} onChange={(html) => set("body", html)} />
             </Field>
@@ -230,10 +241,10 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
         </div>
 
         <div className="etm-modal-ft">
-          <button type="button" className="etm-btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="etm-btn-primary" onClick={save} disabled={saving}>
-            {saving ? <><CircleNotch size={15} className="etm-spin" /> Saving…</> : <><Check size={15} weight="bold" /> Save template</>}
-          </button>
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" size="sm" onClick={save} loading={saving} style={coralVars}>
+            <Check size={15} weight="bold" /> Save template
+          </Button>
         </div>
       </div>
     </div>,
@@ -297,7 +308,9 @@ export function TemplatePreviewPane({ body, subject, footer }: { body: string; s
         <div className="etm-prev-email" dangerouslySetInnerHTML={{ __html: rendered.html || "<p style='color:var(--agent-text-muted)'>Nothing to preview yet.</p>" }} />
         {footer && <SignOffSignatureHint footer={footer} />}
         {file && rendered.missing.length > 0 && (
-          <div className="etm-prev-missing">{rendered.missing.length} variable{rendered.missing.length > 1 ? "s" : ""} not set on this file.</div>
+          <div style={{ marginTop: 14 }}>
+            <InlineAlert kind="warning">{rendered.missing.length} variable{rendered.missing.length > 1 ? "s" : ""} not set on this file.</InlineAlert>
+          </div>
         )}
       </div>
     </div>
@@ -309,7 +322,7 @@ export function TemplatePreviewPane({ body, subject, footer }: { body: string; s
 function SignOffSignatureHint({ footer, labelled }: { footer: SigFooter; labelled?: boolean }) {
   return (
     <div className="etm-sig-hint" aria-hidden>
-      {labelled && <div className="etm-sig-hint-label"><LockSimple size={11} weight="fill" /> Your sign-off &amp; signature — added automatically</div>}
+      {labelled && <div className="etm-sig-hint-label"><LockSimple size={11} weight="fill" /> Your sign-off and signature, added for you</div>}
       <p className="etm-sig-hint-off">{footer.signOff}</p>
       <div className="etm-sig-hint-sig" dangerouslySetInnerHTML={{ __html: footer.signatureHtml }} />
     </div>
@@ -335,8 +348,8 @@ function ConfirmDialog({ title, body, confirmLabel, onCancel, onConfirm }: { tit
         <div className="etm-confirm-h">{title}</div>
         <p className="etm-confirm-b">{body}</p>
         <div className="etm-confirm-ft">
-          <button type="button" className="etm-btn-ghost" onClick={onCancel}>Cancel</button>
-          <button type="button" className="etm-btn-danger" onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }} disabled={busy}>{confirmLabel}</button>
+          <Button variant="secondary" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button variant="danger" size="sm" loading={busy} onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}>{confirmLabel}</Button>
         </div>
       </div>
     </div>,
@@ -358,8 +371,6 @@ const ETM_CSS = `
 .etm-search { flex: 1; display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: #fff; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 11px; color: var(--agent-text-muted, #9a8a7f); transition: border-color .14s; }
 .etm-search:focus-within { border-color: var(--agent-coral-deep, #E2452A); }
 .etm-search input { flex: 1; border: 0; outline: 0; background: none; font-size: 14px; color: var(--agent-text-primary, #2D1810); }
-.etm-create { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; color: #fff; background: var(--agent-btn-bg, linear-gradient(180deg,#FF8A65,#E2452A)); border: 0; border-radius: 11px; padding: 10px 15px; cursor: pointer; box-shadow: var(--agent-btn-shadow, 0 4px 14px rgba(226,69,42,0.26)); white-space: nowrap; }
-.etm-create:hover { filter: brightness(1.03); }
 .etm-loading { display: flex; align-items: center; gap: 9px; color: var(--agent-text-muted); font-size: 14px; padding: 40px 0; justify-content: center; }
 .etm-list { display: flex; flex-direction: column; }
 .etm-row { display: grid; grid-template-columns: 1fr auto 40px; align-items: center; gap: 14px; padding: 13px 10px; border-bottom: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.07)); cursor: pointer; border-radius: 10px; transition: background .13s; }
@@ -371,9 +382,6 @@ const ETM_CSS = `
 .etm-name-text { min-width: 0; }
 .etm-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 650; color: var(--agent-text-primary, #2D1810); }
 .etm-desc { display: block; font-size: 12.5px; color: var(--agent-text-muted, #9a8a7f); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
-.etm-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.1)); }
-.etm-chip-co { color: var(--agent-text-secondary, #5A3A28); background: var(--agent-hover-shade-strong, rgba(45,24,16,0.08)); }
-.etm-chip-me { color: var(--agent-text-muted, #9a8a7f); background: transparent; }
 .etm-upd { font-size: 13px; color: var(--agent-text-muted, #9a8a7f); white-space: nowrap; }
 .etm-empty { text-align: center; padding: 48px 20px; }
 .etm-empty-ic { width: 58px; height: 58px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 16px; background: var(--agent-hover-shade-strong, rgba(45,24,16,0.08)); color: var(--agent-text-tertiary, #7A4A2E); }
@@ -387,10 +395,13 @@ const ETM_CSS = `
 .etm-modal-hd { display: flex; align-items: center; gap: 11px; padding: 16px 18px; border-bottom: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.08)); }
 .etm-modal-ic { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: var(--agent-hover-shade-strong, rgba(45,24,16,0.08)); color: var(--agent-coral-deep, #E2452A); }
 .etm-modal-title { font-size: 16px; font-weight: 700; color: var(--agent-text-primary, #2D1810); }
-.etm-x { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; border: 0; background: none; border-radius: 8px; color: var(--agent-text-muted); cursor: pointer; transition: background .13s; }
-.etm-x:hover { background: var(--agent-hover-shade); }
+/* Canonical modal close (matches Modal.tsx / Drawer.tsx): ghost X, soft faded
+   circle on hover. */
+.etm-x { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; border: 0; background: transparent; border-radius: 999px; color: var(--agent-text-muted); cursor: pointer; transition: background 150ms ease; }
+.etm-x:hover { background: rgba(15,23,42,0.06); }
 .etm-modal-body { display: grid; grid-template-columns: 1fr 0.82fr; gap: 0; overflow: hidden; flex: 1; min-height: 0; }
-.etm-form { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+.etm-form { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; --lbi-top: 0; }
+.etm-sub-hint { display: block; margin-top: 5px; font-size: 11.5px; color: var(--agent-text-muted, #9a8a7f); }
 .etm-field { display: block; }
 .etm-label { display: block; font-size: 12px; font-weight: 700; color: var(--agent-text-secondary, #5A3A28); margin-bottom: 6px; }
 .etm-req { color: var(--agent-coral-deep, #E2452A); }
@@ -422,15 +433,8 @@ const ETM_CSS = `
 .etm-prev-email { font-size: 14px; line-height: 1.6; color: var(--agent-text-primary, #2D1810); }
 .etm-prev-email p { margin: 0 0 11px; }
 .etm-prev-email ul { padding-left: 20px; margin: 4px 0 11px; }
-.etm-prev-missing { margin-top: 14px; font-size: 12px; color: #B45309; }
 
 .etm-modal-ft { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.08)); background: #fff; }
-.etm-btn-ghost { font-size: 13.5px; font-weight: 600; color: var(--agent-text-secondary, #5A3A28); background: none; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 10px; padding: 9px 16px; cursor: pointer; transition: background .13s; }
-.etm-btn-ghost:hover { background: var(--agent-hover-shade); }
-.etm-btn-primary { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; color: #fff; background: var(--agent-btn-bg, linear-gradient(180deg,#FF8A65,#E2452A)); border: 0; border-radius: 10px; padding: 9px 18px; cursor: pointer; box-shadow: var(--agent-btn-shadow, 0 4px 14px rgba(226,69,42,0.26)); }
-.etm-btn-primary:disabled { opacity: 0.7; cursor: default; }
-.etm-btn-danger { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; color: #fff; background: #C0392B; border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer; }
-.etm-btn-danger:disabled { opacity: 0.7; }
 
 .etm-ov-confirm { z-index: 1600; }
 .etm-confirm { width: min(420px, 100%); background: var(--agent-bg-paper, #FFFBF5); border-radius: 16px; padding: 22px; box-shadow: 0 30px 80px rgba(20,14,10,0.34); animation: etm-pop .18s cubic-bezier(.2,.8,.3,1); }

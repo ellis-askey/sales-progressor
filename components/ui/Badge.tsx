@@ -14,7 +14,7 @@ const TONES: Record<BadgeTone, { border: string; color: string }> = {
   danger: { border: "rgba(199,62,62,0.4)", color: "#C73E3E" },
 };
 
-export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: BadgeTone }) {
+export function Badge({ children, tone = "neutral", caps = true }: { children: ReactNode; tone?: BadgeTone; caps?: boolean }) {
   const t = TONES[tone];
   return (
     <span
@@ -22,10 +22,10 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
         display: "inline-flex",
         alignItems: "center",
         flexShrink: 0,
-        fontSize: 10,
+        fontSize: caps ? 10 : 11,
         fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
+        textTransform: caps ? "uppercase" : "none",
+        letterSpacing: caps ? 0.6 : 0.1,
         padding: "3px 8px",
         borderRadius: 6,
         background: "transparent",
