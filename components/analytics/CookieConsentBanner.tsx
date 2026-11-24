@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getConsent, setConsent, type ConsentState } from "@/lib/analytics/consent";
 import { CookieConsent } from "@/components/arc/cookie-consent/cookie-consent";
+import { useFloatingDeck, setDeckPresence, bringToFront, deckEngaged } from "@/lib/ui/floating-deck";
 import "@/components/arc/cookie-consent/scope.css";
 
 // The uiarc.dev CookieConsent (MIT) is the canonical banner — a single surface
@@ -52,6 +53,7 @@ export function CookieConsentBanner() {
   // the bar flash (null = not read yet → render nothing).
   const [consent, setConsentStateLocal] = useState<ConsentState | null>(null);
   const [held, setHeld] = useState(false);
+  const deck = useFloatingDeck();
 
   useEffect(() => {
     setConsentStateLocal(getConsent());
@@ -65,15 +67,45 @@ export function CookieConsentBanner() {
     return () => window.removeEventListener("welcome:closed", onClosed);
   }, []);
 
-  if (WHITE_LABEL_PREFIXES.some((p) => pathname?.startsWith(p))) return null;
+  const isWhiteLabel = WHITE_LABEL_PREFIXES.some((p) => pathname?.startsWith(p));
+
+  // The deck only wants the 44px reopen CHIP (consent decided), not the full bar.
+  // Register that presence; the deck coordinator engages only once the Help pill
+  // is also present (agent pages) — see lib/ui/floating-deck.ts.
+  const chipVisible = consent !== null && !held && !isWhiteLabel && consent.decided === true;
+  useEffect(() => {
+    setDeckPresence("cookie", chipVisible);
+    return () => setDeckPresence("cookie", false);
+  }, [chipVisible]);
+
+  if (isWhiteLabel) return null;
   if (consent === null || held) return null;
 
   // Seed the component from our store. A non-null value means "decided" — the
   // component shows the reopen button instead of the bar.
   const defaultValue = consent.decided ? { necessary: true, analytics: consent.analytics } : null;
 
+  // Deck state. We can't style the vendored arc internals, so we drive the chip
+  // from here: a class on its `.layer` (z-index flip + a CSS rule that nudges /
+  // scales / dims the chip button so it peeks when behind), and a capture-phase
+  // tap handler. When this chip is the BACK card, the first tap only springs it
+  // to the front; it does NOT open preferences. Guarded to the chip (decided)
+  // and to "behind" (front !== cookie) so panel clicks always fall through.
+  const engaged = deckEngaged(deck);
+  const deckClass = engaged
+    ? `deck-cookie${deck.front === "cookie" ? " deck-cookie-front" : ""}`
+    : undefined;
+
+  const onCaptureClick = (e: React.MouseEvent) => {
+    if (engaged && chipVisible && deck.front !== "cookie") {
+      e.preventDefault();
+      e.stopPropagation();
+      bringToFront("cookie");
+    }
+  };
+
   return (
-    <div className="arc-scope">
+    <div className="arc-scope" onClickCapture={onCaptureClick}>
       <CookieConsent
         categories={CATEGORIES}
         defaultValue={defaultValue}
@@ -82,6 +114,7 @@ export function CookieConsentBanner() {
         labels={LABELS}
         position="bottom-right"
         showReopenButton
+        className={deckClass}
       />
     </div>
   );

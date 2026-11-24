@@ -551,6 +551,40 @@ body {
   }
 }
 
+/* ─── Floating deck — Help pill + cookie reopen chip stack ────────────────── */
+/* On an agent page, once consent is decided, the cookie chip and the Help pill
+   share the bottom-right corner as a deck (see lib/ui/floating-deck.ts). The
+   Help pill is pinned/transformed inline by FeedbackWidget; the cookie side is
+   the vendored arc component, so we drive its chip from CSS keyed on a class
+   appended to its `.layer`. We target the chip BUTTON (which carries no motion
+   transform) so we never fight the arc's springs or break the fixed layer's
+   geometry. The non-deck default (`.feedback-trigger-wrap { bottom: 76px }`)
+   above still governs users with no cookie chip; the deck overrides inline.
+   The `.layer` keeps its z-index: 60 base; the front card lifts to 62. */
+.arc-scope .layer.deck-cookie.deck-cookie-front { z-index: 62; }
+.arc-scope .layer.deck-cookie [data-face="chip"] button {
+  /* Solid card: the arc chip is translucent glass, so behind the Help circle it
+     reads as see-through. Force an opaque surface + border + shadow so it looks
+     like a real card in the deck. */
+  background: var(--agent-surface-elevated, #fff);
+  border: 1px solid var(--agent-border-subtle, rgba(45, 24, 16, 0.08));
+  box-shadow: 0 5px 14px rgba(45, 24, 16, 0.18);
+  /* Back card: nudged clearly up-left (a real click target), scaled down. */
+  transform: translate(-22px, -22px) scale(0.9);
+  transform-origin: bottom right;
+  opacity: 0.95;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease, box-shadow 240ms ease;
+}
+.arc-scope .layer.deck-cookie.deck-cookie-front [data-face="chip"] button {
+  /* Front card: flush at the corner, full size, a touch more lift. */
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+  box-shadow: 0 8px 20px rgba(45, 24, 16, 0.22);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arc-scope .layer.deck-cookie [data-face="chip"] button { transition: opacity 160ms ease; }
+}
+
 /* ─── Portal revamp (2026-08-15) — tactile buttons, help clearance, load ─── */
 
 /* Primary + comms buttons: one place for press / hover / focus / disabled. */

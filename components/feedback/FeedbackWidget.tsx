@@ -6,6 +6,7 @@ import { HelpCircle } from "@/components/icons/lu";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToastCount } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { useFloatingDeck, setDeckPresence, bringToFront, deckEngaged, deckCardStyle, DECK_SPRING } from "@/lib/ui/floating-deck";
 
 type Category = "bug" | "suggestion" | "question";
 type Stage = "categories" | "form" | "success" | "error";
@@ -249,6 +250,18 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   // Toasts share the bottom-right corner with this pill. Step aside while any are
   // up (0 outside the agent AgentToaster, so the portal widget is unaffected).
   const toastCount = useAgentToastCount();
+  // Floating deck: on agent pages the Help pill and the cookie reopen chip stack
+  // in the same corner (see lib/ui/floating-deck.ts). The deck is AGENT-ONLY —
+  // the portal widget (portalToken set) never joins it and keeps its own offsets.
+  const deck = useFloatingDeck();
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = () => setReducedMotion(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const [isCompact, setIsCompact]   = useState(false);
   const [isOpen, setIsOpen]         = useState(false);
   const [stage, setStage]           = useState<Stage>("categories");
@@ -277,6 +290,16 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
     window.addEventListener("portal-overlay", onOverlay as EventListener);
     return () => window.removeEventListener("portal-overlay", onOverlay as EventListener);
   }, []);
+
+  // Register this pill's presence in the shared deck. AGENT-ONLY (never when
+  // portalToken is set). While the pill is hidden it counts as absent, so the
+  // cookie chip doesn't offset behind an invisible card.
+  const deckHidden = (checklistAware && checklistActive) || overlayVisible || (toastCount > 0 && !isOpen);
+  useEffect(() => {
+    if (portalToken) return; // portal keeps its own corner — never joins the deck
+    setDeckPresence("help", mounted && !deckHidden);
+    return () => setDeckPresence("help", false);
+  }, [portalToken, mounted, deckHidden]);
 
   const triggerRef    = useRef<HTMLButtonElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
@@ -539,7 +562,16 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
   // Fade the pill out for the onboarding checklist, while a pop-up is up, AND
   // while any toast occupies the corner — it animates back in once they clear.
   // Not while the panel itself is open (the user is mid-interaction).
-  const triggerHidden = (checklistAware && checklistActive) || overlayVisible || (toastCount > 0 && !isOpen);
+  const triggerHidden = deckHidden;
+
+  // The deck engages only when both corner controls are present together, and
+  // never on the portal. When engaged, this pill becomes a round deck card
+  // pinned to the shared corner; "help" is the default front.
+  const engaged = !portalToken && deckEngaged(deck);
+  const deckStyle = engaged ? deckCardStyle("help", deck) : null;
+  // Force the circular (compact) form in the deck so it reads as a round card,
+  // not a wide pill behind a circle. Outside the deck, scroll governs compact.
+  const compact = engaged ? true : isCompact;
 
   return createPortal(
     <>
@@ -579,6 +611,9 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           transition: "transform 250ms cubic-bezier(0.0,0.0,0.2,1), opacity 200ms ease",
           pointerEvents: isOpen ? "auto" : "none",
           visibility: capturing ? "hidden" : undefined,
+          // In the deck the open panel must clear the cookie chip (z60–62).
+          // Outside the deck the CSS z-index (50) applies.
+          zIndex: isOpen && engaged ? 70 : undefined,
         }}
       >
         {/* Keyed so switching stage (categories ↔ form ↔ success) cross-fades
@@ -604,18 +639,34 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
           transition: "opacity 240ms ease, transform 260ms cubic-bezier(0.16, 1, 0.3, 1)",
           visibility: capturing ? "hidden" : undefined,
           ...(triggerPosition === "left" ? { left: 24, right: "auto" } : {}),
+          // Deck mode: pin to the shared corner (overriding the CSS bottom:76px),
+          // stack/scale/dim per the store, and spring the swap. The deck never
+          // engages while hidden, so these win cleanly over the fade styles above.
+          ...(engaged && deckStyle ? {
+            bottom: 16, right: 16, left: "auto",
+            zIndex: deckStyle.zIndex,
+            opacity: deckStyle.opacity,
+            transform: deckStyle.transform,
+            transformOrigin: "bottom right",
+            transition: reducedMotion ? "opacity 180ms ease" : DECK_SPRING,
+          } : {}),
         }}
       >
         <button
           ref={triggerRef}
-          onClick={isOpen ? close : open}
+          onClick={() => {
+            // In the deck, if this card is behind, the first tap just springs it
+            // to the front — it does NOT open the panel. Otherwise, normal toggle.
+            if (engaged && deck.front !== "help") { bringToFront("help"); return; }
+            isOpen ? close() : open();
+          }}
           aria-label="Open help and feedback"
           aria-expanded={isOpen}
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: isCompact ? 0 : 8,
-            padding: isCompact ? "11px" : "10px 16px 10px 12px",
+            gap: compact ? 0 : 8,
+            padding: compact ? "11px" : "10px 16px 10px 12px",
             background: "var(--fw-trigger-bg, rgba(255,255,255,0.82))",
             backdropFilter: "blur(24px) saturate(180%)",
             WebkitBackdropFilter: "blur(24px) saturate(180%)",
@@ -636,8 +687,8 @@ export function FeedbackWidget({ portalToken, checklistAware, userId }: { portal
             fontSize: 13,
             fontWeight: 500,
             color: "var(--fw-text, #1f2937)",
-            maxWidth: isCompact ? 0 : 60,
-            opacity: isCompact ? 0 : 1,
+            maxWidth: compact ? 0 : 60,
+            opacity: compact ? 0 : 1,
             overflow: "hidden",
             transition: "max-width 250ms ease, opacity 200ms ease",
           }}>
