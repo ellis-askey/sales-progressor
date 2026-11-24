@@ -10,8 +10,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X } from "@phosphor-icons/react";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { PaperPlaneTilt } from "@phosphor-icons/react";
+import { PromoCard } from "@/components/agent/PromoCard";
 import { buttonClasses } from "@/components/arc/button/button";
 
 const dismissedKey = (userId: string) => `sp_email_prompt_dismissed_${userId}`;
@@ -48,54 +48,43 @@ export function EmailSetupPrompt({ userId }: { userId: string }) {
 
   if (dismissed || !show) return null;
 
+  // Agency copy. EmailSetupPrompt is director-only (mounted at hub-view.tsx
+  // behind `role === "director" && session.user.agencyId`), so external
+  // progression-business users never see this card — no external variant wired.
+  // TODO(critique): external variant — card is director-only; external users never reach it.
   return (
-    <GlassCard
+    <PromoCard
       glassId="hub-email-nudge"
       label="Hub · Email nudge banner"
       className="agent-reveal-in agent-canon-cta"
-      style={{
-        display: "flex",
-        gap: 14,
-        alignItems: "flex-start",
-        borderRadius: "var(--agent-radius-lg)",
-        padding: "16px 18px",
-        boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          Send emails from your own address
-        </p>
-        <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
-          Connect your agency email and client updates will come directly from you, keeping everything
-          familiar, trusted and under your brand.
-        </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      icon={<PaperPlaneTilt size={20} weight="fill" />}
+      title="Send emails from your own address"
+      body="Connect your agency email so client updates come directly from you, keeping every communication familiar, personal and on-brand."
+      footnote={
+        <>
+          Want to make these emails your own?{" "}
+          {/* Canon coral text link — .agent-link (shared coral + hover underline/darken). */}
+          <Link href="/agent/account/emails" className="agent-link" style={{ fontWeight: 600 }}>
+            Personalise your client emails
+          </Link>
+        </>
+      }
+      cta={
+        <>
           <Link
             href="/agent/account/connections"
             className="agent-btn agent-btn-primary agent-btn-sm"
             style={{ textDecoration: "none" }}
           >
-            Set up my email
+            Connect my email
           </Link>
           {/* Canon ghost (arc Button) — hover / focus / active states built in. */}
           <button type="button" onClick={dismiss} className={buttonClasses({ variant: "ghost", size: "sm" })}>
             Not now
           </button>
-        </div>
-        <p style={{ margin: "10px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--agent-text-muted)" }}>
-          Want to change what those emails say?{" "}
-          {/* Canon coral text link — .agent-link (shared coral + hover underline/darken). */}
-          <Link href="/agent/account/emails" className="agent-link" style={{ fontWeight: 600 }}>
-            Personalise your client emails
-          </Link>
-        </p>
-      </div>
-
-      {/* Canon circular dismiss — .agent-icon-btn (the one ✕ across the app). */}
-      <button type="button" onClick={dismiss} aria-label="Dismiss" className="agent-icon-btn agent-icon-btn-md" style={{ flexShrink: 0 }}>
-        <X size={14} weight="bold" />
-      </button>
-    </GlassCard>
+        </>
+      }
+      onDismiss={dismiss}
+    />
   );
 }

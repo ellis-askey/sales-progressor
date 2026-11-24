@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { Plus, ShieldWarning, ListChecks, CalendarCheck, Eye } from "@phosphor-icons/react";
 import { SetupCard } from "@/components/agent/SetupCard";
-import { GlassCard } from "@/components/glass/GlassCard";
+import { PromoCard, PromoArrow } from "@/components/agent/PromoCard";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { useDemoExplore } from "@/components/transactions-v2/useDemoExplore";
 
@@ -88,32 +88,29 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
 
       {/* Explore demo sale — real, reuses the shared flow. Agency only: the demo
           action needs an agencyId, which a progression-business owner (agencyId
-          null) doesn't have — it would throw "Demo files are for agency accounts". */}
+          null) doesn't have — it would throw "Demo files are for agency accounts".
+          Because the card is agency-only, the external "fully progressed sale"
+          copy has nowhere to render — agency copy only.
+          TODO(critique): external variant — demo card is agency-only (needs agencyId); external copy unreachable. */}
       {!isProg && (
-      <GlassCard glassId="empty-allfiles-demo" label="All Files empty · Demo card" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ color: "var(--agent-coral-deep)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Eye size={20} weight="regular" />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>Want to see a finished example first?</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Explore a sample sale with milestones, contacts and activity already in place.</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => launch(true)}
-          className="agent-btn agent-btn-primary agent-btn-sm"
-          style={{ flexShrink: 0, gap: 8 }}
-        >
-          <Eye size={15} weight="bold" />
-          Explore demo sale
-          <svg className="agent-arrow-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <line x1="4" y1="12" x2="19" y2="12" />
-            <polyline points="13 6 19 12 13 18" />
-          </svg>
-        </button>
-      </GlassCard>
+      <PromoCard
+        glassId="empty-allfiles-demo"
+        label="All Files empty · Demo card"
+        icon={<Eye size={20} weight="fill" />}
+        title="See what a sale looks like"
+        body="Explore an example property file with milestones, contacts and activity already in place."
+        cta={
+          <button
+            type="button"
+            onClick={() => launch(true)}
+            className="agent-btn agent-btn-primary agent-btn-sm"
+            style={{ gap: 8 }}
+          >
+            Explore demo sale
+            <PromoArrow />
+          </button>
+        }
+      />
       )}
 
       {node}

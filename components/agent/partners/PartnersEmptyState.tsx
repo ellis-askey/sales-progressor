@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Plus, UserCircle, Bank, LinkSimple, UsersThree, ArrowRight, Check, PencilSimple, Trash } from "@phosphor-icons/react";
 import { HeroArt } from "@/components/agent/HeroArt";
 import { GlassCard } from "@/components/glass/GlassCard";
+import { PromoCard } from "@/components/agent/PromoCard";
 import { PartnerPopup } from "@/components/agent/partners/PartnerPopup";
 import { BrokerForm, type PreferredBroker } from "@/components/agent/PreferredBrokerSettings";
 import { AddSolicitorForm, type AddedSolicitor } from "@/components/agent/partners/AddSolicitorForm";
@@ -248,23 +249,24 @@ export function PartnersEmptyState({
         />
       </div>
 
-      {/* No partners from sales yet */}
-      <GlassCard glassId="empty-partners-nosales" label="Partners empty · No sales yet" style={{ padding: "16px 20px", borderRadius: "var(--agent-radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <span style={{ color: "var(--agent-text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <UsersThree size={20} weight="regular" />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>No partners from your sales yet</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>Solicitors, brokers and other professionals will appear here as your pipeline grows.</p>
-          </div>
-        </div>
-        {canCreateSale && (
-          <Link href="/agent/transactions/new" className="agent-btn agent-btn-secondary agent-btn-sm" style={{ textDecoration: "none", flexShrink: 0, gap: 8 }}>
+      {/* No partners from sales yet — agency copy. This empty state only mounts
+          for directors (page.tsx gates on `isDirector && directoryEmpty`) and
+          takes no audience/isExternal prop, so there's no external signal to
+          switch on — the external "professional network" variant would need new
+          plumbing to reach an external progression business.
+          TODO(critique): external variant — no audience prop + director-only mount; would need plumbing. */}
+      <PromoCard
+        glassId="empty-partners-nosales"
+        label="Partners empty · No sales yet"
+        icon={<UsersThree size={20} weight="fill" />}
+        title="Your partners will appear here"
+        body="As you add sales, the solicitors, mortgage brokers and other professionals involved will automatically appear here."
+        cta={canCreateSale ? (
+          <Link href="/agent/transactions/new" className="agent-btn agent-btn-secondary agent-btn-sm" style={{ textDecoration: "none", gap: 8 }}>
             Add your first sale<Arrow />
           </Link>
-        )}
-      </GlassCard>
+        ) : null}
+      />
 
       {/* Add popup — chooser → the matching form */}
       <PartnerPopup open={popupOpen} onClose={close} ariaLabel={title} title={title} subtitle={subtitle}>
