@@ -1,5 +1,10 @@
 # Design Tokens — Sales Progressor
 
+> **Scope:** describes the **current production** visual system (warm cream + coral).
+> It stays authoritative for **un-migrated** pages. For **new UI and approved
+> redesigns**, the forward token system is [`design-system/SYSTEM.md`](design-system/SYSTEM.md)
+> (TSP Liquid Glass), which progressively supersedes this as pages migrate.
+
 The full inventory of every visual token in use across the agent app. Every value lives at a CSS source-of-truth file; this doc is the human-readable index, and [`design/tokens.ts`](../../design/tokens.ts) is the machine-readable mirror.
 
 **Read this before:** any visual decision, any new component, any modal/drawer, any time you need a colour / spacing / radius / shadow / motion / z-index value.

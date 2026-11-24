@@ -1,0 +1,289 @@
+/* ============================================================================
+   TSP Liquid Glass — shared design-system stylesheet.
+
+   Forward visual language (see docs/reference/design-system/). EXPERIMENTAL:
+   imported ONLY by dev routes and future APPROVED Liquid Glass pages. Never
+   imported by the root layout or any un-migrated production page, so it changes
+   nothing that ships today.
+
+   Everything is scoped under `.lg-ds` (+ data-theme) — no `:root`, no global
+   leak. A consuming page wraps its content in `<div class="lg-ds" data-theme>`.
+   ============================================================================ */
+
+.lg-ds {
+  /* Accent + semantic — TSP primary coral (existing token: coralDeep /
+     --agent-coral-deep #FF6B4A, lighter #FF8A65). Scoped here only; no global
+     theme change. The glass material stays neutral; coral is the accent. */
+  --lg-accent: #ff6b4a;
+  --lg-accent-2: #ff8a65;
+  --lg-accent-ink: #ff8a65;
+  --lg-accent-soft: rgba(255, 138, 101, 0.18);
+  --lg-ok: #30d158;
+  --lg-warn: #ff9f0a;
+  --lg-info: #5e9bff;
+  --lg-danger: #ff453a;
+  --lg-danger-ink: #ff6961;
+
+  /* Ink (text) scale */
+  --lg-ink: #f3f4f8;
+  --lg-ink-2: rgba(243, 244, 248, 0.64);
+  --lg-ink-3: rgba(243, 244, 248, 0.4);
+
+  /* Hairlines + fills */
+  --lg-line: rgba(255, 255, 255, 0.1);
+  --lg-line-2: rgba(255, 255, 255, 0.06);
+  --lg-fill: rgba(255, 255, 255, 0.08);
+  --lg-field: rgba(255, 255, 255, 0.07);
+  --lg-hover: rgba(255, 255, 255, 0.05);
+  --lg-base: #0a0e17;
+
+  /* Theme-aware glass tints (passed to <LiquidGlass tint>) */
+  --lg-glass-card: rgba(32, 35, 47, 0.44);
+  --lg-glass-panel: rgba(26, 29, 40, 0.5);
+  --lg-glass-raised: rgba(38, 41, 54, 0.66);
+
+  /* Radii */
+  --lg-r-xs: 8px;
+  --lg-r-sm: 12px;
+  --lg-r-md: 16px;
+  --lg-r-lg: 20px;
+  --lg-r-xl: 26px;
+  --lg-r-pill: 999px;
+
+  /* Spacing step (4px base) */
+  --lg-s1: 4px; --lg-s2: 8px; --lg-s3: 12px; --lg-s4: 16px; --lg-s5: 20px; --lg-s6: 24px; --lg-s8: 32px;
+
+  /* Motion */
+  --lg-spring: cubic-bezier(0.3, 1.35, 0.4, 1);
+  --lg-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --lg-fast: 0.2s;
+  --lg-mid: 0.35s;
+  --lg-slow: 0.5s;
+
+  color: var(--lg-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lg-ds[data-theme="light"] {
+  --lg-accent-ink: #e55b3d;
+  --lg-accent-soft: rgba(255, 107, 74, 0.14);
+  --lg-ink: #11141b;
+  --lg-ink-2: rgba(17, 20, 27, 0.62);
+  --lg-ink-3: rgba(17, 20, 27, 0.44);
+  --lg-line: rgba(12, 16, 28, 0.1);
+  --lg-line-2: rgba(12, 16, 28, 0.06);
+  --lg-fill: rgba(12, 16, 28, 0.05);
+  --lg-field: rgba(12, 16, 28, 0.04);
+  --lg-hover: rgba(12, 16, 28, 0.035);
+  --lg-base: #f6f8fc;
+  --lg-danger-ink: #d7352b;
+  --lg-glass-card: rgba(255, 255, 255, 0.52);
+  --lg-glass-panel: rgba(255, 255, 255, 0.56);
+  --lg-glass-raised: rgba(255, 255, 255, 0.74);
+}
+
+/* ── LiquidGlass engine base (the <LiquidGlass> surface depends on these) ──── */
+.lg-ds .lgx-surface {
+  position: relative;
+  border: 1px solid var(--lg-line);
+  -webkit-backdrop-filter: blur(11px) saturate(160%);
+  backdrop-filter: blur(11px) saturate(160%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform var(--lg-slow) var(--lg-ease), box-shadow var(--lg-slow) ease, border-radius var(--lg-mid) ease;
+}
+.lg-ds[data-theme="light"] .lgx-surface { box-shadow: 0 8px 26px rgba(20, 30, 60, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+.lg-ds .lgx-surface::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent) top / 100% 1px no-repeat;
+  opacity: 0.55;
+}
+.lg-ds .lgx-filter-svg { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+/* (Removed) the pointer-tracked hover "spotlight" (.lg-spec) — it was a
+   decorative overlay, not genuine optics, and is not part of the system. Real
+   refraction is the LiquidGlass engine itself (edge displacement + aberration). */
+.lg-ds .lgx-surface > * { position: relative; z-index: 1; }
+
+/* LiquidLens convex sheen (subtle when the displacement lens is active) and the
+   polished dome fallback for browsers without url() backdrop filters. */
+.lg-ds .ll-surface::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: radial-gradient(130% 95% at 30% 12%, rgba(255, 255, 255, 0.2), transparent 46%);
+  mix-blend-mode: screen; opacity: 0.45;
+}
+.lg-ds .ll-fallback::after {
+  opacity: 1; mix-blend-mode: normal;
+  background:
+    radial-gradient(135% 100% at 30% 10%, rgba(255, 255, 255, 0.38), transparent 44%),
+    radial-gradient(120% 120% at 72% 94%, rgba(0, 0, 0, 0.14), transparent 55%);
+}
+.lg-ds .ll-fallback {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24), inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.lg-ds[data-theme="light"] .ll-fallback::after {
+  background:
+    radial-gradient(135% 100% at 30% 10%, rgba(255, 255, 255, 0.7), transparent 44%),
+    radial-gradient(120% 120% at 72% 94%, rgba(20, 30, 60, 0.1), transparent 55%);
+}
+
+/* Solid (non-glass) surface — for dense lists so content stays crisp + cheap. */
+.lg-ds .lg-solid { position: relative; background: color-mix(in srgb, var(--lg-base) 82%, transparent); border: 1px solid var(--lg-line); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14); }
+.lg-ds[data-theme="light"] .lg-solid { box-shadow: 0 6px 18px rgba(20, 30, 60, 0.07); }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.lg-ds .lgbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--lg-s2);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+  padding: 10px 18px; border-radius: var(--lg-r-sm); color: var(--lg-ink); position: relative; overflow: hidden;
+  transition: transform var(--lg-mid) var(--lg-spring), background var(--lg-fast), filter var(--lg-fast), opacity var(--lg-fast);
+}
+.lg-ds .lgbtn svg { width: 16px; height: 16px; }
+.lg-ds .lgbtn:active { transform: scale(0.96); }
+.lg-ds .lgbtn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.lg-ds .lgbtn:focus-visible { outline: 2px solid var(--lg-accent); outline-offset: 2px; }
+.lg-ds .lgbtn--primary { background: var(--lg-accent); color: #fff; box-shadow: 0 5px 16px rgba(255, 107, 74, 0.35); }
+.lg-ds .lgbtn--primary:hover:not(:disabled) { filter: brightness(1.07); }
+.lg-ds .lgbtn--secondary { background: var(--lg-fill); border: 1px solid var(--lg-line); }
+.lg-ds .lgbtn--secondary:hover:not(:disabled) { border-color: var(--lg-ink-3); }
+.lg-ds .lgbtn--subtle { background: transparent; color: var(--lg-ink-2); }
+.lg-ds .lgbtn--subtle:hover:not(:disabled) { background: var(--lg-hover); color: var(--lg-ink); }
+.lg-ds .lgbtn--ghost { background: transparent; color: var(--lg-ink-2); border: 1px solid var(--lg-line); }
+.lg-ds .lgbtn--ghost:hover:not(:disabled) { color: var(--lg-ink); border-color: var(--lg-ink-3); background: var(--lg-hover); }
+.lg-ds .lgbtn--danger { background: rgba(255, 69, 58, 0.16); color: var(--lg-danger-ink); }
+.lg-ds .lgbtn--danger:hover:not(:disabled) { background: rgba(255, 69, 58, 0.24); }
+.lg-ds .lgbtn--sm { padding: 7px 13px; font-size: 13px; border-radius: var(--lg-r-xs); }
+.lg-ds .lgbtn--lg { padding: 13px 22px; font-size: 15px; border-radius: var(--lg-r-md); }
+.lg-ds .lgbtn--icon { padding: 0; width: 40px; height: 40px; }
+.lg-ds .lgbtn--icon.lgbtn--sm { width: 34px; height: 34px; }
+.lg-ds .lgbtn--full { width: 100%; }
+.lg-ds .lgbtn--primary .lgspin { border-color: rgba(255, 255, 255, 0.4); border-top-color: #fff; }
+
+/* Split button */
+.lg-ds .lgsplit { display: inline-flex; align-items: stretch; border-radius: var(--lg-r-sm); overflow: hidden; }
+.lg-ds .lgsplit .lgbtn { border-radius: 0; }
+.lg-ds .lgsplit .lgsplit-div { width: 1px; background: rgba(255, 255, 255, 0.25); }
+
+/* Spinner */
+.lg-ds .lgspin { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--lg-line); border-top-color: var(--lg-accent); animation: lgspin 0.7s linear infinite; }
+@keyframes lgspin { to { transform: rotate(360deg); } }
+
+/* ── Inputs ───────────────────────────────────────────────────────────────── */
+.lg-ds .lgfield { display: flex; align-items: center; gap: var(--lg-s2); padding: 10px 13px; border-radius: var(--lg-r-sm); background: var(--lg-field); border: 1px solid var(--lg-line); transition: border-color var(--lg-fast); }
+.lg-ds .lgfield:focus-within { border-color: var(--lg-accent); }
+.lg-ds .lgfield svg { width: 16px; height: 16px; color: var(--lg-ink-3); flex-shrink: 0; }
+.lg-ds .lgfield input, .lg-ds .lgtextarea { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--lg-ink); font: inherit; font-size: 14px; }
+.lg-ds .lgfield input::placeholder, .lg-ds .lgtextarea::placeholder { color: var(--lg-ink-3); }
+.lg-ds .lgtextarea { width: 100%; min-height: 84px; resize: vertical; padding: 11px 14px; border-radius: var(--lg-r-sm); background: var(--lg-field); border: 1px solid var(--lg-line); transition: border-color var(--lg-fast); }
+.lg-ds .lgtextarea:focus { border-color: var(--lg-accent); }
+.lg-ds .lgfield[data-error="true"], .lg-ds .lgtextarea[data-error="true"] { border-color: var(--lg-danger); }
+.lg-ds .lglabel { display: block; font-size: 11.5px; font-weight: 600; color: var(--lg-ink-2); margin-bottom: 6px; }
+.lg-ds .lgerror { font-size: 11.5px; color: var(--lg-danger-ink); margin-top: 5px; }
+
+/* Switch */
+.lg-ds .lgswitch { width: 50px; height: 30px; border-radius: var(--lg-r-pill); border: none; padding: 0; position: relative; cursor: pointer; background: rgba(120, 120, 128, 0.4); transition: background var(--lg-mid); }
+.lg-ds .lgswitch[aria-checked="true"] { background: var(--lg-ok); }
+.lg-ds .lgswitch-knob { position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); transition: transform var(--lg-mid) var(--lg-spring); }
+.lg-ds .lgswitch[aria-checked="true"] .lgswitch-knob { transform: translateX(20px); }
+.lg-ds .lgswitch:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Segmented control */
+.lg-ds .lgseg { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: var(--lg-r-sm); background: rgba(0, 0, 0, 0.22); border: 1px solid var(--lg-line); }
+.lg-ds[data-theme="light"] .lgseg { background: rgba(12, 16, 28, 0.05); }
+.lg-ds .lgseg-thumb { position: absolute; top: 3px; bottom: 3px; border-radius: 9px; background: var(--lg-fill); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 3px rgba(20, 30, 60, 0.18); transition: transform var(--lg-mid) var(--lg-spring), width var(--lg-mid) var(--lg-spring); }
+.lg-ds[data-theme="light"] .lgseg-thumb { background: #fff; }
+.lg-ds .lgseg-btn { position: relative; z-index: 1; padding: 7px 15px; font: inherit; font-size: 12.5px; font-weight: 550; color: var(--lg-ink-3); background: none; border: none; cursor: pointer; transition: color var(--lg-mid); white-space: nowrap; }
+.lg-ds .lgseg-btn[data-on="true"] { color: var(--lg-ink); }
+
+/* Chip */
+.lg-ds .lgchip { display: inline-flex; align-items: center; gap: 0; font: inherit; font-size: 12.5px; font-weight: 550; color: var(--lg-ink-2); background: var(--lg-fill); border: 1px solid var(--lg-line); border-radius: var(--lg-r-xs); padding: 6px 11px; cursor: pointer; transition: transform var(--lg-mid) var(--lg-spring), background var(--lg-fast), color var(--lg-fast), border-color var(--lg-fast), gap var(--lg-fast); }
+.lg-ds .lgchip-tick { width: 0; overflow: hidden; display: inline-flex; align-items: center; transition: width var(--lg-fast); }
+.lg-ds .lgchip-tick svg { width: 12px; height: 12px; }
+.lg-ds .lgchip:hover { color: var(--lg-ink); border-color: var(--lg-ink-3); }
+.lg-ds .lgchip[aria-pressed="true"] { background: var(--lg-accent); border-color: var(--lg-accent); color: #fff; gap: 6px; }
+.lg-ds .lgchip[aria-pressed="true"] .lgchip-tick { width: 12px; }
+
+/* Slider */
+.lg-ds .lgslider { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; outline: none; cursor: pointer; background: linear-gradient(90deg, var(--lg-accent) var(--v, 50%), var(--lg-fill) var(--v, 50%)); }
+.lg-ds .lgslider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); cursor: grab; }
+.lg-ds .lgslider::-moz-range-thumb { width: 20px; height: 20px; border: none; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); cursor: grab; }
+
+/* Checkbox / radio */
+.lg-ds .lgcheck-row, .lg-ds .lgradio-row { display: inline-flex; align-items: center; gap: var(--lg-s2); font-size: 14px; color: var(--lg-ink); background: none; border: none; cursor: pointer; }
+.lg-ds .lgcheck { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; background: var(--lg-field); border: 1.5px solid var(--lg-line); transition: background var(--lg-fast), border-color var(--lg-fast); }
+.lg-ds .lgcheck svg { width: 12px; height: 12px; color: #fff; opacity: 0; transform: scale(0.6); transition: opacity var(--lg-fast), transform var(--lg-fast) var(--lg-spring); }
+.lg-ds .lgcheck-row[aria-checked="true"] .lgcheck { background: var(--lg-accent); border-color: var(--lg-accent); }
+.lg-ds .lgcheck-row[aria-checked="true"] .lgcheck svg { opacity: 1; transform: scale(1); }
+.lg-ds .lgradio { width: 20px; height: 20px; border-radius: 50%; background: var(--lg-field); border: 1.5px solid var(--lg-line); position: relative; transition: border-color var(--lg-fast); }
+.lg-ds .lgradio-row[aria-checked="true"] .lgradio { border-color: var(--lg-accent); }
+.lg-ds .lgradio-row[aria-checked="true"] .lgradio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--lg-accent); }
+
+/* ── Badges / pills / status ──────────────────────────────────────────────── */
+.lg-ds .lgbadge { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: var(--lg-r-pill); }
+.lg-ds .lgbadge[data-tone="accent"] { background: var(--lg-accent-soft); color: var(--lg-accent-ink); }
+.lg-ds .lgbadge[data-tone="ok"] { background: rgba(48, 209, 88, 0.16); color: #5ce08a; }
+.lg-ds .lgbadge[data-tone="warn"] { background: rgba(255, 159, 10, 0.16); color: #ffb84d; }
+.lg-ds .lgbadge[data-tone="danger"] { background: rgba(255, 69, 58, 0.16); color: var(--lg-danger-ink); }
+.lg-ds .lgbadge[data-tone="neutral"] { background: var(--lg-fill); color: var(--lg-ink-2); }
+.lg-ds[data-theme="light"] .lgbadge[data-tone="ok"] { color: #1a9c45; }
+.lg-ds .lgstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--lg-ink-2); }
+.lg-ds .lgstatus-dot { width: 7px; height: 7px; border-radius: 50%; }
+.lg-ds .lgstatus-dot[data-tone="ok"] { background: var(--lg-ok); }
+.lg-ds .lgstatus-dot[data-tone="warn"] { background: var(--lg-warn); }
+.lg-ds .lgstatus-dot[data-tone="info"] { background: var(--lg-info); }
+.lg-ds .lgstatus-dot[data-tone="neutral"] { background: var(--lg-ink-3); }
+
+/* Progress */
+.lg-ds .lgprog { height: 6px; border-radius: 999px; background: var(--lg-fill); overflow: hidden; }
+.lg-ds .lgprog-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--lg-accent), var(--lg-accent-2)); transition: width var(--lg-slow) var(--lg-ease); }
+
+/* Skeleton */
+.lg-ds .lgskel { background: linear-gradient(90deg, rgba(128,128,140,0.1) 25%, rgba(128,128,140,0.22) 37%, rgba(128,128,140,0.1) 63%); background-size: 400% 100%; animation: lgshim 1.4s ease infinite; border-radius: var(--lg-r-xs); }
+@keyframes lgshim { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.lg-ds .lgtabs { position: relative; display: inline-flex; gap: 4px; padding: 4px; border-radius: var(--lg-r-sm); }
+.lg-ds .lgtab { position: relative; z-index: 1; padding: 8px 15px; font: inherit; font-size: 13px; font-weight: 600; color: var(--lg-ink-2); background: none; border: none; cursor: pointer; border-radius: var(--lg-r-xs); transition: color var(--lg-mid); white-space: nowrap; }
+.lg-ds .lgtab[data-on="true"] { color: var(--lg-ink); }
+.lg-ds .lgtab-ink { position: absolute; z-index: 0; top: 4px; bottom: 4px; border-radius: var(--lg-r-xs); background: var(--lg-fill); transition: transform var(--lg-mid) var(--lg-spring), width var(--lg-mid) var(--lg-spring); }
+
+/* ── Menu / popover / tooltip ─────────────────────────────────────────────── */
+.lg-ds .lgmenu { min-width: 200px; padding: 6px; display: flex; flex-direction: column; animation: lgpop var(--lg-fast) var(--lg-spring); }
+@keyframes lgpop { from { opacity: 0; transform: translateY(-8px) scale(0.97); } to { opacity: 1; transform: none; } }
+.lg-ds .lgmenu-item { display: flex; align-items: center; gap: var(--lg-s2); padding: 9px 11px; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 500; color: var(--lg-ink); background: none; border: none; cursor: pointer; text-align: left; transition: background var(--lg-fast); }
+.lg-ds .lgmenu-item svg { width: 16px; height: 16px; }
+.lg-ds .lgmenu-item:hover { background: var(--lg-hover); }
+.lg-ds .lgmenu-item[data-danger="true"] { color: var(--lg-danger-ink); }
+.lg-ds .lgmenu-sep { height: 1px; background: var(--lg-line-2); margin: 4px 6px; }
+.lg-ds .lgtip { position: absolute; z-index: 30; padding: 7px 11px; font-size: 12px; font-weight: 550; white-space: nowrap; pointer-events: none; }
+
+/* Toast */
+.lg-ds .lgtoast { display: inline-flex; align-items: center; gap: var(--lg-s2); padding: 11px 16px; font-size: 13px; font-weight: 550; animation: lgtoast var(--lg-mid) var(--lg-spring); }
+.lg-ds .lgtoast svg { width: 14px; height: 14px; }
+@keyframes lgtoast { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* Dock */
+.lg-ds .lgdock { display: inline-flex; align-items: center; gap: 4px; padding: 7px 9px; }
+.lg-ds .lgdock-btn { display: inline-flex; align-items: center; gap: var(--lg-s2); padding: 10px 16px; border-radius: var(--lg-r-md); background: none; border: none; color: var(--lg-ink); font: inherit; font-size: 13.5px; font-weight: 550; cursor: pointer; transition: background var(--lg-fast), transform var(--lg-mid) var(--lg-spring); }
+.lg-ds .lgdock-btn svg { width: 17px; height: 17px; color: var(--lg-accent); }
+.lg-ds .lgdock-btn:hover { background: var(--lg-hover); transform: translateY(-2px); }
+.lg-ds .lgdock-btn:active { transform: scale(0.96); }
+.lg-ds .lgdock-sep { width: 1px; height: 22px; background: var(--lg-line); }
+
+/* Overlay + sheet/dialog */
+.lg-ds-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, 0.42); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: lgfade var(--lg-mid); }
+@keyframes lgfade { from { opacity: 0; } to { opacity: 1; } }
+.lg-ds .lgdialog { width: min(440px, 100%); padding: 26px; animation: lgdialog var(--lg-slow) var(--lg-spring); }
+@keyframes lgdialog { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* Nav rail (side navigation) */
+.lg-ds .lgnav { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+.lg-ds .lgnav-item { display: flex; align-items: center; gap: var(--lg-s3); padding: 10px 12px; border-radius: var(--lg-r-sm); font: inherit; font-size: 13.5px; font-weight: 550; color: var(--lg-ink-2); background: none; border: none; cursor: pointer; text-align: left; transition: background var(--lg-fast), color var(--lg-fast); }
+.lg-ds .lgnav-item svg { width: 18px; height: 18px; }
+.lg-ds .lgnav-item:hover { background: var(--lg-hover); color: var(--lg-ink); }
+.lg-ds .lgnav-item[data-on="true"] { background: var(--lg-accent-soft); color: var(--lg-accent-ink); }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .lg-ds *, .lg-ds-overlay { animation: none !important; transition: none !important; }
+}

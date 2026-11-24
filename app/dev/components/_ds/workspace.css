@@ -225,6 +225,10 @@
 .ds-chipline { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .ds-chipline-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dsw-ink-3); margin-right: 4px; }
 .ds-chip { font-size: 12px; color: var(--dsw-ink-2); padding: 4px 10px; border: 1px solid var(--dsw-line); border-radius: 999px; background: var(--dsw-panel-2); }
+/* A step chip is clickable — it drives the preview. The active step is filled coral. */
+button.ds-chip[data-step] { cursor: pointer; font: inherit; font-size: 12px; transition: color .14s ease, background .14s ease, border-color .14s ease; }
+button.ds-chip[data-step]:hover { color: var(--dsw-ink); border-color: var(--dsw-ink-2); }
+button.ds-chip[data-step][data-active="true"] { color: #fff; background: #FF6B4A; border-color: #FF6B4A; }
 .ds-entry-sources { margin-top: 14px; }
 .ds-entry-sources ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .ds-entry-sources code { font-family: var(--font-geist-mono, ui-monospace, monospace); font-size: 12px; color: var(--dsw-ink); }

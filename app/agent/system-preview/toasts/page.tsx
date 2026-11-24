@@ -1,7 +1,7 @@
 "use client";
 
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { CheckCircle, WarningCircle, Info, Warning, X } from "@phosphor-icons/react";
+import { CheckCircle, WarningCircle, Info, Warning, X } from "@/components/icons/ph";
 import Link from "next/link";
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {

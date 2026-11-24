@@ -25,6 +25,7 @@ import { House, BellRinging, WarningCircle, WarningOctagon, Eye, ArrowRight, Arr
 import { WELCOME_STEPS_CSS } from "@/components/agent/welcome-steps-styles";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
 import { MessageEditor, type MessageAttachment, type SigStyle } from "@/components/compose/MessageEditor";
+import { TrustStrip } from "@/components/ui/TrustStrip";
 import type { SignatureStyleOption } from "@/lib/email/signature-options";
 // Real hub dataviz + stat canonicals — rendered live below (not reproduced inline),
 // so a gallery specimen can never drift from the shipped component.
@@ -2509,7 +2510,43 @@ const COMPOSE_ENTRIES: ComponentEntry[] = [
   },
 ];
 
-export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES];
+const TRUST_ITEMS = [
+  { label: "Free to self-progress" },
+  { label: "No card required" },
+  { label: "Secure & private" },
+];
+const TRUST_ITEMS_PLAIN = [
+  { label: "SSL encrypted" },
+  { label: "GDPR compliant" },
+  { label: "UK data" },
+];
+
+const TRUST_ENTRIES: ComponentEntry[] = [
+  {
+    id: "trust-strip",
+    name: "Trust strip",
+    category: "badges",
+    status: "implemented",
+    keywords: ["trust", "reassurance", "ticks", "checks", "free", "secure", "no card", "benefits", "strip", "row", "landing", "ssl", "gdpr", "middot"],
+    summary: "A centred row of short reassurance points, in two variants. \"Ticks\": each item carries a small coral tick (the chain-invite landing's \"Free to self-progress ...\" row; items can pass their own icon). \"Plain\": no icons, middot-separated and muted (the login / register / reset footer, \"SSL encrypted · GDPR compliant · UK data\").",
+    variants: [
+      { id: "ticks", label: "Ticks (claim landing)", render: () => <Stage wide><TrustStrip items={TRUST_ITEMS} /></Stage> },
+      { id: "plain", label: "Plain middot (auth footer)", render: () => <Stage wide><TrustStrip items={TRUST_ITEMS_PLAIN} variant="plain" /></Stage> },
+    ],
+    sources: [
+      { path: "components/ui/TrustStrip.tsx", note: "the canonical component (both variants)" },
+      { path: "components/claim/ClaimInviteCard.tsx", note: "ticks variant — the chain-invite landing (origin)" },
+      { path: "app/login/page.tsx", note: "plain variant — the auth trust footer" },
+    ],
+    exceptions: [
+      { title: "Per-item icons", detail: "The chain-invite landing passes three distinct icons (a tick, a people glyph, a padlock) rather than a uniform tick. The ticks variant accepts a per-item `icon`, defaulting to a tick when none is given.", source: "components/claim/ClaimInviteCard.tsx", scope: "specific" },
+      { title: "Not yet migrated", detail: "Both the claim landing (ticks) and the auth pages (plain) still render their own inline markup. Repointing them at this component is a follow-up pending sign-off (the programme does not migrate production without review).", scope: "shared" },
+    ],
+    render: () => <Stage wide><TrustStrip items={TRUST_ITEMS} /></Stage>,
+  },
+];
+
+export const COMPONENTS: ComponentEntry[] = [...FOUNDATION_ENTRIES, ...FOUNDATION_TOKENS, ...LOGIN_ENTRIES, ...REGISTER_ENTRIES, ...GAP_ENTRIES, ...AUTH_COMPLETION_ENTRIES, ...MODAL_ENTRIES, ...EMPTY_ENTRIES, ...HUB_ENTRIES, ...REMINDERS_ENTRIES, ...ENQUIRIES_ENTRIES, ...TODO_ENTRIES, ...COMMS_ENTRIES, ...AUTOEMAILS_ENTRIES, ...COMPOSE_ENTRIES, ...TRUST_ENTRIES];
 
 export function entriesFor(categoryId: string): ComponentEntry[] {
   return COMPONENTS.filter((c) => c.category === categoryId);

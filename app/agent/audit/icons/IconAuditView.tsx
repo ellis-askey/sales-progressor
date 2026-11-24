@@ -6,7 +6,7 @@
 // (sidebar row, banner, button, role badge, etc) so Ellis can judge each
 // pick against its actual usage rather than against a blank canvas.
 
-import type { Icon } from "@phosphor-icons/react";
+import type { Icon } from "@/components/icons/ph";
 import {
   // Navigation
   Gauge, Tray, CalendarCheck, CheckSquare, BellSimple, EnvelopeSimple,
@@ -33,7 +33,7 @@ import {
   UserCircle, IdentificationCard, UserSquare, IdentificationBadge,
   // Drift alternatives
   Siren, ArrowFatUp, SquaresFour, Compass,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 
 // ─── Icon registry — for dynamic name → component lookup ─────────────────
 

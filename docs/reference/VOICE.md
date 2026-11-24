@@ -1,5 +1,10 @@
 # Voice — Sales Progressor
 
+> **Still authoritative** for the locked phrases and the voice gate (Law 21). The
+> **interface-copy rules** for the forward design system (sentence case, no uppercase
+> for hierarchy, kill redundant subtitles, terminology map) live in and extend from
+> [`design-system/WRITING.md`](design-system/WRITING.md) — read both for new UI.
+
 The house voice for every user-facing string: emails, modals, toasts, banners, push notifications, error messages, microcopy.
 
 **Read this before:** writing any user-facing string. Voice-pass every string against this doc before commit. See [DEFINITION_OF_DONE.md](../DEFINITION_OF_DONE.md).
@@ -75,9 +80,17 @@ The ban is **on prose** (banner copy, modal copy, email body text). Email **subj
 
 - ✅ `File active` · `File on hold` · `Client emails resumed` · `Chase sent` · `Chain claimed` · `File created`
 
-### Eyebrows / section labels — UPPERCASE, letter-spaced
+### Eyebrows / section labels — sentence case (no uppercase)
 
-- ✅ `CARRIES OVER` · `STARTS FRESH` ([`RelistFileModal.tsx:714, 732`](../../components/transaction/RelistFileModal.tsx))
+Forward rule (decided 2026-11-20, supersedes the earlier all-caps convention): eyebrows and
+section labels are **sentence case**, styled small + muted, not UPPERCASE. Casing is not a
+hierarchy device — size, weight and colour carry the hierarchy. This is the casing rule only;
+the exact size/weight lives in the design system (the canonical `eyebrow` entry in the
+`/dev/components` registry: sentence · 600 · muted). It matches the header rule above
+("no uppercase for hierarchy").
+
+- ✅ `Vendors` · `Your commission` · `Notes`
+- ⚠️ Grandfathered uppercase (pre-2026-11-20, fix when the surface is next touched): `CARRIES OVER` · `STARTS FRESH` ([`RelistFileModal.tsx:714, 732`](../../components/transaction/RelistFileModal.tsx))
 
 ### Push titles — colon-split: title-cased prefix + sentence continuation
 

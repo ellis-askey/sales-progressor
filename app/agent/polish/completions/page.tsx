@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown, ClockCountdown } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, ClockCountdown } from "@/components/icons/ph-ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatPill } from "@/components/layout/StatPill";
 import type { PillColor } from "@/components/layout/StatPill";

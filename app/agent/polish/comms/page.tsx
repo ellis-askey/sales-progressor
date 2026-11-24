@@ -27,7 +27,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown, ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, ChartLine } from "@/components/icons/ph-ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 /* ─── Types (mirrored from CommsActivityFeed — Stage 4 keeps in sync) ───── */

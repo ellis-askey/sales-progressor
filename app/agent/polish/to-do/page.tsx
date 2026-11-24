@@ -30,7 +30,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown } from "@/components/icons/ph-ssr";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { toUKDateStr } from "@/lib/utils";
 

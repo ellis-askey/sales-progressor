@@ -11,7 +11,7 @@ import {
   MomentumRing, RefreshButton,
 } from "@/components/hub/HubCharts";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Clock, ArrowRight } from "@/components/icons/ph-ssr";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

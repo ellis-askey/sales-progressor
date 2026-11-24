@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CaretDown, CaretUp } from "@phosphor-icons/react";
+import { CaretDown, CaretUp } from "@/components/icons/ph";
 import { SectionAccordion } from "@/components/transactions-v2/form/SectionAccordion";
 
 /* ─── Theme names (verified from app/agent/styles/themes.css) ─────────────── */

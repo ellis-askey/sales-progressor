@@ -1,5 +1,11 @@
 # Component Library — Catalog
 
+> **Scope:** the closed catalogue governs the **current production** system. Per the
+> founder-approved Law 14 amendment (2026-11-02), `components/liquid/**` and
+> `app/dev/**` are the **forward Liquid Glass** system and are catalogued in
+> [`design-system/INVENTORY.md`](design-system/INVENTORY.md) instead — approved
+> components there are the default, not a creative ceiling.
+
 The closed catalog of every UI primitive in this codebase. Referenced by [Law 14 (every UI element is a library component)](../../CLAUDE.md#law-14--every-ui-element-is-a-library-component) and [Law 19 (grandfather generously)](../../CLAUDE.md#law-19--grandfather-generously) in CLAUDE.md.
 
 **Sibling doc:** [COMPONENT_LIBRARY.md](COMPONENT_LIBRARY.md) — the developer reference for how to use the canonical patterns (CSS classes, props, examples). This catalog is the **what** (closed list); the sibling is the **how** (usage).
@@ -69,6 +75,25 @@ The 9 components that already exist as primitives. Each gets the same row in thi
 - **Purpose:** empty-pool surface (illustration + heading + description + optional CTA).
 - **Used by:** lists, hub cards.
 - **Status:** **canonical, badly under-adopted.** 4+ surfaces ship inline empty states without using this primitive. Sweep needed during Phase 3.
+- **Note:** light-only (hardcoded slate text + blue icon chip). For the hero empty state inside dark-capable slide-over drawers, use `DrawerEmptyState` (§1.3a) instead.
+
+### 1.3a `DrawerEmptyState` ✓ canonical
+
+- **Purpose:** the "hero" empty state for the one primary-action moment inside a slide-over drawer (large title + description + flat coral CTA + optional footnote + optional icon chip).
+- **Theme-aware:** reads type scale and colour from `--agent-*` tokens (no `isNight` branching); correct on dark drawer grounds. Carries `.agent-canon-cta` so a `agent-btn agent-btn-primary` action renders as the flat canonical coral button.
+- **Distinct from `EmptyState`:** that one is the quieter, light-only, nothing-to-do state. This one is the louder, theme-aware, do-this-now state for drawers.
+- **Used by:** `ChainDrawer` ("Build this sale's chain").
+
+### 1.3b `FormSectionHeader` ✓ canonical
+
+- **Purpose:** section header inside a drawer/modal form — outline icon + bold title + optional inline "(optional)" note + optional one-line description + optional trailing badge.
+- **Theme-aware:** token-based (light + dark).
+- **Used by:** `AddNodeDrawer` (Property / Agency / Agent contact / Notes). Extracted from its local `SectionHeader` 2026-11-23; other form drawers can adopt next.
+
+### 1.3c `SearchField` ✓ canonical
+
+- **Purpose:** the standalone search bar — magnifier + canonical `agent-input-sm` + X clear. Caller owns the query and renders its own results beneath; the bar is identical everywhere, results differ per surface.
+- **Used by:** `AddNodeDrawer` (own-file search). Extracted 2026-11-23 from the pattern duplicated in `SearchTabsBar` and `ChainsWorkspace`, which can adopt it next.
 
 ### 1.4 `PageHeader` ✓ canonical
 

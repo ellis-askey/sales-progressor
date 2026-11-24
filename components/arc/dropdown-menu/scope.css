@@ -1,0 +1,62 @@
+/* Scoped token subset for the uiarc dropdown-menu.
+   These are the exact custom properties dropdown-menu.module.css reads,
+   lifted verbatim from components/arc/foundation.css but defined ONLY on
+   .arc-scope. foundation.css itself is deliberately NOT imported into
+   production: it also carries app-wide global focus resets
+   (`outline: none !important` on every input / textarea / menuitem) that
+   would regress focus visibility across the whole app. This file carries
+   none of that — just the tokens, scoped. */
+.arc-scope {
+  /* base palette the tokens below resolve to */
+  --neutral-0: oklch(100% 0 0);
+  --neutral-2: oklch(97.8% 0 0);
+  --neutral-7: oklch(59% 0 0);
+  --neutral-8: oklch(46% 0 0);
+  --neutral-11: oklch(15% 0 0);
+  --tone-rose: oklch(53% .18 10);
+
+  --surface: var(--neutral-0);
+  --surface-muted: var(--neutral-2);
+  --surface-raised: var(--neutral-0);
+  --foreground: var(--neutral-11);
+  --border: oklch(93.5% 0 0);
+  --border-strong: oklch(82% 0 0);
+  --border-subtle: oklch(96.5% 0 0);
+  --radius-control: .875rem;
+  --radius-panel: 1.25rem;
+  --control-height-sm: 2rem;
+  --text-sm: .8125rem;
+  --text-secondary: var(--neutral-8);
+  --text-muted: var(--neutral-7);
+  --shadow-resting: 0 1px 2px oklch(0% 0 0 / .035);
+  --shadow-floating: 0 20px 48px oklch(0% 0 0 / .105), 0 3px 10px oklch(0% 0 0 / .045);
+  --danger: var(--tone-rose);
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-standard: 200ms;
+  --duration-spring: 440ms;
+  --ease-standard: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: linear(0, 0.0213, 0.0739, 0.1443, 0.2235, 0.305, 0.3849, 0.4606, 0.5305, 0.594, 0.6508, 0.7011, 0.7452, 0.7836, 0.8168, 0.8454, 0.8699, 0.8907, 0.9084, 0.9234, 0.9361, 0.9467, 0.9557, 0.9632, 0.9694, 0.9747, 0.979, 0.9826, 0.9857, 0.9882, 0.9902, 0.992, 0.9934, 0.9946, 0.9955, 0.9963, 1);
+  --ease-enter: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* Dropdown trigger dressed to read as a LabelInput field: transparent fill,
+   the same hairline border (→ coral on open), the same 20px corner, 40px
+   height and field-size text, no shadow. The portaled menu keeps the default
+   arc tokens above, so only the trigger changes. */
+.arc-scope.ddm-field {
+  width: 100%;
+  --control-height-sm: 2.5rem;
+  --radius-control: 20px;
+  --text-sm: 16px;
+  --surface: transparent;
+  --surface-muted: transparent;
+  --border: color-mix(in srgb, var(--agent-text-primary, #211d18) 32%, var(--agent-surface-elevated, #fff));
+  --border-strong: var(--agent-coral-deep, #ff6b4a);
+  --foreground: var(--agent-text-primary, #211d18);
+  --text-muted: var(--agent-text-muted, rgba(33, 29, 24, 0.55));
+  --shadow-resting: none;
+}

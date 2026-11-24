@@ -22,8 +22,8 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type React from "react";
 import Link from "next/link";
-import { Plus, HouseLine, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
-import { X } from "lucide-react";
+import { Plus, HouseLine, MagnifyingGlass } from "@/components/icons/ph-ssr";
+import { X } from "@/components/icons/lu";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────── */
 const TP = "var(--agent-text-primary)";

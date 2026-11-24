@@ -45,6 +45,19 @@ function ExceptionsSection({ entry }: { entry: ComponentEntry }) {
 }
 
 export function EntryCard({ entry, theme }: { entry: ComponentEntry; theme: "light" | "dark" }) {
+  // Stepping: a state or variant that carries its own render becomes a clickable
+  // step that drives the preview. States take precedence over variants when both
+  // step. Chips without a render stay descriptive labels (no dead controls).
+  const stepStates = entry.states?.some((s) => s.render) ? entry.states! : null;
+  const stepVariants = !stepStates && entry.variants?.some((v) => v.render) ? entry.variants! : null;
+  const steps = stepStates ?? stepVariants ?? null;
+  const [activeStep, setActiveStep] = useState<string | null>(
+    steps ? (steps.find((s) => s.render)?.id ?? null) : null,
+  );
+
+  const activeRender = steps?.find((s) => s.id === activeStep)?.render;
+  const preview = activeRender ? activeRender({ theme }) : entry.render ? entry.render({ theme }) : null;
+
   return (
     <article className="ds-entry">
       <header className="ds-entry-head">
@@ -56,16 +69,34 @@ export function EntryCard({ entry, theme }: { entry: ComponentEntry; theme: "lig
       </header>
 
       <div className="ds-entry-preview">
-        {entry.render ? entry.render({ theme }) : <span className="ds-preview-pending">Canonical preview added on approval</span>}
+        {preview ?? <span className="ds-preview-pending">Canonical preview added on approval</span>}
       </div>
 
       {(entry.variants?.length || entry.states?.length) ? (
         <div className="ds-entry-meta">
           {entry.variants?.length ? (
-            <div className="ds-chipline"><span className="ds-chipline-label">Variants</span>{entry.variants.map((v) => <span key={v.id} className="ds-chip">{v.label}</span>)}</div>
+            <div className="ds-chipline">
+              <span className="ds-chipline-label">Variants</span>
+              {entry.variants.map((v) =>
+                stepVariants && v.render ? (
+                  <button key={v.id} type="button" className="ds-chip" data-step data-active={activeStep === v.id} onClick={() => setActiveStep(v.id)}>{v.label}</button>
+                ) : (
+                  <span key={v.id} className="ds-chip">{v.label}</span>
+                ),
+              )}
+            </div>
           ) : null}
           {entry.states?.length ? (
-            <div className="ds-chipline"><span className="ds-chipline-label">States</span>{entry.states.map((s) => <span key={s.id} className="ds-chip">{s.label}</span>)}</div>
+            <div className="ds-chipline">
+              <span className="ds-chipline-label">States</span>
+              {entry.states.map((s) =>
+                stepStates && s.render ? (
+                  <button key={s.id} type="button" className="ds-chip" data-step data-active={activeStep === s.id} onClick={() => setActiveStep(s.id)}>{s.label}</button>
+                ) : (
+                  <span key={s.id} className="ds-chip">{s.label}</span>
+                ),
+              )}
+            </div>
           ) : null}
         </div>
       ) : null}

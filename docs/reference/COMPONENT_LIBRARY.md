@@ -1,5 +1,11 @@
 # Component Library — Sales Progressor
 
+> **Scope:** the **current production** primitives, authoritative for **un-migrated**
+> pages. New UI and approved redesigns use the forward kit
+> [`components/liquid/`](../../components/liquid/) catalogued in
+> [`design-system/INVENTORY.md`](design-system/INVENTORY.md), which progressively
+> supersedes this as pages migrate.
+
 The canonical UI primitives in the agent app. Every entry lists: **the class or component to use**, **required states**, **animation**, **where it lives in code**, and **known outliers grandfathered from the existing app**.
 
 **Read this before:** building any UI element. If a canonical pattern exists, use it. If one doesn't, add it here before building.

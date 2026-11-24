@@ -21,7 +21,7 @@ import Link from "next/link";
 import {
   Bell, Warning, Clock, ArrowRight, CheckCircle,
   CaretDown,
-} from "@phosphor-icons/react/dist/ssr";
+} from "@/components/icons/ph-ssr";
 
 /* ─── Design tokens ──────────────────────────────────────────────────────── */
 const TP = "var(--agent-text-primary)";

@@ -5,7 +5,7 @@ import {
   CheckCircle, WarningCircle, Info, Warning,
   X, MagnifyingGlass, ArrowRight, Trash,
   SmileyWink, FolderOpen, Plus,
-} from "@phosphor-icons/react";
+} from "@/components/icons/ph";
 
 /* ─── Section wrapper ──────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

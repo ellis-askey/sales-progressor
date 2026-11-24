@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle } from "@/components/icons/ph";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 /* ─── Design tokens (CSS variable refs — adapt to active data-theme) ────── */

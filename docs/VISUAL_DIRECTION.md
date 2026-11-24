@@ -1,5 +1,12 @@
 # Visual Direction
 
+> **Scope (2026-11-02): un-migrated production pages only.** This records the earlier
+> agent-app aesthetic (warm, glassmorphism). It is **not** the authority for new UI.
+> New UI and founder-approved redesigns follow the forward **TSP Liquid Glass** system —
+> [`docs/reference/design-system/`](reference/design-system/README.md) (materials, tokens,
+> components). Where this doc and the design system disagree for new work, the design
+> system wins. Retained for historical/production reference; intentionally not rewritten.
+
 ## Purpose
 
 This product must not feel like a generic SaaS dashboard.

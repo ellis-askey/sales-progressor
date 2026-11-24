@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import type React from "react";
 import Link from "next/link";
-import { Plus, Clock, ArrowRight } from "@phosphor-icons/react/dist/ssr";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { Plus, Clock, ArrowRight } from "@/components/icons/ph-ssr";
+import { AlertCircle, ChevronRight } from "@/components/icons/lu";
 import { ServiceSplitDonut, ForecastHeatBand } from "@/components/hub/HubCharts";
 import type { WeekBucket } from "@/lib/services/hub";
 
