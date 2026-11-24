@@ -19,17 +19,19 @@ function monthsSince(iso: string): number {
   return Math.floor(days / 30);
 }
 
-// Text-link action matching ViewChainButton's agent-link hover language.
-function LinkAction({ children, tone, onClick, disabled }: { children: React.ReactNode; tone: "success" | "muted"; onClick: () => void; disabled?: boolean }) {
+// Secondary action (no-chain confirm / undo). Canonical flat secondary via the
+// .agent-canon-cta footer; a real spinner replaces the label while a confirm or
+// undo is in flight, so it reads as working rather than dead.
+function ActionButton({ children, onClick, pending }: { children: React.ReactNode; onClick: () => void; pending?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      className="agent-link"
-      style={{ fontSize: 13, fontWeight: 500, color: tone === "success" ? "var(--agent-success)" : "var(--agent-text-muted)", opacity: disabled ? 0.5 : 1, cursor: disabled ? "default" : "pointer" }}
+      disabled={pending}
+      className="agent-btn agent-btn-sm agent-btn-secondary"
+      style={{ minWidth: 96, justifyContent: "center" }}
     >
-      {children}
+      {pending ? <span className="agent-spinner agent-spinner-sm" aria-label="Saving" /> : children}
     </button>
   );
 }
@@ -67,11 +69,21 @@ export function NoChainSetupCard({
   const showAge = !confirmed && months >= 3;
 
   return (
-    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" className="chain-prop-card ncs-card" data-bloom style={{ padding: 14, borderRadius: 14, position: "relative" }}>
+    <GlassCard glassId="chains-nochain-card" label="Chains · needs setup card" defaultVariant="v05" className="chain-prop-card ncs-card" data-bloom style={{ padding: 12, borderRadius: 14, position: "relative", display: "flex", flexDirection: "column" }}>
+      {/* The flex row lives on an inner element (not the card itself) so the
+          container query below can flip it to a column — a container query can
+          only style descendants of the container, never the container itself.
+          The card stays a flex column (align-items: stretch by default) so this
+          inner row fills the full width instead of the glass card centring it.
+          The row's flex props live in CSS (not inline) so the container query can
+          actually override align-items on narrow — an inline style would win. */}
+      <div className="ncs-inner">
+      {/* Left column: photo + address, with the meta beneath. */}
+      <div className="ncs-main" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Photo + address — the address sits beside the photo, vertically centred. */}
       <div className="ncs-row" style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <PropertyThumb photoUrl={sale.photoUrl} size={52} />
-
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="ncs-addr" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
             <span
               data-sensitive="true"
@@ -81,7 +93,7 @@ export function NoChainSetupCard({
               {line1}
             </span>
             {sale.status === "on_hold" && (
-              // Mobile: lifted to the card's top-right (see .ncs-hold) so the
+              // Narrow cards: lifted to the card's top-right (see .ncs-hold) so the
               // address line has room (critique #289).
               <span className="ncs-hold">
                 <Pill glass tone="warning" size="sm" style={{ flexShrink: 0 }}>On hold</Pill>
@@ -93,72 +105,65 @@ export function NoChainSetupCard({
               {line2}
             </div>
           )}
-          <div className="ncs-meta" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
-            {/* Age carries its own staleness signal: it turns amber once the sale
-                has sat unresolved for 3+ months, so no separate "N months, no
-                chain" pill is needed (it only restated the age + the section).
-                Mobile: age + agency stack on their own lines, the dot is hidden. */}
-            {agreed && (
-              <span style={{ fontSize: 10.5, fontWeight: showAge ? 600 : 400, color: showAge ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
-                {agreed}
-              </span>
-            )}
-            {agreed && agencyName && <span className="ncs-dot" style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
-            {agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{agencyName}</span>}
-            {sale.resurfaced && (
-              <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
-            )}
-            {!confirmed && sale.chainSetupPending && (
-              <Pill glass tone="warning" size="sm">Onward not confirmed</Pill>
-            )}
-            {!confirmed && !sale.resurfaced && !sale.noChainRequired && !sale.chainSetupPending && sale.awaitingClientOnward && (
-              <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Seller hasn&apos;t said if they&apos;re buying onward</span>
-            )}
-            {!confirmed && sale.noChainRequired && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>Looks chain-free</span>
-            )}
-          </div>
-        </div>
-
-        {/* Action / state */}
-        <div className="ncs-actions" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-          {confirmed ? (
-            // Whole tab is no-chain, so the "No chain ✓" tick on every row was
-            // noise — just the "Set up chain instead" escape hatch (critique #288).
-            <LinkAction tone="muted" disabled={pending} onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</LinkAction>
-          ) : sale.noChainRequired ? (
-            <>
-              <LinkAction tone="success" disabled={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>Confirm no chain</LinkAction>
-              <ViewChainButton transactionId={sale.transactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} label="Set up chain" />
-            </>
-          ) : (
-            <>
-              <ViewChainButton transactionId={sale.transactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} label="Set up chain" />
-              <LinkAction tone="muted" disabled={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>No chain</LinkAction>
-            </>
-          )}
         </div>
       </div>
 
-      {/* Mobile tidy (critiques #289/#290/#297). On a narrow screen the horizontal
-          3-column row cramps and the address line clips, so: the "On hold" pill
-          lifts to the card's top-right, the age + agency stack onto their own
-          lines (dot hidden), the address takes the full width and wraps instead
-          of clipping, and the actions drop to a full-width footer row in the
-          bottom-right (primary "Set up chain" above the secondary). */}
+      {/* "Sale agreed · agency" then the onward hint — a full-width row under the
+          photo, hard left (not indented to the address). Age turns amber once the
+          sale has sat unresolved for 3+ months. */}
+      <div className="ncs-meta" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, minWidth: 0 }}>
+        <div className="ncs-meta-top" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {agreed && (
+            <span style={{ fontSize: 10.5, fontWeight: showAge ? 600 : 400, color: showAge ? "var(--agent-warning)" : "var(--agent-text-muted)" }}>
+              {agreed}
+            </span>
+          )}
+          {agreed && agencyName && <span className="ncs-dot" style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>·</span>}
+          {agencyName && <span style={{ fontSize: 10.5, color: "var(--agent-text-muted)" }}>{agencyName}</span>}
+        </div>
+        {sale.resurfaced && (
+          <Pill glass tone="danger" size="sm">Client now buying onward</Pill>
+        )}
+        {!confirmed && sale.chainSetupPending && (
+          <Pill glass tone="warning" size="sm">Onward not confirmed</Pill>
+        )}
+        {!confirmed && !sale.resurfaced && !sale.noChainRequired && !sale.chainSetupPending && sale.awaitingClientOnward && (
+          <span style={{ fontSize: 11, color: "var(--agent-text-muted)" }}>Seller hasn&apos;t said if they&apos;re buying onward</span>
+        )}
+        {!confirmed && sale.noChainRequired && (
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)" }}>Looks chain-free</span>
+        )}
+      </div>
+      </div>
+
+      {/* Actions — stacked on the right, vertically centred against the left
+          column. "Set up chain" primary (keeps its drawer + hover-prefetch) on
+          top; the no-chain confirm / undo secondary (real spinner while saving)
+          below. On a narrow card they drop under the content, full-width. */}
+      <div className="ncs-actions agent-canon-cta" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+        {confirmed ? (
+          // Whole tab is no-chain, so just the "Set up chain instead" escape
+          // hatch (critique #288) — a single secondary button.
+          <ActionButton pending={pending} onClick={() => onUndoNoChain(sale.transactionId)}>Set up chain instead</ActionButton>
+        ) : (
+          <>
+            <ViewChainButton transactionId={sale.transactionId} currentUserId={currentUserId} currentUserRole={currentUserRole} label="Set up chain" variant="primary" />
+            <ActionButton pending={pending} onClick={() => onConfirmNoChain(sale.transactionId)}>{sale.noChainRequired ? "Confirm no chain" : "No chain"}</ActionButton>
+          </>
+        )}
+      </div>
+      </div>
+
       <style>{`
-        @media (max-width: 640px) {
-          .ncs-card .ncs-row { flex-wrap: wrap; align-items: flex-start; }
+        .ncs-card { container-type: inline-size; }
+        .ncs-card .ncs-inner { display: flex; align-items: center; gap: 12px; width: 100%; }
+        /* Narrow card: the inner row flips to a full-width column — the buttons
+           drop under the content — and the "On hold" pill lifts clear of the
+           address line. Styles a descendant of the container (never the container
+           itself), and in CSS (not inline) so align-items: stretch actually wins. */
+        @container (max-width: 540px) {
+          .ncs-card .ncs-inner { flex-direction: column; align-items: stretch; }
           .ncs-card .ncs-hold { position: absolute; top: 12px; right: 12px; }
-          .ncs-card .ncs-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
-          .ncs-card .ncs-dot { display: none; }
-          /* Actions no longer share the row with the address — they wrap onto
-             their own full-width line below, staying right-aligned and stacked. */
-          .ncs-card .ncs-actions { flex-basis: 100%; justify-content: flex-end; }
-          /* With the actions gone from its right, the address uses the full width
-             and wraps rather than clipping (mirrors critique #298). This also
-             removes the horizontal overflow the nowrap line forced on the row. */
-          .ncs-card .ncs-addr-text { white-space: normal; overflow: visible; text-overflow: clip; }
         }
       `}</style>
     </GlassCard>

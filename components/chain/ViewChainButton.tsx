@@ -15,9 +15,14 @@ type Props = {
   // Override the button label (default "Open chain"). The chains workspace uses
   // "Set up chain" on files that aren't in one yet.
   label?: string;
+  // "link" (default) is the inline agent-link + arrow used on chain cards.
+  // "primary" renders a flat-coral primary button (the setup-card CTA) while
+  // keeping the exact same hover-prefetch + drawer behaviour. Place it inside an
+  // .agent-canon-cta ancestor so the flat-primary treatment applies.
+  variant?: "link" | "primary";
 };
 
-export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification, label }: Props) {
+export function ViewChainButton({ transactionId, currentUserId, currentUserRole, declineNotification, label, variant = "link" }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { addNode, openAddNode, closeAddNode, onNodeSaved, refreshKey } = useChainAddNode();
 
@@ -40,17 +45,30 @@ export function ViewChainButton({ transactionId, currentUserId, currentUserRole,
 
   return (
     <>
-      <button
-        onClick={() => setDrawerOpen(true)}
-        onMouseEnter={prefetch}
-        onFocus={prefetch}
-        onTouchStart={prefetch}
-        className="agent-link"
-        style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
-      >
-        {label ?? "Open chain"}
-        <LinkArrow style={{ marginLeft: 0 }} />
-      </button>
+      {variant === "primary" ? (
+        <button
+          onClick={() => setDrawerOpen(true)}
+          onMouseEnter={prefetch}
+          onFocus={prefetch}
+          onTouchStart={prefetch}
+          className="agent-btn agent-btn-sm agent-btn-primary"
+          style={{ justifyContent: "center" }}
+        >
+          {label ?? "Open chain"}
+        </button>
+      ) : (
+        <button
+          onClick={() => setDrawerOpen(true)}
+          onMouseEnter={prefetch}
+          onFocus={prefetch}
+          onTouchStart={prefetch}
+          className="agent-link"
+          style={{ fontSize: 13, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 5 }}
+        >
+          {label ?? "Open chain"}
+          <LinkArrow style={{ marginLeft: 0 }} />
+        </button>
+      )}
 
       {drawerOpen && (
         <ChainDrawer
