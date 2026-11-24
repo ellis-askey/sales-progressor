@@ -67,7 +67,7 @@ export function EmailsTabs({ words, style, sender }: { words: React.ReactNode; s
                 background: "none",
                 border: "none",
                 padding: "9px 14px 13px",
-                color: on ? "var(--agent-coral-deep, #E2452A)" : "#6b7280",
+                color: on ? "var(--agent-coral-deep, #E2452A)" : "var(--agent-text-muted)",
                 transition: "color 160ms",
               }}
             >

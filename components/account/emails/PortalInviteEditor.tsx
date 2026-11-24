@@ -9,16 +9,21 @@
 // ClientChaseEditor shape (single variant, base prop for agency vs business).
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@/components/icons/ph";
+import { Pencil, ArrowCounterClockwise, CircleNotch } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
 
 type Content = { subject: string; headline: string; body: string; note: string; cta: string };
 type Resolved = { exists: true; source: "agency" | "default"; effective: Content; base: Content };
 
 const HAIRLINE = "0.5px solid rgba(0,0,0,0.10)";
-const TEXT = "#111827";
-const MUTED = "#6b7280";
-const FAINT = "#9ca3af";
+const TEXT = "var(--agent-text-primary)";
+const MUTED = "var(--agent-text-muted)";
+const FAINT = "var(--agent-text-tertiary)";
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 const EX: Record<string, string> = { saleWord: "purchase", address: "12 Example Road, Harlow, CM17 9PH" };
 const fill = (t: string) => t.replace(/\{(\w+)\}/g, (_, k) => EX[k] ?? `{${k}}`);
@@ -124,8 +129,8 @@ export function PortalInviteEditor({ base = "/api/agent/email-templates" }: { ba
       <div>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>Portal invite</p>
         <p style={{ margin: "3px 0 0", fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>
-          The first email a client receives, inviting them into their portal. The greeting, their link and your branding
-          are added automatically.
+          The first email a client receives, inviting them into their portal. We&apos;ll add the greeting, their link and
+          your branding.
         </p>
       </div>
 
@@ -135,40 +140,30 @@ export function PortalInviteEditor({ base = "/api/agent/email-templates" }: { ba
         </div>
       ) : !resolved ? null : editing && draft ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
-          <Field label="Subject">
-            <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
-          </Field>
-          <Field label="Headline">
-            <input value={draft.headline} onChange={(e) => setDraft({ ...draft, headline: e.target.value })} style={inputStyle} />
-          </Field>
+          <LabelInput field="Subject" label="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} fullWidth accent="#FF6B4A" />
+          <LabelInput field="Headline" label="Headline" value={draft.headline} onChange={(e) => setDraft({ ...draft, headline: e.target.value })} fullWidth accent="#FF6B4A" />
           <Field label="Body">
             <textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={3} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
           </Field>
           <Field label="Note (optional)" hint="The small reassurance under the button. Leave blank to hide it.">
             <textarea value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
           </Field>
-          <Field label="Button label">
-            <input value={draft.cta} onChange={(e) => setDraft({ ...draft, cta: e.target.value })} style={inputStyle} />
-          </Field>
+          <LabelInput field="Button label" label="Button label" value={draft.cta} onChange={(e) => setDraft({ ...draft, cta: e.target.value })} fullWidth accent="#FF6B4A" />
           <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
             Details like {"{saleWord}"} and {"{address}"} are filled in for each sale when the email sends. Leave them in place.
           </p>
           {warnings.length > 0 && (
-            <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {warnings.map((w, i) => (
-                <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
-                  <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} /> {w}
-                </p>
+                <InlineAlert key={i} kind="warning">{w}</InlineAlert>
               ))}
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={save} disabled={saving} className="agent-btn agent-btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
+            <Button variant="primary" onClick={save} disabled={saving} style={coralVars}>
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className="account-emails-ghostbtn" style={{ borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "9px 16px", fontSize: 13.5, fontWeight: 600, color: TEXT, cursor: "pointer" }}>
-              Cancel
-            </button>
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
           </div>
         </div>
       ) : (
@@ -194,19 +189,19 @@ function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved;
     <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         {resolved.source === "agency" ? (
-          <span style={{ borderRadius: 999, border: "0.5px solid rgba(255,107,74,0.4)", background: "rgba(255,107,74,0.10)", padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep, #E2452A)" }}>Your version</span>
+          <Badge tone="accent">Your version</Badge>
         ) : (
-          <span style={{ borderRadius: 999, border: HAIRLINE, background: "#f7f7f8", padding: "3px 10px", fontSize: 11, fontWeight: 600, color: MUTED }}>Sales Progressor default</span>
+          <Badge tone="neutral">Sales Progressor default</Badge>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {resolved.source === "agency" && (
-            <button type="button" onClick={onReset} disabled={resetting} className="account-emails-ghostbtn" style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: resetting ? "default" : "pointer", opacity: resetting ? 0.55 : 1 }}>
+            <Button variant="secondary" size="sm" onClick={onReset} disabled={resetting}>
               <ArrowCounterClockwise size={14} /> {resetting ? "Resetting…" : "Reset to Sales Progressor"}
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={onEdit} className="agent-btn agent-btn-primary agent-btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Button variant="primary" size="sm" onClick={onEdit} style={coralVars}>
             <Pencil size={14} /> Edit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -217,8 +212,8 @@ function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved;
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
           <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: TEXT }}>{fill(c.headline)}</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>Hi Sam,</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{fill(c.body)}</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>Hi Sam,</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>{fill(c.body)}</p>
           <span style={{ display: "inline-block", width: "fit-content", borderRadius: 8, background: "var(--agent-coral, #FF6B4A)", padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff" }}>{fill(c.cta)}</span>
           {c.note && (
             <div style={{ borderRadius: 9, background: "#F8F9FB", padding: "12px 14px" }}>
@@ -229,7 +224,7 @@ function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved;
         </div>
       </div>
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-        Preview uses example details for the sale and address. Your logo, colours and the client&apos;s link are added automatically.
+        Preview uses example details for the sale and address. We&apos;ll add your logo, colours and the client&apos;s link.
       </p>
     </div>
   );

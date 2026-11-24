@@ -16,6 +16,7 @@ export function SegmentedSwitch<T extends string>({
   size = "md",
   ariaLabel,
   fullWidth = false,
+  disabled = false,
 }: {
   options: { id: T; label: string }[];
   value: T;
@@ -25,6 +26,9 @@ export function SegmentedSwitch<T extends string>({
   // Stretch the rail to its container and split the options evenly — e.g. the
   // Fees card's Fixed/Percentage and +VAT/Inc toggles, which fill the card.
   fullWidth?: boolean;
+  // Locked: reads dimmed and takes no clicks (e.g. the milestone editor's rail
+  // selectors while an email is being edited in place). Off by default.
+  disabled?: boolean;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -63,7 +67,8 @@ export function SegmentedSwitch<T extends string>({
       ref={railRef}
       role="tablist"
       aria-label={ariaLabel}
-      style={{ position: "relative", display: fullWidth ? "flex" : "inline-flex", width: fullWidth ? "100%" : undefined, padding: inset, borderRadius: radius, gap: 2, background: "rgba(15,23,42,0.05)", border: "0.5px solid var(--agent-border-default)" }}
+      aria-disabled={disabled || undefined}
+      style={{ position: "relative", display: fullWidth ? "flex" : "inline-flex", width: fullWidth ? "100%" : undefined, padding: inset, borderRadius: radius, gap: 2, background: "rgba(15,23,42,0.05)", border: "0.5px solid var(--agent-border-default)", opacity: disabled ? 0.55 : 1 }}
     >
       <span
         aria-hidden
@@ -83,13 +88,14 @@ export function SegmentedSwitch<T extends string>({
             type="button"
             role="tab"
             aria-selected={on}
-            onClick={() => onChange(o.id)}
-            onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--agent-text-primary)"; }}
-            onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
+            disabled={disabled}
+            onClick={() => { if (!disabled) onChange(o.id); }}
+            onMouseEnter={(e) => { if (!on && !disabled) e.currentTarget.style.color = "var(--agent-text-primary)"; }}
+            onMouseLeave={(e) => { if (!on && !disabled) e.currentTarget.style.color = "var(--agent-text-secondary)"; }}
             style={{
               position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center",
               flex: fullWidth ? "1 1 0" : undefined, justifyContent: fullWidth ? "center" : undefined,
-              padding: sm ? "4px 12px" : "6px 16px", borderRadius: btnRadius, border: "none", cursor: "pointer",
+              padding: sm ? "4px 12px" : "6px 16px", borderRadius: btnRadius, border: "none", cursor: disabled ? "default" : "pointer",
               fontSize: sm ? 12 : 13, fontWeight: 600, fontFamily: "inherit", whiteSpace: "nowrap",
               background: "transparent",
               color: on ? "var(--agent-text-on-coral)" : "var(--agent-text-secondary)",

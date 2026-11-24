@@ -9,16 +9,22 @@
 // bracket the dynamic body. All optional; blank everywhere = our default.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Warning } from "@/components/icons/ph";
+import { Pencil, ArrowCounterClockwise, CircleNotch } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
 
 type Content = { subject: string; intro: string; outro: string };
 type Resolved = { source: "agency" | "default"; effective: Content; base: Content };
 
 const HAIRLINE = "0.5px solid rgba(0,0,0,0.10)";
-const TEXT = "#111827";
-const MUTED = "#6b7280";
-const FAINT = "#9ca3af";
+const TEXT = "var(--agent-text-primary)";
+const MUTED = "var(--agent-text-muted)";
+const FAINT = "var(--agent-text-tertiary)";
+// Coral primary for the arc Button (flat brand fill, matching the other editors).
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 const EX: Record<string, string> = { address: "12 Example Road", firstName: "Sam", transactionWord: "purchase" };
 const fill = (t: string) => t.replace(/\{(\w+)\}/g, (_, k) => EX[k] ?? `{${k}}`);
@@ -138,26 +144,18 @@ export function ClientChaseEditor({ base = "/api/agent/email-templates" }: { bas
           <CircleNotch size={16} className="agent-spin" /> Loading…
         </div>
       ) : loadError ? (
-        <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
-          <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: MUTED }}>
-            <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-            We couldn&apos;t load this email just now. Check your connection and try again.
-          </span>
-          <button
-            type="button"
-            onClick={() => load()}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: "pointer" }}
-          >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+          <InlineAlert kind="danger">We couldn&apos;t load this email just now. Check your connection and try again.</InlineAlert>
+          <Button variant="secondary" size="sm" onClick={() => load()}>
             <ArrowCounterClockwise size={14} /> Try again
-          </button>
+          </Button>
         </div>
       ) : !resolved ? null : editing && draft ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
-          <label style={{ display: "block" }}>
-            <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</span>
-            <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} placeholder="Quick update on {address}" />
+          <div>
+            <LabelInput field="Subject" label="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} fullWidth accent="#FF6B4A" />
             <span style={{ display: "block", marginTop: 5, fontSize: 11.5, color: FAINT }}>Leave blank to use our default subject.</span>
-          </label>
+          </div>
           <label style={{ display: "block" }}>
             <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Opening line (optional)</span>
             <textarea value={draft.intro} onChange={(e) => setDraft({ ...draft, intro: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} placeholder="A line of your own, shown just under the greeting." />
@@ -170,21 +168,17 @@ export function ClientChaseEditor({ base = "/api/agent/email-templates" }: { bas
             Details like {"{firstName}"} and {"{address}"} are filled in for each sale when the email sends.
           </p>
           {warnings.length > 0 && (
-            <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {warnings.map((w, i) => (
-                <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
-                  <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} /> {w}
-                </p>
+                <InlineAlert key={i} kind="warning">{w}</InlineAlert>
               ))}
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={save} disabled={saving} className="agent-btn agent-btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
+            <Button variant="primary" onClick={save} disabled={saving} style={coralVars}>
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className="account-emails-ghostbtn" style={{ borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "9px 16px", fontSize: 13.5, fontWeight: 600, color: TEXT, cursor: "pointer" }}>
-              Cancel
-            </button>
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
           </div>
         </div>
       ) : (
@@ -200,19 +194,19 @@ function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved;
     <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         {resolved.source === "agency" ? (
-          <span style={{ borderRadius: 999, border: "0.5px solid rgba(255,107,74,0.4)", background: "rgba(255,107,74,0.10)", padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep, #E2452A)" }}>Your version</span>
+          <Badge tone="accent">Your version</Badge>
         ) : (
-          <span style={{ borderRadius: 999, border: HAIRLINE, background: "#f7f7f8", padding: "3px 10px", fontSize: 11, fontWeight: 600, color: MUTED }}>Sales Progressor default</span>
+          <Badge tone="neutral">Sales Progressor default</Badge>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {resolved.source === "agency" && (
-            <button type="button" onClick={onReset} disabled={resetting} className="account-emails-ghostbtn" style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: resetting ? "default" : "pointer", opacity: resetting ? 0.55 : 1 }}>
+            <Button variant="secondary" size="sm" onClick={onReset} disabled={resetting}>
               <ArrowCounterClockwise size={14} /> {resetting ? "Resetting…" : "Reset to Sales Progressor"}
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={onEdit} className="agent-btn agent-btn-primary agent-btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Button variant="primary" size="sm" onClick={onEdit} style={coralVars}>
             <Pencil size={14} /> Edit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -225,14 +219,14 @@ function Preview({ resolved, onEdit, onReset, resetting }: { resolved: Resolved;
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: TEXT }}>Hi Sam,</p>
-          {c.intro && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{fill(c.intro)}</p>}
+          {c.intro && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>{fill(c.intro)}</p>}
           <div style={{ borderRadius: 9, border: "1px dashed rgba(0,0,0,0.14)", background: "#fbfbfc", padding: "12px 14px" }}>
             <p style={{ margin: 0, fontSize: 12.5, color: FAINT, fontStyle: "italic", lineHeight: 1.5 }}>
               Whatever&apos;s outstanding on the sale appears here, adapting to what&apos;s due and who it&apos;s with, followed by the &ldquo;Open the page&rdquo; button.
             </p>
           </div>
-          {c.outro && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "#374151" }}>{fill(c.outro)}</p>}
-          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "#374151" }}>Thanks,<br /><span style={{ color: MUTED }}>Your agency</span></p>
+          {c.outro && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--agent-text-secondary)" }}>{fill(c.outro)}</p>}
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>Thanks,<br /><span style={{ color: MUTED }}>Your agency</span></p>
         </div>
       </div>
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>

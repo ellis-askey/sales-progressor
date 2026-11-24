@@ -10,6 +10,7 @@
 // client Branding tab via the `endpoint` prop, and by the Command Centre.
 
 import { useMemo, useRef, useState } from "react";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import {
   LOGO_HEIGHTS,
   LOGO_BAND_PADDING_Y,
@@ -256,7 +257,7 @@ export function EmailBrandingStudio({
             </div>
           )}
         </div>
-        <p style={{ margin: "8px 2px 0", fontSize: 12, color: "#9ca3af" }}>Preview exactly what your buyers and sellers receive.</p>
+        <p style={{ margin: "8px 2px 0", fontSize: 12, color: "var(--agent-text-tertiary)" }}>Preview exactly what your buyers and sellers receive.</p>
       </div>
 
       {/* ── Guided controls ── */}
@@ -377,7 +378,7 @@ export function EmailBrandingStudio({
             </div>
           </div>
         </div>
-        {error && <p style={{ margin: "10px 0 0", fontSize: 12, color: "#dc2626" }} role="alert">{error}</p>}
+        {error && <div style={{ marginTop: 10 }}><InlineAlert kind="danger">{error}</InlineAlert></div>}
       </div>
 
       <style>{`
@@ -407,8 +408,8 @@ export function EmailBrandingStudio({
         @keyframes eb-pane-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
         .eb-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 520px) { .eb-row2 { grid-template-columns: 1fr; } }
-        .eb-hint { margin: 0; font-size: 12.5px; color: #6b7280; line-height: 1.5; }
-        .eb-note { margin: 2px 0 0; font-size: 11.5px; color: #6b7280; line-height: 1.5; }
+        .eb-hint { margin: 0; font-size: 12.5px; color: var(--agent-text-muted); line-height: 1.5; }
+        .eb-note { margin: 2px 0 0; font-size: 11.5px; color: var(--agent-text-muted); line-height: 1.5; }
 
         .eb-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid rgba(0,0,0,0.08); }
         .eb-back { font-size: 13px; font-weight: 650; color: #6b7280; background: none; border: none; cursor: pointer; padding: 6px 4px; border-radius: 7px; transition: color 130ms; }
@@ -421,7 +422,7 @@ export function EmailBrandingStudio({
         .eb-next .arr { display: inline-block; transition: transform 180ms cubic-bezier(.22,1,.36,1); }
         .eb-next:hover .arr { transform: translateX(3px); }
         .eb-save2:disabled { background: rgba(0,0,0,0.08); color: #9ca3af; cursor: default; box-shadow: none; }
-        .eb-saved { font-size: 12px; font-weight: 700; color: #16a34a; }
+        .eb-saved { font-size: 12px; font-weight: 700; color: #2F9E6B; }
 
         .eb-btn { transition: background 140ms ease, transform 90ms ease; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.14); background: #fff; color: #111827; cursor: pointer; }
         .eb-btn:hover:not(:disabled) { background: #f6f6f7; }

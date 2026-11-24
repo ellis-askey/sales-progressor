@@ -20,10 +20,14 @@
 // seller: client-facing copy only.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, ArrowCounterClockwise, Warning, CircleNotch, Check, X } from "@/components/icons/ph";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Check, X } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { EmailLookCard, type EmailLookContent } from "@/components/account/emails/EmailLook";
 import type { StudioTheme } from "@/lib/email/email-theme-studio";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 
 type StepMeta = {
   code: string;
@@ -54,15 +58,23 @@ type Resolved =
 
 type Side = "vendor" | "purchaser";
 
-const SIDE_OPTIONS: { value: Side; label: string }[] = [
-  { value: "purchaser", label: "Buyer" },
-  { value: "vendor", label: "Seller" },
+const SIDE_OPTIONS: { id: Side; label: string }[] = [
+  { id: "purchaser", label: "Buyer" },
+  { id: "vendor", label: "Seller" },
+];
+const TENURE_OPTIONS: { id: "freehold" | "leasehold"; label: string }[] = [
+  { id: "freehold", label: "Freehold" },
+  { id: "leasehold", label: "Leasehold" },
+];
+const METHOD_OPTIONS: { id: "mortgage" | "cash"; label: string }[] = [
+  { id: "mortgage", label: "Mortgage" },
+  { id: "cash", label: "Cash" },
 ];
 
 const HAIRLINE = "0.5px solid rgba(0,0,0,0.10)";
-const TEXT = "#111827";
-const MUTED = "#6b7280";
-const FAINT = "#9ca3af";
+const TEXT = "var(--agent-text-primary)";
+const MUTED = "var(--agent-text-muted)";
+const FAINT = "var(--agent-text-tertiary)";
 
 function voiceWarnings(draft: Copy): string[] {
   const w: string[] = [];
@@ -242,23 +254,13 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
       {/* ── Left rail: which email ─────────────────────────────── */}
       <aside className="eme2-rail">
         <RailField label="Recipient">
-          <Segmented value={side} disabled={editing} onChange={(v) => setSide(v as Side)} options={SIDE_OPTIONS} />
+          <SegmentedSwitch options={SIDE_OPTIONS} value={side} onChange={setSide} disabled={editing} fullWidth size="sm" ariaLabel="Recipient" />
         </RailField>
         <RailField label="Tenure">
-          <Segmented
-            value={tenure}
-            disabled={editing}
-            onChange={(v) => setTenure(v as "freehold" | "leasehold")}
-            options={[{ value: "freehold", label: "Freehold" }, { value: "leasehold", label: "Leasehold" }]}
-          />
+          <SegmentedSwitch options={TENURE_OPTIONS} value={tenure} onChange={setTenure} disabled={editing} fullWidth size="sm" ariaLabel="Tenure" />
         </RailField>
         <RailField label="Payment">
-          <Segmented
-            value={method}
-            disabled={editing}
-            onChange={(v) => setMethod(v as "mortgage" | "cash")}
-            options={[{ value: "mortgage", label: "Mortgage" }, { value: "cash", label: "Cash" }]}
-          />
+          <SegmentedSwitch options={METHOD_OPTIONS} value={method} onChange={setMethod} disabled={editing} fullWidth size="sm" ariaLabel="Payment" />
         </RailField>
         <RailField label="Step" grow>
           <div className="eme2-steps" role="listbox" aria-label="Choose a step">
@@ -300,19 +302,20 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
       <section className="eme2-canvas">
         <div className="eme2-bar">
           {editing ? (
-            <span className="eme2-badge custom">Editing your version</span>
+            <Badge tone="accent">Editing your version</Badge>
           ) : isAgencyVersion ? (
-            <span className="eme2-badge custom">Your version</span>
+            <Badge tone="accent">Your version</Badge>
           ) : (
-            <span className="eme2-badge">Sales Progressor default</span>
+            <Badge tone="neutral">Sales Progressor default</Badge>
           )}
 
           <div className="eme2-actions">
             {editing ? (
               <>
-                <button type="button" onClick={() => setEditing(false)} className="eme2-btn eme2-btn-ghost">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
                   <X size={14} /> Cancel
-                </button>
+                </Button>
+                {/* Primary save stays the bespoke coral-gradient CTA (grandfathered). */}
                 <button type="button" onClick={save} disabled={saving} className="eme2-btn eme2-btn-primary">
                   {saving ? <CircleNotch size={14} className="eme2-spin" /> : <Check size={14} weight="bold" />}
                   {saving ? "Saving…" : "Save your version"}
@@ -321,18 +324,19 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
             ) : (
               <>
                 {isAgencyVersion && (
-                  <button type="button" onClick={reset} disabled={resetting} className="eme2-btn eme2-btn-ghost">
+                  <Button type="button" variant="ghost" size="sm" onClick={reset} disabled={resetting}>
                     <ArrowCounterClockwise size={14} /> {resetting ? "Resetting…" : "Reset to default"}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={startEdit}
                   disabled={!resolved || !resolved.exists || loading}
-                  className="eme2-btn"
                 >
                   <Pencil size={14} /> Edit wording
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -341,18 +345,15 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
         {loading ? (
           <div className="eme2-loading"><CircleNotch size={16} className="eme2-spin" /> Loading…</div>
         ) : loadError ? (
-          <div className="eme2-state">
-            <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: MUTED }}>
-              <Warning size={16} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-              We couldn&apos;t load this email just now. Check your connection and try again.
-            </span>
-            <button type="button" onClick={() => load()} className="eme2-btn eme2-btn-ghost" style={{ marginTop: 12 }}>
+          <div className="eme2-state" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+            <InlineAlert kind="danger">We couldn&apos;t load this email just now. Check your connection and try again.</InlineAlert>
+            <Button type="button" variant="secondary" size="sm" onClick={() => load()}>
               <ArrowCounterClockwise size={14} /> Try again
-            </button>
+            </Button>
           </div>
         ) : !resolved ? null : !resolved.exists ? (
           <div className="eme2-state" style={{ color: MUTED, fontSize: 13.5 }}>
-            This step doesn&apos;t send an email to the {SIDE_OPTIONS.find((o) => o.value === side)?.label.toLowerCase()}.
+            This step doesn&apos;t send an email to the {SIDE_OPTIONS.find((o) => o.id === side)?.label.toLowerCase()}.
           </div>
         ) : shown ? (
           <>
@@ -378,12 +379,9 @@ export function AgencyMilestoneEmailsEditor({ steps, base = "/api/agent/mileston
             {editing ? (
               <>
                 {warnings.length > 0 && (
-                  <div className="eme2-warn" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
                     {warnings.map((w, i) => (
-                      <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
-                        <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-                        {w}
-                      </p>
+                      <InlineAlert key={i} kind="warning">{w}</InlineAlert>
                     ))}
                   </div>
                 )}
@@ -405,44 +403,6 @@ function RailField({ label, children, grow }: { label: string; children: React.R
     <div className={`eme2-field${grow ? " grow" : ""}`}>
       <p className="eme2-field-lbl">{label}</p>
       {children}
-    </div>
-  );
-}
-
-// Segmented toggle: the active option is a solid coral-gradient pill with white
-// text, and the pill slides between options (founder, 2026-10-15).
-function Segmented({
-  value,
-  onChange,
-  options,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  disabled?: boolean;
-}) {
-  const idx = Math.max(0, options.findIndex((o) => o.value === value));
-  return (
-    <div
-      className={`eme2-seg${disabled ? " disabled" : ""}`}
-      style={{ ["--n" as string]: options.length, ["--i" as string]: idx } as React.CSSProperties}
-    >
-      <span className="eme2-seg-pill" aria-hidden />
-      {options.map((o) => {
-        const active = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            disabled={disabled}
-            onClick={() => !disabled && onChange(o.value)}
-            className={active ? "on" : ""}
-          >
-            {o.label}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -548,16 +508,6 @@ const EME2_STYLES = `
   .eme2-field.grow { flex: 1; min-height: 0; }
   .eme2-field-lbl { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: ${FAINT}; }
 
-  /* Animated segmented toggle: sliding coral-gradient pill, white active text. */
-  .eme2-seg { position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); border: ${HAIRLINE}; border-radius: 9px; background: #f3f1f0; padding: 3px; isolation: isolate; }
-  .eme2-seg.disabled { opacity: .55; }
-  .eme2-seg-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); border-radius: 6px; background: linear-gradient(180deg, #FF7A5C, #E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 7px -1px rgba(226,69,42,.5); transform: translateX(calc(var(--i) * 100%)); transition: transform 260ms cubic-bezier(.34,1.25,.5,1); }
-  .eme2-seg button { position: relative; z-index: 1; appearance: none; border: none; background: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: ${MUTED}; padding: 7px 8px; border-radius: 6px; transition: color 180ms ease; }
-  .eme2-seg button:hover:not(.on):not(:disabled) { color: ${TEXT}; }
-  .eme2-seg button:disabled { cursor: default; }
-  .eme2-seg button.on { color: #fff; }
-  .eme2-seg button:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(var(--agent-coral-rgb),.45); }
-
   .eme2-steps { display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; margin: 0 -4px; padding: 2px 4px; }
   .eme2-step { appearance: none; border: none; background: none; cursor: pointer; font: inherit; text-align: left; display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px; border-radius: 8px; color: ${MUTED}; transition: background 140ms, color 140ms; }
   .eme2-step:hover:not(.on):not(:disabled) { background: rgba(0,0,0,.04); color: ${TEXT}; }
@@ -573,20 +523,15 @@ const EME2_STYLES = `
 
   .eme2-canvas { padding: 20px; min-width: 0; }
   .eme2-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-  .eme2-badge { font-size: 11px; font-weight: 600; color: ${MUTED}; background: #f3f3f4; padding: 4px 10px; border-radius: 999px; }
-  .eme2-badge.custom { color: var(--agent-coral-deep, #E2452A); background: rgba(255,107,74,.10); font-weight: 700; }
   .eme2-actions { display: flex; align-items: center; gap: 8px; }
-  .eme2-btn { appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border: ${HAIRLINE}; background: #fff; color: #374151; transition: background 140ms, border-color 140ms, color 140ms, transform 80ms; }
+  .eme2-btn { appearance: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 6px; border: ${HAIRLINE}; background: #fff; color: var(--agent-text-secondary); transition: background 140ms, border-color 140ms, color 140ms, transform 80ms; }
   .eme2-btn:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn:active:not(:disabled) { transform: scale(.975); }
   .eme2-btn:disabled { opacity: .5; cursor: default; }
   .eme2-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(var(--agent-coral-rgb),.32); }
-  .eme2-btn-ghost { border-color: transparent; background: none; color: ${MUTED}; }
-  .eme2-btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.05); color: ${TEXT}; }
   .eme2-btn-primary { border-color: transparent; color: #fff; background: linear-gradient(180deg,#FF7A5C,#E2452A); box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 3px 10px -4px rgba(255,107,74,.5); }
   .eme2-btn-primary:hover:not(:disabled) { filter: brightness(1.04); background: linear-gradient(180deg,#FF7A5C,#E2452A); color: #fff; }
 
-  .eme2-warn { display: flex; align-items: flex-start; gap: 8px; border: 0.5px solid rgba(217,119,6,0.35); background: rgba(251,191,36,0.10); border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #92610a; margin-top: 14px; }
   .eme2-loading { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: ${MUTED}; padding: 20px 2px; }
   .eme2-state { border: ${HAIRLINE}; border-radius: 12px; background: #fff; padding: 20px; }
 
@@ -600,7 +545,7 @@ const EME2_STYLES = `
   .eme2-herotxt { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
   .eme2-email-body { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
   .eme2-hero-plain { margin: 0; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: ${FAINT}; }
-  .eme2-p { margin: 0; font-size: 14px; line-height: 1.55; color: #374151; }
+  .eme2-p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--agent-text-secondary); }
   .eme2-lede { color: ${TEXT}; }
   .eme2-cta { display: inline-block; width: fit-content; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; color: #fff; }
 

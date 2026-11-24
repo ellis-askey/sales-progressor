@@ -11,6 +11,9 @@ import { useState } from "react";
 import { ArrowsLeftRight, CalendarBlank, Clock, TrendUp, Handshake, LinkSimple, CaretRight, EnvelopeOpen } from "@/components/icons/ph";
 import { AccountDrawer } from "@/components/account/chrome/AccountDrawer";
 import { InfoTip } from "@/components/ui/InfoTip";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { PortalInviteEditor } from "./PortalInviteEditor";
 import { CompletionPackEditor } from "./CompletionPackEditor";
 import { ExchangeDayClientEditor } from "./ExchangeDayClientEditor";
@@ -35,7 +38,7 @@ const ROWS: Row[] = [
     Icon: EnvelopeOpen,
     title: "Portal invite",
     subtitle: "The welcome email a client gets when you invite them to their portal.",
-    info: "The first email a client receives. Sent when you invite them to their portal (or automatically as a file is added, if you've turned that on). It carries their personal link, your branding, and the wording you set here.",
+    info: "The first email a client receives. Sent when you invite them to their portal (or when a file is added, if you've turned that on). It carries their personal link, your branding, and the wording you set here.",
     pills: ["Buyer", "Seller"],
     render: (base) => <PortalInviteEditor base={base} />,
   },
@@ -135,76 +138,39 @@ export function AutomatedEmailsList({ base = "/api/agent/email-templates" }: { b
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ display: "inline-flex", alignItems: "center" }}>
-                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{r.title}</p>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{r.title}</p>
                   <InfoTip label={r.title}>{r.info}</InfoTip>
                 </span>
-                {r.notSending && (
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, padding: "2px 7px", borderRadius: 5, background: "#f3f4f6", color: "#6b7280" }}>
-                    Not sending yet
-                  </span>
-                )}
+                {r.notSending && <Badge tone="neutral">Not sending yet</Badge>}
               </div>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>{r.subtitle}</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>{r.subtitle}</p>
             </div>
             {r.pills && (
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }} className="account-emails-rowpills">
                 {r.pills.map((p) => (
-                  <span key={p} style={{ fontSize: 11, fontWeight: 500, padding: "3px 9px", borderRadius: 7, background: "#f7f7f8", color: "#6b7280", border: "0.5px solid rgba(0,0,0,0.06)" }}>
-                    {p}
-                  </span>
+                  <Badge key={p} tone="neutral">{p}</Badge>
                 ))}
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => setOpenKey(r.key)}
-              className="account-editemail-btn"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                flexShrink: 0,
-                padding: "7px 12px",
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "var(--agent-coral-deep, #E2452A)",
-                background: "#fff",
-                border: "0.5px solid rgba(255,107,74,0.45)",
-                borderRadius: 9,
-                cursor: "pointer",
-                transition: "background 130ms",
-              }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpenKey(r.key)}>
               Edit email <CaretRight size={12} weight="bold" />
-            </button>
+            </Button>
           </div>
         ))}
       </div>
 
       <AccountDrawer open={active !== null} onClose={() => setOpenKey(null)} title="Edit email" subtitle={active?.title}>
         {active?.notSending && (
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              padding: "12px 14px",
-              marginBottom: 16,
-              background: "rgba(255,107,74,0.06)",
-              border: "0.5px solid rgba(0,0,0,0.06)",
-              borderRadius: 11,
-              fontSize: 12.5,
-              lineHeight: 1.5,
-              color: "#6b7280",
-            }}
-          >
-            This email isn&apos;t sending yet. You can set the wording now, ready for when the send trigger goes live.
+          <div style={{ marginBottom: 16 }}>
+            <InlineAlert kind="info">
+              This email isn&apos;t sending yet. You can set the wording now, ready for when the send trigger goes live.
+            </InlineAlert>
           </div>
         )}
         {active?.render(base)}
       </AccountDrawer>
 
       <style>{`
-        .account-editemail-btn:hover { background: var(--agent-hover-shade); }
         @media (max-width: 640px) { .account-emails-rowpills { display: none !important; } }
       `}</style>
     </>

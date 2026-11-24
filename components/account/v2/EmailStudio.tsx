@@ -11,6 +11,7 @@
 // identity-agnostic: the three mount sites pass their own endpoint + identityName.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import type { EmailThemeInput, LogoMode } from "@/lib/email/brand-theme";
 import { resolveStudioTheme, tint, luminance, FONT_STACKS, LOOKS, LOOKS_BY_KEY, LOOK_CATEGORIES, type StudioTheme, type LookCategory } from "@/lib/email/email-theme-studio";
 import type { LogoScale, LogoAlign } from "@/lib/image/logo";
@@ -405,7 +406,7 @@ export function EmailStudio({ initial, endpoint = "/api/agent/agency-logo", iden
               <button type="button" className="es-btn" onClick={onSave} disabled={!dirty || savingState === "saving"}>{savingState === "saving" ? "Saving…" : "Save changes"}</button>
             </div>
           </div>
-          {error && <p className="es-err" role="alert">{error}</p>}
+          {error && <div style={{ marginTop: 10 }}><InlineAlert kind="danger">{error}</InlineAlert></div>}
         </div>
 
         {/* ── right: preview ── */}
@@ -734,7 +735,7 @@ const STYLES = `
   .es-nudge{margin:9px 0 2px;font-size:11.5px;color:var(--ink3);line-height:1.5;} .es-link{font:inherit;font-size:inherit;background:none;border:none;padding:0;color:var(--coral-deep);font-weight:700;cursor:pointer;}
   .es-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;border-top:1px solid var(--hair);background:#fff;}
   .es-backbtn{font:inherit;font-size:13px;font-weight:650;color:var(--ink2);background:none;border:none;cursor:pointer;padding:6px 2px;} .es-backbtn:hover{color:var(--ink);}
-  .es-fr{display:flex;align-items:center;gap:12px;} .es-saved{font-size:12px;font-weight:700;color:#16a34a;}
+  .es-fr{display:flex;align-items:center;gap:12px;} .es-saved{font-size:12px;font-weight:700;color:#2F9E6B;}
   .es-btn{font:inherit;font-size:13px;font-weight:700;color:#fff;border:none;border-radius:9px;padding:10px 18px;cursor:pointer;background:linear-gradient(180deg,#FF7A5C,#E2452A);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 4px 14px -5px rgba(255,107,74,.5);transition:filter .15s,transform .12s;display:inline-flex;align-items:center;gap:6px;}
   .es-btn:hover:not(:disabled){filter:brightness(1.04);transform:translateY(-1px);} .es-btn:disabled{background:rgba(0,0,0,.08);color:#9ca3af;cursor:default;box-shadow:none;} .es-arr{transition:transform .16s;} .es-btn:hover .es-arr{transform:translateX(3px);}
   .es-err{margin:10px 18px 0;font-size:12px;color:#dc2626;}

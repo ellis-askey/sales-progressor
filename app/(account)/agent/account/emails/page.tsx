@@ -24,9 +24,10 @@ import { EmailStudio } from "@/components/account/v2/EmailStudio";
 import { EmailBrandingStudio, type BrandingInitial } from "@/components/account/v2/EmailBrandingStudio";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { EmailsTabs } from "@/components/account/emails/EmailsTabs";
 import Link from "next/link";
-import { ShareNetwork, EnvelopeSimple, Info, Image as ImageIcon, PaperPlaneTilt } from "@/components/icons/ph-ssr";
+import { ShareNetwork, EnvelopeSimple, Image as ImageIcon, PaperPlaneTilt } from "@/components/icons/ph-ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -107,17 +108,9 @@ export default async function AccountEmailsPage() {
               <AutomatedEmailsList />
             </AccountCard>
 
-            <AccountCard style={{ background: "rgba(37,99,235,0.04)" }}>
-              <div style={{ display: "flex", gap: 12 }}>
-                <Info size={20} weight="fill" style={{ color: "#2563eb", flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Your version is what clients see</p>
-                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#6b7280", lineHeight: 1.5 }}>
-                    {wordingNote}
-                  </p>
-                </div>
-              </div>
-            </AccountCard>
+            <InlineAlert kind="info">
+              <strong>Your version is what clients see.</strong> {wordingNote}
+            </InlineAlert>
           </>
         }
         style={
@@ -139,7 +132,7 @@ export default async function AccountEmailsPage() {
             title="Sending address"
             subtitle="The email address your clients receive messages from."
           >
-            <p style={{ margin: 0, fontSize: 13.5, color: "#374151", lineHeight: 1.6 }}>
+            <p style={{ margin: 0, fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.6 }}>
               Each team member can send from their own work email, so sending addresses are managed individually under{" "}
               <Link href="/agent/account/connections" style={{ color: "var(--agent-coral-deep, #E2452A)", fontWeight: 600, textDecoration: "none" }}>
                 Connections

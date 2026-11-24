@@ -8,22 +8,28 @@
 // ours. Same light Account register as the milestone editor.
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X, Warning } from "@/components/icons/ph";
+import { Pencil, ArrowCounterClockwise, CircleNotch, Plus, X } from "@/components/icons/ph";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 
 type Content = { subject: string; opening: string; bullets: string[] };
 type Resolved = { exists: true; source: "agency" | "default"; effective: Content; base: Content };
 type Side = "purchaser" | "vendor";
 
-const SIDE_OPTIONS: { value: Side; label: string }[] = [
-  { value: "purchaser", label: "Buyer" },
-  { value: "vendor", label: "Seller" },
+const SIDE_OPTIONS: { id: Side; label: string }[] = [
+  { id: "purchaser", label: "Buyer" },
+  { id: "vendor", label: "Seller" },
 ];
 
 const HAIRLINE = "0.5px solid rgba(0,0,0,0.10)";
-const TEXT = "#111827";
-const MUTED = "#6b7280";
-const FAINT = "#9ca3af";
+const TEXT = "var(--agent-text-primary)";
+const MUTED = "var(--agent-text-muted)";
+const FAINT = "var(--agent-text-tertiary)";
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 // Example fills so the preview reads like a real email.
 const EX_ADDRESS = "12 Example Road, Harlow, CM17 9PH";
@@ -143,7 +149,7 @@ export function CompletionPackEditor({
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>{title}</p>
           <p style={{ margin: "3px 0 0", fontSize: 12.5, color: MUTED, lineHeight: 1.5 }}>{subtitle}</p>
         </div>
-        <Segmented value={side} onChange={(v) => setSide(v as Side)} options={SIDE_OPTIONS} />
+        <SegmentedSwitch options={SIDE_OPTIONS} value={side} onChange={setSide} ariaLabel="Buyer or seller" size="sm" />
       </div>
 
       {loading ? (
@@ -164,51 +170,9 @@ export function CompletionPackEditor({
       )}
 
       <style>{`
-        .account-emails-ghostbtn:hover { background: rgba(0,0,0,0.035) !important; }
-        .account-emails-danger:hover { color: #b91c1c !important; }
         .agent-spin { animation: account-emails-spin 0.7s linear infinite; }
         @keyframes account-emails-spin { to { transform: rotate(360deg); } }
       `}</style>
-    </div>
-  );
-}
-
-function Segmented({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <div style={{ display: "inline-flex", width: "fit-content", border: HAIRLINE, borderRadius: 9, background: "#f7f7f8", padding: 3 }}>
-      {options.map((o) => {
-        const active = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            className={active ? "account-seg account-seg-on" : "account-seg"}
-            style={{
-              borderRadius: 6,
-              border: "none",
-              padding: "6px 13px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "background 120ms, color 120ms, box-shadow 120ms, transform 90ms",
-              color: active ? "var(--agent-coral-deep, #E2452A)" : MUTED,
-              background: active ? "#fff" : "transparent",
-              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-            }}
-          >
-            {o.label}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -229,31 +193,21 @@ function Preview({
     <div style={{ border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         {resolved.source === "agency" ? (
-          <span style={{ borderRadius: 999, border: "0.5px solid rgba(255,107,74,0.4)", background: "rgba(255,107,74,0.10)", padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "var(--agent-coral-deep, #E2452A)" }}>
-            Your version
-          </span>
+          <Badge tone="accent">Your version</Badge>
         ) : (
-          <span style={{ borderRadius: 999, border: HAIRLINE, background: "#f7f7f8", padding: "3px 10px", fontSize: 11, fontWeight: 600, color: MUTED }}>
-            Sales Progressor default
-          </span>
+          <Badge tone="neutral">Sales Progressor default</Badge>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {resolved.source === "agency" && (
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={resetting}
-              className="account-emails-ghostbtn"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: resetting ? "default" : "pointer", opacity: resetting ? 0.55 : 1 }}
-            >
+            <Button variant="secondary" size="sm" onClick={onReset} disabled={resetting}>
               <ArrowCounterClockwise size={14} />
               {resetting ? "Resetting…" : "Reset to Sales Progressor"}
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={onEdit} className="agent-btn agent-btn-primary agent-btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Button variant="primary" size="sm" onClick={onEdit} style={coralVars}>
             <Pencil size={14} />
             Edit
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -267,14 +221,14 @@ function Preview({
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: TEXT }}>What to expect on completion day:</p>
           <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 7 }}>
             {c.bullets.map((b, i) => (
-              <li key={i} style={{ fontSize: 14, lineHeight: 1.5, color: "#374151" }}>{fill(b)}</li>
+              <li key={i} style={{ fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-secondary)" }}>{fill(b)}</li>
             ))}
           </ul>
         </div>
       </div>
       <p style={{ margin: "9px 2px 0", fontSize: 11.5, color: FAINT }}>
-        Preview uses example details for things like the address and your team. The completion date is added
-        automatically when it&apos;s known.
+        Preview uses example details for things like the address and your team. We&apos;ll add the completion date
+        once it&apos;s known.
       </p>
     </div>
   );
@@ -317,10 +271,7 @@ function Editor({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, border: HAIRLINE, borderRadius: 14, background: "#fff", padding: 20 }}>
-      <label style={{ display: "block" }}>
-        <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Subject</span>
-        <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
-      </label>
+      <LabelInput field="Subject" label="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} fullWidth accent="#FF6B4A" />
 
       <label style={{ display: "block" }}>
         <span style={{ display: "block", marginBottom: 5, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FAINT }}>Opening</span>
@@ -335,26 +286,19 @@ function Editor({
           {draft.bullets.map((b, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
               <textarea value={b} onChange={(e) => setBullet(i, e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
-              <button
-                type="button"
-                onClick={() => removeBullet(i)}
-                aria-label={`Remove point ${i + 1}`}
-                className="account-emails-danger"
-                style={{ flexShrink: 0, marginTop: 4, padding: 6, borderRadius: 7, border: HAIRLINE, background: "#fff", color: MUTED, cursor: "pointer", display: "flex" }}
-              >
-                <X size={14} />
-              </button>
+              <div style={{ flexShrink: 0, marginTop: 4 }}>
+                <Button type="button" variant="danger" size="sm" icon onClick={() => removeBullet(i)} aria-label={`Remove point ${i + 1}`}>
+                  <X size={14} />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={addBullet}
-          className="account-emails-ghostbtn"
-          style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "7px 12px", fontSize: 13, fontWeight: 600, color: TEXT, cursor: "pointer" }}
-        >
-          <Plus size={14} /> Add a point
-        </button>
+        <div style={{ marginTop: 8 }}>
+          <Button type="button" variant="secondary" size="sm" onClick={addBullet}>
+            <Plus size={14} /> Add a point
+          </Button>
+        </div>
       </div>
 
       <p style={{ margin: 0, fontSize: 11.5, color: FAINT }}>
@@ -362,23 +306,18 @@ function Editor({
       </p>
 
       {warnings.length > 0 && (
-        <div style={{ borderRadius: 10, border: "0.5px solid rgba(217,119,6,0.35)", background: "rgba(251,191,36,0.10)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {warnings.map((w, i) => (
-            <p key={i} style={{ margin: 0, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: "#92610a" }}>
-              <Warning size={14} weight="fill" style={{ marginTop: 1, flexShrink: 0, color: "#d97706" }} />
-              {w}
-            </p>
+            <InlineAlert key={i} kind="warning">{w}</InlineAlert>
           ))}
         </div>
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button type="button" onClick={onSave} disabled={saving} className="agent-btn agent-btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
+        <Button variant="primary" onClick={onSave} disabled={saving} style={coralVars}>
           {saving ? "Saving…" : "Save"}
-        </button>
-        <button type="button" onClick={onCancel} className="account-emails-ghostbtn" style={{ borderRadius: 9, border: HAIRLINE, background: "#fff", padding: "9px 16px", fontSize: 13.5, fontWeight: 600, color: TEXT, cursor: "pointer" }}>
-          Cancel
-        </button>
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );
