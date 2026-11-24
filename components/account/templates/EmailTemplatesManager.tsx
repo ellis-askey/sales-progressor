@@ -16,6 +16,9 @@ import { Button } from "@/components/arc/button/button";
 import { Badge } from "@/components/ui/Badge";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { LabelInput } from "@/components/ui/LabelInput";
+import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
+import { SearchField } from "@/components/ui/SearchField";
+import { AnchoredPanel } from "@/components/ui/Popover";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 
 // Flat coral primary for the arc Button (matches the app-wide primary).
@@ -216,14 +219,13 @@ function TemplateEditorModal({ draft: initial, canManageCompany, onClose, onSave
             </div>
             {canManageCompany && (
               <Field label="Visibility">
-                <div className="etm-seg">
-                  {(["personal", "company"] as TemplateScope[]).map((s) => (
-                    <button key={s} type="button" className={`etm-seg-b ${d.scope === s ? "on" : ""}`} onClick={() => set("scope", s)}>
-                      {s === "personal" ? <UserIcon size={14} weight="bold" /> : <Buildings size={14} weight="bold" />}
-                      {s === "personal" ? "Only me" : "Whole company"}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedSwitch<TemplateScope>
+                  options={[{ id: "personal", label: "Only me" }, { id: "company", label: "Whole company" }]}
+                  value={d.scope}
+                  onChange={(id) => set("scope", id)}
+                  size="sm"
+                  ariaLabel="Template visibility"
+                />
               </Field>
             )}
             <div>
@@ -259,7 +261,7 @@ export function TemplatePreviewPane({ body, subject, footer }: { body: string; s
   const [file, setFile] = useState<ComposeSaleResult | null>(null);
   const [values, setValues] = useState<TemplateVarValues>({});
   const [open, setOpen] = useState(false);
-  const boxRef = useRef<HTMLDivElement>(null);
+  const pickRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -281,24 +283,22 @@ export function TemplatePreviewPane({ body, subject, footer }: { body: string; s
     <div className="etm-prev">
       <div className="etm-prev-hd">
         <span className="etm-prev-ttl"><Eye size={15} weight="bold" /> Preview</span>
-        <div className="etm-prev-file" ref={boxRef}>
-          <button type="button" className="etm-prev-pick" onClick={() => setOpen((v) => !v)}>
+        <div className="etm-prev-file">
+          <button ref={pickRef} type="button" className="etm-prev-pick" onClick={() => setOpen((v) => !v)}>
             {file ? `Using file: ${file.line1}` : "Pick a file…"} <CaretDown size={12} weight="bold" />
           </button>
-          {open && (
-            <div className="etm-prev-pop">
-              <input className="etm-input etm-input-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a property…" autoFocus />
-              <div className="etm-prev-res">
-                {results.map((r) => (
-                  <button key={r.id} type="button" className="etm-prev-res-i" onClick={() => pick(r)}>
-                    <span className="etm-prev-res-l1">{r.line1}</span>
-                    <span className="etm-prev-res-l2">{r.location}</span>
-                  </button>
-                ))}
-                {q.trim() && results.length === 0 && <div className="etm-prev-none">No files found</div>}
-              </div>
+          <AnchoredPanel anchorRef={pickRef} open={open} onClose={() => setOpen(false)} placement="bottom-end" width={280} zIndex={2300}>
+            <SearchField value={q} onChange={setQ} placeholder="Search a property…" ariaLabel="Search a property" autoFocus />
+            <div className="etm-prev-res">
+              {results.map((r) => (
+                <button key={r.id} type="button" className="etm-prev-res-i" onClick={() => pick(r)}>
+                  <span className="etm-prev-res-l1">{r.line1}</span>
+                  <span className="etm-prev-res-l2">{r.location}</span>
+                </button>
+              ))}
+              {q.trim() && results.length === 0 && <div className="etm-prev-none">No files found</div>}
             </div>
-          )}
+          </AnchoredPanel>
         </div>
       </div>
 
@@ -406,20 +406,12 @@ const ETM_CSS = `
 .etm-label { display: block; font-size: 12px; font-weight: 700; color: var(--agent-text-secondary, #5A3A28); margin-bottom: 6px; }
 .etm-req { color: var(--agent-coral-deep, #E2452A); }
 .etm-hint { font-weight: 500; color: var(--agent-text-muted, #9a8a7f); }
-.etm-input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 10px 12px; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 10px; color: var(--agent-text-primary, #2D1810); outline: none; background: #fff; transition: border-color .14s; }
-.etm-input:focus { border-color: var(--agent-coral-deep, #E2452A); }
-.etm-input-sm { font-size: 13px; padding: 8px 10px; }
-.etm-seg { display: inline-flex; gap: 5px; background: var(--agent-hover-shade, rgba(45,24,16,0.05)); padding: 4px; border-radius: 11px; }
-.etm-seg-b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--agent-text-secondary, #5A3A28); background: none; border: 1px solid transparent; border-radius: 8px; padding: 7px 13px; cursor: pointer; transition: all .14s; }
-.etm-seg-b.on { background: #fff; border-color: var(--agent-coral-deep, #E2452A); color: var(--agent-coral-deep, #E2452A); box-shadow: 0 1px 4px rgba(20,14,10,0.08); }
-
 .etm-prev { border-left: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.08)); background: var(--agent-hover-shade, rgba(45,24,16,0.035)); display: flex; flex-direction: column; min-height: 0; }
 .etm-prev-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.08)); }
 .etm-prev-ttl { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--agent-text-muted, #9a8a7f); }
 .etm-prev-file { position: relative; }
 .etm-prev-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--agent-text-secondary, #5A3A28); background: #fff; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 9px; padding: 6px 10px; cursor: pointer; max-width: 240px; }
 .etm-prev-pick:hover { background: var(--agent-hover-shade); }
-.etm-prev-pop { position: absolute; top: calc(100% + 6px); right: 0; width: 280px; background: #fff; border: 1px solid var(--agent-border-default, rgba(20,16,10,0.14)); border-radius: 12px; box-shadow: 0 14px 40px rgba(45,24,16,0.16); padding: 8px; z-index: 20; }
 .etm-prev-res { max-height: 220px; overflow-y: auto; margin-top: 7px; }
 .etm-prev-res-i { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; background: none; border-radius: 9px; cursor: pointer; }
 .etm-prev-res-i:hover { background: var(--agent-hover-shade); }
