@@ -19,6 +19,10 @@ import { exportMyData } from "@/app/actions/export-my-data";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
   const [showModal, setShowModal] = useState(false);
@@ -117,14 +121,14 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
             <DownloadSimple size={16} weight="bold" />
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#111827" }}>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>
               {isExporting ? "Preparing…" : "Download my data"}
             </span>
-            <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 1 }}>
+            <span style={{ display: "block", fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>
               Get a copy of your data in a secure file.
             </span>
           </span>
-          <CaretRight size={14} weight="bold" className="account-datarow-chev" style={{ color: "#c0c4d0", flexShrink: 0 }} />
+          <CaretRight size={14} weight="bold" className="account-datarow-chev" style={{ color: "var(--agent-text-tertiary)", flexShrink: 0 }} />
         </button>
 
         <button
@@ -152,7 +156,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
             <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "#b91c1c" }}>
               Delete my account
             </span>
-            <span style={{ display: "block", fontSize: 12, color: "#6b7280", marginTop: 1 }}>
+            <span style={{ display: "block", fontSize: 12, color: "var(--agent-text-muted)", marginTop: 1 }}>
               Permanently delete your account and all associated data.
             </span>
           </span>
@@ -169,7 +173,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
           .account-datarow-icon {
             display: inline-flex; align-items: center; justify-content: center;
             width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
-            background: rgba(0,0,0,0.05); color: #6b7280;
+            background: rgba(0,0,0,0.05); color: var(--agent-text-muted);
           }
           .account-datarow-icon-danger { background: #fef2f2; color: #dc2626; }
           @media (prefers-reduced-motion: reduce) {
@@ -244,7 +248,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               </button>
             </div>
             <div style={{ padding: 24 }}>
-              <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.55, margin: "0 0 18px" }}>
+              <p style={{ fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.55, margin: "0 0 18px" }}>
                 This permanently deletes your account and all associated data and can&apos;t be undone.
               </p>
 
@@ -252,7 +256,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
                 style={{
                   display: "block",
                   fontSize: 10,
-                  color: "#6b7280",
+                  color: "var(--agent-text-muted)",
                   textTransform: "uppercase",
                   letterSpacing: 0.7,
                   fontWeight: 600,
@@ -276,7 +280,7 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
                   width: "100%",
                   padding: "9px 12px",
                   fontSize: 13,
-                  color: "#111827",
+                  color: "var(--agent-text-primary)",
                   background: "#fff",
                   border: "0.5px solid rgba(0,0,0,0.18)",
                   borderRadius: 8,
@@ -286,56 +290,25 @@ export function AccountDangerZonePlain({ userEmail }: { userEmail: string }) {
               />
 
               {error && (
-                <div
-                  style={{
-                    padding: "9px 12px",
-                    fontSize: 12.5,
-                    color: "#b91c1c",
-                    background: "#fef2f2",
-                    border: "0.5px solid #fecaca",
-                    borderRadius: 8,
-                    marginBottom: 14,
-                  }}
-                >
-                  {error}
+                <div style={{ marginBottom: 14 }}>
+                  <InlineAlert kind="danger">{error}</InlineAlert>
                 </div>
               )}
 
               <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={closeModal}
-                  disabled={isPending}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 13,
-                    color: "#6b7280",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: isPending ? "default" : "pointer",
-                    transition: "background 150ms",
-                  }}
-                  className="hover:bg-black/[0.04]"
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={closeModal} disabled={isPending}>
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
                   onClick={handleDelete}
                   disabled={!emailMatches || isPending}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#fff",
-                    background: !emailMatches || isPending ? "#fecaca" : "#dc2626",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: !emailMatches || isPending ? "not-allowed" : "pointer",
-                    transition: "background 150ms",
-                  }}
+                  loading={isPending}
                 >
-                  {isPending ? "Deleting…" : "Delete permanently"}
-                </button>
+                  Delete permanently
+                </Button>
               </div>
             </div>
           </div>

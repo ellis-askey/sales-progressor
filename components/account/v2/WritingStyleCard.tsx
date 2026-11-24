@@ -15,7 +15,7 @@ import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { resetVoiceProfileAction } from "@/app/actions/chase-voice";
 
 const secondaryBtn: React.CSSProperties = {
-  padding: "8px 14px", fontSize: 12.5, fontWeight: 500, color: "#374151", background: "#fff",
+  padding: "8px 14px", fontSize: 12.5, fontWeight: 500, color: "var(--agent-text-secondary)", background: "#fff",
   border: "0.5px solid rgba(0,0,0,0.16)", borderRadius: 8, cursor: "pointer",
 };
 const primaryBtn: React.CSSProperties = { padding: "9px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
@@ -51,15 +51,15 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
     >
       <div className="ws-grid">
         <div className="ws-intro">
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--agent-text-secondary)" }}>
             When you edit an AI-drafted chase before sending it, we quietly learn how you phrase
             things. After a few edits, future drafts will start to sound more like you, giving you
             less to change before sending.
           </p>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#374151" }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--agent-text-secondary)" }}>
             If you send a draft without changing anything, there&apos;s nothing new for us to learn from it.
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 12, lineHeight: 1.6, color: "#6b7280" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 12, lineHeight: 1.6, color: "var(--agent-text-muted)" }}>
             We only learn how you write. Client names, property addresses and firm names are removed before
             your edits are analysed, and none of those details are stored here.
           </p>
@@ -70,8 +70,8 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
             <>
               <div
                 style={{
-                  background: "rgba(226,69,42,0.05)",
-                  border: "0.5px solid rgba(226,69,42,0.18)",
+                  background: "transparent",
+                  border: "1px solid rgba(var(--agent-coral-rgb), 0.35)",
                   borderRadius: 12,
                   padding: "13px 15px",
                 }}
@@ -79,7 +79,7 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--agent-coral-deep, #E2452A)", marginBottom: 8 }}>
                   What we&apos;ve learned so far{updated ? ` · Updated ${updated}` : ""}
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.65, color: "#1f2937", whiteSpace: "pre-wrap" }}>
+                <div style={{ fontSize: 13, lineHeight: 1.65, color: "var(--agent-text-primary)", whiteSpace: "pre-wrap" }}>
                   {profile}
                 </div>
               </div>
@@ -95,7 +95,7 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
                 </button>
               ) : (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, color: "#111827" }}>Start fresh? We&apos;ll learn again from your next edits.</span>
+                  <span style={{ fontSize: 13, color: "var(--agent-text-primary)" }}>Start fresh? We&apos;ll learn again from your next edits.</span>
                   <button type="button" onClick={reset} disabled={busy} className="account-btn-primary" style={primaryBtn}>
                     {busy ? "Resetting…" : "Yes, reset"}
                   </button>
@@ -114,10 +114,10 @@ export function WritingStyleCard({ profile, builtAt }: { profile: string | null;
                 padding: "13px 15px",
                 fontSize: 13,
                 lineHeight: 1.6,
-                color: "#6b7280",
+                color: "var(--agent-text-muted)",
               }}
             >
-              <span style={{ display: "block", fontWeight: 600, color: "#4b5563", marginBottom: 3 }}>
+              <span style={{ display: "block", fontWeight: 600, color: "var(--agent-text-secondary)", marginBottom: 3 }}>
                 We&rsquo;re still learning your style.
               </span>
               Make a few changes to AI-drafted chases before sending them and what we learn will start appearing here.

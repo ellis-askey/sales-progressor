@@ -61,13 +61,13 @@ export function AccountCard({
           </span>
         )}
         {title && (
-          <h2 className="account-card-head-title" style={{ margin: 0, fontSize: 15.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em", minWidth: 0 }}>
+          <h2 className="account-card-head-title" style={{ margin: 0, fontSize: 15.5, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em", minWidth: 0 }}>
             {title}
           </h2>
         )}
         {headerAction && <div className="account-card-head-action" style={{ flexShrink: 0 }}>{headerAction}</div>}
         {subtitle && (
-          <p className="account-card-head-sub" style={{ margin: "3px 0 0", fontSize: 13, lineHeight: 1.5, color: "#6b7280", minWidth: 0 }}>{subtitle}</p>
+          <p className="account-card-head-sub" style={{ margin: "3px 0 0", fontSize: 13, lineHeight: 1.5, color: "var(--agent-text-muted)", minWidth: 0 }}>{subtitle}</p>
         )}
       </div>
       )}

@@ -32,11 +32,11 @@ export function AccountPageHeader({
       }}
     >
       <div>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.02em" }}>
           {title}
         </h1>
         {subtitle && (
-          <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.5, color: "#6b7280", maxWidth: 560 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.5, color: "var(--agent-text-muted)", maxWidth: 560 }}>
             {subtitle}
           </p>
         )}
@@ -56,7 +56,7 @@ export function AccountPageHeader({
           margin: 2px -10px 0 0;
           font-size: 13px;
           font-weight: 500;
-          color: #374151;
+          color: var(--agent-text-secondary);
           text-decoration: none;
           border-radius: 8px;
           background: transparent;
@@ -64,7 +64,7 @@ export function AccountPageHeader({
           transition: color 150ms ease;
         }
         .account-back-link:hover,
-        .account-back-link:focus-visible { background: transparent; color: #111827; outline: none; }
+        .account-back-link:focus-visible { background: transparent; color: var(--agent-text-primary); outline: none; }
         .account-back-arrow {
           transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
         }

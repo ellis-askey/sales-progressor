@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EmailSignatureMode } from "@prisma/client";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { saveSignatureAction, previewSignatureAction, applySignatureSourceAction, sendSignatureTestAction, saveSignOffAction, type SignatureTarget } from "@/app/actions/signature";
 import type { SignatureSource } from "@/lib/email/signature-source";
@@ -40,7 +41,7 @@ const SOURCE_OPTIONS: Array<{ value: SignatureSource; label: string }> = [
 ];
 
 const MODES: Array<{ value: EmailSignatureMode; label: string; blurb: string }> = [
-  { value: "BASIC", label: "Basic", blurb: "Created automatically from your details." },
+  { value: "BASIC", label: "Basic", blurb: "We create it from your details." },
   { value: "IMAGE", label: "Signature image", blurb: "Use an image of your existing signature." },
   { value: "CUSTOM", label: "Custom", blurb: "Paste the signature you already use." },
 ];
@@ -215,14 +216,14 @@ export function EmailSignatureCard({
       subtitle={subtitle}
       headerAction={
         statusLabel ? (
-          <span style={{ fontSize: 12, fontWeight: 600, color: status === "saving" ? "#9ca3af" : "#059669" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: status === "saving" ? "var(--agent-text-tertiary)" : "#2F9E6B" }}>
             {statusLabel}
           </span>
         ) : undefined
       }
     >
       <style>{`
-        .sig-editor:empty:before{content:attr(data-placeholder);color:#9ca3af;}
+        .sig-editor:empty:before{content:attr(data-placeholder);color:var(--agent-text-tertiary);}
         .sig-mode-btn{transition:background 160ms,border-color 150ms,box-shadow 220ms,transform 160ms;outline:none;}
         .sig-mode-btn:not(.on):hover{border-color:var(--agent-coral,#FF8A65);transform:translateY(-1px);}
         /* Coral keyboard focus instead of the browser's black outline. */
@@ -245,8 +246,8 @@ export function EmailSignatureCard({
           Editable per email at send time; this is the saved default. */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18, padding: "13px 15px", borderRadius: 12, border: "1px solid var(--agent-border-default, rgba(0,0,0,0.12))", background: "var(--agent-surface-glass, #fafafa)" }}>
         <label htmlFor="sig-signoff" style={{ flex: "1 1 190px", minWidth: 0, cursor: "pointer" }}>
-          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: "#111827" }}>Sign-off</span>
-          <span style={{ display: "block", fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--agent-text-primary)" }}>Sign-off</span>
+          <span style={{ display: "block", fontSize: 13, color: "var(--agent-text-muted)", marginTop: 2 }}>
             Starts the emails you send, above your signature. No need to add it to the signature below.
           </span>
         </label>
@@ -255,7 +256,7 @@ export function EmailSignatureCard({
           value={signOff}
           onChange={(e) => chooseSignOff(e.target.value)}
           className="account-input"
-          style={{ flexShrink: 0, fontSize: 14, fontWeight: 600, color: "#111827", padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", outline: "none", cursor: "pointer" }}
+          style={{ flexShrink: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)", padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", outline: "none", cursor: "pointer" }}
         >
           {SIGN_OFF_CHOICES.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -281,8 +282,8 @@ export function EmailSignatureCard({
               }}
             >
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: active ? "var(--agent-text-on-coral, #fff)" : "#111827" }}>{m.label}</span>
-                <span style={{ display: "block", fontSize: 13, color: active ? "rgba(255,255,255,0.88)" : "#6b7280" }}>{m.blurb}</span>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: active ? "var(--agent-text-on-coral, #fff)" : "var(--agent-text-primary)" }}>{m.label}</span>
+                <span style={{ display: "block", fontSize: 13, color: active ? "rgba(255,255,255,0.88)" : "var(--agent-text-muted)" }}>{m.blurb}</span>
               </span>
               {active && <CheckCircle size={20} weight="fill" color="var(--agent-text-on-coral, #fff)" style={{ flexShrink: 0 }} />}
             </button>
@@ -292,7 +293,7 @@ export function EmailSignatureCard({
 
       {/* Mode-specific config */}
       {mode === "BASIC" && missing.length > 0 && (
-        <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: "var(--agent-text-muted)", marginBottom: 16 }}>
           Add your {missing.join(", ")} on this page to complete your signature.
         </p>
       )}
@@ -322,7 +323,7 @@ export function EmailSignatureCard({
             <span style={{ marginLeft: "auto" }}>{testBtn}</span>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <LinkIcon size={15} weight="bold" style={{ color: "#6b7280", flexShrink: 0 }} />
+            <LinkIcon size={15} weight="bold" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
             <input
               type="url"
               value={urlValue}
@@ -338,7 +339,7 @@ export function EmailSignatureCard({
         </div>
       )}
 
-      {error && <p style={{ fontSize: 13, color: "#dc2626", marginBottom: 12 }}>{error}</p>}
+      {error && <div style={{ marginBottom: 12 }}><InlineAlert kind="danger">{error}</InlineAlert></div>}
 
       {/* Preview / editor */}
       {mode === "CUSTOM" ? (
@@ -359,7 +360,7 @@ export function EmailSignatureCard({
       ) : (
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", margin: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "var(--agent-text-tertiary)", margin: 0 }}>
               How your emails will sign off
             </p>
             {mode === "BASIC" && testBtn}
@@ -375,7 +376,7 @@ export function EmailSignatureCard({
                 ? (mode === "BASIC"
                     ? `<p style="margin:0 0 10px;font-size:14px;color:#111827;line-height:1.5;">${signOff}</p>${previewHtml}`
                     : previewHtml)
-                : "<span style='color:#9ca3af;font-size:13px'>Nothing to preview yet.</span>",
+                : "<span style='color:var(--agent-text-tertiary);font-size:13px'>Nothing to preview yet.</span>",
             }}
           />
         </div>
@@ -475,18 +476,18 @@ function CustomSignatureEditor({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "#9ca3af", margin: 0 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: "var(--agent-text-tertiary)", margin: 0 }}>
           Your signature · click to edit
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {!empty && (
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#9ca3af" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--agent-text-tertiary)" }}>
               Pasted from
               <select
                 value={source}
                 onChange={(e) => changeSource(e.target.value as SignatureSource)}
                 className="account-input"
-                style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", color: "#374151", outline: "none" }}
+                style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.16)", background: "#fff", color: "var(--agent-text-secondary)", outline: "none" }}
               >
                 {SOURCE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -513,7 +514,7 @@ function CustomSignatureEditor({
         style={{
           borderRadius: 10, border: "1px solid rgba(0,0,0,0.14)", background: "#fff",
           padding: 16, minHeight: 120, maxHeight: 340, overflowY: "auto", outline: "none",
-          fontSize: 14, color: "#111827", lineHeight: 1.5, cursor: "text",
+          fontSize: 14, color: "var(--agent-text-primary)", lineHeight: 1.5, cursor: "text",
         }}
       />
       {gmailImg && (
@@ -534,7 +535,7 @@ function CustomSignatureEditor({
           </p>
         </div>
       )}
-      <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6, lineHeight: 1.45 }}>
+      <p style={{ fontSize: 11, color: "var(--agent-text-tertiary)", marginTop: 6, lineHeight: 1.45 }}>
         Paste just your signature block, not the whole email. Click inside the box to edit or remove anything you don&rsquo;t want. Changes save as you make them, and pasted images are hosted so they display properly in inboxes.
       </p>
     </div>
@@ -544,7 +545,7 @@ function CustomSignatureEditor({
 const secondaryBtn: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600,
   padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.16)",
-  background: "#fff", color: "#374151", cursor: "pointer",
+  background: "#fff", color: "var(--agent-text-secondary)", cursor: "pointer",
 };
 
 // Primary action — coral fill following the agency colour, matching the chosen

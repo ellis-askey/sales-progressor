@@ -17,8 +17,13 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { Camera, User } from "@phosphor-icons/react";
 import { titleCaseKeepAcronyms, normalizePhone } from "@/lib/utils";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
+import { LabelInput } from "@/components/ui/LabelInput";
 
 const MIN_NAME = 2;
+const CORAL = "#FF6B4A";
+const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
 
 export function ProfileFormPlain({
   initialName,
@@ -58,16 +63,6 @@ export function ProfileFormPlain({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  // Role-aware job-title placeholder. The job title renders in the white-label
-  // chase signature (lib/email/chase-signature) under the AGENCY name, so for a
-  // progressor it must read as their function (Sales Progressor), never "Founder"
-  // (which would read as founder of the client agency).
-  const jobTitlePlaceholder =
-    role === "director" ? "e.g. Director"
-      : role === "negotiator" ? "e.g. Sales Negotiator"
-        : role === "sales_progressor" ? "e.g. Sales Progressor"
-          : "e.g. Sales Manager";
 
   const isDirector = role === "director";
 
@@ -148,37 +143,19 @@ export function ProfileFormPlain({
     }
   }
 
-  const fieldStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: 13.5,
-    color: "#111827",
-    background: "#fff",
-    border: "0.5px solid rgba(0,0,0,0.16)",
-    borderRadius: 8,
-    outline: "none",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 10,
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-    fontWeight: 500,
-    marginBottom: 5,
-  };
-
   const saveButton = (cls: string) => (
-    <button
+    <Button
       type="button"
-      onClick={handleSave}
+      variant="primary"
+      size="sm"
+      className={cls}
+      loading={saving}
       disabled={disabledSave}
-      className={`account-btn-primary ${cls}`}
-      style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: disabledSave ? "default" : "pointer" }}
+      onClick={handleSave}
+      style={coralVars}
     >
-      {saving ? "Saving…" : "Save changes"}
-    </button>
+      Save changes
+    </Button>
   );
 
   return (
@@ -212,7 +189,7 @@ export function ProfileFormPlain({
                     flexShrink: 0,
                     padding: 0,
                     border: "0.5px solid rgba(0,0,0,0.08)",
-                    background: "rgba(255,107,74,0.10)",
+                    background: "rgba(var(--agent-coral-rgb), 0.10)",
                     cursor: uploadingPhoto ? "default" : "pointer",
                   }}
                 >
@@ -244,10 +221,10 @@ export function ProfileFormPlain({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ fontSize: 16.5, fontWeight: 700, color: "#111827", letterSpacing: "-0.01em" }}>
+            <span style={{ fontSize: 16.5, fontWeight: 700, color: "var(--agent-text-primary)", letterSpacing: "-0.01em" }}>
               {name.trim() || "Your name"}
             </span>
-            <span style={{ fontSize: 13, color: "#6b7280" }}>
+            <span style={{ fontSize: 13, color: "var(--agent-text-muted)" }}>
               {/* One label only: their job title if they've set one, else their
                   role. The role is already shown on the Team page and under their
                   name in the sidebar, so repeating it here ("Director · Director")
@@ -255,26 +232,17 @@ export function ProfileFormPlain({
               {jobTitle.trim() || (roleLabel ?? (isDirector ? "Director" : "Negotiator"))}
             </span>
             <div style={{ marginTop: 8 }}>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingPhoto}
+                loading={uploadingPhoto}
                 title="JPG, PNG or WEBP"
-                className="account-btn-secondary"
-                style={{
-                  padding: "7px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: "#374151",
-                  background: "#fff",
-                  border: "0.5px solid rgba(0,0,0,0.16)",
-                  borderRadius: 8,
-                  cursor: uploadingPhoto ? "default" : "pointer",
-                  opacity: uploadingPhoto ? 0.5 : 1,
-                }}
               >
-                {uploadingPhoto ? "Uploading…" : image ? "Change photo" : "Upload photo"}
-              </button>
+                {image ? "Change photo" : "Upload photo"}
+              </Button>
             </div>
           </div>
           <input
@@ -286,95 +254,65 @@ export function ProfileFormPlain({
           />
         </div>
 
-        <div className="profile-fields-grid">
+        <div className="profile-fields-grid" style={{ "--lbi-top": "0px" } as React.CSSProperties}>
           <div className="pf-name">
-            <label style={labelStyle}>Name</label>
-            <input
-              type="text"
+            <LabelInput
+              label="Name" type="text" accent={CORAL} fullWidth
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setName((n) => titleCaseKeepAcronyms(n))}
-              placeholder="Your full name"
-              className="account-input"
-              style={fieldStyle}
             />
           </div>
           <div className="pf-job">
-            <label style={labelStyle}>Job title</label>
-            <input
-              type="text"
+            <LabelInput
+              label="Job title" type="text" accent={CORAL} fullWidth
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
               onBlur={() => setJobTitle((t) => titleCaseKeepAcronyms(t))}
-              placeholder={jobTitlePlaceholder}
-              className="account-input"
-              style={fieldStyle}
             />
           </div>
           <div className="pf-email">
-            <label style={labelStyle}>Email</label>
-            <input
-              type="email"
+            <LabelInput
+              label="Email" type="email" accent={CORAL} fullWidth
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => setEmail((v) => v.trim().toLowerCase())}
-              placeholder="your@email.com"
-              className="account-input"
-              style={fieldStyle}
             />
           </div>
           <div className="pf-phone">
-            <label style={labelStyle}>Contact number</label>
-            <input
-              type="tel"
+            <LabelInput
+              label="Contact number" type="tel" accent={CORAL} fullWidth
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               onBlur={() => setPhone((p) => normalizePhone(p))}
-              placeholder="+44 20 7946 0000"
-              className="account-input"
-              style={fieldStyle}
             />
           </div>
           <div className="pf-mobile">
-            <label style={labelStyle}>Direct mobile</label>
-            <input
-              type="tel"
+            <LabelInput
+              label="Direct mobile" type="tel" accent={CORAL} fullWidth
               value={directMobile}
               onChange={(e) => setDirectMobile(e.target.value)}
               onBlur={() => setDirectMobile((p) => normalizePhone(p))}
-              placeholder="+44 7700 000000"
-              className="account-input"
-              style={fieldStyle}
             />
           </div>
         </div>
 
         {!isDirector && !hideRoleNote && (
-          <span style={{ fontSize: 11.5, color: "#9ca3af" }}>
+          <span style={{ fontSize: 11.5, color: "var(--agent-text-tertiary)" }}>
             Role changes are managed by your director.
           </span>
         )}
 
         {nameTooShort && (
-          <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>Your name needs at least {MIN_NAME} characters.</p>
+          <InlineAlert kind="danger">Your name needs at least {MIN_NAME} characters.</InlineAlert>
         )}
 
-        {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+        {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
         {emailChanged && (
-          <p
-            style={{
-              fontSize: 11.5,
-              color: "#92400e",
-              background: "#fef3c7",
-              border: "0.5px solid #fde68a",
-              borderRadius: 8,
-              padding: "8px 12px",
-              margin: 0,
-            }}
-          >
+          <InlineAlert kind="warning">
             Changing your email also changes your login. You&apos;ll need to sign out and back in for the change to take effect.
-          </p>
+          </InlineAlert>
         )}
 
         {/* Mobile-only Save (desktop Save lives in the card header). */}
@@ -402,7 +340,7 @@ export function ProfileFormPlain({
         .account-avatar-lift[data-lift] { transform: translateY(-4px); }
         .account-avatar-remove {
           padding: 2px 4px; border: none; background: transparent;
-          font-size: 11.5px; font-weight: 500; color: #6b7280; cursor: pointer;
+          font-size: 11.5px; font-weight: 500; color: var(--agent-text-muted); cursor: pointer;
           opacity: 0; max-height: 0; margin-top: 0; overflow: hidden; pointer-events: none;
           transform: translateY(-4px);
           transition: opacity 220ms ease, max-height 260ms ease, margin-top 260ms ease, transform 260ms ease, color 150ms ease;
@@ -410,7 +348,7 @@ export function ProfileFormPlain({
         .account-avatar-remove[data-show] {
           opacity: 1; max-height: 22px; margin-top: 3px; transform: translateY(0); pointer-events: auto;
         }
-        .account-avatar-remove:hover { color: #dc2626; }
+        .account-avatar-remove:hover { color: #C73E3E; }
         .profile-save-mobile { display: none; }
         @media (max-width: 640px) {
           .profile-save-desktop { display: none !important; }
