@@ -6,6 +6,9 @@
 // session-authed /api/agent/explain-email; nothing is stored.
 
 import { useState } from "react";
+import { Button } from "@/components/arc/button/button";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function AiExplainerTryIt() {
   const [body, setBody] = useState("");
@@ -46,14 +49,11 @@ export function AiExplainerTryIt() {
         className="w-full rounded-lg border border-slate-300 p-3 text-[13px]"
         style={{ resize: "vertical" }}
       />
-      <button
-        type="button"
-        onClick={run}
-        disabled={loading || body.trim().length < 20}
-        className="mt-2 inline-flex items-center rounded-lg bg-[var(--agent-coral)] px-4 py-2 text-[13px] font-semibold text-white transition-opacity disabled:opacity-50"
-      >
-        {loading ? "Reading…" : "Explain it"}
-      </button>
+      <div className="mt-2">
+        <Button variant="primary" size="sm" style={coralVars} loading={loading} disabled={!loading && body.trim().length < 20} onClick={run}>
+          Explain it
+        </Button>
+      </div>
       {error && <p className="mt-2 text-[12px] text-red-500">{error}</p>}
       {result && (
         <div className="mt-3 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">

@@ -313,16 +313,16 @@ function ToggleRow({
 
   const meta = (
     <div className="min-w-0">
-      <p className="text-[14px] font-bold text-slate-900">{label}</p>
-      <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500 max-w-xl">{sub}</p>
-      {note && <p className="mt-1 text-[11.5px] italic text-slate-400">{note}</p>}
-      {error && <p className="mt-1 text-[12px] text-red-500">{error}</p>}
+      <p className="text-[14px] font-bold text-[color:var(--agent-text-primary)]">{label}</p>
+      <p className="mt-0.5 text-[12.5px] leading-relaxed text-[color:var(--agent-text-muted)] max-w-xl">{sub}</p>
+      {note && <p className="mt-1 text-[11.5px] italic text-[color:var(--agent-text-tertiary)]">{note}</p>}
+      {error && <p className="mt-1 text-[12px] text-[color:var(--agent-danger)]">{error}</p>}
     </div>
   );
 
   if (inline) {
     return (
-      <div className={`py-4${last ? "" : " border-b border-slate-200"}`}>
+      <div className={`py-4${last ? "" : " border-b border-[color:var(--agent-border-subtle)]"}`}>
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ flex: "0 0 25%", minWidth: 190 }}>
             {meta}
@@ -339,7 +339,7 @@ function ToggleRow({
   }
 
   return (
-    <div className={`py-4${last ? "" : " border-b border-slate-200"}`}>
+    <div className={`py-4${last ? "" : " border-b border-[color:var(--agent-border-subtle)]"}`}>
       <div className="flex items-start justify-between gap-4">
         {meta}
         <div className="mt-0.5">{switchBtn}</div>
@@ -387,7 +387,7 @@ export function ClientPortalSettings({
         {/* Key dates + Stamp duty & costs are tall — full width. */}
         {ROWS.slice(0, 2).map((r) => cell(r, false))}
         {/* Progress figure + First-visit welcome are compact — side by side. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-8 border-t border-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 md:gap-x-8 border-t border-[color:var(--agent-border-subtle)]">
           {ROWS.slice(2).map((r) => cell(r, true))}
         </div>
       </div>

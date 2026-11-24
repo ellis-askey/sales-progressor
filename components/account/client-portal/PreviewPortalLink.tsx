@@ -9,6 +9,9 @@
 
 import { useState } from "react";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Button } from "@/components/arc/button/button";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 import {
   getOrCreatePreviewPortalUrl,
   regeneratePreviewLink,
@@ -70,14 +73,22 @@ export function PreviewPortalLink({ variant = "agency" }: { variant?: "agency" |
       </p>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button type="button" className="agent-btn agent-btn-primary agent-btn-sm" disabled={busy !== null} onClick={open}>
-            {busy === "open" ? "Opening…" : "Open the example"}
-          </button>
-          <button type="button" className="agent-btn agent-btn-neutral agent-btn-sm" disabled={busy !== null} onClick={copy}>
-            {busy === "copy" ? "Preparing…" : "Copy a link to share"}
-          </button>
+          <Button variant="primary" size="sm" style={coralVars} loading={busy === "open"} disabled={busy !== null && busy !== "open"} onClick={open}>
+            Open the example
+          </Button>
+          <Button variant="secondary" size="sm" loading={busy === "copy"} disabled={busy !== null && busy !== "copy"} onClick={copy}>
+            Copy a link to share
+          </Button>
         </div>
-        <button type="button" className="agent-link" style={{ fontSize: 12 }} disabled={busy !== null} onClick={regen}>
+        {/* Canonical coral text link (login style): colour-shift on hover, no underline. */}
+        <button
+          type="button"
+          style={{ background: "none", border: "none", padding: 0, cursor: busy !== null ? "default" : "pointer", fontSize: 12, fontWeight: 600, color: "#FF6B4A", textDecoration: "none", transition: "color 0.12s ease", opacity: busy !== null ? 0.6 : 1 }}
+          onMouseEnter={(e) => { if (busy === null) e.currentTarget.style.color = "#E55B3D"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#FF6B4A"; }}
+          disabled={busy !== null}
+          onClick={regen}
+        >
           {busy === "regen" ? "Working…" : "Regenerate link"}
         </button>
       </div>

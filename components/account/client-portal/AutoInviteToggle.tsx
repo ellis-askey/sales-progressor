@@ -31,12 +31,12 @@ export function AutoInviteToggle({ initial }: { initial: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <p className="text-[14px] font-bold text-slate-900">Invite clients when you add a sale</p>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-500 max-w-xl">
+        <p className="text-[14px] font-bold text-[color:var(--agent-text-primary)]">Invite clients when you add a sale</p>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-[color:var(--agent-text-muted)] max-w-xl">
           We&apos;ll email the buyer and seller their portal link as soon as the sale is added. Turn this off to add
           sales quietly and send the invite yourself when you&apos;re ready.
         </p>
-        {error && <p className="mt-1 text-[12px] text-red-500">{error}</p>}
+        {error && <p className="mt-1 text-[12px] text-[color:var(--agent-danger)]">{error}</p>}
       </div>
       <div className="mt-0.5">
         <LiquidToggle
