@@ -249,12 +249,22 @@ export function PartnersEmptyState({
         />
       </div>
 
-      {/* No partners from sales yet — agency copy. This empty state only mounts
-          for directors (page.tsx gates on `isDirector && directoryEmpty`) and
-          takes no audience/isExternal prop, so there's no external signal to
-          switch on — the external "professional network" variant would need new
-          plumbing to reach an external progression business.
-          TODO(critique): external variant — no audience prop + director-only mount; would need plumbing. */}
+      {/* No partners from sales yet — agency copy. FLAGGED (blocker): external
+          progression-business users never reach this component. On the partners
+          page (app/agent/partners/page.tsx) they resolve to access scope
+          `business` (not `agency`), so `isAgent` is false and they render the
+          generic `EmptyDirectory internal` card — this whole PartnersEmptyState,
+          gated on `isDirector && directoryEmpty`, mounts for agency DIRECTORS
+          only. Adding an audience prop here would be dead code. Routing external
+          users into PartnersEmptyState instead is not a copy change: its add
+          flows (preferred broker, recommended solicitors) are agency-keyed
+          (agencyPreferredBroker / agencyRecommendedSolicitor on agencyId), and
+          an external business has agencyId null — those server actions have no
+          business equivalent. Product decision for the founder: either build a
+          business-scoped partners empty state (with business-keyed broker/
+          solicitor setup) and route external users to it, or leave them on the
+          generic EmptyDirectory. The external "professional network" copy stays
+          parked until then. */}
       <PromoCard
         glassId="empty-partners-nosales"
         label="Partners empty · No sales yet"

@@ -87,11 +87,17 @@ export function AllFilesEmptyState({ audience = "agency", hasClients = false }: 
       </div>
 
       {/* Explore demo sale — real, reuses the shared flow. Agency only: the demo
-          action needs an agencyId, which a progression-business owner (agencyId
-          null) doesn't have — it would throw "Demo files are for agency accounts".
-          Because the card is agency-only, the external "fully progressed sale"
-          copy has nowhere to render — agency copy only.
-          TODO(critique): external variant — demo card is agency-only (needs agencyId); external copy unreachable. */}
+          action needs an agencyId, which a progression-business owner/member
+          (agencyId null) doesn't have — getOrCreateDemoSaleAction throws "Demo
+          files are for agency accounts", and the whole demo-sale mechanism
+          (lib/services/demo-sale.ts) is agency-keyed, with no business
+          equivalent. We deliberately do NOT force-show it for external users:
+          the button would throw on click. So the external "fully progressed
+          sale" copy has nowhere to render and the card stays agency-only.
+          FLAGGED (product decision for the founder): either build a
+          progression-business demo path (a demo file tied to a client agency, or
+          a business-scoped sample), or accept that external users have no demo
+          card on All Files. Until one is chosen, agency copy only. */}
       {!isProg && (
       <PromoCard
         glassId="empty-allfiles-demo"

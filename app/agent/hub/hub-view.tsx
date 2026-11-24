@@ -340,6 +340,13 @@ export default async function Hub() {
         {role === "director" && session.user.agencyId && (
           <EmailSetupPrompt userId={session.user.id} />
         )}
+        {/* External progression-business OWNER: same nudge, business copy. Only
+            an owner can set up the business's default sender (the sender API is
+            owner-gated), so team members don't see it. Readiness + dismissal are
+            self-gated inside the component against the business sender status. */}
+        {isBusinessOwner && (
+          <EmailSetupPrompt userId={session.user.id} audience="business" />
+        )}
       </div>
     </div>
   );
