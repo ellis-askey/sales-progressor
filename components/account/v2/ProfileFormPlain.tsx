@@ -357,7 +357,7 @@ export function ProfileFormPlain({
 
         /* Never lopsided: 3 (name/job/email) + 2 stretched (phone/mobile) by
            default; all 5 in a row when wide; one column when narrow. */
-        .profile-fields-grid { display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        .profile-fields-grid { display: grid; gap: 16px 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
         .profile-fields-grid .pf-name,
         .profile-fields-grid .pf-job,
         .profile-fields-grid .pf-email { grid-column: span 2; }
