@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 
-// /dev/compare — a review surface for the invite + auth page audit.
+// /dev/compare · a review surface for the invite + auth page audit.
 // Each card shows what ships TODAY ("Now") next to the PROPOSED version
-// ("After"), with a plain-English note. Nothing here is live — this page is
+// ("After"), with a plain-English note. Nothing here is live · this page is
 // only for sign-off. Approve a card and I'll build that change for real.
 //
 // Everything below is a faithful inline reproduction of the real values
@@ -236,7 +236,7 @@ export default function ComparePage() {
             Review surface
           </div>
           <h1 style={{ margin: "6px 0 0", fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em" }}>
-            Invite &amp; sign-in pages — before and after
+            Invite &amp; sign-in pages · before and after
           </h1>
           <p style={{ margin: "10px 0 0", fontSize: 14.5, lineHeight: 1.6, color: "#5C544B", maxWidth: 680 }}>
             These are the states a normal page-load never shows: expired links, wrong passwords, broken chains,
@@ -245,6 +245,13 @@ export default function ComparePage() {
             those changes for real.
           </p>
         </header>
+
+        <div style={{ margin: "14px 0 4px", padding: "12px 16px", borderRadius: 12, background: "rgba(47,158,107,0.08)", border: "1px solid rgba(47,158,107,0.25)", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 999, background: "#2F9E6B", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#1F6B49" }}>
+            All 27 reviewed and signed off (24 Nov 2026). Every change below is live in the code; this page is kept as the record.
+          </span>
+        </div>
 
         <div
           style={{
@@ -274,7 +281,7 @@ export default function ComparePage() {
 
         <Card
           n="01"
-          area="Claim landing, signup, confirm, decline — all headings via PageTitle"
+          area="Claim landing, signup, confirm, decline · all headings via PageTitle"
           title="Invite-page headings are a slightly warmer colour than the text under them"
           kind="visual"
           when="On every chain-invite page (the big heading at the top of an error, a decline, or the signup panel)."
@@ -301,7 +308,7 @@ export default function ComparePage() {
 
         <Card
           n="02"
-          area="app/claim/login — ClaimLoginForm heading + ClaimError"
+          area="app/claim/login · ClaimLoginForm heading + ClaimError"
           title="The claim login page uses a heavier, different heading than its sibling pages"
           kind="visual"
           when="When an invited agent already has an account and is asked to log in to claim, and on its error screens."
@@ -352,7 +359,7 @@ export default function ComparePage() {
 
         <Card
           n="04"
-          area="app/reset-password — missing/!broken token branch"
+          area="app/reset-password · missing/!broken token branch"
           title="The 'broken reset link' message is a one-off dark red, not the normal warning style"
           kind="visual"
           when="When someone opens a reset link that's incomplete or mangled by their email app."
@@ -387,7 +394,7 @@ export default function ComparePage() {
 
         <Card
           n="05"
-          area="app/forgot-password vs app/reset-password — success screens"
+          area="app/forgot-password vs app/reset-password · success screens"
           title="The two 'done' screens don't match each other"
           kind="visual"
           when="After you ask for a reset link (warm, coral tick) versus after you actually set a new password (cooler greys, green tick)."
@@ -467,14 +474,14 @@ export default function ComparePage() {
 
         <Card
           n="08"
-          area="app/login — OAuth error query param not handled"
+          area="app/login · OAuth error query param not handled"
           title="If you start 'Continue with Google' then cancel, nothing is said"
           kind="behind"
           when="You click Continue with Google or Microsoft, then back out or it fails. You land back on the login form with no explanation."
           change="Show a short message so you know the sign-in didn't complete. This one touches behaviour, so I'd confirm the exact wording with you before building."
           now={
             <p style={{ margin: 0, fontSize: 13, color: MUTED, fontStyle: "italic" }}>
-              (silent — the form just reappears, no message)
+              (silent · the form just reappears, no message)
             </p>
           }
           after={
@@ -498,14 +505,14 @@ export default function ComparePage() {
 
         <Card
           n="09"
-          area="app/forgot-password — no inline email check"
+          area="app/forgot-password · no inline email check"
           title="Forgot-password accepts an obviously-wrong email with no nudge"
           kind="behind"
           when="You type something that isn't an email (no @) and hit send. Login and register would flag it; forgot-password doesn't."
-          change="Add the same gentle 'enter a valid email' check on blur. Optional — the page is deliberately vague about whether an account exists, and this doesn't break that."
+          change="Add the same gentle 'enter a valid email' check on blur. Optional · the page is deliberately vague about whether an account exists, and this doesn't break that."
           now={
             <p style={{ margin: 0, fontSize: 13, color: MUTED, fontStyle: "italic" }}>
-              (no check — button sends anyway)
+              (no check · button sends anyway)
             </p>
           }
           after={<span style={{ fontSize: 11, color: "#C73E3E" }}>Enter a valid email address</span>}
@@ -562,7 +569,7 @@ export default function ComparePage() {
 
         <Card
           n="11"
-          area="ClaimInviteCard — .claim-b-login"
+          area="ClaimInviteCard · .claim-b-login"
           title="The 'Log in' button top-right is still a little glossy"
           kind="visual"
           when="Top-right of the invite landing page, for people who already have an account. It's the one button left with the old shiny gradient after we flattened the rest."
@@ -604,7 +611,7 @@ export default function ComparePage() {
 
         <Card
           n="12"
-          area="ClaimSignupForm — password rule invisible"
+          area="ClaimSignupForm · password rule invisible"
           title="On signup, the 'Create account' button stays greyed out with no reason given"
           kind="copy"
           when="When you set a password shorter than 10 characters. The button simply won't enable, and nothing tells you why."
@@ -625,7 +632,7 @@ export default function ComparePage() {
 
         <Card
           n="13"
-          area="app/claim/signup — no chain-withdrawn guard"
+          area="app/claim/signup · no chain-withdrawn guard"
           title="If a chain falls through, the signup page still shows the form"
           kind="behind"
           when="A sale in the chain withdraws after you opened the invite but before you finished signing up. The landing page would stop you; the signup page doesn't, so you fill it all in before being told."
@@ -647,7 +654,7 @@ export default function ComparePage() {
 
         <Card
           n="14"
-          area="app/claim landing vs app/claim/signup — inviter resolution"
+          area="app/claim landing vs app/claim/signup · inviter resolution"
           title="The inviter's name can change between the invite page and the signup page"
           kind="behind"
           when="On sales we run on an agency's behalf. The landing page shows the right person; the signup page can show a different name and agency for the same invite."
@@ -691,7 +698,7 @@ export default function ComparePage() {
 
         <Card
           n="16"
-          area="ClaimConfirmForm — inline submit error"
+          area="ClaimConfirmForm · inline submit error"
           title="The confirm page's error message is a harsh red, not the warm family red"
           kind="visual"
           when="If claiming a sale fails (a dropped connection, a server hiccup). The message box is bright clinical red, unlike the softer warm-red used on the login and signup pages."
@@ -729,7 +736,7 @@ export default function ComparePage() {
 
         <Card
           n="17"
-          area="app/claim/decline — eyebrow across branches"
+          area="app/claim/decline · eyebrow across branches"
           title="The small 'The Sales Progressor' label shows on some decline screens, not others"
           kind="visual"
           when="On the decline pages. The hard-error outcomes (invalid link, not found) carry the little brand label above the heading; the softer ones (expired, declined) don't."
@@ -762,7 +769,7 @@ export default function ComparePage() {
 
         <Card
           n="18"
-          area="app/claim/confirm — .claim-confirm-prop-addr"
+          area="app/claim/confirm · .claim-confirm-prop-addr"
           title="A long address on the confirm card can push the layout around"
           kind="visual"
           when="When the property address is long. The address line has no limit, so it can wrap awkwardly and shove the number badge and 'Your sale' label out of place."
@@ -787,7 +794,7 @@ export default function ComparePage() {
 
         <Card
           n="19"
-          area="ClaimLoginForm — fields, button, heading, back link"
+          area="ClaimLoginForm · fields, button, heading, back link"
           title="The claim login page is still the old style throughout"
           kind="visual"
           when="When an invited agent who already has an account is asked to log in to claim. It never got the canonical pass, so its boxes and buttons differ from every page around it."
@@ -842,7 +849,7 @@ export default function ComparePage() {
 
         <Card
           n="20"
-          area="confirm vs login — expired body copy"
+          area="confirm vs login · expired body copy"
           title="The same 'expired' screen is explained two different ways"
           kind="copy"
           when="When an invite has expired. The confirm page and the login page give different reasons for the same thing."
@@ -890,7 +897,7 @@ export default function ComparePage() {
 
         <Card
           n="22"
-          area="ClaimLoginForm — submit hidden on the vendor step"
+          area="ClaimLoginForm · submit hidden on the vendor step"
           title="On the login page, the 'Log in' button disappears on one step"
           kind="behind"
           when="Only reachable while the 'where is it up to' step above is still switched on. On the seller-milestone step, the main login button isn't shown at all, so the way forward looks missing."
@@ -912,7 +919,7 @@ export default function ComparePage() {
 
         <Card
           n="23"
-          area="app/move-invite — MoveInviteClient + page cards"
+          area="app/move-invite · MoveInviteClient + page cards"
           title="The 'move to a new agency' pages are a different style from everything else"
           kind="visual"
           when="When an agent is invited to move their account to another agency. These pages were built separately and use a cool-grey card, a smaller heavier heading, and plain buttons with no hover or pressed states."
@@ -946,7 +953,7 @@ export default function ComparePage() {
 
         <Card
           n="24"
-          area="QuoteFlow — submit button, step badges, success tick"
+          area="QuoteFlow · submit button, step badges, success tick"
           title="The quote page's buttons are glossy; the rest of the product is flat"
           kind="visual"
           when="On the quote request page: the main 'Request quote' button, the step number badges, and the success tick all use a shiny gradient with a glow."
@@ -1002,7 +1009,7 @@ export default function ComparePage() {
 
         <Card
           n="26"
-          area="QuoteFlow — kind select, notes textarea, onward price"
+          area="QuoteFlow · kind select, notes textarea, onward price"
           title="The quote form mixes new and old input styles in the same card"
           kind="visual"
           when="In the quote form. The name, email and phone use the nice floating-label boxes, but the 'type of firm' dropdown, the notes box, and the onward-price box use the older plain style, sitting right next to them."
@@ -1035,7 +1042,7 @@ export default function ComparePage() {
 
         <Card
           n="27"
-          area="QuoteFlow — pending button + empty service-type step"
+          area="QuoteFlow · pending button + empty service-type step"
           title="The quote 'Send' button has no spinner, and one empty step can strand you"
           kind="behind"
           when="While a quote is sending, the button just says 'Sending...' with no spinner. And if a firm type has no services set up, that step shows an empty list with no message, so there's nowhere to go."

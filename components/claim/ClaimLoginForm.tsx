@@ -13,6 +13,7 @@ import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 import { LabelInput } from "@/components/ui/LabelInput";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { GoogleIcon } from "@/components/login/GoogleIcon";
 import { MicrosoftIcon } from "@/components/login/MicrosoftIcon";
 import { loginPrecheck } from "@/app/actions/login-precheck";
@@ -52,11 +53,16 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
   const [reconciledMilestones, setReconciledMilestones] = useState<ReconciliationState>({});
   const [wizardStep, setWizardStep] = useState<"vendor" | "purchaser">("vendor");
 
-  const onPurchaserStep = reconciliationMode !== "in_progress" || wizardStep === "purchaser";
+  // Reconciliation ("Where is this sale up to?") now lives on the property file
+  // AFTER the claim, not in the claim flow — matching ClaimConfirmForm. The picker
+  // + wizard below are kept but gated off, so both claim entry points create a
+  // clean file. // lands: reconcile relocation.
+  const SHOW_RECONCILE = false;
+  const onPurchaserStep = !SHOW_RECONCILE || reconciliationMode !== "in_progress" || wizardStep === "purchaser";
   const saleReady =
     tenure !== null &&
     purchaseType !== null &&
-    reconciliationMode !== null &&
+    (!SHOW_RECONCILE || reconciliationMode !== null) &&
     onPurchaserStep;
   const canSubmit =
     saleReady &&
@@ -115,15 +121,17 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
       tenure,
       purchaseType,
       isShareOfFreehold,
-      reconciliationMode,
     };
-    if (reconciliationMode === "in_progress") {
-      claimBody.reconciledMilestones = Object.entries(reconciledMilestones)
-        .filter(([, v]) => v.ticked)
-        .map(([milestoneDefinitionId, v]) => ({
-          milestoneDefinitionId,
-          eventDate: v.eventDate || null,
-        }));
+    if (SHOW_RECONCILE) {
+      claimBody.reconciliationMode = reconciliationMode;
+      if (reconciliationMode === "in_progress") {
+        claimBody.reconciledMilestones = Object.entries(reconciledMilestones)
+          .filter(([, v]) => v.ticked)
+          .map(([milestoneDefinitionId, v]) => ({
+            milestoneDefinitionId,
+            eventDate: v.eventDate || null,
+          }));
+      }
     }
 
     const claimRes = await fetch("/api/claim", {
@@ -147,7 +155,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
     router.push(`/agent/transactions/${transactionId}?claimed=1`);
   }
 
-  const isWizardActive = reconciliationMode === "in_progress";
+  const isWizardActive = SHOW_RECONCILE && reconciliationMode === "in_progress";
   const allUpperFilled = tenure !== null && purchaseType !== null;
   const upperSummary = allUpperFilled
     ? `${tenure === "leasehold" ? (isShareOfFreehold ? "Leasehold (share of freehold)" : "Leasehold") : "Freehold"} · ${purchaseType === "mortgage" ? "Mortgaged purchase" : purchaseType === "cash_buyer" ? "Cash purchase" : "Cash from proceeds"}`
@@ -261,7 +269,7 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
           </div>
         )}
 
-        {error && <div className="claim-error" style={{ marginTop: 14 }}>{error}</div>}
+        {error && <div style={{ marginTop: 14 }}><InlineAlert kind="danger">{error}</InlineAlert></div>}
 
         {onPurchaserStep && (
           <Button
@@ -311,8 +319,9 @@ export function ClaimLoginForm({ token, stubEmail, milestoneDefinitions, initial
           </div>
         </div>
 
-        {/* Reconciliation picker — only after tenure + purchaseType selected */}
-        {tenure && purchaseType && (
+        {/* Reconciliation picker — gated off (SHOW_RECONCILE=false): reconcile now
+            happens on the property file after the claim, like the confirm path. */}
+        {SHOW_RECONCILE && tenure && purchaseType && (
           <div className="claim-reconcile" style={{ marginTop: 16 }}>
             <p className="claim-field-label">Where is this sale up to?</p>
             <button type="button" className={`claim-reconcile-option${reconciliationMode === "fresh" ? " on" : ""}`} onClick={() => setReconciliationMode("fresh")}>

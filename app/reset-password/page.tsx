@@ -31,11 +31,13 @@ function ResetForm() {
 
   if (!token || !email) {
     return (
-      <div style={{ textAlign: "center", padding: "8px 0" }}>
-        <p style={{ fontSize: "13px", color: "#8B2500", marginBottom: "12px" }}>Invalid reset link. Please request a new one.</p>
-        <Link href="/forgot-password" style={{ fontSize: "13px", color: CORAL, fontWeight: 600, textDecoration: "none" }}>
-          Request new link
-        </Link>
+      <div style={{ padding: "8px 0" }}>
+        <InlineAlert kind="danger">Invalid reset link. Please request a new one.</InlineAlert>
+        <div style={{ textAlign: "center", marginTop: "14px" }}>
+          <Link href="/forgot-password" style={{ fontSize: "13px", color: CORAL, fontWeight: 600, textDecoration: "none" }}>
+            Request new link
+          </Link>
+        </div>
       </div>
     );
   }

@@ -9,6 +9,7 @@ import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 import { ClaimChainLadder, type LadderRow } from "@/components/claim/ClaimChainLadder";
 import { LabelInput } from "@/components/ui/LabelInput";
 import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { TrustStrip } from "@/components/ui/TrustStrip";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
@@ -208,15 +209,16 @@ export function ClaimSignupForm({
             <div className="claim-form-divider" aria-hidden />
 
             {error && (
-              <div className="claim-error">
+              <InlineAlert
+                kind="danger"
+                action={
+                  error.includes("already exists")
+                    ? <a href={`/claim/login?token=${token}`} style={{ color: "inherit", textDecoration: "underline" }}>Log in instead →</a>
+                    : undefined
+                }
+              >
                 {error}
-                {error.includes("already exists") && (
-                  <>
-                    {" "}
-                    <a href={`/claim/login?token=${token}`}>Log in instead →</a>
-                  </>
-                )}
-              </div>
+              </InlineAlert>
             )}
 
             <Button type="submit" variant="primary" size="lg" loading={loading} disabled={!canSubmit} style={{ ...coralVars, width: "100%" }}>

@@ -9,6 +9,7 @@ import {
 } from "@/components/milestones/ReconcileMilestonePicker";
 import { ClaimSaleTypeFields } from "@/components/claim/ClaimSaleTypeFields";
 import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 
 const CORAL = "#FF6B4A";
 const coralVars = { "--foreground": CORAL, "--background": "#ffffff" } as React.CSSProperties;
@@ -274,21 +275,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {saleDetailsSection}
         {SHOW_RECONCILE && reconciliationSection}
-        {error && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "#dc2626",
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              borderRadius: 8,
-              padding: "10px 14px",
-              marginTop: 8,
-            }}
-          >
-            {error}
-          </div>
-        )}
+        {error && <InlineAlert kind="danger">{error}</InlineAlert>}
         {onPurchaserStep && (
           <Button
             ref={submitRef}
@@ -348,20 +335,7 @@ export function ClaimConfirmForm({ token, stubAddress, duplicates, milestoneDefi
       {saleDetailsSection}
       {SHOW_RECONCILE && reconciliationSection}
 
-      {error && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#dc2626",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: 8,
-            padding: "10px 14px",
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
       {onPurchaserStep && (
         <Button

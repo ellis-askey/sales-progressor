@@ -358,22 +358,21 @@ export function QuoteFlow({
       {/* Step 1: pick provider category (hidden when only one is available) */}
       {showKindStep && (
         <StepCard number={1} title="What type of firm do you need?">
-          <select
-            value={kind ?? ""}
-            onChange={(e) => {
-              setKind(e.target.value || null);
-              setServiceTypeId(null);
-              setSelectedFirms(new Set());
-            }}
-            style={{ ...inputStyle, cursor: "pointer" }}
-          >
-            <option value="">Choose a type of provider…</option>
-            {kinds.map((k) => (
-              <option key={k.kind} value={k.kind}>
-                {k.label}
-              </option>
-            ))}
-          </select>
+          {/* Canonical arc RadioGroup — matches the "Which service" step below,
+              instead of a lone native dropdown. Legend sr-only (StepCard owns the heading). */}
+          <div className="quote-rg-nolegend">
+            <RadioGroup
+              label="Firm type"
+              name="quote-kind"
+              value={kind ?? ""}
+              onValueChange={(v) => {
+                setKind(v || null);
+                setServiceTypeId(null);
+                setSelectedFirms(new Set());
+              }}
+              options={kinds.map((k) => ({ value: k.kind, label: k.label }))}
+            />
+          </div>
         </StepCard>
       )}
 
@@ -520,22 +519,18 @@ export function QuoteFlow({
               </p>
             </div>
             {onward && (
-              <div>
-                <label style={labelStyle}>
-                  Agreed purchase price <span style={{ color: A.textMuted, fontWeight: 400 }}>(optional)</span>
-                </label>
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: A.textMuted, fontSize: 15, pointerEvents: "none" }}>&pound;</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={onwardPrice}
-                    onChange={(e) => setOnwardPrice(e.target.value)}
-                    placeholder="e.g. 450,000"
-                    style={{ ...inputStyle, paddingLeft: 26 }}
-                  />
-                </div>
-                <p style={{ fontSize: 12, color: A.textMuted, margin: "4px 0 0", lineHeight: 1.4 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <LabelInput
+                  label="Agreed purchase price (£, optional)"
+                  type="text"
+                  inputMode="numeric"
+                  name="quote-onward-price"
+                  accent={CORAL}
+                  fullWidth
+                  value={onwardPrice}
+                  onChange={(e) => setOnwardPrice(e.target.value)}
+                />
+                <p style={{ fontSize: 12, color: A.textMuted, margin: 0, lineHeight: 1.4 }}>
                   What you agreed to pay for the property. Helps the surveyor quote accurately.
                 </p>
               </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
 import { GoogleIcon } from "./GoogleIcon"
@@ -26,6 +26,15 @@ export function WarmLoginForm() {
   const [useBackupCode, setUseBackupCode] = useState(false)
   const [ssoLoading, setSsoLoading] = useState<string | null>(null)
   const [emailError, setEmailError] = useState("")
+  // Provider sign-in that failed or was cancelled bounces back with ?error=…;
+  // surface it so the user isn't dropped on a silent form. Read on mount from the
+  // URL (no useSearchParams, so the page needs no Suspense boundary).
+  const [oauthFailed, setOauthFailed] = useState(false)
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error")) {
+      setOauthFailed(true)
+    }
+  }, [])
 
   const emailLooksValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 
@@ -240,10 +249,14 @@ export function WarmLoginForm() {
         )}
 
         {/* Form-level error. In OTP mode the field shows its own inline error (and
-            shakes), so the banner is suppressed there to avoid saying it twice. */}
-        {error && !(stage === "totp" && !useBackupCode) && (
-          <InlineAlert kind="danger">{error}</InlineAlert>
-        )}
+            shakes), so the banner is suppressed there to avoid saying it twice. An
+            interactive error wins over the OAuth-cancel message. */}
+        {(() => {
+          const banner = error ?? (oauthFailed ? "We couldn't sign you in with that provider. Try again." : null)
+          return banner && !(stage === "totp" && !useBackupCode)
+            ? <InlineAlert kind="danger">{banner}</InlineAlert>
+            : null
+        })()}
 
         {stage === "password" && (
           <div style={{ display: "flex", justifyContent: "flex-end" }}>

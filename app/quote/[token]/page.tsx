@@ -76,10 +76,11 @@ export default async function QuotePage({
       <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
         <div aria-hidden className="quote-invite-bg" />
         <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: A.coralDeep, margin: "0 0 6px" }}>Your survey</p>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 8px", lineHeight: 1.15 }}>
             Arranging your survey
           </h1>
-          <p style={{ fontSize: 14, color: A.textMuted }}>
+          <p style={{ fontSize: 14, color: A.textMuted, lineHeight: 1.5 }}>
             Your agent is looking after your survey on this sale. If you&apos;d like a recommendation, ask them from your portal and they&apos;ll be in touch.
           </p>
         </div>
@@ -101,10 +102,11 @@ export default async function QuotePage({
         <main style={{ minHeight: "100svh", padding: "24px 20px 64px", background: "transparent" }}>
           <div aria-hidden className="quote-invite-bg" />
           <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center", paddingTop: 80 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: A.textPrimary, marginBottom: 8 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: A.coralDeep, margin: "0 0 6px" }}>Your survey</p>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: A.textPrimary, letterSpacing: "-0.02em", margin: "0 0 8px", lineHeight: 1.15 }}>
               We need your onward address first
             </h1>
-            <p style={{ fontSize: 14, color: A.textMuted }}>
+            <p style={{ fontSize: 14, color: A.textMuted, lineHeight: 1.5 }}>
               Add the property you&apos;re buying in your portal, then we can find surveyors that cover that area.
             </p>
           </div>
