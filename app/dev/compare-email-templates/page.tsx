@@ -58,7 +58,7 @@ export default function CompareEmailTemplatesPage() {
       <Card
         n={2}
         title="The “Company” / “Personal” tags become the standard bordered tag"
-        blurb="Each template’s little “Company” or “Personal” label becomes the app’s standard outlined tag — the same tag style as Director / Negotiator on the Team page. The faint shaded fill behind “Company” goes away."
+        blurb="Each template’s little “Company” or “Personal” label becomes the app’s standard outlined tag, the same tag style as Director / Negotiator on the Team page. The faint shaded fill behind “Company” goes away."
         flag="The standard tag is UPPERCASE (so “COMPANY” / “PERSONAL”) and has no shaded fill. I’ve kept the small icon. Tell me if you’d rather keep sentence-case or drop the icon."
       >
         <Col label="Now">
@@ -87,7 +87,7 @@ export default function CompareEmailTemplatesPage() {
       <Card
         n={3}
         title="The “Only me / Whole company” picker becomes the standard sliding switch"
-        blurb="In the editor, the two-button visibility picker becomes the app’s standard sliding switch — the chosen side fills with coral and its label turns white, and the pill slides across."
+        blurb="In the editor, the two-button visibility picker becomes the app’s standard sliding switch: the chosen side fills with coral and its label turns white, and the pill slides across."
         flag="Biggest visible change on the page. Today the chosen side is a white box with a coral outline + coral text (a ring). The standard switch is a solid coral fill with white text, and the little person/building icons drop off. This is the same switch you approved on the Emails page."
       >
         <Col label="Now">
@@ -155,7 +155,7 @@ export default function CompareEmailTemplatesPage() {
       <Card
         n={8}
         title="The editor’s text boxes get the floating-label treatment"
-        blurb="In the editor, “Template name”, “Description” and “Subject” get the app’s floating-label style: the label sits inside the empty box and lifts up as you type — the same fields as on Profile."
+        blurb="In the editor, “Template name”, “Description” and “Subject” get the app’s floating-label style: the label sits inside the empty box and lifts up as you type, the same fields as on Profile."
         flag="These fields have helpful example text today (“A short note so you remember when to use it”). The floating label replaces the placeholder, so I’ve re-homed that guidance as a small hint line under each box rather than losing it."
       >
         <Col label="Now">
