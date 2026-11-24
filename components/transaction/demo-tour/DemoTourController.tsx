@@ -22,7 +22,9 @@ import { useTabContext } from "@/components/transaction/TabContext";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import * as analytics from "@/lib/analytics/posthog";
 import { useReducedMotion } from "./useReducedMotion";
-import { DEMO_TOUR_EVENTS, DEMO_TOUR_STEPS, type TourStep } from "./types";
+import { DEMO_TOUR_EVENTS, DEMO_TOUR_STEPS, ONBOARDING_FINISH, type TourStep } from "./types";
+
+type FinishCopy = { title: string; body: string; primary: string; secondary: string | null };
 
 type Rect = { top: number; left: number; width: number; height: number; radius: number };
 
@@ -119,12 +121,14 @@ export function DemoTourController({
   autoStart = false,
   onClose,
   steps = DEMO_TOUR_STEPS,
+  finish = ONBOARDING_FINISH,
 }: {
   autoStart?: boolean;
   // Called whenever the tour ends (finish or skip) so the host can persist
   // "seen" state. reason distinguishes a completed run from an early exit.
   onClose?: (reason: "completed" | "skipped") => void;
   steps?: TourStep[];
+  finish?: FinishCopy;
 }) {
   const { setActiveTab } = useTabContext();
   const reducedMotion = useReducedMotion();
@@ -366,8 +370,11 @@ export function DemoTourController({
       {finished && (
         <FinishCard
           reducedMotion={reducedMotion}
-          onAddSale={() => { end("completed"); window.location.assign("/agent/transactions/new"); }}
-          onExplore={() => end("completed")}
+          finish={finish}
+          // Onboarding's primary adds a sale; the agent demo's primary just closes
+          // (no account, nothing to add). Keyed on whether a secondary exists.
+          onPrimary={() => { end("completed"); if (finish.secondary) window.location.assign("/agent/transactions/new"); }}
+          onSecondary={() => end("completed")}
         />
       )}
     </div>,
@@ -463,7 +470,7 @@ function SpotlightOverlay({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--agent-coral-deep)" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.01em", color: "var(--agent-coral-deep)" }}>
             Step {index + 1} of {total}
           </span>
           <button onClick={onSkip} aria-label="Skip walkthrough" className="dtour-btn-icon">
@@ -476,13 +483,11 @@ function SpotlightOverlay({
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
           {step.body}
         </p>
-        <button
-          onClick={onAdvance}
-          className="dtour-btn-primary"
-          style={{ marginTop: 16, width: "100%", fontSize: 13.5, fontWeight: 700, padding: "11px 18px" }}
-        >
-          {index + 1 === total ? "Finish" : "Continue"}
-        </button>
+        <div className="agent-canon-cta" style={{ marginTop: 16 }}>
+          <button onClick={onAdvance} className="agent-btn agent-btn-md agent-btn-primary" style={{ width: "100%" }}>
+            {index + 1 === total ? "Finish" : "Continue"}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -490,11 +495,12 @@ function SpotlightOverlay({
 
 // ── Terminal finish card (centered, no target) ───────────────────────────────
 function FinishCard({
-  reducedMotion, onAddSale, onExplore,
+  reducedMotion, finish, onPrimary, onSecondary,
 }: {
   reducedMotion: boolean;
-  onAddSale: () => void;
-  onExplore: () => void;
+  finish: FinishCopy;
+  onPrimary: () => void;
+  onSecondary: () => void;
 }) {
   return (
     <>
@@ -513,18 +519,20 @@ function FinishCard({
         }}
       >
         <p style={{ margin: "0 0 7px", fontSize: 18, fontWeight: 700, color: "var(--agent-text-primary)" }}>
-          That&rsquo;s a sale in Sales Progressor
+          {finish.title}
         </p>
         <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.55 }}>
-          Add your first sale and we&rsquo;ll start doing the same for you. The demo will stay here if you want to come back and explore.
+          {finish.body}
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button autoFocus onClick={onAddSale} className="dtour-btn-primary" style={{ padding: "12px 18px", fontSize: 14, fontWeight: 700 }}>
-            Add my first sale
+        <div className="agent-canon-cta" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button autoFocus onClick={onPrimary} className="agent-btn agent-btn-md agent-btn-primary" style={{ width: "100%" }}>
+            {finish.primary}
           </button>
-          <button onClick={onExplore} className="dtour-btn-secondary" style={{ padding: "11px 18px", fontSize: 13.5, fontWeight: 600 }}>
-            Keep exploring
-          </button>
+          {finish.secondary && (
+            <button onClick={onSecondary} className="agent-btn agent-btn-md agent-btn-secondary" style={{ width: "100%" }}>
+              {finish.secondary}
+            </button>
+          )}
         </div>
       </div>
     </>

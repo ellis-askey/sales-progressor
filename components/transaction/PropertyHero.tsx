@@ -50,6 +50,9 @@ type Props = {
   // service-type badges in the hero's badge row). Rendered as-is so
   // PropertyHero stays unaware of round semantics.
   roundChipSlot?: React.ReactNode;
+  // Agent-demo only: controls (Replay walkthrough / Start over) rendered in the
+  // hero's top gap above the status. Undefined everywhere else.
+  demoControls?: React.ReactNode;
   assignedUserName?: string | null;
   assignedUserImage?: string | null;
   // In-house progression: render the Client manager (assignedUserName here) + a
@@ -314,7 +317,7 @@ function HeroStatCell({
 }
 
 export function PropertyHero({
-  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, assignedUserName, assignedUserImage = null, inHouseProgressor = false, inHouseProgressorName = null, inHouseProgressorImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canProgressorHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
+  address, agencyName, status, tenure, purchaseType, purchasePrice, exchangeDate, percent, onTrack, serviceType, backHref = "/dashboard", flagSlot, roundChipSlot, demoControls, assignedUserName, assignedUserImage = null, inHouseProgressor = false, inHouseProgressorName = null, inHouseProgressorImage = null, managedByName = null, managedByFullName = null, createdAt, transactionId, hideServiceTypeBadge = false, inChain = false, isAdminViewer = false, canAgentHandOver = false, canProgressorHandBack = false, handoverProgressorName = null, handoverProgressors = [], photoUrl = null, overridePredictedDate = null, exchangedDate = null, topRightSlot, exchanged = false, isShareOfFreehold = false, hasManagementPack = false,
 }: Props) {
   // Live progress: on the file page the hero reads the shared source so the %
   // moves the instant a step is ticked. Falls back to the server prop anywhere
@@ -641,6 +644,7 @@ export function PropertyHero({
           {/* Status + progress row. Top padding on desktop clears the
               floating top-right controls. */}
           <div className="md:pt-8">
+            {demoControls && <div style={{ marginBottom: 12 }}>{demoControls}</div>}
             {/* Desktop: status only — the bar sits beside the postcode below. */}
             <div className="hidden md:flex" style={{ alignItems: "center" }}>
               {transactionId

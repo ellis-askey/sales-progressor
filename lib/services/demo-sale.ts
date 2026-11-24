@@ -518,6 +518,18 @@ export async function createAgentDemoSandbox(opts: { businessId: string; busines
   const agentUserId = await ensureDemoAgent(agency.id);
   const agentEmail = `demo-agent+${agency.id}@example.com`;
 
+  // The person "progressing this sale" is the sharer — the business owner who
+  // generated the link — shown with their real name + photo (the hero falls back
+  // to the usual avatar when they have no photo). Only the agent demo does this;
+  // the in-app onboarding demo keeps its own demo agent.
+  const owner = await prisma.user.findFirst({
+    where: { progressionBusinessId: opts.businessId, progressionBusinessRole: "owner" },
+    select: { name: true, image: true },
+  });
+  if (owner?.name) {
+    await prisma.user.update({ where: { id: agentUserId }, data: { name: owner.name, image: owner.image ?? null } });
+  }
+
   // 3. The golden 3-link chain, flagged agent_demo (reuses the showcase machinery
   //    so it stays byte-for-byte accurate as the real file evolves).
   const sols = await ensureDemoSolicitors();

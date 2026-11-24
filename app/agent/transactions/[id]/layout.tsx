@@ -30,6 +30,7 @@ import { getProgressorsForAgency, resolveBusinessOwner } from "@/lib/services/pr
 import { progressionBusinessesEnabled, outsourcedIntakeEnabled } from "@/lib/progression/flags";
 import { ReviseExchangeBanner } from "@/components/transaction/ReviseExchangeBanner";
 import { DemoFileMarker } from "@/components/transaction/DemoFileMarker";
+import { AgentDemoHeroControls } from "@/components/transaction/AgentDemoHeroControls";
 
 import { PropertyHero } from "@/components/transaction/PropertyHero";
 import { FileProgressProvider } from "@/components/transaction/FileProgressContext";
@@ -461,7 +462,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
       {exchangeDayActive && !isTerminalSale(transaction.status) && !(exchangeDayGate.sellerReady && exchangeDayGate.buyerReady) && (
         <ExchangeDayReadyBanner sellerReady={exchangeDayGate.sellerReady} buyerReady={exchangeDayGate.buyerReady} />
       )}
-      {transaction.isDemo && <DemoFileMarker transactionId={transaction.id} demoKind={transaction.demoKind} />}
+      {transaction.isDemo && transaction.demoKind !== "agent_demo" && <DemoFileMarker transactionId={transaction.id} demoKind={transaction.demoKind} />}
       {showExchangeOverdueBanner && (
         <ReviseExchangeBanner
           transactionId={transaction.id}
@@ -496,6 +497,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
         {/* ── Zone 1: Hero ── */}
         <div id="file-hero" className="agent-bloom" style={{ marginBottom: 20, scrollMarginTop: 12 }}>
           <PropertyHero
+            demoControls={transaction.demoKind === "agent_demo" ? <AgentDemoHeroControls /> : undefined}
             address={transaction.propertyAddress}
             agencyName={transaction.agency.name}
             status={transaction.status}
@@ -539,7 +541,7 @@ async function FileShell({ id, children }: { id: string; children: React.ReactNo
           sidebar={sidebar}
           basePath={basePath}
           heroConnected
-          tourSlot={transaction.isDemo ? <DemoTourMount autoStart={demoTourAutoStart} /> : undefined}
+          tourSlot={transaction.isDemo ? <DemoTourMount autoStart={demoTourAutoStart} demoKind={transaction.demoKind} /> : undefined}
           beforeContent={
             <GlassCard glassId="milestone-timeline" label="Milestone timeline strip" defaultVariant="v25" className="ms-timeline-lite agent-bloom" style={{
               borderRadius: 10,

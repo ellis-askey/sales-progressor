@@ -96,6 +96,82 @@ export const DEMO_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+// Agent-demo variant: the external sales-progression company showing a
+// prospective AGENT what they'd do. Same anchors as the onboarding tour, copy
+// reframed as "we (the progressor) would do this for you (the agent)". The
+// closing card copy lives in DemoTourController (AGENT_DEMO_FINISH).
+export const AGENT_DEMO_TOUR_STEPS: TourStep[] = [
+  {
+    id: "orientation",
+    tab: "overview",
+    target: '[data-glass-id="property-hero"]',
+    placement: "bottom",
+    title: "A closer look at how we progress your sales",
+    body: "Explore an example property file and see how we manage every stage of a sale, from the moment it's agreed through to completion.",
+    advance: "continue",
+  },
+  {
+    id: "where-it-stands",
+    tab: "overview",
+    target: '[data-glass-id="milestone-timeline"]',
+    placement: "bottom",
+    title: "Complete visibility, from start to finish",
+    body: "See exactly where a sale stands, what's been completed and what still needs to happen, without having to ask for an update.",
+    advance: "continue",
+  },
+  {
+    id: "waiting-on",
+    tab: "overview",
+    target: '[data-glass-id="overview-next-action"]',
+    placement: "auto",
+    title: "Always know what happens next",
+    body: "We make it clear what we're working on, what we're waiting for and who needs to take the next step.",
+    advance: "continue",
+  },
+  {
+    id: "chasing",
+    tab: "chase",
+    target: '[data-tour="chase-threads"]',
+    placement: "auto",
+    title: "Leave the chasing to us",
+    body: "We keep everyone moving in the right direction, following up where needed and involving you when your input can make a difference.",
+    advance: "continue",
+    optional: true,
+  },
+  {
+    id: "risk",
+    tab: "overview",
+    target: "#risk-score",
+    placement: "auto",
+    title: "Proactive, not just reactive",
+    body: "We look beyond the milestones, identifying delays, gaps in communication and potential issues before they become bigger problems.",
+    advance: "continue",
+  },
+  {
+    id: "clients",
+    tab: "overview",
+    target: '[data-glass-id="overview-people"]',
+    placement: "auto",
+    title: "A better experience for your clients",
+    body: "Your buyers and sellers have their own dedicated portal, keeping them informed throughout their move whilst keeping your agency at the heart of their experience.",
+    advance: "continue",
+  },
+];
+
+// Closing card copy per variant.
+export const ONBOARDING_FINISH = {
+  title: "That's a sale in Sales Progressor",
+  body: "Add your first sale and we'll start doing the same for you. The demo will stay here if you want to come back and explore.",
+  primary: "Add my first sale",
+  secondary: "Keep exploring",
+} as const;
+export const AGENT_DEMO_FINISH = {
+  title: "A better way to progress every sale",
+  body: "This is the level of care, communication and visibility we'd bring to every sale you entrust to us. Feel free to explore the property file in your own time.",
+  primary: "Keep exploring",
+  secondary: null,
+} as const;
+
 // Event names used to trigger / restart the tour from outside the controller
 // (e.g. the "Demo sale" marker's replay button). Dispatched on window.
 export const DEMO_TOUR_EVENTS = {
