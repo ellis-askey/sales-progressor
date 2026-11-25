@@ -56,6 +56,7 @@ function row(spec: Spec, i: number): ActivityEntry {
     actorImage: null,
     actorSubLabel: null,
     replies: [],
+    editableByAuthor: true,
     ...spec,
   };
 }

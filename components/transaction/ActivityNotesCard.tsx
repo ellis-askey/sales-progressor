@@ -229,6 +229,7 @@ export function ActivityNotesCard({
         actorImage: currentUserImage,
         actorSubLabel: null,
         replies: [],
+        editableByAuthor: true,
       } as ActivityEntry,
       ...prev,
     ]);
@@ -249,15 +250,16 @@ export function ActivityNotesCard({
     }
   }
 
-  // You can only ever touch a NOTE you typed yourself — same rule as the
-  // Activity tab's isOwnNote/canEdit (Ellis, 2026-09-26). Everything sent or
-  // received, anything automated, and anyone else's note stays view-only. Also
-  // excludes optimistic (not-yet-persisted) rows.
+  // You can edit any update you LOGGED yourself — a note OR a manually-logged
+  // call / SMS / email — same rule as the Activity tab (editableByAuthor carries
+  // the manual-log rule from the service: never a real send / automated /
+  // inbound; own-only kept here). Deleting stays notes-only (see handleDelete's
+  // callers). Excludes optimistic (not-yet-persisted) rows. (Ellis, 2026-09-26;
+  // broadened 2026-11.)
   function canEditEntry(e: ActivityEntry): boolean {
     return (
       e.kind === "comm"
-      && e.type === "internal_note"
-      && !e.isAutomated
+      && e.editableByAuthor
       && (!currentUserId || e.createdById === currentUserId)
       && !isOptimistic(e.id)
     );
@@ -292,9 +294,9 @@ export function ActivityNotesCard({
         contactIds: entry.contactIds,
         visibleToClient: entry.visibleToClient,
       });
-      toast.success("Note updated");
+      toast.success("Update saved");
     } catch {
-      toast.error("Couldn't update note. Try again");
+      toast.error("Couldn't save your update. Try again");
       setLocalEdits((prev) => { const n = { ...prev }; delete n[id]; return n; });
     } finally {
       setSavingId((cur) => (cur === id ? null : cur));
@@ -394,7 +396,7 @@ function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen, edit }: 
           <BandLabel label={band.label} />
           {band.items.map((entry) => {
             const opt = isOptimistic(entry.id);
-            if (!isNote(entry)) return <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} />;
+            if (!isNote(entry)) return <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} edit={edit} />;
             const re = noteRowEdit(entry, edit);
             return <NoteRow key={entry.id} content={re.content} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} editedAt={re.editedAt} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} replyCount={entry.kind === "comm" ? entry.replies.length : 0} />;
           })}
@@ -458,28 +460,73 @@ function Empty({ label }: { label: string }) {
   return <div style={{ padding: 16, textAlign: "center" }}><p style={{ fontSize: 12, color: "var(--agent-text-muted)", fontStyle: "italic", margin: 0 }}>{label}</p></div>;
 }
 
-function ActivityRow({ entry, optimistic, onOpen }: { entry: ActivityEntry; optimistic?: boolean; onOpen?: () => void }) {
+function ActivityRow({ entry, optimistic, onOpen, edit }: { entry: ActivityEntry; optimistic?: boolean; onOpen?: () => void; edit?: EditController }) {
   const { Icon: EntryIcon, color } = iconFor(entry);
+  // Non-note comms the author logged (call / SMS / logged email) are now
+  // text-editable here too, same rule + optimistic wiring as the note rows.
+  // Milestone rows and others' rows get no edit (canEditEntry gates it).
+  const re = edit ? noteRowEdit(entry, edit) : null;
+  const editing = !!re?.editing;
+  const canEdit = !!re?.onEdit;
+  const editedAt = re?.editedAt ?? null;
+  const content = entry.kind === "comm" ? (re?.content ?? entry.content) : subtitleFor(entry);
+  // Suppress whole-row navigation while editing so a background click can't
+  // discard the in-progress edit.
+  const rowOpen = editing ? undefined : onOpen;
   return (
     <div
       className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`}
-      role={onOpen ? "button" : undefined}
-      tabIndex={onOpen ? 0 : undefined}
-      onClick={onOpen}
-      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
-      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "center", gap: 10, opacity: optimistic ? 0.65 : 1, cursor: onOpen ? "pointer" : undefined }}>
+      role={rowOpen ? "button" : undefined}
+      tabIndex={rowOpen ? 0 : undefined}
+      onClick={rowOpen}
+      onKeyDown={rowOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); rowOpen(); } } : undefined}
+      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: editing ? "flex-start" : "center", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative", cursor: rowOpen ? "pointer" : undefined }}>
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, color, flexShrink: 0 }}>
         <EntryIcon size={22} weight="regular" />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{titleFor(entry)}</span>
-          <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>{optimistic ? "just now" : fmtTime(entry)}</span>
-        </div>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-          {subtitleFor(entry)}
-        </p>
+        {editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+            <textarea
+              value={re?.editDraft ?? ""}
+              onChange={(e) => re?.onEditChange(e.target.value)}
+              rows={Math.max(2, Math.min(8, (re?.editDraft ?? "").split("\n").length + 1))}
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); re?.onEditCancel(); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); re?.onEditSave(); }} disabled={!(re?.editDraft ?? "").trim() || re?.saving} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)" }}>{titleFor(entry)}</span>
+              <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                {optimistic ? "just now" : editedAt ? `edited ${relativeDate(editedAt)}` : fmtTime(entry)}
+              </span>
+            </div>
+            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--agent-text-secondary)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", paddingRight: canEdit ? 22 : 0 }}>
+              {content}
+            </p>
+          </>
+        )}
       </div>
+      {!editing && canEdit && (
+        <button
+          onClick={(e) => { e.stopPropagation(); re?.onEdit?.(); }}
+          className="agent-icon-btn agent-icon-btn-sm"
+          style={{ position: "absolute", top: 6, right: 8, opacity: 0.3 }}
+          onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseOut={(e) => (e.currentTarget.style.opacity = "0.3")}
+          onFocus={(e) => (e.currentTarget.style.opacity = "1")}
+          onBlur={(e) => (e.currentTarget.style.opacity = "0.3")}
+          aria-label="Edit update"
+        >
+          <PencilSimple size={13} weight="regular" />
+        </button>
+      )}
     </div>
   );
 }

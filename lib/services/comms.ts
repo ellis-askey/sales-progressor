@@ -46,6 +46,10 @@ export type NoteReply = {
   wasEdited: boolean;
   // Real last-edit time of the reply (null = never edited).
   editedAt: Date | null;
+  // Whether the author may edit this reply's text. A reply is always an own
+  // internal note, so this is the manual-log rule (isAuthorEditableComm) applied
+  // to the reply row; the UI pairs it with the own-only check.
+  editableByAuthor: boolean;
 };
 
 export type ActivityEntry =
@@ -159,7 +163,36 @@ export type ActivityEntry =
       // from the top-level feed (parentNoteId null in the query) — they only ever
       // appear here, nested under their parent note. (Note threading, Phase 2.)
       replies: NoteReply[];
+      // Whether the person who LOGGED this row may edit its text: a manual log
+      // (note or manually-logged outbound), never a real send / automated /
+      // inbound. Single source of truth: isAuthorEditableComm. The UI pairs it
+      // with the own-only (createdById) + not-optimistic check before showing
+      // the pencil. (Author-edit broadening, 2026-11.)
+      editableByAuthor: boolean;
     };
+
+// ─── Author-edit rule (single source of truth) ─────────────────────────────────
+// A comm row's CONTENT is editable by the person who logged it when it is a
+// MANUAL LOG — a note, or a manually-logged outbound (logged call / SMS / email,
+// etc.) — and is NOT an actually-sent email (real sends carry providerMessageId
+// / sentEmailHtml), NOT automated, and NOT inbound (received rows are never
+// editable). The own-only check (createdById === the current user) is applied by
+// each caller — the edit guard (updateCommunicationRecord) and the UI — not here.
+// Used BOTH to compute the feed's `editableByAuthor` flag and to gate the guard,
+// so the two can never drift.
+export function isAuthorEditableComm(c: {
+  type: CommType;
+  isAutomated: boolean;
+  providerMessageId: string | null;
+  sentEmailHtml: string | null;
+}): boolean {
+  return (
+    (c.type === "internal_note" || c.type === "outbound")
+    && !c.isAutomated
+    && !c.providerMessageId
+    && !c.sentEmailHtml
+  );
+}
 
 // ─── Actor role helpers (activity avatars) ─────────────────────────────────────
 
@@ -644,6 +677,7 @@ export async function getActivityTimeline(
       actorImage: actor.image,
       wasEdited: r.wasEdited,
       editedAt: r.editedAt ?? (r.wasEdited ? r.updatedAt : null),
+      editableByAuthor: isAuthorEditableComm(r),
     };
     const arr = repliesByParent.get(r.parentNoteId) ?? [];
     arr.push(reply);
@@ -755,6 +789,10 @@ export async function getActivityTimeline(
     // Nested replies for a note (empty for every other comm). Keyed by this row's
     // id; portal-message rows (pm_*) and non-note comms never match → stay [].
     replies: repliesByParent.get(c.id) ?? [],
+    // Portal-message rows (pm_*) aren't OutboundMessage rows, so they can never
+    // be edited via editCommAction — always false. Everything else follows the
+    // single-source manual-log rule.
+    editableByAuthor: !c.id.startsWith("pm_") && isAuthorEditableComm(c),
     };
   });
 
@@ -1579,13 +1617,15 @@ export async function updateCommunicationRecord(input: UpdateCommInput) {
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const comm = await prisma.outboundMessage.findFirst({
     where,
-    select: { id: true, type: true, isAutomated: true, createdById: true, transactionId: true },
+    select: { id: true, type: true, isAutomated: true, providerMessageId: true, sentEmailHtml: true, createdById: true, transactionId: true },
   });
   if (!comm) throw new Error("Not found");
-  // Only a NOTE you typed yourself is editable. Sent/received comms, automated
-  // sends, and anything another user (incl. TSP) entered are immutable records.
-  if (comm.type !== "internal_note" || comm.isAutomated || comm.createdById !== userId) {
-    throw new Error("You can only edit notes you added yourself.");
+  // Content is editable only on an update you LOGGED yourself — a note, or a
+  // manually-logged call / SMS / email. A real send (providerMessageId /
+  // sentEmailHtml), an automated send, an inbound, and anyone else's row stay
+  // immutable. Same rule the feed uses (isAuthorEditableComm); own-only is kept.
+  if (comm.createdById !== userId || !isAuthorEditableComm(comm)) {
+    throw new Error("You can only edit updates you logged yourself.");
   }
   const updated = await prisma.outboundMessage.update({
     where: { id },
@@ -1709,6 +1749,7 @@ export async function addNoteReply(
     actorImage,
     wasEdited: record.wasEdited,
     editedAt: record.editedAt ?? null,
+    editableByAuthor: isAuthorEditableComm(record),
   };
 
   // Short, single-line preview of the note being replied to (for the bell/feed

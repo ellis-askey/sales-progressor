@@ -8,7 +8,7 @@ import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction, replyToNoteAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getCommBadge } from "@/lib/agent/comms-display";
-import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
+import { ActorAvatar, UserAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -218,6 +218,14 @@ const LINK_BTN = {
   fontSize: 11, fontWeight: 600, color: "var(--agent-coral-deep)",
 } as const;
 
+// Quiet inline text action (reply "Edit" / "Remove"), arc-style: muted by
+// default, brightens to primary text on hover/focus. Brightening is applied via
+// inline mouse/focus handlers (NoteThread has no scoped <style> block).
+const INLINE_ACTION = {
+  background: "none", border: "none", padding: 0, cursor: "pointer",
+  fontFamily: "inherit", fontSize: 11, fontWeight: 600, color: "var(--agent-text-muted)",
+} as const;
+
 const COLLAPSE_AT = 700;
 
 // How many feed entries show before "load more". On mobile the old single
@@ -418,6 +426,7 @@ function NoteThread({
   function canTouchReply(r: NoteReply): boolean {
     return (
       !r.id.startsWith("optimistic-")
+      && r.editableByAuthor
       && r.createdById != null
       && (!currentUserId || r.createdById === currentUserId)
     );
@@ -440,6 +449,7 @@ function NoteThread({
       actorImage: currentUserImage ?? null,
       wasEdited: false,
       editedAt: null,
+      editableByAuthor: true,
     };
     const notify = canNotifyAuthor && notifyAuthor;
     setLocalReplies((prev) => [...prev, placeholder]);
@@ -515,7 +525,7 @@ function NoteThread({
     const canTouch = canTouchReply(r);
     const optimistic = r.id.startsWith("optimistic-");
     return (
-      <div key={r.id} style={{ display: "flex", gap: 8, position: "relative", opacity: optimistic ? 0.65 : 1 }}>
+      <div key={r.id} style={{ display: "flex", gap: 8, opacity: optimistic ? 0.65 : 1 }}>
         <div style={{ flexShrink: 0, marginTop: 1 }}>
           <ActorAvatar name={r.actorName} role={r.actorRole} image={r.actorImage} size={20} />
         </div>
@@ -544,43 +554,43 @@ function NoteThread({
               </div>
             </div>
           ) : (
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: canTouch ? 42 : 0 }}>
-              {content}
-            </p>
+            <>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
+                {content}
+              </p>
+              {/* Own reply: a tidy, always-visible inline action row (arc-style),
+                  replacing the old hover pencil/×. Others' replies show none. */}
+              {canTouch && (
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 5 }}>
+                  <button
+                    type="button"
+                    style={INLINE_ACTION}
+                    onClick={(e) => { e.stopPropagation(); startReplyEdit(r); }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                    onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                    onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                    aria-label="Edit reply"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    style={INLINE_ACTION}
+                    onClick={(e) => { e.stopPropagation(); removeReply(r.id); }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                    onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                    onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                    aria-label="Remove reply"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
-        {canTouch && !isEditingThis && (
-          <div style={{ position: "absolute", top: 0, right: 0, display: "flex", gap: 2 }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); startReplyEdit(r); }}
-              className="agent-icon-btn agent-icon-btn-sm"
-              style={{ opacity: 0.35 }}
-              onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseOut={(e) => (e.currentTarget.style.opacity = "0.35")}
-              onFocus={(e) => (e.currentTarget.style.opacity = "1")}
-              onBlur={(e) => (e.currentTarget.style.opacity = "0.35")}
-              aria-label="Edit reply"
-              title="Edit"
-            >
-              ✎
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); removeReply(r.id); }}
-              className="agent-icon-btn agent-icon-btn-sm"
-              style={{ opacity: 0.35 }}
-              onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseOut={(e) => (e.currentTarget.style.opacity = "0.35")}
-              onFocus={(e) => (e.currentTarget.style.opacity = "1")}
-              onBlur={(e) => (e.currentTarget.style.opacity = "0.35")}
-              aria-label="Remove reply"
-              title="Remove"
-            >
-              ×
-            </button>
-          </div>
-        )}
       </div>
     );
   }
@@ -626,7 +636,13 @@ function NoteThread({
       )}
 
       {composerOpen && (
-        <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", flexDirection: "column", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+          {/* Leading avatar (the current user), like the arc composer. UserAvatar
+              shimmers while a photo loads, then the photo (or branded art). */}
+          <div style={{ flexShrink: 0, marginTop: 1 }}>
+            <UserAvatar user={{ name: currentUserName ?? "You", image: currentUserImage ?? null }} size={24} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -654,6 +670,7 @@ function NoteThread({
             )}
             <button type="button" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); setNotifyAuthor(false); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
             <button type="button" onClick={(e) => { e.stopPropagation(); sendReply(); }} disabled={!draft.trim() || sending} className="agent-btn agent-btn-sm agent-btn-primary">Send</button>
+          </div>
           </div>
         </div>
       )}
@@ -949,14 +966,21 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
               // the row's real last-edit time (updatedAt, surfaced as editedAt).
               const editedAt = override?.wasEdited ? new Date() : entry.editedAt;
               const isEditing = editingId === entry.id;
-              // You can only ever touch a NOTE you typed yourself. Everything that
-              // was sent or received (emails, calls, messages), anything the system
-              // sent automatically, and anything another user — including TSP —
-              // entered stays view-only. (Ellis, 2026-09-26.)
+              // Removing stays NOTE-only — a note you typed yourself (and only
+              // once its replies are gone). Everything sent/received, automated,
+              // or another user's row stays un-removable. (Ellis, 2026-09-26.)
               const isOwnNote = entry.type === "internal_note"
                 && !entry.isAutomated
                 && (!currentUserId || entry.createdById === currentUserId);
-              const canEdit = isOwnNote
+              // Editing the TEXT is broader: any update you LOGGED yourself — a
+              // note OR a manually-logged call / SMS / email — can be edited.
+              // editableByAuthor carries the manual-log rule from the service
+              // (never a real send / automated / inbound); here we add own-only +
+              // not-optimistic + has-contacts. A note opens the full edit form
+              // (contact picker + client-visible toggle); any other logged comm
+              // edits its text only. (Author-edit broadening, 2026-11.)
+              const canEdit = entry.editableByAuthor
+                && (!currentUserId || entry.createdById === currentUserId)
                 && !entry.id.startsWith("optimistic-")
                 && contacts !== undefined;
               const email = isEmailComm(entry);
@@ -1007,8 +1031,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     hideDate
                   />
 
-                  {/* Content — either static paragraph or editable form */}
-                  {isEditing && editDraft && contacts ? (
+                  {/* Content — static paragraph, the full note edit form (contact
+                      picker + client-visible), or a content-only editor for any
+                      other logged comm (call / SMS / logged email). */}
+                  {isEditing && editDraft ? (
+                    entry.type === "internal_note" && contacts ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <textarea
                         value={editDraft.content}
@@ -1088,6 +1115,24 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                         </div>
                       </div>
                     </div>
+                    ) : (
+                    // Content-only editor for a logged call / SMS / email (not a
+                    // note): just the text. The row's existing contactIds +
+                    // visibleToClient flow through saveEdit unchanged.
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <textarea
+                        value={editDraft.content}
+                        onChange={(e) => setEditDraft({ ...editDraft, content: e.target.value })}
+                        rows={Math.max(3, Math.min(10, editDraft.content.split("\n").length + 1))}
+                        className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+                        autoFocus
+                      />
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <button type="button" onClick={cancelEdit} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+                        <button type="button" onClick={() => saveEdit(entry.id)} disabled={!editDraft.content.trim() || savingId === entry.id} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+                      </div>
+                    </div>
+                    )
                   ) : (() => {
                     // Automated system emails have portal deep-links + an
                     // unsubscribe URL baked into their content. Hide the raw URLs;

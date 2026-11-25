@@ -105,6 +105,7 @@ export function ActivityTab(props: Props) {
         actorImage: props.currentUserImage,
         actorSubLabel: null,
         replies: [],
+        editableByAuthor: true,
       },
       ...prev,
     ]);
