@@ -88,6 +88,7 @@ export function ActivityTab(props: Props) {
         recipientName: null,
         visibleToClient: false,
         wasEdited: false,
+        editedAt: null,
         wasAiGenerated: false,
         isAutomated: false,
         tone: null,
@@ -103,6 +104,7 @@ export function ActivityTab(props: Props) {
         actorName: "You",
         actorImage: props.currentUserImage,
         actorSubLabel: null,
+        replies: [],
       },
       ...prev,
     ]);

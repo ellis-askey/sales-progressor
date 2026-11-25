@@ -494,6 +494,7 @@ function makeTimelineEmail(over: Partial<TimelineComm> & Pick<TimelineComm, "id"
     actorName: "Margaret Osei-Bonsu",
     actorImage: null,
     actorSubLabel: "Solicitor",
+    replies: [],
     ...over,
   };
 }

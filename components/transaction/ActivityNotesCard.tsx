@@ -228,6 +228,7 @@ export function ActivityNotesCard({
         actorName: "You",
         actorImage: currentUserImage,
         actorSubLabel: null,
+        replies: [],
       } as ActivityEntry,
       ...prev,
     ]);

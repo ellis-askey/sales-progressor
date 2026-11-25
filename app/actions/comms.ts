@@ -11,6 +11,7 @@ import {
   createCommunicationRecord,
   deleteCommunicationRecord,
   updateCommunicationRecord,
+  addNoteReply,
   logPortalLinkCopied,
   importWhatsAppChat,
   undoWhatsAppImport,
@@ -93,6 +94,27 @@ export async function addNoteAction(transactionId: string, content: string) {
     agencyId: session.user.agencyId || undefined,
   });
   revalidateTx(transactionId);
+}
+
+// Replies to an activity note (internal-only, one level deep). Mirrors
+// addNoteAction's session handling + revalidate. Returns the resolved reply so
+// the client can optimistically render it with the right author + avatar.
+export async function replyToNoteAction(input: {
+  transactionId: string;
+  parentNoteId: string;
+  content: string;
+}) {
+  const session = await requireSession();
+  const reply = await addNoteReply({
+    transactionId: input.transactionId,
+    parentNoteId: input.parentNoteId,
+    content: input.content,
+    userId: session.user.id,
+    userRole: session.user.role,
+    scope: getAccessScope(session),
+  });
+  revalidateTx(input.transactionId);
+  return reply;
 }
 
 // Fired (fire-and-forget) when an agent or SP copies a client's portal link

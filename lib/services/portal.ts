@@ -3313,6 +3313,10 @@ export async function getPortalTimeline(
       ? {
           transactionId,
           visibleToClient: true,
+          // Defence in depth (note threading, Phase 2): replies are internal
+          // notes (visibleToClient false, so already excluded), but pin the
+          // feed to top-level rows so a reply can never reach a client.
+          parentNoteId: null,
           OR: [
             // New model — explicitly shared with this buyer contact.
             { sharedWithContactIds: { has: contactId } },
@@ -3329,6 +3333,9 @@ export async function getPortalTimeline(
       : {
           transactionId,
           visibleToClient: true,
+          // Defence in depth (note threading, Phase 2): same as the purchaser
+          // branch — replies are internal, this keeps the feed top-level only.
+          parentNoteId: null,
           OR: [
             // New model — explicitly shared with any seller contact.
             { sharedWithContactIds: { hasSome: vendorContactIds } },

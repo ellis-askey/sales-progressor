@@ -26,6 +26,28 @@ import type { ActorRole } from "@/components/ui/Avatar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// A reply hanging under a top-level activity note (internal-only, Phase 2). A
+// reply is itself an `internal_note` whose `parentNoteId` points at the note it
+// answers; threads are exactly one level deep. Author name/photo/actor are
+// resolved EXACTLY as a top-level comm row (same resolveCommActor), so a reply
+// renders with identical identity. Never client-visible — replies are excluded
+// from the portal feed (see getPortalTimeline).
+export type NoteReply = {
+  id: string;
+  content: string;
+  at: Date;
+  createdById: string | null;
+  createdByName: string | null;
+  createdByImage: string | null;
+  createdByRole: string | null;
+  actorRole: ActorRole;
+  actorName: string;
+  actorImage: string | null;
+  wasEdited: boolean;
+  // Real last-edit time of the reply (null = never edited).
+  editedAt: Date | null;
+};
+
 export type ActivityEntry =
   | {
       kind: "milestone";
@@ -132,6 +154,11 @@ export type ActivityEntry =
       // inbound, internal notes, WhatsApp and non-email rows (no dot shown).
       // Optional so optimistic client rows + other builders can omit it.
       delivery?: { state: "sent" | "delivered" | "bounced"; reason: string | null } | null;
+      // Replies hanging under this note (one level deep, oldest-first). Empty for
+      // every non-note comm and for notes with no replies. Reply rows are excluded
+      // from the top-level feed (parentNoteId null in the query) — they only ever
+      // appear here, nested under their parent note. (Note threading, Phase 2.)
+      replies: NoteReply[];
     };
 
 // ─── Actor role helpers (activity avatars) ─────────────────────────────────────
@@ -371,12 +398,19 @@ export async function getActivityTimeline(
       // source of truth in visibleCommsWhere above — shared with the file-preview
       // note read so the two can never drift. The behaviour is byte-identical to
       // the former inline where; see that helper for the per-clause rationale.
-      where: visibleCommsWhere({
-        transactionId,
-        agencyId,
-        activeBuyerRoundId: tx.activeBuyerRoundId,
-        activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
-      }),
+      where: {
+        ...visibleCommsWhere({
+          transactionId,
+          agencyId,
+          activeBuyerRoundId: tx.activeBuyerRoundId,
+          activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
+        }),
+        // Note threading (Phase 2): the top-level feed lists only parent notes
+        // and non-note comms. Reply rows (parentNoteId set) are fetched
+        // separately below and nested under their parent, never shown as their
+        // own feed row.
+        parentNoteId: null,
+      },
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: { select: { name: true, image: true } },
@@ -581,6 +615,41 @@ export async function getActivityTimeline(
     } as unknown as (typeof comms)[number];
   });
 
+  // Note threading (Phase 2): fetch EVERY reply for the notes on this file in one
+  // query (no N+1), then group by parent in memory. Replies resolve their author
+  // name/photo/actor through the SAME resolveCommActor as a top-level comm row, so
+  // a reply renders with identical identity. Oldest-first within each thread.
+  const noteIds = comms.filter((c) => c.type === "internal_note").map((c) => c.id);
+  const replyRows = noteIds.length
+    ? await prisma.outboundMessage.findMany({
+        where: { transactionId, type: "internal_note", parentNoteId: { in: noteIds } },
+        orderBy: { createdAt: "asc" },
+        include: { createdBy: { select: { name: true, image: true } } },
+      })
+    : [];
+  const repliesByParent = new Map<string, NoteReply[]>();
+  for (const r of replyRows) {
+    if (!r.parentNoteId) continue;
+    const actor = resolveCommActor(r);
+    const reply: NoteReply = {
+      id: r.id,
+      content: r.content,
+      at: r.sentAt ?? r.createdAt,
+      createdById: r.createdById ?? null,
+      createdByName: r.createdBy?.name ?? null,
+      createdByImage: r.createdBy?.image ?? null,
+      createdByRole: r.createdByRole ?? null,
+      actorRole: actor.role,
+      actorName: actor.name,
+      actorImage: actor.image,
+      wasEdited: r.wasEdited,
+      editedAt: r.editedAt ?? (r.wasEdited ? r.updatedAt : null),
+    };
+    const arr = repliesByParent.get(r.parentNoteId) ?? [];
+    arr.push(reply);
+    repliesByParent.set(r.parentNoteId, arr);
+  }
+
   const commEntries: ActivityEntry[] = [...comms, ...portalAsComms]
     // Hide tagged auto-replies / out-of-office from the default feed (Phase A2).
     // The row is still stored (providerWebhookData.autoReply) so it's recoverable.
@@ -619,7 +688,9 @@ export async function getActivityTimeline(
     recipientName: c.recipientName ?? null,
     visibleToClient: c.visibleToClient,
     wasEdited: c.wasEdited,
-    editedAt: c.wasEdited ? c.updatedAt : null,
+    // Real edit-time column now exists; fall back to updatedAt for notes edited
+    // before the column landed (wasEdited true, editedAt still null). (Phase 2.)
+    editedAt: c.editedAt ?? (c.wasEdited ? c.updatedAt : null),
     wasAiGenerated: c.wasAiGenerated,
     isAutomated: c.isAutomated,
     tone: c.tone,
@@ -681,6 +752,9 @@ export async function getActivityTimeline(
       const a = (c.providerWebhookData as { attachments?: { filename: string; size: number }[] } | null)?.attachments;
       return Array.isArray(a) && a.length ? a : null;
     })(),
+    // Nested replies for a note (empty for every other comm). Keyed by this row's
+    // id; portal-message rows (pm_*) and non-note comms never match → stay [].
+    replies: repliesByParent.get(c.id) ?? [],
     };
   });
 
@@ -1449,13 +1523,25 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope, 
                                 { id, transaction: { agencyId: scope.agencyIds[0] } };
   const comm = await prisma.outboundMessage.findFirst({
     where,
-    select: { id: true, type: true, isAutomated: true, createdById: true },
+    select: { id: true, type: true, isAutomated: true, createdById: true, parentNoteId: true },
   });
   if (!comm) throw new Error("Not found");
   // Only a NOTE you typed yourself can be removed. Sent/received comms, automated
   // sends, and anything another user (incl. TSP) entered are immutable records.
   if (comm.type !== "internal_note" || comm.isAutomated || comm.createdById !== userId) {
     throw new Error("You can only remove notes you added yourself.");
+  }
+  // A top-level note (parentNoteId null) carrying replies can't be removed until
+  // its replies are gone — otherwise the thread's answers would be orphaned.
+  // Removing a reply itself (parentNoteId set) stays allowed under the own-only
+  // guard above.
+  if (comm.parentNoteId === null) {
+    const replyCount = await prisma.outboundMessage.count({
+      where: { parentNoteId: id, type: "internal_note" },
+    });
+    if (replyCount > 0) {
+      throw new Error("Remove the replies first.");
+    }
   }
   return prisma.outboundMessage.delete({ where: { id } });
 }
@@ -1508,12 +1594,107 @@ export async function updateCommunicationRecord(input: UpdateCommInput) {
       contactIds,
       visibleToClient,
       wasEdited: true,
+      // Dedicated last-edit column (Phase 2) — the real edit time, no longer a
+      // updatedAt proxy. wasEdited stays sticky across subsequent edits.
+      editedAt: new Date(),
     },
   });
   if (comm.transactionId) {
     touchLastActivity(comm.transactionId).catch(() => {});
   }
   return updated;
+}
+
+export type AddNoteReplyInput = {
+  transactionId: string;
+  parentNoteId: string;
+  content: string;
+  userId: string;
+  userRole: string | null;
+  // scope from getAccessScope(session) at the call site — same ownership gate as
+  // every other comms writer (Law 7). No ad-hoc agencyId filter.
+  scope: AccessScope;
+};
+
+// Creates a reply under an activity note. Internal-only: never client-visible,
+// so it can't surface in the portal. Threads are exactly ONE level deep — a
+// reply pointed at another reply re-attaches to that reply's top-level parent.
+// A reply inherits its parent's `businessOnly`, so a reply to a team-private
+// note stays private. Mirrors createCommunicationRecord's ownership check +
+// last-activity touch. Returns the resolved reply (author name/photo/actor
+// resolved like the timeline) so optimistic UI can match the server row.
+export async function addNoteReply(input: AddNoteReplyInput): Promise<NoteReply> {
+  // Same access-scope / ownership gate as createCommunicationRecord.
+  const tx = await prisma.propertyTransaction.findFirst({
+    where: scopeOwnershipWhere(input.scope, input.transactionId),
+    select: { id: true },
+  });
+  if (!tx) throw new Error("Transaction not found");
+
+  // The target note must exist, live on this transaction, and be an internal_note.
+  const parent = await prisma.outboundMessage.findFirst({
+    where: { id: input.parentNoteId, transactionId: input.transactionId },
+    select: { id: true, type: true, parentNoteId: true, businessOnly: true },
+  });
+  if (!parent || parent.type !== "internal_note") {
+    throw new Error("Note not found");
+  }
+
+  // Flatten to one level: if the target is itself a reply, attach the new reply
+  // to its top-level parent instead, inheriting the top-level note's privacy.
+  let topLevelId = parent.id;
+  let businessOnly = parent.businessOnly;
+  if (parent.parentNoteId) {
+    const root = await prisma.outboundMessage.findFirst({
+      where: { id: parent.parentNoteId, transactionId: input.transactionId },
+      select: { id: true, businessOnly: true },
+    });
+    if (!root) throw new Error("Note not found");
+    topLevelId = root.id;
+    businessOnly = root.businessOnly;
+  }
+
+  const record = await prisma.outboundMessage.create({
+    data: {
+      transactionId: input.transactionId,
+      type: "internal_note",
+      parentNoteId: topLevelId,
+      content: input.content,
+      createdById: input.userId,
+      createdByRole: input.userRole ?? null,
+      visibleToClient: false,
+      businessOnly,
+      contactIds: [],
+    },
+    include: { createdBy: { select: { name: true, image: true } } },
+  });
+
+  touchLastActivity(input.transactionId).catch(() => {});
+
+  // Resolve the author exactly as the timeline's resolveCommActor does for a
+  // human-authored internal_note (the createdById branch): internal staff map to
+  // progressor/agent; a superadmin is masked to the team, never surfaced by name.
+  const actorRole = userRoleToActor(input.userRole);
+  const actorName =
+    input.userRole === "superadmin"
+      ? "The Sales Progressor team"
+      : (record.createdBy?.name ?? "Team");
+  const actorImage = input.userRole === "superadmin" ? null : (record.createdBy?.image ?? null);
+
+  return {
+    id: record.id,
+    content: record.content,
+    at: record.sentAt ?? record.createdAt,
+    createdById: record.createdById ?? null,
+    createdByName: record.createdBy?.name ?? null,
+    createdByImage: record.createdBy?.image ?? null,
+    createdByRole: record.createdByRole ?? null,
+    actorRole,
+    actorName,
+    actorImage,
+    wasEdited: record.wasEdited,
+    editedAt: record.editedAt ?? null,
+  };
 }
 
 // ─── WhatsApp chat bulk-import ────────────────────────────────────────────────

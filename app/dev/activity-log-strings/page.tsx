@@ -55,6 +55,7 @@ function row(spec: Spec, i: number): ActivityEntry {
     actorName: AGENT,
     actorImage: null,
     actorSubLabel: null,
+    replies: [],
     ...spec,
   };
 }
