@@ -20,8 +20,10 @@ export function PromoArrow() {
   );
 }
 
-// Solid coral icon tile — the attention anchor. Gradient fill, white glyph, a
-// soft coral drop-shadow for lift + an inner top highlight for gloss. No wash.
+// Solid coral icon tile — the attention anchor. Gradient fill, white glyph and
+// an inner top highlight for gloss. No coral glow (founder call 2026-11-25:
+// "remove the glow from the image thing") and no wash — the tile sits flat on
+// the card, which carries its own lift.
 export function IconTile({ children }: { children: ReactNode }) {
   return (
     <span
@@ -29,7 +31,7 @@ export function IconTile({ children }: { children: ReactNode }) {
         width: 42, height: 42, borderRadius: 12, flexShrink: 0, display: "grid", placeItems: "center",
         background: "linear-gradient(145deg, var(--agent-coral), var(--agent-coral-deep))",
         color: "#fff",
-        boxShadow: "0 5px 14px rgba(var(--agent-coral-rgb), 0.40), inset 0 1px 0 rgba(255,255,255,0.38)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.38)",
       }}
     >
       {children}
