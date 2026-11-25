@@ -337,6 +337,10 @@ export const config = {
     // api/dev follows the same convention: data endpoints for /dev prototypes
     // (e.g. /dev/sold-for), each prod-blocked inside the handler with the same
     // NODE_ENV check, so excluding them here exposes nothing in production.
-    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|boardwalk|f/|api/forms|api/todo|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
+    // proposal + api/proposal: the private Boardwalk prospectus. Self-gated by
+    // its own HMAC `proposal_session` cookie (lib/proposal/auth.ts), like the
+    // Boardwalk Forms suite above — it must bypass the NextAuth gate so an
+    // unauthenticated recipient reaches its own password screen, not TSP /login.
+    "/((?!login|register|forgot-password|reset-password|terms|privacy|cookie-policy|legal|billing-terms|outsourced-terms|provider-terms|portal|quote|dev|api/dev|api/auth|api/portal|api/register|boardwalk|f/|api/forms|api/todo|proposal|api/proposal|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|svg|webp|gif|ico)).*)",
   ],
 };

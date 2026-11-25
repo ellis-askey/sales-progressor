@@ -7,6 +7,7 @@ import {
   PenLine, Radar,
   Building2, Rocket,
   MonitorSmartphone,
+  Presentation,
 } from "lucide-react";
 
 export interface WorkspaceNavItem {
@@ -140,6 +141,7 @@ export const WORKSPACE_NAV: WorkspaceNavSection[] = [
       { href: "/command/system", label: "System", Icon: Settings, exact: true },
       // Standalone tools — not one of the six consolidated System pages.
       { href: "/command/pages", label: "Page gallery", Icon: MonitorSmartphone },
+      { href: "/command/proposal", label: "Boardwalk proposal", Icon: Presentation },
       { href: "/command/admin/demo", label: "Reset demo", Icon: RotateCcw },
     ],
   },

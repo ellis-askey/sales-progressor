@@ -7274,3 +7274,91 @@ model TodoUserPref {
   data      Json // { collapsedSidebarSections, notificationPrefs, lastView, … }
   updatedAt DateTime @updatedAt
 }
+
+// ─── Boardwalk partnership proposal microsite ────────────────────────────────
+// Private, password-gated interactive prospectus at /proposal/boardwalk. Fully
+// isolated from the operational product: its own HMAC session cookie (keyed off
+// NEXTAUTH_SECRET with the label "proposal-boardwalk-v1"), its own first-party
+// analytics, and a founder-only view at /command/proposal. Nothing here reads or
+// writes tenant/customer data. See lib/proposal/* and app/proposal/boardwalk/.
+
+model ProposalAccess {
+  id           String    @id @default(cuid())
+  slug         String    @unique // "boardwalk"
+  passwordHash String // bcrypt hash of the shared access password
+  sessionEpoch Int       @default(1) // bump to revoke every live session at once
+  revokedAt    DateTime? // whole-proposal kill switch
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ProposalInvitation {
+  id        String    @id @default(cuid())
+  slug      String // "boardwalk"
+  token     String    @unique // opaque id carried in ?i=
+  label     String // "Nick" | "Jack" | "Ellis (review)"
+  isOwner   Boolean   @default(false) // owner review link — excluded from headline metrics
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sessions ProposalSession[]
+  events   ProposalEvent[]
+
+  @@index([slug])
+  @@index([token])
+}
+
+model ProposalSession {
+  id           String              @id @default(cuid())
+  slug         String
+  invitationId String?
+  invitation   ProposalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  ipHash    String? // sha256(ip + secret) — never the raw IP
+  country   String? // approx, from x-vercel-ip-country
+  region    String?
+  device    String? // "mobile" | "desktop" | "unknown"
+  browser   String?
+  userAgent String?
+
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  reachedClose  Boolean  @default(false)
+  downloadedPdf Boolean  @default(false)
+
+  events ProposalEvent[]
+
+  @@index([slug, startedAt])
+  @@index([invitationId])
+}
+
+model ProposalEvent {
+  id           String              @id @default(cuid())
+  slug         String
+  sessionId    String?
+  session      ProposalSession?    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  invitationId String?
+  invitation   ProposalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  // "auth_success" | "section_view" | "section_expand" | "calculator_open"
+  // | "reached_close" | "pdf_download" | "return_visit"
+  kind       String
+  sectionId  String?
+  detail     String? // a calculator id or section label — NEVER a reader's financial inputs
+  occurredAt DateTime @default(now())
+
+  @@index([slug, occurredAt])
+  @@index([sessionId])
+  @@index([kind, occurredAt])
+}
+
+model ProposalAuthAttempt {
+  id        String   @id @default(cuid())
+  slug      String
+  ipHash    String
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([slug, ipHash, createdAt])
+}

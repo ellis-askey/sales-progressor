@@ -1342,3 +1342,27 @@ The inbound-email webhook (`app/api/webhooks/sendgrid-inbound`) now enforces a s
 The shared password validator (`lib/auth/password-policy.ts`) now rejects passwords found in known breaches, checked against the HaveIBeenPwned range API using k-anonymity (only the first 5 chars of the SHA-1 hash leave the server; never the password or full hash). No API key or account is required for the range endpoint. The call is fail-open (a HIBP outage never blocks sign-ups; the length rule still applies). Minimum length raised to 10.
 
 **Action:** none required to run (no key). Surfaced here per the "new third-party integration" rule. If you later want the authenticated HIBP API for other features, that needs a key. Also note: client-side sign-up/reset forms still display an "at least 8 characters" hint in a few places (cosmetic) — align them to 10 in a follow-up so the hint matches the server rule.
+
+## Boardwalk proposal microsite (`/proposal/boardwalk`) — go-live steps
+
+Built 2026-11-25. The experience works today on the built-in password `2027`
+(validated server-side via a resilient fallback), but three manual steps light
+up the rest:
+
+1. **Apply the migration (staging first, Law 3).** `20261124000000_add_proposal_microsite`
+   creates five isolated `Proposal*` tables (additive only — touches nothing
+   existing). Until applied, invitation links, access analytics and password
+   rotation are dormant; the gate still works. Run `npm run db:migrate:staging`,
+   verify, then production.
+2. **Drop the original PDF** at `private/proposal/beyond-sales-progression.pdf`
+   (outside `/public`). Enables the gated "Download the original PDF" button.
+   See `private/proposal/README.md`.
+3. **Grab the invitation links** from the Command Centre → System → **Boardwalk
+   proposal** (`/command/proposal`). It seeds Nick / Jack / Ellis links on first
+   open (post-migration); copy each and send. Password stays `2027` — rotate or
+   revoke from that page. Your own "Ellis (review)" link is excluded from the
+   headline engagement metrics.
+
+Note: the standard TSP cookie-consent bar currently also shows on the proposal
+(it's the shared app banner). Say the word if you'd like it suppressed on this
+surface only.
