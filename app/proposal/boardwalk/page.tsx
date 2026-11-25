@@ -2,7 +2,6 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getProposalSession } from "@/lib/proposal/auth";
 import { resolveInvitation } from "@/lib/proposal/invitations";
-import { PROPOSAL_PDF_RELATIVE } from "@/lib/proposal/config";
 import { ProposalGate } from "./ProposalGate";
 import { ProposalExperience } from "@/components/proposal/ProposalExperience";
 
@@ -28,9 +27,12 @@ export default async function ProposalPage({
     return <ProposalGate inviteToken={inviteToken} inviteLabel={label} />;
   }
 
+  // Literal path segments (not an imported variable) so the file tracer resolves
+  // this precisely and doesn't over-bundle the function. See the note in
+  // app/api/proposal/pdf/route.ts.
   let pdfAvailable = false;
   try {
-    await fs.access(path.join(process.cwd(), PROPOSAL_PDF_RELATIVE));
+    await fs.access(path.join(process.cwd(), "private", "proposal", "beyond-sales-progression.pdf"));
     pdfAvailable = true;
   } catch {
     pdfAvailable = false;

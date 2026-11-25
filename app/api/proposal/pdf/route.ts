@@ -7,7 +7,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getProposalSession } from "@/lib/proposal/auth";
 import { recordEvent } from "@/lib/proposal/access";
-import { PROPOSAL_PDF_RELATIVE, PROPOSAL_PDF_DOWNLOAD_NAME } from "@/lib/proposal/config";
+import { PROPOSAL_PDF_DOWNLOAD_NAME } from "@/lib/proposal/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,12 @@ export async function GET() {
     return NextResponse.json({ error: "Not authorised." }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
-  const filePath = path.join(process.cwd(), PROPOSAL_PDF_RELATIVE);
+  // Path written as LITERAL segments (not an imported variable) so Vercel's file
+  // tracer (@vercel/nft) resolves it precisely to this one file. A non-literal
+  // path here makes the tracer conservatively bundle a huge slice of the project
+  // into this function (it ballooned to 367MB and broke the build). This mirrors
+  // the long-working pattern in app/help/page.tsx.
+  const filePath = path.join(process.cwd(), "private", "proposal", "beyond-sales-progression.pdf");
   let buf: Buffer;
   try {
     buf = await fs.readFile(filePath);
