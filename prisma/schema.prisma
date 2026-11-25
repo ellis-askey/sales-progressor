@@ -2745,6 +2745,10 @@ model OutboundMessage {
   tone            String?
   wasAiGenerated  Boolean @default(false)
   wasEdited       Boolean @default(false)
+  // Real timestamp of the last content edit to a note (null = never edited).
+  // Phase 1 surfaced edit-time via updatedAt as a proxy; this is the dedicated
+  // field. See lib/services/comms.ts (updateCommunicationRecord).
+  editedAt        DateTime?
   isAutomated     Boolean @default(false)
   visibleToClient Boolean @default(false)
   // Progression-business private note: visible ONLY to members of the file's
@@ -2797,6 +2801,14 @@ model OutboundMessage {
   inReplyTo         String?
   emailReferences   String?
 
+  // Note threading (internal, Phase 2). A reply to an activity note is itself an
+  // internal_note with parentNoteId set to the note it answers; a top-level note
+  // has it null. Internal-only — replies are NEVER surfaced in the client portal.
+  // Distinct from the email inReplyTo/emailReferences strings above (those are
+  // RFC message-ids, not a foreign key). The activity feed lists top-level notes
+  // (parentNoteId null) and hangs their replies underneath. See lib/services/comms.ts.
+  parentNoteId String?
+
   // WhatsApp sender display name, resolved at ingest (contact name, else agent
   // name, else the formatted number). Rendered on the timeline so the row shows
   // who sent it rather than "System". Null for non-WhatsApp rows.
@@ -2843,6 +2855,11 @@ model OutboundMessage {
   createdBy   User?                @relation("CommCreatedBy", fields: [createdById], references: [id])
   chaseTask   ChaseTask?           @relation(fields: [chaseTaskId], references: [id])
   waThread    WhatsAppThread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  // Self-relation for note threading. Removing a parent cascades to its replies
+  // as a DB backstop; the app blocks removing a note that still has replies, so
+  // this rarely fires in practice.
+  parentNote  OutboundMessage?     @relation("NoteThread", fields: [parentNoteId], references: [id], onDelete: Cascade)
+  noteReplies OutboundMessage[]    @relation("NoteThread")
 
   @@index([threadId])
   @@index([transactionId, createdAt])
@@ -2857,6 +2874,7 @@ model OutboundMessage {
   @@index([transactionId, conversationId])
   @@index([internetMessageId])
   @@index([inReplyTo])
+  @@index([parentNoteId])
 }
 
 enum CommType {
