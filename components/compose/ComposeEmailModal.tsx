@@ -299,9 +299,19 @@ export function ComposeEmailModal({
   const [continueCandidate, setContinueCandidate] = useState<ContinuableThread | null>(null);
   const [continueArmed, setContinueArmed] = useState(false);
 
-  // reset on open/close
+  // reset on open/close. Initialise ONLY on a real open false->true transition,
+  // never on prefill / initialTransactionId identity changes. Some openers (e.g.
+  // SolicitorSection) rebuild an inline `prefill` object on every render, so a
+  // parent re-render after a successful send (revalidatePath) would otherwise
+  // re-fire this effect while the modal is mid-close: it cleared `closing`
+  // (cancelling the close), collapsed back to the sale-search box and wiped the
+  // typed body. That was the reopen / flicker loop. A per-open ref makes the
+  // seed run exactly once per open and ignores identity churn thereafter.
+  const initializedForOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) { initializedForOpenRef.current = false; return; }
+    if (initializedForOpenRef.current) return;
+    initializedForOpenRef.current = true;
     setClosing(false); setSaleCleared(false);
     setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
     setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
