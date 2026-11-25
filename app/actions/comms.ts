@@ -99,13 +99,19 @@ export async function addNoteAction(transactionId: string, content: string) {
 // Replies to an activity note (internal-only, one level deep). Mirrors
 // addNoteAction's session handling + revalidate. Returns the resolved reply so
 // the client can optimistically render it with the right author + avatar.
+//
+// `notify` (optional, default off): when the replier ticks "Let {author} know"
+// on the composer, ping the ORIGINAL note author — a real in-app bell + a device
+// push. Only fires when the author is known and isn't the replier themselves.
+// Fire-and-forget: a bell/push failure never fails the reply.
 export async function replyToNoteAction(input: {
   transactionId: string;
   parentNoteId: string;
   content: string;
+  notify?: boolean;
 }) {
   const session = await requireSession();
-  const reply = await addNoteReply({
+  const { reply, noteAuthorId, notePreview, propertyAddress } = await addNoteReply({
     transactionId: input.transactionId,
     parentNoteId: input.parentNoteId,
     content: input.content,
@@ -113,6 +119,41 @@ export async function replyToNoteAction(input: {
     userRole: session.user.role,
     scope: getAccessScope(session),
   });
+
+  // Opt-in notify to the note's author (never the replier). Fired the way the
+  // relist flow fires its bell + push: each wrapped so a throw is swallowed +
+  // logged, never bubbling up to fail the reply the agent just wrote.
+  if (input.notify && noteAuthorId && noteAuthorId !== session.user.id) {
+    const replierName = session.user.name ?? "A colleague";
+    void (async () => {
+      try {
+        const { notifyNoteReply } = await import("@/lib/services/notifications");
+        await notifyNoteReply({
+          userId: noteAuthorId,
+          transactionId: input.transactionId,
+          replierName,
+          notePreview,
+          propertyAddress,
+        });
+      } catch (err) {
+        console.error("[replyToNoteAction] bell notification failed", err);
+      }
+    })();
+    void (async () => {
+      try {
+        const { pushNoteReply } = await import("@/lib/agent/push-events");
+        await pushNoteReply({
+          userId: noteAuthorId,
+          transactionId: input.transactionId,
+          replierName,
+          propertyAddress,
+        });
+      } catch (err) {
+        console.error("[replyToNoteAction] web push failed", err);
+      }
+    })();
+  }
+
   revalidateTx(input.transactionId);
   return reply;
 }

@@ -569,6 +569,10 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
     const cp = String(payload.checkpointLabel ?? "a checkpoint");
     return `${name} confirmed "${cp}".`;
   }
+  if (type === "note_reply") {
+    const replier = String(payload.replierName ?? "A colleague");
+    return `${replier} replied to your note`;
+  }
   // enquiries_stalled + solicitor_update carry a ready-made `message`;
   // portal_chain_agent_updated + others carry a pre-rendered body/title.
   return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");
@@ -589,6 +593,7 @@ export const BELL_NOTIFICATION_TYPES = [
   "broker_callback_bounced",
   "mortgage_offer_expiring",
   "checkpoint_confirmed",
+  "note_reply",
 ];
 
 // The small pill shown on a bell/feed item, per notification type. "Paused" for
@@ -599,5 +604,6 @@ export function pillLabelForType(type: string): string {
   if (type === "broker_callback_requested" || type === "broker_callback_bounced") return "Broker";
   if (type === "mortgage_offer_expiring") return "Expiring";
   if (type === "checkpoint_confirmed") return "Confirmed";
+  if (type === "note_reply") return "Reply";
   return "Update";
 }

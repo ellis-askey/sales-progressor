@@ -389,6 +389,12 @@ function NoteThread({
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // Optional "Let {author} know" opt-in. Off by default; local to the open
+  // composer and reset whenever it closes or sends.
+  const [notifyAuthor, setNotifyAuthor] = useState(false);
+  // Only offer the toggle when the note has a known author who isn't the replier.
+  const notifyAuthorFirstName = note.createdByName ? extractFirstName(note.createdByName) : null;
+  const canNotifyAuthor = !!note.createdById && note.createdById !== currentUserId && !!notifyAuthorFirstName;
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [savingReplyId, setSavingReplyId] = useState<string | null>(null);
@@ -397,6 +403,7 @@ function NoteThread({
     setLocalReplies([]);
     setRemovedReplyIds(new Set());
     setReplyEdits({});
+    setNotifyAuthor(false);
   }, [note.replies]);
 
   // Dedupe by id so the paint between revalidate landing and the reconcile effect
@@ -434,14 +441,16 @@ function NoteThread({
       wasEdited: false,
       editedAt: null,
     };
+    const notify = canNotifyAuthor && notifyAuthor;
     setLocalReplies((prev) => [...prev, placeholder]);
     setDraft("");
     setComposerOpen(false);
+    setNotifyAuthor(false);
     setCollapsed(false);
     setSending(true);
     startThreadTransition(async () => {
       try {
-        const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content });
+        const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify });
         // Swap the placeholder for the real resolved reply (correct id + identity).
         setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
       } catch {
@@ -627,8 +636,23 @@ function NoteThread({
             aria-label="Write a reply"
             autoFocus
           />
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-            <button type="button" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            {canNotifyAuthor && (
+              <label
+                onClick={(e) => e.stopPropagation()}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, marginRight: "auto", fontSize: 11.5, color: "var(--agent-text-muted)", cursor: "pointer", userSelect: "none" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={notifyAuthor}
+                  onChange={(e) => { e.stopPropagation(); setNotifyAuthor(e.target.checked); }}
+                  aria-label={`Let ${notifyAuthorFirstName} know about this reply`}
+                  style={{ width: 13, height: 13, accentColor: "var(--agent-coral, #FF6B4A)", cursor: "pointer" }}
+                />
+                Let {notifyAuthorFirstName} know
+              </label>
+            )}
+            <button type="button" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); setNotifyAuthor(false); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
             <button type="button" onClick={(e) => { e.stopPropagation(); sendReply(); }} disabled={!draft.trim() || sending} className="agent-btn agent-btn-sm agent-btn-primary">Send</button>
           </div>
         </div>

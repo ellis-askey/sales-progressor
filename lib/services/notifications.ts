@@ -139,6 +139,40 @@ export async function notifyTransactionRelisted(args: {
   });
 }
 
+/**
+ * A colleague replied to a staff member's activity note, and the replier ticked
+ * the optional "Let {author} know" toggle on the reply composer. Recipient is the
+ * ORIGINAL note author (a staff member already on the file — Law 7: no
+ * cross-tenant lookup, the caller only ever passes the note's own author id).
+ *
+ * Kept in sync with the matching push in pushNoteReply
+ * (lib/agent/push-events.ts): change both together. The renderer MUST use the
+ * pre-rendered payload values verbatim:
+ *   title:  "New reply on your note"
+ *   body:   "{replierName} replied to your note on {propertyAddress}"
+ */
+export async function notifyNoteReply(args: {
+  userId: string;
+  transactionId: string;
+  replierName: string;
+  notePreview: string;
+  propertyAddress: string;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "note_reply",
+    transactionId: args.transactionId,
+    payload: {
+      replierName: args.replierName,
+      notePreview: args.notePreview,
+      propertyAddress: args.propertyAddress,
+      // Pre-rendered strings so any renderer uses the locked copy verbatim.
+      title: "New reply on your note",
+      body: `${args.replierName} replied to your note on ${args.propertyAddress}`,
+    },
+  });
+}
+
 /** Event A: an agency-side user confirmed a milestone on an outsourced file. */
 export async function notifyOutsourcedMilestoneConfirmed(args: {
   spUserId: string;

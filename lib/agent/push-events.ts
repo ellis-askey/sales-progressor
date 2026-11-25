@@ -281,3 +281,28 @@ export async function pushTransactionRelisted(args: {
     console.error(`[push-events] saleRelisted failed for tx ${args.transactionId}:`, err);
   }
 }
+
+// A colleague replied to a staff member's activity note and ticked the optional
+// "Let {author} know" toggle on the reply composer. Recipient is the ORIGINAL
+// note author, passed in directly (per-user, not the resolved file owner) — the
+// same shape as pushFileAssigned. The explicit per-reply toggle IS the opt-in, so
+// this fires unconditionally (no notification-pref gate); still fire-and-forget,
+// swallowing its own error so a failed push never breaks the reply. Copy kept in
+// sync with notifyNoteReply (lib/services/notifications.ts): change both together.
+export async function pushNoteReply(args: {
+  userId: string;
+  transactionId: string;
+  replierName: string;
+  propertyAddress: string;
+}): Promise<void> {
+  try {
+    const base = process.env.NEXTAUTH_URL ?? "";
+    await pushToUser(args.userId, {
+      title: "New reply on your note",
+      body:  `${args.replierName} replied to your note on ${args.propertyAddress}`,
+      url:   `${base}/agent/transactions/${args.transactionId}`,
+    });
+  } catch (err) {
+    console.error(`[push-events] noteReply failed for tx ${args.transactionId}:`, err);
+  }
+}

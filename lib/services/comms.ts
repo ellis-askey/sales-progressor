@@ -1621,20 +1621,30 @@ export type AddNoteReplyInput = {
 // reply pointed at another reply re-attaches to that reply's top-level parent.
 // A reply inherits its parent's `businessOnly`, so a reply to a team-private
 // note stays private. Mirrors createCommunicationRecord's ownership check +
-// last-activity touch. Returns the resolved reply (author name/photo/actor
-// resolved like the timeline) so optimistic UI can match the server row.
-export async function addNoteReply(input: AddNoteReplyInput): Promise<NoteReply> {
+// last-activity touch.
+//
+// Returns the resolved reply (author name/photo/actor resolved like the
+// timeline) so optimistic UI can match the server row, PLUS the resolved
+// TOP-LEVEL note's author user id + a short preview of its content + the
+// property address. The author id + preview come from the parent/root note load
+// this function already does (no extra query / N+1); the address rides on the
+// ownership-check `tx` read. These power the optional "Let {author} know"
+// notification fired by replyToNoteAction (Law 7: author is a staff member
+// already on this file).
+export async function addNoteReply(
+  input: AddNoteReplyInput,
+): Promise<{ reply: NoteReply; noteAuthorId: string | null; notePreview: string; propertyAddress: string }> {
   // Same access-scope / ownership gate as createCommunicationRecord.
   const tx = await prisma.propertyTransaction.findFirst({
     where: scopeOwnershipWhere(input.scope, input.transactionId),
-    select: { id: true },
+    select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
 
   // The target note must exist, live on this transaction, and be an internal_note.
   const parent = await prisma.outboundMessage.findFirst({
     where: { id: input.parentNoteId, transactionId: input.transactionId },
-    select: { id: true, type: true, parentNoteId: true, businessOnly: true },
+    select: { id: true, type: true, parentNoteId: true, businessOnly: true, createdById: true, content: true },
   });
   if (!parent || parent.type !== "internal_note") {
     throw new Error("Note not found");
@@ -1642,16 +1652,21 @@ export async function addNoteReply(input: AddNoteReplyInput): Promise<NoteReply>
 
   // Flatten to one level: if the target is itself a reply, attach the new reply
   // to its top-level parent instead, inheriting the top-level note's privacy.
+  // Track the TOP-LEVEL note's author + content for the notify path.
   let topLevelId = parent.id;
   let businessOnly = parent.businessOnly;
+  let noteAuthorId = parent.createdById ?? null;
+  let topLevelContent = parent.content;
   if (parent.parentNoteId) {
     const root = await prisma.outboundMessage.findFirst({
       where: { id: parent.parentNoteId, transactionId: input.transactionId },
-      select: { id: true, businessOnly: true },
+      select: { id: true, businessOnly: true, createdById: true, content: true },
     });
     if (!root) throw new Error("Note not found");
     topLevelId = root.id;
     businessOnly = root.businessOnly;
+    noteAuthorId = root.createdById ?? null;
+    topLevelContent = root.content;
   }
 
   const record = await prisma.outboundMessage.create({
@@ -1681,7 +1696,7 @@ export async function addNoteReply(input: AddNoteReplyInput): Promise<NoteReply>
       : (record.createdBy?.name ?? "Team");
   const actorImage = input.userRole === "superadmin" ? null : (record.createdBy?.image ?? null);
 
-  return {
+  const reply: NoteReply = {
     id: record.id,
     content: record.content,
     at: record.sentAt ?? record.createdAt,
@@ -1695,6 +1710,13 @@ export async function addNoteReply(input: AddNoteReplyInput): Promise<NoteReply>
     wasEdited: record.wasEdited,
     editedAt: record.editedAt ?? null,
   };
+
+  // Short, single-line preview of the note being replied to (for the bell/feed
+  // payload). Ellipsis, not three dots, so no voice-gate concern.
+  const flat = topLevelContent.replace(/\s+/g, " ").trim();
+  const notePreview = flat.length > 80 ? `${flat.slice(0, 80).trimEnd()}…` : flat;
+
+  return { reply, noteAuthorId, notePreview, propertyAddress: tx.propertyAddress };
 }
 
 // ─── WhatsApp chat bulk-import ────────────────────────────────────────────────
