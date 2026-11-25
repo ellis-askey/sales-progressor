@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@phosphor-icons/react";
+import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight } from "@phosphor-icons/react";
 import { formatTimestamp, ordinal, relativeDate } from "@/lib/utils";
-import type { ActivityEntry } from "@/lib/services/comms";
-import { deleteCommAction, editCommAction } from "@/app/actions/comms";
+import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
+import { deleteCommAction, editCommAction, replyToNoteAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { getCommBadge } from "@/lib/agent/comms-display";
 import { ActorAvatar, type ActorRole } from "@/components/ui/Avatar";
@@ -26,6 +26,13 @@ type Props = {
   mosDocUrl?: string | null;
   beforeEntries?: React.ReactNode;
   currentUserId?: string;
+  // Author identity for optimistic reply rows (mirrors ActivityTab's optimistic
+  // note adds). Lets a just-posted reply render with the right avatar + name
+  // before the server-returned reply swaps in. Optional — surfaces that don't
+  // pass them fall back to a neutral "You".
+  currentUserName?: string;
+  currentUserImage?: string | null;
+  currentUserRole?: string;
   // Contact list for the inline edit form's contact picker. Optional —
   // when omitted (e.g. global comms surfaces that don't pass contacts),
   // edit is disabled.
@@ -343,9 +350,296 @@ function EmailConversationDrawer({
   );
 }
 
+// ─── Note replies (threaded notes, Phase 2) ─────────────────────────────────────
+// A note's replies render as indented rows beneath it, with a collapse toggle and
+// an inline composer. A reply IS an internal_note (parentNoteId → the note), so
+// its own-only edit / remove reuse editCommAction / deleteCommAction by id. Lives
+// native to the Activity tab: same avatars, buttons and optimistic feel as the
+// feed, not the arc comment-thread component.
+
+function pluralReplies(n: number): string {
+  return `${n} ${n === 1 ? "reply" : "replies"}`;
+}
+
+// Session role → activity avatar tint for an optimistic reply (mirrors the
+// service's userRoleToActor so the placeholder matches the server-resolved reply).
+function roleToActorRole(role?: string): ActorRole {
+  if (role === "sales_progressor" || role === "admin" || role === "superadmin") return "progressor";
+  return "agent";
+}
+
+function NoteThread({
+  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole,
+}: {
+  note: Extract<ActivityEntry, { kind: "comm" }>;
+  transactionId: string;
+  currentUserId?: string;
+  currentUserName?: string;
+  currentUserImage?: string | null;
+  currentUserRole?: string;
+}) {
+  const [, startThreadTransition] = useTransition();
+  // Optimistic replies appended locally (temp id until the server-returned reply
+  // swaps in), reply edits (content override + "edited" time), and removed ids —
+  // all cleared when the server replies refresh (revalidate has caught up).
+  const [localReplies, setLocalReplies] = useState<NoteReply[]>([]);
+  const [removedReplyIds, setRemovedReplyIds] = useState<Set<string>>(new Set());
+  const [replyEdits, setReplyEdits] = useState<Record<string, { content: string; editedAt: Date }>>({});
+  const [collapsed, setCollapsed] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingReplyId, setSavingReplyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalReplies([]);
+    setRemovedReplyIds(new Set());
+    setReplyEdits({});
+  }, [note.replies]);
+
+  // Dedupe by id so the paint between revalidate landing and the reconcile effect
+  // never renders a reply twice (same key) — the server copy wins.
+  const serverIds = new Set(note.replies.map((r) => r.id));
+  const replies = [...note.replies, ...localReplies.filter((r) => !serverIds.has(r.id))]
+    .filter((r) => !removedReplyIds.has(r.id));
+  const lastReply = replies[replies.length - 1];
+
+  // Own-only, same rule as a note: a persisted reply the current user authored.
+  // Optimistic (not-yet-saved) rows can't be edited by id.
+  function canTouchReply(r: NoteReply): boolean {
+    return (
+      !r.id.startsWith("optimistic-")
+      && r.createdById != null
+      && (!currentUserId || r.createdById === currentUserId)
+    );
+  }
+
+  function sendReply() {
+    const content = draft.trim();
+    if (!content) return;
+    const tempId = `optimistic-reply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const placeholder: NoteReply = {
+      id: tempId,
+      content,
+      at: new Date(),
+      createdById: currentUserId ?? null,
+      createdByName: currentUserName ?? "You",
+      createdByImage: currentUserImage ?? null,
+      createdByRole: currentUserRole ?? null,
+      actorRole: roleToActorRole(currentUserRole),
+      actorName: currentUserName ?? "You",
+      actorImage: currentUserImage ?? null,
+      wasEdited: false,
+      editedAt: null,
+    };
+    setLocalReplies((prev) => [...prev, placeholder]);
+    setDraft("");
+    setComposerOpen(false);
+    setCollapsed(false);
+    setSending(true);
+    startThreadTransition(async () => {
+      try {
+        const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content });
+        // Swap the placeholder for the real resolved reply (correct id + identity).
+        setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
+      } catch {
+        setLocalReplies((prev) => prev.filter((r) => r.id !== tempId));
+      } finally {
+        setSending(false);
+      }
+    });
+  }
+
+  function startReplyEdit(r: NoteReply) {
+    setEditingReplyId(r.id);
+    setEditDraft(replyEdits[r.id]?.content ?? r.content);
+  }
+  function cancelReplyEdit() {
+    setEditingReplyId(null);
+    setEditDraft("");
+  }
+  function saveReplyEdit(id: string) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    setReplyEdits((prev) => ({ ...prev, [id]: { content: trimmed, editedAt: new Date() } }));
+    setEditingReplyId(null);
+    setEditDraft("");
+    setSavingReplyId(id);
+    startThreadTransition(async () => {
+      try {
+        // A reply is an internal-only note — no contacts, never client-visible.
+        await editCommAction({ id, transactionId, content: trimmed, contactIds: [], visibleToClient: false });
+      } catch {
+        setReplyEdits((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      } finally {
+        setSavingReplyId((cur) => (cur === id ? null : cur));
+      }
+    });
+  }
+  function removeReply(id: string) {
+    setRemovedReplyIds((prev) => new Set([...prev, id]));
+    startThreadTransition(async () => {
+      try {
+        await deleteCommAction(id, transactionId);
+      } catch {
+        setRemovedReplyIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    });
+  }
+
+  function renderReply(r: NoteReply) {
+    const override = replyEdits[r.id];
+    const content = override?.content ?? r.content;
+    const edited = override ? true : r.wasEdited;
+    const editedAt = override?.editedAt ?? r.editedAt;
+    const isEditingThis = editingReplyId === r.id;
+    const canTouch = canTouchReply(r);
+    const optimistic = r.id.startsWith("optimistic-");
+    return (
+      <div key={r.id} style={{ display: "flex", gap: 8, position: "relative", opacity: optimistic ? 0.65 : 1 }}>
+        <div style={{ flexShrink: 0, marginTop: 1 }}>
+          <ActorAvatar name={r.actorName} role={r.actorRole} image={r.actorImage} size={20} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{r.actorName}</span>
+            <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{formatTimestamp(r.at)}</span>
+            {edited && (
+              <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>
+                {editedAt ? `edited ${relativeDate(editedAt)}` : "edited"}
+              </span>
+            )}
+          </div>
+          {isEditingThis ? (
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+              <textarea
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                rows={Math.max(2, Math.min(8, editDraft.split("\n").length + 1))}
+                className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+                autoFocus
+              />
+              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <button type="button" onClick={(e) => { e.stopPropagation(); cancelReplyEdit(); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); saveReplyEdit(r.id); }} disabled={!editDraft.trim() || savingReplyId === r.id} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: canTouch ? 42 : 0 }}>
+              {content}
+            </p>
+          )}
+        </div>
+        {canTouch && !isEditingThis && (
+          <div style={{ position: "absolute", top: 0, right: 0, display: "flex", gap: 2 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); startReplyEdit(r); }}
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ opacity: 0.35 }}
+              onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = "0.35")}
+              onFocus={(e) => (e.currentTarget.style.opacity = "1")}
+              onBlur={(e) => (e.currentTarget.style.opacity = "0.35")}
+              aria-label="Edit reply"
+              title="Edit"
+            >
+              ✎
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeReply(r.id); }}
+              className="agent-icon-btn agent-icon-btn-sm"
+              style={{ opacity: 0.35 }}
+              onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = "0.35")}
+              onFocus={(e) => (e.currentTarget.style.opacity = "1")}
+              onBlur={(e) => (e.currentTarget.style.opacity = "0.35")}
+              aria-label="Remove reply"
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+      {/* Toggle + Reply affordance. Replies expand by default; collapsed shows the
+          count and a last-reply hint. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        {replies.length > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
+            aria-expanded={!collapsed}
+            style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4, color: "var(--agent-text-muted)" }}
+          >
+            <CaretRight size={11} weight="bold" style={{ transform: collapsed ? "none" : "rotate(90deg)", transition: "transform .18s cubic-bezier(.4,0,.2,1)" }} />
+            {collapsed ? `Show ${pluralReplies(replies.length)}` : "Hide replies"}
+          </button>
+        )}
+        {collapsed && replies.length > 0 && lastReply && (
+          <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+            last reply {relativeDate(lastReply.editedAt ?? lastReply.at)}
+          </span>
+        )}
+        {!composerOpen && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setComposerOpen(true); }}
+            style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4 }}
+            aria-label="Reply to note"
+          >
+            <ArrowBendDownRight size={13} weight="bold" />
+            Reply
+          </button>
+        )}
+      </div>
+
+      {replies.length > 0 && !collapsed && (
+        <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", flexDirection: "column", gap: 12 }}>
+          {replies.map(renderReply)}
+        </div>
+      )}
+
+      {composerOpen && (
+        <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", flexDirection: "column", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={Math.max(2, Math.min(8, draft.split("\n").length + 1))}
+            placeholder="Write a reply…"
+            className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+            aria-label="Write a reply"
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); sendReply(); }} disabled={!draft.trim() || sending} className="agent-btn agent-btn-sm agent-btn-primary">Send</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, contacts, solicitors }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, currentUserName, currentUserImage, currentUserRole, contacts, solicitors }: Props) {
   const searchTag = useGlassTag("activity-searchbar", "Activity · search bar", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -934,17 +1228,32 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           ✎
                         </button>
                       )}
-                      {isOwnNote && (
+                      {/* A note that still has replies can't be removed (the
+                          server orphans guard throws) — hide the control so the
+                          user never hits that error. Remove the replies first. */}
+                      {isOwnNote && entry.replies.length === 0 && (
                         <button
                           onClick={() => deleteComm(entry.id)}
                           disabled={deletingId === entry.id || isPending || exitingId === entry.id}
                           className="agent-icon-btn agent-icon-btn-sm"
-                          aria-label="Delete"
+                          aria-label="Remove"
                         >
                           ×
                         </button>
                       )}
                     </div>
+                  )}
+
+                  {/* Threaded replies + inline reply composer (notes only). */}
+                  {entry.type === "internal_note" && !entry.isAutomated && (
+                    <NoteThread
+                      note={entry}
+                      transactionId={transactionId}
+                      currentUserId={currentUserId}
+                      currentUserName={currentUserName}
+                      currentUserImage={currentUserImage}
+                      currentUserRole={currentUserRole}
+                    />
                   )}
                 </GlassCard>
               );

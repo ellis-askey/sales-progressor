@@ -116,6 +116,9 @@ export function ActivityTab(props: Props) {
       transactionId={props.transactionId}
       mosDocUrl={props.mosDocUrl}
       currentUserId={props.currentUserId}
+      currentUserName={props.currentUserName}
+      currentUserImage={props.currentUserImage}
+      currentUserRole={props.currentUserRole}
       contacts={props.contacts}
       solicitors={props.solicitors}
     />

@@ -357,6 +357,7 @@ export function ActivityNotesCard({
             onEditSave={re.onEditSave}
             onEditCancel={re.onEditCancel}
             saving={re.saving}
+            replyCount={e.kind === "comm" ? e.replies.length : 0}
           />
         );
       })}
@@ -395,7 +396,7 @@ function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen, edit }: 
             const opt = isOptimistic(entry.id);
             if (!isNote(entry)) return <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} />;
             const re = noteRowEdit(entry, edit);
-            return <NoteRow key={entry.id} content={re.content} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} editedAt={re.editedAt} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} />;
+            return <NoteRow key={entry.id} content={re.content} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} editedAt={re.editedAt} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} replyCount={entry.kind === "comm" ? entry.replies.length : 0} />;
           })}
         </div>
       ))}
@@ -432,7 +433,7 @@ function NotesView({ entries, removedIds, deletingIds, onDelete, onOpen, edit }:
         return (
         <NoteRow key={r.id} content={re.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} editedAt={re.editedAt} optimistic={r.optimistic} onOpen={onOpen}
           onDelete={r.optimistic || deletingIds.has(r.id) ? undefined : () => onDelete(r.id)} deleting={deletingIds.has(r.id)}
-          onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} />
+          onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} replyCount={r.entry.kind === "comm" ? r.entry.replies.length : 0} />
         );
       })}
       {!expanded && hidden > 0 && (
@@ -485,8 +486,11 @@ function ActivityRow({ entry, optimistic, onOpen }: { entry: ActivityEntry; opti
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, authorImage, time, editedAt, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage, onOpen, onEdit, editing, editDraft, onEditChange, onEditSave, onEditCancel, saving }: {
+function NoteRow({ content, author, authorImage, time, editedAt, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage, onOpen, onEdit, editing, editDraft, onEditChange, onEditSave, onEditCancel, saving, replyCount = 0 }: {
   content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
+  // Number of threaded replies on this note. Shown as a quiet "{n} repl{y/ies}"
+  // indicator in the byline; the full thread lives on the Activity tab.
+  replyCount?: number;
   // Real last-edit time. When set the byline reads "edited {time}" in place of
   // the created time; null/omitted for a note that's never been edited.
   editedAt?: Date | null;
@@ -561,6 +565,9 @@ function NoteRow({ content, author, authorImage, time, editedAt, optimistic, onD
                 }}>{tag}</span>
               )}
               <span>{showByName ? `${who} · ` : ""}{editedAt ? `edited ${relativeDate(editedAt)}` : time}</span>
+              {replyCount > 0 && (
+                <span style={{ color: "var(--agent-text-muted)" }}>· {replyCount} {replyCount === 1 ? "reply" : "replies"}</span>
+              )}
             </p>
           </>
         )}
