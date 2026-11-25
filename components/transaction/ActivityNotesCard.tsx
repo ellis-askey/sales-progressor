@@ -14,13 +14,13 @@
 import { useState, useEffect } from "react";
 import { useTabContext } from "./TabContext";
 import {
-  CheckCircle, MinusCircle, NoteBlank, EnvelopeSimple, Phone, ChatCircleText, Circle,
+  CheckCircle, MinusCircle, NoteBlank, EnvelopeSimple, Phone, ChatCircleText, Circle, PencilSimple,
 } from "@/components/icons/ph";
 import type { Icon } from "@/components/icons/ph";
 import type { ActivityEntry } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { deleteCommAction } from "@/app/actions/comms";
+import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { relativeDate } from "@/lib/utils";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -34,6 +34,9 @@ type ComposerSolicitor = { id: string; name: string; role: string; phone?: strin
 type Props = {
   transactionId: string;
   entries: ActivityEntry[];
+  // The signed-in user's id — gates the inline edit affordance to your OWN
+  // notes, mirroring the Activity tab's isOwnNote rule.
+  currentUserId: string;
   currentUserName: string;
   currentUserImage?: string | null;
   currentUserRole?: string;
@@ -45,6 +48,43 @@ type Props = {
 
 const FEED_PREVIEW = 4;
 const NOTES_PREVIEW = 5;
+
+// Inline-edit wiring threaded down to each NoteRow. Lets a row render the
+// pencil (when the note is the user's own), swap its text for a textarea in
+// edit mode, and optimistically reflect a save. Mirrors ActivityTimeline.
+type EditController = {
+  localEdits: Record<string, { content: string; editedAt: Date }>;
+  editingId: string | null;
+  editDraft: string;
+  savingId: string | null;
+  canEditEntry: (e: ActivityEntry) => boolean;
+  onStart: (e: ActivityEntry) => void;
+  onChange: (v: string) => void;
+  onSave: (id: string) => void;
+  onCancel: () => void;
+};
+
+// The content + edited-time + edit callbacks a NoteRow needs for one entry,
+// derived from the controller. Applies any optimistic local edit on top.
+function noteRowEdit(entry: ActivityEntry, edit: EditController) {
+  const override = edit.localEdits[entry.id];
+  const content = override?.content ?? (entry.kind === "comm" ? entry.content : "");
+  const editedAt = override?.editedAt
+    ?? (entry.kind === "comm" && entry.wasEdited ? entry.editedAt : null);
+  const editing = edit.editingId === entry.id;
+  const canEdit = edit.canEditEntry(entry);
+  return {
+    content,
+    editedAt,
+    editing,
+    onEdit: canEdit && !editing ? () => edit.onStart(entry) : undefined,
+    editDraft: edit.editDraft,
+    onEditChange: edit.onChange,
+    onEditSave: () => edit.onSave(entry.id),
+    onEditCancel: edit.onCancel,
+    saving: edit.savingId === entry.id,
+  };
+}
 
 function isOptimistic(id: string): boolean {
   return id.startsWith("optimistic-");
@@ -105,6 +145,7 @@ function isSetupNote(e: ActivityEntry): boolean {
 export function ActivityNotesCard({
   transactionId,
   entries,
+  currentUserId,
   currentUserName,
   currentUserImage = null,
   currentUserRole = "",
@@ -122,6 +163,14 @@ export function ActivityNotesCard({
   const [optimistic, setOptimistic] = useState<ActivityEntry[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  // Inline note editing — mirrors the Activity tab. editingId names the row in
+  // edit mode; editDraft holds the live textarea value; savingId tracks the
+  // in-flight save; localEdits optimistically overrides content + marks the row
+  // edited until the server revalidate brings the fresh entry back.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [localEdits, setLocalEdits] = useState<Record<string, { content: string; editedAt: Date }>>({});
 
   useEffect(() => {
     setOptimistic([]);
@@ -130,6 +179,9 @@ export function ActivityNotesCard({
       const next = new Set([...prev].filter((id) => stillPresent.has(id)));
       return next.size === prev.size ? prev : next;
     });
+    // Fresh entries have landed from the revalidate, so the server now carries
+    // the saved content + real edited time — drop the optimistic overrides.
+    setLocalEdits((prev) => (Object.keys(prev).length ? {} : prev));
   }, [entries]);
 
   // Newest first: optimistic rows (at = now) lead, server entries follow.
@@ -160,6 +212,7 @@ export function ActivityNotesCard({
         recipientName: null,
         visibleToClient: false,
         wasEdited: false,
+        editedAt: null,
         wasAiGenerated: false,
         isAutomated: false,
         tone: null,
@@ -195,6 +248,70 @@ export function ActivityNotesCard({
     }
   }
 
+  // You can only ever touch a NOTE you typed yourself — same rule as the
+  // Activity tab's isOwnNote/canEdit (Ellis, 2026-09-26). Everything sent or
+  // received, anything automated, and anyone else's note stays view-only. Also
+  // excludes optimistic (not-yet-persisted) rows.
+  function canEditEntry(e: ActivityEntry): boolean {
+    return (
+      e.kind === "comm"
+      && e.type === "internal_note"
+      && !e.isAutomated
+      && (!currentUserId || e.createdById === currentUserId)
+      && !isOptimistic(e.id)
+    );
+  }
+
+  function startEdit(e: ActivityEntry) {
+    if (e.kind !== "comm") return;
+    setEditingId(e.id);
+    setEditDraft(localEdits[e.id]?.content ?? e.content);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft("");
+  }
+
+  async function saveEdit(id: string) {
+    const trimmed = editDraft.trim();
+    if (!trimmed) return;
+    const entry = merged.find((e) => e.id === id);
+    if (!entry || entry.kind !== "comm") return;
+    // Optimistic: show the new text + "edited" immediately, roll back on failure.
+    setLocalEdits((prev) => ({ ...prev, [id]: { content: trimmed, editedAt: new Date() } }));
+    setEditingId(null);
+    setEditDraft("");
+    setSavingId(id);
+    try {
+      await editCommAction({
+        id,
+        transactionId,
+        content: trimmed,
+        contactIds: entry.contactIds,
+        visibleToClient: entry.visibleToClient,
+      });
+      toast.success("Note updated");
+    } catch {
+      toast.error("Couldn't update note. Try again");
+      setLocalEdits((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    } finally {
+      setSavingId((cur) => (cur === id ? null : cur));
+    }
+  }
+
+  const editController: EditController = {
+    localEdits,
+    editingId,
+    editDraft,
+    savingId,
+    canEditEntry,
+    onStart: startEdit,
+    onChange: setEditDraft,
+    onSave: saveEdit,
+    onCancel: cancelEdit,
+  };
+
   return (
     <GlassCard glassId="overview-activity-notes" label="Overview · Activity & notes" defaultVariant="v05" className="overflow-hidden" style={{ borderRadius: 14 }}>
       {/* Header: title + All/Notes filter + Log an update + view all. The compact
@@ -215,35 +332,46 @@ export function ActivityNotesCard({
 
       {/* Pinned setup note(s) — always above the feed, in both filters,
           and excluded from the lists below so they never render twice. */}
-      {merged.filter((e) => isSetupNote(e) && !removedIds.has(e.id)).map((e) => (
-        <NoteRow
-          key={e.id}
-          content={subtitleFor(e)}
-          author={e.kind === "comm" ? e.createdByName : null}
-          authorImage={e.kind === "comm" ? e.createdByImage : null}
-          actorRole={e.actorRole}
-          actorName={e.actorName}
-          actorImage={e.actorImage}
-          time={fmtTime(e)}
-          tag="Setup note"
-          onOpen={() => setActiveTab("activity")}
-          onDelete={deletingIds.has(e.id) ? undefined : () => handleDelete(e.id)}
-          deleting={deletingIds.has(e.id)}
-        />
-      ))}
+      {merged.filter((e) => isSetupNote(e) && !removedIds.has(e.id)).map((e) => {
+        const re = noteRowEdit(e, editController);
+        return (
+          <NoteRow
+            key={e.id}
+            content={re.content}
+            author={e.kind === "comm" ? e.createdByName : null}
+            authorImage={e.kind === "comm" ? e.createdByImage : null}
+            actorRole={e.actorRole}
+            actorName={e.actorName}
+            actorImage={e.actorImage}
+            time={fmtTime(e)}
+            editedAt={re.editedAt}
+            tag="Setup note"
+            onOpen={() => setActiveTab("activity")}
+            onDelete={deletingIds.has(e.id) ? undefined : () => handleDelete(e.id)}
+            deleting={deletingIds.has(e.id)}
+            onEdit={re.onEdit}
+            editing={re.editing}
+            editDraft={re.editDraft}
+            onEditChange={re.onEditChange}
+            onEditSave={re.onEditSave}
+            onEditCancel={re.onEditCancel}
+            saving={re.saving}
+          />
+        );
+      })}
 
       {filter === "notes" ? (
-        <NotesView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} />
+        <NotesView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} edit={editController} />
       ) : (
-        <FeedView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} />
+        <FeedView entries={merged.filter((e) => !isSetupNote(e))} removedIds={removedIds} deletingIds={deletingIds} onDelete={handleDelete} onOpen={() => setActiveTab("activity")} edit={editController} />
       )}
     </GlassCard>
   );
 }
 
 // ── All: banded activity feed, with optimistic rows already merged in on top ──
-function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
-  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void;
+function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen, edit }: {
+  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void; edit: EditController;
 }) {
   const visible = entries.filter((e) => !removedIds.has(e.id)).slice(0, FEED_PREVIEW);
   if (visible.length === 0) {
@@ -264,9 +392,9 @@ function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
           <BandLabel label={band.label} />
           {band.items.map((entry) => {
             const opt = isOptimistic(entry.id);
-            return isNote(entry)
-              ? <NoteRow key={entry.id} content={subtitleFor(entry)} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} />
-              : <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} />;
+            if (!isNote(entry)) return <ActivityRow key={entry.id} entry={entry} optimistic={opt} onOpen={onOpen} />;
+            const re = noteRowEdit(entry, edit);
+            return <NoteRow key={entry.id} content={re.content} author={entry.kind === "comm" ? entry.createdByName : null} authorImage={entry.kind === "comm" ? entry.createdByImage : null} actorRole={entry.actorRole} actorName={entry.actorName} actorImage={entry.actorImage} time={opt ? "just now" : fmtTime(entry)} editedAt={re.editedAt} optimistic={opt} onOpen={onOpen} onDelete={opt || deletingIds.has(entry.id) ? undefined : () => onDelete(entry.id)} deleting={deletingIds.has(entry.id)} onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} />;
           })}
         </div>
       ))}
@@ -275,16 +403,16 @@ function FeedView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
 }
 
 // ── Notes: flat notes list, paginated ──
-function NotesView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
-  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void;
+function NotesView({ entries, removedIds, deletingIds, onDelete, onOpen, edit }: {
+  entries: ActivityEntry[]; removedIds: Set<string>; deletingIds: Set<string>; onDelete: (id: string) => void; onOpen: () => void; edit: EditController;
 }) {
   const [expanded, setExpanded] = useState(false);
   const notes = entries.filter((e) => isNote(e) && !removedIds.has(e.id));
   if (notes.length === 0) return <Empty label="No notes yet. Add the first one above." />;
 
   const rows = notes.map((e) => ({
+    entry: e,
     id: e.id,
-    content: subtitleFor(e),
     author: e.kind === "comm" ? e.createdByName : null,
     authorImage: e.kind === "comm" ? e.createdByImage : null,
     actorRole: e.actorRole as ActorRole | undefined,
@@ -298,10 +426,14 @@ function NotesView({ entries, removedIds, deletingIds, onDelete, onOpen }: {
 
   return (
     <div>
-      {shown.map((r) => (
-        <NoteRow key={r.id} content={r.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} optimistic={r.optimistic} onOpen={onOpen}
-          onDelete={r.optimistic || deletingIds.has(r.id) ? undefined : () => onDelete(r.id)} deleting={deletingIds.has(r.id)} />
-      ))}
+      {shown.map((r) => {
+        const re = noteRowEdit(r.entry, edit);
+        return (
+        <NoteRow key={r.id} content={re.content} author={r.author} authorImage={r.authorImage} actorRole={r.actorRole} actorName={r.actorName} actorImage={r.actorImage} time={r.time} editedAt={re.editedAt} optimistic={r.optimistic} onOpen={onOpen}
+          onDelete={r.optimistic || deletingIds.has(r.id) ? undefined : () => onDelete(r.id)} deleting={deletingIds.has(r.id)}
+          onEdit={re.onEdit} editing={re.editing} editDraft={re.editDraft} onEditChange={re.onEditChange} onEditSave={re.onEditSave} onEditCancel={re.onEditCancel} saving={re.saving} />
+        );
+      })}
       {!expanded && hidden > 0 && (
         <button onClick={() => setExpanded(true)} className="agent-link-muted" style={{ fontSize: 11, padding: "8px 16px", display: "block" }}>
           Show {hidden} more note{hidden !== 1 ? "s" : ""}
@@ -352,8 +484,11 @@ function ActivityRow({ entry, optimistic, onOpen }: { entry: ActivityEntry; opti
 
 // The leveled-up note row: the note text leads, author + time beneath, a quiet
 // delete that reveals on hover.
-function NoteRow({ content, author, authorImage, time, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage, onOpen }: {
+function NoteRow({ content, author, authorImage, time, editedAt, optimistic, onDelete, deleting, tag, actorRole, actorName, actorImage, onOpen, onEdit, editing, editDraft, onEditChange, onEditSave, onEditCancel, saving }: {
   content: string; author: string | null; authorImage?: string | null; time: string; optimistic?: boolean; onDelete?: () => void; deleting?: boolean;
+  // Real last-edit time. When set the byline reads "edited {time}" in place of
+  // the created time; null/omitted for a note that's never been edited.
+  editedAt?: Date | null;
   // Whole-row click → the full Activity tab (critique #296).
   onOpen?: () => void;
   // Small pill rendered before the author line (e.g. "Setup note" on the
@@ -364,6 +499,10 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
   // avatar + byline use this actor (photo / side-tinted person). Falls back to
   // author (the logger) for optimistic notes.
   actorRole?: ActorRole; actorName?: string | null; actorImage?: string | null;
+  // Inline edit — shown only for the user's own manually-typed notes. onEdit
+  // enters edit mode; editing swaps the text for a textarea with Save/Cancel.
+  onEdit?: () => void; editing?: boolean; editDraft?: string;
+  onEditChange?: (v: string) => void; onEditSave?: () => void; onEditCancel?: () => void; saving?: boolean;
 }) {
   const who = actorName ?? author;
   // Drop the byline name when the text already leads with it (system lines like
@@ -372,14 +511,19 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
   // so it keeps "{who} · " as its only attribution.
   const nameLeadsContent = !!who && content.trimStart().startsWith(who);
   const showByName = !!who && !nameLeadsContent;
+  // Whole-row navigation is suppressed while editing so a background click can't
+  // throw away the in-progress edit.
+  const rowOpen = editing ? undefined : onOpen;
+  // Room on the right for the hover controls (pencil + delete).
+  const actionPad = (onEdit && onDelete) ? 44 : (onEdit || onDelete) ? 22 : 0;
   return (
     <div
       className={`agent-hover-row${optimistic ? " agent-reveal-in" : ""}`}
-      role={onOpen ? "button" : undefined}
-      tabIndex={onOpen ? 0 : undefined}
-      onClick={onOpen}
-      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
-      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative", cursor: onOpen ? "pointer" : undefined }}>
+      role={rowOpen ? "button" : undefined}
+      tabIndex={rowOpen ? 0 : undefined}
+      onClick={rowOpen}
+      onKeyDown={rowOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); rowOpen(); } } : undefined}
+      style={{ padding: "8px 16px", borderTop: "0.5px solid var(--agent-border-default)", display: "flex", alignItems: "flex-start", gap: 10, opacity: optimistic ? 0.65 : 1, position: "relative", cursor: rowOpen ? "pointer" : undefined }}>
       {actorRole ? (
         <ActorAvatar name={actorName || author || "?"} role={actorRole} image={actorImage ?? null} size={28} />
       ) : author ? (
@@ -390,19 +534,51 @@ function NoteRow({ content, author, authorImage, time, optimistic, onDelete, del
         </span>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: onDelete ? 20 : 0 }}>{content}</p>
-        <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-          {tag && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
-              color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb), 0.10)",
-              padding: "1px 6px", borderRadius: 6, flexShrink: 0,
-            }}>{tag}</span>
-          )}
-          <span>{showByName ? `${who} · ` : ""}{time}</span>
-        </p>
+        {editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+            <textarea
+              value={editDraft ?? ""}
+              onChange={(e) => onEditChange?.(e.target.value)}
+              rows={Math.max(2, Math.min(8, (editDraft ?? "").split("\n").length + 1))}
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+              autoFocus
+            />
+            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onEditCancel?.(); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onEditSave?.(); }} disabled={!(editDraft ?? "").trim() || saving} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap", paddingRight: actionPad }}>{content}</p>
+            <p style={{ margin: "3px 0 0", fontSize: 10, color: "var(--agent-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+              {tag && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: "var(--agent-coral-deep)", background: "rgba(var(--agent-coral-rgb), 0.10)",
+                  padding: "1px 6px", borderRadius: 6, flexShrink: 0,
+                }}>{tag}</span>
+              )}
+              <span>{showByName ? `${who} · ` : ""}{editedAt ? `edited ${relativeDate(editedAt)}` : time}</span>
+            </p>
+          </>
+        )}
       </div>
-      {onDelete && (
+      {!editing && onEdit && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="agent-icon-btn agent-icon-btn-sm"
+          style={{ position: "absolute", top: 6, right: onDelete ? 30 : 8, opacity: 0.3 }}
+          onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseOut={(e) => (e.currentTarget.style.opacity = "0.3")}
+          onFocus={(e) => (e.currentTarget.style.opacity = "1")}
+          onBlur={(e) => (e.currentTarget.style.opacity = "0.3")}
+          aria-label="Edit note"
+        >
+          <PencilSimple size={13} weight="regular" />
+        </button>
+      )}
+      {!editing && onDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           disabled={deleting}

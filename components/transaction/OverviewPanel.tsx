@@ -751,6 +751,7 @@ export async function OverviewPanel({
       <ActivityNotesCard
         transactionId={transaction.id}
         entries={activityEntries}
+        currentUserId={currentUserId}
         currentUserName={currentUserName}
         currentUserImage={currentUserImage}
         currentUserRole={currentUserRole ?? undefined}

@@ -83,6 +83,11 @@ export type ActivityEntry =
       recipientName: string | null;
       visibleToClient: boolean;
       wasEdited: boolean;
+      // Last-edit time, surfaced as "edited {time}" next to the row. The
+      // OutboundMessage row's updatedAt is bumped by @updatedAt on every edit,
+      // so when wasEdited is true it IS the last-edit time. Only meaningful
+      // then — null otherwise (and for rows that can't be edited).
+      editedAt: Date | null;
       wasAiGenerated: boolean;
       isAutomated: boolean;
       tone: string | null;
@@ -571,6 +576,7 @@ export async function getActivityTimeline(
       conversationId: null,
       sentAt: null,
       createdAt: p.createdAt,
+      updatedAt: p.createdAt,
       chaseTaskId: null,
     } as unknown as (typeof comms)[number];
   });
@@ -613,6 +619,7 @@ export async function getActivityTimeline(
     recipientName: c.recipientName ?? null,
     visibleToClient: c.visibleToClient,
     wasEdited: c.wasEdited,
+    editedAt: c.wasEdited ? c.updatedAt : null,
     wasAiGenerated: c.wasAiGenerated,
     isAutomated: c.isAutomated,
     tone: c.tone,

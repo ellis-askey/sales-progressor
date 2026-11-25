@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash } from "@phosphor-icons/react";
-import { formatTimestamp, ordinal } from "@/lib/utils";
+import { formatTimestamp, ordinal, relativeDate } from "@/lib/utils";
 import type { ActivityEntry } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
@@ -81,8 +81,8 @@ function SystemAvatar({ size = 22 }: { size?: number }) {
 // Shared row footer: who it's from (photo/initials + name + optional role
 // sub-label) on the left, timestamp bottom-right. Used by comm + milestone rows.
 function ActorFooter({
-  role, name, image, sublabel, at, isEdited, placement = "bottom", hideDate = false,
-}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; placement?: "top" | "bottom"; hideDate?: boolean }) {
+  role, name, image, sublabel, at, isEdited, editedAt, placement = "bottom", hideDate = false,
+}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; editedAt?: Date | null; placement?: "top" | "bottom"; hideDate?: boolean }) {
   // System rows read as "TSP" (The Sales Progressor), not the internal "System".
   const displayName = role === "system" ? "TSP" : name;
   return (
@@ -98,7 +98,7 @@ function ActorFooter({
           with the hover edit/delete controls pinned top-right. */}
       {!hideDate && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
+          {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>{editedAt ? `edited ${relativeDate(editedAt)}` : "edited"}</span>}
           <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>{at ? formatTimestamp(at) : ""}</span>
         </div>
       )}
@@ -627,6 +627,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     .filter(Boolean) as string[])
                 : entry.contactNames;
               const isEdited = override?.wasEdited || entry.wasEdited;
+              // An optimistic local edit just happened → "edited" now; otherwise
+              // the row's real last-edit time (updatedAt, surfaced as editedAt).
+              const editedAt = override?.wasEdited ? new Date() : entry.editedAt;
               const isEditing = editingId === entry.id;
               // You can only ever touch a NOTE you typed yourself. Everything that
               // was sent or received (emails, calls, messages), anything the system
@@ -681,6 +684,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     sublabel={entry.actorSubLabel}
                     at={entry.at}
                     isEdited={isEdited}
+                    editedAt={editedAt}
                     placement="top"
                     hideDate
                   />
@@ -907,7 +911,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                         )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>(edited)</span>}
+                        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>{editedAt ? `edited ${relativeDate(editedAt)}` : "edited"}</span>}
                         <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{entry.at ? formatTimestamp(entry.at) : ""}</span>
                       </div>
                     </div>

@@ -39,6 +39,7 @@ function row(spec: Spec, i: number): ActivityEntry {
     recipientName: null,
     visibleToClient: false,
     wasEdited: false,
+    editedAt: null,
     wasAiGenerated: false,
     isAutomated: false,
     tone: null,

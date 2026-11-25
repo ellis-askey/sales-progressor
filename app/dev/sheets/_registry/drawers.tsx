@@ -478,6 +478,7 @@ function makeTimelineEmail(over: Partial<TimelineComm> & Pick<TimelineComm, "id"
     recipientName: null,
     visibleToClient: false,
     wasEdited: false,
+    editedAt: null,
     wasAiGenerated: false,
     isAutomated: false,
     tone: null,
