@@ -60,9 +60,9 @@ export default function CompareNotificationsPage() {
         </Cols>
       </Card>
 
-      {/* 3 washed boxes — reworked */}
+      {/* 3 washed boxes - reworked */}
       <Card n={3} title="Shaded boxes: drop the colour, keep the presence" chip="existing">
-        <p className="cmp-blurb">You were right that going fully white felt empty. New plan: the rows keep a <b>real surface and a proper border</b> (clearly “a thing”), but lose the coloured wash — the meaning moves to a small tag. The paused row gets a “Paused” tag; “this device” keeps its coral tag. And the iPhone install box is now a <b>proper step-by-step guide</b> (icon + heading + the app’s numbered coral steps), not a bare box.</p>
+        <p className="cmp-blurb">You were right that going fully white felt empty. New plan: the rows keep a <b>real surface and a proper border</b> (clearly “a thing”), but lose the coloured wash; the meaning moves to a small tag. The paused row gets a “Paused” tag; “this device” keeps its coral tag. And the iPhone install box is now a <b>proper step-by-step guide</b> (icon + heading + the app’s numbered coral steps), not a bare box.</p>
         <Cols>
           <Col label="Now (coloured wash)">
             <div className="file-amber-now">12 Example Road <span className="sub">· pale yellow fill</span></div>
@@ -88,7 +88,7 @@ export default function CompareNotificationsPage() {
               <div className="iig-div" />
               <p className="iig-lead">First, add the app to your Home Screen</p>
               <div className="iig-steps">
-                <div className="iig-step"><span className="iig-num">1.</span><span>Tap the <b>Share</b> <UploadSimple size={13} weight="bold" className="iig-share" /> button in Safari.</span></div>
+                <div className="iig-step"><span className="iig-num">1.</span><span>Tap the <span style={{ whiteSpace: "nowrap" }}><b>Share</b> <UploadSimple size={13} weight="bold" className="iig-share" /></span> button in Safari.</span></div>
                 <div className="iig-step"><span className="iig-num">2.</span><span>Scroll down and select <b>Add to Home Screen</b>.</span></div>
                 <div className="iig-step"><span className="iig-num">3.</span><span>Tap <b>Add</b> in the top-right corner.</span></div>
                 <div className="iig-step"><span className="iig-num">4.</span><span>Open the app from your Home Screen.</span></div>
@@ -168,7 +168,7 @@ export default function CompareNotificationsPage() {
         <p className="cmp-secsub">The card chrome, the section master-control header, and every on/off switch are already the standard parts (shown below). The whole mobile-push setup logic (permissions, iPhone detection, device handling) is reused untouched; only its colours and buttons change above.</p>
         <div className="gf-grid">
           <GF label="The standard on/off switch" note="Already the canonical switch (LiquidToggle) everywhere on the page."><Switch /></GF>
-          <GF label="The paused-file empty state (real icon)" note="This is the actual icon — a bell-with-a-slash in the standard empty-state coral circle. (The “⌀” you saw earlier was just my lazy placeholder, sorry.) Already canonical; one invisible token swap only.">
+          <GF label="The paused-file empty state (real icon)" note="This is the actual icon: a bell-with-a-slash in the standard empty-state coral circle. (The “⌀” you saw earlier was just my lazy placeholder, sorry.) Already canonical; one invisible token swap only.">
             <div style={{ textAlign: "center" }}>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.10)", color: "var(--agent-coral-deep)", marginBottom: 10 }}><BellSlash size={20} weight="bold" /></span>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>No files are paused</p>

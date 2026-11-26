@@ -442,7 +442,7 @@ function IosInstallGuide() {
       <div className="iig-div" />
       <p className="iig-lead">First, add the app to your Home Screen</p>
       <div className="iig-steps">
-        <div className="iig-step"><span className="iig-num">1.</span><span>Tap the <b>Share</b> <UploadSimple size={13} weight="bold" className="iig-share" /> button in Safari.</span></div>
+        <div className="iig-step"><span className="iig-num">1.</span><span>Tap the <span style={{ whiteSpace: "nowrap" }}><b>Share</b> <UploadSimple size={13} weight="bold" className="iig-share" /></span> button in Safari.</span></div>
         <div className="iig-step"><span className="iig-num">2.</span><span>Scroll down and select <b>Add to Home Screen</b>.</span></div>
         <div className="iig-step"><span className="iig-num">3.</span><span>Tap <b>Add</b> in the top-right corner.</span></div>
         <div className="iig-step"><span className="iig-num">4.</span><span>Open the app from your Home Screen.</span></div>
