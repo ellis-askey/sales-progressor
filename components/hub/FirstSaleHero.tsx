@@ -18,7 +18,9 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { FirstSalePhoto } from "@/components/hub/FirstSalePhoto";
 import { Pill } from "@/components/ui/Pill";
-import { buttonClasses } from "@/components/arc/button/button";
+// Server-safe import (this is a server component): build the arc button class
+// string from the non-"use client" module, else calling it server-side throws.
+import { buttonClasses } from "@/components/arc/button/button-classes";
 
 export function FirstSaleHero({
   sale,

@@ -12,6 +12,13 @@ import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useRedu
 import type { TargetAndTransition, Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./button.module.css";
+// buttonClasses + its variant/size types live in a server-safe sibling module
+// so SERVER components can build the class string too (calling this "use client"
+// module's exports from the server throws — see button-classes.ts). Imported for
+// this file's own internal use and re-exported below for existing client callers.
+import { buttonClasses, type ButtonVariant, type ButtonSize } from "./button-classes";
+export { buttonClasses };
+export type { ButtonVariant, ButtonSize };
 
 // motion's intrinsic-element prop union overflows TypeScript (TS2590) on this
 // repo's toolchain — framer-motion's `motion.span` hits it too. These aliases
@@ -26,26 +33,12 @@ const MotionSpan = motion.span as any;
 // `outline` (coral border + coral text) and the `xs` size + `icon` (square, label-less)
 // mode are TSP additions on top of the vendored uiarc variants, so the agent-btn
 // migration (D1) is no-brand-loss and no-resize. See button.module.css.
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
-export type ButtonSize = "xs" | "sm" | "md" | "lg";
-
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onDrag" | "onDragEnd" | "onDragStart" | "onAnimationStart"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   /** Square, label-less icon button (matches the old agent-btn-icon-sm/md). */
   icon?: boolean;
-}
-
-/** The arc Button's class string, for things that must be an anchor/Link rather than a
- *  <button> (the shadcn-style escape hatch). A `<Link className={buttonClasses({…})}>`
- *  gets the identical look — just without the press-spring / label-morph motion, which a
- *  navigation doesn't need. This is how agent-btn-on-<Link>/<a> CTAs migrate. */
-export function buttonClasses(
-  { variant = "primary", size = "md", icon = false, className }:
-  { variant?: ButtonVariant; size?: ButtonSize; icon?: boolean; className?: string } = {},
-): string {
-  return [styles.button, styles[variant], styles[size], icon ? styles.icon : null, className].filter(Boolean).join(" ");
 }
 
 /** Icon buttons press a little deeper, wide buttons a little less, so every size reads as the same push. */

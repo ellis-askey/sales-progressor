@@ -53,7 +53,10 @@ import { AnimatedSection } from "@/components/hub/AnimatedSection";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { getSignedUrlMap } from "@/lib/supabase-storage";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { buttonClasses } from "@/components/arc/button/button";
+// Server-safe import: hub-view is a server component, so it must build the arc
+// button class string from the non-"use client" module (importing from
+// button.tsx threw "buttonClasses from the server" and crashed the hub).
+import { buttonClasses } from "@/components/arc/button/button-classes";
 import { StatBlock } from "@/components/ui/StatBlock";
 import { LegendItem } from "@/components/ui/LegendItem";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
