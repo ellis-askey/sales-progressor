@@ -51,7 +51,9 @@ type ContactInput = { name: string; companyName?: string; phone?: string; email?
 // plain `throw` surfaced generic boilerplate instead of the real reason. Any
 // error that is NOT a SaleCreateError is treated as unexpected: reported to
 // Sentry with its full stack, and shown to the user as a generic message.
-export class SaleCreateError extends Error {
+// NOT exported: a "use server" file may only export async functions, so this
+// stays module-private (it's only thrown + caught inside this file anyway).
+class SaleCreateError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SaleCreateError";
