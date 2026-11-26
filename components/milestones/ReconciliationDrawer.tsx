@@ -73,44 +73,46 @@ function ReconStepRow({
   onChange: (v: string) => void;
   last: boolean;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  function pick() {
-    try { ref.current?.showPicker?.(); } catch { ref.current?.focus?.(); }
-  }
   const formatted = value ? fmtChipDate(value) : null;
+  // A transparent native date input overlaid on the affordance, so a tap opens
+  // the native picker on every device (the old showPicker()-only click did
+  // nothing on mobile browsers without showPicker). showPicker stays as a
+  // desktop click nicety.
+  const overlayInput = (
+    <input
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={(e) => { try { (e.currentTarget as HTMLInputElement).showPicker?.(); } catch { /* native tap handles it */ } }}
+      aria-label={formatted ? `Change date for ${item.name}` : `Add a date for ${item.name} (optional)`}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", border: 0, padding: 0, margin: 0 }}
+    />
+  );
 
   return (
     <div style={{ padding: "11px 14px", borderBottom: last ? "none" : "0.5px solid var(--agent-border-subtle)", display: "flex", alignItems: "center", gap: 11 }}>
       <IncludedTick />
       <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: "var(--agent-text-primary)" }}>{item.name}</span>
       <span style={{ position: "relative", flexShrink: 0, display: "inline-flex" }}>
-        {/* Hidden native input — kept mounted so the picker opens on click; holds
-            the value. Visually hidden, never tab-focused (the buttons are). */}
-        <input
-          ref={ref}
-          type="date"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`Date for ${item.name} (optional)`}
-          tabIndex={-1}
-          style={{ position: "absolute", right: 0, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none", border: 0, padding: 0, margin: 0 }}
-        />
         {formatted ? (
           <span className="recon-date-chip">
-            <button type="button" onClick={pick} className="recon-date-chip-val" title="Change date">{formatted}</button>
+            {/* Value acts as the "change" affordance — input overlays only it, so
+                the clear X beside it stays independently tappable. */}
+            <span style={{ position: "relative", display: "inline-flex" }} title="Change date">
+              <span className="recon-date-chip-val">{formatted}</span>
+              {overlayInput}
+            </span>
             <button type="button" onClick={() => onChange("")} aria-label="Clear date" className="recon-date-chip-x">
               <X size={11} weight="bold" />
             </button>
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={pick}
-            aria-label={`Add a date for ${item.name}`}
-            className="recon-cal-btn"
-          >
-            <CalendarBlank size={16} weight="regular" />
-          </button>
+          <span style={{ position: "relative", display: "inline-flex" }}>
+            <span className="recon-cal-btn" aria-hidden="true">
+              <CalendarBlank size={16} weight="regular" />
+            </span>
+            {overlayInput}
+          </span>
         )}
       </span>
     </div>
@@ -128,27 +130,29 @@ function DateField({
   ariaLabel: string;
   placeholder?: string;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
-  function pick() { try { ref.current?.showPicker?.(); } catch { ref.current?.focus?.(); } }
   const formatted = value ? fmtChipDate(value) : null;
   return (
-    <span style={{ position: "relative", display: "block" }}>
-      {/* Hidden native input — anchors + opens the picker; holds the value. */}
+    <span className="recon-datefield-wrap" style={{ position: "relative", display: "block" }}>
+      {/* The visual pill (non-interactive). Border / background / hover / focus
+          live in the .recon-datefield CSS. */}
+      <span className={`recon-datefield${formatted ? "" : " is-empty"}`} aria-hidden="true">
+        <span>{formatted ?? placeholder}</span>
+        <CalendarBlank size={16} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
+      </span>
+      {/* The REAL native input, transparent, filling the pill. Tapping it opens
+          the native date picker on every device — the old showPicker()-only
+          button did nothing on mobile browsers without showPicker (the field
+          "did nothing" on phones). Mirrors the canonical components/ui/DateField
+          mobile approach; showPicker stays as a desktop click nicety. */}
       <input
-        ref={ref}
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => { try { (e.currentTarget as HTMLInputElement).showPicker?.(); } catch { /* native tap handles it */ } }}
         aria-label={ariaLabel}
-        tabIndex={-1}
-        style={{ position: "absolute", left: 12, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: "none", border: 0, padding: 0, margin: 0 }}
+        className="recon-datefield-input"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", border: 0, padding: 0, margin: 0 }}
       />
-      {/* Border / background / hover / focus live in the .recon-datefield CSS so
-          the pseudo-classes aren't overridden by inline styles. */}
-      <button type="button" onClick={pick} className={`recon-datefield${formatted ? "" : " is-empty"}`}>
-        <span>{formatted ?? placeholder}</span>
-        <CalendarBlank size={16} weight="regular" style={{ color: "var(--agent-text-muted)", flexShrink: 0 }} />
-      </button>
     </span>
   );
 }
@@ -369,8 +373,10 @@ export function ReconciliationDrawer({
         }
         [data-night] .recon-datefield { background: rgba(30, 41, 59, 0.85); }
         .recon-datefield.is-empty { color: var(--agent-text-muted); }
-        .recon-datefield:hover { border-color: var(--agent-coral); }
-        .recon-datefield:focus, .recon-datefield:focus-visible { outline: none; border-color: var(--agent-coral-deep); }
+        /* Hover/focus live on the wrapper — the native input sits on top of the
+           pill, so the pill itself never receives :hover / :focus directly. */
+        .recon-datefield-wrap:hover .recon-datefield { border-color: var(--agent-coral); }
+        .recon-datefield-wrap:focus-within .recon-datefield { outline: none; border-color: var(--agent-coral-deep); }
         .recon-cal-btn {
           width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
           display: inline-flex; align-items: center; justify-content: center;
