@@ -280,6 +280,17 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
   const isGate = def.code === "VM18" || def.code === "PM25";
   const isPost = POST_EXCHANGE_CODES.has(def.code);
   const isPM9 = def.code === "PM9";
+  // The "Email the surveyor" action is for arranging access ahead of the visit,
+  // so it has no purpose once the survey day is in the past. Hide it then. A
+  // survey with no captured date keeps the button (we can't know it's happened).
+  const surveyDatePassed = (() => {
+    if (!isPM9) return false;
+    const d = def.completion?.eventDate;
+    if (!d) return false;
+    const survey = new Date(d); survey.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return survey < today;
+  })();
   const isExchangeMilestone = def.code === "VM19" || def.code === "PM26";
   const effectivelyAvailable = (def.isAvailable || (optimisticallyAvailable ?? false)) && !(optimisticallyRelocked ?? false);
 
@@ -729,8 +740,9 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
               expectedDate={def.completion?.expectedDate ? new Date(def.completion.expectedDate).toISOString() : null}
             />
           )}
-          {/* Email the surveyor (critique #211): pre-filled, buyer Cc'd. */}
-          {isPM9 && isDone && def.bookedSurveyorEmail && (
+          {/* Email the surveyor (critique #211): pre-filled, buyer Cc'd. Dropped
+              once the survey date has passed — nothing left to arrange. */}
+          {isPM9 && isDone && def.bookedSurveyorEmail && !surveyDatePassed && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setShowSurveyEmail(true); }}
