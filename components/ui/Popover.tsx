@@ -94,6 +94,14 @@ function FloatLayer({ isNight, theme, preset, bare, closing, floatRef, pos, widt
         // Full-bleed panels (changelog, notifications, pickers) manage their own
         // internal padding and need the surface to clip their edge-to-edge rows.
         ...(bare ? { padding: 0, overflow: "hidden" } : null),
+        // A listbox picker (Select, broker / solicitor pickers) can hold many
+        // rows — cap its height and let it scroll so the bottom entries stay
+        // reachable. Without this the new-sale "who's progressing / assign to"
+        // people lists ran off the bottom of the screen with no scroll. Scoped
+        // to role="listbox" so tooltips, menus and the self-scrolling
+        // notification / changelog panels are untouched; placed after the `bare`
+        // spread so overflowY wins over its `overflow: "hidden"`.
+        ...(role === "listbox" ? { maxHeight: "min(360px, calc(100dvh - 24px))", overflowY: "auto" } : null),
       }}
     >
       {children}
