@@ -14,7 +14,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
-import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning } from "@phosphor-icons/react";
+import { EnvelopeSimple, CheckCircle, ArrowClockwise } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/Badge";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
 
 type Connection = { id: string; email: string; displayName: string | null };
 type Status = { configured: boolean; connections: Connection[] };
@@ -29,6 +32,7 @@ const REASON_COPY: Record<string, string> = {
 };
 
 const CORAL = "var(--agent-coral, #FF6B4A)";
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function AccountConnectionsCard() {
   const router = useRouter();
@@ -93,15 +97,9 @@ export function AccountConnectionsCard() {
 
   const banner =
     outcome === "connected" ? (
-      <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800">
-        <CheckCircle size={16} weight="fill" className="shrink-0" />
-        Your inbox is connected.
-      </div>
+      <InlineAlert kind="success">Your inbox is connected.</InlineAlert>
     ) : outcome === "error" ? (
-      <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">
-        <Warning size={16} weight="fill" className="mt-0.5 shrink-0" />
-        <span>{REASON_COPY[reason] ?? "Something went wrong while connecting your inbox. Please try again."}</span>
-      </div>
+      <InlineAlert kind="danger">{REASON_COPY[reason] ?? "Something went wrong while connecting your inbox. Please try again."}</InlineAlert>
     ) : null;
 
   return (
@@ -111,15 +109,9 @@ export function AccountConnectionsCard() {
           <div className="flex flex-wrap items-center gap-2.5 pr-8">
             <p className="text-sm font-semibold text-gray-900">Microsoft Outlook</p>
             {!loading && status && (
-              <span
-                className={
-                  count > 0
-                    ? "shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700"
-                    : "shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-500"
-                }
-              >
+              <Badge tone={count > 0 ? "success" : "neutral"} caps={false}>
                 {count > 0 ? `${count} connected` : "Not connected"}
-              </span>
+              </Badge>
             )}
           </div>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
@@ -155,25 +147,13 @@ export function AccountConnectionsCard() {
                             )}
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              onClick={() => syncNow(c.id)}
-                              disabled={syncingId === c.id}
-                              className="pbtn pbtn-press inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                              <ArrowClockwise
-                                size={14}
-                                weight="bold"
-                                className={syncingId === c.id ? "pbtn-spin" : ""}
-                              />
-                              {syncingId === c.id ? "Checking…" : "Check now"}
-                            </button>
-                            <button
-                              onClick={() => disconnect(c.id)}
-                              disabled={removingId === c.id}
-                              className="pbtn pbtn-press rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                              {removingId === c.id ? "Removing…" : "Disconnect"}
-                            </button>
+                            <Button variant="secondary" size="sm" onClick={() => syncNow(c.id)} loading={syncingId === c.id}>
+                              <ArrowClockwise size={14} weight="bold" />
+                              Check now
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => disconnect(c.id)} loading={removingId === c.id}>
+                              Disconnect
+                            </Button>
                           </div>
                         </div>
                         {syncedId === c.id && (
@@ -200,14 +180,18 @@ export function AccountConnectionsCard() {
                       behalf, as explained in the <Link href="/privacy" className="underline" style={{ color: CORAL }}>Privacy Policy</Link>. I can disconnect at any time.
                     </span>
                   </label>
-                  <button
-                    onClick={() => { window.location.href = "/api/integrations/outlook/connect"; }}
-                    disabled={!consent}
-                    className="agent-btn agent-btn-md agent-btn-primary mt-3"
-                  >
-                    <EnvelopeSimple size={16} weight="bold" />
-                    {count > 0 ? "Connect another inbox" : "Connect my inbox"}
-                  </button>
+                  <div className="mt-3">
+                    <Button
+                      variant="primary"
+                      size="md"
+                      style={coralPrimary}
+                      onClick={() => { window.location.href = "/api/integrations/outlook/connect"; }}
+                      disabled={!consent}
+                    >
+                      <EnvelopeSimple size={16} weight="bold" />
+                      {count > 0 ? "Connect another inbox" : "Connect my inbox"}
+                    </Button>
+                  </div>
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">

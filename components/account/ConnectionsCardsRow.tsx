@@ -21,6 +21,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { EnvelopeSimple, WhatsappLogo, X } from "@phosphor-icons/react";
 import { OutlookLogo } from "./provider-logos";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/arc/button/button";
+
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 type ChannelKey = "outlook" | "email" | "whatsapp";
 
@@ -52,11 +56,6 @@ function ChannelLogo({ k }: { k: ChannelKey }) {
   );
 }
 
-const PILL: Record<"on" | "warn" | "off", string> = {
-  on: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  warn: "border-amber-200 bg-amber-50 text-amber-700",
-  off: "border-gray-200 bg-gray-50 text-gray-500",
-};
 const DOT: Record<"on" | "warn" | "off", string> = { on: "bg-emerald-500", warn: "bg-amber-500", off: "bg-gray-300" };
 
 export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: ReactNode; email: ReactNode; whatsapp: ReactNode }) {
@@ -138,8 +137,8 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
           label: imapReadIssue || !imapSends ? "Needs attention" : "Connected",
           summary: (
             <span className="flex flex-wrap gap-1.5">
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${imapSends ? PILL.on : PILL.off}`}>{imapSends ? "Sending on" : "Sending off"}</span>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${imapReadIssue ? PILL.warn : PILL.on}`}>{imapConns.length} inbox{imapConns.length === 1 ? "" : "es"}</span>
+              <Badge tone={imapSends ? "success" : "neutral"} caps={false}>{imapSends ? "Sending on" : "Sending off"}</Badge>
+              <Badge tone={imapReadIssue ? "amber" : "success"} caps={false}>{imapConns.length} inbox{imapConns.length === 1 ? "" : "es"}</Badge>
             </span>
           ),
         },
@@ -189,23 +188,17 @@ export function ConnectionsCardsRow({ outlook, email, whatsapp }: { outlook: Rea
           {loading ? (
             <span className="inline-block h-[38px] w-[132px] animate-pulse rounded-lg bg-gray-100" />
           ) : !available ? (
-            <button disabled className="cursor-default rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-[13px] font-medium text-gray-400">
+            <Button variant="secondary" size="md" disabled>
               Not available yet
-            </button>
+            </Button>
           ) : m.connected ? (
-            <button
-              onClick={() => setOpen(k)}
-              className="pbtn pbtn-press rounded-lg border border-gray-200 bg-white px-4 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50"
-            >
+            <Button variant="secondary" size="md" onClick={() => setOpen(k)}>
               Manage
-            </button>
+            </Button>
           ) : (
-            <button
-              onClick={() => setOpen(k)}
-              className="agent-btn agent-btn-md agent-btn-primary"
-            >
+            <Button variant="primary" size="md" style={coralPrimary} onClick={() => setOpen(k)}>
               {k === "outlook" ? "Connect Outlook" : k === "email" ? "Connect email provider" : "Connect WhatsApp"}
-            </button>
+            </Button>
           )}
         </div>
       </article>

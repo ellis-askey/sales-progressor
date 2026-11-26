@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { EnvelopeSimple, WhatsappLogo, Check, PaperPlaneTilt, IdentificationBadge, ArrowsClockwise, ChatCircleText, ListChecks } from "@phosphor-icons/react";
 import { OutlookLogo } from "./provider-logos";
+import { Badge } from "@/components/ui/Badge";
 
 type ChannelKey = "outlook" | "email" | "whatsapp";
 type Cell = "na" | "off" | "partial" | "on";
@@ -153,11 +154,6 @@ export function ConnectionsMatrix({ domainVerified = false, demo, variant = "age
     return waOn ? { label: "Connected", tone: "on" } : waUnreachable ? { label: "Can't check right now", tone: "warn" } : waPending ? { label: "Waiting to scan", tone: "warn" } : { label: "Not connected", tone: "off" };
   };
 
-  const pillCls = (tone: "on" | "warn" | "off") =>
-    tone === "on" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : tone === "warn" ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-gray-200 bg-gray-50 text-gray-500";
-
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       {/* Header row */}
@@ -174,8 +170,8 @@ export function ConnectionsMatrix({ domainVerified = false, demo, variant = "age
               <span className="text-[12.5px] font-semibold leading-tight text-gray-800">{c.name}</span>
               <span className="hidden text-[10px] leading-tight text-gray-400 sm:block">{c.sub}</span>
               {!loading && (
-                <span className={`hidden whitespace-nowrap rounded-full border px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide sm:inline-block ${pillCls(st.tone)}`}>
-                  {st.label}
+                <span className="hidden sm:inline-block">
+                  <Badge tone={st.tone === "on" ? "success" : st.tone === "warn" ? "amber" : "neutral"}>{st.label}</Badge>
                 </span>
               )}
             </div>

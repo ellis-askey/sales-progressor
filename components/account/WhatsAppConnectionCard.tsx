@@ -10,8 +10,13 @@
 // tick (founder-approved copy) gates linking and is recorded server-side.
 
 import { useCallback, useEffect, useState } from "react";
-import { WhatsappLogo, CheckCircle, Warning } from "@/components/icons/ph";
+import { WhatsappLogo, CheckCircle } from "@/components/icons/ph";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { Button } from "@/components/arc/button/button";
+
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 type Connection = {
   id: string;
@@ -119,13 +124,13 @@ export function WhatsAppConnectionCard() {
   // "unreachable" = the link service didn't answer, so the stored state can't be
   // verified. Shown as its own amber state — never as a false "Connected".
   const unreachable = connection?.status === "unreachable";
-  const pill = connected
-    ? { cls: "border-emerald-200 bg-emerald-50 text-emerald-700", label: "Connected" }
+  const pill: { tone: BadgeTone; label: string } = connected
+    ? { tone: "success", label: "Connected" }
     : unreachable
-      ? { cls: "border-amber-200 bg-amber-50 text-amber-700", label: "Can't check right now" }
+      ? { tone: "amber", label: "Can't check right now" }
       : pending
-        ? { cls: "border-amber-200 bg-amber-50 text-amber-700", label: "Waiting to scan" }
-        : { cls: "border-gray-200 bg-gray-50 text-gray-500", label: "Not connected" };
+        ? { tone: "amber", label: "Waiting to scan" }
+        : { tone: "neutral", label: "Not connected" };
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -134,9 +139,7 @@ export function WhatsAppConnectionCard() {
           <div className="flex flex-wrap items-center gap-2.5 pr-8">
             <p className="text-sm font-semibold text-gray-900">WhatsApp</p>
             {!loading && status && (
-              <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${pill.cls}`}>
-                {pill.label}
-              </span>
+              <Badge tone={pill.tone} caps={false}>{pill.label}</Badge>
             )}
           </div>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
@@ -152,14 +155,9 @@ export function WhatsAppConnectionCard() {
                 WhatsApp linking isn&rsquo;t switched on yet. Please check back soon.
               </p>
             ) : unreachable ? (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12.5px] leading-relaxed text-amber-800">
-                <Warning size={16} weight="fill" className="mt-0.5 shrink-0 text-amber-500" />
-                <p>
-                  We can&rsquo;t reach the WhatsApp link service right now, so we can&rsquo;t confirm your
-                  connection is working. Messages may not be saving to your sales. We&rsquo;re on it; check
-                  back shortly.
-                </p>
-              </div>
+              <InlineAlert kind="warning">
+                We can&rsquo;t reach the WhatsApp link service right now, so we can&rsquo;t confirm your connection is working. Messages may not be saving to your sales. We&rsquo;re on it; check back shortly.
+              </InlineAlert>
             ) : connected ? (
               <>
                 <ConnectedView connection={connection!} disconnect={disconnect} disconnecting={disconnecting} />
@@ -207,13 +205,9 @@ function ConnectedView({
             <CheckCircle size={15} weight="fill" className="shrink-0 text-emerald-500" />
             {connection.phoneNumber ?? "Linked"}
           </p>
-          <button
-            onClick={disconnect}
-            disabled={disconnecting}
-            className="pbtn pbtn-press shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {disconnecting ? "Removing…" : "Disconnect"}
-          </button>
+          <Button variant="secondary" size="sm" onClick={disconnect} loading={disconnecting} className="shrink-0">
+            Disconnect
+          </Button>
         </div>
       </div>
       <p className="text-[11.5px] leading-relaxed text-gray-400">
@@ -260,13 +254,7 @@ function AutoTasksRow({
           aria-label="Turn WhatsApp updates into to-dos"
         />
       ) : (
-        <span
-          className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
-            enabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-white text-gray-500"
-          }`}
-        >
-          {enabled ? "On" : "Off"}
-        </span>
+        <Badge tone={enabled ? "success" : "neutral"} caps={false}>{enabled ? "On" : "Off"}</Badge>
       )}
     </div>
   );
@@ -301,13 +289,9 @@ function PairingView({
           <p className="mt-1 text-gray-400">This page will update once you&rsquo;ve scanned it.</p>
         </div>
       </div>
-      <button
-        onClick={disconnect}
-        disabled={disconnecting}
-        className="pbtn pbtn-press rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-      >
-        {disconnecting ? "Cancelling…" : "Cancel"}
-      </button>
+      <Button variant="secondary" size="sm" onClick={disconnect} loading={disconnecting}>
+        Cancel
+      </Button>
     </div>
   );
 }
@@ -351,14 +335,17 @@ function ConsentView({
           <span className="text-gray-700">I understand and want to connect my WhatsApp.</span>
         </label>
       </div>
-      <button
+      <Button
+        variant="primary"
+        size="md"
+        style={coralPrimary}
         onClick={startPairing}
-        disabled={!consent || pairing}
-        className="agent-btn agent-btn-md agent-btn-primary"
+        disabled={!consent}
+        loading={pairing}
       >
         <WhatsappLogo size={16} weight="fill" />
-        {pairing ? "Getting your code…" : "Show my QR code"}
-      </button>
+        Show my QR code
+      </Button>
     </div>
   );
 }
