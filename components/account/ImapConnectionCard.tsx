@@ -20,9 +20,16 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneTilt } from "@/components/icons/ph";
-import { presetForEmail, type ImapProviderPreset } from "@/lib/integrations/imap/config";
+import { EnvelopeSimple, CheckCircle, ArrowClockwise, Warning, Info, PaperPlaneTilt, ArrowUpRight, ShieldCheck } from "@/components/icons/ph";
+import { presetForEmail } from "@/lib/integrations/imap/config";
 import { GmailLogo, YahooLogo, ICloudLogo, ZohoLogo, ExpLogo, GenericMailLogo, ProviderLogo } from "./provider-logos";
+import { Button } from "@/components/arc/button/button";
+import { Badge } from "@/components/ui/Badge";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
+
+// Coral-filled primary (arc primary fills with --foreground, text is --background).
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 type SendState = "sends" | "offer" | "domain_covered" | "unavailable";
 type Connection = {
@@ -56,13 +63,9 @@ function providerLabel(p: string, email?: string): string {
   return map[p] ?? "Email";
 }
 
-// Status pill classes — sending and inbox-reading are shown as two separate
-// statuses (Phase 2), so a reading hiccup never reads as a sending failure.
-const PILL = {
-  on: "inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700",
-  warn: "inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700",
-  off: "inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10.5px] font-medium text-gray-500",
-};
+// Sending and inbox-reading are shown as two separate statuses (Phase 2), so a
+// reading hiccup never reads as a sending failure. Rendered as canonical Badges
+// (bordered, no fill): success = on, amber = limited, neutral = off.
 
 // Plain-English translation of a raw reading error (Phase 3). A connected-mailbox
 // inbox we can't read is usually the provider throttling us, not a real fault —
@@ -124,77 +127,121 @@ function tileForEmail(email: string): TileKey | null {
 }
 
 // ── Per-provider guide copy ─────────────────────────────────────────────────
-// eXp strings approved by the founder 2026-09-17; the rest follow the same
-// shape. Step 1's link target is the preset's appPasswordUrl.
+// eXp substance approved by the founder 2026-09-17; restructured 2026-11 into
+// the canonical provider-card shape (title + subtitle + numbered steps with an
+// optional link + a shield footnote) rendered by ProviderGuide below. A step's
+// link points at the preset's appPasswordUrl.
 
-type Guide = { title: string; subtitle?: string; steps: ReactNode[]; aside: string };
+type GuideStep = { title: string; body: string; link?: string };
+type Guide = { title: string; subtitle: string; steps: GuideStep[]; aside: string };
 
-function guideFor(tile: TileKey, preset: ImapProviderPreset | null): Guide | null {
-  const url = preset?.appPasswordUrl;
-  const link = (label: string) =>
-    url ? (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: CORAL }}>
-        {label}
-      </a>
-    ) : (
-      label
-    );
+function guideFor(tile: TileKey): Guide | null {
   switch (tile) {
     case "exp":
       return {
         title: "Connect your eXp email",
-        subtitle: "No eXp sign-off needed",
+        subtitle: "No eXp sign-off needed. You'll create an app password through Zoho, which runs eXp email.",
         steps: [
-          <>Open your {link("Zoho security settings")} and sign in using your eXp email address.</>,
-          <>Under Application-Specific Passwords, select Generate New Password and name it &ldquo;Sales Progressor&rdquo;.</>,
-          <>Copy the password Zoho gives you and paste it below. You&rsquo;ll only see this password once.</>,
+          { title: "Open your Zoho security settings", body: "Sign in using your eXp email address.", link: "Open security settings" },
+          { title: "Generate a new app password", body: "Under Application-Specific Passwords, select Generate New Password and name it 'Sales Progressor'." },
+          { title: "Enter your app password", body: "Copy the password Zoho gives you and paste it into the field below. You'll only see it once." },
         ],
-        aside:
-          "Use the same type of app password you'd use to connect your eXp email to another email app. We've already filled in the server settings for you.",
+        aside: "Use the same type of app password you'd use to connect your eXp email to another email app. We've already filled in the server settings for you.",
       };
     case "gmail":
       return {
-        title: "Connect your Gmail",
+        title: "Connect your Gmail account",
+        subtitle: "To connect securely, you'll create an app password through your Google Account.",
         steps: [
-          <>Turn on 2-Step Verification for your Google account if it isn&rsquo;t already on.</>,
-          <>Open your {link("Google app passwords page")} and sign in.</>,
-          <>Create an app password called &ldquo;Sales Progressor&rdquo;, copy it and paste it below. You&rsquo;ll only see it once.</>,
+          { title: "Enable 2-Step Verification", body: "App passwords are only available once 2-Step Verification is on in your Google Account security settings." },
+          { title: "Create an app password", body: "Generate one named 'Sales Progressor' on your Google app passwords page.", link: "Create app password" },
+          { title: "Enter your app password", body: "Copy the 16-character password and paste it into the field below. You'll only see it once." },
         ],
-        aside: "Use the app password here, not your normal Gmail password. We've already filled in the server settings for you.",
+        aside: "An app password lets you connect securely without sharing your normal Gmail password. We've already filled in the server settings for you.",
       };
     case "yahoo":
       return {
         title: "Connect your Yahoo Mail",
+        subtitle: "To connect securely, you'll create an app password through your Yahoo account.",
         steps: [
-          <>Open your {link("Yahoo account security page")} and sign in.</>,
-          <>Choose Generate app password and name it &ldquo;Sales Progressor&rdquo;.</>,
-          <>Copy the password and paste it below. You&rsquo;ll only see it once.</>,
+          { title: "Open your Yahoo account security page", body: "Sign in to your Yahoo account.", link: "Open account security" },
+          { title: "Generate an app password", body: "Choose Generate app password and name it 'Sales Progressor'." },
+          { title: "Enter your app password", body: "Copy the password and paste it into the field below. You'll only see it once." },
         ],
         aside: "Use the app password here, not your normal Yahoo password. We've already filled in the server settings for you.",
       };
     case "icloud":
       return {
         title: "Connect your iCloud Mail",
+        subtitle: "To connect securely, you'll create an app-specific password through your Apple ID.",
         steps: [
-          <>Sign in at {link("appleid.apple.com")} and open Sign-In and Security.</>,
-          <>Choose App-Specific Passwords and create one named &ldquo;Sales Progressor&rdquo;.</>,
-          <>Copy the password and paste it below. You&rsquo;ll only see it once.</>,
+          { title: "Sign in to your Apple ID", body: "Open Sign-In and Security at appleid.apple.com.", link: "Open Apple ID" },
+          { title: "Create an app-specific password", body: "Choose App-Specific Passwords and create one named 'Sales Progressor'." },
+          { title: "Enter your password", body: "Copy the password and paste it into the field below. You'll only see it once." },
         ],
         aside: "Use the app-specific password here, not your Apple ID password. We've already filled in the server settings for you.",
       };
     case "zoho":
       return {
         title: "Connect your Zoho mailbox",
+        subtitle: "To connect securely, you'll create an app password through your Zoho account.",
         steps: [
-          <>Open your {link("Zoho security settings")} and sign in.</>,
-          <>Under Application-Specific Passwords, select Generate New Password and name it &ldquo;Sales Progressor&rdquo;.</>,
-          <>Copy the password Zoho gives you and paste it below. You&rsquo;ll only see this password once.</>,
+          { title: "Open your Zoho security settings", body: "Sign in to your Zoho account.", link: "Open security settings" },
+          { title: "Generate a new app password", body: "Under Application-Specific Passwords, select Generate New Password and name it 'Sales Progressor'." },
+          { title: "Enter your app password", body: "Copy the password Zoho gives you and paste it into the field below. You'll only see it once." },
         ],
         aside: "Use the same type of app password you'd use to connect Zoho to another email app. We've already filled in the server settings for you.",
       };
     case "other":
       return null;
   }
+}
+
+// ── Provider guide card (group-6 canonical, 2026-11) ─────────────────────────
+// Clean light card: heading + subtitle, hairline divider, numbered steps whose
+// lead is bold and whose optional link opens the provider's app-password page,
+// and a neutral shield footnote. Replaces the coral-washed box + bare <ol>.
+const PROVIDER_GUIDE_CSS = `
+.pgd { border: 1px solid var(--agent-border-subtle, rgba(20,16,10,0.08)); border-radius: 16px; background: var(--agent-surface-elevated, #fff); padding: 18px 20px; }
+.pgd-h { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--agent-text-primary); }
+.pgd-sub { margin: 5px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--agent-text-muted); }
+.pgd-div { height: 1px; background: var(--agent-border-subtle, rgba(20,16,10,0.08)); margin: 15px 0; }
+.pgd-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+.pgd-st-h { margin: 0; font-size: 13px; font-weight: 650; color: var(--agent-text-primary); }
+.pgd-st-b { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--agent-text-muted); }
+.pgd-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 7px; font-size: 12.5px; font-weight: 600; color: var(--agent-coral, #FF6B4A); text-decoration: none; transition: color 0.12s ease; }
+.pgd-link:hover { color: var(--agent-coral-deep, #E2452A); }
+.pgd-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; padding: 11px 13px; border-radius: 11px; background: var(--agent-surface-subtle, rgba(45,24,16,0.03)); }
+.pgd-note span { font-size: 12px; line-height: 1.5; color: var(--agent-text-muted); }
+`;
+
+function ProviderGuide({ guide, url }: { guide: Guide; url?: string | null }) {
+  return (
+    <div className="pgd">
+      <style>{PROVIDER_GUIDE_CSS}</style>
+      <p className="pgd-h">{guide.title}</p>
+      <p className="pgd-sub">{guide.subtitle}</p>
+      <div className="pgd-div" />
+      <ol className="pgd-steps">
+        {guide.steps.map((s, i) => (
+          <li key={i}>
+            <p className="pgd-st-h">{i + 1}. {s.title}</p>
+            <p className="pgd-st-b">{s.body}</p>
+            {s.link && url && (
+              <a className="pgd-link" href={url} target="_blank" rel="noopener noreferrer">
+                {s.link}
+                <ArrowUpRight size={13} weight="bold" />
+              </a>
+            )}
+          </li>
+        ))}
+      </ol>
+      <div className="pgd-note">
+        <ShieldCheck size={16} weight="regular" style={{ flex: "none", marginTop: 1, color: "var(--agent-text-muted)" }} />
+        <span>{guide.aside}</span>
+      </div>
+    </div>
+  );
 }
 
 export function ImapConnectionCard() {
@@ -252,7 +299,7 @@ export function ImapConnectionCard() {
   // The preset that describes what we're connecting: the typed address's when
   // present, else the selected tile's sample.
   const activePreset = typedPreset ?? (activeTile?.sampleDomain ? presetForEmail(`x@${activeTile.sampleDomain}`) : null);
-  const guide = selectedTile ? guideFor(selectedTile, activePreset) : null;
+  const guide = selectedTile ? guideFor(selectedTile) : null;
 
   const unknownTyped = email.includes("@") && !typedPreset;
   const needServerDetails = selectedTile === "other" || unknownTyped;
@@ -393,15 +440,9 @@ export function ImapConnectionCard() {
           <div className="flex flex-wrap items-center gap-2.5 pr-8">
             <p className="text-sm font-semibold text-gray-900">Other email providers</p>
             {!loading && status && (
-              <span
-                className={
-                  count > 0
-                    ? "shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700"
-                    : "shrink-0 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-500"
-                }
-              >
+              <Badge tone={count > 0 ? "success" : "neutral"} caps={false}>
                 {count > 0 ? `${count} connected` : "Not connected"}
-              </span>
+              </Badge>
             )}
           </div>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-gray-500">
@@ -438,27 +479,25 @@ export function ImapConnectionCard() {
                             <div className="min-w-0">
                               <p className="flex items-center gap-1.5 truncate text-sm text-gray-800">
                                 {c.email}
-                                <span className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                                  {providerLabel(c.provider, c.email)}
-                                </span>
+                                <Badge tone="neutral" caps={false}>{providerLabel(c.provider, c.email)}</Badge>
                               </p>
-                              {/* Two separate statuses — a reading hiccup never reads as a sending failure */}
+                              {/* Two separate statuses: a reading hiccup never reads as a sending failure */}
                               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                 {c.sendState === "sends" ? (
-                                  <span className={PILL.on}>Sending on</span>
+                                  <Badge tone="success" caps={false}>Sending on</Badge>
                                 ) : c.sendState === "domain_covered" ? (
-                                  <span className={PILL.on}>Sends via your domain</span>
+                                  <Badge tone="success" caps={false}>Sends via your domain</Badge>
                                 ) : (
-                                  <span className={PILL.off}>Sending off</span>
+                                  <Badge tone="neutral" caps={false}>Sending off</Badge>
                                 )}
                                 {captured ? (
-                                  <span className={PILL.on}>Replies captured ✓</span>
+                                  <Badge tone="success" caps={false}>Replies captured ✓</Badge>
                                 ) : c.lastError ? (
-                                  <span className={PILL.warn}>Reading limited</span>
+                                  <Badge tone="amber" caps={false}>Reading limited</Badge>
                                 ) : c.lastSyncedAt ? (
-                                  <span className={PILL.on}>Reading on</span>
+                                  <Badge tone="success" caps={false}>Reading on</Badge>
                                 ) : (
-                                  <span className={PILL.off}>Reading not checked yet</span>
+                                  <Badge tone="neutral" caps={false}>Reading not checked yet</Badge>
                                 )}
                               </div>
                               {/* Reply-capture reassurance takes priority: when it's handling replies, a
@@ -500,46 +539,54 @@ export function ImapConnectionCard() {
                           </div>
                           <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5 lg:mt-0 lg:max-w-[340px] lg:justify-end lg:border-t-0 lg:pt-0">
                             {(c.sendState === "offer" || c.sendState === "sends") && (
-                              <button
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => toggleSend(c.id, c.sendState === "offer")}
-                                disabled={sendTogglingId === c.id}
-                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
+                                loading={sendTogglingId === c.id}
+                                className="flex-1 sm:flex-none"
                               >
-                                <PaperPlaneTilt size={14} weight="bold" className={sendTogglingId === c.id ? "pbtn-spin" : ""} />
-                                {sendTogglingId === c.id ? "Updating…" : c.sendState === "sends" ? "Turn off sending" : "Turn on sending"}
-                              </button>
+                                <PaperPlaneTilt size={14} weight="bold" />
+                                {c.sendState === "sends" ? "Turn off sending" : "Turn on sending"}
+                              </Button>
                             )}
                             {c.sendState === "sends" && (
-                              <button
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => toggleSend(c.id, true)}
-                                disabled={sendTogglingId === c.id}
-                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
+                                loading={sendTogglingId === c.id}
+                                className="flex-1 sm:flex-none"
                                 title="Send a test email from this address to itself"
                               >
                                 <PaperPlaneTilt size={14} weight="bold" />
                                 Send test
-                              </button>
+                              </Button>
                             )}
-                            {/* Reading is irrelevant when reply-capture handles this inbox —
+                            {/* Reading is irrelevant when reply-capture handles this inbox:
                                 no button that can routinely fail (eXp/Zoho throttle reads)
                                 right next to "you don't need to do anything here". */}
                             {!captured && (
-                              <button
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => syncNow(c.id)}
-                                disabled={syncingId === c.id}
-                                className="pbtn pbtn-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:justify-start sm:py-1.5"
+                                loading={syncingId === c.id}
+                                className="flex-1 sm:flex-none"
                               >
-                                <ArrowClockwise size={14} weight="bold" className={syncingId === c.id ? "pbtn-spin" : ""} />
-                                {syncingId === c.id ? "Checking…" : "Check reading"}
-                              </button>
+                                <ArrowClockwise size={14} weight="bold" />
+                                Check reading
+                              </Button>
                             )}
-                            <button
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => disconnect(c.id)}
-                              disabled={removingId === c.id}
-                              className="pbtn pbtn-press w-full justify-center rounded-lg border border-gray-100 bg-white px-3 py-2 text-[12.5px] font-medium text-gray-400 hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 sm:w-auto sm:justify-start sm:py-1.5"
+                              loading={removingId === c.id}
+                              className="w-full sm:w-auto"
                             >
-                              {removingId === c.id ? "Removing…" : "Disconnect"}
-                            </button>
+                              Disconnect
+                            </Button>
                           </div>
                         </div>
                         {syncMsg?.id === c.id && (
@@ -554,11 +601,11 @@ export function ImapConnectionCard() {
                   </ul>
                 )}
 
-                {/* Where outgoing email comes from right now — same logic the send path uses */}
+                {/* Where outgoing email comes from right now: same logic the send path uses */}
                 {senderNote && count > 0 && (
                   <p
-                    className="rounded-r-lg border-l-[3px] bg-[#fff7f4] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-gray-600"
-                    style={{ borderLeftColor: CORAL }}
+                    className="rounded-r-lg border-l-[3px] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-gray-600"
+                    style={{ borderLeftColor: CORAL, background: "var(--agent-surface-subtle, rgba(45,24,16,0.03))" }}
                   >
                     {senderNote}
                   </p>
@@ -606,17 +653,8 @@ export function ImapConnectionCard() {
 
                   {/* Per-provider steps */}
                   {guide && (
-                    <div key={selectedTile} className="portal-fade-in rounded-lg border border-[#ffe0d6] bg-[#fff7f4] px-4 py-3.5">
-                      <p className="text-[12.5px] font-semibold text-gray-900">
-                        {guide.title}
-                        {guide.subtitle && <span className="ml-2 font-medium text-gray-500">{guide.subtitle}</span>}
-                      </p>
-                      <ol className="mt-2 list-decimal space-y-1.5 text-[12.5px] leading-relaxed text-gray-700" style={{ paddingLeft: 18 }}>
-                        {guide.steps.map((step, i) => (
-                          <li key={i}>{step}</li>
-                        ))}
-                      </ol>
-                      <p className="mt-2.5 text-[11.5px] leading-relaxed text-gray-500">{guide.aside}</p>
+                    <div key={selectedTile} className="portal-fade-in">
+                      <ProviderGuide guide={guide} url={activePreset?.appPasswordUrl} />
                     </div>
                   )}
                   {selectedTile === "other" && (
@@ -626,54 +664,55 @@ export function ImapConnectionCard() {
                     </p>
                   )}
 
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-1 block text-[12px] font-medium text-gray-600">Email address</span>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => onEmailChange(e.target.value.trim())}
-                        placeholder={activeTile?.placeholder ?? "you@youragency.co.uk"}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-900 outline-none transition-colors duration-150 focus:border-[color:var(--agent-coral,#FF6B4A)]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1 block text-[12px] font-medium text-gray-600">App password</span>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="app password (not your normal password)"
-                        autoComplete="off"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-900 outline-none transition-colors duration-150 focus:border-[color:var(--agent-coral,#FF6B4A)]"
-                      />
-                    </label>
+                  <div className="grid gap-x-3 gap-y-3 sm:grid-cols-2">
+                    <LabelInput
+                      field="Email address"
+                      label="Email address"
+                      size="sm"
+                      fullWidth
+                      topGap={6}
+                      accent="#FF6B4A"
+                      value={email}
+                      onChange={(e) => onEmailChange(e.target.value.trim())}
+                    />
+                    <LabelInput
+                      field="Password"
+                      label="App password"
+                      size="sm"
+                      fullWidth
+                      topGap={6}
+                      accent="#FF6B4A"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
                   </div>
 
                   {/* Manual server details for unrecognised providers */}
                   {needServerDetails && (
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-1 block text-[12px] font-medium text-gray-600">IMAP server (host)</span>
-                        <input
-                          type="text"
-                          value={host}
-                          onChange={(e) => setHost(e.target.value.trim())}
-                          placeholder="imap.youragency.co.uk"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-900 outline-none transition-colors duration-150 focus:border-[color:var(--agent-coral,#FF6B4A)]"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1 block text-[12px] font-medium text-gray-600">Port</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={port}
-                          onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))}
-                          placeholder="993"
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-900 outline-none transition-colors duration-150 focus:border-[color:var(--agent-coral,#FF6B4A)]"
-                        />
-                      </label>
+                    <div className="grid gap-x-3 gap-y-3 sm:grid-cols-2">
+                      <LabelInput
+                        field="IMAP server"
+                        label="IMAP server (host)"
+                        type="text"
+                        size="sm"
+                        fullWidth
+                        topGap={6}
+                        accent="#FF6B4A"
+                        value={host}
+                        onChange={(e) => setHost(e.target.value.trim())}
+                      />
+                      <LabelInput
+                        field="Port"
+                        label="Port"
+                        type="text"
+                        inputMode="numeric"
+                        size="sm"
+                        fullWidth
+                        topGap={6}
+                        accent="#FF6B4A"
+                        value={port}
+                        onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))}
+                      />
                     </div>
                   )}
 
@@ -717,28 +756,21 @@ export function ImapConnectionCard() {
                     </span>
                   </label>
 
-                  {error && (
-                    <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-800">
-                      <Warning size={15} weight="fill" className="mt-0.5 shrink-0" />
-                      {error}
-                    </p>
-                  )}
+                  {error && <InlineAlert kind="danger">{error}</InlineAlert>}
 
-                  {notice && (
-                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
-                      <Info size={15} weight="fill" className="mt-0.5 shrink-0" />
-                      {notice}
-                    </p>
-                  )}
+                  {notice && <InlineAlert kind="warning">{notice}</InlineAlert>}
 
-                  <button
+                  <Button
+                    variant="primary"
+                    size="md"
+                    style={coralPrimary}
                     onClick={connect}
-                    disabled={!canConnect}
-                    className="agent-btn agent-btn-md agent-btn-primary"
+                    disabled={!canConnect && !connecting}
+                    loading={connecting}
                   >
                     <EnvelopeSimple size={16} weight="bold" />
-                    {connecting ? "Connecting…" : count > 0 ? "Connect another inbox" : "Connect my inbox"}
-                  </button>
+                    {count > 0 ? "Connect another inbox" : "Connect my inbox"}
+                  </Button>
                 </div>
 
                 <p className="text-[11.5px] leading-relaxed text-gray-400">
