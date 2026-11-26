@@ -7,11 +7,15 @@
 // monogram tile until the real files land in public/crm-logos/<key>.svg.
 
 import { useMemo, useState, useTransition } from "react";
-import { MagnifyingGlass, Check, ArrowRight, CalendarBlank } from "@phosphor-icons/react";
+import { Check, ArrowRight, CalendarBlank } from "@phosphor-icons/react";
 import type { CrmEntry } from "@/lib/crm/catalogue";
 import { otherKey } from "@/lib/crm/catalogue";
 import { requestCrmConnectionAction } from "@/app/actions/crm-connect";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClasses } from "@/components/arc/button/button";
+import { Badge } from "@/components/ui/Badge";
+import { SearchField } from "@/components/ui/SearchField";
+
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 const POPULAR = 6;
 const SUPPORT = "support@thesalesprogressor.co.uk";
@@ -78,9 +82,11 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
     const foot = (
       <div className="ccrm-tile-foot">
         <span className="ccrm-count">{n === 0 ? "Be the first to ask" : `${n} ${n === 1 ? "agency request" : "agency requests"}${on ? " · you're in" : ""}`}</span>
-        <button type="button" className={`ccrm-btn${on ? " done" : ""}`} onClick={() => request({ crmKey: c.key }, c.key, c.name)} disabled={on}>
-          {on ? (<><Check size={14} weight="bold" />Requested</>) : "Request"}
-        </button>
+        {on ? (
+          <Badge tone="success" caps={false}><Check size={13} weight="bold" style={{ marginRight: 4 }} />Requested</Badge>
+        ) : (
+          <Button variant="secondary" size="sm" onClick={() => request({ crmKey: c.key }, c.key, c.name)}>Request</Button>
+        )}
       </div>
     );
     return (
@@ -93,10 +99,9 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
 
   return (
     <div className="ccrm-root">
-      <label className="ccrm-search">
-        <MagnifyingGlass size={19} weight="regular" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find your CRM..." aria-label="Find your CRM" />
-      </label>
+      <div className="ccrm-search-wrap">
+        <SearchField value={query} onChange={setQuery} placeholder="Find your CRM…" ariaLabel="Find your CRM" />
+      </div>
 
       {q ? (
         <section>
@@ -109,7 +114,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
                 <p className="ccrm-noresult-title">We don&rsquo;t list &ldquo;{query.trim()}&rdquo; yet</p>
                 <p className="ccrm-noresult-sub">Request it anyway and we&rsquo;ll add it to the roadmap.</p>
               </div>
-              <button type="button" className="ccrm-btn" onClick={() => { const name = query.trim(); request({ other: name }, otherKey(name), name); setQuery(""); }}>Request it</button>
+              <Button variant="secondary" size="sm" onClick={() => { const name = query.trim(); request({ other: name }, otherKey(name), name); setQuery(""); }}>Request it</Button>
             </div>
           )}
         </section>
@@ -134,7 +139,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
           <p className="ccrm-concierge-title">Don&rsquo;t want to wait?</p>
           <p className="ccrm-concierge-sub">We can help you get connected and bring your current sales into Sales Progressor today.</p>
         </div>
-        <a className="agent-btn agent-btn-primary agent-btn-md ccrm-concierge-cta" href={`mailto:${SUPPORT}?subject=${encodeURIComponent("Connecting our CRM to Sales Progressor")}&body=${encodeURIComponent("Hi, we'd like help connecting our CRM to Sales Progressor so the two stay in step. Our CRM is: ")}`}>Talk to our team <ArrowRight size={15} weight="bold" /></a>
+        <a className={buttonClasses({ variant: "primary", size: "md", className: "ccrm-concierge-cta" })} style={coralPrimary} href={`mailto:${SUPPORT}?subject=${encodeURIComponent("Connecting our CRM to Sales Progressor")}&body=${encodeURIComponent("Hi, we'd like help connecting our CRM to Sales Progressor so the two stay in step. Our CRM is: ")}`}>Talk to our team <ArrowRight size={15} weight="bold" /></a>
       </div>
 
       {toast && <div className={`ccrm-toast${toast.err ? " err" : ""}`} role="status"><Check size={15} weight="bold" />{toast.msg}</div>}
@@ -145,10 +150,7 @@ export function ConnectCrmPanel({ catalogue, counts, requested }: { catalogue: C
 
 const CSS = `
 .ccrm-root{ --ink:var(--agent-text-primary,#1a1a1c); --mut:var(--agent-text-muted,#6b7280); --line:var(--agent-border-subtle,rgba(20,16,10,0.1)); --card:var(--agent-surface-elevated,#fff); --accent:var(--agent-coral-deep,#E2452A); --accent-fill:var(--agent-coral,#FF6B4A); --good:#2fa36b; color:var(--ink); }
-.ccrm-search{ display:flex; align-items:center; gap:12px; padding:0 18px; height:54px; background:var(--card); border:1px solid var(--line); border-radius:15px; margin-bottom:28px; color:var(--mut); transition:border-color .16s ease, box-shadow .16s ease; }
-.ccrm-search:focus-within{ border-color:var(--accent); }
-.ccrm-search input{ flex:1; border:none; background:none; outline:none; font:inherit; font-size:15px; color:var(--ink); }
-.ccrm-search input::placeholder{ color:var(--mut); }
+.ccrm-search-wrap{ margin-bottom:28px; }
 .ccrm-sec-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; }
 .ccrm-sec-title{ margin:0; font-size:17px; font-weight:700; letter-spacing:-0.01em; }
 .ccrm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:13px; }
@@ -167,14 +169,9 @@ const CSS = `
 .ccrm-fallback-name{ font-size:15px; font-weight:700; color:#1a1a1c; letter-spacing:-0.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ccrm-tile-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .ccrm-count{ font-size:12px; color:var(--mut); font-variant-numeric:tabular-nums; }
-.ccrm-btn{ flex-shrink:0; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--accent); background:transparent; color:var(--accent); font:inherit; font-size:13px; font-weight:650; padding:8px 15px; border-radius:11px; cursor:pointer; transition:.16s; }
-.ccrm-btn:hover:not(:disabled){ background:var(--accent-fill); border-color:var(--accent-fill); color:#fff; }
-.ccrm-btn:active:not(:disabled){ transform:scale(.96); }
-.ccrm-btn:disabled{ cursor:default; }
-.ccrm-btn.done{ border-color:transparent; background:color-mix(in srgb, var(--good) 14%, transparent); color:var(--good); }
 .ccrm-more{ max-height:0; overflow:hidden; opacity:0; transition:max-height .45s cubic-bezier(.2,.8,.2,1), opacity .3s ease; }
 .ccrm-more[data-open]{ max-height:1600px; opacity:1; }
-.ccrm-noresult{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px; background:var(--card); border:1px dashed var(--line); border-radius:16px; }
+.ccrm-noresult{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px; background:var(--card); border:1px solid var(--line); border-radius:16px; }
 .ccrm-noresult-title{ margin:0; font-size:14.5px; font-weight:650; }
 .ccrm-noresult-sub{ margin:3px 0 0; font-size:13px; color:var(--mut); }
 .ccrm-concierge{ display:flex; align-items:center; gap:15px; margin-top:26px; padding:16px 18px; border-radius:16px; color:inherit; background:var(--card); border:1px solid var(--line); }
@@ -187,5 +184,5 @@ const CSS = `
 .ccrm-toast svg{ color:#5fe0a0; flex-shrink:0; }
 .ccrm-toast.err svg{ color:#ff8a7a; }
 @keyframes ccrm-rise{ from{ opacity:0; transform:translate(-50%,14px); } to{ opacity:1; transform:translate(-50%,0); } }
-@media (prefers-reduced-motion: reduce){ .ccrm-tile, .ccrm-concierge, .ccrm-btn, .ccrm-more, .ccrm-toast{ transition:none; animation:none; } }
+@media (prefers-reduced-motion: reduce){ .ccrm-tile, .ccrm-concierge, .ccrm-more, .ccrm-toast{ transition:none; animation:none; } }
 `;
