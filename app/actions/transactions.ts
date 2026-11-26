@@ -643,9 +643,14 @@ async function createTransactionImpl(input: {
     await initializeMilestoneCompletions(tx.id, input.tenure, input.purchaseType, session.user.id, tx.activeBuyerRoundId);
   }
 
-  // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides
+  // If a MOS document was uploaded during form creation, auto-confirm MOS received for both sides.
+  // Backstop: only when milestones were actually initialised (same tenure+purchaseType gate as
+  // initializeMilestoneCompletions above). Without a purchase type the milestone set is never
+  // created, and auto-confirming VM2/PM2 against that empty set crashed the whole create (the
+  // real cause of Laura's "file didn't save"). The new-sale form now also blocks a purchaseType-
+  // less save, but this guard means no path can hit that crash again.
   let mosAutoConfirmed = false;
-  if (input.mosUploaded) {
+  if (input.mosUploaded && input.tenure && input.purchaseType) {
     const mosDefs = await prisma.milestoneDefinition.findMany({
       where: { code: { in: ["VM2", "PM2"] } },
       select: { id: true },

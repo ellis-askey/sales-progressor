@@ -1671,9 +1671,15 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
             />
           )}
 
-          {/* State 2: Extracted — the editable hero is at the top; here we just
-              show the rest of the form. */}
-          {flowState === "extracted" && (
+          {/* State 2: Extracted — the editable hero is at the top; here we show
+              the rest of the form. Gated on stage1Valid (address + tenure +
+              purchase type) EXACTLY like the manual flow below: a memo that
+              doesn't state the purchase type must not let the user save a
+              purchaseType-less sale (that skips milestone init on the server and
+              crashed the create). The extracted data is already in formFields,
+              so it just sits behind the gate and appears the moment they pick a
+              purchase type. The RequiredPrompt above guides them to it. */}
+          {flowState === "extracted" && stage1Valid && (
             <>
               <Stage2Sections
                 {...stage2SectionsProps}
@@ -1788,7 +1794,7 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
       {/* Full-width chain card (builder + live map) + Create / Save-draft
           controls, below the two columns — shown once the form is on screen. */}
-      {(flowState === "extracted" || (flowState === "manual" && stage === 2)) && chainAndSubmit}
+      {((flowState === "extracted" && stage1Valid) || (flowState === "manual" && stage === 2)) && chainAndSubmit}
 
       {/* Change file confirmation modal */}
       {showChangeFileModal && (
