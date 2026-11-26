@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import "@/components/arc/cookie-consent/scope.css";
 import { MemoStatusBar } from "@/components/transactions-v2/hero/MemoStatusBar";
@@ -1173,6 +1174,13 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
 
       // Expected failures come back as RETURNED results (thrown server-action
       // messages are redacted in production, which broke both of these paths).
+      // A validation gate that rejected the sale returns its real, user-safe
+      // reason here — show it instead of the generic "didn't save" toast.
+      if ("error" in result) {
+        setIsSubmitting(false);
+        toast.error(result.error);
+        return;
+      }
       if ("duplicate" in result) {
         setIsSubmitting(false);
         if (result.duplicate === "address") {
@@ -1207,7 +1215,11 @@ export function NewSaleFlow({ recommendedFirms, preferredBroker, preferredBroker
       const qs = result.mosAutoConfirmed ? "?mosConfirmed=1" : "?newFile=1";
       const chainParam = result.chainFailed ? "&chainSetupFailed=1" : "";
       router.push(`/agent/transactions/${result.id}${qs}${chainParam}`);
-    } catch {
+    } catch (err) {
+      // Genuine network / transport failure (the action itself now returns
+      // its validation errors rather than throwing). Log it so even transport
+      // failures are captured for us, then surface the generic toast.
+      Sentry.captureException(err);
       setIsSubmitting(false);
       toast.error("The file didn't save. Try again or contact support.");
     }

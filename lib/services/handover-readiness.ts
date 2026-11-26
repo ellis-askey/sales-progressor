@@ -61,15 +61,15 @@ export function checkOutsourcedHandoverReadiness(input: {
         (c.name ?? "").trim().length > 0 &&
         (((c.phone ?? "").trim().length > 0) || ((c.email ?? "").trim().length > 0)),
     );
-  if (!hasReachable("vendor")) missing.push("a seller with a name and a phone number or email");
-  if (!hasReachable("purchaser")) missing.push("a buyer with a name and a phone number or email");
-  if (!input.tenure) missing.push("the tenure (freehold or leasehold)");
-  if (!input.purchaseType) missing.push("the purchase type (cash or mortgage)");
+  if (!hasReachable("vendor")) missing.push("Seller's name and either a phone number or email address");
+  if (!hasReachable("purchaser")) missing.push("Buyer's name and either a phone number or email address");
+  if (!input.tenure) missing.push("Property tenure (freehold or leasehold)");
+  if (!input.purchaseType) missing.push("Purchase type (cash or mortgage)");
   if (!input.vendorSolicitorFirmId || !input.vendorSolicitorContactId) {
-    missing.push("the seller's solicitor firm and their named case handler");
+    missing.push("Seller's solicitor firm and named case handler");
   }
   if (!input.purchaserSolicitorFirmId || !input.purchaserSolicitorContactId) {
-    missing.push("the buyer's solicitor firm and their named case handler");
+    missing.push("Buyer's solicitor firm and named case handler");
   }
   return { ready: missing.length === 0, missing };
 }
@@ -77,10 +77,10 @@ export function checkOutsourcedHandoverReadiness(input: {
 // Human-readable message for the thrown error / returned error string. Kept
 // separate so callers can render it directly in a toast or inline checklist.
 export function handoverReadinessMessage(missing: string[]): string {
-  return `This file can't be handed to the progressor team yet. Please add: ${missing.join("; ")}.`;
+  return `Before handing this sale to the progression team, please add: ${missing.join("; ")}.`;
 }
 
 // Voice-passed message for the universal firm-without-handler violation.
 export function solicitorHandlerRequiredMessage(side: "seller" | "buyer"): string {
-  return `Add the named case handler for the ${side}'s solicitor. A firm can't be saved without the person handling the file.`;
+  return `Add the name of the case handler at the ${side}'s solicitor. A solicitor firm cannot be saved without a named case handler.`;
 }

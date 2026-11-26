@@ -4,8 +4,10 @@
  * Create-sale-for-client (Phase 5). Proves the security gates on the new
  * createTransactionAction branch: it is flag-gated, member-gated (any member of
  * the progression business, not only the owner), and the chosen agency must be
- * one of the actor's own clients. These throw before any file is created, so a
- * progression business can never create a file into an agency it has no client
+ * one of the actor's own clients. These reject before any file is created
+ * (returned as a user-safe { error } at the action boundary, not thrown — Next
+ * redacts thrown server-action messages in production), so a progression
+ * business can never create a file into an agency it has no client
  * relationship with.
  */
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
@@ -80,34 +82,34 @@ beforeEach(() => {
 });
 
 describe("createTransactionAction: create-for-client gates", () => {
-  it("throws when the feature flag is off (no file created)", async () => {
+  it("rejects when the feature flag is off (no file created)", async () => {
     (progressionBusinessesEnabled as jest.Mock).mockReturnValue(false);
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/not enabled/i);
+    await expect(createTransactionAction(baseInput)).resolves.toMatchObject({ error: expect.stringMatching(/not enabled/i) });
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  it("throws when the actor is not a progression-business member", async () => {
+  it("rejects when the actor is not a progression-business member", async () => {
     (resolveBusinessMember as jest.Mock).mockResolvedValue(null);
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/member/i);
+    await expect(createTransactionAction(baseInput)).resolves.toMatchObject({ error: expect.stringMatching(/member/i) });
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  it("throws when the chosen agency is NOT one of the actor's clients", async () => {
+  it("rejects when the chosen agency is NOT one of the actor's clients", async () => {
     p.progressionBusinessClient.findUnique.mockResolvedValue(null);
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/not one of your clients/i);
+    await expect(createTransactionAction(baseInput)).resolves.toMatchObject({ error: expect.stringMatching(/not one of your clients/i) });
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  it("throws when the client has no fee set (no file created)", async () => {
+  it("rejects when the client has no fee set (no file created)", async () => {
     p.progressionBusinessClient.findUnique.mockResolvedValue({ id: "link_1", feeModel: null });
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/fee/i);
+    await expect(createTransactionAction(baseInput)).resolves.toMatchObject({ error: expect.stringMatching(/fee/i) });
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  it("throws when billing collection is on and the business has no card (no file created)", async () => {
+  it("rejects when billing collection is on and the business has no card (no file created)", async () => {
     (progressionBillingCollectEnabled as jest.Mock).mockReturnValue(true);
     (businessBillingActive as jest.Mock).mockResolvedValue(false);
-    await expect(createTransactionAction(baseInput)).rejects.toThrow(/payment card/i);
+    await expect(createTransactionAction(baseInput)).resolves.toMatchObject({ error: expect.stringMatching(/payment card/i) });
     expect(createTransaction).not.toHaveBeenCalled();
   });
 

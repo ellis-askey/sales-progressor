@@ -232,6 +232,12 @@ export function MigrateSaleForm({
           migrationAgentUserId: agentUserId || undefined,
         });
 
+        // A validation gate (or an unexpected server error) now comes back as
+        // a returned { error } rather than a thrown message — surface it.
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
         // forceCreate bypasses the address guard, but a pairwise contact
         // conflict still comes back as a returned failure.
         if ("duplicate" in result) {

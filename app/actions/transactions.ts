@@ -40,8 +40,23 @@ import { findFirstPairwiseConflict } from "@/lib/contacts/dedupe";
 import { forRound, milestoneScopeWhere } from "@/lib/services/milestone-scope";
 import type { TransactionStatus, PurchaseType, Tenure, ContactRole, MilestoneSide, WithdrawalReason, ChainDirection } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import * as Sentry from "@sentry/nextjs";
 
 type ContactInput = { name: string; companyName?: string; phone?: string; email?: string; roleType: ContactRole };
+
+// A user-safe validation failure in createTransactionAction. Its `message` is
+// always a complete, voice-clean sentence intended to be shown to the user.
+// The action boundary RETURNS these as { error } rather than throwing, because
+// Next.js redacts thrown server-action error messages in production — so a
+// plain `throw` surfaced generic boilerplate instead of the real reason. Any
+// error that is NOT a SaleCreateError is treated as unexpected: reported to
+// Sentry with its full stack, and shown to the user as a generic message.
+export class SaleCreateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SaleCreateError";
+  }
+}
 
 const CHAIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -119,7 +134,33 @@ async function buildChainSnapshotForWithdrawal(
   } as Prisma.InputJsonValue;
 }
 
-export async function createTransactionAction(input: {
+export async function createTransactionAction(
+  input: Parameters<typeof createTransactionImpl>[0],
+) {
+  // Action boundary. Expected validation failures (SaleCreateError) are
+  // RETURNED as { error } so the real reason reaches the user (Next.js redacts
+  // thrown server-action messages in production). The normal non-error returns
+  // from the impl ({ duplicate }, { id, ... }) pass straight through unchanged.
+  // Any other (unexpected) error is captured in Sentry with its full stack and
+  // the user sees a generic message — no raw internal detail is leaked.
+  //
+  // Note: createTransactionImpl does not call redirect()/notFound() (it returns
+  // the new id and the client navigates), so there is no control-flow throw to
+  // re-raise here.
+  try {
+    return await createTransactionImpl(input);
+  } catch (err) {
+    if (err instanceof SaleCreateError) {
+      return { error: err.message };
+    }
+    Sentry.captureException(err);
+    return {
+      error: "Something went wrong and the file wasn't created. Try again or contact support.",
+    };
+  }
+}
+
+async function createTransactionImpl(input: {
   propertyAddress: string;
   purchasePrice: number | null;
   tenure: Tenure | null;
@@ -216,31 +257,31 @@ export async function createTransactionAction(input: {
   let clientCreate: { agencyId: string; agentUserId: string | null; progressionBusinessId: string } | null = null;
   if (input.clientAgencyId) {
     if (!progressionBusinessesEnabled()) {
-      throw new Error("Progression businesses are not enabled.");
+      throw new SaleCreateError("Progression businesses are not enabled.");
     }
     const member = await resolveBusinessMember(session);
     if (!member) {
-      throw new Error("Only a progression-business member can create a sale for a client.");
+      throw new SaleCreateError("Only members of a progression business can add sales on behalf of clients.");
     }
     const link = await prisma.progressionBusinessClient.findUnique({
       where: { progressionBusinessId_agencyId: { progressionBusinessId: member.businessId, agencyId: input.clientAgencyId } },
       select: { id: true, feeModel: true, removedAt: true },
     });
     if (!link) {
-      throw new Error("That agency is not one of your clients.");
+      throw new SaleCreateError("This agency is not connected to your progression business.");
     }
     // A removed (archived) client is off the book — no new sales until reinstated.
     // The picker already hides them, so this catches a stale deep link or a crafted
     // request.
     if (link.removedAt) {
-      throw new Error("That client has been removed. Reinstate them before adding a sale.");
+      throw new SaleCreateError("This client has been removed. Please reinstate them before adding a sale.");
     }
     // Server-side backstop for the add-sale fee gate (F3): the fee shows on the
     // agent's own file, so a sale can't be created for a client with no rate set
     // (the UI already blocks this; this catches a crafted request or a fee cleared
     // between page-load and submit).
     if (!parseFeeModel(link.feeModel)) {
-      throw new Error("Set your fee for this client before adding a sale.");
+      throw new SaleCreateError("Set a progression fee for this client before adding a sale.");
     }
     // Server-side card gate (go-live). A progression business can't add a sale for
     // a client until billing is set up (a card on file) — otherwise the £5-per-sale
@@ -253,7 +294,7 @@ export async function createTransactionAction(input: {
     if (progressionBillingCollectEnabled()) {
       const { businessBillingActive } = await import("@/lib/progression/business-stripe");
       if (!(await businessBillingActive(member.businessId))) {
-        throw new Error("Add a payment card before adding a sale for a client.");
+        throw new SaleCreateError("Add a payment card to your account before adding a sale for this client.");
       }
     }
     const director = await prisma.user.findFirst({
@@ -288,13 +329,13 @@ export async function createTransactionAction(input: {
       // Explicit per-sale choice: must be one of the agency's non-removed links.
       const chosen = progressors.find((p) => p.businessId === input.progressionBusinessId);
       if (!chosen) {
-        throw new Error("That progressor isn't connected to your agency.");
+        throw new SaleCreateError("This progressor is not connected to your agency.");
       }
       invitingProgressorBusinessId = chosen.businessId;
     } else if (progressors.length > 1) {
       // Several progressors but none chosen — the UI requires a pick; this is the
       // server backstop for a crafted/stale submit.
-      throw new Error("Choose which progressor handles this sale.");
+      throw new SaleCreateError("Select a progressor to handle this sale.");
     } else {
       // Single (or zero) progressor — unchanged behaviour (the primary, or null).
       invitingProgressorBusinessId = progressors[0]?.businessId ?? null;
@@ -317,8 +358,8 @@ export async function createTransactionAction(input: {
     !hasMigrationOverride &&
     !outsourcedIntakeEnabled()
   ) {
-    throw new Error(
-      "Sending a sale to our team to progress is no longer available. You can progress it yourself, and we'll be introducing a way to hand files to a progression partner soon.",
+    throw new SaleCreateError(
+      "Handing sales to our progression team is no longer available. You can continue to progress sales yourself. Soon, you'll be able to connect with an independent progression partner directly through the platform.",
     );
   }
 
@@ -327,10 +368,10 @@ export async function createTransactionAction(input: {
   // Migration imports stay exempt (historical records may be sparse).
   if (!hasMigrationOverride) {
     if (solicitorPairViolation(input.vendorSolicitorFirmId, input.vendorSolicitorContactId)) {
-      throw new Error(solicitorHandlerRequiredMessage("seller"));
+      throw new SaleCreateError(solicitorHandlerRequiredMessage("seller"));
     }
     if (solicitorPairViolation(input.purchaserSolicitorFirmId, input.purchaserSolicitorContactId)) {
-      throw new Error(solicitorHandlerRequiredMessage("buyer"));
+      throw new SaleCreateError(solicitorHandlerRequiredMessage("buyer"));
     }
   }
 
@@ -356,7 +397,7 @@ export async function createTransactionAction(input: {
       purchaserSolicitorContactId: input.purchaserSolicitorContactId ?? null,
     });
     if (!readiness.ready) {
-      throw new Error(handoverReadinessMessage(readiness.missing));
+      throw new SaleCreateError(handoverReadinessMessage(readiness.missing));
     }
   }
   const effectiveAgencyId = clientCreate?.agencyId ?? input.migrationAgencyId ?? session.user.agencyId;
@@ -373,7 +414,7 @@ export async function createTransactionAction(input: {
       (clientCreate?.progressionBusinessId ?? invitingProgressorBusinessId) ? "external" : "tsp";
     if (await wouldMixOutsourcing(effectiveAgencyId, incomingKind)) {
       await alertOutsourcingMix(effectiveAgencyId, incomingKind, "new sale");
-      throw new Error("This agency already has sales being progressed another way. An agency uses one progression route at a time, so this sale can't be added here.");
+      throw new SaleCreateError("This agency already has sales being progressed another way. An agency uses one progression route at a time, so this sale can't be added here.");
     }
   }
   let effectiveAssignedUserId = input.migrationAssignedUserId ?? (isAgent ? undefined : session.user.id);
@@ -401,10 +442,10 @@ export async function createTransactionAction(input: {
       select: { id: true, agencyId: true, role: true },
     });
     if (!target || target.agencyId !== effectiveAgencyId) {
-      throw new Error("Cannot assign to a user outside your agency");
+      throw new SaleCreateError("Cannot assign to a user outside your agency");
     }
     if (target.role !== "director" && target.role !== "negotiator") {
-      throw new Error("Cannot assign to a non-agent user");
+      throw new SaleCreateError("Cannot assign to a non-agent user");
     }
     effectiveAgentUserId = target.id;
   }
@@ -417,7 +458,7 @@ export async function createTransactionAction(input: {
       select: { id: true, agencyId: true, isInHouseProgressor: true },
     });
     if (!prog || prog.agencyId !== effectiveAgencyId || !prog.isInHouseProgressor) {
-      throw new Error("Cannot assign: that user is not an in-house progressor in your agency");
+      throw new SaleCreateError("Cannot assign: that user is not an in-house progressor in your agency");
     }
     effectiveAssignedUserId = prog.id;
   } else if (inHouseEnabled && input.inHouseProgressorId === undefined && effectiveAssignedUserId === undefined) {
@@ -445,7 +486,7 @@ export async function createTransactionAction(input: {
       select: { id: true, progressionBusinessId: true },
     });
     if (!target || target.progressionBusinessId !== clientCreate.progressionBusinessId) {
-      throw new Error("Cannot assign to a user outside your progression business");
+      throw new SaleCreateError("Cannot assign to a user outside your progression business");
     }
     effectiveAssignedUserId = target.id;
   }
@@ -2032,7 +2073,7 @@ export async function switchServiceTypeAction(
     if (chosenProgressionBusinessId) {
       const chosen = progressors.find((p) => p.businessId === chosenProgressionBusinessId);
       if (!chosen) {
-        return { ok: false, error: "That progressor isn't connected to your agency." };
+        return { ok: false, error: "This progressor is not connected to your agency." };
       }
       handoverBusinessId = chosen.businessId;
     } else if (progressors.length > 1) {
