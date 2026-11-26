@@ -1136,8 +1136,10 @@ export function MilestoneRow({ def, transactionId, onConfirmStart, onConfirmFail
                      on phones (Ellis). */
                   /* On phones the confirming state replaces the 42px slide, so
                      match that height (sm is 32px) to avoid a 10px jump as the
-                     slide swaps to "Confirming…". !h so it beats agent-btn-sm. */
-                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1 max-[425px]:!h-[42px]" : "max-[425px]:!hidden"}`}
+                     slide swaps to "Confirming…". ms-phone-confirm-h is a named
+                     CSS rule (agent-system.css) that pins 42px on ≤425px — robust
+                     where the old arbitrary max-[425px]:!h-[42px] collapsed. */
+                  className={`ms-appear ${showEventDate ? "max-sm:flex-[1.6]" : loading ? "max-[425px]:w-full max-[425px]:flex-1 ms-phone-confirm-h" : "max-[425px]:!hidden"}`}
                   style={{ minWidth: 76 }}
                 >
                   {loading ? (

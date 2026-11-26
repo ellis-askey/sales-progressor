@@ -3803,6 +3803,14 @@
   /* ── Milestone animation classes ─────────────────────────────────────────── */
   .ms-pop    { animation: ms-node-pop 360ms cubic-bezier(.16,1,.3,1) both; }
   .ms-appear { animation: ms-btn-appear 220ms ease 120ms both; }
+  /* Phone step-confirm height lock (≤425px): the slide-to-confirm bar is 42px,
+     and when it swaps to the in-flight "Confirming…" button that button must
+     stay 42px so the row doesn't collapse ~10px. A named rule rather than an
+     arbitrary Tailwind height (max-[425px]:!h-[42px]) which could be purged or
+     out-cascaded — the exact fragility the old inline comment warned about. */
+  @media (max-width: 425px) {
+    .ms-phone-confirm-h { height: 42px !important; min-height: 42px !important; }
+  }
 
   /* ── Icon button (circular) ──────────────────────────────────────────────── */
   /* Circular close / dismiss button. Size variants: .agent-icon-btn-sm (22px),
