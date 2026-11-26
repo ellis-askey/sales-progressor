@@ -17,10 +17,14 @@
 // gate the device-push duplicate.
 
 import { useState, useTransition, useEffect } from "react";
-import { DeviceMobile } from "@/components/icons/ph";
+import { DeviceMobile, Bell, UploadSimple, Info } from "@/components/icons/ph";
 import { updateAgentPushPrefAction, sendTestPushAction } from "@/app/actions/agent-preferences";
-import { Pill } from "@/components/ui/Pill";
+import { Button } from "@/components/arc/button/button";
+import { Badge } from "@/components/ui/Badge";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import { LiquidToggle } from "@/components/ui/LiquidToggle";
+
+const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { SectionMasterControl } from "@/components/account/chrome/SectionMasterControl";
 import type { NotificationPrefs, PushKey } from "@/lib/agent/notification-prefs";
@@ -291,9 +295,9 @@ export function MobilePushSection({
     >
       {/* Devices list */}
       <div className="mb-5">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Devices</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--agent-text-secondary)] mb-2">Devices</p>
         {devices.length === 0 ? (
-          <p className="text-xs text-slate-500 italic mb-3">No devices connected yet. Enable push notifications on this device below.</p>
+          <p className="text-xs text-[color:var(--agent-text-muted)] italic mb-3">No devices connected yet. Enable push notifications on this device below.</p>
         ) : (
           <div className="space-y-2 mb-3">
             {devices.map((d) => {
@@ -301,27 +305,19 @@ export function MobilePushSection({
               return (
                 <div
                   key={d.id}
-                  className={`flex items-center justify-between gap-3 py-2 px-3 rounded-md border ${
-                    isThisDevice ? "bg-orange-50/40 border-orange-200" : "bg-slate-50 border-slate-200"
-                  }`}
+                  className="flex items-center justify-between gap-3 py-2.5 px-3.5 rounded-[10px] border"
+                  style={{ background: "var(--agent-surface-subtle, rgba(45,24,16,0.03))", borderColor: isThisDevice ? "rgba(var(--agent-coral-rgb),0.30)" : "var(--agent-border-subtle)" }}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-slate-800 truncate">{deviceLabel(d)}</p>
-                      {isThisDevice && (
-                        <Pill glass tone="brand" size="sm" className="uppercase tracking-wider flex-shrink-0">This device</Pill>
-                      )}
+                      <p className="text-sm text-[color:var(--agent-text-secondary)] truncate">{deviceLabel(d)}</p>
+                      {isThisDevice && <Badge tone="accent">This device</Badge>}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{deviceSubLabel(d)}</p>
+                    <p className="text-xs text-[color:var(--agent-text-muted)] mt-0.5">{deviceSubLabel(d)}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRevoke(d)}
-                    disabled={revokingId === d.id}
-                    className="agent-btn agent-btn-xs agent-btn-ghost-bordered flex-shrink-0"
-                  >
-                    {revokingId === d.id ? "…" : "Revoke"}
-                  </button>
+                  <Button variant="secondary" size="xs" onClick={() => handleRevoke(d)} loading={revokingId === d.id} className="flex-shrink-0">
+                    Revoke
+                  </Button>
                 </div>
               );
             })}
@@ -329,66 +325,52 @@ export function MobilePushSection({
         )}
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
+            style={coralVars}
             onClick={handleEnable}
-            disabled={subStatus.kind === "asking" || subStatus.kind === "done"}
-            className="agent-btn agent-btn-sm agent-btn-primary"
+            loading={subStatus.kind === "asking"}
+            disabled={subStatus.kind === "done"}
           >
-            {subStatus.kind === "asking" ? "Asking permission…" : subStatus.kind === "done" ? "✓ Enabled" : "Enable on this device"}
-          </button>
-          <button
-            type="button"
+            {subStatus.kind === "done" ? "Enabled" : "Enable on this device"}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleTestPush}
-            disabled={devices.length === 0 || testStatus === "Sending…"}
-            className="agent-btn agent-btn-sm agent-btn-ghost-bordered"
+            loading={testStatus === "Sending…"}
+            disabled={devices.length === 0}
             title={devices.length === 0 ? "Enable on a device first" : "Sends a test push to confirm setup works. Bypasses the toggles below."}
           >
             Send test push
-          </button>
-          {testStatus && (
-            <span className="text-xs text-slate-600">{testStatus}</span>
+          </Button>
+          {testStatus && testStatus !== "Sending…" && (
+            <span className="text-xs text-[color:var(--agent-text-secondary)]">{testStatus}</span>
           )}
         </div>
 
         {subStatus.kind === "denied" && (
-          <p className="text-xs text-amber-700 mt-2">
-            Permission denied. Click the lock or permissions icon in your browser&apos;s address bar, allow notifications, then try again.
-          </p>
+          <div className="mt-2"><InlineAlert kind="warning">Permission denied. Click the lock or permissions icon in your browser&apos;s address bar, allow notifications, then try again.</InlineAlert></div>
         )}
         {subStatus.kind === "blocked" && (
-          <p className="text-xs text-amber-700 mt-2">
-            Notifications are blocked for this site. Allow them in your browser settings, then try again.
-          </p>
+          <div className="mt-2"><InlineAlert kind="warning">Notifications are blocked for this site. Allow them in your browser settings, then try again.</InlineAlert></div>
         )}
         {subStatus.kind === "unsupported" && subStatus.reason === "browser" && (
-          <p className="text-xs text-slate-600 mt-2">
-            Your browser doesn&apos;t support push notifications. Try Chrome, Edge, Firefox or Safari (macOS 13+).
-          </p>
+          <div className="mt-2"><InlineAlert kind="info">Your browser doesn&apos;t support push notifications. Try Chrome, Edge, Firefox or Safari (macOS 13+).</InlineAlert></div>
         )}
-        {subStatus.kind === "unsupported" && subStatus.reason === "ios-needs-pwa" && (
-          <div className="mt-3 p-3 rounded-md bg-blue-50 border border-blue-100 text-xs text-blue-900">
-            <p className="font-semibold mb-1">To get push on iPhone, install Sales Progressor first:</p>
-            <ol className="list-decimal pl-5 space-y-0.5">
-              <li>Tap the Share button at the bottom of Safari</li>
-              <li>Scroll down and tap &quot;Add to Home Screen&quot;</li>
-              <li>Tap Add</li>
-              <li>Open the new Sales Progressor icon from your home screen</li>
-              <li>Return to this settings page and tap Enable</li>
-            </ol>
-          </div>
-        )}
+        {subStatus.kind === "unsupported" && subStatus.reason === "ios-needs-pwa" && <IosInstallGuide />}
         {subStatus.kind === "unavailable" && (
-          <p className="text-xs text-amber-700 mt-2">Push notifications aren&apos;t available right now.</p>
+          <div className="mt-2"><InlineAlert kind="warning">Push notifications aren&apos;t available right now.</InlineAlert></div>
         )}
         {subStatus.kind === "error" && (
-          <p className="text-xs text-red-700 mt-2">Something went wrong — try again.</p>
+          <div className="mt-2"><InlineAlert kind="danger">Something went wrong. Try again.</InlineAlert></div>
         )}
       </div>
 
       {/* Per-event toggles */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Push me when…</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--agent-text-secondary)] mb-2">Push me when…</p>
         <div className="space-y-3">
           {TOGGLES.map((t) => {
             const on = prefs.push[t.key];
@@ -396,18 +378,18 @@ export function MobilePushSection({
             return (
               <div
                 key={t.key}
-                className="flex items-start justify-between gap-4 py-2 border-t border-slate-200/40 first:border-t-0 first:pt-0"
+                className="flex items-start justify-between gap-4 py-2 border-t border-[color:var(--agent-border-subtle)] first:border-t-0 first:pt-0"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-900/85">{t.label}</p>
-                  <p className="text-xs text-slate-900/55 mt-0.5">{t.description}</p>
+                  <p className="text-sm font-semibold text-[color:var(--agent-text-primary)]">{t.label}</p>
+                  <p className="text-xs text-[color:var(--agent-text-muted)] mt-0.5">{t.description}</p>
                 </div>
                 <LiquidToggle
                   checked={on}
                   onChange={() => handleToggle(t.key)}
-                  width={48}
-                  height={28}
-                  color="var(--agent-coral-deep, #FF6B4A)"
+                  width={44}
+                  height={24}
+                  color="var(--agent-coral, #FF8A65)"
                   disabled={saving}
                   aria-label={`${on ? "Turn off" : "Turn on"} ${t.label}`}
                 />
@@ -446,3 +428,42 @@ function parseUserAgent(ua: string): string {
 
   return `${browser} on ${os}`;
 }
+
+// iPhone (Safari-outside-PWA) install walkthrough — push needs the app on the
+// home screen first. A proper guide card (icon + heading + numbered steps),
+// shown in place of a broken-looking Enable button.
+function IosInstallGuide() {
+  return (
+    <div className="iig">
+      <style>{IIG_CSS}</style>
+      <span className="iig-ic"><Bell size={20} weight="regular" /></span>
+      <p className="iig-h">Enable notifications on your iPhone</p>
+      <p className="iig-sub">Stay up to date with new messages and important updates, even when you&apos;re not using the app.</p>
+      <div className="iig-div" />
+      <p className="iig-lead">First, add the app to your Home Screen</p>
+      <div className="iig-steps">
+        <div className="iig-step"><span className="iig-num">1.</span><span>Tap the <b>Share</b> <UploadSimple size={13} weight="bold" className="iig-share" /> button in Safari.</span></div>
+        <div className="iig-step"><span className="iig-num">2.</span><span>Scroll down and select <b>Add to Home Screen</b>.</span></div>
+        <div className="iig-step"><span className="iig-num">3.</span><span>Tap <b>Add</b> in the top-right corner.</span></div>
+        <div className="iig-step"><span className="iig-num">4.</span><span>Open the app from your Home Screen.</span></div>
+        <div className="iig-step"><span className="iig-num">5.</span><span>Return to this page and select <b>Enable notifications</b>.</span></div>
+      </div>
+      <div className="iig-note"><Info size={14} weight="regular" /> You only need to do this once.</div>
+    </div>
+  );
+}
+
+const IIG_CSS = `
+  .iig { border: 1px solid var(--agent-border-default); border-radius: 16px; background: var(--agent-surface-elevated, #fff); padding: 22px 24px; margin-top: 12px; max-width: 480px; box-shadow: 0 1px 2px rgba(60,40,22,.04); }
+  .iig-ic { display: inline-flex; width: 40px; height: 40px; border-radius: 11px; align-items: center; justify-content: center; background: var(--agent-hover-shade-strong, rgba(45,24,16,0.06)); color: var(--agent-text-primary); margin-bottom: 14px; }
+  .iig-h { margin: 0 0 6px; font-size: 16.5px; font-weight: 720; color: var(--agent-text-primary); letter-spacing: -0.01em; }
+  .iig-sub { margin: 0; font-size: 13px; line-height: 1.5; color: var(--agent-text-muted); }
+  .iig-div { height: 1px; background: var(--agent-border-subtle); margin: 16px 0; }
+  .iig-lead { margin: 0 0 14px; font-size: 13px; font-weight: 700; color: var(--agent-text-primary); }
+  .iig-steps { display: flex; flex-direction: column; gap: 13px; }
+  .iig-step { display: flex; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--agent-text-secondary); }
+  .iig-step b { color: var(--agent-text-primary); font-weight: 700; }
+  .iig-num { font-weight: 700; color: var(--agent-text-primary); flex-shrink: 0; }
+  .iig-share { vertical-align: -2px; }
+  .iig-note { display: flex; align-items: center; gap: 7px; margin-top: 16px; padding: 10px 12px; border-radius: 9px; background: var(--agent-hover-shade, rgba(45,24,16,0.04)); font-size: 12.5px; color: var(--agent-text-muted); }
+`;

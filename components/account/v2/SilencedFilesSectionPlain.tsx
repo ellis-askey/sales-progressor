@@ -9,8 +9,11 @@
 // paused, with a link to each file — it no longer silences or resumes here.
 
 import Link from "next/link";
-import { Bell, BellSlash, ArrowRight } from "@/components/icons/ph";
+import { Bell, BellSlash } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { Badge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/arc/button/button";
+import { LinkArrow } from "@/components/ui/LinkArrow";
 
 type FileRow = {
   id: string;
@@ -40,11 +43,11 @@ export function SilencedFilesSectionPlain({ initialSilenced }: { initialSilenced
     >
       {silenced.length === 0 ? (
         <div style={{ textAlign: "center", padding: "26px 0 20px" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,107,74,0.10)", color: "var(--agent-coral-deep, #E2452A)", marginBottom: 12 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: "50%", background: "rgba(var(--agent-coral-rgb),0.10)", color: "var(--agent-coral-deep, #E2452A)", marginBottom: 12 }}>
             <BellSlash size={20} weight="bold" />
           </span>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827" }}>No files are paused</p>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "#9ca3af" }}>Automated emails are running normally on all active files.</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--agent-text-primary)" }}>No files are paused</p>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--agent-text-tertiary)" }}>Automated emails are running normally on all active files.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -56,26 +59,26 @@ export function SilencedFilesSectionPlain({ initialSilenced }: { initialSilenced
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 12,
-                padding: "10px 14px",
-                background: "rgba(254, 243, 199, 0.30)",
-                border: "0.5px solid rgba(217, 119, 6, 0.18)",
-                borderRadius: 8,
+                padding: "11px 14px",
+                background: "var(--agent-surface-subtle, rgba(45,24,16,0.03))",
+                border: "1px solid var(--agent-border-subtle)",
+                borderRadius: 10,
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {f.propertyAddress}
-                </p>
-                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#6b7280" }}>
-                  Paused {relTime(f.pausedAt)}
-                  {f.pausedByName ? ` by ${f.pausedByName}` : ""}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {f.propertyAddress}
+                  </p>
+                  <Badge tone="amber">Paused</Badge>
+                </div>
+                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--agent-text-muted)" }}>
+                  {relTime(f.pausedAt)}
+                  {f.pausedByName ? `, by ${f.pausedByName}` : ""}
                 </p>
               </div>
-              <Link
-                href={`/agent/transactions/${f.id}`}
-                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: "var(--agent-coral-deep, #E2452A)", background: "#fff", border: "0.5px solid rgba(0,0,0,0.14)", borderRadius: 6, textDecoration: "none" }}
-              >
-                Open file <ArrowRight size={12} weight="bold" />
+              <Link href={`/agent/transactions/${f.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })} style={{ flexShrink: 0 }}>
+                Open file <LinkArrow />
               </Link>
             </div>
           ))}

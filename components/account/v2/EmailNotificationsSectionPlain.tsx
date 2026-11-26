@@ -108,8 +108,8 @@ export function EmailNotificationsSectionPlain({ initialPrefs }: { initialPrefs:
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#111827" }}>{t.label}</p>
-                <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6b7280", lineHeight: 1.55 }}>{t.description}</p>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--agent-text-primary)" }}>{t.label}</p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--agent-text-muted)", lineHeight: 1.55 }}>{t.description}</p>
               </div>
               <LiquidToggle
                 checked={on}
