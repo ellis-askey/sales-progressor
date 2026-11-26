@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { Button } from "@/components/arc/button/button";
 
 type Props = {
   email: string;
   onVerified: () => void;
   onCancel: () => void;
 };
+
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function InboxVerifyFlow({ email, onVerified, onCancel }: Props) {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
@@ -62,13 +65,13 @@ export function InboxVerifyFlow({ email, onVerified, onCancel }: Props) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold text-slate-900/80 mb-1">Check your inbox</p>
-        <p className="text-xs text-slate-900/50">
+        <p className="text-sm font-semibold text-gray-800 mb-1">Check your inbox</p>
+        <p className="text-xs text-gray-500">
           We sent a 6-digit code to <strong>{email}</strong>. Enter it below or click the link in the email.
         </p>
       </div>
 
-      {/* Digit inputs */}
+      {/* Digit inputs: bespoke shape kept; the active highlight is brand coral, not blue */}
       <div className="flex gap-2 justify-center" onPaste={handlePaste}>
         {digits.map((d, i) => (
           <input
@@ -82,38 +85,39 @@ export function InboxVerifyFlow({ email, onVerified, onCancel }: Props) {
             onKeyDown={(e) => handleKeyDown(i, e)}
             className="w-11 h-14 text-center text-xl font-bold rounded-xl border-2 transition-colors focus:outline-none"
             style={{
-              background: "rgba(255,255,255,0.7)",
-              borderColor: d ? "#2563eb" : "rgba(15,23,42,0.12)",
-              color: "#1a1d29",
+              background: "#ffffff",
+              borderColor: d ? "var(--agent-coral, #FF6B4A)" : "rgba(15,23,42,0.12)",
+              color: "var(--agent-text-primary, #1a1d29)",
             }}
           />
         ))}
       </div>
 
       {error && (
-        <p className="text-xs text-red-500 font-medium text-center">{error}</p>
+        <p className="text-xs text-[color:var(--agent-danger,#C73E3E)] font-medium text-center">{error}</p>
       )}
 
       <div className="flex gap-2">
-        <button
+        <Button
+          variant="primary"
+          size="lg"
+          style={coralPrimary}
           onClick={submit}
-          disabled={code.length !== 6 || loading}
-          className="flex-1 py-3 rounded-xl agent-btn-color-primary text-white text-sm font-semibold transition-colors disabled:opacity-40"
+          disabled={code.length !== 6}
+          loading={loading}
+          className="flex-1"
         >
-          {loading ? "Verifying…" : "Verify"}
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-3 rounded-xl text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/40 transition-colors"
-        >
+          Verify
+        </Button>
+        <Button variant="ghost" size="lg" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
 
-      <p className="text-xs text-slate-900/40 text-center">
+      <p className="text-xs text-gray-400 text-center">
         Didn&apos;t get it?{" "}
         <button
-          className="text-blue-500 hover:text-blue-600 font-medium"
+          className="font-medium text-[color:var(--agent-coral-deep,#E2452A)] hover:text-[color:var(--agent-coral,#FF6B4A)]"
           onClick={async () => {
             await fetch("/api/agent/verified-emails/inbox", {
               method: "POST",

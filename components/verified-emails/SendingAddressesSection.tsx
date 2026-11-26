@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Warning } from "@phosphor-icons/react";
+import { Plus, CheckCircle } from "@phosphor-icons/react";
 import { AddressCard } from "./AddressCard";
 import { DomainAuthFlow } from "./DomainAuthFlow";
 import { InboxVerifyFlow } from "./InboxVerifyFlow";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { LabelInput } from "@/components/ui/LabelInput";
 
 type VerifiedEmail = {
   id: string;
@@ -31,6 +34,8 @@ type Step =
   | { type: "domain-auth"; domain: DomainRecord; pendingEmail: string }
   | { type: "inbox-verify"; email: string }
   | { type: "success"; email: string };
+
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function SendingAddressesSection({ initialVerified, domainVerified, ownAddress, homeHref = "/agent/account/connections" }: { initialVerified?: boolean; domainVerified?: boolean; ownAddress?: string; homeHref?: string }) {
   const router = useRouter();
@@ -120,26 +125,20 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
 
       {/* Pending domain banner */}
       {pendingDomains.length > 0 && step.type === "list" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100">
-          <Warning className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" weight="fill" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-amber-800">DNS setup incomplete</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              {pendingDomains.join(", ")} — the DNS records haven&apos;t been added yet. Your emails won&apos;t send from this domain until setup is complete.
-            </p>
-          </div>
-        </div>
+        <InlineAlert kind="warning">
+          <b>DNS setup incomplete.</b> {pendingDomains.join(", ")}: the DNS records haven&apos;t been added yet. Your emails won&apos;t send from this domain until setup is complete.
+        </InlineAlert>
       )}
 
       {/* Domain already authenticated → they already send from their own address,
           so reassure rather than pushing the per-address code step (which only
           matters for someone who hasn't done DNS). */}
       {domainVerified && step.type === "list" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
-          <span className="text-emerald-600 text-sm font-bold leading-none mt-0.5">✓</span>
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border bg-white" style={{ borderColor: "rgba(47,158,107,0.4)" }}>
+          <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" weight="fill" style={{ color: "#2F9E6B" }} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-emerald-700">You&rsquo;re all set</p>
-            <p className="text-xs text-emerald-700/80 mt-0.5">
+            <p className="text-sm font-semibold" style={{ color: "#2F9E6B" }}>You&rsquo;re all set</p>
+            <p className="text-xs text-gray-500 mt-0.5">
               Your emails already send from your own address{ownAddress ? ` (${ownAddress})` : ""}, with replies coming straight back to you. There&rsquo;s nothing to set up here.
             </p>
           </div>
@@ -148,9 +147,10 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
 
       {/* Success */}
       {step.type === "success" && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
-          <p className="text-sm font-semibold text-emerald-700">
-            ✓ {step.email ? `${step.email} is verified.` : "Address verified."} Emails to clients and solicitors now send from your own address, with replies coming straight back to you.
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-white" style={{ borderColor: "rgba(47,158,107,0.4)" }}>
+          <CheckCircle className="w-4 h-4 flex-shrink-0" weight="fill" style={{ color: "#2F9E6B" }} />
+          <p className="text-sm font-semibold" style={{ color: "#2F9E6B" }}>
+            {step.email ? `${step.email} is verified.` : "Address verified."} Emails to clients and solicitors now send from your own address, with replies coming straight back to you.
           </p>
         </div>
       )}
@@ -161,9 +161,9 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
           {emails.length === 0 && step.type !== "add-email" && !domainVerified && (
             <div
               className="px-5 py-7 text-center"
-              style={{ border: "1px dashed rgba(0,0,0,0.14)", borderRadius: 11, background: "#fcfbfa" }}
+              style={{ border: "1px solid #e5e7eb", borderRadius: 12, background: "#fcfbfa" }}
             >
-              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#374151" }}>No sending address connected</p>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "#4b5563" }}>No sending address connected</p>
               <p style={{ margin: "3px 0 0", fontSize: 12, color: "#9ca3af" }}>
                 Add a work email address to start sending from Sales Progressor.
               </p>
@@ -182,46 +182,58 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
 
       {/* Add email form */}
       {step.type === "add-email" && (
-        <div className="glass-card p-5 space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <div>
-            <p className="text-sm font-semibold text-slate-900/80 mb-1">Add a sending address</p>
-            <p className="text-xs text-slate-900/50">Use an email on your own work domain. Personal addresses such as Gmail or Outlook aren&apos;t supported here.</p>
+            <p className="text-sm font-semibold text-gray-800 mb-1">Add a sending address</p>
+            <p className="text-xs text-gray-500">Use an email on your own work domain. Personal addresses such as Gmail or Outlook aren&apos;t supported here.</p>
           </div>
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="you@youragency.co.uk"
-            className="agent-input"
-            autoFocus
-            onKeyDown={(e) => e.key === "Enter" && startAddEmail()}
-          />
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <div className="flex gap-2">
-            <button
-              onClick={startAddEmail}
-              disabled={loading || !newEmail.includes("@")}
-              className="px-4 py-2 rounded-lg agent-btn-color-primary text-sm font-medium disabled:opacity-40 transition-colors"
-            >
-              {loading ? "Checking…" : "Continue"}
-            </button>
-            <button
-              onClick={() => { setStep({ type: "list" }); setError(null); setNewEmail(""); }}
-              className="px-4 py-2 rounded-lg text-sm text-slate-900/50 hover:text-slate-900/80 hover:bg-white/20 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (!loading && newEmail.includes("@")) startAddEmail(); }}
+            className="space-y-4"
+          >
+            <LabelInput
+              field="Email address"
+              label="Email address"
+              type="email"
+              size="sm"
+              fullWidth
+              accent="#FF6B4A"
+              autoFocus
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+            {error && <InlineAlert kind="danger">{error}</InlineAlert>}
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                style={coralPrimary}
+                disabled={!newEmail.includes("@")}
+                loading={loading}
+              >
+                Continue
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="md"
+                onClick={() => { setStep({ type: "list" }); setError(null); setNewEmail(""); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
         </div>
       )}
 
       {/* Domain auth flow */}
       {step.type === "domain-auth" && (
-        <div className="glass-card p-5 space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-500 mb-1">Step 1 of 2 — Domain authentication</p>
-            <p className="text-sm font-semibold text-slate-900/80">Set up {step.domain.domain}</p>
-            <p className="text-xs text-slate-900/50 mt-0.5">You only need to do this once. Once the domain is verified, you can add other addresses on it without repeating this step.</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--agent-coral-deep, #E2452A)" }}>Step 1 of 2: Domain authentication</p>
+            <p className="text-sm font-semibold text-gray-800">Set up {step.domain.domain}</p>
+            <p className="text-xs text-gray-500 mt-0.5">You only need to do this once. Once the domain is verified, you can add other addresses on it without repeating this step.</p>
           </div>
           <DomainAuthFlow
             domain={step.domain}
@@ -229,7 +241,7 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
           />
           <button
             onClick={() => { setStep({ type: "list" }); setNewEmail(""); setError(null); }}
-            className="text-xs text-slate-900/40 hover:text-slate-900/70"
+            className="text-xs text-gray-400 hover:text-gray-700"
           >
             ← Back
           </button>
@@ -238,10 +250,10 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
 
       {/* Inbox verify flow */}
       {step.type === "inbox-verify" && (
-        <div className="glass-card p-5 space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-500 mb-1">Step 2 of 2 — Inbox verification</p>
-            <p className="text-sm font-semibold text-slate-900/80">Confirm {step.email}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--agent-coral-deep, #E2452A)" }}>Step 2 of 2: Inbox verification</p>
+            <p className="text-sm font-semibold text-gray-800">Confirm {step.email}</p>
           </div>
           <InboxVerifyFlow
             email={step.email}
@@ -253,14 +265,15 @@ export function SendingAddressesSection({ initialVerified, domainVerified, ownAd
 
       {/* Add button */}
       {(step.type === "list" || step.type === "success") && (
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={() => { setStep({ type: "add-email" }); setError(null); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium hover:bg-black/[0.03] transition-colors account-press"
-          style={{ borderColor: "rgba(var(--agent-coral-base-rgb),0.45)", color: "var(--agent-coral-deep)" }}
+          className="w-full"
         >
           <Plus className="w-4 h-4" />
           Add a sending address
-        </button>
+        </Button>
       )}
     </div>
   );
