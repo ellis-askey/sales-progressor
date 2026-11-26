@@ -13,8 +13,7 @@ import { Button } from "@/components/arc/button/button";
 import { Badge } from "@/components/ui/Badge";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import { LabelInput } from "@/components/ui/LabelInput";
-import { NumberedTimeline } from "@/components/ui/NumberedTimeline";
-import { Plus, CheckCircle } from "@/components/icons/ph";
+import { Plus, CheckCircle, ArrowUpRight, ShieldCheck } from "@/components/icons/ph";
 
 const coralVars = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
@@ -110,19 +109,44 @@ export default function CompareConnectionsPage() {
       </Card>
 
       {/* 6 provider guide */}
-      <Card n={6} title="The provider setup steps become a proper numbered guide" chip="existing-notsure">
-        <p className="cmp-blurb">When you pick a provider (e.g. Gmail), the app-password steps show in a coral-washed box with a plain numbered list. They become the canonical numbered coral steps (the same timeline we built), on a clean surface. <b>One call:</b> the coral “where your email sends from” note above the form: keep it as a coral-accent note, or make it the standard info alert?</p>
+      <Card n={6} title="The provider setup steps become a proper numbered guide" chip="existing">
+        <p className="cmp-blurb">When you pick a provider (e.g. Gmail), the app-password steps showed in a coral-washed box with a plain numbered list. They become the <b>“Connect your Gmail account” card you attached</b>: a clean light card with a heading + subtitle, a hairline divider, bold numbered steps with an “open page ↗” link, and a shield footnote. This is what&rsquo;s now built and live (shown faithfully below).</p>
         <Cols>
           <Col label="Now">
             <div className="guide-now">
-              <p style={{ fontWeight: 600, margin: "0 0 6px", color: "#111827" }}>Gmail <span style={{ color: "#6b7280", fontWeight: 500 }}>app password</span></p>
-              <ol style={{ margin: 0, paddingLeft: 18, color: "#374151", fontSize: 12.5, lineHeight: 1.6 }}><li>Turn on 2-step verification</li><li>Create an app password</li><li>Paste it below</li></ol>
+              <p style={{ fontWeight: 600, margin: "0 0 6px", color: "#111827" }}>Connect your Gmail</p>
+              <ol style={{ margin: 0, paddingLeft: 18, color: "#374151", fontSize: 12.5, lineHeight: 1.6 }}>
+                <li>Turn on 2-Step Verification for your Google account if it isn&rsquo;t already on.</li>
+                <li>Open your <span style={{ color: "#FF6B4A", fontWeight: 600, textDecoration: "underline" }}>Google app passwords page</span> and sign in.</li>
+                <li>Create an app password, copy it and paste it below.</li>
+              </ol>
+              <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "#6b7280", lineHeight: 1.5 }}>Use the app password here, not your normal Gmail password. We&rsquo;ve already filled in the server settings for you.</p>
             </div>
           </Col>
-          <Col label="Proposed">
-            <div className="guide-prop">
-              <p style={{ fontWeight: 700, margin: "0 0 12px", color: "var(--agent-text-primary)", fontSize: 13 }}>Gmail <span style={{ color: "var(--agent-text-muted)", fontWeight: 500 }}>app password</span></p>
-              <NumberedTimeline items={[<>Turn on <b>2-step verification</b></>, <>Create an <b>app password</b></>, <>Paste it below</>]} />
+          <Col label="Proposed (built + live)">
+            <div className="pgd">
+              <p className="pgd-h">Connect your Gmail account</p>
+              <p className="pgd-sub">To connect securely, you&rsquo;ll create an app password through your Google Account.</p>
+              <div className="pgd-div" />
+              <ol className="pgd-steps">
+                <li>
+                  <p className="pgd-sth">1. Enable 2-Step Verification</p>
+                  <p className="pgd-stb">App passwords are only available once 2-Step Verification is on in your Google Account security settings.</p>
+                </li>
+                <li>
+                  <p className="pgd-sth">2. Create an app password</p>
+                  <p className="pgd-stb">Generate one named &lsquo;Sales Progressor&rsquo; on your Google app passwords page.</p>
+                  <a className="pgd-link" href="#" onClick={(e) => e.preventDefault()}>Create app password <ArrowUpRight size={13} weight="bold" /></a>
+                </li>
+                <li>
+                  <p className="pgd-sth">3. Enter your app password</p>
+                  <p className="pgd-stb">Copy the 16-character password and paste it into the field below. You&rsquo;ll only see it once.</p>
+                </li>
+              </ol>
+              <div className="pgd-note">
+                <ShieldCheck size={16} weight="regular" style={{ flex: "none", marginTop: 1, color: "var(--agent-text-muted)" }} />
+                <span>An app password lets you connect securely without sharing your normal Gmail password. We&rsquo;ve already filled in the server settings for you.</span>
+              </div>
             </div>
           </Col>
         </Cols>
@@ -265,6 +289,18 @@ const CSS = `
 
   .guide-now { width: 100%; max-width: 340px; border: 1px solid #ffe0d6; background: #fff7f4; border-radius: 10px; padding: 14px 16px; }
   .guide-prop { width: 100%; max-width: 340px; border: 1px solid var(--agent-border-subtle); background: #fff; border-radius: 12px; padding: 14px 16px; }
+
+  .pgd { width: 100%; max-width: 360px; border: 1px solid var(--agent-border-subtle); border-radius: 16px; background: var(--agent-surface-elevated); padding: 18px 20px; }
+  .pgd-h { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--agent-text-primary); }
+  .pgd-sub { margin: 5px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--agent-text-muted); }
+  .pgd-div { height: 1px; background: var(--agent-border-subtle); margin: 15px 0; }
+  .pgd-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+  .pgd-sth { margin: 0; font-size: 13px; font-weight: 650; color: var(--agent-text-primary); }
+  .pgd-stb { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--agent-text-muted); }
+  .pgd-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 7px; font-size: 12.5px; font-weight: 600; color: var(--agent-coral); text-decoration: none; transition: color 0.12s ease; }
+  .pgd-link:hover { color: var(--agent-coral-deep); }
+  .pgd-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; padding: 11px 13px; border-radius: 11px; background: var(--agent-surface-subtle); }
+  .pgd-note span { font-size: 12px; line-height: 1.5; color: var(--agent-text-muted); }
 
   .glass-now { width: 100%; max-width: 320px; border-radius: 16px; padding: 16px 18px; background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 8px 30px rgba(15,23,42,0.08); backdrop-filter: blur(10px); }
   .glass-prop { width: 100%; max-width: 320px; border-radius: 12px; padding: 14px 16px; background: var(--agent-surface-subtle); border: 1px solid var(--agent-border-subtle); }
