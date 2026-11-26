@@ -55,13 +55,18 @@ const COPY = {
 export function BrokersSection({
   transactionId,
   slots,
+  canEdit = true,
   canEditFee = true,
 }: {
   transactionId: string;
   slots: BrokerSlot[];
+  // Whether the viewer may edit the broker's IDENTITY (firm / contact person /
+  // referred flag). Ungated like the solicitor + client edit (default true), so
+  // an external progression-business user can keep the broker contact current.
+  canEdit?: boolean;
   // Whether the viewer may see / edit the referral FEE (agency commercial
-  // income). Agency / admin only; an external progressor attaches a broker but
-  // never touches the fee. Mirrors the old BrokerSection prop.
+  // income). Agency / admin only; a progressor never touches the fee. Mirrors
+  // the old BrokerSection prop.
   canEditFee?: boolean;
 }) {
   const [saving, setSaving] = useState(false);
@@ -89,6 +94,7 @@ export function BrokersSection({
             key={slot.side}
             transactionId={transactionId}
             slot={slot}
+            canEdit={canEdit}
             canEditFee={canEditFee}
             onSavingChange={setSaving}
           />
@@ -101,11 +107,13 @@ export function BrokersSection({
 function BrokerTile({
   transactionId,
   slot,
+  canEdit,
   canEditFee,
   onSavingChange,
 }: {
   transactionId: string;
   slot: BrokerSlot;
+  canEdit: boolean;
   canEditFee: boolean;
   onSavingChange: (v: boolean) => void;
 }) {
@@ -262,10 +270,11 @@ function BrokerTile({
               <CommsButton compact href={telHref} label="Call" icon={<Phone size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "Call" : "No phone number on file"} />
               <CommsButton compact href={waHref} label="WhatsApp" icon={<ChatCircleText size={15} weight="regular" />} disabled={!contact.phone} title={contact.phone ? "WhatsApp" : "No phone number on file"} />
               <CommsButton compact href={emailHref ?? undefined} label="Email" icon={<EnvelopeSimple size={15} weight="regular" />} disabled={!contact.email} title={contact.email ? "Email" : "No email on file"} />
-              {/* Change / remove an existing broker is an agency action — the
-                  server blocks a progressor from editing a broker that's already
-                  set (attach-only), so the pencil only shows when canEditFee. */}
-              {canEditFee && (
+              {/* Edit / change / remove the broker's identity — ungated like the
+                  solicitor + client edit (canEdit), so an external progressor can
+                  keep the broker contact current. The referral FEE inside the
+                  expanded detail stays behind canEditFee (agency only). */}
+              {canEdit && (
                 <button
                   type="button"
                   onClick={openEdit}

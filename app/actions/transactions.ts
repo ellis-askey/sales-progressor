@@ -2557,6 +2557,10 @@ export async function saveBrokerReferralAction(
     select: {
       id: true, agencyId: true, brokerFirmId: true, onwardBrokerFirmId: true,
       activeBuyerRoundId: true, brokerReferralFeeVat: true, onwardBrokerReferralFeeVat: true,
+      // Preserved fee / received — used for the ledger sync when a progressor
+      // edits the broker identity (writeFee false: we never rewrite the fee).
+      brokerReferralFee: true, brokerReferralFeeReceived: true,
+      onwardBrokerReferralFee: true, onwardBrokerReferralFeeReceived: true,
     },
   });
   if (!tx) throw new Error("Transaction not found");
@@ -2565,39 +2569,43 @@ export async function saveBrokerReferralAction(
   // the broker firm on this side changes — frozen at attach time.
   const currentFirmId = side === "vendor" ? tx.onwardBrokerFirmId : tx.brokerFirmId;
 
-  // Progressor: attach-a-broker only. They can add one where none exists, never
-  // edit an existing broker or touch the agency's fee. Force the fee fields off so
-  // only the firm / contact / referral flag is written.
-  if (isProgressor && currentFirmId) {
-    throw new Error("Forbidden: the referral fee is managed by the agency");
-  }
-  const effData = isProgressor
-    ? { ...data, brokerReferralFee: null, brokerReferralFeeReceived: false }
-    : data;
+  // A progressor (internal TSP or external progression-business) may attach OR
+  // change the broker firm / contact / referral flag — ungated like the solicitor
+  // + client edit — but never the agency's fee. When a progressor SETS a broker
+  // (firm non-null) we leave the fee + VAT columns untouched so an existing agency
+  // fee survives: the fee UI is hidden for them, so the client just echoes back
+  // the loaded value, and writing it (or forcing null) would clobber the agency's
+  // figure. Removing the broker (firm null) falls through and clears the fee with
+  // the firm, which is correct. Agency / admin keep full control of the fee.
+  const writeFee = !isProgressor || data.brokerFirmId == null;
 
-  const brokerReferralVat = effData.brokerFirmId && effData.brokerFirmId !== currentFirmId
+  const brokerReferralVat = writeFee && data.brokerFirmId && data.brokerFirmId !== currentFirmId
     ? await resolveBrokerReferralVat(tx.agencyId)
     : undefined;
 
   const updateData = side === "vendor"
     ? {
-        onwardBrokerFirmId:              effData.brokerFirmId,
-        onwardBrokerContactId:           effData.brokerContactId,
-        onwardBrokerReferralFee:         effData.brokerReferralFee,
-        onwardBrokerReferralFeeReceived: effData.brokerReferralFeeReceived,
+        onwardBrokerFirmId:    data.brokerFirmId,
+        onwardBrokerContactId: data.brokerContactId,
+        ...(writeFee ? {
+          onwardBrokerReferralFee:         data.brokerReferralFee,
+          onwardBrokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        } : {}),
         ...(brokerReferralVat ? { onwardBrokerReferralFeeVat: brokerReferralVat } : {}),
-        ...(effData.purchaserBrokerReferral !== undefined
-          ? { onwardBrokerReferral: effData.purchaserBrokerReferral }
+        ...(data.purchaserBrokerReferral !== undefined
+          ? { onwardBrokerReferral: data.purchaserBrokerReferral }
           : {}),
       }
     : {
-        brokerFirmId:              effData.brokerFirmId,
-        brokerContactId:           effData.brokerContactId,
-        brokerReferralFee:         effData.brokerReferralFee,
-        brokerReferralFeeReceived: effData.brokerReferralFeeReceived,
+        brokerFirmId:    data.brokerFirmId,
+        brokerContactId: data.brokerContactId,
+        ...(writeFee ? {
+          brokerReferralFee:         data.brokerReferralFee,
+          brokerReferralFeeReceived: data.brokerReferralFeeReceived,
+        } : {}),
         ...(brokerReferralVat ? { brokerReferralFeeVat: brokerReferralVat } : {}),
-        ...(effData.purchaserBrokerReferral !== undefined
-          ? { purchaserBrokerReferral: effData.purchaserBrokerReferral }
+        ...(data.purchaserBrokerReferral !== undefined
+          ? { purchaserBrokerReferral: data.purchaserBrokerReferral }
           : {}),
       };
 
@@ -2611,11 +2619,14 @@ export async function saveBrokerReferralAction(
     buyerRoundId: side === "vendor" ? null : tx.activeBuyerRoundId,
     kind: side === "vendor" ? "onward_broker" : "buyer_broker",
     firmField: "broker",
-    firmId: effData.brokerFirmId,
-    contactId: effData.brokerContactId,
-    feePence: effData.brokerReferralFee,
+    firmId: data.brokerFirmId,
+    contactId: data.brokerContactId,
+    // Identity always reflects the edit; the fee reflects what was actually
+    // written — the preserved value when a progressor edited (writeFee false),
+    // not the (echoed, possibly stale) client value.
+    feePence: writeFee ? data.brokerReferralFee : (side === "vendor" ? tx.onwardBrokerReferralFee : tx.brokerReferralFee),
     vat: brokerReferralVat ?? (side === "vendor" ? tx.onwardBrokerReferralFeeVat : tx.brokerReferralFeeVat),
-    received: effData.brokerReferralFeeReceived,
+    received: writeFee ? data.brokerReferralFeeReceived : (side === "vendor" ? tx.onwardBrokerReferralFeeReceived : tx.brokerReferralFeeReceived),
     earned: side === "vendor" ? false : await isBrokerEarned(prisma, transactionId, tx.activeBuyerRoundId),
   });
 
