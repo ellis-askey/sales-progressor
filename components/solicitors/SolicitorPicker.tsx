@@ -330,6 +330,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             onClose={() => setShowDropdown(false)}
             matchWidth
             bare
+            role="listbox"
             placement="bottom-start"
             zIndex={panelZIndex}
           >
@@ -341,7 +342,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
             ) : firms.length > 0 ? (
               <>
                 {firms.map((f) => (
-                  <button key={f.id} type="button" className="ui-pop-pick" onMouseDown={() => selectFirm(f)}>{f.name}</button>
+                  <button key={f.id} type="button" role="option" aria-selected={false} className="ui-pop-pick" onMouseDown={() => selectFirm(f)}>{f.name}</button>
                 ))}
                 <button type="button" className="ui-pop-pick ui-pop-pick-add" onMouseDown={handleAddFirm}>+ Add &ldquo;{query}&rdquo; as new firm</button>
               </>
@@ -382,6 +383,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                   onClose={() => setHandlerOpen(false)}
                   matchWidth
                   bare
+                  role="listbox"
                   placement="bottom-start"
                   zIndex={panelZIndex}
                 >
@@ -389,7 +391,7 @@ export function SolicitorPicker({ label, value, onChange, onFirmCreated, transac
                     <p className="ui-pop-pick-empty">No case handlers yet</p>
                   ) : (
                     handlers.map((h) => (
-                      <button key={h.id} type="button" className="ui-pop-pick" onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}>
+                      <button key={h.id} type="button" role="option" aria-selected={value?.contactId === h.id} className="ui-pop-pick" onMouseDown={() => { selectHandler(h); setHandlerOpen(false); }}>
                         {h.name}
                       </button>
                     ))
