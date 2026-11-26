@@ -177,7 +177,7 @@ export function DiaryEventRow({
         ) : showConfirmButton ? (
           <HubSplitButton
             onClick={() => { setGateMsg(null); setExchCompletionDate(""); setOpen(true); }}
-            buttonStyle={{ color: c.accent }}
+            accent={c.accent}
             items={menuItems}
             disabled={busy}
             label={<>

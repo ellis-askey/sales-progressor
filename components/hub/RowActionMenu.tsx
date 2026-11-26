@@ -35,6 +35,7 @@ export function RowActionMenu({
   ariaLabel = "More options",
   trigger,
   header,
+  accent,
 }: {
   items: RowMenuItem[];
   label?: string;
@@ -47,10 +48,17 @@ export function RowActionMenu({
   // Optional question/label shown above the items (e.g. "Was this a desktop
   // valuation?"). Omitted on a plain action menu.
   header?: string;
+  // Solid accent fill for a JOINED caret, so it matches a solid accent label
+  // button beside it (HubSplitButton) instead of staying transparent outline.
+  accent?: string;
 }) {
   const joinedStyle: React.CSSProperties = joined
     ? { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none", padding: "0 7px" }
     : {};
+  const solid = joined && accent != null;
+  const accentTokens = solid
+    ? ({ ["--foreground" as string]: accent, ["--background" as string]: "#ffffff" } as React.CSSProperties)
+    : null;
 
   const defaultTrigger = (open: boolean) => (
     <button
@@ -58,8 +66,8 @@ export function RowActionMenu({
       disabled={disabled}
       aria-label={label ?? ariaLabel}
       aria-expanded={open}
-      className={buttonClasses({ variant: "outline", size: "sm" })}
-      style={{ gap: label ? 5 : 0, ...joinedStyle }}
+      className={buttonClasses({ variant: solid ? "primary" : "outline", size: "sm" })}
+      style={{ gap: label ? 5 : 0, ...accentTokens, ...joinedStyle }}
     >
       {label}
       <CaretDown size={13} weight="bold" style={{ transition: "transform 160ms", transform: open ? "rotate(180deg)" : "none" }} />
