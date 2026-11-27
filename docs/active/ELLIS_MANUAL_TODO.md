@@ -4,7 +4,24 @@
 
 **Maintenance rule:** When CC ships a PR that requires founder action, CC must add the action to this file. When Ellis completes a task, strike it through with `~~` markdown but leave it visible.
 
-Last updated: 2026-11-24
+Last updated: 2026-11-27
+
+---
+
+## Progression invoice suite — prod migration (2026-11-27)
+
+**What shipped (staging only):** the full client-invoice suite for external sales-progression businesses (critique 2026-11-25), in three commits — Phase 1 (design a branded invoice: template/colour/logo/typeface/fields/message, on Settings → Business), Phase 2 (Send invoice → emails the client agency's director the branded PDF + a tracked ledger at Settings → Invoices with paid/overdue/mark-paid), Phase 3 (schedule: auto-issue monthly on the 1st + a day-before-completion reminder). **Click-to-pay is deliberately excluded** — it needs the payment-processor decision (Stripe Connect vs the progressor's own pay link); the pay button stays an illustrative mock until you decide.
+
+**Your manual steps:**
+1. **Production database migration (the gate).** Three *additive, nullable* schema changes are applied to **staging** (via `db push`, since direct-host migrate is IPv6-blocked here) but **NOT production**:
+   - `ProgressionBusiness.invoiceDesign` (Json) + `invoiceLogoPath` (String?)
+   - new `ClientInvoice` table
+   - `ProgressionBusiness.invoiceAutoMonthly` + `invoiceRemindDayBefore` (Boolean, default false)
+   All additive/nullable, so existing rows are unchanged. Apply to prod **with your go** — either a prod `db push` (matches how staging was done) or a generated migration via `migrate deploy` (team convention). The code must not ship to prod before this runs, or the new selects/writes will error.
+2. **Feature flag:** this is all gated by `PROGRESSION_BUSINESSES_ENABLED` (already the switch for the external-SP product). No new env var. The two new crons authenticate with the existing `CRON_SECRET`.
+3. **Logo storage:** reuses the existing public `agency-logos` bucket (path prefix `biz-`), so **no new bucket** to create.
+
+**Not done by design:** nothing is pushed to prod / deployed — `staging` branch holds 3 commits (`29630bb4` Phase 1, then Phase 2, `8d74394e` Phase 3) that are **not pushed**. Click-to-pay pending your payment-path decision.
 
 ---
 
