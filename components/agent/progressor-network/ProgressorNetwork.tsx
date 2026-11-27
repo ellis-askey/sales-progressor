@@ -8,7 +8,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ProgressorNetworkBusiness, ProgressorNetworkTab } from "@/lib/services/progressor-network";
-import { NETWORK_SPECIALISMS } from "@/lib/services/progressor-network";
+import { NETWORK_SPECIALISMS } from "@/lib/services/progressor-network-constants";
 import type { ProgressorRelationshipStats, HandoverableSale } from "@/lib/services/progressor-network-relationship";
 import { requestConnectProgressorAction, withdrawNetworkRequestAction } from "@/app/actions/progressor-network";
 import { ProgressorCard } from "./ProgressorCard";

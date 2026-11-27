@@ -68,32 +68,10 @@ export type ProgressorNetworkData = {
   businesses: ProgressorNetworkBusiness[];
 };
 
-// Controlled vocabularies — the single source of truth for the filter facets AND
-// the per-business profile picker, so chips never drift. A business's
-// networkSpecialisms / networkRegions store a subset of these. Extend in ONE
-// place (here). Founders curate per business for now; businesses self-serve
-// from the same lists later.
-export const NETWORK_SPECIALISMS = [
-  "Leasehold",
-  "New-build",
-  "Chain management",
-  "High-value",
-  "First-time buyers",
-  "Shared ownership",
-  "Auction sales",
-  "Probate / executor sales",
-] as const;
-
-export const NETWORK_REGIONS = [
-  "Nationwide",
-  "London",
-  "South East",
-  "South West",
-  "Midlands",
-  "North",
-  "Scotland",
-  "Wales",
-] as const;
+// Controlled vocabularies now live in a client-safe module (so client components
+// can import them without pulling this server service — and next/headers — into
+// the client bundle). Re-exported here for existing server-side importers.
+export { NETWORK_SPECIALISMS, NETWORK_REGIONS } from "./progressor-network-constants";
 
 const DEFAULT_BRAND_COLOR = "#334155"; // slate — monogram-tile fallback when no brand colour set
 const EMPTY_STATS: ProgressorCardStats = {
