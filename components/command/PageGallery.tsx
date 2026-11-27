@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // Command-Centre page gallery. Lists every page + state and loads the real route
 // in an iframe (byte-for-byte). Dark utilitarian chrome to match the Command
@@ -16,6 +16,13 @@ export interface GalleryItem {
   url: string;
   /** Small warning under the item (e.g. "redirects when logged in"). */
   note?: string;
+  /**
+   * Baseline sign-off state for this page. The curated pages already in the
+   * gallery ship signedOff: true; newly-added pages awaiting review omit it
+   * (default false). A click on the row's circle writes a per-URL override to
+   * localStorage, which supersedes this baseline.
+   */
+  signedOff?: boolean;
 }
 export interface GalleryGroup {
   category: string;
@@ -47,6 +54,8 @@ const LINE = "#262626";
 const ACCENT = "#2563eb";
 const ACTIVE_BG = "#1d2d50";
 const ACTIVE_FG = "#93c5fd";
+const SIGNED = "#34d399"; // emerald — a signed-off (approved) page
+const SIGNOFF_KEY = "cc-page-signoff-v1"; // localStorage map: { [url]: boolean }
 
 const DEVICES = [
   { id: "desktop", label: "Desktop", w: 1280 },
@@ -66,6 +75,47 @@ export function PageGallery({ groups, preview = [], heightCss = "100vh" }: { gro
   const [reloadKey, setReloadKey] = useState(0);
   const [setId, setSetId] = useState<string>(preview[0]?.id ?? "");
   const [roleId, setRoleId] = useState<string>(preview[0]?.roles[0]?.id ?? "");
+
+  // Per-URL sign-off overrides, persisted to localStorage (founder's personal
+  // review checklist — superadmin-only tool, no cross-device record needed).
+  // Empty until hydrated on the client, so the first paint shows each page's
+  // baseline; the effect then layers any saved overrides on top.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SIGNOFF_KEY);
+      if (raw) setOverrides(JSON.parse(raw) as Record<string, boolean>);
+    } catch {
+      /* ignore malformed / unavailable storage */
+    }
+    setHydrated(true);
+  }, []);
+
+  function isSignedOff(item: GalleryItem): boolean {
+    return overrides[item.url] ?? !!item.signedOff;
+  }
+  function toggleSignoff(item: GalleryItem) {
+    setOverrides((prev) => {
+      const next = { ...prev, [item.url]: !(prev[item.url] ?? !!item.signedOff) };
+      try {
+        window.localStorage.setItem(SIGNOFF_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  // Review progress across every listed page (client groups + each preview set).
+  const signoffStats = useMemo(() => {
+    const all: GalleryItem[] = [
+      ...groups.flatMap((g) => g.items),
+      ...preview.flatMap((s) => s.groups.flatMap((g) => g.items)),
+    ];
+    const done = all.filter((it) => (overrides[it.url] ?? !!it.signedOff)).length;
+    return { done, total: all.length };
+  }, [groups, preview, overrides]);
 
   const dev = DEVICES.find((d) => d.id === device)!;
   const activeSet = preview.find((s) => s.id === setId) ?? null;
@@ -110,12 +160,17 @@ export function PageGallery({ groups, preview = [], heightCss = "100vh" }: { gro
       {/* ── Left: the page list ── */}
       <aside style={{ width: 248, flexShrink: 0, borderRight: `1px solid ${LINE}`, overflowY: "auto", padding: "14px 12px 32px", background: PANEL }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: ACCENT }}>Page gallery</div>
-        <p style={{ margin: "6px 0 16px", fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
+        <p style={{ margin: "6px 0 10px", fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
           Every page + state, live in the frame. Tokens seed automatically.
         </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "0 0 16px", fontSize: 11, color: MUTED }}>
+          <span style={{ color: SIGNED, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{signoffStats.done}</span>
+          <span style={{ color: FAINT }}>/ {signoffStats.total} signed off</span>
+          <span aria-hidden style={{ flex: 1, height: 1, background: LINE }} />
+        </div>
 
         {groups.map((g) => (
-          <GroupBlock key={g.category} g={g} selected={selected} onPick={(it) => pick(it, false)} />
+          <GroupBlock key={g.category} g={g} selected={selected} onPick={(it) => pick(it, false)} isSignedOff={isSignedOff} onToggleSignoff={toggleSignoff} hydrated={hydrated} />
         ))}
 
         {/* ── Logged-in pages: business toggle + role, then the active set's pages ── */}
@@ -156,7 +211,7 @@ export function PageGallery({ groups, preview = [], heightCss = "100vh" }: { gro
             </select>
 
             {activeSet.groups.map((g) => (
-              <GroupBlock key={g.category} g={g} selected={selected} onPick={(it) => pick(it, true)} />
+              <GroupBlock key={g.category} g={g} selected={selected} onPick={(it) => pick(it, true)} isSignedOff={isSignedOff} onToggleSignoff={toggleSignoff} hydrated={hydrated} />
             ))}
           </div>
         )}
@@ -237,32 +292,103 @@ export function PageGallery({ groups, preview = [], heightCss = "100vh" }: { gro
   );
 }
 
-function GroupBlock({ g, selected, onPick }: { g: GalleryGroup; selected: Selected; onPick: (it: GalleryItem) => void }) {
+function GroupBlock({
+  g,
+  selected,
+  onPick,
+  isSignedOff,
+  onToggleSignoff,
+  hydrated,
+}: {
+  g: GalleryGroup;
+  selected: Selected;
+  onPick: (it: GalleryItem) => void;
+  isSignedOff: (it: GalleryItem) => boolean;
+  onToggleSignoff: (it: GalleryItem) => void;
+  hydrated: boolean;
+}) {
+  // Per-group count, so each section shows how much of it is reviewed.
+  const groupDone = g.items.filter(isSignedOff).length;
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: FAINT, marginBottom: 6 }}>{g.category}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: FAINT }}>{g.category}</div>
+        <div style={{ fontSize: 9, fontWeight: 600, color: groupDone === g.items.length ? SIGNED : FAINT, fontVariantNumeric: "tabular-nums" }}>
+          {groupDone}/{g.items.length}
+        </div>
+      </div>
       {g.blurb && <p style={{ margin: "0 0 6px", fontSize: 10.5, color: MUTED, lineHeight: 1.4 }}>{g.blurb}</p>}
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {g.items.map((it) => {
           const active = selected?.item.url === it.url;
+          const signed = isSignedOff(it);
           return (
-            <button
+            <div
               key={it.url}
-              onClick={() => onPick(it)}
               style={{
-                textAlign: "left", padding: "7px 9px", borderRadius: 7, cursor: "pointer",
-                border: "1px solid transparent",
+                display: "flex", alignItems: "flex-start", gap: 2, borderRadius: 7,
                 background: active ? ACTIVE_BG : "transparent",
-                color: active ? ACTIVE_FG : INK, fontSize: 12.5, fontWeight: active ? 600 : 500,
-                lineHeight: 1.3, transition: "background 0.1s, color 0.1s",
+                transition: "background 0.1s",
               }}
             >
-              {it.label}
-              {it.note && <span style={{ display: "block", fontSize: 10, color: FAINT, fontWeight: 400, marginTop: 2 }}>{it.note}</span>}
-            </button>
+              <button
+                onClick={() => onPick(it)}
+                style={{
+                  flex: 1, minWidth: 0, textAlign: "left", padding: "7px 9px", borderRadius: 7, cursor: "pointer",
+                  border: "1px solid transparent", background: "transparent",
+                  color: active ? ACTIVE_FG : INK, fontSize: 12.5, fontWeight: active ? 600 : 500,
+                  lineHeight: 1.3, transition: "color 0.1s",
+                }}
+              >
+                {it.label}
+                {it.note && <span style={{ display: "block", fontSize: 10, color: FAINT, fontWeight: 400, marginTop: 2 }}>{it.note}</span>}
+              </button>
+              <SignoffToggle signed={signed} hydrated={hydrated} onClick={() => onToggleSignoff(it)} label={it.label} />
+            </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+// The round sign-off control at the right of every row: a filled emerald check
+// when approved, a hollow click-to-approve ring otherwise. Opacity holds steady
+// until localStorage has hydrated so unreviewed rows don't flash as ticked.
+function SignoffToggle({ signed, hydrated, onClick, label }: { signed: boolean; hydrated: boolean; onClick: () => void; label: string }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      aria-pressed={signed}
+      title={signed ? `Signed off — ${label}. Click to un-sign.` : `Mark ${label} signed off`}
+      style={{
+        flexShrink: 0, width: 26, height: 30, marginRight: 3, display: "flex", alignItems: "center", justifyContent: "center",
+        border: "none", background: "transparent", cursor: "pointer", padding: 0,
+        opacity: hydrated ? 1 : 0.35, transition: "opacity 0.15s",
+      }}
+    >
+      <span
+        style={{
+          width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+          border: signed ? `1px solid ${SIGNED}` : `1px solid ${hover ? SIGNED : FAINT}`,
+          background: signed ? SIGNED : "transparent",
+          transition: "border-color 0.12s, background 0.12s",
+        }}
+      >
+        {signed ? (
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M2.5 6.2l2.2 2.3 4.8-5" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : hover ? (
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M2.5 6.2l2.2 2.3 4.8-5" stroke={SIGNED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+          </svg>
+        ) : null}
+      </span>
+    </button>
   );
 }
