@@ -10,6 +10,8 @@ import { displayFor, SEVERITY_MEANING } from "@/lib/command/signal-display";
 import WhatChanged from "@/components/command/shared/WhatChanged";
 import InfoTip from "@/components/command/shared/InfoTip";
 import AutoRefresh from "@/components/command/shared/AutoRefresh";
+import { Sparkline } from "@/components/command/shared/Sparkline";
+import { AcknowledgeButton } from "@/components/command/AcknowledgeButton";
 
 function fmtDelta(v: number): string {
   return v >= 0 ? `+${v}%` : `${v}%`;
@@ -27,10 +29,6 @@ function fmtDate(d: Date | null): string {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
     timeZone: "Europe/London",
   });
-}
-
-function fmtDay(d: Date): string {
-  return new Date(d).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
 }
 
 function daysSince(d: Date): number {
@@ -108,6 +106,9 @@ export default async function OverviewPage({
     // completion, so they aren't stuck. Leave them out of "no movement" (they
     // read as a false alarm otherwise).
     exchangedAt: null,
+    // TSP's own outsourced book lives on /command/tsp-outsourced, never the main
+    // Command Centre — exclude it here (external progression businesses stay).
+    NOT: { serviceType: "outsourced" as const, progressionBusinessId: null },
     milestoneCompletions: { none: { state: "complete" as const, completedAt: { gte: stuckBefore } } },
   };
 
@@ -163,7 +164,7 @@ export default async function OverviewPage({
     commandDb.dailyMetric.findMany({
       where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...txScope },
       orderBy: { date: "asc" },
-      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, chasesSent: true },
+      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, chasesSent: true, transactionsExchanged: true },
     }),
     commandDb.dailyMetric.findMany({
       where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...userScope },
@@ -240,11 +241,9 @@ export default async function OverviewPage({
     ...(agencyIds.length > 0 ? { agencyId: { in: agencyIds } } : {}),
   };
   const POPULATIONS = [
-    { key: "self", label: "Self-progressed", desc: "agencies running their own sales", color: "text-blue-400",
+    { key: "self", label: "Estate agents", desc: "agencies running their own sales", color: "text-blue-400",
       tx: { serviceType: "self_managed" as const, progressionBusinessId: null } },
-    { key: "tsp", label: "TSP — our team", desc: "outsourced sales we progress", color: "text-violet-400",
-      tx: { serviceType: "outsourced" as const, progressionBusinessId: null } },
-    { key: "biz", label: "Progression businesses", desc: "sales run by external businesses", color: "text-emerald-400",
+    { key: "biz", label: "Progression companies", desc: "sales run by external businesses", color: "text-emerald-400",
       tx: { progressionBusinessId: { not: null } } },
   ];
   const populationStats = mode === "all"
@@ -356,9 +355,9 @@ export default async function OverviewPage({
   // multi-select the rollup has one row per agency per day, so sum by date; a
   // day with no rows is a real zero, so the average divides by 7, not by
   // however many rows happened to exist.
-  const dayAgg = new Map<number, { milestones: number; txns: number; chases: number; signups: number }>();
+  const dayAgg = new Map<number, { milestones: number; txns: number; chases: number; signups: number; exch: number }>();
   for (let i = 0; i < 7; i++) {
-    dayAgg.set(sevenCompletedStart.getTime() + i * dayMs, { milestones: 0, txns: 0, chases: 0, signups: 0 });
+    dayAgg.set(sevenCompletedStart.getTime() + i * dayMs, { milestones: 0, txns: 0, chases: 0, signups: 0, exch: 0 });
   }
   for (const r of txDailyRows) {
     const d = dayAgg.get(new Date(r.date).getTime());
@@ -366,6 +365,7 @@ export default async function OverviewPage({
     d.milestones += r.milestonesConfirmed;
     d.txns += r.transactionsCreated;
     d.chases += r.chasesSent;
+    d.exch += r.transactionsExchanged;
   }
   for (const r of signupDailyRows) {
     const d = dayAgg.get(new Date(r.date).getTime());
@@ -380,18 +380,16 @@ export default async function OverviewPage({
   const avgTxns       = Math.round(dailySeries.reduce((a, r) => a + r.txns, 0) / 7);
   const avgSignups    = Math.round(dailySeries.reduce((a, r) => a + r.signups, 0) / 7);
 
-  // Pulse strip = 7 completed days + today (live), tinted distinctly.
-  const stripRows = [
-    ...dailySeries.map((r) => ({
-      label: fmtDay(r.date),
-      milestones: r.milestones,
-      txns: r.txns,
-      isToday: false,
-    })),
-    { label: "Today", milestones: today.milestonesConfirmed, txns: today.transactionsCreated, isToday: true },
-  ];
-  const maxMilestones = Math.max(1, ...stripRows.map((r) => r.milestones));
-  const maxTxns       = Math.max(1, ...stripRows.map((r) => r.txns));
+  // Per-metric 7-day + today-live series, one micro-trend per stat tile. This
+  // replaces the old shared "activity pulse" bar strips: the same daily data,
+  // but read as each metric's own trend inside its tile.
+  const sparkSeries: Record<string, number[]> = {
+    signups:      [...dailySeries.map((r) => r.signups),    today.signups],
+    transactions: [...dailySeries.map((r) => r.txns),       today.transactionsCreated],
+    milestones:   [...dailySeries.map((r) => r.milestones), today.milestonesConfirmed],
+    chases:       [...dailySeries.map((r) => r.chases),     today.chasesSent],
+    exchanges:    [...dailySeries.map((r) => r.exch),       today.transactionsExchanged],
+  };
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
   const modeLabel = mode === "agents" ? " · Estate agents" : mode === "external" ? " · Sales prog companies" : "";
@@ -405,7 +403,7 @@ export default async function OverviewPage({
 
       {/* 7-day metric summary */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
           Platform{modeLabel} — last 7 days vs prior 7 days
           <InfoTip label="How the 7-day totals are counted">
             Last 7 days includes today live plus the six completed days before it,
@@ -435,6 +433,7 @@ export default async function OverviewPage({
                     {d !== 0 ? fmtDelta(d) : "no change"} vs prev week
                   </p>
                 )}
+                <Sparkline values={sparkSeries[s.metric] ?? []} className="mt-2.5 w-full text-blue-400/50" />
               </>
             );
             return (
@@ -456,7 +455,7 @@ export default async function OverviewPage({
       {/* Progression businesses — flow only; the full picture is the Businesses page */}
       {wholeView && bizCount > 0 && (
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
             Progression businesses
             <InfoTip label="The business side's day">
               What your external progression businesses did: sales their teams added today,
@@ -478,72 +477,10 @@ export default async function OverviewPage({
         </section>
       )}
 
-      {/* Activity pulse */}
-      <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-          Activity pulse — 7 days + today
-          <InfoTip label="What the pulse strip shows">
-            Seven completed days with today&apos;s live bar on the right, all
-            following the sidebar scope filter. Today is still filling in, so its
-            bar usually sits lower until the evening.
-          </InfoTip>
-        </h2>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4">
-          <div className="space-y-4">
-            {/* Heat strip — milestones */}
-            <div>
-              <p className="text-[11px] text-neutral-500 mb-2">Milestones confirmed / day</p>
-              <div className="flex items-end gap-1 h-10">
-                {stripRows.map((r, i) => {
-                  const h = Math.max(4, Math.round((r.milestones / maxMilestones) * 40));
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end">
-                      <span className="text-[9px] text-neutral-500 tabular-nums mb-0.5">{r.milestones}</span>
-                      <div
-                        style={{ height: `${h}px` }}
-                        className={`w-full rounded-sm transition-colors ${r.isToday ? "bg-[#FF6B4A] hover:bg-[#FF6B4A]" : "bg-[#FF6B4A]/50 hover:bg-[#FF6B4A]/80"}`}
-                        title={`${r.label}: ${r.milestones}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-1 mt-1">
-                {stripRows.map((r, i) => (
-                  <div key={i} className="flex-1 text-center">
-                    <span className={`text-[9px] ${r.isToday ? "text-[#FF6B4A] font-semibold" : "text-neutral-600"}`}>{r.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Heat strip — transactions */}
-            <div>
-              <p className="text-[11px] text-neutral-500 mb-2">Transactions created / day</p>
-              <div className="flex items-end gap-1 h-8">
-                {stripRows.map((r, i) => {
-                  const h = Math.max(2, Math.round((r.txns / maxTxns) * 24));
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end">
-                      <span className="text-[9px] text-neutral-500 tabular-nums mb-0.5">{r.txns}</span>
-                      <div
-                        style={{ height: `${h}px` }}
-                        className={`w-full rounded-sm transition-colors ${r.isToday ? "bg-blue-500" : "bg-blue-500/30 hover:bg-blue-500/60"}`}
-                        title={`${r.label}: ${r.txns}`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Today vs avg + stuck transactions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
             Today vs 7-day average
             <InfoTip label="How today compares">
               Today is live so far. The average is a full completed day across the
@@ -573,7 +510,7 @@ export default async function OverviewPage({
         </section>
 
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
             Stuck transactions
             <InfoTip label="What counts as stuck">
               Live files older than {STUCK_DAYS} days with no confirmed milestone in
@@ -639,7 +576,7 @@ export default async function OverviewPage({
           a permanent 0-and-0% block was pre-launch noise. */}
       {totalDraftRows > 0 && (
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
           Potential pipeline — agent drafts
           <InfoTip label="What the pipeline shows">
             Unfinished sales agents have started but not completed. Deduplicated
@@ -735,17 +672,16 @@ export default async function OverviewPage({
       {/* Who's doing the work — the three populations */}
       {populationStats && hasPopulationWork && (
         <section>
-          <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
             Who&rsquo;s doing the work — last 7 days
             <InfoTip label="How sales are attributed">
-              Every sale is run by one of three populations: the agency itself,
-              TSP&rsquo;s own team (outsourced to us), or an external progression
-              business. Same window as the tiles above: six completed days plus
-              today live. Replaces the old SP vs PM split, which couldn&rsquo;t
-              tell our team apart from external businesses.
+              Every sale is run either by the estate agency itself or by an
+              external progression company. Same window as the tiles above: six
+              completed days plus today live. Our own outsourced book is kept out
+              of here and lives on the TSP Outsourced page.
             </InfoTip>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {populationStats.map((p) => (
               <div key={p.key} className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-2.5">
                 <div>
@@ -770,7 +706,7 @@ export default async function OverviewPage({
 
       {/* Signal health */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4">Signal health — open now</h2>
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4">Signal health — open now</h2>
         <div className="flex items-center gap-3 flex-wrap mb-5">
           {(["critical", "leak", "opportunity", "info"] as const).map((sev) => (
             <Link
@@ -801,22 +737,28 @@ export default async function OverviewPage({
                 // slugs in unclickable rows before).
                 const d = displayFor(s.detectorName);
                 return (
-                  <Link
-                    key={s.id}
-                    href={d.href(payload) ?? "/command/insights"}
-                    className="px-4 py-3 flex items-start gap-3 hover:bg-neutral-800/40 transition-colors"
-                  >
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
-                      {s.severity}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-neutral-200 truncate">{d.title(payload)}</p>
-                      <p className="text-xs text-neutral-500 truncate">
-                        {d.group} · {Math.round(s.confidence * 100)}% confidence · {fmtDate(s.detectedAt)}
-                      </p>
+                  <div key={s.id} className="flex items-stretch gap-1 hover:bg-neutral-800/40 transition-colors">
+                    <Link
+                      href={d.href(payload) ?? "/command/insights"}
+                      className="flex-1 min-w-0 px-4 py-3 flex items-start gap-3"
+                    >
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
+                        {s.severity}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-neutral-200 truncate">{d.title(payload)}</p>
+                        <p className="text-xs text-neutral-500 truncate">
+                          {d.group} · {Math.round(s.confidence * 100)}% confidence · {fmtDate(s.detectedAt)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-neutral-600 self-center">→</span>
+                    </Link>
+                    {/* Clear a signal without leaving the page (same acknowledge
+                        action as the Briefing). */}
+                    <div className="flex items-center pr-2.5">
+                      <AcknowledgeButton signalId={s.id} compact />
                     </div>
-                    <span className="shrink-0 text-neutral-600 self-center">→</span>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
