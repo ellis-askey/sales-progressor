@@ -17,12 +17,12 @@ import { ProgressorProfileDrawer } from "./ProgressorProfileDrawer";
 // edits against the mock catalogue (persistence + the real handshake land in
 // P1/P2 — see docs/active/progressor-network/SPEC.md).
 
-type SortKey = "match" | "exchange-rate" | "fastest" | "most-exchanges" | "team";
+type SortKey = "match" | "completion-rate" | "fastest" | "most-exchanges" | "team";
 type AvailKey = "all" | "accepting";
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "match", label: "Best match" },
-  { key: "exchange-rate", label: "Highest exchange rate" },
+  { key: "completion-rate", label: "Highest completion rate" },
   { key: "fastest", label: "Fastest to exchange" },
   { key: "most-exchanges", label: "Most exchanges" },
   { key: "team", label: "Largest team" },
@@ -83,8 +83,8 @@ export function ProgressorNetwork({ businesses }: { businesses: ProgressorNetwor
     });
     return [...list].sort((a, b) => {
       switch (sort) {
-        case "exchange-rate":
-          return (b.stats.exchangeRatePct ?? -1) - (a.stats.exchangeRatePct ?? -1);
+        case "completion-rate":
+          return (b.stats.completionRatePct ?? -1) - (a.stats.completionRatePct ?? -1);
         case "fastest":
           return (a.stats.avgTimeToExchangeWeeks ?? 999) - (b.stats.avgTimeToExchangeWeeks ?? 999);
         case "most-exchanges":

@@ -1,27 +1,47 @@
 // Per-business network card stats, computed from the business's own transactions
 // (PropertyTransaction.progressionBusinessId is the access boundary).
 //
-// Mirrors lib/services/solicitor-metrics.ts so the numbers read consistently with
-// the rest of analytics: migrated + claimed-in-progress + demo files are dropped,
-// the exchange rate is round-based (archived buyer rounds + withdrawals count as
-// fall-throughs), and it stays null below a minimum resolved sample. Genuine data
-// only — insufficient-data metrics come back null so a new business renders the
-// "building track record" state rather than a fake figure.
+// Design (2026-11-27, founder-agreed):
+//  - COMPLETION RATE is sale-based, not round-based: of a business's RESOLVED
+//    sales (reached exchange, or withdrawn without ever exchanging), the share
+//    that reached exchange. A sale that lost a buyer and was then rescued to
+//    exchange counts as a WIN — rescuing fall-throughs is the progressor's job,
+//    so we don't penalise it. (The old round-based rate counted every archived
+//    buyer round as a fall-through, which unfairly dragged rates down.)
+//  - TIME TO EXCHANGE is only trustworthy for files that ran start-to-finish on
+//    the platform. Imported/migrated files carry a createdAt that is the import
+//    date, not the real "sale agreed" date. Beyond the isMigrated /
+//    claimedInProgress exclusions we drop spans outside a plausible conveyancing
+//    window, which catches imports the flags missed.
+//  - WARM-UP: a business shows performance stats only once it has enough CLEAN
+//    resolved sales; below that the card shows "building a verified track record"
+//    rather than thin, misleading figures — so an established business that is new
+//    to the platform (or a genuine newcomer) never shows a bad number.
+//
+// Genuine data only; insufficient-data metrics come back null.
 
 import { prisma } from "@/lib/prisma";
 import type { ProgressorCardStats } from "@/lib/services/progressor-network";
 
-const MIN_RESOLVED = 5; // don't publish an exchange rate below this (mirrors solicitor-metrics)
 const DAY = 86_400_000;
+// A business needs this many clean, resolved sales before ANY performance stat
+// shows. Tunable.
+const WARMUP_MIN_RESOLVED = 8;
+// Plausible conveyancing window for a real time-to-exchange — a genuine sale
+// neither exchanges in under ~3 weeks nor takes over a year. Drops import noise.
+const TIME_FLOOR_DAYS = 21;
+const TIME_CEIL_DAYS = 365;
+// Don't publish an average time from fewer than this many clean spans.
+const MIN_TIME_FILES = 5;
 
 function emptyStats(teamSize: number): ProgressorCardStats {
-  return { exchangeRatePct: null, exchangedFiles12mo: null, avgTimeToExchangeWeeks: null, teamSize };
+  return { completionRatePct: null, exchangedFiles12mo: null, avgTimeToExchangeWeeks: null, teamSize };
 }
 
 /**
- * Compute the four network card stats for each business id. Returns a map keyed
- * by business id; ids with no qualifying transactions still get a row (null
- * metrics + their real team size) so new businesses render gracefully.
+ * Compute the card stats for each business id. Returns a map keyed by business
+ * id; ids below the warm-up threshold come back with null metrics (+ real team
+ * size) so the card shows the "building a track record" state.
  */
 export async function getNetworkStatsFor(businessIds: string[]): Promise<Map<string, ProgressorCardStats>> {
   const out = new Map<string, ProgressorCardStats>();
@@ -42,13 +62,7 @@ export async function getNetworkStatsFor(businessIds: string[]): Promise<Map<str
         claimedInProgress: false,
         isDemo: false,
       },
-      select: {
-        progressionBusinessId: true,
-        createdAt: true,
-        exchangedAt: true,
-        status: true,
-        buyerRounds: { select: { archivedAt: true } },
-      },
+      select: { progressionBusinessId: true, createdAt: true, exchangedAt: true, status: true },
     }),
   ]);
 
@@ -57,12 +71,12 @@ export async function getNetworkStatsFor(businessIds: string[]): Promise<Map<str
     if (t.progressionBusinessId) teamByBiz.set(t.progressionBusinessId, t._count);
   }
 
-  type Acc = { exchanges: number; fallThroughs: number; exchangeDays: number[]; exchanged12mo: number };
+  type Acc = { completions: number; abandoned: number; cleanSpans: number[]; exchanged12mo: number };
   const acc = new Map<string, Acc>();
   const ensure = (id: string): Acc => {
     let a = acc.get(id);
     if (!a) {
-      a = { exchanges: 0, fallThroughs: 0, exchangeDays: [], exchanged12mo: 0 };
+      a = { completions: 0, abandoned: 0, cleanSpans: [], exchanged12mo: 0 };
       acc.set(id, a);
     }
     return a;
@@ -73,18 +87,17 @@ export async function getNetworkStatsFor(businessIds: string[]): Promise<Map<str
     if (!id) continue;
     const a = ensure(id);
 
-    // Every archived (relisted-away) round is a fall-through.
-    a.fallThroughs += tx.buyerRounds.filter((r) => r.archivedAt != null).length;
-
     if (tx.exchangedAt) {
-      a.exchanges += 1;
-      const days = Math.round((new Date(tx.exchangedAt).getTime() - new Date(tx.createdAt).getTime()) / DAY);
-      if (days >= 0) a.exchangeDays.push(days);
+      // Reached exchange — a win, regardless of how many buyers it took.
+      a.completions += 1;
       if (new Date(tx.exchangedAt) >= twelveMonthsAgo) a.exchanged12mo += 1;
+      const days = Math.round((new Date(tx.exchangedAt).getTime() - new Date(tx.createdAt).getTime()) / DAY);
+      if (days >= TIME_FLOOR_DAYS && days <= TIME_CEIL_DAYS) a.cleanSpans.push(days);
     } else if (tx.status === "withdrawn") {
-      a.fallThroughs += 1;
+      // Died without ever exchanging — the only thing counted against the rate.
+      a.abandoned += 1;
     }
-    // active / on_hold with no exchange yet are in-flight — excluded from the rate.
+    // active / on_hold / draft with no exchange yet are in-flight — not resolved.
   }
 
   for (const id of businessIds) {
@@ -94,13 +107,21 @@ export async function getNetworkStatsFor(businessIds: string[]): Promise<Map<str
       out.set(id, emptyStats(teamSize));
       continue;
     }
-    const resolved = a.exchanges + a.fallThroughs;
-    const avgDays = a.exchangeDays.length
-      ? Math.round(a.exchangeDays.reduce((x, y) => x + y, 0) / a.exchangeDays.length)
-      : null;
+
+    const resolved = a.completions + a.abandoned;
+    // Warm-up gate — no performance stats until there's a real platform track record.
+    if (resolved < WARMUP_MIN_RESOLVED) {
+      out.set(id, emptyStats(teamSize));
+      continue;
+    }
+
+    const avgDays =
+      a.cleanSpans.length >= MIN_TIME_FILES
+        ? Math.round(a.cleanSpans.reduce((x, y) => x + y, 0) / a.cleanSpans.length)
+        : null;
+
     out.set(id, {
-      exchangeRatePct: resolved >= MIN_RESOLVED ? Math.round((a.exchanges / resolved) * 100) : null,
-      // A count: 0 is a real, truthful value (exchanged nothing in the window).
+      completionRatePct: Math.round((a.completions / resolved) * 100),
       exchangedFiles12mo: a.exchanged12mo,
       avgTimeToExchangeWeeks: avgDays != null ? Math.max(1, Math.round(avgDays / 7)) : null,
       teamSize,

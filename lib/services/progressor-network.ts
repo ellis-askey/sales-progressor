@@ -22,8 +22,8 @@ export type ProgressorAvailability = "accepting" | "limited" | "closed";
 export type ProgressorConnectionStatus = "none" | "requested" | "connected";
 
 export type ProgressorCardStats = {
-  /** Completion rate: exchanges / (exchanges + fall-throughs). null until enough resolved sales. */
-  exchangeRatePct: number | null;
+  /** Completion rate: of resolved sales (reached exchange, or withdrawn without exchanging), the share that reached exchange. Sale-based (rescued relists count as wins). null until the warm-up threshold. */
+  completionRatePct: number | null;
   /** Exchanges in the trailing 12 months. */
   exchangedFiles12mo: number | null;
   /** Typical offer-to-exchange time, in weeks. Replaces the confidential "typical fee". */
@@ -90,7 +90,7 @@ export const NETWORK_REGIONS = [
 
 const DEFAULT_BRAND_COLOR = "#334155"; // slate — monogram-tile fallback when no brand colour set
 const EMPTY_STATS: ProgressorCardStats = {
-  exchangeRatePct: null,
+  completionRatePct: null,
   exchangedFiles12mo: null,
   avgTimeToExchangeWeeks: null,
   teamSize: 0,

@@ -116,9 +116,11 @@ source — Law 13). Rendered inside the real agent chrome, gated to the founder.
 
 **2. Stats service — BUILT** ✅ `lib/services/progressor-network-stats.ts` →
 `getNetworkStatsFor(businessIds)` returns the four card stats per business,
-computed from its transactions. Mirrors `solicitor-metrics.ts` exactly (same
-migrated/claimed/demo exclusions, round-based exchange rate with the ≥5-resolved
-guard, avg offer→exchange in weeks). New/low-volume businesses come back with
+computed from its transactions. Computes (same
+migrated/claimed/demo exclusions) a sale-based COMPLETION rate — rescued relists
+count as wins, not the old round-based penalty — plus a clean-window avg
+time-to-exchange that drops imported files, and a WARM-UP gate (≥8 clean resolved
+sales before any performance stat shows). New/low-volume businesses come back with
 null metrics (the "building track record" state) + their real team size. Uses
 only existing transaction fields — no schema change needed. tsc-clean; data
 verification happens when wired to the page (step 4).

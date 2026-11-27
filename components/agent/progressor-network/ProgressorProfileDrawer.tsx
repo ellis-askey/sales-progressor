@@ -39,11 +39,10 @@ export function ProgressorProfileDrawer({
   if (!b) return null;
 
   const tileText = readableOn(b.brandColor);
-  const hasStats =
-    b.stats.exchangeRatePct != null || (b.stats.exchangedFiles12mo ?? 0) > 0 || b.stats.teamSize > 0;
+  const hasTrackRecord = b.stats.completionRatePct != null;
 
   const stats: { value: string; label: string }[] = [
-    { value: b.stats.exchangeRatePct == null ? "–" : `${b.stats.exchangeRatePct}%`, label: "Exchange rate" },
+    { value: b.stats.completionRatePct == null ? "–" : `${b.stats.completionRatePct}%`, label: "Completion rate" },
     { value: b.stats.exchangedFiles12mo == null ? "–" : `${b.stats.exchangedFiles12mo}`, label: "Exchanged files (12 months)" },
     { value: formatAvgExchange(b.stats.avgTimeToExchangeWeeks), label: "Avg. time to exchange" },
     { value: `${b.stats.teamSize}`, label: "Team members" },
@@ -89,7 +88,7 @@ export function ProgressorProfileDrawer({
 
         <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{b.blurb}</p>
 
-        {hasStats ? (
+        {hasTrackRecord ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 20 }}>
             {stats.map((s) => (
               <div key={s.label} className="agent-glass" style={{ borderRadius: "var(--agent-radius-md)", padding: "12px 16px" }}>
@@ -101,7 +100,7 @@ export function ProgressorProfileDrawer({
         ) : (
           <div className="agent-glass" style={{ borderRadius: "var(--agent-radius-md)", padding: "14px 16px", marginBottom: 20 }}>
             <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.5 }}>
-              New to the network. Verified performance stats (exchange rate, time to exchange, completed sales) appear here as {b.name} completes sales on the platform.
+              Building a verified track record. Performance stats (completion rate, time to exchange, completed sales) appear here as {b.name} completes sales on the platform.
             </p>
           </div>
         )}

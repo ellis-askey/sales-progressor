@@ -27,11 +27,10 @@ export function ProgressorCard({
 }) {
   const b = business;
   const tileText = readableOn(b.brandColor);
-  const hasStats =
-    b.stats.exchangeRatePct != null || (b.stats.exchangedFiles12mo ?? 0) > 0 || b.stats.teamSize > 0;
+  const hasTrackRecord = b.stats.completionRatePct != null;
 
   const stats: { value: string; label: string }[] = [
-    { value: b.stats.exchangeRatePct == null ? "–" : `${b.stats.exchangeRatePct}%`, label: "Exchange rate" },
+    { value: b.stats.completionRatePct == null ? "–" : `${b.stats.completionRatePct}%`, label: "Completion rate" },
     { value: b.stats.exchangedFiles12mo == null ? "–" : `${b.stats.exchangedFiles12mo}`, label: "Exchanged files (12 months)" },
     { value: formatAvgExchange(b.stats.avgTimeToExchangeWeeks), label: "Avg. time to exchange" },
     { value: `${b.stats.teamSize}`, label: "Team size" },
@@ -97,7 +96,7 @@ export function ProgressorCard({
 
       {/* Stats — dense 4-up on the StatNumber family, or a "new to the network"
           line when there's no verified performance data yet. */}
-      {hasStats ? (
+      {hasTrackRecord ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, padding: "12px 0", borderTop: "1px solid var(--agent-border-subtle)", borderBottom: "1px solid var(--agent-border-subtle)" }}>
           {stats.map((s) => (
             <div key={s.label} style={{ minWidth: 0 }}>
@@ -108,7 +107,7 @@ export function ProgressorCard({
         </div>
       ) : (
         <div style={{ padding: "12px 0", borderTop: "1px solid var(--agent-border-subtle)", borderBottom: "1px solid var(--agent-border-subtle)" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>New to the network. Verified performance stats appear as sales complete.</p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--agent-text-muted)", lineHeight: 1.45 }}>Building a verified track record. Stats appear as sales complete on the platform.</p>
         </div>
       )}
 
