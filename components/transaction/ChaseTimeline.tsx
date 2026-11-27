@@ -76,7 +76,7 @@ function ActorIdentity({ actor }: { actor: ChaseActor }) {
   return (
     <div className="ct-actor">
       {actor.side === "agent"
-        ? <UserAvatar user={{ name: actor.name }} size={30} />
+        ? <UserAvatar user={{ name: actor.name, image: actor.image ?? null }} size={30} />
         : <ContactAvatar contact={{ name: actor.name, roleType: actor.side }} size={30} art />}
       <div className="ct-who">
         <span className="ct-who-name">{actor.name}</span>

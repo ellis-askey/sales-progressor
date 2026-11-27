@@ -22,6 +22,7 @@ import { getChaseOverridesForTimeline, ENQUIRY_OVERRIDE_CODE } from "@/lib/servi
 import { DIRECT_PREREQUISITES } from "@/lib/milestone-prerequisites";
 import { solicitorCodesForSide } from "@/lib/solicitor-confirm/codes";
 import { resolveConfirmer } from "@/lib/updates-copy";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { enquiryNextChaseAt, enquiryEscalateAt } from "@/lib/enquiries/tracker";
 import { raiseChaseNextNudgeAt, raiseChaseEscalateAt, raiseChaseTargetNext } from "@/lib/enquiries/raise-chase-decision";
 
@@ -40,7 +41,7 @@ function confirmerActor(
         confirmedByContactId: string | null;
         confirmedBySolicitorFirmId: string | null;
         confirmedBySolicitorFirm?: { name: string } | null;
-        completedBy?: { name: string | null } | null;
+        completedBy?: { name: string | null; image: string | null } | null;
       }
     | null
     | undefined,
@@ -52,7 +53,7 @@ function confirmerActor(
   const clientRole = side === "vendor" ? "Seller" : "Buyer";
   const solRole = side === "vendor" ? "Seller’s solicitor" : "Buyer’s solicitor";
   if (!confirmer) return null;
-  if (confirmer.kind === "agent") return { kind: "person", name: confirmer.name, side: "agent", role: "Your team" };
+  if (confirmer.kind === "agent") return { kind: "person", name: confirmer.name, side: "agent", role: "Your team", image: getAvatarPublicUrl(completion.completedBy?.image) };
   if (confirmer.kind === "solicitor") return { kind: "person", name: confirmer.firm, side: "solicitor", role: solRole };
   if (confirmer.kind === "helper") return { kind: "person", name: confirmer.name, side, role: clientRole };
   const names = principals.map((p) => p.name).filter(Boolean);
@@ -72,9 +73,10 @@ function prettyRole(role: string | null | undefined): string {
 }
 
 // The person who sent a manual chase — resolved name (from createdById) + role.
-function senderActor(createdById: string | null, createdByRole: string | null, nameById: Map<string, string>): ChaseActor {
+function senderActor(createdById: string | null, createdByRole: string | null, nameById: Map<string, string>, imageById: Map<string, string | null>): ChaseActor {
   const name = (createdById && nameById.get(createdById)) || "Your team";
-  return { kind: "person", name, role: prettyRole(createdByRole), side: "agent" };
+  const image = createdById ? imageById.get(createdById) ?? null : null;
+  return { kind: "person", name, role: prettyRole(createdByRole), side: "agent", image };
 }
 
 // (The private Mon-Fri-only addWorkingDays that lived here ignored bank
@@ -124,7 +126,9 @@ export type ChaseEventCategory =
 // movements, process events).
 export type ChaseActor =
   | { kind: "system" }
-  | { kind: "person"; name: string; role: string; side: "agent" | "vendor" | "purchaser" | "solicitor" };
+  // image: resolved avatar URL for agent-side (staff) actors; null → the SVG
+  // fallback. Client/solicitor actors keep their branded art, so it's optional.
+  | { kind: "person"; name: string; role: string; side: "agent" | "vendor" | "purchaser" | "solicitor"; image?: string | null };
 
 export type ChaseThreadEvent = {
   at: string; // ISO — serialisable for the client component
@@ -304,7 +308,7 @@ export async function getChaseTimeline(
           select: {
             id: true, status: true, priority: true, chaseCount: true, manualChaseCount: true,
             lastChasedAt: true, fallbackKind: true, escalatedAt: true, updatedAt: true,
-            escalatedBy: { select: { name: true } },
+            escalatedBy: { select: { name: true, image: true } },
           },
           orderBy: { updatedAt: "desc" },
         },
@@ -355,7 +359,7 @@ export async function getChaseTimeline(
         state: true, expectedDate: true, completedAt: true, eventDate: true,
         confirmedByPortal: true, confirmedByContactId: true, confirmedBySolicitorFirmId: true,
         confirmedBySolicitorFirm: { select: { name: true } },
-        completedBy: { select: { name: true } },
+        completedBy: { select: { name: true, image: true } },
         milestoneDefinition: { select: { code: true, side: true, name: true } },
       },
     }),
@@ -430,9 +434,10 @@ export async function getChaseTimeline(
   // Resolve the names of whoever sent each manual chase (for the actor line).
   const senderIds = Array.from(new Set(chaseMsgs.map((m) => m.createdById).filter((x): x is string => !!x)));
   const senderNameById = new Map<string, string>();
+  const senderImageById = new Map<string, string | null>();
   if (senderIds.length) {
-    const users = await prisma.user.findMany({ where: { id: { in: senderIds } }, select: { id: true, name: true } });
-    for (const u of users) senderNameById.set(u.id, u.name);
+    const users = await prisma.user.findMany({ where: { id: { in: senderIds } }, select: { id: true, name: true, image: true } });
+    for (const u of users) { senderNameById.set(u.id, u.name); senderImageById.set(u.id, getAvatarPublicUrl(u.image)); }
   }
 
   // Index client-chase state + manual messages by the thread they belong to.
@@ -686,7 +691,7 @@ export async function getChaseTimeline(
         category: "email",
         title: `Chase emailed to ${m.recipientName || waitingOn}`,
         subject: m.subject ?? undefined,
-        actor: senderActor(m.createdById, m.createdByRole, senderNameById),
+        actor: senderActor(m.createdById, m.createdByRole, senderNameById, senderImageById),
         delivery: m.openedAt ? "opened" : m.deliveredAt ? "delivered" : "sent",
         ordinal: { n: i + 1, of: msgs.length, by: "you" },
         sentEmailId: m.id,
@@ -700,7 +705,7 @@ export async function getChaseTimeline(
         category: "danger",
         title: "Escalated to the file owner",
         detail: `No reply after ${manualChases} team chase${manualChases === 1 ? "" : "s"}.`,
-        actor: task.escalatedBy?.name ? { kind: "person", name: task.escalatedBy.name, side: "agent", role: "Your team" } : SYSTEM_ACTOR,
+        actor: task.escalatedBy?.name ? { kind: "person", name: task.escalatedBy.name, side: "agent", role: "Your team", image: getAvatarPublicUrl(task.escalatedBy.image) } : SYSTEM_ACTOR,
       });
     }
     if (state === "completed") {
