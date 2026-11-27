@@ -3,6 +3,7 @@
 // summary signal (count + the oldest) so the inbox doesn't spam a row per quote.
 
 import { prisma } from "@/lib/prisma";
+import { EXCLUDE_TSP_OUTSOURCED_TX_WHERE } from "@/lib/security/access-scope";
 import type { Detector, SignalResult } from "../types";
 
 const AGING_DAYS = 5;
@@ -15,7 +16,7 @@ export const quoteInboxAging: Detector = async (window) => {
     where: {
       status: "pending",
       submittedAt: { lt: cutoff },
-      transaction: { isDemo: false, agency: { isInternal: false } },
+      transaction: { isDemo: false, agency: { isInternal: false }, ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE },
     },
     orderBy: { submittedAt: "asc" },
     select: { id: true, submittedAt: true },

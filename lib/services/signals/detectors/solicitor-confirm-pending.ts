@@ -3,6 +3,7 @@
 // These are the genuinely stuck steps on live files (not routine open chases).
 
 import { prisma } from "@/lib/prisma";
+import { EXCLUDE_TSP_OUTSOURCED_TX_WHERE } from "@/lib/security/access-scope";
 import type { Detector, SignalResult } from "../types";
 import { solicitorStepLabel } from "@/lib/solicitor-confirm/codes";
 
@@ -18,6 +19,7 @@ export const solicitorConfirmPending: Detector = async (window) => {
         isDemo: false,
         isMigrated: false,
         agency: { isInternal: false },
+        ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE,
       },
     },
     select: {

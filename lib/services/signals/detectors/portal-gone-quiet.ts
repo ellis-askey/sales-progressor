@@ -4,6 +4,7 @@
 // operational view already uses (lib/command/files.ts).
 
 import { prisma } from "@/lib/prisma";
+import { EXCLUDE_TSP_OUTSOURCED_TX_WHERE } from "@/lib/security/access-scope";
 import type { Detector, SignalResult } from "../types";
 
 const QUIET_DAYS = 14;
@@ -22,6 +23,7 @@ export const portalGoneQuiet: Detector = async (window) => {
         isDemo: false,
         isMigrated: false,
         agency: { isInternal: false },
+        ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE,
       },
     },
     select: {

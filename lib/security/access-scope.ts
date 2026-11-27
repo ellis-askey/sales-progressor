@@ -42,6 +42,17 @@ export const TSP_ONLY_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
   AND: [{ OR: [{ progressionBusinessId: null }, { progressionBusiness: { isTsp: true } }] }],
 };
 
+// Excludes TSP's OWN outsourced book (serviceType "outsourced" with no progression
+// business = a sale our team runs) while KEEPING self-managed agency files and
+// external progression-business files. Command Centre signal detectors spread this
+// so our outsourced book — which has its own home at /command/tsp-outsourced —
+// doesn't bleed into the main CC feeds. Nest as
+// `transaction: { ...filter, ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE }` (safe where the
+// filter has no own top-level NOT).
+export const EXCLUDE_TSP_OUTSOURCED_TX_WHERE: Prisma.PropertyTransactionWhereInput = {
+  NOT: { serviceType: "outsourced", progressionBusinessId: null },
+};
+
 // ─── Derive scope from session ────────────────────────────────────────────────
 
 export function getAccessScope(session: Session): AccessScope {
