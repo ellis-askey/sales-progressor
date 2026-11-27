@@ -8,7 +8,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { roundScopedOR, loadActiveRoundIds } from "@/lib/services/round-scope";
-import { TSP_ONLY_TX_WHERE } from "@/lib/security/access-scope";
+import { TSP_ONLY_TX_WHERE, EXCLUDE_TSP_OUTSOURCED_TX_WHERE } from "@/lib/security/access-scope";
 import type { Detector, SignalResult } from "../types";
 
 const STALLED_DAYS = 14;
@@ -34,6 +34,10 @@ export const revenueAtRisk: Detector = async (window) => {
       // Only our own revenue — a file progressed by an external business is their
       // money to invoice, not ours (audit SP-11).
       ...TSP_ONLY_TX_WHERE,
+      // TSP's outsourced book bills via the outsourced-fee path (paid, often
+      // invoiced manually off-system) and lives on /command/tsp-outsourced, so it
+      // never flags as agent-fee "unbilled" here (founder, 2026-11-27).
+      ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE,
     },
     select: { id: true, propertyAddress: true, exchangedAt: true, agency: { select: { name: true } } },
     take: 100,
@@ -69,6 +73,7 @@ export const revenueAtRisk: Detector = async (window) => {
       isMigrated: false,
       agency: { isInternal: false },
       ...TSP_ONLY_TX_WHERE, // our own revenue only (audit SP-11)
+      ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE, // outsourced book excluded (on the TSP page)
       OR: [
         { purchaserBrokerReferral: true, brokerReferralFee: null },
         { onwardBrokerReferral: true, onwardBrokerReferralFee: null },
@@ -109,6 +114,7 @@ export const revenueAtRisk: Detector = async (window) => {
     isMigrated: false,
     agency: { isInternal: false },
     ...TSP_ONLY_TX_WHERE, // our own revenue only (audit SP-11)
+    ...EXCLUDE_TSP_OUTSOURCED_TX_WHERE, // outsourced book excluded (on the TSP page)
   };
   const stalledRoundIds = await loadActiveRoundIds(stalledTxWhere);
   const stalled = await prisma.milestoneCompletion.findMany({
