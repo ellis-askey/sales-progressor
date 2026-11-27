@@ -26,7 +26,7 @@ export async function RevenueTab({ mode: modeRaw, agency }: { mode?: string; age
   // Whole-platform view only (no agency / mode filter): the businesses' income
   // is TSP income, not attributable to any one agency, so it shows alongside the
   // agency + provider streams only here. Scoped views stay agency-only.
-  const whole = mode === "combined" && agencyIds.length === 0;
+  const whole = mode === "all" && agencyIds.length === 0;
   const bizRev = whole ? await getBusinessesRevenue() : null;
   const agencyMtd = data.banked.totalPence;
   const providerMtd = data.referralIncome.wonThisMonthPence;
@@ -548,8 +548,8 @@ function PerAgencyTable({ rows }: { rows: AgencyRevenueRow[] }) {
 }
 
 function ModeBadge({ mode }: { mode: AgencyRevenueRow["modeProfile"] }) {
-  if (mode === "self_progressed") return <span className="text-[10px] font-semibold text-neutral-400">SP</span>;
-  if (mode === "progressor_managed") return <span className="text-[10px] font-semibold text-blue-400">PM</span>;
+  if (mode === "self_progressed") return <span className="text-[10px] font-semibold text-neutral-400">Self</span>;
+  if (mode === "progressor_managed") return <span className="text-[10px] font-semibold text-blue-400">Prog</span>;
   return <span className="text-[10px] font-semibold text-neutral-500">mixed</span>;
 }
 

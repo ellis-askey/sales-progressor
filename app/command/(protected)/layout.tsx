@@ -14,6 +14,7 @@ import { PageFadeIn } from "@/components/loading/PageFadeIn";
 import { AiEnabledProvider } from "@/components/ai/AiEnabledProvider";
 import { aiEnabled } from "@/lib/ai/enabled";
 import type { Session } from "next-auth";
+import { parseMode } from "@/lib/command/scope";
 import type { CommandMode, CommandPreferences } from "@/lib/command/scope";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,8 @@ export default async function CommandProtectedLayout({
   });
 
   const prefs = user.commandPreferences as CommandPreferences | null;
-  const savedMode: CommandMode = prefs?.mode ?? "combined";
+  // parseMode migrates the retired sp/pm/combined axis from any older saved pref.
+  const savedMode: CommandMode = parseMode(prefs?.mode);
   const savedAgencyIds: string[] = prefs?.agencyIds ?? [];
   const aiOn = await aiEnabled(); // AI master switch (#291): mirror to command AI components
 

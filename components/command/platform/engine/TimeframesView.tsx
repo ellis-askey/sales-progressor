@@ -77,7 +77,7 @@ export async function TimeframesView({
     if (seg !== "all") p.set("segment", seg);
     if (src !== "all") p.set("source", src);
     if (hld !== "include") p.set("held", hld);
-    if (mode !== "combined") p.set("mode", mode);
+    if (mode !== "all") p.set("mode", mode);
     if (agencyIds.length > 0) p.set("agency", agencyIds.join(","));
     return `/command/platform?${p.toString()}`;
   }

@@ -9,6 +9,7 @@ import { ThoughtQuickCapture } from "@/components/command/content/ThoughtQuickCa
 import type { CommandMode } from "@/lib/command/scope";
 import { ChevronDown, Check, Menu } from "lucide-react";
 import { WORKSPACE_NAV } from "./workspace-nav";
+import { CommandRadioGroup } from "./CommandRadioGroup";
 
 interface Agency { id: string; name: string; modeProfile: string; }
 
@@ -51,7 +52,7 @@ function ScopeFilters({
   const [open, setOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = (searchParams.get("mode") ?? "combined") as CommandMode;
+  const currentMode = (searchParams.get("mode") ?? "all") as CommandMode;
   const currentAgencyStr = searchParams.get("agency") ?? "";
   const currentAgencyIds = currentAgencyStr ? currentAgencyStr.split(",").filter(Boolean) : [];
 
@@ -69,7 +70,7 @@ function ScopeFilters({
 
   function navigate(mode: CommandMode, agencyIds: string[]) {
     const p = new URLSearchParams(searchParams.toString());
-    if (mode !== "combined") p.set("mode", mode); else p.delete("mode");
+    if (mode !== "all") p.set("mode", mode); else p.delete("mode");
     if (agencyIds.length > 0) p.set("agency", agencyIds.join(",")); else p.delete("agency");
     router.push(`${pathname}?${p.toString()}`);
   }
@@ -86,30 +87,27 @@ function ScopeFilters({
     .map((a) => a.name);
 
   function modeLabel(m: "self_progressed" | "progressor_managed" | "mixed" | string) {
-    if (m === "self_progressed") return "SP";
-    if (m === "progressor_managed") return "PM";
-    return "—";
+    if (m === "self_progressed") return "self";
+    if (m === "progressor_managed") return "prog";
+    return "mix";
   }
 
   return (
     <div className="px-3 py-3 border-b border-[#1f1f1f]">
       <p className="text-[9px] font-bold text-[#404040] uppercase tracking-widest mb-2">Scope</p>
 
-      {/* SP / PM / All toggle */}
-      <div className="flex gap-0.5 bg-[#1a1a1a] rounded-md p-0.5 mb-2.5">
-        {(["combined", "sp", "pm"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => navigate(m, currentAgencyIds)}
-            className={`flex-1 text-[11px] py-1 rounded font-semibold transition-all ${
-              currentMode === m
-                ? "bg-[#2563eb] text-white"
-                : "text-[#525252] hover:text-[#a3a3a3]"
-            }`}
-          >
-            {m === "combined" ? "All" : m.toUpperCase()}
-          </button>
-        ))}
+      {/* Business-type lens */}
+      <div className="mb-2.5">
+        <CommandRadioGroup
+          label="Business type"
+          value={currentMode}
+          onChange={(m) => navigate(m as CommandMode, currentAgencyIds)}
+          options={[
+            { value: "all", label: "Show all" },
+            { value: "agents", label: "Estate Agents" },
+            { value: "external", label: "Sales Prog Companies" },
+          ]}
+        />
       </div>
 
       {/* Agency multi-select */}
@@ -164,7 +162,7 @@ function ScopeFilters({
       )}
 
       {/* Reset / save row */}
-      {(currentMode !== "combined" || currentAgencyIds.length > 0) && (
+      {(currentMode !== "all" || currentAgencyIds.length > 0) && (
         <div className="flex items-center justify-between">
           <button
             onClick={() => {

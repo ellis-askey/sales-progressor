@@ -88,7 +88,7 @@ export default async function OverviewPage({
   // ignores it would promise a filter the destination doesn't apply.
   const scopeQs = (() => {
     const p = new URLSearchParams();
-    if (mode !== "combined") p.set("mode", mode);
+    if (mode !== "all") p.set("mode", mode);
     if (agencyIds.length > 0) p.set("agency", agencyIds.join(","));
     const s = p.toString();
     return s ? `&${s}` : "";
@@ -210,7 +210,7 @@ export default async function OverviewPage({
   // this page used to re-run on every 60s auto-refresh. "Sales today" now
   // excludes TSP like every other figure here (it previously included TSP
   // against a TSP-excluded denominator).
-  const wholeView = mode === "combined" && agencyIds.length === 0;
+  const wholeView = mode === "all" && agencyIds.length === 0;
   const [bizCount, businessSalesToday, bizPulse, bizPaymentIssues] = wholeView
     ? await Promise.all([
         commandDb.progressionBusiness.count({ where: { isTsp: false } }),
@@ -247,7 +247,7 @@ export default async function OverviewPage({
     { key: "biz", label: "Progression businesses", desc: "sales run by external businesses", color: "text-emerald-400",
       tx: { progressionBusinessId: { not: null } } },
   ];
-  const populationStats = mode === "combined"
+  const populationStats = mode === "all"
     ? await Promise.all(
         POPULATIONS.map(async (p) => {
           const txWhere = { ...popBase, ...p.tx };
@@ -394,7 +394,7 @@ export default async function OverviewPage({
   const maxTxns       = Math.max(1, ...stripRows.map((r) => r.txns));
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
-  const modeLabel = mode === "sp" ? " · SP" : mode === "pm" ? " · PM" : "";
+  const modeLabel = mode === "agents" ? " · Estate agents" : mode === "external" ? " · Sales prog companies" : "";
 
   return (
     <div className="space-y-8">

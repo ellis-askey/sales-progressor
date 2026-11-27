@@ -179,8 +179,8 @@ export async function getStageTimeframes(opts: {
     agency: { isInternal: false },
   };
   if (agencyIds.length > 0) txWhere.agencyId = { in: agencyIds };
-  else if (mode === "sp") txWhere.serviceType = "self_managed";
-  else if (mode === "pm") txWhere.serviceType = "outsourced";
+  else if (mode === "agents") txWhere.serviceType = "self_managed";
+  else if (mode === "external") txWhere.serviceType = "outsourced";
   if (!includeEstimated) {
     txWhere.isMigrated = false;
     txWhere.claimedInProgress = false;

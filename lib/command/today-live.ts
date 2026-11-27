@@ -69,13 +69,13 @@ export async function computeTodayLive(
     return sumLive(rows);
   }
 
-  if (mode === "combined") {
+  if (mode === "all") {
     const m = await computeMetricsForScope(dateStr, { agencyId: null, serviceType: null, modeProfile: null }, internal);
     return pick(m);
   }
 
-  const serviceType = mode === "sp" ? "self_managed" : "outsourced";
-  const modeProfile = mode === "sp" ? "self_progressed" : "progressor_managed";
+  const serviceType = mode === "agents" ? "self_managed" : "outsourced";
+  const modeProfile = mode === "agents" ? "self_progressed" : "progressor_managed";
   const [txM, userM] = await Promise.all([
     computeMetricsForScope(dateStr, { agencyId: null, serviceType, modeProfile: null }, internal),
     computeMetricsForScope(dateStr, { agencyId: null, serviceType: null, modeProfile }, internal),

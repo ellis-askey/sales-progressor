@@ -186,11 +186,11 @@ export default async function AgenciesPage({
   const modeByAgency = new Map(feeAgencies.map((a) => [a.id, a.modeProfile]));
   const inScope = (agencyId: string): boolean => {
     if (scopeAgencyIds.length > 0) return scopeAgencyIds.includes(agencyId);
-    if (scopeMode === "sp") return modeByAgency.get(agencyId) === "self_progressed";
-    if (scopeMode === "pm") return modeByAgency.get(agencyId) === "progressor_managed";
+    if (scopeMode === "agents") return modeByAgency.get(agencyId) === "self_progressed";
+    if (scopeMode === "external") return modeByAgency.get(agencyId) === "progressor_managed";
     return true;
   };
-  const scoped = scopeMode !== "combined" || scopeAgencyIds.length > 0;
+  const scoped = scopeMode !== "all" || scopeAgencyIds.length > 0;
 
   // Tiles reflect the scoped agent set (equal to the global rollup when unscoped).
   const scopedAgents = agents.filter((a) => inScope(a.agencyId));

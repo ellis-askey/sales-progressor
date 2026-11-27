@@ -47,8 +47,8 @@ export async function ActivationTab({ mode: modeRaw, agency }: { mode?: string; 
   // Agency cohort filter — real customers only, honouring the SP/PM/agency scope.
   const agencyWhere: { isInternal: false; id?: { in: string[] }; modeProfile?: AgencyModeProfile } = { isInternal: false };
   if (agencyIds.length > 0) agencyWhere.id = { in: agencyIds };
-  else if (mode === "sp") agencyWhere.modeProfile = "self_progressed";
-  else if (mode === "pm") agencyWhere.modeProfile = "progressor_managed";
+  else if (mode === "agents") agencyWhere.modeProfile = "self_progressed";
+  else if (mode === "external") agencyWhere.modeProfile = "progressor_managed";
 
   const [txRows30, userRows30, txRows60, userRows60, agencies, ttftRows, ttfmRows] = await Promise.all([
     commandDb.dailyMetric.findMany({ where: { date: { gte: since30, lte: now }, ...txScope }, orderBy: { date: "desc" } }),

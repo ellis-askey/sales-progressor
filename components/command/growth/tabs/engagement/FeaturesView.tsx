@@ -62,7 +62,7 @@ function href(base: SP, over: Partial<SP>): string {
   const p = new URLSearchParams();
   p.set("tab", "engagement");
   p.set("view", "features");
-  if (merged.mode && merged.mode !== "combined") p.set("mode", merged.mode);
+  if (merged.mode && merged.mode !== "all") p.set("mode", merged.mode);
   if (merged.agency) p.set("agency", merged.agency);
   if (merged.period && merged.period !== "all") p.set("period", merged.period);
   if (merged.surface && merged.surface !== "portal") p.set("surface", merged.surface);

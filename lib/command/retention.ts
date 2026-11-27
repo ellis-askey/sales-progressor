@@ -66,16 +66,16 @@ async function scopeAgencyIds(mode: CommandMode, agencyIds: string[]): Promise<s
     modeProfile?: "self_progressed" | "progressor_managed";
   } = { isInternal: false };
   if (agencyIds.length > 0) where.id = { in: agencyIds };
-  else if (mode === "sp") where.modeProfile = "self_progressed";
-  else if (mode === "pm") where.modeProfile = "progressor_managed";
+  else if (mode === "agents") where.modeProfile = "self_progressed";
+  else if (mode === "external") where.modeProfile = "progressor_managed";
   const rows = await commandDb.agency.findMany({ where, select: { id: true } });
   return rows.map((r) => r.id);
 }
 
 function scopeLabel(mode: CommandMode, agencyIds: string[]): string {
   if (agencyIds.length > 0) return `${agencyIds.length} agency${agencyIds.length > 1 ? "ies" : ""}`;
-  if (mode === "sp") return "Self-managed";
-  if (mode === "pm") return "Outsourced";
+  if (mode === "agents") return "Estate agents";
+  if (mode === "external") return "Sales prog companies";
   return "All agencies";
 }
 

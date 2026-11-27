@@ -57,8 +57,8 @@ export async function ActivityView({
   since7.setUTCDate(since7.getUTCDate() - 7);
 
   let resolvedAgencyIds = agencyIds;
-  if (agencyIds.length === 0 && mode !== "combined") {
-    const modeProfile = mode === "sp" ? "self_progressed" : "progressor_managed";
+  if (agencyIds.length === 0 && mode !== "all") {
+    const modeProfile = mode === "agents" ? "self_progressed" : "progressor_managed";
     const modeAgencies = await commandDb.agency.findMany({ where: { modeProfile }, select: { id: true } });
     resolvedAgencyIds = modeAgencies.map((a) => a.id);
   }
@@ -147,7 +147,7 @@ export async function ActivityView({
     const p = new URLSearchParams();
     p.set("tab", "monitoring");
     p.set("view", "activity");
-    if (mode !== "combined") p.set("mode", mode);
+    if (mode !== "all") p.set("mode", mode);
     if (agencyIds.length > 0) p.set("agency", agencyIds.join(","));
     if (who !== "customers") p.set("who", who);
     if (sortBy !== "total") p.set("sort", sortBy);

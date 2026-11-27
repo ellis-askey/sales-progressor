@@ -27,7 +27,7 @@ export function CommandFilters({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = (searchParams.get("mode") ?? "combined") as CommandMode;
+  const currentMode = (searchParams.get("mode") ?? "all") as CommandMode;
   const currentAgencyStr = searchParams.get("agency") ?? "";
   const currentAgencyIds = currentAgencyStr ? currentAgencyStr.split(",").filter(Boolean) : [];
 
@@ -49,7 +49,7 @@ export function CommandFilters({
   function navigate(mode: CommandMode, agencyIds: string[]) {
     const p = new URLSearchParams(searchParams.toString());
     // Preserve non-filter params (e.g. sev, ack on insights)
-    if (mode !== "combined") p.set("mode", mode); else p.delete("mode");
+    if (mode !== "all") p.set("mode", mode); else p.delete("mode");
     if (agencyIds.length > 0) p.set("agency", agencyIds.join(",")); else p.delete("agency");
     router.push(`${pathname}?${p.toString()}`);
   }
@@ -77,17 +77,21 @@ export function CommandFilters({
     <div className="flex items-center gap-3 px-8 py-2.5 border-b border-white/10 bg-white/3 flex-wrap">
       {/* Mode toggle */}
       <div className="flex items-center gap-0.5 bg-white/8 rounded-lg p-0.5">
-        {(["combined", "sp", "pm"] as const).map((m) => (
+        {([
+          { v: "all", label: "Show all" },
+          { v: "agents", label: "Estate Agents" },
+          { v: "external", label: "Sales Prog Companies" },
+        ] as const).map(({ v, label }) => (
           <button
-            key={m}
-            onClick={() => navigate(m, currentAgencyIds)}
+            key={v}
+            onClick={() => navigate(v, currentAgencyIds)}
             className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
-              currentMode === m
+              currentMode === v
                 ? "bg-white/20 text-white"
                 : "text-white/40 hover:text-white/70"
             }`}
           >
-            {m === "combined" ? "Combined" : m.toUpperCase()}
+            {label}
           </button>
         ))}
       </div>
@@ -142,7 +146,7 @@ export function CommandFilters({
       </div>
 
       {/* Reset */}
-      {(currentMode !== "combined" || currentAgencyIds.length > 0) && (
+      {(currentMode !== "all" || currentAgencyIds.length > 0) && (
         <button
           onClick={reset}
           className="text-xs text-white/30 hover:text-white/60 transition-colors"
@@ -166,7 +170,7 @@ export function CommandFilters({
         </button>
       )}
 
-      {isDefault && (currentMode !== "combined" || currentAgencyIds.length > 0) && (
+      {isDefault && (currentMode !== "all" || currentAgencyIds.length > 0) && (
         <span className="ml-auto text-[10px] text-white/20">default view</span>
       )}
     </div>

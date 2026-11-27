@@ -243,9 +243,9 @@ function agencyWhereFromScope(scope: RevenueScope) {
   } = { isInternal: false };
   if (scope.agencyIds.length > 0) {
     where.id = { in: scope.agencyIds };
-  } else if (scope.mode === "sp") {
+  } else if (scope.mode === "agents") {
     where.modeProfile = "self_progressed";
-  } else if (scope.mode === "pm") {
+  } else if (scope.mode === "external") {
     where.modeProfile = "progressor_managed";
   }
   return where;

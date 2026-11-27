@@ -87,7 +87,7 @@ type Ctx = {
   weekIndex: Map<number, number>; // week-start ms → index
 };
 
-export type FeaturePrefs = { mode: "sp" | "pm" | "combined"; agencyIds: string[] };
+export type FeaturePrefs = { mode: "all" | "agents" | "external"; agencyIds: string[] };
 
 function weekStartOf(d: Date): Date {
   const x = new Date(d);
@@ -107,9 +107,9 @@ async function resolveCtx(prefs: FeaturePrefs, period: CommandPeriod): Promise<C
   } = { isInternal: false };
   if (prefs.agencyIds.length > 0) {
     agencyWhere.id = { in: prefs.agencyIds };
-  } else if (prefs.mode === "sp") {
+  } else if (prefs.mode === "agents") {
     agencyWhere.modeProfile = "self_progressed";
-  } else if (prefs.mode === "pm") {
+  } else if (prefs.mode === "external") {
     agencyWhere.modeProfile = "progressor_managed";
   }
 
@@ -744,8 +744,8 @@ export const FEATURES: FeatureDef[] = [
 
 function scopeLabel(prefs: FeaturePrefs): string {
   if (prefs.agencyIds.length > 0) return `${prefs.agencyIds.length} agency${prefs.agencyIds.length > 1 ? "ies" : ""}`;
-  if (prefs.mode === "sp") return "Self-managed";
-  if (prefs.mode === "pm") return "Outsourced";
+  if (prefs.mode === "agents") return "Estate agents";
+  if (prefs.mode === "external") return "Sales prog companies";
   return "All agencies";
 }
 
