@@ -43,6 +43,9 @@ const KIND_COVERAGE: Record<AgentEmailKind, Coverage> = {
   teammate_setup: { specimenId: "progression-teammate-invite" },
   client_invoice: { specimenId: null, note: "business→client invoice (billing suite); the PDF + covering email aren't a catalogue specimen" },
   completion_reminder: { specimenId: null, note: "day-before-completion heads-up (billing suite); not a catalogue specimen" },
+  network_connect_request: { specimenId: "network-connect-request" },
+  network_connect_accepted: { specimenId: "network-connect-accepted" },
+  network_connect_declined: { specimenId: "network-connect-declined" },
 };
 
 export type CoverageReport = {

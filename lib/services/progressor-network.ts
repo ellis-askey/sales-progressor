@@ -58,6 +58,13 @@ export type ProgressorNetworkBusiness = {
   connectionStatus: ProgressorConnectionStatus;
   /** Pending network request id when connectionStatus is "requested" (for withdraw). */
   requestId: string | null;
+  /**
+   * A recently-declined request id, set only when the agency is neither connected
+   * nor currently pending — powers the "not taken up" state on Introductions and
+   * the Dismiss action. Null otherwise. Re-requesting is still allowed (the
+   * business shows normally on Discover).
+   */
+  declinedRequestId: string | null;
   /** True when the agency connected to this business via the network (monetization provenance). */
   viaNetwork: boolean;
   /** Whether the viewing agency has saved this business. */
@@ -118,7 +125,7 @@ export async function getProgressorNetwork(
   });
 
   const ids = rows.map((r) => r.id);
-  const [stats, links, pendingRequests, saves] = await Promise.all([
+  const [stats, links, pendingRequests, saves, declinedRequests] = await Promise.all([
     getNetworkStatsFor(ids),
     agencyId
       ? prisma.progressionBusinessClient.findMany({
@@ -144,10 +151,26 @@ export async function getProgressorNetwork(
           select: { progressionBusinessId: true },
         })
       : Promise.resolve([] as { progressionBusinessId: string }[]),
+    agencyId
+      ? prisma.progressionConnectionRequest.findMany({
+          where: {
+            agencyId,
+            progressionBusinessId: { in: ids },
+            initiatedBy: "agency",
+            status: "declined",
+            respondedAt: { gte: connectRequestCutoff() },
+          },
+          orderBy: { respondedAt: "desc" },
+          select: { id: true, progressionBusinessId: true },
+        })
+      : Promise.resolve([] as { id: string; progressionBusinessId: string }[]),
   ]);
   const linkByBiz = new Map(links.map((l) => [l.progressionBusinessId, l]));
   const pendingByBiz = new Map(pendingRequests.map((r) => [r.progressionBusinessId, r.id]));
   const savedBiz = new Set(saves.map((s) => s.progressionBusinessId));
+  // Most-recent declined request per business (ordered desc, first wins).
+  const declinedByBiz = new Map<string, string>();
+  for (const r of declinedRequests) if (!declinedByBiz.has(r.progressionBusinessId)) declinedByBiz.set(r.progressionBusinessId, r.id);
 
   const businesses: ProgressorNetworkBusiness[] = rows.map((r) => {
     const link = linkByBiz.get(r.id);
@@ -168,6 +191,9 @@ export async function getProgressorNetwork(
       specialisms: r.networkSpecialisms,
       connectionStatus,
       requestId: connectionStatus === "requested" ? pendingReqId : null,
+      // Only surface a decline when neither connected nor pending — a re-request
+      // (which makes it pending again) supersedes the declined state.
+      declinedRequestId: connectionStatus === "none" ? declinedByBiz.get(r.id) ?? null : null,
       viaNetwork: link?.source === "network",
       saved: savedBiz.has(r.id),
     };

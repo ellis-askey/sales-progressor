@@ -10,9 +10,10 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ProgressorNetworkBusiness, ProgressorNetworkTab } from "@/lib/services/progressor-network";
 import { NETWORK_SPECIALISMS } from "@/lib/services/progressor-network-constants";
 import type { ProgressorRelationshipStats, HandoverableSale } from "@/lib/services/progressor-network-relationship";
-import { requestConnectProgressorAction, withdrawNetworkRequestAction, toggleProgressorSaveAction } from "@/app/actions/progressor-network";
+import { requestConnectProgressorAction, withdrawNetworkRequestAction, toggleProgressorSaveAction, dismissNetworkRequestAction } from "@/app/actions/progressor-network";
 import { ProgressorCard } from "./ProgressorCard";
 import { ConnectedProgressorCard } from "./ConnectedProgressorCard";
+import { DeclinedIntroCard } from "./DeclinedIntroCard";
 import { NetworkValueStrip } from "./NetworkValueStrip";
 import { HowItWorksRail } from "./HowItWorksRail";
 import { ProgressorStorefront } from "./ProgressorStorefront";
@@ -99,7 +100,7 @@ export function ProgressorNetwork({
     () => ({
       discover: items.length,
       "my-progressors": items.filter((b) => b.connectionStatus === "connected").length,
-      introductions: items.filter((b) => b.connectionStatus === "requested").length,
+      introductions: items.filter((b) => b.connectionStatus === "requested" || b.declinedRequestId).length,
       saved: items.filter((b) => b.saved).length,
     }),
     [items],
@@ -109,7 +110,7 @@ export function ProgressorNetwork({
     const q = query.trim().toLowerCase();
     const list = items.filter((b) => {
       if (tab === "my-progressors" && b.connectionStatus !== "connected") return false;
-      if (tab === "introductions" && b.connectionStatus !== "requested") return false;
+      if (tab === "introductions" && b.connectionStatus !== "requested" && !b.declinedRequestId) return false;
       if (tab === "saved" && !b.saved) return false;
       if (avail === "accepting" && b.availability !== "accepting") return false;
       if (specialism !== "all" && !b.tags.includes(specialism)) return false;
@@ -185,6 +186,17 @@ export function ProgressorNetwork({
       return;
     }
     toast.info("Request withdrawn");
+    startTransition(() => router.refresh());
+  };
+
+  const dismissDeclined = async (id: string) => {
+    const biz = businesses.find((b) => b.id === id);
+    if (!biz?.declinedRequestId) return;
+    const res = await dismissNetworkRequestAction({ requestId: biz.declinedRequestId });
+    if (!res.ok) {
+      toast.error("Couldn't dismiss this", { description: res.error });
+      return;
+    }
     startTransition(() => router.refresh());
   };
 
@@ -310,6 +322,13 @@ export function ProgressorNetwork({
                         relationship={relationships[b.id] ?? EMPTY_REL}
                         onView={(id) => setActiveId(id)}
                         onAssign={(id) => openAssign(id)}
+                      />
+                    ) : tab === "introductions" && b.declinedRequestId ? (
+                      <DeclinedIntroCard
+                        key={b.id}
+                        business={b}
+                        onView={(id) => setActiveId(id)}
+                        onDismiss={(id) => dismissDeclined(id)}
                       />
                     ) : (
                       <ProgressorCard

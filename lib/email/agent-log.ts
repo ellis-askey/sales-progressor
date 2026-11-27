@@ -55,7 +55,13 @@ export type AgentEmailKind =
   | "client_invoice"
   // A day-before-completion heads-up a progression business sends its client
   // agency (billing suite scheduling).
-  | "completion_reminder";
+  | "completion_reminder"
+  // Progressor Network connect handshake. request → the progression business
+  // owner (an agency wants to connect); accepted / declined → the requesting
+  // agency director. See lib/emails/network-connect.ts.
+  | "network_connect_request"
+  | "network_connect_accepted"
+  | "network_connect_declined";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
 const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup", "teammate_setup"]);
@@ -72,6 +78,9 @@ const FIXED_BUCKET: Partial<Record<AgentEmailKind, AudienceBucket>> = {
   teammate_setup: "progression_invite",
   client_invoice: "external_progression",
   completion_reminder: "external_progression",
+  network_connect_request: "external_progression",
+  network_connect_accepted: "free_agency",
+  network_connect_declined: "free_agency",
   weekly_brief: "free_agency",
   morning_digest: "free_agency",
   retention: "free_agency",

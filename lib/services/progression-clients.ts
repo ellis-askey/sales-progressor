@@ -12,6 +12,13 @@ import { prisma } from "@/lib/prisma";
 import { createDirectorWithAgency } from "@/lib/auth/create-director-with-agency";
 import { CompanyNameUnavailableError } from "@/lib/auth/company-name";
 import { sendClientAgentSetupEmail } from "@/lib/emails/client-agent-invite";
+import { sendAgentEmail } from "@/lib/email/agent-log";
+import { extractFirstName } from "@/lib/contacts/displayName";
+import {
+  buildNetworkConnectRequest,
+  buildNetworkConnectAccepted,
+  buildNetworkConnectDeclined,
+} from "@/lib/emails/network-connect";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { getAgencyLogoUrl, getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { calculateClientFee, parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
@@ -263,6 +270,71 @@ export async function respondToConnectionRequest(input: { requestId: string; acc
 export type AgencyRequester = { userId: string; agencyId: string };
 export type NetworkRequestResult = { ok: true; businessName: string } | { ok: false; error: string };
 
+const APP_BASE = process.env.NEXTAUTH_URL ?? "https://portal.thesalesprogressor.co.uk";
+
+// Email the progression business's active owner(s) that an agency wants to
+// connect. Best-effort: a send failure never blocks the request being created.
+async function notifyOwnersOfNetworkRequest(businessId: string, agencyId: string, note: string | null): Promise<void> {
+  try {
+    const [owners, agency] = await Promise.all([
+      prisma.user.findMany({
+        where: { progressionBusinessId: businessId, progressionBusinessRole: "owner", deactivatedAt: null, password: { not: null } },
+        select: { email: true, name: true },
+      }),
+      prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } }),
+    ]);
+    const agencyName = agency?.name ?? "An agency";
+    for (const o of owners) {
+      if (!o.email) continue;
+      const built = buildNetworkConnectRequest({
+        recipientFirstName: extractFirstName(o.name) || "there",
+        agencyName,
+        note,
+        reviewUrl: `${APP_BASE}/agent/clients`,
+      });
+      await sendAgentEmail({
+        to: o.email,
+        subject: built.subject,
+        text: built.text,
+        html: built.html,
+        kind: "network_connect_request",
+        meta: { businessId, agencyId },
+      });
+    }
+  } catch (err) {
+    console.error(`[network] failed to notify owners of connect request for business ${businessId}:`, err);
+  }
+}
+
+// Email the requesting agency director that their request was accepted/declined.
+// Best-effort: a send failure never blocks the response being recorded.
+async function notifyRequesterOfNetworkResponse(opts: {
+  requesterUserId: string;
+  agencyId: string;
+  businessName: string;
+  accepted: boolean;
+}): Promise<void> {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: opts.requesterUserId }, select: { email: true, name: true } });
+    if (!user?.email) return;
+    const first = extractFirstName(user.name) || "there";
+    const built = opts.accepted
+      ? buildNetworkConnectAccepted({ recipientFirstName: first, businessName: opts.businessName, assignUrl: `${APP_BASE}/agent/progressor-network` })
+      : buildNetworkConnectDeclined({ recipientFirstName: first, businessName: opts.businessName, browseUrl: `${APP_BASE}/agent/progressor-network` });
+    await sendAgentEmail({
+      to: user.email,
+      subject: built.subject,
+      text: built.text,
+      html: built.html,
+      kind: opts.accepted ? "network_connect_accepted" : "network_connect_declined",
+      userId: opts.requesterUserId,
+      agencyId: opts.agencyId,
+    });
+  } catch (err) {
+    console.error(`[network] failed to notify requester ${opts.requesterUserId} of network response:`, err);
+  }
+}
+
 /** An agency requests to connect with a network-listed progression business. */
 export async function requestConnectProgressor(input: { requester: AgencyRequester; businessId: string; message?: string | null }): Promise<NetworkRequestResult> {
   const biz = await prisma.progressionBusiness.findUnique({
@@ -293,6 +365,7 @@ export async function requestConnectProgressor(input: { requester: AgencyRequest
       ...(message ? { message } : {}),
     },
   });
+  await notifyOwnersOfNetworkRequest(biz.id, input.requester.agencyId, message || null);
   return { ok: true, businessName: biz.name };
 }
 
@@ -332,13 +405,34 @@ export async function withdrawNetworkRequest(input: { requestId: string; agencyI
   return { ok: true };
 }
 
+/**
+ * An agency dismisses a DECLINED network request (clears the "not taken up" row
+ * from Introductions). Deletes the row, so the business reverts to a clean state
+ * on Discover and can be approached again. Agency-scoped.
+ */
+export async function dismissNetworkRequest(input: { requestId: string; agencyId: string }): Promise<WithdrawResult> {
+  const req = await prisma.progressionConnectionRequest.findUnique({
+    where: { id: input.requestId },
+    select: { agencyId: true, initiatedBy: true, status: true },
+  });
+  if (!req || req.initiatedBy !== "agency" || req.agencyId !== input.agencyId) return { ok: false, error: "Request not found." };
+  if (req.status !== "declined") return { ok: false, error: "Only a declined request can be dismissed." };
+  await prisma.progressionConnectionRequest.delete({ where: { id: input.requestId } });
+  return { ok: true };
+}
+
 export type NetworkRespondResult = { ok: true; accepted: boolean; agencyName: string } | { ok: false; error: string };
 
 /** The business owner accepts/declines a network request. Accept links the agency (source "network"). */
 export async function respondToNetworkRequest(input: { requestId: string; accept: boolean; owner: BusinessOwner }): Promise<NetworkRespondResult> {
   const req = await prisma.progressionConnectionRequest.findUnique({
     where: { id: input.requestId },
-    select: { id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, initiatedBy: true, agency: { select: { name: true } } },
+    select: {
+      id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, initiatedBy: true,
+      requestedByUserId: true,
+      agency: { select: { name: true } },
+      progressionBusiness: { select: { name: true } },
+    },
   });
   if (!req || req.initiatedBy !== "agency") return { ok: false, error: "Request not found." };
   if (req.progressionBusinessId !== input.owner.businessId) return { ok: false, error: "This request isn't for your business." };
@@ -363,6 +457,13 @@ export async function respondToNetworkRequest(input: { requestId: string; accept
       data: { status: "declined", respondedAt: new Date(), respondedByUserId: input.owner.userId },
     });
   }
+  // Tell the requesting agency director either way (best-effort, non-blocking).
+  await notifyRequesterOfNetworkResponse({
+    requesterUserId: req.requestedByUserId,
+    agencyId: req.agencyId,
+    businessName: req.progressionBusiness.name,
+    accepted: input.accept,
+  });
   return { ok: true, accepted: input.accept, agencyName: req.agency.name };
 }
 

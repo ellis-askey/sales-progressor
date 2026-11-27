@@ -9,6 +9,7 @@ import {
   requestConnectProgressor,
   respondToNetworkRequest,
   withdrawNetworkRequest,
+  dismissNetworkRequest,
 } from "@/lib/services/progression-clients";
 import { toggleProgressorSave } from "@/lib/services/progressor-network";
 
@@ -47,6 +48,20 @@ export async function withdrawNetworkRequestAction(input: { requestId: string })
     return { ok: false, error: "Only an agency director can do this." };
   }
   const res = await withdrawNetworkRequest({ requestId: input.requestId, agencyId: session.user.agencyId });
+  if (!res.ok) return res;
+  revalidatePath("/agent/progressor-network");
+  return { ok: true };
+}
+
+/** Agency dismisses a declined network request (clears the "not taken up" row). Founder-gated (preview) + director-only. */
+export async function dismissNetworkRequestAction(input: { requestId: string }): Promise<Result> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  if (!isFounderEmail(session.user.email)) return { ok: false, error: "The Progressor Network isn't open yet." };
+  if (session.user.role !== "director" || !session.user.agencyId) {
+    return { ok: false, error: "Only an agency director can do this." };
+  }
+  const res = await dismissNetworkRequest({ requestId: input.requestId, agencyId: session.user.agencyId });
   if (!res.ok) return res;
   revalidatePath("/agent/progressor-network");
   return { ok: true };

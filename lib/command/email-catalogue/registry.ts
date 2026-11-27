@@ -88,6 +88,7 @@ import { buildMailboxSendingTest, buildMailboxSendingStopped } from "@/lib/email
 import { buildClientAgentInvite } from "@/lib/emails/client-agent-invite";
 import { buildTeammateInvite } from "@/lib/emails/teammate-invite";
 import { buildProgressionWelcome } from "@/lib/emails/retention";
+import { buildNetworkConnectRequest, buildNetworkConnectAccepted, buildNetworkConnectDeclined } from "@/lib/emails/network-connect";
 
 export type RenderedEmail = { subject: string; html: string };
 
@@ -871,6 +872,66 @@ export const EMAIL_SPECIMENS: EmailSpecimen[] = [
           firstName: FIXTURE_BUSINESS.owner.firstName,
           ctaUrl: `${CATALOGUE_BASE}/agent/clients`,
           unsubscribeUrl: `${CATALOGUE_BASE}/unsubscribe/PREVIEW`,
+        }),
+      ),
+  },
+
+  // ── Progressor Network (connect handshake) ──────────────────────────────────
+  {
+    id: "network-connect-request",
+    bucket: "external_progression",
+    category: "perfected",
+    name: "Network connect request",
+    description: "Tells a progression business that an agency has found them on the Progressor Network and wants to connect. Carries the agency's optional introduction note.",
+    trigger: "An agency presses Send connection request on a business in the Progressor Network.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildNetworkConnectRequest({
+          recipientFirstName: FIXTURE_BUSINESS.owner.firstName,
+          agencyName: FIXTURE_AGENCY.name,
+          note: "We've admired your completion rate for a while and would love to send some of our sales your way.",
+          reviewUrl: `${CATALOGUE_BASE}/agent/clients`,
+        }),
+      ),
+  },
+  {
+    id: "network-connect-accepted",
+    bucket: "free_agency",
+    category: "perfected",
+    name: "Network connect accepted",
+    description: "Tells the requesting agency director their connection request was accepted, reassures that connecting shares nothing, and points them at handing a sale over.",
+    trigger: "A progression business owner accepts an agency's network connection request.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildNetworkConnectAccepted({
+          recipientFirstName: FIXTURE_AGENT.firstName,
+          businessName: FIXTURE_BUSINESS.name,
+          assignUrl: `${CATALOGUE_BASE}/agent/progressor-network`,
+        }),
+      ),
+  },
+  {
+    id: "network-connect-declined",
+    bucket: "free_agency",
+    category: "perfected",
+    name: "Network connect declined",
+    description: "Tells the requesting agency director their connection request wasn't taken up. Gentle, no blame, points them back to the network.",
+    trigger: "A progression business owner declines an agency's network connection request.",
+    axes: [],
+    senderKind: "platform",
+    signatureBehaviour: "none",
+    render: () =>
+      wrap(
+        buildNetworkConnectDeclined({
+          recipientFirstName: FIXTURE_AGENT.firstName,
+          businessName: FIXTURE_BUSINESS.name,
+          browseUrl: `${CATALOGUE_BASE}/agent/progressor-network`,
         }),
       ),
   },
