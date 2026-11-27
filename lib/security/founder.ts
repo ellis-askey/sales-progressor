@@ -12,6 +12,7 @@ export const FOUNDER_EMAILS: readonly string[] = [
   "ellisaskey+tb@googlemail.com", // Ellis's agent (director) test account — mirrors DESIGN_LAB_EMAILS
   "ellisaskey@googlemail.com", // Ellis's personal
   "emily@hartwellpartners.co.uk", // Emily Chen (Hartwell & Partners) — director test account for staging-DB preview
+  "ellis+boardwalk@thesalesprogressor.co.uk", // Boardwalk preview login
 ];
 
 export function isFounderEmail(email: string | null | undefined): boolean {
