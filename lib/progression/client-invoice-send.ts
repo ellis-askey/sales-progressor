@@ -72,12 +72,12 @@ export async function sendClientInvoice(businessId: string, agencyId: string, ac
   const pdf = await renderBusinessInvoicePdf(input);
   const total = input.totalPence;
 
-  const subject = `Invoice ${input.number} from ${input.issuerName} — ${money(total)}`;
+  const subject = `Invoice ${input.invoiceLabel} from ${input.issuerName} — ${money(total)}`;
   const dueLine = input.dueLabel ? ` It's due by ${input.dueLabel}.` : "";
-  const text = `Hi,\n\nPlease find attached invoice ${input.number} from ${input.issuerName} for the sales we progressed in ${input.periodLabel} — ${money(total)} in total.${dueLine}\n\nThe full breakdown is in the attached PDF.\n\nThanks,\n${input.issuerName}`;
+  const text = `Hi,\n\nPlease find attached invoice ${input.invoiceLabel} from ${input.issuerName} for the sales we progressed in ${input.periodLabel} — ${money(total)} in total.${dueLine}\n\nThe full breakdown is in the attached PDF.\n\nThanks,\n${input.issuerName}`;
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;color:#0F1B2D;line-height:1.55;">
     <p style="margin:0 0 12px;">Hi,</p>
-    <p style="margin:0 0 12px;">Please find attached <strong>invoice ${input.number}</strong> from ${input.issuerName} for the sales we progressed in <strong>${input.periodLabel}</strong>.</p>
+    <p style="margin:0 0 12px;">Please find attached <strong>invoice ${input.invoiceLabel}</strong> from ${input.issuerName} for the sales we progressed in <strong>${input.periodLabel}</strong>.</p>
     <p style="margin:0 0 12px;">Total due: <strong>${money(total)}</strong>.${dueLine}</p>
     <p style="margin:0 0 12px;">The full breakdown is in the attached PDF.</p>
     <p style="margin:16px 0 0;">Thanks,<br/>${input.issuerName}</p>
@@ -108,12 +108,12 @@ export async function sendClientInvoice(businessId: string, agencyId: string, ac
   const row = await prisma.clientInvoice.upsert({
     where: { progressionBusinessId_agencyId_periodKey: { progressionBusinessId: businessId, agencyId, periodKey } },
     create: {
-      progressionBusinessId: businessId, agencyId, periodKey, number: input.number, status: "sent",
+      progressionBusinessId: businessId, agencyId, periodKey, number: input.invoiceLabel, status: "sent",
       subtotalPence: input.subtotalPence, vatPence: input.vatPence, totalPence: total, lineCount: input.lines.length,
       snapshot: snapshot as never, recipientEmail: director.email, issuedAt: now, dueAt, sentAt: now,
     },
     update: {
-      number: input.number, status: "sent",
+      number: input.invoiceLabel, status: "sent",
       subtotalPence: input.subtotalPence, vatPence: input.vatPence, totalPence: total, lineCount: input.lines.length,
       snapshot: snapshot as never, recipientEmail: director.email, dueAt, sentAt: now, paidAt: null,
     },
