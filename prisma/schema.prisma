@@ -225,6 +225,7 @@ model Agency {
   chaseRuleOverrides            AgencyChaseRuleOverride[] // per-agency client-chase timings; apply to THIS agency's self-managed files only (outsourced files always use the platform default)
   progressionBusinessClients    ProgressionBusinessClient[] // progression businesses that count this agency as a client (client management only — never grants transaction access)
   progressionConnectionRequests ProgressionConnectionRequest[] // pending/historic requests from progressors to connect to this (existing) agency
+  progressionNetworkSaves       ProgressionNetworkSave[] // businesses this agency has bookmarked in the Progressor Network
 
   @@index([modeProfile])
   @@index([signupAt])
@@ -392,6 +393,7 @@ model ProgressionBusiness {
   transactions            PropertyTransaction[]
   clients                 ProgressionBusinessClient[]
   connectionRequests      ProgressionConnectionRequest[]
+  networkSaves            ProgressionNetworkSave[]
   verifiedDomains         VerifiedDomain[]
   milestoneEmailOverrides MilestoneEmailOverride[]
   chaseRuleOverrides      BusinessChaseRuleOverride[]
@@ -498,6 +500,24 @@ model ProgressionConnectionRequest {
 
   @@index([agencyId, status])
   @@index([progressionBusinessId, status])
+}
+
+// An agency's bookmark of a network-listed progression business — the "Saved"
+// tab in the Progressor Network. Pure convenience list; grants nothing and is
+// unrelated to connection state. One row per (agency, business); unsaving
+// deletes the row. savedByUserId records which director saved it.
+model ProgressionNetworkSave {
+  id                    String   @id @default(cuid())
+  progressionBusinessId String
+  agencyId              String
+  savedByUserId         String
+  createdAt             DateTime @default(now())
+
+  progressionBusiness ProgressionBusiness @relation(fields: [progressionBusinessId], references: [id], onDelete: Cascade)
+  agency              Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, progressionBusinessId])
+  @@index([agencyId])
 }
 
 // A member's role WITHIN their progression business (business administration),

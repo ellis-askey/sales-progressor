@@ -10,6 +10,7 @@ import {
   respondToNetworkRequest,
   withdrawNetworkRequest,
 } from "@/lib/services/progression-clients";
+import { toggleProgressorSave } from "@/lib/services/progressor-network";
 
 // Server actions for the Progressor Network connect handshake (agency → business).
 // The agency side is founder-gated while the network is in preview; the business
@@ -49,6 +50,24 @@ export async function withdrawNetworkRequestAction(input: { requestId: string })
   if (!res.ok) return res;
   revalidatePath("/agent/progressor-network");
   return { ok: true };
+}
+
+/** Agency toggles a bookmark of a network business. Founder-gated (preview) + director-only. Returns the new saved state. */
+export async function toggleProgressorSaveAction(input: { businessId: string }): Promise<Result & { saved?: boolean }> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  if (!isFounderEmail(session.user.email)) return { ok: false, error: "The Progressor Network isn't open yet." };
+  if (session.user.role !== "director" || !session.user.agencyId) {
+    return { ok: false, error: "Only an agency director can do this." };
+  }
+  const res = await toggleProgressorSave({
+    agencyId: session.user.agencyId,
+    businessId: input.businessId,
+    savedByUserId: session.user.id,
+  });
+  if (!res.ok) return res;
+  revalidatePath("/agent/progressor-network");
+  return { ok: true, saved: res.saved };
 }
 
 /** Business owner accepts/declines a network request. Owner-gated (the real business responds). */

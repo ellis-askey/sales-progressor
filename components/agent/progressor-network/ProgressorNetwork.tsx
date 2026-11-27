@@ -10,7 +10,7 @@ import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ProgressorNetworkBusiness, ProgressorNetworkTab } from "@/lib/services/progressor-network";
 import { NETWORK_SPECIALISMS } from "@/lib/services/progressor-network-constants";
 import type { ProgressorRelationshipStats, HandoverableSale } from "@/lib/services/progressor-network-relationship";
-import { requestConnectProgressorAction, withdrawNetworkRequestAction } from "@/app/actions/progressor-network";
+import { requestConnectProgressorAction, withdrawNetworkRequestAction, toggleProgressorSaveAction } from "@/app/actions/progressor-network";
 import { ProgressorCard } from "./ProgressorCard";
 import { ConnectedProgressorCard } from "./ConnectedProgressorCard";
 import { NetworkValueStrip } from "./NetworkValueStrip";
@@ -132,13 +132,29 @@ export function ProgressorNetwork({
     });
   }, [items, tab, query, avail, specialism, sort]);
 
-  const toggleSave = (id: string) =>
+  // Optimistic toggle, then persist. On failure we revert and tell the user, so
+  // the bookmark never silently lies about what's saved on the server.
+  const toggleSave = (id: string) => {
+    const wasSaved = savedIds.has(id);
     setSavedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
+      if (wasSaved) next.delete(id);
       else next.add(id);
       return next;
     });
+    startTransition(async () => {
+      const res = await toggleProgressorSaveAction({ businessId: id });
+      if (!res.ok) {
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          if (wasSaved) next.add(id);
+          else next.delete(id);
+          return next;
+        });
+        toast.error("Couldn't update your saved list", { description: res.error });
+      }
+    });
+  };
 
   // Opening a modal doesn't disturb the storefront screen (if open), so the modal
   // overlays it and the page returns to the same place once the action completes.

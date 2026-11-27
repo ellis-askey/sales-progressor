@@ -118,7 +118,7 @@ export async function getProgressorNetwork(
   });
 
   const ids = rows.map((r) => r.id);
-  const [stats, links, pendingRequests] = await Promise.all([
+  const [stats, links, pendingRequests, saves] = await Promise.all([
     getNetworkStatsFor(ids),
     agencyId
       ? prisma.progressionBusinessClient.findMany({
@@ -138,9 +138,16 @@ export async function getProgressorNetwork(
           select: { id: true, progressionBusinessId: true },
         })
       : Promise.resolve([] as { id: string; progressionBusinessId: string }[]),
+    agencyId
+      ? prisma.progressionNetworkSave.findMany({
+          where: { agencyId, progressionBusinessId: { in: ids } },
+          select: { progressionBusinessId: true },
+        })
+      : Promise.resolve([] as { progressionBusinessId: string }[]),
   ]);
   const linkByBiz = new Map(links.map((l) => [l.progressionBusinessId, l]));
   const pendingByBiz = new Map(pendingRequests.map((r) => [r.progressionBusinessId, r.id]));
+  const savedBiz = new Set(saves.map((s) => s.progressionBusinessId));
 
   const businesses: ProgressorNetworkBusiness[] = rows.map((r) => {
     const link = linkByBiz.get(r.id);
@@ -162,9 +169,40 @@ export async function getProgressorNetwork(
       connectionStatus,
       requestId: connectionStatus === "requested" ? pendingReqId : null,
       viaNetwork: link?.source === "network",
-      saved: false, // saved persistence lands in a later phase; in-session only
+      saved: savedBiz.has(r.id),
     };
   });
 
   return { businesses };
+}
+
+/**
+ * Toggle an agency's bookmark of a network-listed business (the Saved tab).
+ * Idempotent per direction: saving an already-saved business is a no-op, and
+ * unsaving an unsaved one likewise. Returns the resulting saved state. Only
+ * network-listed businesses can be saved. Scoped to the caller's own agencyId.
+ */
+export async function toggleProgressorSave(input: {
+  agencyId: string;
+  businessId: string;
+  savedByUserId: string;
+}): Promise<{ ok: true; saved: boolean } | { ok: false; error: string }> {
+  const biz = await prisma.progressionBusiness.findUnique({
+    where: { id: input.businessId },
+    select: { id: true, networkListed: true, isTsp: true },
+  });
+  if (!biz || biz.isTsp || !biz.networkListed) return { ok: false, error: "That business can't be saved." };
+
+  const existing = await prisma.progressionNetworkSave.findUnique({
+    where: { agencyId_progressionBusinessId: { agencyId: input.agencyId, progressionBusinessId: biz.id } },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.progressionNetworkSave.delete({ where: { id: existing.id } });
+    return { ok: true, saved: false };
+  }
+  await prisma.progressionNetworkSave.create({
+    data: { agencyId: input.agencyId, progressionBusinessId: biz.id, savedByUserId: input.savedByUserId },
+  });
+  return { ok: true, saved: true };
 }
