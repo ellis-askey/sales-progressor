@@ -12,21 +12,21 @@
 
 import { useEffect, useRef, useState, useTransition, type AnimationEvent as ReactAnimationEvent } from "react";
 import { createPortal } from "react-dom";
-import { PaperPlaneTilt, ArrowBendUpLeft, Check, X, Stack } from "@phosphor-icons/react";
+import { PaperPlaneTilt, ArrowBendUpLeft, Check, X } from "@phosphor-icons/react";
 import { FloatingWindow } from "@/components/compose/FloatingWindow";
 import { ContactAvatar, UserAvatar } from "@/components/ui/Avatar";
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { PropertyThumb } from "@/components/ui/PropertyThumb";
 import { usePortalTheme } from "@/lib/agent/use-portal-theme";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { DictationMic } from "@/components/dictation/DictationMic";
 import { TemplatePicker, type TemplateInsertMode } from "@/components/compose/TemplatePicker";
-import { useContentEditableDictation } from "@/components/dictation/useDictation";
+import { MessageEditor, type MessageAttachment } from "@/components/compose/MessageEditor";
+import { htmlToText } from "@/lib/chase/rich-text";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import {
   searchComposeSales, getComposeContextAction, sendComposedEmail,
   listScheduledComposeEmailsAction, cancelScheduledComposeEmailAction, findContinuableThreadAction,
-  type ComposeSaleResult, type ComposeContextWithPhoto, type ComposeAttachmentInput,
+  type ComposeSaleResult, type ComposeContextWithPhoto,
 } from "@/app/actions/compose";
 import type { ContinuableThread } from "@/lib/email/thread-continue";
 import type { SignatureStyleKey, SignatureStyleOption } from "@/lib/email/signature-options";
@@ -35,7 +35,16 @@ import type { ComposeRecipient } from "@/lib/services/compose-recipients";
 
 type Field = "to" | "cc" | "bcc";
 export type Token = { email: string; name: string; rec: ComposeRecipient | null };
-const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
+
+// Read a File into base64 (without the data: prefix) for the send payload.
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => { const s = String(r.result); resolve(s.slice(s.indexOf(",") + 1)); };
+    r.onerror = () => reject(new Error("Could not read the file."));
+    r.readAsDataURL(file);
+  });
+}
 
 // ── Email-threading "continue conversation" whisper (Stage 2, treatment A) ───
 // A single, quiet, tappable line under the recipients. Shows ONLY when there's a
@@ -213,37 +222,29 @@ export function ComposeEmailModal({
   const [fullChainUsed, setFullChainUsed] = useState(false);
   const [composingChain, setComposingChain] = useState(false);
 
-  // body
+  // body — the message HTML held as state and edited by the shared MessageEditor
+  // (controlled). The sign-off + signature live inside it (data-cem-signoff /
+  // data-cem-sig). Programmatic edits (templates, share, refine, sig swap,
+  // auto-greet) transform the string through a detached node via mutateBody().
   const [subject, setSubject] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const pendingBodyRef = useRef<string | null>(null);
-  // Debounce timer for the character count. Reading the body + re-rendering on
-  // every keystroke is what made typing feel laggy on slower setups, so the
-  // count is recomputed a beat after typing pauses instead (see onEditorInput).
-  const countTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Voice typing — dictation streams into the body at the caret; Refine tidies
-  // the result afterwards. Hidden where the browser has no SpeechRecognition.
-  // appendBeforeSelector keeps dictation in the body (above the signature) when
-  // the editor isn't focused, instead of landing below the signature block.
-  const dictation = useContentEditableDictation(editorRef, {
-    // Land dictation in the message body — above the sign-off line when present,
-    // else above the signature. querySelector returns the first in DOM order.
-    appendBeforeSelector: "[data-cem-signoff], [data-cem-sig]",
-    onError: (k) => { if (k === "denied") toast.error("Microphone blocked. Allow it from the address-bar icon, then tap the mic again."); },
-  });
-  // This modal stays mounted (open just toggles), so the dictation hook never
-  // unmounts to clean itself up. Stop any active recording when the drawer
-  // closes, or a left-running session leaks and breaks the next open.
-  useEffect(() => { if (!open) dictation.stop(); }, [open, dictation.stop]);
-  // Clear any pending character-count timer on unmount.
-  useEffect(() => () => { if (countTimerRef.current) clearTimeout(countTimerRef.current); }, []);
+  const [bodyHtml, setBodyHtml] = useState("");
+  // Edit the body HTML as a detached DOM tree, then re-serialise. Returning the
+  // previous string unchanged (no mutation) bails the update, so a no-op never
+  // churns the editor. MessageEditor owns the live caret; these run off-DOM.
+  function mutateBody(fn: (root: HTMLElement) => boolean | void) {
+    setBodyHtml((prev) => {
+      if (typeof document === "undefined") return prev;
+      const root = document.createElement("div");
+      root.innerHTML = prev;
+      const changed = fn(root);
+      return changed === false ? prev : root.innerHTML;
+    });
+  }
   // True while the greeting line should auto-follow the To recipients. Turned
   // off for the prefilled flow (surveyor email), which seeds its own greeting.
   const autoGreetRef = useRef(true);
-  const [charCount, setCharCount] = useState(0);
-  const [attachments, setAttachments] = useState<(ComposeAttachmentInput & { size: number })[]>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [isSending, startSend] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Closing state drives the exit animation (slide-down drawer on mobile, fade
@@ -277,9 +278,9 @@ export function ComposeEmailModal({
   const aiOn = useAiEnabled(); // AI master switch (#291): hide the AI "Refine" button when off
   const preRefineRef = useRef<string | null>(null);
 
-  // signature style (basic / logo / default), like the chase drawer
+  // signature style (basic / logo / default), like the chase drawer. The style
+  // picker itself now lives inside MessageEditor's toolbar.
   const [sigStyle, setSigStyle] = useState<SignatureStyleKey>("basic");
-  const [sigMenuOpen, setSigMenuOpen] = useState(false);
   // The style options that apply to this file's signature (Basic / Logo /
   // Signature image / Custom), resolved per file by the preview endpoint. The
   // picker shows only when there's more than one to choose from.
@@ -326,10 +327,10 @@ export function ComposeEmailModal({
       setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
       setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
       setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
-      setShowRefined(false); preRefineRef.current = null; setSigStyle("basic"); setSigOptions([]); setSigMenuOpen(false);
+      setShowRefined(false); preRefineRef.current = null; setSigStyle("basic"); setSigOptions([]);
       setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
       setContinueCandidate(null); setContinueArmed(false);
-      if (editorRef.current) editorRef.current.innerHTML = "";
+      setBodyHtml("");
     }
     // Seed the sale once per open, as soon as a prefill / id / devSeed is
     // available (which, for the chain-email path, is a render later than open).
@@ -340,7 +341,7 @@ export function ComposeEmailModal({
     if (devSeed) {
       seededForOpenRef.current = true;
       autoGreetRef.current = false;
-      pendingBodyRef.current = devSeed.bodyHtml;
+      setBodyHtml(devSeed.bodyHtml);
       setTokens({ to: devSeed.to, cc: [], bcc: [] });
       setSubject(devSeed.subject);
       setContinueCandidate(devSeed.candidate ?? null);
@@ -360,27 +361,18 @@ export function ComposeEmailModal({
     return () => { cancelled = true; };
   }, [query, open, ctx]);
 
-  // Write the staged body once the editor has actually mounted (it only renders
-  // after a sale is picked), then clear the staging ref.
-  useEffect(() => {
-    if (ctx && editorRef.current && pendingBodyRef.current != null) {
-      editorRef.current.innerHTML = pendingBodyRef.current;
-      pendingBodyRef.current = null;
-      updateCount();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx]);
-
   // Keep the greeting line in step with the To recipients whenever they change —
   // only ever touching that one line (and only while it still looks auto), never
   // the typed message. Count/name rules live in autoGreetingFor (critique #239).
   useEffect(() => {
-    if (!ctx || !editorRef.current || !autoGreetRef.current) return;
-    const p = editorRef.current.querySelector("p");
-    if (!p || !isAutoGreeting(p.textContent ?? "")) return;
-    const g = autoGreetingFor(tokens.to);
-    if (g === "") p.innerHTML = "<br>";
-    else p.textContent = g;
+    if (!ctx || !autoGreetRef.current) return;
+    mutateBody((root) => {
+      const p = root.querySelector("p");
+      if (!p || !isAutoGreeting(p.textContent ?? "")) return false; // leave a hand-edited greeting alone
+      const g = autoGreetingFor(tokens.to);
+      if (g === "") p.innerHTML = "<br>";
+      else p.textContent = g;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokens.to]);
 
@@ -404,31 +396,32 @@ export function ComposeEmailModal({
   // Signature-style button (basic / logo / default): re-fetch the signature in
   // the chosen style and swap it in place, leaving the message untouched.
   async function changeSigStyle(s: SignatureStyleKey) {
-    setSigStyle(s); setSigMenuOpen(false);
-    if (!ctx || !editorRef.current) return;
+    setSigStyle(s);
+    if (!ctx) return;
     try {
       const res = await fetch(`/api/agent/compose-signature-preview?transactionId=${ctx.sale.id}&style=${s}`);
       if (!res.ok) return;
       const j = await res.json();
       if (!j?.html) return;
-      const sig = editorRef.current.querySelector("[data-cem-sig]");
-      if (sig) sig.innerHTML = j.html;
-      else editorRef.current.insertAdjacentHTML("beforeend", `<div data-cem-sig="1">${j.html}</div>`);
-      // Keep the sign-off line in step with the new style: a signature that
-      // carries its own valediction (addSignOff false) drops our phrase; one
-      // without (addSignOff true) gets it back — so a style switch never leaves
-      // the email with no sign-off, or two.
-      const existingPhrase = editorRef.current.querySelector("[data-cem-signoff]");
-      if (j.addSignOff && j.signOff) {
-        if (!existingPhrase) {
-          const sigDiv = editorRef.current.querySelector("[data-cem-sig]");
-          const phraseHtml = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
-          if (sigDiv) sigDiv.insertAdjacentHTML("beforebegin", phraseHtml);
+      mutateBody((root) => {
+        const sig = root.querySelector("[data-cem-sig]");
+        if (sig) sig.innerHTML = j.html;
+        else root.insertAdjacentHTML("beforeend", `<div data-cem-sig="1">${j.html}</div>`);
+        // Keep the sign-off line in step with the new style: a signature that
+        // carries its own valediction (addSignOff false) drops our phrase; one
+        // without (addSignOff true) gets it back — so a style switch never leaves
+        // the email with no sign-off, or two.
+        const existingPhrase = root.querySelector("[data-cem-signoff]");
+        if (j.addSignOff && j.signOff) {
+          if (!existingPhrase) {
+            const sigDiv = root.querySelector("[data-cem-sig]");
+            const phraseHtml = `<p data-cem-signoff="1">${String(j.signOff).replace(/</g, "&lt;")}</p>`;
+            if (sigDiv) sigDiv.insertAdjacentHTML("beforebegin", phraseHtml);
+          }
+        } else if (existingPhrase) {
+          existingPhrase.remove();
         }
-      } else if (existingPhrase) {
-        existingPhrase.remove();
-      }
-      updateCount();
+      });
     } catch { /* keep the current signature */ }
   }
 
@@ -477,9 +470,9 @@ export function ComposeEmailModal({
           const match = c.recipients.find((x) => x.email.toLowerCase() === r.email.toLowerCase());
           return match ? { email: match.email, name: match.name, rec: match } : { email: r.email, name: r.name ?? r.email, rec: null };
         });
-        pendingBodyRef.current = pf.bodyHtml.includes("data-cem-sig")
+        setBodyHtml(pf.bodyHtml.includes("data-cem-sig")
           ? pf.bodyHtml
-          : `${pf.bodyHtml}${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`;
+          : `${pf.bodyHtml}${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`);
         setTokens({ to: toTokens, cc: ccTokens, bcc: [] });
         if (ccTokens.length) setShowCc(true);
         setSubject(pf.subject);
@@ -488,7 +481,7 @@ export function ComposeEmailModal({
       }
       // Greeting starts blank and fills in from the To recipients (critique #239).
       autoGreetRef.current = true;
-      pendingBodyRef.current = `<p><br></p><p><br></p><p><br></p>${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`;
+      setBodyHtml(`<p><br></p><p><br></p><p><br></p>${signOffLine}<div data-cem-sig="1">${sigHtml}</div>`);
       // Pre-address to specific contacts (e.g. opened from Focus for one side) —
       // match the sale's recipients by contact id so they carry real avatars.
       const toTokens: Token[] = (toContactIds ?? [])
@@ -506,7 +499,7 @@ export function ComposeEmailModal({
     setSaleCleared(true);
     setCtx(null); setTokens({ to: [], cc: [], bcc: [] }); setSubject(""); setShowCc(false); setShowBcc(false);
     setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false); setShowRefined(false); preRefineRef.current = null;
-    if (editorRef.current) editorRef.current.innerHTML = ""; setQuery("");
+    setBodyHtml(""); setQuery("");
   }
 
   const allTokens = [...tokens.to, ...tokens.cc, ...tokens.bcc];
@@ -573,52 +566,39 @@ export function ComposeEmailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPlace, ctx]);
 
-  function updateCount() { setCharCount((editorRef.current?.innerText ?? "").replace(/\s+$/, "").length); }
-  // Per keystroke we do NOT re-measure the body — reading innerText forces a
-  // layout pass and setCharCount re-renders the whole modal, which is what made
-  // typing feel laggy on older browsers / low memory / long emails. Recompute
-  // the count ~200ms after typing pauses instead; the only visible effect is the
-  // counter catching up a beat later. The body itself is read fresh on send.
-  function scheduleCount() {
-    if (countTimerRef.current) clearTimeout(countTimerRef.current);
-    countTimerRef.current = setTimeout(() => { countTimerRef.current = null; updateCount(); }, 200);
-  }
-  function onEditorInput() { scheduleCount(); if (showRefined) setShowRefined(false); }
-  // Make Enter always create a <p> (not a browser-default <div>) so every
-  // paragraph break gets the same gap — fixes the uneven line spacing (critique #300).
-  function forceParagraphBreaks() { try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch { /* unsupported browser */ } }
-
   // "Share our latest" — drop the sale's progress block in just above the
   // signature, replacing any previous copy so a re-click refreshes rather than
   // stacks. Facts only; the sender types their greeting/ask around it.
   function insertShareSummary() {
-    if (!shareSummaryHtml || !editorRef.current) return;
-    editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
-    // Drop the block in above the sign-off line when present, else above the
-    // signature, so it reads as part of the message, not after the valediction.
-    const anchor = editorRef.current.querySelector("[data-cem-signoff], [data-cem-sig]");
-    if (anchor) anchor.insertAdjacentHTML("beforebegin", shareSummaryHtml);
-    else editorRef.current.insertAdjacentHTML("beforeend", shareSummaryHtml);
+    if (!shareSummaryHtml) return;
+    mutateBody((root) => {
+      root.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
+      // Drop the block in above the sign-off line when present, else above the
+      // signature, so it reads as part of the message, not after the valediction.
+      const anchor = root.querySelector("[data-cem-signoff], [data-cem-sig]");
+      if (anchor) anchor.insertAdjacentHTML("beforebegin", shareSummaryHtml);
+      else root.insertAdjacentHTML("beforeend", shareSummaryHtml);
+    });
     setShareInserted(true);
-    updateCount();
   }
 
   // "Full chain email" — ask the server to compose the whole body for the current
   // recipients, then drop it in (replacing any existing share/chain block). A
   // re-click rebuilds it, so changing recipients just needs another click.
   async function insertFullChain() {
-    if (!onComposeFullChain || !editorRef.current || composingChain) return;
+    if (!onComposeFullChain || composingChain) return;
     setComposingChain(true);
     try {
       const emails = [...tokens.to, ...tokens.cc, ...tokens.bcc].map((t) => t.email);
       const html = await onComposeFullChain(emails);
-      if (!html || !editorRef.current) return;
-      editorRef.current.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
-      const anchor = editorRef.current.querySelector("[data-cem-signoff], [data-cem-sig]");
-      if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
-      else editorRef.current.insertAdjacentHTML("beforeend", html);
+      if (!html) return;
+      mutateBody((root) => {
+        root.querySelectorAll("[data-cem-share]").forEach((n) => n.remove());
+        const anchor = root.querySelector("[data-cem-signoff], [data-cem-sig]");
+        if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
+        else root.insertAdjacentHTML("beforeend", html);
+      });
       setFullChainUsed(true);
-      updateCount();
     } finally {
       setComposingChain(false);
     }
@@ -628,12 +608,13 @@ export function ComposeEmailModal({
   // auto-greeting doesn't count, so a fresh compose replaces while a typed
   // message inserts at the cursor instead of clobbering the user's work.
   function hasDraftContent(): boolean {
-    const ed = editorRef.current;
-    if (!ed) return false;
-    const anchor = ed.querySelector("[data-cem-signoff], [data-cem-sig]");
+    if (typeof document === "undefined") return false;
+    const root = document.createElement("div");
+    root.innerHTML = bodyHtml;
+    const anchor = root.querySelector("[data-cem-signoff], [data-cem-sig]");
     let text = "";
     if (anchor) { let n: ChildNode | null = anchor.previousSibling; while (n) { text = (n.textContent || "") + text; n = n.previousSibling; } }
-    else text = ed.textContent || "";
+    else text = root.textContent || "";
     const trimmed = text.replace(/\s+/g, " ").trim();
     if (!trimmed) return false;
     if (trimmed.length <= 24 && /,$/.test(trimmed)) return false; // a lone greeting
@@ -644,80 +625,65 @@ export function ComposeEmailModal({
   // sign-off (insert above the anchor). "replace" clears the current draft;
   // "cursor" drops it at the caret.
   function insertTemplateHtml(html: string, tmplSubject: string | null, mode: TemplateInsertMode) {
-    const ed = editorRef.current;
-    if (!ed) return;
-    const anchor = ed.querySelector("[data-cem-signoff], [data-cem-sig]");
-    if (mode === "replace") {
-      if (anchor) { while (anchor.previousSibling) anchor.previousSibling.remove(); anchor.insertAdjacentHTML("beforebegin", html); }
-      else ed.innerHTML = html;
-      autoGreetRef.current = false; // the template carries its own greeting now
-    } else {
-      // Append the template above the signature, keeping the existing draft.
-      // Always insertAdjacentHTML (never execCommand("insertHTML"), which
-      // flattens <p>/<ul> and drops the line breaks + bullet structure).
-      if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
-      else ed.insertAdjacentHTML("beforeend", html);
-    }
+    mutateBody((root) => {
+      const anchor = root.querySelector("[data-cem-signoff], [data-cem-sig]");
+      if (mode === "replace") {
+        if (anchor) { while (anchor.previousSibling) anchor.previousSibling.remove(); anchor.insertAdjacentHTML("beforebegin", html); }
+        else root.innerHTML = html;
+      } else {
+        // Append the template above the signature, keeping the existing draft.
+        // Always insertAdjacentHTML (never execCommand("insertHTML"), which
+        // flattens <p>/<ul> and drops the line breaks + bullet structure).
+        if (anchor) anchor.insertAdjacentHTML("beforebegin", html);
+        else root.insertAdjacentHTML("beforeend", html);
+      }
+    });
+    if (mode === "replace") autoGreetRef.current = false; // the template carries its own greeting now
     // Apply the template subject only when the composer has no subject yet (never
     // silently overwrite an existing one).
     if (tmplSubject && tmplSubject.trim() && !subject.trim()) setSubject(tmplSubject.trim());
-    ed.focus();
-    updateCount();
   }
 
   async function refine() {
-    if (!editorRef.current || refining) return;
-    const current = editorRef.current.innerHTML;
+    if (refining) return;
+    const current = bodyHtml;
     preRefineRef.current = current;
     setRefining(true);
     try {
       const res = await fetch("/api/ai/refine-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ html: current }) });
       const j = await res.json().catch(() => ({}));
-      if (res.ok && j?.html && editorRef.current) { editorRef.current.innerHTML = j.html; updateCount(); setShowRefined(true); }
+      if (res.ok && j?.html) { setBodyHtml(j.html); setShowRefined(true); }
       else toast.error(j?.error ?? "Couldn't refine the email.");
     } catch { toast.error("Couldn't refine the email."); }
     finally { setRefining(false); }
   }
   function undoRefine() {
-    if (preRefineRef.current != null && editorRef.current) { editorRef.current.innerHTML = preRefineRef.current; updateCount(); setShowRefined(false); }
-  }
-  function exec(cmd: string) {
-    if (cmd === "createLink") { const u = prompt("Link URL", "https://"); if (u) document.execCommand(cmd, false, u); }
-    else document.execCommand(cmd, false, undefined);
-    editorRef.current?.focus();
-  }
-  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    for (const f of files) {
-      if (attachments.reduce((s, a) => s + a.size, 0) + f.size > MAX_ATTACH_BYTES) { toast.error("Attachments are capped at 10 MB total."); break; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = String(reader.result);
-        const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-        setAttachments((prev) => [...prev, { filename: f.name, contentBase64: base64, type: f.type || "application/octet-stream", size: f.size }]);
-      };
-      reader.readAsDataURL(f);
-    }
+    if (preRefineRef.current != null) { setBodyHtml(preRefineRef.current); setShowRefined(false); }
   }
 
   function send() {
     if (!ctx) return;
     setError(null);
-    // Finalise any in-progress voice typing first (folds the last interim word
-    // in, unwraps the dictation span) so the body we read is clean and complete.
-    dictation.stop();
-    const bodyHtml = editorRef.current?.innerHTML ?? "";
+    const body = bodyHtml;
     const when = scheduledFor;
     startSend(async () => {
+      // Encode the picked files to base64 at send time (MessageEditor holds them
+      // as File objects); one wasted encode per removed file is avoided this way.
+      const atts = await Promise.all(
+        attachments.map(async (a) => ({
+          filename: a.file.name,
+          contentBase64: await fileToBase64(a.file),
+          type: a.file.type || "application/octet-stream",
+        })),
+      );
       const res = await sendComposedEmail({
         transactionId: ctx.sale.id,
         to: tokens.to.map((t) => t.email),
         cc: tokens.cc.map((t) => t.email),
         bcc: tokens.bcc.map((t) => t.email),
         subject,
-        bodyHtml,
-        attachments: attachments.map(({ filename, contentBase64, type }) => ({ filename, contentBase64, type })),
+        bodyHtml: body,
+        attachments: atts,
         scheduledFor: when ? when.toISOString() : null,
         // Chain mode: map each To recipient to its chain link (neighbour) so the
         // body logs on their check-in; non-neighbours (incl. the outsourced
@@ -944,29 +910,40 @@ export function ComposeEmailModal({
               </div>
 
               <div className="cem-row">
-                <div className="cem-eyebrow-row">
-                  <p className="cem-eyebrow">Message</p>
-                  <span className="cem-share-actions">
-                    {shareSummaryHtml && (
-                      <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
-                        {shareInserted ? "Refresh" : "Share our latest"}
-                      </button>
-                    )}
-                    {onComposeFullChain && (
-                      <button type="button" className="cem-share" disabled={composingChain} onMouseDown={(e) => e.preventDefault()} onClick={insertFullChain}>
-                        {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
-                      </button>
-                    )}
-                    <button type="button" className={`cem-tmpl-btn ${pickerOpen ? "on" : ""}`} title="Email templates"
-                      onMouseDown={(e) => e.preventDefault()} onClick={() => setPickerOpen((v) => !v)} aria-label="Email templates">
-                      <Stack size={16} weight={pickerOpen ? "fill" : "regular"} />
-                    </button>
-                    <DictationMic controls={dictation} size={16} />
-                  </span>
-                </div>
+                {(shareSummaryHtml || onComposeFullChain) && (
+                  <div className="cem-eyebrow-row" style={{ justifyContent: "flex-end" }}>
+                    <span className="cem-share-actions">
+                      {shareSummaryHtml && (
+                        <button type="button" className="cem-share" onMouseDown={(e) => e.preventDefault()} onClick={insertShareSummary}>
+                          {shareInserted ? "Refresh" : "Share our latest"}
+                        </button>
+                      )}
+                      {onComposeFullChain && (
+                        <button type="button" className="cem-share" disabled={composingChain} onMouseDown={(e) => e.preventDefault()} onClick={insertFullChain}>
+                          {composingChain ? "Composing…" : fullChainUsed ? "Refresh" : "Full chain email"}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                )}
                 <div className="cem-editor-wrap">
-                  <div ref={editorRef} className="cem-editor" contentEditable suppressContentEditableWarning
-                    onInput={onEditorInput} onFocus={forceParagraphBreaks} />
+                  <MessageEditor
+                    label="Message"
+                    valueHtml={bodyHtml}
+                    onChangeHtml={(html) => { setBodyHtml(html); if (showRefined) setShowRefined(false); }}
+                    placeholder="Write your message…"
+                    attachments={attachments}
+                    onAttachmentsChange={setAttachments}
+                    charCount={htmlToText(bodyHtml).length}
+                    sigStyle={sigStyle}
+                    sigOptions={sigOptions}
+                    onSigStyleChange={changeSigStyle}
+                    onTemplates={() => setPickerOpen((v) => !v)}
+                    templatesOpen={pickerOpen}
+                    onRefine={aiOn ? refine : undefined}
+                    refining={refining}
+                    dictationAppendBeforeSelector="[data-cem-signoff], [data-cem-sig]"
+                  />
                   <TemplatePicker
                     open={pickerOpen}
                     onClose={() => setPickerOpen(false)}
@@ -975,52 +952,9 @@ export function ComposeEmailModal({
                     hasDraft={hasDraftContent()}
                     onInsert={insertTemplateHtml}
                   />
-                  <div className="cem-toolbar">
-                    <button className="cem-tb" title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><b>B</b></button>
-                    <button className="cem-tb" title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><i>I</i></button>
-                    <span className="cem-tbsep" />
-                    <button className="cem-tb" title="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")}>•</button>
-                    <button className="cem-tb" title="Numbered list" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertOrderedList")}>1.</button>
-                    <span className="cem-tbsep" />
-                    <button className="cem-tb" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("createLink")}>🔗</button>
-                    <button className="cem-tb" title="Attach a file" onMouseDown={(e) => e.preventDefault()} onClick={() => fileRef.current?.click()}>📎</button>
-                    <input ref={fileRef} type="file" multiple style={{ display: "none" }} onChange={onPickFiles} />
-                    {sigOptions.length > 1 && (
-                    <span style={{ position: "relative", display: "inline-flex" }}>
-                      <button className="cem-tb" title="Signature style" onMouseDown={(e) => e.preventDefault()} onClick={() => setSigMenuOpen((v) => !v)}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="11" r="2" /><path d="M13 9.5h5M13 13h5M5.5 16c.4-1.2 1.6-1.9 3-1.9s2.6.7 3 1.9" /></svg>
-                      </button>
-                      {sigMenuOpen && (
-                        <div className="cem-sigmenu" onMouseDown={(e) => e.preventDefault()}>
-                          {sigOptions.map((opt) => (
-                            <button key={opt.key} className="cem-si-sig" onClick={() => changeSigStyle(opt.key)}>
-                              <span><span className="cem-sig-l">{opt.label}</span><span className="cem-sig-s">{opt.sub}</span></span>
-                              {sigStyle === opt.key && <span className="cem-sig-ck">✓</span>}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                    )}
-                    <span className="cem-tbspace" />
-                    {aiOn && (
-                      <button className="cem-refine" title="Neaten the phrasing in your voice" disabled={refining} onMouseDown={(e) => e.preventDefault()} onClick={refine}>
-                        {refining ? "✦ Refining…" : "✦ Refine"}
-                      </button>
-                    )}
-                    <span className="cem-count">{charCount} characters</span>
-                  </div>
                 </div>
                 {showRefined && (
                   <div className="cem-refine-note">✦ Refined to your voice <span className="cem-sp">· learns from what you send</span> · <a onClick={undoRefine}>Undo</a></div>
-                )}
-                {attachments.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
-                    {attachments.map((a, i) => (
-                      <span key={i} className="cem-attach"><span style={{ color: "var(--agent-coral-deep)" }}>📄</span>{a.filename}<span style={{ color: "var(--agent-text-muted)" }}>· {(a.size / 1024).toFixed(0)} KB</span>
-                        <span className="cem-x" onClick={() => setAttachments((p) => p.filter((_, j) => j !== i))}>✕</span></span>
-                    ))}
-                  </div>
                 )}
                 {error && <div style={{ marginTop: 10, fontSize: 12, color: "var(--agent-danger)", fontWeight: 600 }}>{error}</div>}
               </div>

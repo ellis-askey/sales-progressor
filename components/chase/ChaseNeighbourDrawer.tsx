@@ -23,7 +23,7 @@ import { nameWithoutTitle } from "@/lib/contacts/displayName";
 import { useOverlayChrome } from "@/lib/agent/use-overlay-chrome";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
-import { ChaseComposer } from "@/components/chase/ChaseComposer";
+import { MessageEditor } from "@/components/compose/MessageEditor";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { RecipientHeaderCard } from "@/components/ui/RecipientHeaderCard";
@@ -567,35 +567,18 @@ export function ChaseNeighbourDrawer({ transactionId, direction, neighbourName, 
 
               {/* Message — Generate button until a draft exists, then the composer. */}
               <div className="space-y-2">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <p className="agent-section-label" style={{ margin: 0 }}>Message</p>
-                  {hasGenerated && (
-                    <button
-                      type="button"
-                      onClick={() => void generate(tone)}
-                      disabled={generating || sending}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        background: "none", border: "none", padding: 0,
-                        cursor: generating || sending ? "not-allowed" : "pointer",
-                        fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)",
-                        opacity: generating || sending ? 0.5 : 1, transition: "opacity 140ms",
-                      }}
-                    >
-                      <ArrowsClockwise size={13} weight="bold" className={generating ? "animate-spin" : undefined} /> {generating ? "Drafting…" : "Regenerate"}
-                    </button>
-                  )}
-                </div>
-
                 {hasGenerated ? (
                   <>
-                    <ChaseComposer
+                    <MessageEditor
+                      label="Message"
                       valueHtml={bodyHtml}
                       onChangeHtml={(html) => { setBodyHtml(html); setConfirmResend(false); }}
                       placeholder="Write your message…"
                       attachments={[]}
                       onAttachmentsChange={() => {}}
                       charCount={htmlToText(bodyHtml).length}
+                      onRegenerate={() => void generate(tone)}
+                      regenerating={generating || sending}
                     />
                     <ChaseSignaturePreview transactionId={transactionId} visible={!isHtmlEmpty(bodyHtml)} />
                   </>

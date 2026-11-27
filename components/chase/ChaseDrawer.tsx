@@ -11,7 +11,7 @@ import { X, EnvelopeSimple, ChatText, Sparkle, PaperPlaneTilt, CircleNotch, Care
 import { useAiEnabled } from "@/components/ai/AiEnabledProvider";
 import { ContactAvatar } from "@/components/ui/Avatar";
 import { LabelInput } from "@/components/ui/LabelInput";
-import { ChaseComposer, type ChaseAttachment, type SigStyle } from "@/components/chase/ChaseComposer";
+import { MessageEditor, type MessageAttachment, type SigStyle } from "@/components/compose/MessageEditor";
 import type { SignatureStyleOption } from "@/lib/email/signature-options";
 import { ChaseSignaturePreview } from "@/components/chase/ChaseSignaturePreview";
 import { ChaseSentOffers, type SentOffersCtx } from "@/components/chase/ChaseSentOffers";
@@ -316,7 +316,7 @@ export function ChaseDrawer({
   const [subjectDirty, setSubjectDirty] = useState(false);
   // message holds the composer's HTML body; plain-text forms are derived on send.
   const [message, setMessage] = useState("");
-  const [attachments, setAttachments] = useState<ChaseAttachment[]>([]);
+  const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   // The sign-off now lives in the editable message body (seeded there, like the
   // New email composer), not a separate picker. `signOff` is the sender's saved
   // default phrase (fetched below) and `addSignOff` is whether their signature
@@ -1344,29 +1344,8 @@ export function ChaseDrawer({
               </div>
             )}
 
-            {/* Message label + Regenerate — re-runs generation for the current
-                recipient / channel / tone. */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p className="agent-section-label agent-section-label-plain" style={{ margin: 0 }}>Message</p>
-              {aiOn && (
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="chase-regen"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  background: "none", border: "none", padding: 0,
-                  cursor: isGenerating ? "not-allowed" : "pointer",
-                  fontSize: 11.5, fontWeight: 600, color: "var(--agent-coral-deep)",
-                  opacity: isGenerating ? 0.5 : 1, transition: "opacity 140ms",
-                }}
-              >
-                <ArrowsClockwise size={13} weight="bold" className={isGenerating ? "animate-spin" : undefined} /> Regenerate
-              </button>
-              )}
-            </div>
-
-            <ChaseComposer
+            <MessageEditor
+              label="Message"
               valueHtml={message}
               onChangeHtml={setMessage}
               placeholder={channel === "email" ? "Generate a message or type your own…" : "Generate a WhatsApp message or type your own…"}
@@ -1376,6 +1355,8 @@ export function ChaseDrawer({
               sigStyle={sigStyle}
               sigOptions={sigOptions}
               onSigStyleChange={channel === "email" ? changeSigStyle : undefined}
+              onRegenerate={aiOn ? handleGenerate : undefined}
+              regenerating={isGenerating}
             />
 
             {channel === "whatsapp" && attachments.length > 0 && (

@@ -8,7 +8,7 @@
 // ChaseNeighbourDrawer (Law 4/14: one component, not two copies).
 
 import { useEffect, useState } from "react";
-import type { SigStyle } from "./ChaseComposer";
+import type { SigStyle } from "@/components/compose/MessageEditor";
 
 type Sig = { html: string; missing: string[]; mode?: string; name?: string | null };
 

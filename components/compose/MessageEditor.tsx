@@ -87,6 +87,7 @@ export function MessageEditor({
   templatesOpen = false,
   onRegenerate,
   regenerating = false,
+  dictationAppendBeforeSelector,
 }: {
   valueHtml: string;
   onChangeHtml: (html: string) => void;
@@ -115,6 +116,10 @@ export function MessageEditor({
   // tone instead, so they don't). Keeps the toolbar identical everywhere else.
   onRefine?: () => void;
   refining?: boolean;
+  // Optional: keep dictation in the body ABOVE a given selector (e.g. the
+  // signature block) when the editor isn't focused, instead of landing at the
+  // very end. The New-email host passes its signature anchor here.
+  dictationAppendBeforeSelector?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -122,7 +127,7 @@ export function MessageEditor({
   const lastEmitted = useRef<string | null>(null);
   // Voice typing — streams into the body at the caret. Hidden where the browser
   // has no SpeechRecognition.
-  const dictation = useContentEditableDictation(ref);
+  const dictation = useContentEditableDictation(ref, dictationAppendBeforeSelector ? { appendBeforeSelector: dictationAppendBeforeSelector } : undefined);
   const [active, setActive] = useState({ bold: false, italic: false, ul: false, ol: false });
   const [sigMenuOpen, setSigMenuOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
