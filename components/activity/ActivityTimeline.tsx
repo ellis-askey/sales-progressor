@@ -442,12 +442,16 @@ const REACTION_EMOJI = ["👍", "❤️", "🎉", "👀", "🚀", "✅"];
 // (revalidate caught up), when it's dropped. Rendered native in agent tokens so
 // it reads identically in light + dark, matching the rest of the Activity feed.
 function NoteReactions({
-  commId, transactionId, reactions, currentUserId,
+  commId, transactionId, reactions, currentUserId, actions,
 }: {
   commId: string;
   transactionId: string;
   reactions: CommReaction[];
   currentUserId?: string;
+  // Text actions (Reply / Edit / Remove, or the note's Hide-replies + Reply)
+  // rendered inline on the same row as the reaction pills + picker, so the
+  // emoji sits in line with the actions rather than on a row of its own.
+  actions?: React.ReactNode;
 }) {
   const [overlay, setOverlay] = useState<CommReaction[] | null>(null);
   const [, startReactTransition] = useTransition();
@@ -479,11 +483,11 @@ function NoteReactions({
     });
   }
 
-  if (list.length === 0 && !canReact) return null;
+  if (list.length === 0 && !canReact && !actions) return null;
 
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}
+      style={{ display: "flex", alignItems: "center", gap: 6, rowGap: 8, flexWrap: "wrap", marginTop: 8 }}
       onClick={(e) => e.stopPropagation()}
     >
       {list.map((r) => {
@@ -533,6 +537,7 @@ function NoteReactions({
           )}
         </Popover>
       )}
+      {actions}
     </div>
   );
 }
@@ -715,37 +720,60 @@ function NoteThread({
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
                 {content}
               </p>
-              <NoteReactions commId={r.id} transactionId={transactionId} reactions={r.reactions} currentUserId={currentUserId} />
-              {/* Own reply: a tidy, always-visible inline action row (arc-style),
-                  replacing the old hover pencil/×. Others' replies show none. */}
-              {canTouch && (
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 5 }}>
-                  <button
-                    type="button"
-                    style={INLINE_ACTION}
-                    onClick={(e) => { e.stopPropagation(); startReplyEdit(r); }}
-                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
-                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
-                    onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
-                    onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
-                    aria-label="Edit reply"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    style={INLINE_ACTION}
-                    onClick={(e) => { e.stopPropagation(); removeReply(r.id); }}
-                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
-                    onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
-                    onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
-                    onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
-                    aria-label="Remove reply"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
+              {/* One row: reaction pills + picker in line with the text actions.
+                  "Reply" on a comment is muted text like Edit / Remove (it adds
+                  to this thread); the note's own orange Reply stays the "comment
+                  on the original" affordance. Edit / Remove are own-only. */}
+              <NoteReactions
+                commId={r.id}
+                transactionId={transactionId}
+                reactions={r.reactions}
+                currentUserId={currentUserId}
+                actions={
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <button
+                      type="button"
+                      style={INLINE_ACTION}
+                      onClick={(e) => { e.stopPropagation(); setComposerOpen(true); }}
+                      onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                      onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                      onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                      onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                      aria-label="Reply in this thread"
+                    >
+                      Reply
+                    </button>
+                    {canTouch && (
+                      <button
+                        type="button"
+                        style={INLINE_ACTION}
+                        onClick={(e) => { e.stopPropagation(); startReplyEdit(r); }}
+                        onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                        onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                        onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                        onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                        aria-label="Edit reply"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canTouch && (
+                      <button
+                        type="button"
+                        style={INLINE_ACTION}
+                        onClick={(e) => { e.stopPropagation(); removeReply(r.id); }}
+                        onMouseOver={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                        onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                        onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
+                        onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
+                        aria-label="Remove reply"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                }
+              />
             </>
           )}
         </div>
@@ -755,39 +783,45 @@ function NoteThread({
 
   return (
     <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
-      {/* Reactions on the note itself — pills + a picker. */}
-      <NoteReactions commId={note.id} transactionId={transactionId} reactions={note.reactions} currentUserId={currentUserId} />
-      {/* Toggle + Reply affordance. Replies expand by default; collapsed shows the
-          count and a last-reply hint. */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        {replies.length > 0 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
-            aria-expanded={!collapsed}
-            style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4, color: "var(--agent-text-muted)" }}
-          >
-            <CaretRight size={11} weight="bold" style={{ transform: collapsed ? "none" : "rotate(90deg)", transition: "transform .18s cubic-bezier(.4,0,.2,1)" }} />
-            {collapsed ? `Show ${pluralReplies(replies.length)}` : "Hide replies"}
-          </button>
-        )}
-        {collapsed && replies.length > 0 && lastReply && (
-          <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-            last reply {relativeDate(lastReply.editedAt ?? lastReply.at)}
-          </span>
-        )}
-        {!composerOpen && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setComposerOpen(true); }}
-            style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4 }}
-            aria-label="Reply to note"
-          >
-            <ArrowBendDownRight size={13} weight="bold" />
-            Reply
-          </button>
-        )}
-      </div>
+      {/* One row: reaction pills + picker in line with the note's Hide-replies
+          toggle and its orange Reply (which comments on the original note). */}
+      <NoteReactions
+        commId={note.id}
+        transactionId={transactionId}
+        reactions={note.reactions}
+        currentUserId={currentUserId}
+        actions={
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            {replies.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
+                aria-expanded={!collapsed}
+                style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4, color: "var(--agent-text-muted)" }}
+              >
+                <CaretRight size={11} weight="bold" style={{ transform: collapsed ? "none" : "rotate(90deg)", transition: "transform .18s cubic-bezier(.4,0,.2,1)" }} />
+                {collapsed ? `Show ${pluralReplies(replies.length)}` : "Hide replies"}
+              </button>
+            )}
+            {collapsed && replies.length > 0 && lastReply && (
+              <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
+                last reply {relativeDate(lastReply.editedAt ?? lastReply.at)}
+              </span>
+            )}
+            {!composerOpen && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setComposerOpen(true); }}
+                style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4 }}
+                aria-label="Reply to note"
+              >
+                <ArrowBendDownRight size={13} weight="bold" />
+                Reply
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {replies.length > 0 && !collapsed && (
         <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", flexDirection: "column", gap: 12 }}>
