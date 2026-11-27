@@ -10,6 +10,7 @@ import { resolveBusinessOwner, addClientAgency, assertOwnerOfClient, requestConn
 import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/client-agent-invite";
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
 import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
+import { parseInvoiceDesign } from "@/lib/progression/invoice-design";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -383,6 +384,27 @@ export async function updateBusinessBillingPointAction(billAtCompletion: boolean
   await prisma.progressionBusiness.update({
     where: { id: owner.businessId },
     data: { billAtCompletion },
+  });
+  revalidatePath("/agent/settings/business");
+  return { ok: true };
+}
+
+/**
+ * Save the invoice design (how the business's client invoices look). Owner-only
+ * + flag-gated. The raw input is validated/coerced through parseInvoiceDesign
+ * before it's written, so a malformed payload can never land a broken design in
+ * the Json column.
+ */
+export async function saveInvoiceDesignAction(raw: unknown): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  const design = parseInvoiceDesign(raw);
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: { invoiceDesign: design as unknown as Prisma.InputJsonValue },
   });
   revalidatePath("/agent/settings/business");
   return { ok: true };

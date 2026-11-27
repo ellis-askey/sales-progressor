@@ -326,6 +326,16 @@ model ProgressionBusiness {
   // fee is still the rate card x the exchange-locked price).
   billAtCompletion           Boolean @default(false)
 
+  // Invoice designer (billing suite, 2026-11) — how the invoices this business
+  // sends its CLIENT agencies look. `invoiceDesign` is the design config
+  // (template, brand colour, typeface, logo on/off, line-detail + footer toggles,
+  // title, message) — same shape as the billing designer UI, validated on save.
+  // `invoiceLogoPath` is the uploaded logo in the business-logos storage bucket
+  // (null → monogram fallback). Both null = today's default invoice look, so
+  // existing businesses are unchanged until they design one. TSP's row is unused.
+  invoiceDesign   Json?
+  invoiceLogoPath String?
+
   // Client-portal display defaults for the files this business progresses. These
   // are the business-wide default a NEW client agency is seeded with at provision
   // (addClientAgency), and saving on the owner's Client-portal settings page
@@ -395,6 +405,11 @@ model ProgressionBusinessClient {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  // How this connection was formed, for attribution / monetization. "network" =
+  // the agency connected via the Progressor Network; null = the pre-existing paths
+  // (provisioned / business-initiated). Set when a network request is accepted.
+  source                String?
+
   // The progressor's rate card for THIS client — how they charge for the sales
   // they progress for this agency. JSON validated by lib/progression/client-fees.ts
   // (ClientFeeModel: flat | tiered | percent). Null = no fee model set yet.
@@ -457,9 +472,16 @@ model ProgressionConnectionRequest {
   progressionBusinessId String
   agencyId              String
   feeModel              Json? // rate card the progressor proposes for this agency (ClientFeeModel)
+  // Direction of the handshake: "business" = the progression business asked the
+  // agency (the original flow); "agency" = the agency requested the business via
+  // the Progressor Network. Decides who responds and which list it appears in.
+  // Existing rows default to "business" so the original flow is unchanged.
+  initiatedBy           String    @default("business")
+  // Optional introduction the requester wrote (the network connect flow).
+  message               String?
   status                String    @default("pending") // pending | accepted | declined | cancelled
-  requestedByUserId     String // the business owner who sent it
-  respondedByUserId     String? // the agency director who accepted / declined
+  requestedByUserId     String // the user who sent it (business owner, or agency director for a network request)
+  respondedByUserId     String? // the user who accepted / declined (agency director, or business owner for a network request)
   respondedAt           DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

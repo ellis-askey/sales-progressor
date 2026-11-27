@@ -11,6 +11,9 @@ import { AccountPageHeader } from "@/components/account/chrome/AccountPageHeader
 import { BusinessIdentityForm } from "@/components/progression/BusinessIdentityForm";
 import { BusinessVatForm } from "@/components/progression/BusinessVatForm";
 import { BusinessBillingPointForm } from "@/components/progression/BusinessBillingPointForm";
+import { InvoiceDesignerSection } from "@/components/progression/InvoiceDesignerSection";
+import { parseInvoiceDesign } from "@/lib/progression/invoice-design";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 
 export default async function BusinessIdentityPage() {
   if (!progressionBusinessesEnabled()) notFound();
@@ -20,7 +23,7 @@ export default async function BusinessIdentityPage() {
 
   const business = await prisma.progressionBusiness.findUnique({
     where: { id: owner.businessId },
-    select: { name: true, shortName: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true, billAtCompletion: true },
+    select: { name: true, shortName: true, vatRegisteredAt: true, vatRateBps: true, vatNumber: true, billAtCompletion: true, invoiceDesign: true, invoiceLogoPath: true },
   });
   if (!business) notFound();
 
@@ -42,6 +45,13 @@ export default async function BusinessIdentityPage() {
           initialRatePercent={business.vatRateBps != null ? String(business.vatRateBps / 100) : "20"}
         />
         <BusinessBillingPointForm initialBillAtCompletion={business.billAtCompletion} />
+        <InvoiceDesignerSection
+          initialDesign={parseInvoiceDesign(business.invoiceDesign)}
+          initialLogoUrl={getAgencyLogoUrl(business.invoiceLogoPath)}
+          businessName={business.name}
+          vatRegistered={business.vatRegisteredAt != null}
+          vatNumber={business.vatNumber}
+        />
       </div>
     </>
   );

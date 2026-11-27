@@ -10,7 +10,8 @@ import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
 import { assertOwnerOfClient } from "@/lib/services/progression-clients";
 import { buildBusinessClientInvoice } from "@/lib/progression/business-client-invoice";
-import { renderInvoicePdf } from "@/lib/billing/invoice-pdf";
+import { renderBusinessInvoicePdf } from "@/lib/progression/business-invoice-pdf";
+import { getAgencyLogoUrl } from "@/lib/supabase-storage";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ agencyId: string }> }) {
   if (!progressionBusinessesEnabled()) return NextResponse.json({ error: "Not enabled" }, { status: 404 });
@@ -44,7 +45,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
   }
 
   const input = res.input;
-  const pdf = await renderInvoicePdf(input);
+  // Load the logo bytes (public bucket URL) so the PDF can embed them. Best-effort
+  // — a fetch failure just drops to the no-logo header rather than failing the file.
+  if (res.logoPath) {
+    try {
+      const url = getAgencyLogoUrl(res.logoPath);
+      if (url) {
+        const r = await fetch(url);
+        if (r.ok) input.logo = { bytes: new Uint8Array(await r.arrayBuffer()), mime: "image/png" };
+      }
+    } catch { /* no logo on the invoice */ }
+  }
+  const pdf = await renderBusinessInvoicePdf(input);
   const filename = `invoice-${input.periodLabel.replace(/\s+/g, "-").toLowerCase()}.pdf`;
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
