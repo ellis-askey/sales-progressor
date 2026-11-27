@@ -51,6 +51,13 @@ export function SuccessButton({
     window.setTimeout(() => setState("idle"), ok ? 1400 : 1600);
   }, [state, run]);
 
+  // On success the button turns green (confirming on itself) before settling back
+  // to its own variant. Overrides the variant's background only for that beat.
+  const successStyle: CSSProperties =
+    state === "success"
+      ? { background: "var(--agent-success, #12A969)", borderColor: "transparent", color: "#fff", transition: "background 200ms ease, border-color 200ms ease" }
+      : { transition: "background 200ms ease, border-color 200ms ease" };
+
   return (
     <Button
       type="button"
@@ -61,7 +68,7 @@ export function SuccessButton({
       disabled={disabled}
       onClick={onClick}
       aria-live="polite"
-      style={style}
+      style={{ ...style, ...successStyle }}
     >
       {state === "success" && <AnimatedTick size={15} color="currentColor" strokeWidth={2.5} style={{ marginRight: 6 }} />}
       {state === "loading" ? savingLabel : state === "success" ? successLabel : state === "error" ? errorLabel : children}

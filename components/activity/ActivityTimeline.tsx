@@ -2,19 +2,18 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight } from "@phosphor-icons/react";
+import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight, Check, NotePencil, Phone, ChatText, Minus, Megaphone, Globe, WhatsappLogo } from "@phosphor-icons/react";
 import { formatTimestamp, ordinal, relativeDate } from "@/lib/utils";
 import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
 import { deleteCommAction, editCommAction, replyToNoteAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
-import { getCommBadge } from "@/lib/agent/comms-display";
 import { ActorAvatar, UserAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
 import { stripCommsLinksForAgent } from "@/lib/utils/strip-comms-links";
-import { GlassCard } from "@/components/glass/GlassCard";
 import { useGlassTag } from "@/lib/glass/use-glass-tag";
-import { Pill } from "@/components/ui/Pill";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
+import { Button } from "@/components/arc/button/button";
+import { SuccessButton } from "@/components/ui/SuccessButton";
 import { Drawer } from "@/components/ui/Drawer";
 import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
 import { EmailContactSuggestion } from "@/components/activity/EmailContactSuggestion";
@@ -43,6 +42,14 @@ type Props = {
   // add/remove solicitors after the fact. When omitted, the edit form
   // only renders the contacts row (matches the pre-fix behaviour).
   solicitors?: { id: string; name: string; role: string }[];
+  // ── Catalogue/preview hooks (the /dev timeline catalogue) ──────────────────
+  // All optional + backward-compatible. hideChrome drops the filter/search bar
+  // so a single kind can be shown bare; initialShowPortalVisits seeds the
+  // portal-visit toggle on (those rows are otherwise filtered out by default);
+  // initialLimit raises the first page so every seeded variant shows at once.
+  hideChrome?: boolean;
+  initialShowPortalVisits?: boolean;
+  initialLimit?: number;
 };
 
 const MOS_CODES = new Set(["VM2", "PM2"]);
@@ -88,17 +95,27 @@ function SystemAvatar({ size = 22 }: { size?: number }) {
 // Shared row footer: who it's from (photo/initials + name + optional role
 // sub-label) on the left, timestamp bottom-right. Used by comm + milestone rows.
 function ActorFooter({
-  role, name, image, sublabel, at, isEdited, editedAt, placement = "bottom", hideDate = false,
-}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; editedAt?: Date | null; placement?: "top" | "bottom"; hideDate?: boolean }) {
+  role, name, image, sublabel, at, isEdited, editedAt, placement = "bottom", hideDate = false, hideAvatar = false, toLabel = null,
+}: { role: ActorRole; name: string; image: string | null; sublabel?: string | null; at: Date | null; isEdited?: boolean; editedAt?: Date | null; placement?: "top" | "bottom"; hideDate?: boolean; hideAvatar?: boolean; toLabel?: string | null }) {
   // System rows read as "TSP" (The Sales Progressor), not the internal "System".
   const displayName = role === "system" ? "TSP" : name;
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: placement === "bottom" ? 8 : 0, marginBottom: placement === "top" ? 8 : 0, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        {role === "system" ? <SystemAvatar /> : <ActorAvatar name={name} role={role} image={image} size={22} />}
-        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {/* Avatar hidden when it already sits on the timeline rail as the node. */}
+        {!hideAvatar && (role === "system" ? <SystemAvatar /> : <ActorAvatar name={name} role={role} image={image} size={22} />)}
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", flexShrink: 0 }}>
           {displayName}
         </span>
+        {/* Outbound comms read "sender → recipient" inline, instead of a pill. */}
+        {toLabel && (
+          <>
+            <span aria-hidden style={{ color: "var(--agent-text-tertiary)", flexShrink: 0, fontSize: 12 }}>→</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--agent-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+              {toLabel}
+            </span>
+          </>
+        )}
         {sublabel && <span style={{ fontSize: 11, color: "var(--agent-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>· {sublabel}</span>}
       </div>
       {/* Date can be suppressed here (moved to the foot row) so it doesn't collide
@@ -146,19 +163,6 @@ function MediaAttachment({ url, type }: { url: string; type: string | null }) {
   );
 }
 
-function dotColor(entry: ActivityEntry): string {
-  if (entry.kind === "milestone") {
-    return entry.isNotRequired ? "rgba(30,45,74,0.22)" : "#10b981";
-  }
-  if (entry.isAutomated) return "#6366f1";
-  const map: Record<string, string> = {
-    internal_note: "#d97706",
-    outbound: "var(--agent-coral)",
-    inbound: "#10b981",
-  };
-  return map[entry.type] ?? "rgba(30,45,74,0.22)";
-}
-
 // Delivery-status dot for outbound email cards (top-right). sent = grey (no
 // confirmation yet / mailbox-routed), delivered = green (reached the inbox
 // server), bounced = red (never arrived; hover shows the reason). Driven by the
@@ -188,16 +192,70 @@ function DeliveryDot({ delivery }: { delivery: { state: "sent" | "delivered" | "
 // `getCommBadge` and `AuthorPill` live in lib/agent/comms-display.tsx so the
 // ArchivedRoundDrawer can reuse the same channel-badge + author-pill rendering.
 
-// ─── Contact pill ─────────────────────────────────────────────────────────────
+// ─── Timeline node (the actor avatar sits ON the rail) ──────────────────────────
+// The person who did it threads the rail; the KIND rides as a small crafted badge
+// on the avatar's corner — this is now the single kind indicator (the old
+// "Step confirmed" / "Outbound call" pills are gone). One distinct glyph + colour
+// per kind; the badge is the agreed vocabulary, so keep this list canonical.
+//
+//   ✓ Check (green)     confirmed step        ✉ Envelope  email (coral=out,
+//   – Minus  (grey)     skipped / not needed              indigo=automated,
+//   ✎ NotePencil (amber) internal note                    green=inbound)
+//   📣 Megaphone (blue) solicitor "update"    ☎ Phone     call / voicemail
+//   🌐 Globe (blue)     portal update (in-app) 💬 ChatText SMS
+//   👁 Eye (grey)       portal visit          🟢 WhatsApp  WhatsApp
+const BADGE = {
+  green: "#10b981", grey: "#9aa3b2", amber: "#d97706", blue: "#2563eb",
+  indigo: "#6366f1", coral: "var(--agent-coral)", whatsapp: "#12A969",
+} as const;
 
-function ContactPill({ name }: { name: string }) {
-  // Full name on activity records (Ellis, 2026-09-10) — a recipient pill reads
-  // "Hannah Whitfield", not "Hannah". The compact contact PICKER in edit mode
-  // still uses first names (extractFirstName) to stay tidy.
+function entryBadge(entry: ActivityEntry): { icon: React.ReactNode; color: string } {
+  const s = 9;
+  if (entry.kind === "milestone") {
+    return entry.isNotRequired
+      ? { icon: <Minus size={s} weight="bold" />, color: BADGE.grey }
+      : { icon: <Check size={s} weight="bold" />, color: BADGE.green };
+  }
+  if (isPortalView(entry)) return { icon: <Eye size={s} weight="fill" />, color: BADGE.grey };
+  if (entry.isAutomated && entry.channel === "in_app") return { icon: <Globe size={s} weight="fill" />, color: BADGE.blue };
+  if (isEmailComm(entry)) {
+    const color = entry.isAutomated ? BADGE.indigo : entry.type === "inbound" ? BADGE.green : BADGE.coral;
+    return { icon: <EnvelopeSimple size={s} weight="fill" />, color };
+  }
+  if (entry.type === "internal_note") {
+    // A solicitor-left "update" (senderLabel) is not a hand-typed note — give it
+    // its own glyph so the two never read the same.
+    return entry.senderLabel
+      ? { icon: <Megaphone size={s} weight="fill" />, color: BADGE.blue }
+      : { icon: <NotePencil size={s} weight="fill" />, color: BADGE.amber };
+  }
+  if (entry.method === "phone" || entry.method === "voicemail") return { icon: <Phone size={s} weight="fill" />, color: entry.type === "inbound" ? BADGE.green : BADGE.coral };
+  if (entry.method === "sms") return { icon: <ChatText size={s} weight="fill" />, color: entry.type === "inbound" ? BADGE.green : BADGE.coral };
+  if (entry.method === "whatsapp") return { icon: <WhatsappLogo size={s} weight="fill" />, color: BADGE.whatsapp };
+  return { icon: <ChatText size={s} weight="fill" />, color: BADGE.grey };
+}
+
+function EntryNode({ entry }: { entry: ActivityEntry }) {
+  const { icon, color } = entryBadge(entry);
+  const avatar =
+    entry.kind === "milestone" ? (
+      entry.isNotRequired || (!entry.byName && !entry.byImage) ? (
+        <SystemAvatar size={32} />
+      ) : (
+        <ActorAvatar name={entry.byName ?? entry.actorName} role={entry.actorRole} image={entry.byImage} size={32} />
+      )
+    ) : entry.actorRole === "system" ? (
+      <SystemAvatar size={32} />
+    ) : (
+      <ActorAvatar name={entry.actorName} role={entry.actorRole} image={entry.actorImage} size={32} />
+    );
   return (
-    <Pill glass tone="default" size="sm">
-      {name}
-    </Pill>
+    <div className="act-node">
+      {avatar}
+      <span className="act-node-badge" style={{ background: color }} aria-hidden>
+        {icon}
+      </span>
+    </div>
   );
 }
 
@@ -396,7 +454,6 @@ function NoteThread({
   const [collapsed, setCollapsed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   // Optional "Let {author} know" opt-in. Off by default; local to the open
   // composer and reset whenever it closes or sends.
   const [notifyAuthor, setNotifyAuthor] = useState(false);
@@ -405,7 +462,6 @@ function NoteThread({
   const canNotifyAuthor = !!note.createdById && note.createdById !== currentUserId && !!notifyAuthorFirstName;
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
-  const [savingReplyId, setSavingReplyId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalReplies([]);
@@ -432,9 +488,14 @@ function NoteThread({
     );
   }
 
-  function sendReply() {
+  // The reply "Send" is the canonical SuccessButton: it awaits and returns
+  // success so the button can show Sending… → Sent. We still add the reply
+  // optimistically (it appears at once); on success the composer closes after
+  // the tick, on failure the optimistic row is pulled and the button shows
+  // "Try again" with the draft intact.
+  async function runSendReply(): Promise<boolean> {
     const content = draft.trim();
-    if (!content) return;
+    if (!content) return false;
     const tempId = `optimistic-reply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const placeholder: NoteReply = {
       id: tempId,
@@ -453,22 +514,17 @@ function NoteThread({
     };
     const notify = canNotifyAuthor && notifyAuthor;
     setLocalReplies((prev) => [...prev, placeholder]);
-    setDraft("");
-    setComposerOpen(false);
-    setNotifyAuthor(false);
     setCollapsed(false);
-    setSending(true);
-    startThreadTransition(async () => {
-      try {
-        const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify });
-        // Swap the placeholder for the real resolved reply (correct id + identity).
-        setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
-      } catch {
-        setLocalReplies((prev) => prev.filter((r) => r.id !== tempId));
-      } finally {
-        setSending(false);
-      }
-    });
+    try {
+      const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify });
+      // Swap the placeholder for the real resolved reply (correct id + identity).
+      setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
+      window.setTimeout(() => { setDraft(""); setNotifyAuthor(false); setComposerOpen(false); }, 850);
+      return true;
+    } catch {
+      setLocalReplies((prev) => prev.filter((r) => r.id !== tempId));
+      return false;
+    }
   }
 
   function startReplyEdit(r: NoteReply) {
@@ -479,27 +535,24 @@ function NoteThread({
     setEditingReplyId(null);
     setEditDraft("");
   }
-  function saveReplyEdit(id: string) {
+  async function runSaveReplyEdit(id: string): Promise<boolean> {
     const trimmed = editDraft.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
+    // Apply the edit optimistically, then confirm with the server.
     setReplyEdits((prev) => ({ ...prev, [id]: { content: trimmed, editedAt: new Date() } }));
-    setEditingReplyId(null);
-    setEditDraft("");
-    setSavingReplyId(id);
-    startThreadTransition(async () => {
-      try {
-        // A reply is an internal-only note — no contacts, never client-visible.
-        await editCommAction({ id, transactionId, content: trimmed, contactIds: [], visibleToClient: false });
-      } catch {
-        setReplyEdits((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      } finally {
-        setSavingReplyId((cur) => (cur === id ? null : cur));
-      }
-    });
+    try {
+      // A reply is an internal-only note — no contacts, never client-visible.
+      await editCommAction({ id, transactionId, content: trimmed, contactIds: [], visibleToClient: false });
+      window.setTimeout(() => { setEditingReplyId((cur) => (cur === id ? null : cur)); setEditDraft(""); }, 850);
+      return true;
+    } catch {
+      setReplyEdits((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return false;
+    }
   }
   function removeReply(id: string) {
     setRemovedReplyIds((prev) => new Set([...prev, id]));
@@ -549,8 +602,8 @@ function NoteThread({
                 autoFocus
               />
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button type="button" onClick={(e) => { e.stopPropagation(); cancelReplyEdit(); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); saveReplyEdit(r.id); }} disabled={!editDraft.trim() || savingReplyId === r.id} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+                <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); cancelReplyEdit(); }}>Cancel</Button>
+                <SuccessButton variant="primary" size="sm" disabled={!editDraft.trim()} run={() => runSaveReplyEdit(r.id)}>Save</SuccessButton>
               </div>
             </div>
           ) : (
@@ -636,7 +689,7 @@ function NoteThread({
       )}
 
       {composerOpen && (
-        <div style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+        <div className="agent-reveal-in" style={{ marginTop: 10, marginLeft: 4, paddingLeft: 12, borderLeft: "1.5px solid var(--agent-border-default)", display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
           {/* Leading avatar (the current user), like the arc composer. UserAvatar
               shimmers while a photo loads, then the photo (or branded art). */}
           <div style={{ flexShrink: 0, marginTop: 1 }}>
@@ -668,8 +721,8 @@ function NoteThread({
                 Let {notifyAuthorFirstName} know
               </label>
             )}
-            <button type="button" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); setNotifyAuthor(false); }} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
-            <button type="button" onClick={(e) => { e.stopPropagation(); sendReply(); }} disabled={!draft.trim() || sending} className="agent-btn agent-btn-sm agent-btn-primary">Send</button>
+            <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setComposerOpen(false); setDraft(""); setNotifyAuthor(false); }}>Cancel</Button>
+            <SuccessButton variant="primary" size="sm" disabled={!draft.trim()} run={runSendReply} savingLabel="Sending…" successLabel="Sent">Send</SuccessButton>
           </div>
           </div>
         </div>
@@ -680,7 +733,7 @@ function NoteThread({
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, currentUserName, currentUserImage, currentUserRole, contacts, solicitors }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, currentUserName, currentUserImage, currentUserRole, contacts, solicitors, hideChrome = false, initialShowPortalVisits = false, initialLimit }: Props) {
   const searchTag = useGlassTag("activity-searchbar", "Activity · search bar", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -690,7 +743,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   // before the server revalidate lands.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ content: string; contactIds: string[]; visibleToClient: boolean } | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
   const [localEdits, setLocalEdits] = useState<Record<string, { content: string; contactIds: string[]; visibleToClient: boolean; wasEdited: true }>>({});
   // Optimistic delete: after the fade-out animation, drop the entry from
   // the rendered list immediately rather than waiting for the server-side
@@ -705,11 +757,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
   // Auto-animate the entry list — siblings collapse smoothly when an
   // entry is removed (delete) or when filter/search shrinks the set.
   const [listRef] = useAutoAnimate<HTMLDivElement>();
-  const [limit, setLimit]           = useState(PAGE_SIZE);
+  const [limit, setLimit]           = useState(initialLimit ?? PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [filter, setFilter]         = useState<FilterKind>("all");
   const [search, setSearch]         = useState("");
-  const [showPortalVisits, setShowPortalVisits] = useState(false);
+  const [showPortalVisits, setShowPortalVisits] = useState(initialShowPortalVisits);
   const [entriesKey, setEntriesKey] = useState(0);
   // Narrow-screen flag: shortens the search placeholder so it fits the mobile
   // search bar rather than truncating mid-word (critique #243).
@@ -825,30 +877,30 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     setEditDraft(null);
   }
 
-  function saveEdit(id: string) {
-    if (!editDraft) return;
+  // Canonical save: awaits + returns success so the SuccessButton can show
+  // Saving… → Saved. The new content renders optimistically at once; the form
+  // closes after the tick on success, or rolls back + shows "Try again" on error.
+  async function runSaveEdit(id: string): Promise<boolean> {
+    if (!editDraft) return false;
     const trimmed = editDraft.content.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     const payload = { content: trimmed, contactIds: editDraft.contactIds, visibleToClient: editDraft.visibleToClient };
-    // Optimistic — render the new content immediately, clear when revalidate lands.
     setLocalEdits((prev) => ({ ...prev, [id]: { ...payload, wasEdited: true } }));
-    setEditingId(null);
-    setEditDraft(null);
-    setSavingId(id);
-    startTransition(async () => {
-      try {
-        await editCommAction({ id, transactionId, ...payload });
-      } catch {
-        // Roll back the optimistic edit on failure.
-        setLocalEdits((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      } finally {
-        setSavingId((cur) => (cur === id ? null : cur));
-      }
-    });
+    try {
+      await editCommAction({ id, transactionId, ...payload });
+      // Close after the "Saved" tick. editDraft isn't cleared here — it's only
+      // read while editingId is set, and startEdit refreshes it on the next open.
+      window.setTimeout(() => setEditingId((cur) => (cur === id ? null : cur)), 850);
+      return true;
+    } catch {
+      // Roll back the optimistic edit on failure.
+      setLocalEdits((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      return false;
+    }
   }
 
   function toggleEditContact(contactId: string) {
@@ -883,74 +935,54 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
     return (
       <div
         key={entry.id}
-        className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : ""} ${idx >= PAGE_SIZE ? "agent-reveal-in" : ""}`}
+        // Cascade blur-in on load (the canonical agent-bloom: blurred + dropped →
+        // sharpens and rises). Staggered by index for the first handful so the
+        // feed cascades; later rows (incl. "show more") bloom with the capped
+        // delay. A row that's exiting runs the exit animation instead.
+        className={`relative flex gap-3 ${exitingId === entry.id ? "agent-row-exit" : "agent-bloom"}`}
+        style={exitingId === entry.id ? undefined : { animationDelay: `${Math.min(idx, 7) * 45}ms` }}
       >
-        {/* Timeline marker — a restrained envelope for email rows, a coloured
-            dot for everything else. */}
-        <div className="flex-shrink-0 z-10 mt-3">
-          {isEmailComm(entry) ? (
-            <EnvelopeSimple size={13} weight="fill" style={{ color: dotColor(entry), display: "block" }} />
-          ) : (
-            <div className="w-2 h-2 rounded-full" style={{ background: dotColor(entry) }} />
-          )}
-        </div>
+        {/* Timeline node — the actor's avatar sits on the rail, with a small
+            channel badge on its corner (Direction B). */}
+        <EntryNode entry={entry} />
 
         {/* Card */}
         <div className="flex-1 min-w-0">
           {entry.kind === "milestone" ? (
             // ── Milestone card ──────────────────────────────────────
-            <GlassCard glassId="activity-timeline-entry" label="Activity · Timeline entries" defaultVariant="v05" style={{ padding: "10px 14px", borderRadius: 10 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                {entry.isNotRequired || (!entry.byName && !entry.byImage) ? (
-                  <SystemAvatar />
-                ) : (
-                  <ActorAvatar name={entry.byName ?? entry.actorName} role={entry.actorRole} image={entry.byImage} size={22} />
+            <div className="act-card">
+              {/* Meta cluster floats top-right, aligned with the first line: the
+                  memo reference link (where relevant) then the date. The sentence
+                  wraps beneath it (avatar + who live on the rail). */}
+              <div style={{ float: "right", marginLeft: 12, display: "inline-flex", alignItems: "center", gap: 10 }}>
+                {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
+                  <a
+                    href={mosDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 transition-colors whitespace-nowrap"
+                    style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6" }}
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    View Memo
+                  </a>
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.45 }}>
-                    {entry.sentence}
-                  </p>
-                  {entry.subtext && (
-                    <p style={{ marginTop: 3, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
-                      {entry.subtext}
-                    </p>
-                  )}
-                </div>
+                {entry.at && <time className="act-meta-date">{formatTimestamp(entry.at)}</time>}
               </div>
-              {/* Foot row — pill (+ memo link) on the left, date bottom-right
-                  opposite the pill, matching the comm card so the two never
-                  disagree on where the date sits (critique 2026-10-02). */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
-                  <Pill glass tone={entry.isNotRequired ? "default" : "success"} size="sm">
-                    {entry.isNotRequired ? "Skipped" : entry.confirmedByClient ? "Confirmed by client" : "Step confirmed"}
-                  </Pill>
-                  {mosDocUrl && MOS_CODES.has(entry.milestoneCode) && !entry.isNotRequired && (
-                    <a
-                      href={mosDocUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 transition-colors whitespace-nowrap"
-                      style={{ fontSize: 11, fontWeight: 500, color: "#3b82f6" }}
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      View Memo
-                    </a>
-                  )}
-                </div>
-                {entry.at && (
-                  <time style={{ flexShrink: 0, fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>
-                    {formatTimestamp(entry.at)}
-                  </time>
-                )}
-              </div>
-            </GlassCard>
+              <p style={{ fontSize: 12, fontWeight: 500, color: "var(--agent-text-primary)", lineHeight: 1.45 }}>
+                {entry.sentence}
+              </p>
+              {entry.subtext && (
+                <p style={{ marginTop: 3, fontSize: 11, color: "var(--agent-text-muted)", lineHeight: 1.4 }}>
+                  {entry.subtext}
+                </p>
+              )}
+            </div>
           ) : (
             // ── Comm card ───────────────────────────────────────────
             (() => {
-              const badge = getCommBadge(entry);
               // Apply any optimistic local edit so the row reflects the save
               // immediately even before the revalidate.
               const override = localEdits[entry.id];
@@ -985,40 +1017,44 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                 && contacts !== undefined;
               const email = isEmailComm(entry);
               const convCount = entry.conversationId ? (convCounts.get(entry.conversationId) ?? 0) : 0;
-              // Foot chips: hide the repeated "Email" channel pill on email rows
-              // (the envelope marker already signals the medium). Keep it for
-              // notes / calls / whatsapp.
-              const showBadge = !email;
-              const showRecipientPill =
-                !isEditing && entry.type !== "inbound" && !!entry.recipientName && !displayContactNames.includes(entry.recipientName);
-              // Internal notes name the person in their own text (e.g. a
-              // "viewed portal" row), so the contact-name pill is pure noise on
-              // them. Email/message rows keep it — there it says who it went to.
-              const showContactPills = !isEditing && entry.type !== "internal_note" && displayContactNames.length > 0;
+              // Outbound comms read "sender → recipient(s)" inline in the header
+              // (instead of a recipient pill). Collect who it went to: the client
+              // contacts plus any non-contact recipient (e.g. an agency user).
+              const toNames: string[] = [];
+              if (entry.type === "outbound") {
+                for (const n of displayContactNames) if (!toNames.includes(n)) toNames.push(n);
+                if (entry.recipientName && !toNames.includes(entry.recipientName)) toNames.push(entry.recipientName);
+              }
+              const toLabel = toNames.length > 0 ? toNames.join(", ") : null;
+              const hasHoverActions = canEdit || (isOwnNote && entry.replies.length === 0);
               return (
-                <GlassCard
-                  glassId="activity-timeline-entry"
-                  label="Activity · Timeline entries"
-                  defaultVariant="v05"
-                  className="relative group"
-                  style={{ padding: "10px 14px", borderRadius: 10 }}
-                >
-                  {/* Delivery status + "View" (outbound emails only) — top-right.
-                      "View" opens the exact email that was sent, byte-for-byte. */}
-                  {email && entry.type === "outbound" && (
+                <div className={`act-card relative group ${hasHoverActions ? "is-editable" : ""}`}>
+                  {/* Top-right meta cluster — delivery + "View" (outbound emails
+                      only) and the date, aligned with the name. "View" opens the
+                      exact email that was sent, byte-for-byte. The date lives here
+                      so it never needs a row of its own. */}
+                  {!isEditing && (
                     <div style={{ position: "absolute", top: 10, right: 12, zIndex: 1, display: "flex", alignItems: "center", gap: 10 }}>
-                      {entry.delivery && <DeliveryDot delivery={entry.delivery} />}
-                      <button
-                        type="button"
-                        style={LINK_BTN}
-                        onClick={() => setOpenEmail({ id: entry.id, label: entry.subject || "Sent email" })}
-                      >
-                        View
-                      </button>
+                      {email && entry.type === "outbound" && entry.delivery && <DeliveryDot delivery={entry.delivery} />}
+                      {email && entry.type === "outbound" && (
+                        <button
+                          type="button"
+                          style={LINK_BTN}
+                          onClick={() => setOpenEmail({ id: entry.id, label: entry.subject || "Sent email" })}
+                        >
+                          View
+                        </button>
+                      )}
+                      {isEdited && (
+                        <span className="act-meta-date" style={{ fontStyle: "italic" }}>
+                          {editedAt ? `edited ${relativeDate(editedAt)}` : "edited"}
+                        </span>
+                      )}
+                      {entry.at && <time className="act-meta-date">{formatTimestamp(entry.at)}</time>}
                     </div>
                   )}
 
-                  {/* Who did it — actor at the top of the card. */}
+                  {/* Who did it (and, for outbound, who to) — at the top. */}
                   <ActorFooter
                     role={entry.actorRole}
                     name={entry.actorName}
@@ -1028,7 +1064,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     isEdited={isEdited}
                     editedAt={editedAt}
                     placement="top"
+                    hideAvatar
                     hideDate
+                    toLabel={toLabel}
                   />
 
                   {/* Content — static paragraph, the full note edit form (contact
@@ -1097,28 +1135,15 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           </label>
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="agent-btn agent-btn-sm agent-btn-secondary"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => saveEdit(entry.id)}
-                            disabled={!editDraft.content.trim() || savingId === entry.id}
-                            className="agent-btn agent-btn-sm agent-btn-primary"
-                          >
-                            Save
-                          </button>
+                          <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>Cancel</Button>
+                          <SuccessButton variant="primary" size="sm" disabled={!editDraft.content.trim()} run={() => runSaveEdit(entry.id)}>Save</SuccessButton>
                         </div>
                       </div>
                     </div>
                     ) : (
                     // Content-only editor for a logged call / SMS / email (not a
                     // note): just the text. The row's existing contactIds +
-                    // visibleToClient flow through saveEdit unchanged.
+                    // visibleToClient flow through runSaveEdit unchanged.
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <textarea
                         value={editDraft.content}
@@ -1128,8 +1153,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                         autoFocus
                       />
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button type="button" onClick={cancelEdit} className="agent-btn agent-btn-sm agent-btn-secondary">Cancel</button>
-                        <button type="button" onClick={() => saveEdit(entry.id)} disabled={!editDraft.content.trim() || savingId === entry.id} className="agent-btn agent-btn-sm agent-btn-primary">Save</button>
+                        <Button type="button" variant="ghost" size="sm" onClick={cancelEdit}>Cancel</Button>
+                        <SuccessButton variant="primary" size="sm" disabled={!editDraft.content.trim()} run={() => runSaveEdit(entry.id)}>Save</SuccessButton>
                       </div>
                     </div>
                     )
@@ -1253,33 +1278,6 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     <EmailContactSuggestion transactionId={transactionId} messageId={entry.id} suggestion={entry.contactSuggestion} />
                   )}
 
-                  {/* Foot row — channel badge / contact pills on the left, and the
-                      date on the right (moved off the top row so it can't collide
-                      with the hover edit/delete controls). Always rendered (outside
-                      the edit form) so the date has a consistent home. */}
-                  {!isEditing && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
-                        {showBadge && (
-                          <Pill glass tone={badge.tone} size="sm">
-                            <span aria-hidden>{badge.icon}</span>
-                            {badge.label}
-                          </Pill>
-                        )}
-                        {showContactPills && displayContactNames.map((name) => (
-                          <ContactPill key={name} name={name} />
-                        ))}
-                        {showRecipientPill && entry.recipientName && (
-                          <ContactPill name={entry.recipientName} />
-                        )}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                        {isEdited && <span style={{ fontSize: 10, color: "var(--agent-text-muted)", fontStyle: "italic" }}>{editedAt ? `edited ${relativeDate(editedAt)}` : "edited"}</span>}
-                        <span style={{ fontSize: 10, color: "var(--agent-text-muted)", whiteSpace: "nowrap" }}>{entry.at ? formatTimestamp(entry.at) : ""}</span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Action buttons — hidden during edit to keep the form clean */}
                   {!isEditing && (
                     <div
@@ -1289,7 +1287,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       {canEdit && (
                         <button
                           onClick={() => startEdit(entry)}
-                          disabled={isPending || savingId === entry.id}
+                          disabled={isPending}
                           className="agent-icon-btn agent-icon-btn-sm"
                           aria-label="Edit"
                           title="Edit"
@@ -1324,7 +1322,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       currentUserRole={currentUserRole}
                     />
                   )}
-                </GlassCard>
+                </div>
               );
             })()
           )}
@@ -1382,6 +1380,22 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
            the right of the search when there's room, and drops onto its own line
            once the search would fall below its comfortable min width (so it never
            gets bunched). Pure flex-wrap, so it responds to real width / zoom. */
+        /* Flat, clean card for every timeline entry — a solid elevated surface
+           (white in light, dark-slate at night), a hairline border and a single
+           soft shadow. Deliberately NOT the glass treatment. */
+        .act-card { position: relative; display: flow-root; background: var(--agent-surface-elevated); border: 0.5px solid var(--agent-border-subtle); border-radius: 12px; padding: 10px 14px; box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.04), 0 1px 2px rgba(var(--agent-shadow-rgb), 0.05); }
+        /* Timestamp — lives top-right, aligned with the first line (floated on
+           milestone cards, in the absolute meta cluster on comm cards). Never a
+           row of its own. */
+        .act-meta-date { font-size: 10px; color: var(--agent-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity .12s ease; }
+        /* On an editable row the hover edit/remove icons share the top-right with
+           the date — fade the date out on hover so the two never overlap. */
+        .act-card.is-editable:hover .act-meta-date { opacity: 0; }
+        /* Direction B — the actor avatar IS the timeline node, sitting on the rail
+           (z-index above it, opaque so it covers the line behind it); a small
+           channel badge rides the bottom-right corner. */
+        .act-node { position: relative; z-index: 10; flex-shrink: 0; width: 32px; height: 32px; margin-top: 2px; }
+        .act-node-badge { position: absolute; right: -2px; bottom: -2px; width: 15px; height: 15px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; border: 1.5px solid var(--agent-surface-elevated); box-shadow: 0 1px 2px rgba(var(--agent-shadow-rgb), 0.18); }
         .act-topbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
         .act-topbar-action { flex:0 0 auto; }
         .act-filterbar { display:flex; align-items:center; gap:10px; flex:1 1 460px; min-width:0; background:var(--agent-surface-elevated); border:1px solid var(--agent-border-default); border-radius:12px; padding:8px 12px; position:relative; z-index:35; }
@@ -1409,6 +1423,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         .act-mi[data-on="true"] .act-radio { border-color:var(--agent-coral); }
         .act-mi[data-on="true"] .act-radio::after { content:""; position:absolute; inset:3px; border-radius:50%; background:var(--agent-coral); }
       `}</style>
+      {!hideChrome && (
       <div className="act-topbar">
       <div className={`act-filterbar ${searchTag.className}`} {...searchTag.props} data-bloom>
         <div className="act-scope">
@@ -1463,6 +1478,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
       </div>
         {beforeEntries && <div className="act-topbar-action" data-bloom>{beforeEntries}</div>}
       </div>
+      )}
 
 
       {filtered.length === 0 ? (
@@ -1473,7 +1489,8 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         <div data-bloom>
         <div key={entriesKey} className="relative agent-reveal-in">
           {/* Vertical line */}
-          <div className="absolute top-2 bottom-2 w-px" style={{ left: 3, background: "var(--agent-border-default)" }} />
+          {/* Rail — threads through the avatar nodes (centre of the 32px node). */}
+          <div className="absolute top-2 bottom-2 w-px" style={{ left: 15, background: "var(--agent-border-default)" }} />
 
           <div ref={listRef} className="space-y-2">
             {listNodes}

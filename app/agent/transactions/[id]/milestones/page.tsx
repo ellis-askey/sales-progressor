@@ -55,20 +55,26 @@ export default async function StepsTabPage({ params }: { params: Promise<{ id: s
           />
         </div>
         <div className="min-w-0 min-[1100px]:flex-[2]">
-          <ActivityPanel
-            transactionId={transaction.id}
-            agencyId={session.user.agencyId}
-            isInternalStaff={isInternalStaff}
-            isProgressor={isProgressor}
-            isAdminRole={isAdminRole}
-            canMarkPrivate={canMarkPrivate}
-            currentUserId={session.user.id}
-            currentUserName={session.user.name ?? ""}
-            currentUserRole={session.user.role ?? ""}
-            contacts={transaction.contacts}
-            vendorSolicitor={transaction.vendorSolicitorContact ?? null}
-            purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
-          />
+          {/* Cap the activity log on the split view: it no longer runs the whole
+              page down. It sticks beside the steps and scrolls inside its own
+              viewport-height box. Only at ≥1100px (where the split exists); below
+              that it stacks under Steps and flows naturally. */}
+          <div className="min-[1100px]:sticky min-[1100px]:top-4 min-[1100px]:max-h-[calc(100vh-7rem)] min-[1100px]:overflow-y-auto min-[1100px]:pr-1">
+            <ActivityPanel
+              transactionId={transaction.id}
+              agencyId={session.user.agencyId}
+              isInternalStaff={isInternalStaff}
+              isProgressor={isProgressor}
+              isAdminRole={isAdminRole}
+              canMarkPrivate={canMarkPrivate}
+              currentUserId={session.user.id}
+              currentUserName={session.user.name ?? ""}
+              currentUserRole={session.user.role ?? ""}
+              contacts={transaction.contacts}
+              vendorSolicitor={transaction.vendorSolicitorContact ?? null}
+              purchaserSolicitor={transaction.purchaserSolicitorContact ?? null}
+            />
+          </div>
         </div>
       </div>
     </TabEnter>
