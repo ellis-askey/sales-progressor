@@ -12,12 +12,10 @@ import { signOut } from "next-auth/react";
 import { Devices } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { signOutAllDevicesAction } from "@/app/actions/sessions";
+import { Button } from "@/components/arc/button/button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 
-const primaryBtn: React.CSSProperties = { padding: "9px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
-const secondaryBtn: React.CSSProperties = {
-  padding: "8px 14px", fontSize: 12.5, fontWeight: 500, color: "#374151", background: "#fff",
-  border: "0.5px solid rgba(0,0,0,0.16)", borderRadius: 8, cursor: "pointer",
-};
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
 
 export function SessionsCard() {
   const [confirming, setConfirming] = useState(false);
@@ -47,21 +45,23 @@ export function SessionsCard() {
           This signs you out on every device, including this one. You&apos;ll sign back in as normal.
         </p>
         {!confirming ? (
-          <button type="button" onClick={() => setConfirming(true)} className="account-btn-secondary account-press" style={{ ...secondaryBtn, color: "#b91c1c", alignSelf: "flex-start" }}>
-            Sign out of all devices
-          </button>
+          <div>
+            <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
+              Sign out of all devices
+            </Button>
+          </div>
         ) : (
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, color: "#111827" }}>Sign out everywhere?</span>
-            <button type="button" onClick={signOutAll} disabled={busy} className="account-btn-primary" style={primaryBtn}>
-              {busy ? "Signing out…" : "Yes, sign out"}
-            </button>
-            <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="account-btn-secondary account-press" style={secondaryBtn}>
+            <Button variant="primary" size="sm" style={coralPrimary} onClick={signOutAll} loading={busy}>
+              Yes, sign out
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={busy}>
               Cancel
-            </button>
+            </Button>
           </div>
         )}
-        {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+        {error && <InlineAlert kind="danger">{error}</InlineAlert>}
       </div>
     </AccountCard>
   );

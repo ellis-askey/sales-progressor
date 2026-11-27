@@ -11,6 +11,10 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, Check } from "@/components/icons/ph";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
 import { useAgentToast } from "@/components/agent/AgentToaster";
+import { Button } from "@/components/arc/button/button";
+import { Badge } from "@/components/ui/Badge";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import {
   getTwoFactorStatus,
   startTwoFactorEnrollment,
@@ -20,18 +24,12 @@ import {
 
 type Mode = "loading" | "off" | "enrolling" | "backup" | "on" | "disabling";
 
-const labelStyle: React.CSSProperties = {
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
+// One-off eyebrow above the authenticator secret key (the fields themselves are
+// canonical LabelInputs).
+const eyebrowStyle: React.CSSProperties = {
   display: "block", fontSize: 10, color: "#6b7280", textTransform: "uppercase",
   letterSpacing: 0.7, fontWeight: 500, marginBottom: 5,
-};
-const fieldStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", fontSize: 13.5, color: "#111827",
-  background: "#fff", border: "0.5px solid rgba(0,0,0,0.16)", borderRadius: 8, outline: "none",
-};
-const primaryBtn: React.CSSProperties = { padding: "9px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
-const secondaryBtn: React.CSSProperties = {
-  padding: "8px 14px", fontSize: 12.5, fontWeight: 500, color: "#374151", background: "#fff",
-  border: "0.5px solid rgba(0,0,0,0.16)", borderRadius: 8, cursor: "pointer",
 };
 
 export function TwoFactorCard() {
@@ -84,10 +82,8 @@ export function TwoFactorCard() {
   }
 
   const badge =
-    mode === "on"
-      ? <span style={{ fontSize: 11, fontWeight: 700, color: "#166534", background: "#dcfce7", padding: "3px 9px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.4 }}>On</span>
-      : mode === "off"
-        ? <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", padding: "3px 9px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.4 }}>Off</span>
+    mode === "on" ? <Badge tone="success">On</Badge>
+      : mode === "off" ? <Badge tone="neutral">Off</Badge>
         : null;
 
   return (
@@ -110,9 +106,11 @@ export function TwoFactorCard() {
               <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
                 Add an extra layer of security at sign-in using an app like Google Authenticator, 1Password or Authy.
               </p>
-              <button type="button" onClick={startEnroll} disabled={busy} className="account-btn-primary" style={{ ...primaryBtn, alignSelf: "flex-start" }}>
-                {busy ? "Starting…" : "Set up two-step verification"}
-              </button>
+              <div>
+                <Button variant="primary" size="sm" style={coralPrimary} onClick={startEnroll} loading={busy}>
+                  Set up two-step verification
+                </Button>
+              </div>
             </>
           )}
         </div>
@@ -129,20 +127,17 @@ export function TwoFactorCard() {
               <img src={qr} alt="Two-step verification QR code" width={168} height={168} style={{ borderRadius: 10, border: "0.5px solid rgba(0,0,0,0.10)" }} />
             )}
             <div style={{ minWidth: 0 }}>
-              <span style={labelStyle}>Or enter this key</span>
+              <span style={eyebrowStyle}>Or enter this key</span>
               <code style={{ display: "block", fontSize: 12.5, letterSpacing: 1, wordBreak: "break-all", color: "#111827", background: "#f6f6f7", padding: "8px 10px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,0.08)" }}>{secret}</code>
             </div>
           </div>
-          <div>
-            <label style={labelStyle}>6-digit code</label>
-            <input className="account-input" style={fieldStyle} inputMode="numeric" autoComplete="one-time-code" value={token} onChange={(e) => setToken(e.target.value)} placeholder="123 456" />
-          </div>
-          {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+          <LabelInput field="Code" label="6-digit code" size="sm" fullWidth accent="#FF6B4A" inputMode="numeric" autoComplete="one-time-code" value={token} onChange={(e) => setToken(e.target.value)} />
+          {error && <InlineAlert kind="danger">{error}</InlineAlert>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={confirmEnable} disabled={busy || token.trim().length < 6} className="account-btn-primary" style={primaryBtn}>
-              {busy ? "Verifying…" : "Verify & turn on"}
-            </button>
-            <button type="button" onClick={() => { setMode("off"); setError(""); }} disabled={busy} className="account-btn-secondary account-press" style={secondaryBtn}>Cancel</button>
+            <Button variant="primary" size="sm" style={coralPrimary} onClick={confirmEnable} disabled={token.trim().length < 6} loading={busy}>
+              Verify &amp; turn on
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setMode("off"); setError(""); }}>Cancel</Button>
           </div>
         </div>
       )}
@@ -161,8 +156,8 @@ export function TwoFactorCard() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={() => { navigator.clipboard.writeText(backupCodes.join("\n")).then(() => toast.success("Backup codes copied")); }} className="account-btn-secondary account-press" style={secondaryBtn}>Copy codes</button>
-            <button type="button" onClick={() => { setBackupCodes([]); void refresh(); }} className="account-btn-primary" style={primaryBtn}>I&apos;ve saved these</button>
+            <Button variant="secondary" size="sm" onClick={() => { navigator.clipboard.writeText(backupCodes.join("\n")).then(() => toast.success("Backup codes copied")); }}>Copy codes</Button>
+            <Button variant="primary" size="sm" style={coralPrimary} onClick={() => { setBackupCodes([]); void refresh(); }}>I&apos;ve saved these</Button>
           </div>
         </div>
       )}
@@ -172,9 +167,11 @@ export function TwoFactorCard() {
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
             You&apos;ll be asked for a code each time you sign in. {backupRemaining} backup {backupRemaining === 1 ? "code" : "codes"} remaining.
           </p>
-          <button type="button" onClick={() => { setMode("disabling"); setError(""); setPassword(""); }} className="account-btn-secondary account-press" style={{ ...secondaryBtn, color: "#b91c1c", alignSelf: "flex-start" }}>
-            Turn off two-step verification
-          </button>
+          <div>
+            <Button variant="danger" size="sm" onClick={() => { setMode("disabling"); setError(""); setPassword(""); }}>
+              Turn off two-step verification
+            </Button>
+          </div>
         </div>
       )}
 
@@ -183,16 +180,13 @@ export function TwoFactorCard() {
           <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.55 }}>
             Enter your password to turn off two-step verification.
           </p>
-          <div>
-            <label style={labelStyle}>Password</label>
-            <input className="account-input" style={fieldStyle} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+          <LabelInput field="Password" label="Password" size="sm" fullWidth accent="#FF6B4A" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          {error && <InlineAlert kind="danger">{error}</InlineAlert>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={confirmDisable} disabled={busy || !password} className="account-btn-primary" style={primaryBtn}>
-              {busy ? "Turning off…" : "Turn off"}
-            </button>
-            <button type="button" onClick={() => { setMode("on"); setError(""); }} disabled={busy} className="account-btn-secondary account-press" style={secondaryBtn}>Cancel</button>
+            <Button variant="danger" size="sm" onClick={confirmDisable} disabled={!password} loading={busy}>
+              Turn off
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setMode("on"); setError(""); }}>Cancel</Button>
           </div>
         </div>
       )}

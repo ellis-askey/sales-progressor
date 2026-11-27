@@ -11,29 +11,14 @@ import { Lock } from "@/components/icons/ph";
 import { changePasswordAction } from "@/app/actions/change-password";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
+import { Button } from "@/components/arc/button/button";
+import { LabelInput } from "@/components/ui/LabelInput";
+import { FieldStack } from "@/components/ui/FieldStack";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 
 const MIN = 8;
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 10,
-  color: "#6b7280",
-  textTransform: "uppercase",
-  letterSpacing: 0.7,
-  fontWeight: 500,
-  marginBottom: 5,
-};
-
-const fieldStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  fontSize: 13.5,
-  color: "#111827",
-  background: "#fff",
-  border: "0.5px solid rgba(0,0,0,0.16)",
-  borderRadius: 8,
-  outline: "none",
-};
+const coralPrimary = { "--foreground": "#FF6B4A", "--background": "#ffffff" } as React.CSSProperties;
+const hintStyle: React.CSSProperties = { margin: "6px 0 0", fontSize: 12, color: "var(--agent-danger, #C73E3E)" };
 
 export function ChangePasswordCard() {
   const { toast } = useAgentToast();
@@ -45,10 +30,10 @@ export function ChangePasswordCard() {
 
   const tooShort = next.length > 0 && next.length < MIN;
   const mismatch = confirm.length > 0 && confirm !== next;
-  const canSave = current.length > 0 && next.length >= MIN && confirm === next && !saving;
+  const formValid = current.length > 0 && next.length >= MIN && confirm === next;
 
   async function handleSave() {
-    if (!canSave) return;
+    if (!formValid || saving) return;
     setSaving(true);
     setError("");
     try {
@@ -74,33 +59,24 @@ export function ChangePasswordCard() {
       title="Password"
       subtitle="Change the password you use to sign in."
       headerAction={
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!canSave}
-          className="account-btn-primary"
-          style={{ padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: canSave ? "pointer" : "default" }}
-        >
-          {saving ? "Saving…" : "Change password"}
-        </button>
+        <Button variant="primary" size="sm" style={coralPrimary} onClick={handleSave} disabled={!formValid} loading={saving}>
+          Change password
+        </Button>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 420 }}>
-        <div>
-          <label style={labelStyle}>Current password</label>
-          <input className="account-input" style={fieldStyle} type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
-        </div>
-        <div>
-          <label style={labelStyle}>New password</label>
-          <input className="account-input" style={fieldStyle} type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
-          {tooShort && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#dc2626" }}>Use at least {MIN} characters.</p>}
-        </div>
-        <div>
-          <label style={labelStyle}>Confirm new password</label>
-          <input className="account-input" style={fieldStyle} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          {mismatch && <p style={{ margin: "6px 0 0", fontSize: 12, color: "#dc2626" }}>The two passwords don&apos;t match.</p>}
-        </div>
-        {error && <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626" }}>{error}</p>}
+      <div style={{ maxWidth: 420 }}>
+        <FieldStack>
+          <LabelInput field="Password" label="Current password" size="sm" fullWidth accent="#FF6B4A" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <div>
+            <LabelInput field="Password" label="New password" size="sm" fullWidth accent="#FF6B4A" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+            {tooShort && <p style={hintStyle}>Use at least {MIN} characters.</p>}
+          </div>
+          <div>
+            <LabelInput field="Password" label="Confirm new password" size="sm" fullWidth accent="#FF6B4A" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            {mismatch && <p style={hintStyle}>The two passwords don&apos;t match.</p>}
+          </div>
+          {error && <InlineAlert kind="danger">{error}</InlineAlert>}
+        </FieldStack>
       </div>
     </AccountCard>
   );
