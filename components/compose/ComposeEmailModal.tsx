@@ -308,22 +308,37 @@ export function ComposeEmailModal({
   // typed body. That was the reopen / flicker loop. A per-open ref makes the
   // seed run exactly once per open and ignores identity churn thereafter.
   const initializedForOpenRef = useRef(false);
+  // The seed (selectSale / devSeed) is gated separately from the reset. The reset
+  // must run exactly once per open (anti-flicker — see above). But the seed may
+  // only become available AFTER that first run: the chain-email opener resolves
+  // its prefill asynchronously (buildChainEmailDraft → setPrefill), so prefill is
+  // still null on the open render. A per-open "have we seeded yet" ref lets the
+  // seed fire on the later render when prefill/id first arrives, while still
+  // ignoring prefill identity churn once seeded (so no reopen/flicker loop).
+  const seededForOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) { initializedForOpenRef.current = false; return; }
-    if (initializedForOpenRef.current) return;
-    initializedForOpenRef.current = true;
-    setClosing(false); setSaleCleared(false);
-    setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
-    setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
-    setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
-    setShowRefined(false); preRefineRef.current = null; setSigStyle("basic"); setSigOptions([]); setSigMenuOpen(false);
-    setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
-    setContinueCandidate(null); setContinueArmed(false);
-    if (editorRef.current) editorRef.current.innerHTML = "";
+    if (!open) { initializedForOpenRef.current = false; seededForOpenRef.current = false; return; }
+    // Reset once per open. Never re-reset on prefill / initialTransactionId
+    // identity changes (some openers rebuild an inline prefill every render).
+    if (!initializedForOpenRef.current) {
+      initializedForOpenRef.current = true;
+      setClosing(false); setSaleCleared(false);
+      setQuery(""); setResults([]); setCtx(null); setTokens({ to: [], cc: [], bcc: [] });
+      setOpenField(null); setFieldQuery(""); setShowCc(false); setShowBcc(false);
+      setSubject(""); setAttachments([]); setError(null); setScheduledFor(null); setSchedOpen(false);
+      setShowRefined(false); preRefineRef.current = null; setSigStyle("basic"); setSigOptions([]); setSigMenuOpen(false);
+      setShareInserted(false); setFullChainUsed(false); setComposingChain(false);
+      setContinueCandidate(null); setContinueArmed(false);
+      if (editorRef.current) editorRef.current.innerHTML = "";
+    }
+    // Seed the sale once per open, as soon as a prefill / id / devSeed is
+    // available (which, for the chain-email path, is a render later than open).
+    if (seededForOpenRef.current) return;
     // DEV preview: seed the real modal with mock recipients/body (+ an optional
     // continue-candidate) and skip the server fetch, so the whisper shows inside
     // the real chrome without auth.
     if (devSeed) {
+      seededForOpenRef.current = true;
       autoGreetRef.current = false;
       pendingBodyRef.current = devSeed.bodyHtml;
       setTokens({ to: devSeed.to, cc: [], bcc: [] });
@@ -332,8 +347,8 @@ export function ComposeEmailModal({
       setCtx(devSeed.ctx);
       return;
     }
-    if (prefill) void selectSale(prefill.transactionId, prefill);
-    else if (initialTransactionId) void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined);
+    if (prefill) { seededForOpenRef.current = true; void selectSale(prefill.transactionId, prefill); }
+    else if (initialTransactionId) { seededForOpenRef.current = true; void selectSale(initialTransactionId, undefined, initialToContactIds ?? undefined); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialTransactionId, prefill]);
 
