@@ -28,6 +28,8 @@ export const KIND_LABELS: Record<AgentEmailKind, string> = {
   weekly_brief: "Weekly brief",
   morning_digest: "Morning digest",
   retention: "Retention",
+  booking_diary: "Booking diary",
+  booking_morning: "Booking morning",
   welcome: "Welcome",
   claim_welcome: "Claim welcome",
   team_invite: "Team invite",
@@ -38,9 +40,14 @@ export const KIND_LABELS: Record<AgentEmailKind, string> = {
   chain_invite: "Chain invite",
   chain_invite_nudge: "Chain invite nudge",
   chain_neighbour_update: "Chain neighbour update",
+  chain_neighbour_chase: "Chain neighbour chase",
   milestone_agent: "Milestone (agent)",
   milestone_progressor: "Milestone (progressor)",
   password_reset: "Password reset",
+  client_agent_setup: "Client agent setup",
+  teammate_setup: "Teammate setup",
+  client_invoice: "Client invoice",
+  completion_reminder: "Completion reminder",
 };
 
 export function kindLabel(kind: string): string {

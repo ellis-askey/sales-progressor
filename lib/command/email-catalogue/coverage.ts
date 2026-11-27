@@ -41,6 +41,8 @@ const KIND_COVERAGE: Record<AgentEmailKind, Coverage> = {
   password_reset: { specimenId: "password-reset" },
   client_agent_setup: { specimenId: "progression-client-agent-invite" },
   teammate_setup: { specimenId: "progression-teammate-invite" },
+  client_invoice: { specimenId: null, note: "business→client invoice (billing suite); the PDF + covering email aren't a catalogue specimen" },
+  completion_reminder: { specimenId: null, note: "day-before-completion heads-up (billing suite); not a catalogue specimen" },
 };
 
 export type CoverageReport = {
