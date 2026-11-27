@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { parseMode, parseAgencies, businessTxWhere } from "@/lib/command/scope";
 import { getBusinessesPulse, getBusinessNameMap } from "@/lib/command/businesses";
+import { computeFee } from "@/lib/billing/fee";
+import { formatGBP } from "@/lib/command/revenue";
 import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
 import { displayFor, SEVERITY_MEANING } from "@/lib/command/signal-display";
@@ -254,6 +256,41 @@ export default async function OverviewPage({
       ])
     : [0, 0, null, 0];
 
+  // Money glance (last 30 days) + things needing the founder. We charge agents
+  // on exchange (£0/£50 per the fee engine); progression companies pay £5 per
+  // sale added. Both follow the lens; approvals are a global ops queue.
+  const money30 = new Date(now.getTime() - 30 * dayMs);
+  const BIZ_PER_SALE_PENCE = 500; // £5 per progression-company sale added
+  const showAgentMoney = mode !== "external";
+  const showBizMoney = mode !== "agents";
+  const agentMoneyWhere = {
+    ...txBase, serviceType: "self_managed" as const, progressionBusinessId: null,
+    exchangedAt: { gte: money30 },
+    ...(agencyIds.length > 0 ? { agencyId: { in: agencyIds } } : {}),
+  };
+  const [agentExchanges, bizSalesAdded, awaitingApproval] = await Promise.all([
+    prisma.propertyTransaction.findMany({
+      where: agentMoneyWhere,
+      select: {
+        serviceType: true, purchasePrice: true, pricingVersion: true,
+        agency: { select: { feeTier: true, legacyOutsourcedFeePence: true, vatRegisteredAt: true, vatRateBps: true } },
+      },
+    }),
+    prisma.propertyTransaction.count({ where: { ...txBase, progressionBusinessId: { not: null }, createdAt: { gte: money30 } } }),
+    commandDb.outboundMessage.count({ where: { requiresApproval: true, approvedAt: null, status: { not: "cancelled" } } }),
+  ]);
+  const agentFeePence = agentExchanges.reduce(
+    (s, f) => s + computeFee(
+      f.serviceType, f.purchasePrice,
+      { vatRegisteredAt: f.agency.vatRegisteredAt, vatRateBps: f.agency.vatRateBps },
+      { feeTier: f.agency.feeTier, legacyOutsourcedFeePence: f.agency.legacyOutsourcedFeePence },
+      f.pricingVersion,
+    ).totalPence,
+    0,
+  );
+  const bizFeePence = bizSalesAdded * BIZ_PER_SALE_PENCE;
+  const needsYou = awaitingApproval > 0 || (showBizCard && bizPaymentIssues > 0);
+
   // Who's doing the work — the three populations (combined view only; an
   // agency multi-select still applies). Computed live from base tables over
   // the same window as the tiles (6 completed days + today) because the
@@ -387,6 +424,34 @@ export default async function OverviewPage({
         <AutoRefresh intervalMs={60000} />
       </div>
 
+      {/* Needs you — the actionable queue, surfaced first. Only shows when there
+          is something to do. */}
+      {needsYou && (
+        <section>
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4">Needs you</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            {awaitingApproval > 0 && (
+              <Link
+                href="/command/operations?tab=messaging&view=messages&pending=1"
+                className="flex items-baseline gap-2 px-3.5 py-2 rounded-xl bg-neutral-900 border border-amber-900/60 hover:bg-neutral-800 transition-colors"
+              >
+                <span className="text-xl font-semibold tabular-nums text-amber-400 leading-none">{awaitingApproval.toLocaleString()}</span>
+                <span className="text-[11px] text-neutral-400">message{awaitingApproval === 1 ? "" : "s"} awaiting approval ›</span>
+              </Link>
+            )}
+            {showBizCard && bizPaymentIssues > 0 && (
+              <Link
+                href="/command/businesses"
+                className="flex items-baseline gap-2 px-3.5 py-2 rounded-xl bg-neutral-900 border border-red-900/60 hover:bg-neutral-800 transition-colors"
+              >
+                <span className="text-xl font-semibold tabular-nums text-red-400 leading-none">{bizPaymentIssues.toLocaleString()}</span>
+                <span className="text-[11px] text-neutral-400">progression payment issue{bizPaymentIssues === 1 ? "" : "s"} ›</span>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* 7-day metric summary */}
       <section>
         <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
@@ -435,6 +500,44 @@ export default async function OverviewPage({
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Money — last 30 days. Agents are charged on exchange (fee engine);
+          progression companies pay £5 per sale added. Follows the lens. */}
+      <section>
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
+          Money · last 30 days
+          <InfoTip label="Where the money comes from">
+            We charge agents when a sale exchanges; progression companies pay £5
+            per sale they add. Last 30 days, for whichever side the filter shows.
+          </InfoTip>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {showAgentMoney && (
+            <Link
+              href={`/command/revenue${scopeQs ? `?${scopeQs.slice(1)}` : ""}`}
+              className="block group bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
+            >
+              <p className="text-2xl font-bold tabular-nums text-white">{formatGBP(agentFeePence)}</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                from {agentExchanges.length} agent exchange{agentExchanges.length === 1 ? "" : "s"}
+                <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>
+              </p>
+            </Link>
+          )}
+          {showBizMoney && (
+            <Link
+              href="/command/businesses"
+              className="block group bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
+            >
+              <p className="text-2xl font-bold tabular-nums text-white">{formatGBP(bizFeePence)}</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">
+                {bizSalesAdded} progression sale{bizSalesAdded === 1 ? "" : "s"} added · £5 each
+                <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>
+              </p>
+            </Link>
+          )}
         </div>
       </section>
 
