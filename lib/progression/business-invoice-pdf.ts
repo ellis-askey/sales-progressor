@@ -67,13 +67,43 @@ function fit(text: string, font: PDFFont, size: number, maxW: number): string {
 function topY(cursor: number, size: number): number {
   return PAGE_H - cursor - size;
 }
+
+// Standard-14 PDF fonts are WinAnsi-only — any char outside it (smart quotes,
+// em/en dashes, ellipsis, emoji, non-Latin) throws at draw time. Business-typed
+// text (name, message, address, bank, client name) routinely carries these via
+// autocorrect, so every drawn string is normalised through this first.
+function winAnsi(s: string): string {
+  return s
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[–—―]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/ /g, " ")
+    .replace(/[^\x00-\xFF]/g, ""); // drop anything still outside Latin-1 / WinAnsi
+}
 function drawRight(page: PDFPage, text: string, rightX: number, cursor: number, size: number, font: PDFFont, color: ReturnType<typeof rgb>) {
   const w = font.widthOfTextAtSize(text, size);
   page.drawText(text, { x: rightX - w, y: topY(cursor, size), size, font, color });
 }
 
 export async function renderBusinessInvoicePdf(input: BusinessInvoicePdfInput): Promise<Buffer> {
-  const { design } = input;
+  // Normalise all business-typed text to WinAnsi so a stray smart quote / dash /
+  // emoji can never crash the render.
+  input.issuerName = winAnsi(input.issuerName);
+  input.agencyName = winAnsi(input.agencyName);
+  input.issuerContact = winAnsi(input.issuerContact);
+  if (input.vatNumber) input.vatNumber = winAnsi(input.vatNumber);
+  input.lines = input.lines.map((l) => ({ ...l, description: winAnsi(l.description), subNote: l.subNote ? winAnsi(l.subNote) : undefined }));
+  const design = {
+    ...input.design,
+    title: winAnsi(input.design.title),
+    tagline: winAnsi(input.design.tagline),
+    message: winAnsi(input.design.message),
+    addressLines: input.design.addressLines.map(winAnsi),
+    bankName: winAnsi(input.design.bankName),
+    sortCode: winAnsi(input.design.sortCode),
+    accountNumber: winAnsi(input.design.accountNumber),
+  };
   const doc = await PDFDocument.create();
   doc.setTitle(`Invoice ${input.invoiceLabel} - ${input.agencyName}`);
   doc.setAuthor(input.issuerName);
