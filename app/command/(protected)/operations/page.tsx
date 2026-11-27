@@ -1,4 +1,5 @@
 import { ParamTabs } from "@/components/command/ui/primitives";
+import { AttentionTab } from "@/components/command/operations/tabs/AttentionTab";
 import { FilesTab } from "@/components/command/operations/tabs/FilesTab";
 import { MessagingTab } from "@/components/command/operations/tabs/MessagingTab";
 import { EmailTab } from "@/components/command/operations/tabs/EmailTab";
@@ -28,6 +29,7 @@ export const maxDuration = 60; // the Files tab does a storage listing + several
 
 const TABS = [
   { key: "files", label: "Files" },
+  { key: "attention", label: "Attention" },
   { key: "messaging", label: "Messaging" },
   { key: "email", label: "Email" },
   { key: "requests", label: "Requests" },
@@ -44,6 +46,8 @@ export default async function OperationsWorkspacePage({
     // messaging (messages) + email (agents) scope + filters
     mode?: string; agency?: string; ch?: string; st?: string; ai?: string;
     from?: string; to?: string; rec?: string; cursor?: string; pending?: string; kind?: string;
+    // attention (operational signal queue)
+    sev?: string; ack?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -66,6 +70,7 @@ export default async function OperationsWorkspacePage({
       {active === "files" && (
         <FilesTab q={sp.q} tx={sp.tx} status={sp.status} att={sp.att} managed={sp.managed} created={sp.created} />
       )}
+      {active === "attention" && <AttentionTab sev={sp.sev} ack={sp.ack} />}
       {active === "messaging" && (
         <MessagingTab
           view={sp.view}

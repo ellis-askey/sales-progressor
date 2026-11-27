@@ -1,22 +1,21 @@
 import { commandDb } from "@/lib/command/prisma";
+import Link from "next/link";
 import { AcknowledgeButton } from "@/components/command/AcknowledgeButton";
-import { SignalActions } from "@/components/command/insights/SignalActions";
-import { BulkAckButton } from "@/components/command/insights/BulkAckButton";
+import { SignalGroupList } from "@/components/command/insights/SignalGroupList";
 import { ExpandableBrief } from "@/components/command/insights/ExpandableBrief";
 import InfoTip from "@/components/command/shared/InfoTip";
-import { displayFor, SEVERITY_MEANING } from "@/lib/command/signal-display";
+import {
+  displayFor, isOperationalDetector,
+  SEVERITY_MEANING, SEVERITY_BADGE, SEVERITY_RANK,
+} from "@/lib/command/signal-display";
 import type { Signal, SignalSeverity } from "@prisma/client";
 
-const SEVERITY_BADGE: Record<string, string> = {
-  critical:    "bg-red-950 text-red-400 border border-red-900",
-  leak:        "bg-amber-950 text-amber-400 border border-amber-900",
-  opportunity: "bg-emerald-950 text-emerald-400 border border-emerald-900",
-  info:        "bg-neutral-800 text-neutral-400 border border-neutral-800",
-};
-const SEVERITY_RANK: Record<string, number> = { critical: 0, leak: 1, opportunity: 2, info: 3 };
-
-const CONF_COLOR = (c: number): string =>
-  c >= 0.8 ? "text-neutral-100" : c >= 0.5 ? "text-neutral-300" : "text-neutral-500";
+// The founder Briefing. Two jobs only:
+//   1. the plain-English AI read (daily brief + weekly review),
+//   2. the handful of FOUNDER-altitude situations that need your call.
+// The per-file operational queue (chases, quiet clients, stuck solicitors) is NOT
+// here — it lives in Operations → Attention, where the team works it. See
+// lib/command/signal-display.ts `altitude`.
 
 function fmtDate(d: Date): string {
   return new Date(d).toLocaleString("en-GB", {
@@ -25,9 +24,6 @@ function fmtDate(d: Date): string {
 }
 function fmtDateShort(d: Date): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
-}
-function daysSince(d: Date): number {
-  return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
 }
 
 export default async function InsightsPage({
@@ -39,10 +35,9 @@ export default async function InsightsPage({
   const sevFilter = sp.sev as SignalSeverity | undefined;
   const showAcked = sp.ack === "1";
   const now = new Date();
-
   const notSnoozed = { OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] };
 
-  const [latestBrief, latestReview, active, snoozedCount, dealtWith] = await Promise.all([
+  const [latestBrief, latestReview, activeRaw, dealtRaw] = await Promise.all([
     commandDb.outboundMessage.findFirst({
       where: { purpose: "digest", aiModel: { contains: "haiku" } },
       orderBy: { createdAt: "desc" },
@@ -52,77 +47,61 @@ export default async function InsightsPage({
       orderBy: { createdAt: "desc" },
     }),
     commandDb.signal.findMany({
-      where: {
-        acknowledged: false,
-        resolvedAt: null,
-        ...notSnoozed,
-        ...(sevFilter ? { severity: sevFilter } : {}),
-      },
+      where: { acknowledged: false, resolvedAt: null, ...notSnoozed, ...(sevFilter ? { severity: sevFilter } : {}) },
       orderBy: [{ severity: "desc" }, { confidence: "desc" }, { lastSeenAt: "desc" }],
-      take: 300,
-    }),
-    commandDb.signal.count({
-      where: { acknowledged: false, resolvedAt: null, snoozedUntil: { gte: now } },
+      take: 500,
     }),
     showAcked
       ? commandDb.signal.findMany({
-          where: {
-            OR: [{ acknowledged: true }, { resolvedAt: { not: null } }],
-            ...(sevFilter ? { severity: sevFilter } : {}),
-          },
+          where: { OR: [{ acknowledged: true }, { resolvedAt: { not: null } }], ...(sevFilter ? { severity: sevFilter } : {}) },
           orderBy: { lastSeenAt: "desc" },
           take: 50,
         })
       : Promise.resolve([] as Signal[]),
   ]);
 
-  // Active severity tally (open right now — distinct from the Overview page's
-  // last-7-days counts).
-  const openTally = { critical: 0, leak: 0, opportunity: 0, info: 0 } as Record<string, number>;
-  for (const s of active) openTally[s.severity] = (openTally[s.severity] ?? 0) + 1;
+  // Founder-altitude vs operational.
+  const founder = activeRaw.filter((s) => !isOperationalDetector(s.detectorName));
+  const operational = activeRaw.filter((s) => isOperationalDetector(s.detectorName));
+  const dealtWith = dealtRaw.filter((s) => !isOperationalDetector(s.detectorName));
 
-  // Group the feed by detector so duplicates of a kind collapse under one heading.
+  // Founder tally + groups (metric moves first — that's the "what changed" read).
+  const openTally = { critical: 0, leak: 0, opportunity: 0, info: 0 } as Record<string, number>;
+  for (const s of founder) openTally[s.severity] = (openTally[s.severity] ?? 0) + 1;
+
   const groups = new Map<string, Signal[]>();
-  for (const s of active) {
+  for (const s of founder) {
     const arr = groups.get(s.detectorName) ?? [];
     arr.push(s);
     groups.set(s.detectorName, arr);
   }
-  const orderedGroups = Array.from(groups.entries()).sort((a, b) => {
+  const founderGroups = Array.from(groups.entries()).sort((a, b) => {
+    // Metric moves lead; then by worst severity, then by size.
+    if (a[0] === "metric_delta" && b[0] !== "metric_delta") return -1;
+    if (b[0] === "metric_delta" && a[0] !== "metric_delta") return 1;
     const ra = Math.min(...a[1].map((s) => SEVERITY_RANK[s.severity] ?? 9));
     const rb = Math.min(...b[1].map((s) => SEVERITY_RANK[s.severity] ?? 9));
     if (ra !== rb) return ra - rb;
     return b[1].length - a[1].length;
   });
 
-  const sevOptions = [
-    { value: "", label: "All" },
-    { value: "critical", label: "Critical" },
-    { value: "leak", label: "Leak" },
-    { value: "opportunity", label: "Opportunity" },
-    { value: "info", label: "Info" },
-  ];
-  function sevLink(sev: string): string {
-    const p = new URLSearchParams();
-    if (sev) p.set("sev", sev);
-    if (showAcked) p.set("ack", "1");
-    return `/command/insights${p.toString() ? `?${p}` : ""}`;
-  }
-  function ackToggle(): string {
-    const p = new URLSearchParams();
-    if (sevFilter) p.set("sev", sevFilter);
-    if (!showAcked) p.set("ack", "1");
-    return `/command/insights${p.toString() ? `?${p}` : ""}`;
-  }
+  // Operational queue summary — a single pointer to Operations, not a list.
+  const opCounts = new Map<string, number>();
+  for (const s of operational) opCounts.set(s.detectorName, (opCounts.get(s.detectorName) ?? 0) + 1);
+  const opSummary = Array.from(opCounts.entries())
+    .map(([name, count]) => ({ group: displayFor(name).group, count }))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold text-neutral-100">Briefing</h1>
-      <p className="text-sm text-neutral-400 -mt-4">A plain-English read on the platform, and anything worth a look.</p>
+      <div>
+        <h1 className="text-2xl font-semibold text-neutral-100">Briefing</h1>
+        <p className="text-sm text-neutral-400 mt-1">A plain-English read on the platform, and the few things that need your call.</p>
+      </div>
 
-      {/* AI Briefs */}
+      {/* AI briefs */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
           Today&rsquo;s briefing
           <InfoTip label="Where the briefing comes from">
             Written each morning from your real weekly numbers plus the open situations below. The daily brief and
@@ -147,18 +126,18 @@ export default async function InsightsPage({
         </div>
       </section>
 
-      {/* Signal feed */}
+      {/* Founder signals */}
       <section>
-        <h2 className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+        <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
           What needs your attention
-          <InfoTip label="How this feed works">
-            Each item is one ongoing situation, not one row per night. It clears itself when the situation resolves.
-            Snooze hides it for a bit; &ldquo;Not useful&rdquo; clears it for good.
+          <InfoTip label="What shows here">
+            Business-level situations only: a number that moved, an agency drifting away, a shift in the funnel. The
+            per-file work (chases, quiet clients, stuck solicitors) lives in Operations, not here.
           </InfoTip>
         </h2>
 
-        {/* Legend + open tally */}
-        <div className="flex items-center gap-2 flex-wrap mb-4">
+        {/* Open tally + dealt-with toggle */}
+        <div className="flex items-center gap-2 flex-wrap mb-5">
           {(["critical", "leak", "opportunity", "info"] as const).map((sev) => (
             <span key={sev} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium ${SEVERITY_BADGE[sev]}`}>
               <span className="tabular-nums font-bold">{openTally[sev] ?? 0}</span>
@@ -166,89 +145,30 @@ export default async function InsightsPage({
               <InfoTip label={`What ${sev} means`}>{SEVERITY_MEANING[sev]}</InfoTip>
             </span>
           ))}
-          <span className="text-[11px] text-neutral-600 inline-flex items-center gap-1">
-            confidence
-            <InfoTip label="What the % means">
-              How sure the detector is. 80%+ is close to a fact; lower means it&rsquo;s a softer inference worth a glance.
-            </InfoTip>
-          </span>
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap mb-5">
-          <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Priority</span>
-          {sevOptions.map((o) => (
-            <a
-              key={o.value}
-              href={sevLink(o.value)}
-              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                (sevFilter ?? "") === o.value
-                  ? "bg-neutral-700 text-white"
-                  : "bg-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700"
-              }`}
-            >
-              {o.label}
-            </a>
-          ))}
           <span className="ml-auto flex items-center gap-3">
-            {snoozedCount > 0 && <span className="text-[11px] text-neutral-600">{snoozedCount} snoozed</span>}
-            <a href={ackToggle()} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+            {sevFilter && (
+              <Link href="/command/insights" className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors">
+                showing {sevFilter} · show all
+              </Link>
+            )}
+            <Link
+              href={showAcked ? "/command/insights" : "/command/insights?ack=1"}
+              className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
+            >
               {showAcked ? "Hide dealt-with" : "Show dealt-with"}
-            </a>
+            </Link>
           </span>
         </div>
 
-        {active.length === 0 ? (
-          <p className="text-sm text-neutral-600">Nothing needs a look right now.</p>
+        {founder.length === 0 ? (
+          <p className="text-sm text-neutral-600">Nothing at your level needs a look right now.</p>
         ) : (
-          <div className="space-y-4">
-            {orderedGroups.map(([detectorName, rows]) => {
-              const d = displayFor(detectorName);
-              return (
-                <div key={detectorName} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-neutral-800 flex items-center gap-2 bg-neutral-900/60">
-                    <p className="text-xs font-semibold text-neutral-200">{d.group}</p>
-                    <span className="text-[11px] text-neutral-500 tabular-nums">· {rows.length}</span>
-                    <InfoTip label={`What ${d.group} means`}>{d.whatItMeans}</InfoTip>
-                    <span className="ml-auto">
-                      <BulkAckButton detectorName={detectorName} count={rows.length} />
-                    </span>
-                  </div>
-                  <div className="divide-y divide-neutral-800">
-                    {rows.map((s) => {
-                      const payload = s.payload as Record<string, unknown>;
-                      const ongoing = daysSince(s.detectedAt);
-                      return (
-                        <div key={s.id} className="px-4 py-3 flex items-start gap-3">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${SEVERITY_BADGE[s.severity]}`}>
-                            {s.severity}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-neutral-200">{d.title(payload)}</p>
-                            <p className="text-[11px] text-neutral-600 mt-0.5 flex items-center gap-2">
-                              <span className={CONF_COLOR(s.confidence)}>{Math.round(s.confidence * 100)}%</span>
-                              <span>·</span>
-                              <span>{ongoing === 0 ? "first seen today" : `ongoing ${ongoing}d`}</span>
-                              {s.occurrences > 1 && <span>· seen {s.occurrences}×</span>}
-                            </p>
-                          </div>
-                          <SignalActions signalId={s.id} href={d.href(payload)} experimentable={d.experimentable} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <SignalGroupList groups={founderGroups} />
         )}
 
-        {/* Dealt with */}
         {showAcked && dealtWith.length > 0 && (
           <div className="mt-6">
-            <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-3">
-              Dealt with · {dealtWith.length}
-            </p>
+            <p className="text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-3">Dealt with · {dealtWith.length}</p>
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden divide-y divide-neutral-800 opacity-60">
               {dealtWith.map((s) => {
                 const d = displayFor(s.detectorName);
@@ -271,6 +191,37 @@ export default async function InsightsPage({
           </div>
         )}
       </section>
+
+      {/* Operational queue — a pointer, not a list. */}
+      {operational.length > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
+            Operational queue
+            <InfoTip label="Why this isn't a list here">
+              These are per-file tasks the team works (chases, quiet clients, stuck solicitor steps, quotes to action).
+              They don&rsquo;t need a founder decision, so they live in Operations rather than cluttering your briefing.
+            </InfoTip>
+          </h2>
+          <Link
+            href="/command/operations?tab=attention"
+            className="block group bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 hover:bg-neutral-800/40 hover:border-neutral-700 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <span className="text-3xl font-bold tabular-nums text-neutral-100">{operational.length}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-neutral-300 font-medium">
+                  situations the team is working
+                  <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors"> ›</span>
+                </p>
+                <p className="text-[11px] text-neutral-500 mt-0.5 truncate">
+                  {opSummary.map((o) => `${o.group} ${o.count}`).join("  ·  ")}
+                </p>
+              </div>
+              <span className="shrink-0 text-neutral-600">→</span>
+            </div>
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

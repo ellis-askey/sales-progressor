@@ -16,6 +16,16 @@ export const SEVERITY_MEANING: Record<string, string> = {
   info: "Context only. No action needed.",
 };
 
+// Shared severity styling + ordering, so every signal surface (Briefing, the
+// Operations Attention queue, the Today feed) renders them identically.
+export const SEVERITY_BADGE: Record<string, string> = {
+  critical:    "bg-red-950 text-red-400 border border-red-900",
+  leak:        "bg-amber-950 text-amber-400 border border-amber-900",
+  opportunity: "bg-emerald-950 text-emerald-400 border border-emerald-900",
+  info:        "bg-neutral-800 text-neutral-400 border border-neutral-800",
+};
+export const SEVERITY_RANK: Record<string, number> = { critical: 0, leak: 1, opportunity: 2, info: 3 };
+
 const str = (p: Payload, k: string): string => (p[k] == null ? "" : String(p[k]));
 const num = (p: Payload, k: string): number => (typeof p[k] === "number" ? (p[k] as number) : Number(p[k]) || 0);
 
@@ -26,6 +36,17 @@ export type SignalDisplay = {
   whatItMeans: string;
   /** Does turning this into an A/B experiment make sense? */
   experimentable: boolean;
+  /**
+   * Who this is for.
+   *  - "founder": a business- or platform-level pattern (a metric moved, an
+   *    agency churning, a funnel shift) — belongs on the Briefing.
+   *  - "operational": a per-file / per-client task someone must work (chase this,
+   *    this client went quiet, this solicitor step is stuck) — belongs in the
+   *    Operations "Attention" queue, NOT the founder Briefing.
+   * Omitted = "founder" (the safe default: surface an unclassified signal to the
+   * founder rather than bury it in an ops queue).
+   */
+  altitude?: "founder" | "operational";
   /** Plain-English one-liner for a single signal. */
   title: (p: Payload) => string;
   /** Deep link to act on it, or null. */
@@ -72,6 +93,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     group: "Revenue at risk",
     whatItMeans: "Money-adjacent: a file that exchanged with no fee recorded (can't invoice), or one ready to exchange but stalled.",
     experimentable: false,
+    altitude: "operational",
     title: (p) =>
       str(p, "kind") === "unbilled_exchange"
         ? `${str(p, "address")}: exchanged ${num(p, "exchangedDaysAgo")}d ago, no fee recorded`
@@ -84,6 +106,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     group: "Client gone quiet",
     whatItMeans: "A buyer or seller who used the portal, then stopped opening it for 14+ days on a live file.",
     experimentable: false,
+    altitude: "operational",
     title: (p) => `${str(p, "clientName")} (${str(p, "role")}) quiet ${num(p, "daysQuiet")}d · ${str(p, "address")}`,
     href: filesHref,
   },
@@ -91,6 +114,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     group: "Chases not landing",
     whatItMeans: "Chases went out on a live file but nothing came back (no reply via link or email) after 7+ days.",
     experimentable: false,
+    altitude: "operational",
     title: (p) => `${str(p, "address")}: ${num(p, "unansweredChases")} chases unanswered (${num(p, "daysSinceLastChase")}d)`,
     href: filesHref,
   },
@@ -98,6 +122,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     group: "Quote inbox aging",
     whatItMeans: "Quote requests sitting as 'pending' in the inbox past 5 days without being actioned.",
     experimentable: false,
+    altitude: "operational",
     title: (p) => `${num(p, "pendingCount")} quotes pending, oldest ${num(p, "oldestDaysWaiting")}d`,
     href: () => "/command/money?tab=quotes",
   },
@@ -105,6 +130,7 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
     group: "Solicitor confirmation stuck",
     whatItMeans: "A solicitor confirmation we've chased to the cap with no response. The step is genuinely stuck.",
     experimentable: false,
+    altitude: "operational",
     title: (p) => `${str(p, "address")}: ${str(p, "step")} (${str(p, "side")}), chased ${num(p, "chaseCount")}x`,
     href: filesHref,
   },
@@ -161,4 +187,10 @@ export const SIGNAL_DISPLAY: Record<string, SignalDisplay> = {
 
 export function displayFor(detectorName: string): SignalDisplay {
   return SIGNAL_DISPLAY[detectorName] ?? { ...GENERIC, group: detectorName.replace(/_/g, " ") };
+}
+
+/** True for per-file / per-client signals that belong in the Operations
+ *  Attention queue rather than the founder Briefing. */
+export function isOperationalDetector(detectorName: string): boolean {
+  return displayFor(detectorName).altitude === "operational";
 }
