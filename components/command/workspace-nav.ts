@@ -8,6 +8,7 @@ import {
   Building2, Rocket,
   MonitorSmartphone,
   Presentation,
+  Briefcase,
 } from "lucide-react";
 
 export interface WorkspaceNavItem {
@@ -57,6 +58,17 @@ export const WORKSPACE_NAV: WorkspaceNavSection[] = [
       { href: "/command/agencies", label: "Agencies & agents", Icon: Users },
       { href: "/command/businesses", label: "Progression companies", Icon: Building2 },
       { href: "/command/trials/boardwalk", label: "Boardwalk trial", Icon: Rocket },
+    ],
+  },
+  {
+    // TSP's own outsourced progression book — the single home for everything
+    // outsourced. Being wound down (docs/active/outsourced-sunset/); kept apart
+    // from the main CC so it never bleeds into the Agents / External Prog views
+    // and can be removed cleanly later. See docs/active/tsp-outsourced-hub/.
+    id: "tsp",
+    label: "TSP",
+    items: [
+      { href: "/command/tsp-outsourced", label: "Outsourced book", Icon: Briefcase },
     ],
   },
   {
