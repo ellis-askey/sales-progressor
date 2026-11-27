@@ -19,13 +19,11 @@ export function ProgressorCard({
   onView,
   onConnect,
   onToggleSave,
-  onWithdraw,
 }: {
   business: ProgressorNetworkBusiness;
   onView: (id: string) => void;
   onConnect: (id: string) => void;
   onToggleSave: (id: string) => void;
-  onWithdraw?: (id: string) => void;
 }) {
   const b = business;
   const tileText = readableOn(b.brandColor);
@@ -133,15 +131,9 @@ export function ProgressorCard({
             <PaperPlaneTilt size={14} weight="bold" /> Request to connect
           </Button>
         ) : b.connectionStatus === "requested" ? (
-          onWithdraw ? (
-            <Button variant="secondary" size="sm" style={{ flex: 1, justifyContent: "center" }} onClick={() => onWithdraw(b.id)}>
-              Withdraw request
-            </Button>
-          ) : (
-            <Button variant="secondary" size="sm" style={{ flex: 1, justifyContent: "center" }} disabled>
-              Request sent
-            </Button>
-          )
+          <Button variant="secondary" size="sm" style={{ flex: 1, justifyContent: "center" }} disabled>
+            Request sent
+          </Button>
         ) : (
           <Button variant="secondary" size="sm" style={{ flex: 1, justifyContent: "center" }} disabled>
             <Check size={14} weight="bold" /> Connected

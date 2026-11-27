@@ -1,30 +1,21 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { CaretDown, Check, Compass } from "@phosphor-icons/react";
 import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { SearchField } from "@/components/ui/SearchField";
 import { SegmentedSwitch } from "@/components/ui/SegmentedSwitch";
-import { useAgentToast } from "@/components/agent/AgentToaster";
 import type { ProgressorNetworkBusiness, ProgressorNetworkTab } from "@/lib/services/progressor-network";
 import { NETWORK_SPECIALISMS } from "@/lib/services/progressor-network";
-import type { ProgressorRelationshipStats, HandoverableSale } from "@/lib/services/progressor-network-relationship";
-import { requestConnectProgressorAction, withdrawNetworkRequestAction } from "@/app/actions/progressor-network";
 import { ProgressorCard } from "./ProgressorCard";
-import { ConnectedProgressorCard } from "./ConnectedProgressorCard";
 import { NetworkValueStrip } from "./NetworkValueStrip";
 import { HowItWorksRail } from "./HowItWorksRail";
-import { ProgressorStorefront } from "./ProgressorStorefront";
-import { NetworkConnectModal } from "./NetworkConnectModal";
-import { AssignSaleModal } from "./AssignSaleModal";
+import { ProgressorProfileDrawer } from "./ProgressorProfileDrawer";
 
 // Client orchestrator for the Progressor Network. Owns tab / search / filter /
-// sort state, the in-page storefront screen, the connect modal and the assign-a-
-// sale modal. Connection state is the server's truth (the real agency->business
-// handshake); after a connect / withdraw / assign we refresh the server data.
-// Saves are in-session only for now (persistence lands in a later phase).
-// See docs/active/progressor-network/SPEC.md.
+// sort state and the profile drawer. Save + connect are optimistic in-session
+// edits against the mock catalogue (persistence + the real handshake land in
+// P1/P2 — see docs/active/progressor-network/SPEC.md).
 
 type SortKey = "match" | "completion-rate" | "fastest" | "most-exchanges" | "team";
 type AvailKey = "all" | "accepting";
@@ -60,40 +51,14 @@ function FilterButton({ open, label }: { open: boolean; label: string }) {
   );
 }
 
-const EMPTY_REL: ProgressorRelationshipStats = { activeSales: 0, exchanged: 0 };
-
-export function ProgressorNetwork({
-  businesses,
-  agencyName,
-  relationships,
-  handoverableSales,
-}: {
-  businesses: ProgressorNetworkBusiness[];
-  agencyName: string;
-  relationships: Record<string, ProgressorRelationshipStats>;
-  handoverableSales: HandoverableSale[];
-}) {
-  const router = useRouter();
-  const { toast } = useAgentToast();
+export function ProgressorNetwork({ businesses }: { businesses: ProgressorNetworkBusiness[] }) {
+  const [items, setItems] = useState(businesses);
   const [tab, setTab] = useState<ProgressorNetworkTab>("discover");
   const [query, setQuery] = useState("");
   const [avail, setAvail] = useState<AvailKey>("all");
   const [specialism, setSpecialism] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("match");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [connectId, setConnectId] = useState<string | null>(null);
-  const [assignId, setAssignId] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const [, startTransition] = useTransition();
-  // Saves aren't persisted yet (lands in a later phase); keep them in-session so
-  // they survive the router.refresh() after a connect/withdraw without remounting.
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(businesses.filter((b) => b.saved).map((b) => b.id)));
-
-  // Server rows are the truth for connection state; saved is layered in-session.
-  const items = useMemo(
-    () => businesses.map((b) => ({ ...b, saved: savedIds.has(b.id) })),
-    [businesses, savedIds],
-  );
 
   const counts = useMemo(
     () => ({
@@ -133,201 +98,130 @@ export function ProgressorNetwork({
   }, [items, tab, query, avail, specialism, sort]);
 
   const toggleSave = (id: string) =>
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  // Opening a modal doesn't disturb the storefront screen (if open), so the modal
-  // overlays it and the page returns to the same place once the action completes.
-  const openConnect = (id: string) => setConnectId(id);
-  const openAssign = (id: string) => setAssignId(id);
-
-  const sendConnect = async (note: string) => {
-    if (!connectId || sending) return;
-    const name = items.find((b) => b.id === connectId)?.name ?? "the business";
-    setSending(true);
-    const res = await requestConnectProgressorAction({ businessId: connectId, message: note.trim() || undefined });
-    setSending(false);
-    if (!res.ok) {
-      toast.error("Couldn't send request", { description: res.error });
-      return;
-    }
-    setConnectId(null);
-    toast.success("Connection request sent", { description: `Waiting for ${name} to accept.` });
-    startTransition(() => router.refresh());
-  };
-
-  const withdraw = async (id: string) => {
-    const biz = businesses.find((b) => b.id === id);
-    if (!biz?.requestId) return;
-    const res = await withdrawNetworkRequestAction({ requestId: biz.requestId });
-    if (!res.ok) {
-      toast.error("Couldn't withdraw request", { description: res.error });
-      return;
-    }
-    toast.info("Request withdrawn");
-    startTransition(() => router.refresh());
-  };
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, saved: !b.saved } : b)));
+  const connect = (id: string) =>
+    setItems((prev) => prev.map((b) => (b.id === id && b.connectionStatus === "none" ? { ...b, connectionStatus: "requested" } : b)));
 
   const active = items.find((b) => b.id === activeId) ?? null;
-  const connectTarget = items.find((b) => b.id === connectId) ?? null;
-  const assignTarget = items.find((b) => b.id === assignId) ?? null;
   const filtersActive = query.trim() !== "" || avail !== "all" || specialism !== "all";
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Best match";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {active ? (
-        <ProgressorStorefront
-          business={active}
-          relationship={relationships[active.id] ?? null}
-          onBack={() => setActiveId(null)}
-          onConnect={(id) => openConnect(id)}
-          onWithdraw={(id) => withdraw(id)}
-          onToggleSave={(id) => toggleSave(id)}
-          onAssign={(id) => openAssign(id)}
+      <div data-bloom>
+        <NetworkValueStrip />
+      </div>
+
+      <div data-bloom>
+        <SegmentedSwitch
+          options={TABS.map((t) => ({ id: t.value, label: t.label, count: counts[t.value] }))}
+          value={tab}
+          onChange={(v) => setTab(v)}
+          ariaLabel="Progressor network views"
         />
-      ) : (
-        <>
-          <div data-bloom>
-            <NetworkValueStrip />
-          </div>
+      </div>
 
-          <div data-bloom>
-            <SegmentedSwitch
-              options={TABS.map((t) => ({ id: t.value, label: t.label, count: counts[t.value] }))}
-              value={tab}
-              onChange={(v) => setTab(v)}
-              ariaLabel="Progressor network views"
-            />
-          </div>
+      <div className={`pn-body${tab === "discover" ? " pn-body--rail" : ""}`}>
+        {tab === "discover" && (
+          <aside data-bloom>
+            <HowItWorksRail />
+          </aside>
+        )}
 
-          <div className={`pn-body${tab === "discover" ? " pn-body--rail" : ""}`}>
-            {tab === "discover" && (
-              <aside data-bloom>
-                <HowItWorksRail />
-              </aside>
-            )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          <div className="pn-controls" data-bloom>
+            <div className="pn-search">
+              <SearchField value={query} onChange={setQuery} placeholder="Search businesses, regions or specialisms…" ariaLabel="Search the network" />
+            </div>
+            <div className="pn-filters">
+              <Popover placement="bottom-start" trigger={(open) => <FilterButton open={open} label={`Availability: ${avail === "all" ? "Any" : "Accepting"}`} />}>
+                {(close) =>
+                  AVAIL.map((a) => (
+                    <PopoverMenuItem
+                      key={a.key}
+                      icon={a.key === avail ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
+                      onClick={() => {
+                        setAvail(a.key);
+                        close();
+                      }}
+                    >
+                      {a.label}
+                    </PopoverMenuItem>
+                  ))
+                }
+              </Popover>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-              <div className="pn-controls" data-bloom>
-                <div className="pn-search">
-                  <SearchField value={query} onChange={setQuery} placeholder="Search businesses, regions or specialisms…" ariaLabel="Search the network" />
-                </div>
-                <div className="pn-filters">
-                  <Popover placement="bottom-start" trigger={(open) => <FilterButton open={open} label={`Availability: ${avail === "all" ? "Any" : "Accepting"}`} />}>
-                    {(close) =>
-                      AVAIL.map((a) => (
-                        <PopoverMenuItem
-                          key={a.key}
-                          icon={a.key === avail ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
-                          onClick={() => {
-                            setAvail(a.key);
-                            close();
-                          }}
-                        >
-                          {a.label}
-                        </PopoverMenuItem>
-                      ))
-                    }
-                  </Popover>
+              <Popover placement="bottom-start" trigger={(open) => <FilterButton open={open} label={`Specialism: ${specialism === "all" ? "Any" : specialism}`} />}>
+                {(close) => (
+                  <>
+                    <PopoverMenuItem
+                      icon={specialism === "all" ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
+                      onClick={() => {
+                        setSpecialism("all");
+                        close();
+                      }}
+                    >
+                      Any specialism
+                    </PopoverMenuItem>
+                    {NETWORK_SPECIALISMS.map((s) => (
+                      <PopoverMenuItem
+                        key={s}
+                        icon={s === specialism ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
+                        onClick={() => {
+                          setSpecialism(s);
+                          close();
+                        }}
+                      >
+                        {s}
+                      </PopoverMenuItem>
+                    ))}
+                  </>
+                )}
+              </Popover>
 
-                  <Popover placement="bottom-start" trigger={(open) => <FilterButton open={open} label={`Specialism: ${specialism === "all" ? "Any" : specialism}`} />}>
-                    {(close) => (
-                      <>
-                        <PopoverMenuItem
-                          icon={specialism === "all" ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
-                          onClick={() => {
-                            setSpecialism("all");
-                            close();
-                          }}
-                        >
-                          Any specialism
-                        </PopoverMenuItem>
-                        {NETWORK_SPECIALISMS.map((s) => (
-                          <PopoverMenuItem
-                            key={s}
-                            icon={s === specialism ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
-                            onClick={() => {
-                              setSpecialism(s);
-                              close();
-                            }}
-                          >
-                            {s}
-                          </PopoverMenuItem>
-                        ))}
-                      </>
-                    )}
-                  </Popover>
-
-                  <Popover placement="bottom-end" trigger={(open) => <FilterButton open={open} label={`Sort: ${sortLabel}`} />}>
-                    {(close) =>
-                      SORTS.map((s) => (
-                        <PopoverMenuItem
-                          key={s.key}
-                          icon={s.key === sort ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
-                          onClick={() => {
-                            setSort(s.key);
-                            close();
-                          }}
-                        >
-                          {s.label}
-                        </PopoverMenuItem>
-                      ))
-                    }
-                  </Popover>
-                </div>
-              </div>
-
-              {visible.length === 0 ? (
-                <EmptyState tab={tab} filtersActive={filtersActive} />
-              ) : (
-                <div className="pn-grid">
-                  {visible.map((b) =>
-                    tab === "my-progressors" ? (
-                      <ConnectedProgressorCard
-                        key={b.id}
-                        business={b}
-                        relationship={relationships[b.id] ?? EMPTY_REL}
-                        onView={(id) => setActiveId(id)}
-                        onAssign={(id) => openAssign(id)}
-                      />
-                    ) : (
-                      <ProgressorCard
-                        key={b.id}
-                        business={b}
-                        onView={(id) => setActiveId(id)}
-                        onConnect={(id) => openConnect(id)}
-                        onToggleSave={(id) => toggleSave(id)}
-                        onWithdraw={(id) => withdraw(id)}
-                      />
-                    ),
-                  )}
-                </div>
-              )}
+              <Popover placement="bottom-end" trigger={(open) => <FilterButton open={open} label={`Sort: ${sortLabel}`} />}>
+                {(close) =>
+                  SORTS.map((s) => (
+                    <PopoverMenuItem
+                      key={s.key}
+                      icon={s.key === sort ? <Check size={15} weight="bold" /> : <span style={{ display: "inline-block", width: 15 }} />}
+                      onClick={() => {
+                        setSort(s.key);
+                        close();
+                      }}
+                    >
+                      {s.label}
+                    </PopoverMenuItem>
+                  ))
+                }
+              </Popover>
             </div>
           </div>
-        </>
-      )}
 
-      <NetworkConnectModal
-        open={connectId != null}
-        onClose={() => setConnectId(null)}
-        onSend={sendConnect}
-        agencyName={agencyName}
-        progressorName={connectTarget?.name ?? ""}
-        sending={sending}
-      />
+          {visible.length === 0 ? (
+            <EmptyState tab={tab} filtersActive={filtersActive} />
+          ) : (
+            <div className="pn-grid">
+              {visible.map((b) => (
+                <ProgressorCard
+                  key={b.id}
+                  business={b}
+                  onView={(id) => setActiveId(id)}
+                  onConnect={(id) => connect(id)}
+                  onToggleSave={(id) => toggleSave(id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-      <AssignSaleModal
-        open={assignId != null}
-        onClose={() => setAssignId(null)}
-        businessId={assignId ?? ""}
-        businessName={assignTarget?.name ?? ""}
-        sales={handoverableSales}
+      <ProgressorProfileDrawer
+        business={active}
+        open={active != null}
+        onClose={() => setActiveId(null)}
+        onConnect={(id) => connect(id)}
+        onToggleSave={(id) => toggleSave(id)}
       />
 
       <style>{`

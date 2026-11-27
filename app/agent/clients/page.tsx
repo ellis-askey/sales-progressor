@@ -8,7 +8,7 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { progressionBusinessesEnabled } from "@/lib/progression/flags";
-import { resolveBusinessOwner, getClientsOverview, listOutgoingConnectionRequests, listIncomingNetworkRequests } from "@/lib/services/progression-clients";
+import { resolveBusinessOwner, getClientsOverview, listOutgoingConnectionRequests } from "@/lib/services/progression-clients";
 import { ClientsEmptyState } from "@/components/progression/ClientsEmptyState";
 import { ClientsWorkspace } from "@/components/progression/ClientsWorkspace";
 
@@ -19,17 +19,16 @@ export default async function AgentClientsPage() {
   const owner = await resolveBusinessOwner(session);
   if (!owner) notFound();
 
-  const [data, pendingRequests, incomingRequests] = await Promise.all([
+  const [data, pendingRequests] = await Promise.all([
     getClientsOverview(owner.businessId),
     listOutgoingConnectionRequests(owner.businessId),
-    listIncomingNetworkRequests(owner.businessId),
   ]);
 
   return (
     <div className="px-5 md:px-10 pt-6 md:pt-10 pb-12" style={{ width: "100%" }}>
       {data.clients.length === 0
-        ? <ClientsEmptyState pendingRequests={pendingRequests} incomingRequests={incomingRequests} />
-        : <ClientsWorkspace data={data} pendingRequests={pendingRequests} incomingRequests={incomingRequests} />}
+        ? <ClientsEmptyState pendingRequests={pendingRequests} />
+        : <ClientsWorkspace data={data} pendingRequests={pendingRequests} />}
     </div>
   );
 }

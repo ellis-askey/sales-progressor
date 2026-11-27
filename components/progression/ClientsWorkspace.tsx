@@ -18,13 +18,12 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SheetBandHeader, SHEET_BAND_STYLE } from "@/components/ui/SheetHeader";
 import { fmtCurrencyPence } from "@/lib/utils";
-import type { ClientsOverview, ClientOverviewRow, OutgoingConnectionRequest, IncomingNetworkRequest } from "@/lib/services/progression-clients";
+import type { ClientsOverview, ClientOverviewRow, OutgoingConnectionRequest } from "@/lib/services/progression-clients";
 import { updateBusinessShortNameAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
 import { AgencyMeshMark } from "./AgencyMeshMark";
 import { useAddClientForm } from "./useAddClientForm";
 import { useConnectAgencyForm } from "./useConnectAgencyForm";
 import { SentRequestsList } from "./SentRequestsList";
-import { NetworkRequestInbox } from "./NetworkRequestInbox";
 
 // Compact money for the totals bar (matches CompletionsMomentum): £1.2M / £45k / £0.
 function fmtCompact(pence: number): string {
@@ -70,7 +69,7 @@ function RemovedRow({ c }: { c: ClientOverviewRow }) {
   );
 }
 
-export function ClientsWorkspace({ data, pendingRequests = [], incomingRequests = [] }: { data: ClientsOverview; pendingRequests?: OutgoingConnectionRequest[]; incomingRequests?: IncomingNetworkRequest[] }) {
+export function ClientsWorkspace({ data, pendingRequests = [] }: { data: ClientsOverview; pendingRequests?: OutgoingConnectionRequest[] }) {
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { business, totals, clients } = data;
@@ -135,17 +134,11 @@ export function ClientsWorkspace({ data, pendingRequests = [], incomingRequests 
         </div>
       </SectionReveal>
 
-      {incomingRequests.length > 0 && (
-        <SectionReveal order={1}>
-          <NetworkRequestInbox requests={incomingRequests} />
-        </SectionReveal>
-      )}
-
-      <SectionReveal order={2}>
+      <SectionReveal order={1}>
         <StatCards cards={cells} ariaLabel="Clients totals" />
       </SectionReveal>
 
-      <SectionReveal order={3}>
+      <SectionReveal order={2}>
         <p className="cw-label">Your agencies</p>
         <div className="cw-rows">
           {activeClients.map((c) => (
