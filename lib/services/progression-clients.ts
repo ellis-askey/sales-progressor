@@ -132,7 +132,7 @@ export async function resolveBusinessMember(session: Session): Promise<BusinessM
 // and can no longer be accepted (the agency asks the business for a fresh one).
 // Keeps the handshake from leaving indefinitely-actionable rows lying around.
 const CONNECT_REQUEST_TTL_DAYS = 30;
-function connectRequestCutoff(): Date {
+export function connectRequestCutoff(): Date {
   return new Date(Date.now() - CONNECT_REQUEST_TTL_DAYS * 86400000);
 }
 
@@ -185,7 +185,7 @@ export type IncomingConnectionRequest = { id: string; businessId: string; busine
 /** Pending requests awaiting THIS agency director's response (for the hub card). */
 export async function listIncomingConnectionRequests(agencyId: string): Promise<IncomingConnectionRequest[]> {
   const reqs = await prisma.progressionConnectionRequest.findMany({
-    where: { agencyId, status: "pending", createdAt: { gte: connectRequestCutoff() } },
+    where: { agencyId, initiatedBy: "business", status: "pending", createdAt: { gte: connectRequestCutoff() } },
     orderBy: { createdAt: "asc" },
     select: { id: true, feeModel: true, createdAt: true, progressionBusiness: { select: { id: true, name: true } } },
   });
@@ -197,7 +197,7 @@ export type OutgoingConnectionRequest = { id: string; agencyId: string; agencyNa
 /** Pending requests a business has sent (shown as "request sent" in Clients). */
 export async function listOutgoingConnectionRequests(businessId: string): Promise<OutgoingConnectionRequest[]> {
   const reqs = await prisma.progressionConnectionRequest.findMany({
-    where: { progressionBusinessId: businessId, status: "pending", createdAt: { gte: connectRequestCutoff() } },
+    where: { progressionBusinessId: businessId, initiatedBy: "business", status: "pending", createdAt: { gte: connectRequestCutoff() } },
     orderBy: { createdAt: "asc" },
     select: { id: true, createdAt: true, agency: { select: { id: true, name: true } } },
   });
@@ -210,9 +210,9 @@ export type WithdrawResult = { ok: true } | { ok: false; error: string };
 export async function withdrawConnectionRequest(input: { requestId: string; businessId: string }): Promise<WithdrawResult> {
   const req = await prisma.progressionConnectionRequest.findUnique({
     where: { id: input.requestId },
-    select: { progressionBusinessId: true, status: true },
+    select: { progressionBusinessId: true, initiatedBy: true, status: true },
   });
-  if (!req || req.progressionBusinessId !== input.businessId) return { ok: false, error: "Request not found." };
+  if (!req || req.initiatedBy !== "business" || req.progressionBusinessId !== input.businessId) return { ok: false, error: "Request not found." };
   if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
   await prisma.progressionConnectionRequest.delete({ where: { id: input.requestId } });
   return { ok: true };
@@ -224,9 +224,9 @@ export type RespondResult = { ok: true; accepted: boolean; businessName: string 
 export async function respondToConnectionRequest(input: { requestId: string; accept: boolean; userId: string; userAgencyId: string | null }): Promise<RespondResult> {
   const req = await prisma.progressionConnectionRequest.findUnique({
     where: { id: input.requestId },
-    select: { id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, feeModel: true, progressionBusiness: { select: { name: true } } },
+    select: { id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, initiatedBy: true, feeModel: true, progressionBusiness: { select: { name: true } } },
   });
-  if (!req) return { ok: false, error: "Request not found." };
+  if (!req || req.initiatedBy !== "business") return { ok: false, error: "Request not found." };
   if (!input.userAgencyId || req.agencyId !== input.userAgencyId) return { ok: false, error: "This request isn't for your agency." };
   if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
   if (req.createdAt < connectRequestCutoff()) return { ok: false, error: "This request has expired. Ask them to send a new one." };
@@ -250,6 +250,120 @@ export async function respondToConnectionRequest(input: { requestId: string; acc
     });
   }
   return { ok: true, accepted: input.accept, businessName: req.progressionBusiness.name };
+}
+
+// ─── Network connect (agency → business, the Progressor Network) ──────────────
+// The REVERSE of the handshake above: an AGENCY requests a network-listed business
+// it found in the marketplace; the business OWNER accepts. On accept the same
+// ProgressionBusinessClient link is created, flagged source "network" for
+// attribution. Access stays per-file via progressionBusinessId — the link is
+// management only. initiatedBy keeps this flow separate from the business→agency
+// one above (which is pinned to initiatedBy "business").
+
+export type AgencyRequester = { userId: string; agencyId: string };
+export type NetworkRequestResult = { ok: true; businessName: string } | { ok: false; error: string };
+
+/** An agency requests to connect with a network-listed progression business. */
+export async function requestConnectProgressor(input: { requester: AgencyRequester; businessId: string; message?: string | null }): Promise<NetworkRequestResult> {
+  const biz = await prisma.progressionBusiness.findUnique({
+    where: { id: input.businessId },
+    select: { id: true, name: true, isTsp: true, networkListed: true },
+  });
+  if (!biz || biz.isTsp || !biz.networkListed) return { ok: false, error: "That business isn't available to connect with." };
+
+  const existingLink = await prisma.progressionBusinessClient.findUnique({
+    where: { progressionBusinessId_agencyId: { progressionBusinessId: biz.id, agencyId: input.requester.agencyId } },
+    select: { removedAt: true },
+  });
+  if (existingLink && !existingLink.removedAt) return { ok: false, error: `You're already connected with ${biz.name}.` };
+
+  const pending = await prisma.progressionConnectionRequest.findFirst({
+    where: { progressionBusinessId: biz.id, agencyId: input.requester.agencyId, initiatedBy: "agency", status: "pending", createdAt: { gte: connectRequestCutoff() } },
+    select: { id: true },
+  });
+  if (pending) return { ok: false, error: `You already have a pending request to ${biz.name}.` };
+
+  const message = (input.message ?? "").trim().slice(0, 1000);
+  await prisma.progressionConnectionRequest.create({
+    data: {
+      progressionBusinessId: biz.id,
+      agencyId: input.requester.agencyId,
+      requestedByUserId: input.requester.userId,
+      initiatedBy: "agency",
+      ...(message ? { message } : {}),
+    },
+  });
+  return { ok: true, businessName: biz.name };
+}
+
+export type OutgoingNetworkRequest = { id: string; businessId: string; businessName: string; createdAt: Date };
+
+/** An agency's pending network requests — its Introductions / "request sent" rows. */
+export async function listOutgoingNetworkRequests(agencyId: string): Promise<OutgoingNetworkRequest[]> {
+  const reqs = await prisma.progressionConnectionRequest.findMany({
+    where: { agencyId, initiatedBy: "agency", status: "pending", createdAt: { gte: connectRequestCutoff() } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, createdAt: true, progressionBusiness: { select: { id: true, name: true } } },
+  });
+  return reqs.map((r) => ({ id: r.id, businessId: r.progressionBusiness.id, businessName: r.progressionBusiness.name, createdAt: r.createdAt }));
+}
+
+export type IncomingNetworkRequest = { id: string; agencyId: string; agencyName: string; message: string | null; createdAt: Date };
+
+/** Network requests awaiting THIS business owner's response — their inbox. */
+export async function listIncomingNetworkRequests(businessId: string): Promise<IncomingNetworkRequest[]> {
+  const reqs = await prisma.progressionConnectionRequest.findMany({
+    where: { progressionBusinessId: businessId, initiatedBy: "agency", status: "pending", createdAt: { gte: connectRequestCutoff() } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, message: true, createdAt: true, agency: { select: { id: true, name: true } } },
+  });
+  return reqs.map((r) => ({ id: r.id, agencyId: r.agency.id, agencyName: r.agency.name, message: r.message, createdAt: r.createdAt }));
+}
+
+/** An agency withdraws its own pending network request. */
+export async function withdrawNetworkRequest(input: { requestId: string; agencyId: string }): Promise<WithdrawResult> {
+  const req = await prisma.progressionConnectionRequest.findUnique({
+    where: { id: input.requestId },
+    select: { agencyId: true, initiatedBy: true, status: true },
+  });
+  if (!req || req.initiatedBy !== "agency" || req.agencyId !== input.agencyId) return { ok: false, error: "Request not found." };
+  if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
+  await prisma.progressionConnectionRequest.delete({ where: { id: input.requestId } });
+  return { ok: true };
+}
+
+export type NetworkRespondResult = { ok: true; accepted: boolean; agencyName: string } | { ok: false; error: string };
+
+/** The business owner accepts/declines a network request. Accept links the agency (source "network"). */
+export async function respondToNetworkRequest(input: { requestId: string; accept: boolean; owner: BusinessOwner }): Promise<NetworkRespondResult> {
+  const req = await prisma.progressionConnectionRequest.findUnique({
+    where: { id: input.requestId },
+    select: { id: true, status: true, createdAt: true, agencyId: true, progressionBusinessId: true, initiatedBy: true, agency: { select: { name: true } } },
+  });
+  if (!req || req.initiatedBy !== "agency") return { ok: false, error: "Request not found." };
+  if (req.progressionBusinessId !== input.owner.businessId) return { ok: false, error: "This request isn't for your business." };
+  if (req.status !== "pending") return { ok: false, error: "This request has already been handled." };
+  if (req.createdAt < connectRequestCutoff()) return { ok: false, error: "This request has expired. Ask them to send a new one." };
+
+  if (input.accept) {
+    await prisma.$transaction(async (tx) => {
+      await tx.progressionBusinessClient.upsert({
+        where: { progressionBusinessId_agencyId: { progressionBusinessId: req.progressionBusinessId, agencyId: req.agencyId } },
+        create: { progressionBusinessId: req.progressionBusinessId, agencyId: req.agencyId, source: "network" },
+        update: { removedAt: null, source: "network" },
+      });
+      await tx.progressionConnectionRequest.update({
+        where: { id: req.id },
+        data: { status: "accepted", respondedAt: new Date(), respondedByUserId: input.owner.userId },
+      });
+    });
+  } else {
+    await prisma.progressionConnectionRequest.update({
+      where: { id: req.id },
+      data: { status: "declined", respondedAt: new Date(), respondedByUserId: input.owner.userId },
+    });
+  }
+  return { ok: true, accepted: input.accept, agencyName: req.agency.name };
 }
 
 /**

@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { useAddClientForm } from "./useAddClientForm";
 import { useConnectAgencyForm } from "./useConnectAgencyForm";
 import { SentRequestsList } from "./SentRequestsList";
-import type { OutgoingConnectionRequest } from "@/lib/services/progression-clients";
+import { NetworkRequestInbox } from "./NetworkRequestInbox";
+import type { OutgoingConnectionRequest, IncomingNetworkRequest } from "@/lib/services/progression-clients";
 
 // useLayoutEffect on the client, useEffect on the server — avoids React's SSR
 // warning while keeping the pre-paint height measurement that prevents a flash.
@@ -28,7 +29,7 @@ const ROSTER: { name: string; agency: string; sales: number; img: string }[] = [
   { name: "Daniel Carter", agency: "Maple & Co", sales: 9, img: "/clients-preview/maple.png" },
 ];
 
-export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: OutgoingConnectionRequest[] }) {
+export function ClientsEmptyState({ pendingRequests = [], incomingRequests = [] }: { pendingRequests?: OutgoingConnectionRequest[]; incomingRequests?: IncomingNetworkRequest[] }) {
   const [mode, setMode] = useState<"new" | "connect">("new");
   const f = useAddClientForm();
   const c = useConnectAgencyForm();
@@ -59,7 +60,13 @@ export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: 
   }, [mode, animating]);
 
   return (
-    <div className={"cwg" + (pendingRequests.length > 0 ? " has-pending" : "")}>
+    <>
+      {incomingRequests.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <NetworkRequestInbox requests={incomingRequests} />
+        </div>
+      )}
+      <div className={"cwg" + (pendingRequests.length > 0 ? " has-pending" : "")}>
       <div className="cwg-blob cwg-blob-1" aria-hidden />
       <div className="cwg-blob cwg-blob-2" aria-hidden />
 
@@ -307,6 +314,7 @@ export function ClientsEmptyState({ pendingRequests = [] }: { pendingRequests?: 
           .cwg-rcard, .cwg-seg-pill, .cwg-animh { transition: none; }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }
