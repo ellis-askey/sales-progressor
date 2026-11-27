@@ -6,6 +6,8 @@
 // shell + this — nothing else fetches until another tab is clicked.
 
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { loadFilePageContext } from "@/lib/services/file-page-context";
 import { OverviewPanel } from "@/components/transaction/OverviewPanel";
 import { EnquiryTrackerSection } from "@/components/transaction/EnquiryTrackerSection";
@@ -41,6 +43,15 @@ export default async function AgentTransactionOverviewPage({
   const ctx = await loadFilePageContext(id);
   const { session, transaction, isInternalStaff, isDirectorRole, isEllis } = ctx;
 
+  // Current user's avatar for optimistic note rows — so a just-added note shows
+  // their photo immediately (with the avatar's shimmer) rather than the SVG
+  // fallback until refresh. Superadmins are masked to "the team" with no photo
+  // server-side (comms.ts resolveCommActor), so mirror that: no photo here.
+  const me = session.user.role === "superadmin"
+    ? null
+    : await prisma.user.findUnique({ where: { id: session.user.id }, select: { image: true } }).catch(() => null);
+  const currentUserImage = getAvatarPublicUrl(me?.image);
+
   return (
     <TabEnter stage>
       <OverviewPanel
@@ -52,6 +63,7 @@ export default async function AgentTransactionOverviewPage({
         currentUserId={session.user.id}
         currentUserRole={session.user.role}
         currentUserName={session.user.name ?? ""}
+        currentUserImage={currentUserImage}
         recommendedFirms={null}
         isEllis={isEllis}
         viewerIsExternalProgressor={session.user.role === "sales_progressor" && !!session.user.progressionBusinessId}

@@ -119,7 +119,7 @@ function groupRows(rows: CheckInRow[]): CheckInGroup[] {
   return [...map.values()];
 }
 
-export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole }: { rows: CheckInRow[]; currentUserId: string; currentUserRole?: string | null }) {
+export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole, currentUserImage = null }: { rows: CheckInRow[]; currentUserId: string; currentUserRole?: string | null; currentUserImage?: string | null }) {
   const { toast } = useAgentToast();
   const [rows, setRows] = useState<CheckInRow[]>(() => sortRows(initialRows));
   // Re-seed when the server rows change — a search-filter change, or a
@@ -242,7 +242,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   ...r,
                   steps: res.steps,
                   ...(res.entry
-                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: currentUserImage, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: currentUserImage, authorRole: null }, ...r.history] }
                     : {}),
                 }
               : r,
@@ -282,7 +282,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   ...r,
                   steps: res.steps,
                   ...(res.entry
-                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: currentUserImage, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: currentUserImage, authorRole: null }, ...r.history] }
                     : {}),
                 }
               : r,
@@ -321,7 +321,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
                   ...r,
                   steps: res.steps,
                   ...(res.entry
-                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
+                    ? { lastUpdateAt: res.entry.at, lastUpdateBody: res.entry.body, lastUpdateAuthorName: res.entry.authorName, lastUpdateAuthorImage: currentUserImage, lastUpdateAuthorRole: null, history: [{ at: res.entry.at, body: res.entry.body, authorName: res.entry.authorName, authorImage: currentUserImage, authorRole: null }, ...r.history] }
                     : {}),
                 }
               : r,
@@ -359,7 +359,7 @@ export function CheckInsList({ rows: initialRows, currentUserId, currentUserRole
           sortRows(
             cur.map((r) =>
               r.linkId === row.linkId
-                ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body, lastUpdateAuthorName: entry.authorName, lastUpdateAuthorImage: null, lastUpdateAuthorRole: null, history: [{ at: entry.createdAt, body: entry.body, authorName: entry.authorName, authorImage: null, authorRole: null }, ...r.history] }
+                ? { ...r, lastUpdateAt: entry.createdAt, lastUpdateBody: entry.body, lastUpdateAuthorName: entry.authorName, lastUpdateAuthorImage: currentUserImage, lastUpdateAuthorRole: null, history: [{ at: entry.createdAt, body: entry.body, authorName: entry.authorName, authorImage: currentUserImage, authorRole: null }, ...r.history] }
                 : r,
             ),
           ),

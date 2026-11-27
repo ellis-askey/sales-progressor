@@ -172,6 +172,7 @@ export function ChainsWorkspace({
   exchangePush,
   currentUserId,
   currentUserRole,
+  currentUserImage = null,
   emptyCta,
 }: {
   chains: ChainsWorkspaceChain[];
@@ -180,6 +181,8 @@ export function ChainsWorkspace({
   exchangePush: ExchangePushSummary[];
   currentUserId: string;
   currentUserRole?: string | null;
+  // Current user's resolved avatar URL, for optimistic check-in rows.
+  currentUserImage?: string | null;
   // Optional CTA on the "No chains yet" state (external progression business only).
   emptyCta?: { label: string; href: string } | null;
 }) {
@@ -567,7 +570,7 @@ export function ChainsWorkspace({
         ) : visibleCheckIns.length === 0 ? (
           <EmptyState title="No matches" description="No sales match your search." />
         ) : (
-          <CheckInsList rows={visibleCheckIns} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+          <CheckInsList rows={visibleCheckIns} currentUserId={currentUserId} currentUserRole={currentUserRole} currentUserImage={currentUserImage} />
         )
       ) : noChainAll.length === 0 ? (
         <EmptyState

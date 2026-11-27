@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getAvatarPublicUrl } from "@/lib/supabase-storage";
 import { requireSession } from "@/lib/session";
 import { getAccessScope } from "@/lib/security/access-scope";
 import { listChainsForScope, listNoChainSalesForScope, listCheckInsForScope } from "@/lib/services/chains";
@@ -67,6 +69,15 @@ export default async function AgentChainsPage() {
     listExchangePushForScope(scope, { id: session.user.id, name: session.user.name ?? null }, ownerUserId),
   ]);
 
+  // Current user's avatar for optimistic check-in rows — so a just-logged update
+  // shows their photo immediately (with the avatar's shimmer) rather than the
+  // fallback until refresh. Chain check-ins aren't superadmin-masked, so the
+  // real photo is used for every role (matches the server's resolved image).
+  const meImage = await prisma.user
+    .findUnique({ where: { id: session.user.id }, select: { image: true } })
+    .catch(() => null);
+  const currentUserImage = getAvatarPublicUrl(meImage?.image);
+
   const subtitle = isAllScope
     ? "Chain positions across the platform, and what needs attention."
     : isProgressor
@@ -101,6 +112,7 @@ export default async function AgentChainsPage() {
           exchangePush={exchangePush}
           currentUserId={session.user.id}
           currentUserRole={session.user.role}
+          currentUserImage={currentUserImage}
           emptyCta={emptyCta}
         />
       </div>
