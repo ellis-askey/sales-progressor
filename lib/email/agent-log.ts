@@ -49,7 +49,10 @@ export type AgentEmailKind =
   | "client_agent_setup"
   // Onboarding email for a progression business's newly-added TEAM member
   // (a progressor colleague): also carries a live set-password link.
-  | "teammate_setup";
+  | "teammate_setup"
+  // A progression business's monthly invoice to one of its client agencies
+  // (billing suite), with the branded PDF attached.
+  | "client_invoice";
 
 // Kinds whose rendered body must not be stored (contains a live secret link).
 const REDACTED_KINDS: ReadonlySet<AgentEmailKind> = new Set<AgentEmailKind>(["password_reset", "client_agent_setup", "teammate_setup"]);
@@ -64,6 +67,7 @@ const FIXED_BUCKET: Partial<Record<AgentEmailKind, AudienceBucket>> = {
   domain_auth: "platform_admin",
   client_agent_setup: "progression_invite",
   teammate_setup: "progression_invite",
+  client_invoice: "external_progression",
   weekly_brief: "free_agency",
   morning_digest: "free_agency",
   retention: "free_agency",

@@ -4414,6 +4414,38 @@ model BusinessEmailTemplate {
   @@index([progressionBusinessId])
 }
 
+// A client invoice a progression business has ISSUED to one of its client
+// agencies (billing suite Phase 2). Current-month drafts are computed live from
+// transactions and NOT persisted; a row is written only when an invoice is
+// sent/issued, snapshotting its figures + a re-renderable PDF input so the
+// ledger and re-downloads are stable even as the underlying sales change.
+// Loose scalar keys (progressionBusinessId / agencyId — no FK relation, per the
+// business-side convention above). One row per business + agency + month.
+model ClientInvoice {
+  id                    String    @id @default(cuid())
+  progressionBusinessId String
+  agencyId              String
+  periodKey             String // "YYYY-MM" (London month the invoice covers)
+  number                String // human reference, e.g. "NOV-2026"
+  status                String    @default("sent") // sent | paid | void (overdue is derived from dueAt)
+  subtotalPence         Int
+  vatPence              Int
+  totalPence            Int
+  lineCount             Int
+  snapshot              Json // the BusinessInvoicePdfInput at issue time (minus logo bytes) + logoPath, for the ledger + re-render
+  recipientEmail        String? // who it was emailed to (the client agency's director)
+  issuedAt              DateTime  @default(now())
+  dueAt                 DateTime?
+  sentAt                DateTime?
+  paidAt                DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([progressionBusinessId, agencyId, periodKey])
+  @@index([progressionBusinessId, status])
+  @@index([progressionBusinessId, agencyId])
+}
+
 // User-authored reusable email templates for the COMPOSER (critique cmwkl7ufj).
 // Distinct from AgencyEmailTemplate above (which edits the fixed AUTOMATED client
 // emails). These are free-form rich-text templates a user drops into a new email.

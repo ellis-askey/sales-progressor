@@ -10,7 +10,7 @@
 // Owner-only; mounted by AccountShell variant="business".
 
 import { usePathname } from "next/navigation";
-import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge, DeviceMobile, Stack } from "@phosphor-icons/react";
+import { Buildings, User, Bell, Lock, CreditCard, UsersThree, EnvelopeSimple, PlugsConnected, Gauge, DeviceMobile, Stack, Receipt } from "@phosphor-icons/react";
 import { AgentNavRail, type NavRailItem } from "@/components/layout/AgentNavRail";
 import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 
@@ -21,6 +21,7 @@ import { SettingsBackLink } from "@/components/agent/SettingsBackLink";
 // business-wide portal default — owner-only, so it stays out of MEMBER_HREFS.
 const ITEMS: NavRailItem[] = [
   { href: "/agent/settings/business", label: "Business", Icon: Buildings },
+  { href: "/agent/settings/invoices", label: "Invoices", Icon: Receipt },
   { href: "/agent/settings/billing", label: "Billing", Icon: CreditCard },
   { href: "/agent/settings/profile", label: "Profile", Icon: User },
   { href: "/agent/team", label: "Team", Icon: UsersThree },

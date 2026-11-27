@@ -11,6 +11,7 @@ import { sendClientAgentSetupEmail, mintClientSetupLink } from "@/lib/emails/cli
 import { sendTeammateSetupEmail } from "@/lib/emails/teammate-invite";
 import { parseFeeModel, type ClientFeeModel } from "@/lib/progression/client-fees";
 import { parseInvoiceDesign } from "@/lib/progression/invoice-design";
+import { sendClientInvoice } from "@/lib/progression/client-invoice-send";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -407,6 +408,56 @@ export async function saveInvoiceDesignAction(raw: unknown): Promise<ActionResul
     data: { invoiceDesign: design as unknown as Prisma.InputJsonValue },
   });
   revalidatePath("/agent/settings/business");
+  return { ok: true };
+}
+
+/**
+ * Issue + email this month's invoice to a client agency, and record it in the
+ * ledger. Owner-of-that-client scoped + flag-gated. Off-Stripe — this sends the
+ * bill; collection stays off-platform.
+ */
+export async function sendClientInvoiceAction(agencyId: string): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await assertOwnerOfClient(session, agencyId);
+  if (!owner) return { ok: false, error: "That isn't one of your clients." };
+
+  const res = await sendClientInvoice(owner.businessId, agencyId, session.user.id);
+  if (!res.ok) {
+    const msg =
+      res.reason === "fee_not_set" ? "Set your fee for this client before sending an invoice."
+      : res.reason === "needs_price" ? `Add a sale price to ${res.addresses.join(", ")} before sending this invoice.`
+      : res.reason === "needs_completion_date" ? `Add a completion date to ${res.addresses.join(", ")} before sending this invoice.`
+      : res.reason === "no_recipient" ? "This client has no director to email yet. Add one first."
+      : res.reason === "send_failed" ? "We couldn't send the email. Try again."
+      : res.reason === "nothing" ? "There are no sales to invoice this client for this month."
+      : "We couldn't find that client.";
+    return { ok: false, error: msg };
+  }
+  revalidatePath("/agent/settings/invoices");
+  revalidatePath(`/agent/clients/${agencyId}`);
+  return { ok: true };
+}
+
+/**
+ * Mark a ledger invoice paid / unpaid. Owner-scoped (the invoice must belong to
+ * the owner's business). Overdue is derived from dueAt, so paid/sent is the only
+ * stored toggle here.
+ */
+export async function setClientInvoicePaidAction(invoiceId: string, paid: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  const inv = await prisma.clientInvoice.findUnique({ where: { id: invoiceId }, select: { progressionBusinessId: true } });
+  if (!inv || inv.progressionBusinessId !== owner.businessId) return { ok: false, error: "Invoice not found." };
+
+  await prisma.clientInvoice.update({
+    where: { id: invoiceId },
+    data: paid ? { status: "paid", paidAt: new Date() } : { status: "sent", paidAt: null },
+  });
+  revalidatePath("/agent/settings/invoices");
   return { ok: true };
 }
 

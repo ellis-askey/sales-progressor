@@ -10,11 +10,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple } from "@/components/icons/ph";
+import { CaretLeft, Clock, CaretRight, ArrowClockwise, CheckCircle, Copy, PencilSimple, Check, X, DownloadSimple, PaperPlaneTilt } from "@/components/icons/ph";
 import { SectionReveal } from "@/components/hub/SectionReveal";
 import { useTabIndicator } from "@/lib/agent/use-tab-indicator";
 import { useAgentToast } from "@/components/agent/AgentToaster";
-import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction, reinstateClientAgencyAction } from "@/app/actions/progression-clients";
+import { resendClientInviteAction, createClientSetupLinkAction, renameClientAgencyAction, removeClientAgencyAction, reinstateClientAgencyAction, sendClientInvoiceAction } from "@/app/actions/progression-clients";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { withFrom } from "@/lib/agent/back-nav";
 import { salePill } from "@/lib/progression/sale-pill";
@@ -68,6 +68,7 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
   const activeIdx = TABS.indexOf(tab);
   const { btnRefs, ind } = useTabIndicator(activeIdx);
   const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -106,6 +107,22 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
       toast.error("We couldn't generate the invoice.");
     } finally {
       setDownloadingInvoice(false);
+    }
+  }
+
+  // Issue + email this month's invoice to the client (and record it in the
+  // ledger). Clear toast on any guard (fee not set, nothing to invoice, etc.).
+  async function sendInvoice() {
+    if (sendingInvoice) return;
+    setSendingInvoice(true);
+    try {
+      const res = await sendClientInvoiceAction(detail.agencyId);
+      if (res.ok) { toast.success("Invoice sent to the client"); router.refresh(); }
+      else toast.error(res.error);
+    } catch {
+      toast.error("We couldn't send the invoice.");
+    } finally {
+      setSendingInvoice(false);
     }
   }
 
@@ -262,6 +279,18 @@ export function AgencyWorkspace({ detail, signature, salesActions, emailStudio =
                   >
                     <DownloadSimple size={14} weight="bold" /> {downloadingInvoice ? "Preparing…" : "Download invoice"}
                   </button>
+                  {!detail.removed && (
+                    <button
+                      type="button"
+                      onClick={sendInvoice}
+                      disabled={sendingInvoice}
+                      className="aw-invoice-link"
+                      title="Email this month's invoice to the client and record it"
+                      style={{ background: "none", cursor: sendingInvoice ? "default" : "pointer", opacity: sendingInvoice ? 0.6 : 1 }}
+                    >
+                      <PaperPlaneTilt size={14} weight="bold" /> {sendingInvoice ? "Sending…" : "Send invoice"}
+                    </button>
+                  )}
                 </div>
               </div>
               {/* A removed client is off the book — no new sales until reinstated.
