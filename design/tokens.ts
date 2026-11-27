@@ -175,6 +175,14 @@ export const motion = {
   modalInShippedEase: 'cubic-bezier(0.25, 0, 0, 1)',    // current 240ms outlier
   easeOut: 'ease-out',
   easeIn:  'ease-in',
+
+  // Frequency-scaled speeds (interaction audit, 2026-11-27). Rule of thumb: the
+  // more often an action is performed, the less it animates. Pair each with the
+  // reduced-motion gate (lib/motion/use-reduced-motion.ts).
+  speedInstant:    0,   // very-frequent (flip immediately, no transition)
+  speedFast:       120, // frequent (quick, purposeful)
+  speedBase:       200, // occasional
+  speedDeliberate: 280, // rare / significant
 } as const;
 
 /* ─── Type scale ───────────────────────────────────────────────────────────── */

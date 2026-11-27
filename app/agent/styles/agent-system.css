@@ -3827,10 +3827,27 @@
     color: var(--agent-text-muted);
     padding: 0;
     flex-shrink: 0;
+    position: relative;
     transition: background  var(--agent-transition-fast),
                 color       var(--agent-transition-fast),
                 transform   var(--agent-transition-fast),
                 box-shadow  var(--agent-transition-fast);
+  }
+  /* Bigger tap target WITHOUT changing the visible circle (interaction audit,
+     2026-11-27, founder-approved). A 40px centred hit area via a pseudo-element,
+     so these small (22/28px) icon buttons are comfortable to hit — especially on
+     touch — while the icon, the circle and the faded hover shade all stay exactly
+     the same size and nothing shifts in layout. Invisible (no paint); clicks on it
+     count as clicks on the button. */
+  .agent-icon-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 40px);
+    height: max(100%, 40px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
   }
   .agent-icon-btn:hover:not(:disabled) {
     background: var(--agent-hover-shade);

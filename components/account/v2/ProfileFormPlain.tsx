@@ -12,6 +12,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { updateProfileAction } from "@/app/actions/profile";
+import { SuccessButton } from "@/components/ui/SuccessButton";
 import { useAgentToast } from "@/components/agent/AgentToaster";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { AccountCard } from "@/components/account/chrome/AccountCard";
@@ -117,8 +118,11 @@ export function ProfileFormPlain({
   const nameTooShort = name.trim().length > 0 && name.trim().length < MIN_NAME;
   const disabledSave = saving || !dirty || name.trim().length < MIN_NAME || !email.trim();
 
-  async function handleSave() {
-    if (name.trim().length < MIN_NAME || !email.trim()) return;
+  // Returns true on success so the Save button can confirm inline (SuccessButton).
+  // The success toast is kept only for the email-change caveat; the ordinary
+  // "saved" confirmation is now the button's own inline tick (interaction audit).
+  async function handleSave(): Promise<boolean> {
+    if (name.trim().length < MIN_NAME || !email.trim()) return false;
     setSaving(true);
     setError("");
     try {
@@ -129,33 +133,32 @@ export function ProfileFormPlain({
         jobTitle: jobTitle.trim(),
         directMobile: directMobile.trim(),
       });
-      toast.success(
-        "Profile updated",
-        emailChanged ? { description: "Sign out and back in for your new email to take effect." } : undefined,
-      );
+      if (emailChanged) {
+        toast.success("Profile updated", { description: "Sign out and back in for your new email to take effect." });
+      }
       if (phone.trim()) {
         window.dispatchEvent(new CustomEvent("sp_onboarding_step", { detail: { hasPhone: true } }));
       }
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
   const saveButton = (cls: string) => (
-    <Button
-      type="button"
+    <SuccessButton
+      run={handleSave}
       variant="primary"
       size="sm"
       className={cls}
-      loading={saving}
       disabled={disabledSave}
-      onClick={handleSave}
       style={coralVars}
     >
       Save changes
-    </Button>
+    </SuccessButton>
   );
 
   return (
