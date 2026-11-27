@@ -17,6 +17,11 @@ import Link from "next/link";
 const PAGE_SIZE = 50;
 const BASE = "/command/operations?tab=messaging&view=messages";
 
+const CHANNEL_LABEL: Record<string, string> = {
+  email: "Email", whatsapp: "WhatsApp", sms: "SMS", in_app: "In-app",
+  linkedin: "LinkedIn", twitter: "X", other: "Other",
+};
+
 export async function MessagesView({
   mode: modeRaw, agency, ch, st, ai, from, to, rec, q, cursor: cursorRaw, pending: pendingRaw,
 }: {
@@ -77,7 +82,8 @@ export async function MessagesView({
   const h24ago = new Date(Date.now() - 86_400_000);
   const todayStr = todayStart.toISOString().slice(0, 10);
 
-  const [totalToday, sentToday, aiToday, awaitingApproval, failed24h] = await Promise.all([
+  const chaseSince = new Date(Date.now() - 30 * 86_400_000);
+  const [totalToday, sentToday, aiToday, awaitingApproval, failed24h, chaseByChannelRaw] = await Promise.all([
     commandDb.outboundMessage.count({ where: { createdAt: { gte: todayStart } } }),
     commandDb.outboundMessage.count({ where: { sentAt: { gte: todayStart } } }),
     commandDb.outboundMessage.count({ where: { wasAiGenerated: true, createdAt: { gte: todayStart } } }),
@@ -85,7 +91,19 @@ export async function MessagesView({
       where: { requiresApproval: true, approvedAt: null, status: { not: "cancelled" } },
     }),
     commandDb.outboundMessage.count({ where: { status: "failed", failedAt: { gte: h24ago } } }),
+    // How chases actually went out, by channel, last 30 days — answers "how are
+    // people chasing?" (the Today page deliberately only shows the total count).
+    commandDb.outboundMessage.groupBy({
+      by: ["channel"],
+      where: { purpose: "chase", sentAt: { gte: chaseSince } },
+      _count: { _all: true },
+    }),
   ]);
+
+  const chaseByChannel = chaseByChannelRaw
+    .map((r) => ({ channel: r.channel, count: r._count._all }))
+    .sort((a, b) => b.count - a.count);
+  const chaseTotal = chaseByChannel.reduce((s, r) => s + r.count, 0);
 
   const rows = await commandDb.outboundMessage.findMany({
     where,
@@ -160,6 +178,34 @@ export async function MessagesView({
           </Link>
         ))}
       </div>
+
+      {/* How chases went out, by channel — last 30 days. The Today page shows the
+          chase total; this is where you see the channel mix behind it. */}
+      {chaseTotal > 0 && (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-neutral-400">How chases went out · last 30 days</p>
+            <span className="text-[11px] text-neutral-600 tabular-nums">{chaseTotal.toLocaleString()} sent</span>
+          </div>
+          <div className="flex gap-5 flex-wrap">
+            {chaseByChannel.map(({ channel, count }) => {
+              const pct = Math.round((count / chaseTotal) * 100);
+              return (
+                <div key={channel} className="min-w-[96px] flex-1 max-w-[180px]">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-lg font-semibold text-white tabular-nums leading-none">{count.toLocaleString()}</span>
+                    <span className="text-[11px] text-neutral-500">{CHANNEL_LABEL[channel] ?? channel}</span>
+                    <span className="ml-auto text-[10px] text-neutral-600 tabular-nums">{pct}%</span>
+                  </div>
+                  <div className="mt-1.5 h-1 rounded-full bg-neutral-800 overflow-hidden">
+                    <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter bar */}
       <OutboundFilters />
