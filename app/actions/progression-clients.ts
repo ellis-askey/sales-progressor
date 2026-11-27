@@ -462,6 +462,24 @@ export async function setClientInvoicePaidAction(invoiceId: string, paid: boolea
 }
 
 /**
+ * Save the invoice schedule: auto-issue monthly on the 1st, and/or a day-before-
+ * completion reminder. Owner-only + flag-gated.
+ */
+export async function updateInvoiceScheduleAction(autoMonthly: boolean, remindDayBefore: boolean): Promise<ActionResult> {
+  if (!progressionBusinessesEnabled()) return { ok: false, error: "This feature isn't enabled yet." };
+  const session = await requireSession();
+  const owner = await resolveBusinessOwner(session);
+  if (!owner) return { ok: false, error: "Only a progression-business owner can change this." };
+
+  await prisma.progressionBusiness.update({
+    where: { id: owner.businessId },
+    data: { invoiceAutoMonthly: autoMonthly, invoiceRemindDayBefore: remindDayBefore },
+  });
+  revalidatePath("/agent/settings/invoices");
+  return { ok: true };
+}
+
+/**
  * Create/reconcile the business's Stripe subscription after a card is captured
  * (C1). Owner-only, and only when the collection switch is on. No-ops safely if
  * Stripe or the subscription prices aren't configured (the helper handles that).

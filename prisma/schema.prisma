@@ -335,6 +335,13 @@ model ProgressionBusiness {
   // existing businesses are unchanged until they design one. TSP's row is unused.
   invoiceDesign   Json?
   invoiceLogoPath String?
+  // Invoice scheduling (billing suite Phase 3). invoiceAutoMonthly = auto-issue
+  // + email each client's prior-month invoice on the 1st (the standing-order
+  // option); off = the owner sends manually. invoiceRemindDayBefore = email the
+  // client a heads-up the day before one of their sales completes. Both default
+  // off so nothing auto-sends until the owner opts in. TSP's row is unused.
+  invoiceAutoMonthly    Boolean @default(false)
+  invoiceRemindDayBefore Boolean @default(false)
 
   // Client-portal display defaults for the files this business progresses. These
   // are the business-wide default a NEW client agency is seeded with at provision
