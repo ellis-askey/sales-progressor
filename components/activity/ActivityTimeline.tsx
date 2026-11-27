@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight, Check, NotePencil, Phone, ChatText, Minus, Megaphone, Globe, WhatsappLogo } from "@phosphor-icons/react";
+import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight, Check, NotePencil, Phone, ChatText, Minus, Megaphone, Globe, WhatsappLogo, Smiley } from "@phosphor-icons/react";
 import { formatTimestamp, ordinal, relativeDate } from "@/lib/utils";
-import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
-import { deleteCommAction, editCommAction, replyToNoteAction } from "@/app/actions/comms";
+import type { ActivityEntry, NoteReply, CommReaction } from "@/lib/services/comms";
+import { deleteCommAction, editCommAction, replyToNoteAction, reactToCommAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ActorAvatar, UserAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -434,6 +434,109 @@ function roleToActorRole(role?: string): ActorRole {
   return "agent";
 }
 
+// The six reactions the picker offers (matches the gallery comment-thread).
+const REACTION_EMOJI = ["👍", "❤️", "🎉", "👀", "🚀", "✅"];
+
+// Emoji reactions on a note or reply — pills that toggle, plus a picker to add
+// one. Optimistic: the local overlay wins until the next server list arrives
+// (revalidate caught up), when it's dropped. Rendered native in agent tokens so
+// it reads identically in light + dark, matching the rest of the Activity feed.
+function NoteReactions({
+  commId, transactionId, reactions, currentUserId,
+}: {
+  commId: string;
+  transactionId: string;
+  reactions: CommReaction[];
+  currentUserId?: string;
+}) {
+  const [overlay, setOverlay] = useState<CommReaction[] | null>(null);
+  const [, startReactTransition] = useTransition();
+  // Reconcile: when the server list changes identity, trust it again.
+  const serverKey = JSON.stringify(reactions);
+  useEffect(() => { setOverlay(null); }, [serverKey]);
+
+  const me = currentUserId ?? "";
+  const list = overlay ?? reactions;
+  const canReact = !!currentUserId && !commId.startsWith("optimistic");
+
+  function toggle(emoji: string) {
+    if (!canReact) return;
+    const current = overlay ?? reactions;
+    const existing = current.find((r) => r.emoji === emoji);
+    const added = !existing?.users.includes(me);
+    const next: CommReaction[] = existing
+      ? current
+          .map((r) => (r.emoji !== emoji ? r : { ...r, users: added ? [...r.users, me] : r.users.filter((u) => u !== me) }))
+          .filter((r) => r.users.length > 0)
+      : [...current, { emoji, users: [me] }];
+    setOverlay(next);
+    startReactTransition(async () => {
+      try {
+        await reactToCommAction({ id: commId, transactionId, emoji });
+      } catch {
+        setOverlay(current);
+      }
+    });
+  }
+
+  if (list.length === 0 && !canReact) return null;
+
+  return (
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {list.map((r) => {
+        const pressed = r.users.includes(me);
+        return (
+          <button
+            key={r.emoji}
+            type="button"
+            className="act-reaction"
+            data-pressed={pressed || undefined}
+            aria-pressed={pressed}
+            onClick={(e) => { e.stopPropagation(); toggle(r.emoji); }}
+          >
+            <span aria-hidden style={{ fontSize: 12.5, lineHeight: 1 }}>{r.emoji}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.users.length}</span>
+          </button>
+        );
+      })}
+      {canReact && (
+        <Popover
+          preset="popover"
+          placement="top-start"
+          trigger={
+            <button type="button" className="act-reaction act-reaction-add" aria-label="Add reaction">
+              <Smiley size={15} weight="regular" />
+            </button>
+          }
+        >
+          {(close) => (
+            <div style={{ display: "flex", gap: 2, padding: 4 }}>
+              {REACTION_EMOJI.map((emoji) => {
+                const pressed = list.find((r) => r.emoji === emoji)?.users.includes(me);
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className="act-reaction-pick"
+                    data-pressed={pressed || undefined}
+                    aria-label={`React with ${emoji}`}
+                    onClick={(e) => { e.stopPropagation(); toggle(emoji); close(); }}
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Popover>
+      )}
+    </div>
+  );
+}
+
 function NoteThread({
   note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole,
 }: {
@@ -511,6 +614,7 @@ function NoteThread({
       wasEdited: false,
       editedAt: null,
       editableByAuthor: true,
+      reactions: [],
     };
     const notify = canNotifyAuthor && notifyAuthor;
     setLocalReplies((prev) => [...prev, placeholder]);
@@ -611,6 +715,7 @@ function NoteThread({
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
                 {content}
               </p>
+              <NoteReactions commId={r.id} transactionId={transactionId} reactions={r.reactions} currentUserId={currentUserId} />
               {/* Own reply: a tidy, always-visible inline action row (arc-style),
                   replacing the old hover pencil/×. Others' replies show none. */}
               {canTouch && (
@@ -650,6 +755,8 @@ function NoteThread({
 
   return (
     <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+      {/* Reactions on the note itself — pills + a picker. */}
+      <NoteReactions commId={note.id} transactionId={transactionId} reactions={note.reactions} currentUserId={currentUserId} />
       {/* Toggle + Reply affordance. Replies expand by default; collapsed shows the
           count and a last-reply hint. */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -833,7 +940,11 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
       if (entry.kind === "milestone") {
         return entry.milestoneName?.toLowerCase().includes(q) || (entry.summaryText?.toLowerCase().includes(q) ?? false);
       }
-      return entry.content?.toLowerCase().includes(q) || entry.contactNames?.some((n) => n.toLowerCase().includes(q));
+      // A match inside a threaded reply surfaces its parent note too, so searching
+      // finds conversations, not just the opening line.
+      return entry.content?.toLowerCase().includes(q)
+        || entry.contactNames?.some((n) => n.toLowerCase().includes(q))
+        || entry.replies.some((r) => r.content.toLowerCase().includes(q));
     }
     return true;
   });
@@ -1391,6 +1502,17 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
         /* On an editable row the hover edit/remove icons share the top-right with
            the date — fade the date out on hover so the two never overlap. */
         .act-card.is-editable:hover .act-meta-date { opacity: 0; }
+        /* Emoji reactions — a pill per emoji (count rolls in tabular-nums), and a
+           quiet Smiley "add" trigger. Pressed = the current user has reacted:
+           coral ring + tint-free surface (never a faded fill). */
+        .act-reaction { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 1px solid var(--agent-border-default); border-radius: 999px; background: var(--agent-surface-elevated); color: var(--agent-text-secondary); font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .14s ease, color .14s ease, background-color .14s ease; }
+        .act-reaction:hover { border-color: var(--agent-coral); color: var(--agent-text-primary); }
+        .act-reaction[data-pressed] { border-color: var(--agent-coral-deep); color: var(--agent-coral-deep); box-shadow: inset 0 0 0 1px var(--agent-coral-deep); }
+        .act-reaction-add { padding: 0 7px; color: var(--agent-text-muted); }
+        .act-reaction-add svg { display: block; }
+        .act-reaction-pick { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; border-radius: 8px; background: none; font-size: 17px; line-height: 1; cursor: pointer; transition: background-color .12s ease, transform .12s ease; }
+        .act-reaction-pick:hover { background: var(--agent-hover-surface, rgba(var(--agent-shadow-rgb), 0.06)); transform: scale(1.12); }
+        .act-reaction-pick[data-pressed] { background: var(--agent-coral-soft, rgba(255,107,74,0.14)); }
         /* Direction B — the actor avatar IS the timeline node, sitting on the rail
            (z-index above it, opaque so it covers the line behind it); a small
            channel badge rides the bottom-right corner. */

@@ -15,6 +15,7 @@ import {
   logPortalLinkCopied,
   importWhatsAppChat,
   undoWhatsAppImport,
+  toggleCommReaction,
   type SenderMapping,
   type ImportMessageInput,
   type ImportResult,
@@ -200,6 +201,17 @@ export async function editCommAction(input: {
     userId: session.user.id,
   });
   revalidateTx(input.transactionId);
+}
+
+// Toggle the current user's emoji reaction on a note or reply (Activity comment
+// thread). Anyone who can access the file can react; the row must be in scope
+// (same scope guard as edit/delete). Returns the next reactions array so the
+// client can reconcile optimistically.
+export async function reactToCommAction(input: { id: string; transactionId: string; emoji: string }) {
+  const session = await requireSession();
+  const reactions = await toggleCommReaction(input.id, input.emoji, session.user.id, getAccessScope(session));
+  revalidateTx(input.transactionId);
+  return reactions;
 }
 
 export async function logCommAction(input: {

@@ -21,6 +21,11 @@ import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import type { ActorRole } from "@/components/ui/Avatar";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
+import { CommentThread, type ThreadComment } from "@/components/activity/comment-thread";
+import { ArcProvider } from "@/components/arc/lib/arc-provider";
+// Arc components get their tokens (--accent, --surface, --border, …) from
+// foundation.css, applied under a .arc-scope wrapper — without it they render bare.
+import "@/components/arc/foundation.css";
 import {
   confirmationSentence,
   hasSolicitorClause,
@@ -197,6 +202,7 @@ function comm(spec: CommSpec, i: number): ActivityEntry {
     actorSubLabel: null,
     replies: [],
     editableByAuthor: true,
+    reactions: [],
     ...spec,
   };
 }
@@ -221,6 +227,7 @@ const reply = (content: string, name: string, role: ActorRole): NoteReply => ({
   wasEdited: false,
   editedAt: null,
   editableByAuthor: false,
+  reactions: [],
 });
 
 const out = (method: CommMethod): Partial<CommEntry> => ({ type: "outbound" as CommType, method });
@@ -239,8 +246,12 @@ const G_NOTE_THREAD: CommSpec[] = [
   {
     content: "Buyer's solicitor raised three enquiries on the title, forwarding to the seller's side now.",
     createdByName: AGENT,
+    reactions: [
+      { emoji: "👍", users: ["dev-user", "u2"] },
+      { emoji: "🎉", users: ["u3"] },
+    ],
     replies: [
-      reply("Thanks, seller's solicitor acknowledged, says replies by early next week.", "Laura Smith", "progressor"),
+      { ...reply("Thanks, seller's solicitor acknowledged, says replies by early next week.", "Laura Smith", "progressor"), reactions: [{ emoji: "❤️", users: ["dev-user"] }] },
       reply("Great, I'll chase if nothing lands by Wednesday.", AGENT, "agent"),
     ],
   },
@@ -343,7 +354,31 @@ const G_BADGES: CommSpec[] = [
   { content: "Posted the signed TR1 to the solicitor.", ...out("post") },
 ];
 
-type Group = { id: string; label: string; desc: string; entries: ActivityEntry[]; portalVisits?: boolean };
+// Prototype: the arc CommentThread we're folding into the timeline's note
+// threads (emoji reactions + Reply / Edit / Delete, author-gated). Seeded,
+// interactive and local-only, so we can refine it before implementing.
+// Sarah has a photo (shows, shimmering while it loads); Ellis has none (role-
+// tinted initials fallback) — so the prototype demonstrates both paths.
+const DEMO_COMMENTS: ThreadComment[] = [
+  {
+    id: "c1",
+    author: { id: "sj", name: "Sarah Jones", image: "https://i.pravatar.cc/96?img=47", role: "progressor" },
+    body: "Looks good to me. The searches are back and nothing's flagged.",
+    createdAt: "2h",
+    reactions: [{ emoji: "👍", users: ["ea"] }],
+    replies: [
+      { id: "c1r1", author: { id: "ea", name: "Ellis Askey", role: "agent" }, body: "Thanks Sarah, I'll confirm the step now.", createdAt: "1h" },
+    ],
+  },
+  {
+    id: "c2",
+    author: { id: "ea", name: "Ellis Askey", role: "agent" },
+    body: "Chasing the management pack from the freeholder, will update here.",
+    createdAt: "40m",
+  },
+];
+
+type Group = { id: string; label: string; desc: string; entries: ActivityEntry[]; portalVisits?: boolean; prototype?: boolean };
 
 const GROUPS: Group[] = [
   { id: "ms-progressor", label: "Step confirmed · by progressor", desc: `"Step confirmed" pill. Sentence from confirmationSentence() with an agent confirmer, progressor avatar. One per milestone code (${MS_CONFIRMED_PROGRESSOR.length}).`, entries: MS_CONFIRMED_PROGRESSOR },
@@ -361,6 +396,7 @@ const GROUPS: Group[] = [
   { id: "badges", label: "Channels & badges", desc: "One row per distinct channel badge, note, solicitor “Update”, system email, portal update, call, SMS, voicemail, letter, portal.", entries: G_BADGES.map(comm) },
   { id: "whatsapp", label: "WhatsApp (inbound + media)", desc: "A text reply and a media (image) message.", entries: G_WHATSAPP.map(comm) },
   { id: "portal-visit", label: "Portal visit", desc: "The “viewed their client portal” row, hidden behind the Portal-visits toggle in production.", entries: G_PORTAL_VISIT.map(comm), portalVisits: true },
+  { id: "comment-thread", label: "Comment thread (prototype)", desc: "The arc CommentThread we're folding into note threads: emoji reactions + Reply / Edit / Delete (Edit/Delete author-only) + @mentions. Fully interactive here (local only) — the reference we'll refine, then implement into the real timeline note.", entries: [], prototype: true },
 ];
 
 export default function TimelineCataloguePage() {
@@ -438,19 +474,31 @@ export default function TimelineCataloguePage() {
       <main style={{ flex: 1, minWidth: 0, padding: "28px 28px 100px", maxWidth: 820 }}>
         <h2 style={{ margin: "0 0 2px", fontSize: 20, fontWeight: 700, color: "var(--agent-text-primary)" }}>{active.label}</h2>
         <p style={{ margin: "0 0 20px", fontSize: 13.5, color: "var(--agent-text-secondary)", lineHeight: 1.5 }}>{active.desc}</p>
-        <ActivityTimeline
-          key={active.id}
-          entries={active.entries}
-          transactionId="dev-timeline-catalogue"
-          hideChrome
-          initialShowPortalVisits={!!active.portalVisits}
-          initialLimit={9999}
-          mosDocUrl="https://example.com/mos.pdf"
-          currentUserId="dev-user"
-          currentUserName={AGENT}
-          currentUserRole="sales_progressor"
-          contacts={[{ id: "c1", name: VENDOR_CONTACT }, { id: "c2", name: PURCHASER_CONTACT }]}
-        />
+        {active.prototype ? (
+          <div className="arc-scope" data-accent="coral" style={{ maxWidth: 480 }}>
+            <ArcProvider>
+              <CommentThread
+                defaultComments={DEMO_COMMENTS}
+                currentUser={{ id: "ea", name: AGENT, role: "agent" }}
+                title="Searches ordered"
+              />
+            </ArcProvider>
+          </div>
+        ) : (
+          <ActivityTimeline
+            key={active.id}
+            entries={active.entries}
+            transactionId="dev-timeline-catalogue"
+            hideChrome
+            initialShowPortalVisits={!!active.portalVisits}
+            initialLimit={9999}
+            mosDocUrl="https://example.com/mos.pdf"
+            currentUserId="dev-user"
+            currentUserName={AGENT}
+            currentUserRole="sales_progressor"
+            contacts={[{ id: "c1", name: VENDOR_CONTACT }, { id: "c2", name: PURCHASER_CONTACT }]}
+          />
+        )}
       </main>
     </div>
   );

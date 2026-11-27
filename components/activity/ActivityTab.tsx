@@ -106,6 +106,7 @@ export function ActivityTab(props: Props) {
         actorSubLabel: null,
         replies: [],
         editableByAuthor: true,
+        reactions: [],
       },
       ...prev,
     ]);

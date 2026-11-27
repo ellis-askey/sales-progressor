@@ -230,6 +230,7 @@ export function ActivityNotesCard({
         actorSubLabel: null,
         replies: [],
         editableByAuthor: true,
+        reactions: [],
       } as ActivityEntry,
       ...prev,
     ]);

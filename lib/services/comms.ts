@@ -50,6 +50,9 @@ export type NoteReply = {
   // internal note, so this is the manual-log rule (isAuthorEditableComm) applied
   // to the reply row; the UI pairs it with the own-only check.
   editableByAuthor: boolean;
+  // Emoji reactions on this reply, aggregated as { emoji, users[] }. Empty when
+  // nobody has reacted. (Activity comment thread.)
+  reactions: CommReaction[];
 };
 
 export type ActivityEntry =
@@ -169,6 +172,9 @@ export type ActivityEntry =
       // with the own-only (createdById) + not-optimistic check before showing
       // the pencil. (Author-edit broadening, 2026-11.)
       editableByAuthor: boolean;
+      // Emoji reactions on this row, aggregated as { emoji, users[] }. Empty when
+      // nobody has reacted. (Activity comment thread.)
+      reactions: CommReaction[];
     };
 
 // ─── Author-edit rule (single source of truth) ─────────────────────────────────
@@ -678,6 +684,7 @@ export async function getActivityTimeline(
       wasEdited: r.wasEdited,
       editedAt: r.editedAt ?? (r.wasEdited ? r.updatedAt : null),
       editableByAuthor: isAuthorEditableComm(r),
+      reactions: parseReactions(r.reactions),
     };
     const arr = repliesByParent.get(r.parentNoteId) ?? [];
     arr.push(reply);
@@ -793,6 +800,8 @@ export async function getActivityTimeline(
     // be edited via editCommAction — always false. Everything else follows the
     // single-source manual-log rule.
     editableByAuthor: !c.id.startsWith("pm_") && isAuthorEditableComm(c),
+    // Emoji reactions (OutboundMessage rows only; portal pm_* rows have none).
+    reactions: parseReactions((c as { reactions?: unknown }).reactions),
     };
   });
 
@@ -1584,6 +1593,44 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope, 
   return prisma.outboundMessage.delete({ where: { id } });
 }
 
+// ─── Emoji reactions (Activity comment thread) ──────────────────────────────────
+export type CommReaction = { emoji: string; users: string[] };
+
+/** Read the stored reactions JSON into a clean, typed array. */
+export function parseReactions(raw: unknown): CommReaction[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (r): r is CommReaction =>
+      !!r && typeof r === "object" && typeof (r as { emoji?: unknown }).emoji === "string" && Array.isArray((r as { users?: unknown }).users),
+  );
+}
+
+/**
+ * Toggle the current user's emoji reaction on a note / reply. Anyone who can
+ * access the file can react; the row must be in scope (same scope `where` as
+ * delete/edit). Returns the next reactions array.
+ */
+export async function toggleCommReaction(id: string, emoji: string, userId: string, scope: AccessScope): Promise<CommReaction[]> {
+  const where =
+    scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
+    scope.kind === "platform" ? { id } :
+    scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
+    scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
+    scope.kind === "demo"     ? { id, transaction: { id: { in: scope.transactionIds }, isDemo: true } } :
+                                { id, transaction: { agencyId: scope.agencyIds[0] } };
+  const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true, reactions: true } });
+  if (!comm) throw new Error("Not found");
+  const current = parseReactions(comm.reactions);
+  const existing = current.find((r) => r.emoji === emoji);
+  const next: CommReaction[] = existing
+    ? current
+        .map((r) => (r.emoji !== emoji ? r : { ...r, users: r.users.includes(userId) ? r.users.filter((u) => u !== userId) : [...r.users, userId] }))
+        .filter((r) => r.users.length > 0)
+    : [...current, { emoji, users: [userId] }];
+  await prisma.outboundMessage.update({ where: { id }, data: { reactions: next } });
+  return next;
+}
+
 export type UpdateCommInput = {
   id: string;
   content: string;
@@ -1750,6 +1797,7 @@ export async function addNoteReply(
     wasEdited: record.wasEdited,
     editedAt: record.editedAt ?? null,
     editableByAuthor: isAuthorEditableComm(record),
+    reactions: [],
   };
 
   // Short, single-line preview of the note being replied to (for the bell/feed

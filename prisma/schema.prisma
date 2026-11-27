@@ -2784,6 +2784,10 @@ model OutboundMessage {
   content              String
   subject              String?
   bodyFormat           String      @default("plain")
+  // Emoji reactions on a note / reply (the Activity comment thread). Shape:
+  // [{ emoji: string, users: string[] }] — users holds the reacting user ids.
+  // Null / empty = no reactions. Toggled by reactToCommAction.
+  reactions            Json?
 
   // The exact rendered email HTML that was sent, kept so the automated-emails
   // detail drawer can show a true-to-inbox preview of solicitor chases (which

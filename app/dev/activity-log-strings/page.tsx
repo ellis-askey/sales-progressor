@@ -57,6 +57,7 @@ function row(spec: Spec, i: number): ActivityEntry {
     actorSubLabel: null,
     replies: [],
     editableByAuthor: true,
+    reactions: [],
     ...spec,
   };
 }

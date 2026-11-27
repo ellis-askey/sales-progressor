@@ -496,6 +496,7 @@ function makeTimelineEmail(over: Partial<TimelineComm> & Pick<TimelineComm, "id"
     actorSubLabel: "Solicitor",
     replies: [],
     editableByAuthor: false,
+    reactions: [],
     ...over,
   };
 }
