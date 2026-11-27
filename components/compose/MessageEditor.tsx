@@ -357,8 +357,9 @@ export function MessageEditor({
                 display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px",
                 fontSize: 12, fontWeight: 650, color: "#fff", border: "1px solid transparent", borderRadius: 8,
                 cursor: refining ? "default" : "pointer", opacity: refining ? 0.7 : 1,
-                background: "linear-gradient(180deg,var(--agent-coral,#FF8A65) 0%,var(--agent-coral-deep,#FF6B4A) 100%)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28),0 1px 4px rgba(var(--agent-coral-rgb),0.26)",
+                // Flat coral primary (the canonical flat button), not the old glossy gradient.
+                background: "var(--agent-coral-deep,#FF6B4A)",
+                boxShadow: "none",
               }}
             >
               {refining ? "Refining…" : "Refine"}
