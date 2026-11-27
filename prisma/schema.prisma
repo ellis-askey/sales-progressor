@@ -354,6 +354,20 @@ model ProgressionBusiness {
   termsAcceptedVersion String?
   termsAcceptedAt      DateTime?
 
+  // Progressor Network marketplace profile (docs/active/progressor-network/SPEC.md).
+  // Additive + nullable/defaulted. The VERIFIED performance stats (exchange rate,
+  // avg time to exchange, 12-month exchanges, team size) are COMPUTED from this
+  // business's transactions (lib/services/progressor-network-stats.ts), never
+  // declared here — these fields are the declared profile only.
+  networkListed       Boolean  @default(false) // listed in the Progressor Network
+  networkTagline      String?                  // strapline under the name
+  networkBlurb        String?                  // 1-2 line pitch on the card
+  networkLogoPath     String?                  // logo URL / path; monogram fallback when null
+  networkBrandColor   String?                  // hex for the brand tile
+  networkRegions      String[] @default([])    // coverage chips (from NETWORK_REGIONS)
+  networkSpecialisms  String[] @default([])    // specialism chips (from NETWORK_SPECIALISMS)
+  networkAvailability String?  @default("accepting") // accepting | limited | closed
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -366,6 +380,7 @@ model ProgressionBusiness {
   chaseRuleOverrides      BusinessChaseRuleOverride[]
 
   @@index([isTsp])
+  @@index([networkListed])
 }
 
 // Client-management link between a progression business and an estate agency

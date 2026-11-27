@@ -381,6 +381,13 @@ Grandfathered scripts do **NOT** need individual entries in this registry. They 
 - **Author/date:** Claude, 2026-09-28.
 - **Deletion criteria:** delete this script + this entry once the referral-ledger demo has been reviewed and the seeded staging file is no longer needed.
 
+### seed-moves-by-wright.ts
+- **Purpose:** seed the first Progressor Network business — Moves by Wright — as a single `ProgressionBusiness` row (`networkListed = true`) with its founder-curated profile (tagline, blurb, logo, Nationwide / Chain management, accepting). Idempotent upsert by stable id `moves-by-wright`. Verified performance stats are computed from transactions at read time, so the card shows the "new to the network" state until it completes sales. Safe against any environment (additive upsert); run on staging first (docs/active/progressor-network/SPEC.md).
+- **Lifetime:** ongoing while Moves by Wright is the curated first listing (re-run to update its profile until business self-serve editing exists).
+- **Author/date:** Claude, 2026-11-27.
+- **Deletion criteria:** delete once businesses self-serve their network profile and Moves by Wright's profile is managed there.
+- **Justification:** founder-curated profile data for the first network business; belongs in a seed until self-serve profile editing exists (mirrors seed-progression-pilot's rationale).
+
 ### seed-progression-tsp.ts
 - **Purpose:** seed progression business #1 (The Sales Progressor, the platform operator) — the single `ProgressionBusiness` row with `isTsp = true`. It is the fallback identity for every transaction whose `progressionBusinessId` is null (docs/active/progression-businesses/, Phase 1; see lib/progression/business.ts). Needed on staging/local because those sync the schema via `prisma db push`, which skips the Phase 1 migration's INSERT; production gets the row from the migration. Idempotent (skips if an `isTsp` row already exists). Safe against any environment.
 - **Lifetime:** ongoing (permanent — the row is required wherever the app runs; the script is the staging/local seeding path and stays alongside the migration).

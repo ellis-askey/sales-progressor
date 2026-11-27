@@ -18,7 +18,7 @@ import { AgentNavRail } from "@/components/layout/AgentNavRail";
 import {
   FolderOpen, CalendarCheck, ChartBar, BellSimple, Envelope,
   Plus, GearSix, Users, Tray, CheckSquare, Buildings, Gauge, List, X, LinkSimple, ChatCircleDots,
-  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake, Sparkle,
+  ClockCounterClockwise, CaretDown, ArrowsClockwise, Moon, CreditCard, Target, Handshake, Sparkle, ShareNetwork,
 } from "@phosphor-icons/react";
 import { AgentBell } from "@/components/layout/AgentBell";
 import { AgentGlobalSearch } from "@/components/layout/AgentGlobalSearch";
@@ -32,6 +32,7 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { FounderProvider } from "@/components/layout/FounderGate";
 import { QuickActionDock } from "@/components/quick-dock/QuickActionDock";
 import { canSeeChains } from "@/lib/chain/chains-access";
+import { isFounderEmail } from "@/lib/security/founder";
 import { useRecentlyViewed } from "@/lib/agent/use-recently-viewed";
 import { useDarkMode } from "@/lib/agent/use-theme";
 import { usePickForCard } from "@/lib/glass/context";
@@ -110,6 +111,9 @@ export function buildNavGroups(role: UserRole, email: string | null | undefined,
       // update this viewer may see (whatsNewVisible). Subtle unread dot.
       ...(whatsNewVisible ? [{ href: "/agent/whats-new", label: "What's new", Icon: Sparkle, dot: whatsNewUnread }] : []),
       { href: "/agent/partners",    label: "Partners",    Icon: Buildings     },
+      // Progressor Network, founder-gated while it's proven out with Boardwalk +
+      // Annalise (see lib/security/founder.ts). Promote to `main` when it opens up.
+      ...(isFounderEmail(email) ? [{ href: "/agent/progressor-network", label: "Progressor Network", Icon: ShareNetwork }] : []),
       // Billing lives in the top-right UserDropdown alongside Settings —
       // it's a "manage your agency" surface, not a daily-use nav item.
       // Negotiators see the same dropdown entry but get a modal explaining
