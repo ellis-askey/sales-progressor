@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getNetworkStatsFor } from "@/lib/services/progressor-network-stats";
+import { connectRequestCutoff } from "@/lib/services/progression-clients";
 
 export type ProgressorNetworkTab =
   | "discover"
@@ -47,10 +48,16 @@ export type ProgressorNetworkBusiness = {
   logoPath?: string | null;
   availability: ProgressorAvailability;
   stats: ProgressorCardStats;
-  /** Coverage + specialism chips. */
+  /** Coverage + specialism chips (regions then specialisms), for the card. */
   tags: string[];
+  /** Coverage regions, on their own (for the storefront Overview). */
+  regions: string[];
+  /** Specialisms, on their own (for the storefront Overview). */
+  specialisms: string[];
   /** The viewing agency's relationship to this business. */
   connectionStatus: ProgressorConnectionStatus;
+  /** Pending network request id when connectionStatus is "requested" (for withdraw). */
+  requestId: string | null;
   /** True when the agency connected to this business via the network (monetization provenance). */
   viaNetwork: boolean;
   /** Whether the viewing agency has saved this business. */
@@ -133,32 +140,53 @@ export async function getProgressorNetwork(
   });
 
   const ids = rows.map((r) => r.id);
-  const [stats, links] = await Promise.all([
+  const [stats, links, pendingRequests] = await Promise.all([
     getNetworkStatsFor(ids),
     agencyId
       ? prisma.progressionBusinessClient.findMany({
           where: { agencyId, progressionBusinessId: { in: ids }, removedAt: null },
-          select: { progressionBusinessId: true },
+          select: { progressionBusinessId: true, source: true },
         })
-      : Promise.resolve([] as { progressionBusinessId: string }[]),
+      : Promise.resolve([] as { progressionBusinessId: string; source: string | null }[]),
+    agencyId
+      ? prisma.progressionConnectionRequest.findMany({
+          where: {
+            agencyId,
+            progressionBusinessId: { in: ids },
+            initiatedBy: "agency",
+            status: "pending",
+            createdAt: { gte: connectRequestCutoff() },
+          },
+          select: { id: true, progressionBusinessId: true },
+        })
+      : Promise.resolve([] as { id: string; progressionBusinessId: string }[]),
   ]);
-  const connected = new Set(links.map((l) => l.progressionBusinessId));
+  const linkByBiz = new Map(links.map((l) => [l.progressionBusinessId, l]));
+  const pendingByBiz = new Map(pendingRequests.map((r) => [r.progressionBusinessId, r.id]));
 
-  const businesses: ProgressorNetworkBusiness[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    kind: r.networkTagline ?? "Independent sales progression business",
-    blurb: r.networkBlurb ?? "",
-    monogram: monogramOf(r.shortName ?? r.name),
-    brandColor: r.networkBrandColor ?? DEFAULT_BRAND_COLOR,
-    logoPath: r.networkLogoPath,
-    availability: normaliseAvailability(r.networkAvailability),
-    stats: stats.get(r.id) ?? EMPTY_STATS,
-    tags: [...r.networkRegions, ...r.networkSpecialisms],
-    connectionStatus: connected.has(r.id) ? "connected" : "none",
-    viaNetwork: false, // provenance flag lands with the P2 connect funnel
-    saved: false, // saved persistence lands in a later phase; in-session only for now
-  }));
+  const businesses: ProgressorNetworkBusiness[] = rows.map((r) => {
+    const link = linkByBiz.get(r.id);
+    const pendingReqId = pendingByBiz.get(r.id) ?? null;
+    const connectionStatus: ProgressorConnectionStatus = link ? "connected" : pendingReqId ? "requested" : "none";
+    return {
+      id: r.id,
+      name: r.name,
+      kind: r.networkTagline ?? "Independent sales progression business",
+      blurb: r.networkBlurb ?? "",
+      monogram: monogramOf(r.shortName ?? r.name),
+      brandColor: r.networkBrandColor ?? DEFAULT_BRAND_COLOR,
+      logoPath: r.networkLogoPath,
+      availability: normaliseAvailability(r.networkAvailability),
+      stats: stats.get(r.id) ?? EMPTY_STATS,
+      tags: [...r.networkRegions, ...r.networkSpecialisms],
+      regions: r.networkRegions,
+      specialisms: r.networkSpecialisms,
+      connectionStatus,
+      requestId: connectionStatus === "requested" ? pendingReqId : null,
+      viaNetwork: link?.source === "network",
+      saved: false, // saved persistence lands in a later phase; in-session only
+    };
+  });
 
   return { businesses };
 }
