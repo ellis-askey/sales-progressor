@@ -7,7 +7,7 @@ import AutoRefresh from "@/components/command/shared/AutoRefresh";
 export const dynamic = "force-dynamic";
 
 function fmtDate(d: Date | null): string {
-  if (!d) return "—";
+  if (!d) return "Not set";
   return new Date(d).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London",
   });
@@ -182,7 +182,7 @@ export default async function TspOutsourcedPage() {
                           {f.address}
                         </Link>
                       </td>
-                      <td className="px-3 py-2.5 text-neutral-400 max-w-[12rem] truncate">{f.agencyName ?? "—"}</td>
+                      <td className="px-3 py-2.5 text-neutral-400 max-w-[12rem] truncate">{f.agencyName ?? "-"}</td>
                       <td className="px-3 py-2.5">
                         {f.progressorName
                           ? <span className="text-neutral-400">{f.progressorName}</span>
