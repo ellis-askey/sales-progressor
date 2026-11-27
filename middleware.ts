@@ -130,8 +130,39 @@ export default withAuth(
     }
     // â”€â”€ End command centre gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // Pass-through response (may carry UTM attribution cookie)
-    const res = NextResponse.next();
+    // ── Founder page-gallery preview (per-request, look-only) ───────────────
+    // The Command-Centre page gallery frames logged-in agent pages as a chosen
+    // sample user. A ?__previewAs=<userId> on the framed request is honoured ONLY
+    // for a real superadmin, and ONLY for this one request: it is forwarded as an
+    // x-sp-preview-as request header that applyViewAs() reads (and re-gates on
+    // superadmin). Nothing persists, so the parent /command session is untouched.
+    // Read-only, like cookie view-as: a mutation carrying the param is blocked.
+    const previewAs = searchParams.get("__previewAs");
+    if (previewAs) {
+      const isSuper = role === "superadmin" || isHybridSuperadmin;
+      if (!isSuper) {
+        // Not a superadmin: the param does nothing. Strip any spoofed header and
+        // continue as the real (non-impersonated) user.
+        const clean = new Headers(req.headers);
+        clean.delete("x-sp-preview-as");
+        return NextResponse.next({ request: { headers: clean } });
+      }
+      if (MUTATION_METHODS.has(req.method)) {
+        return new NextResponse(
+          JSON.stringify({ error: "Preview is read-only." }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      const fwd = new Headers(req.headers);
+      fwd.set("x-sp-preview-as", previewAs);
+      return NextResponse.next({ request: { headers: fwd } });
+    }
+
+    // Pass-through response (may carry UTM attribution cookie). Strip any
+    // client-supplied preview header so only the branch above can set it.
+    const passHeaders = new Headers(req.headers);
+    passHeaders.delete("x-sp-preview-as");
+    const res = NextResponse.next({ request: { headers: passHeaders } });
 
     // Capture UTM params in a 30-day cookie for signup attribution.
     // Read at agency creation time to populate Agency.signup* fields.

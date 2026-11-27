@@ -17,12 +17,18 @@
 //   - Middleware blocks mutation methods whenever the cookie is present, so the
 //     read-only guarantee is enforced at the edge, not just by convention.
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Session } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { hasSuperAdminPowers } from "@/lib/agent-session";
 
 export const VIEW_AS_COOKIE = "sp_view_as";
+// Per-request, look-only variant used by the Command-Centre page gallery. The
+// middleware sets this header from a ?__previewAs=<userId> query param ONLY for a
+// real superadmin, so it never persists and the parent /command session is
+// untouched. We still re-gate on superadmin below. Takes precedence over the
+// cookie when both are present.
+export const VIEW_AS_PREVIEW_HEADER = "x-sp-preview-as";
 // A short leash — the founder is dropping in to look, not living as the agent.
 export const VIEW_AS_MAX_AGE_SECONDS = 60 * 60 * 2; // 2 hours
 
@@ -38,7 +44,10 @@ export const VIEW_AS_MAX_AGE_SECONDS = 60 * 60 * 2; // 2 hours
 export async function applyViewAs(realSession: Session): Promise<Session> {
   if (!hasSuperAdminPowers(realSession)) return realSession;
 
-  const targetId = (await cookies()).get(VIEW_AS_COOKIE)?.value;
+  // Per-request gallery preview (header) wins over a persistent view-as (cookie).
+  const previewId = (await headers()).get(VIEW_AS_PREVIEW_HEADER);
+  const isPreview = !!previewId;
+  const targetId = previewId || (await cookies()).get(VIEW_AS_COOKIE)?.value;
   if (!targetId) return realSession;
 
   const target = await prisma.user.findUnique({
@@ -64,7 +73,11 @@ export async function applyViewAs(realSession: Session): Promise<Session> {
       progressionBusinessId: target.progressionBusinessId ?? null,
       progressionBusinessRole: target.progressionBusinessRole ?? null,
       canViewAllFiles: target.canViewAllFiles ?? false,
-      viewAsOperatorId: realSession.user.id,
+      // Cookie view-as marks the operator so the agent app shows its read-only
+      // banner. The gallery preview is a pixel-faithful frame, so it stays
+      // unmarked (no banner); its read-only guarantee is enforced at the edge by
+      // the middleware param check, not this flag.
+      viewAsOperatorId: isPreview ? null : realSession.user.id,
     },
   };
 }
