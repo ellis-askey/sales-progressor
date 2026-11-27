@@ -1,8 +1,7 @@
 import { commandDb } from "@/lib/command/prisma";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { parseMode, parseAgencies, serviceTypeScope, modeProfileScope } from "@/lib/command/scope";
-import { computeTodayLive } from "@/lib/command/today-live";
+import { parseMode, parseAgencies, businessTxWhere } from "@/lib/command/scope";
 import { getBusinessesPulse, getBusinessNameMap } from "@/lib/command/businesses";
 import { ManagedByTag } from "@/components/command/businesses/ManagedByTag";
 import { londonDateStr } from "@/lib/services/metrics-rollup";
@@ -78,8 +77,20 @@ export default async function OverviewPage({
   const stuckBefore = new Date(now.getTime() - STUCK_DAYS * dayMs);
   const staleBefore = new Date(now.getTime() - STALE_DRAFT_DAYS * dayMs);
 
-  const txScope   = serviceTypeScope(mode, agencyIds);
-  const userScope = modeProfileScope(mode, agencyIds);
+  // The business-type lens as a LIVE-transaction filter. The nightly DailyMetric
+  // rollup can't separate TSP's own outsourced book from external progression
+  // companies (no business dimension), so every figure on this page now reads
+  // live from the base tables with this filter — TSP excluded (it has its own
+  // page), the Agents / Sales-prog-companies lens honoured on every section.
+  const bizTx = businessTxWhere(mode, agencyIds);
+  const txBase = { isDemo: false as const, isMigrated: false as const, agency: { isInternal: false } };
+  const txWhere = { ...txBase, ...bizTx };                  // direct PropertyTransaction reads
+  const txRel = { transaction: { ...txBase, ...bizTx } };    // related-model reads (milestones, chases)
+
+  // Signups follow the lens: new estate agencies for Agents, new progression
+  // companies for Sales-prog-companies, both for Show all.
+  const wantAgencySignups = mode !== "external";
+  const wantBizSignups = mode !== "agents";
 
   // Carry the sidebar scope through deep links, but ONLY to pages that honour
   // it (agencies, outbound, revenue, activity). Linking scope into a page that
@@ -93,57 +104,56 @@ export default async function OverviewPage({
   })();
 
   // Shared "stuck file" filter — reused by the count and the list so they agree.
-  // Excludes demo, admin-migrated, and internal-agency files to match every
-  // other metric on this page, and requires the file to be older than the stuck
-  // window so brand-new files with no milestones yet aren't mislabelled.
+  // Excludes demo, admin-migrated and internal-agency files, requires the file
+  // older than the stuck window, and follows the business-type lens (bizTx, which
+  // also excludes TSP's own book).
   const stuckWhere = {
     status: { in: ["active" as const, "on_hold" as const] },
     isDemo: false,
     isMigrated: false,
     agency: { isInternal: false },
     createdAt: { lt: stuckBefore },
-    // Exchanged-but-not-completed files sit in a normal 4-5 week gap before
-    // completion, so they aren't stuck. Leave them out of "no movement" (they
-    // read as a false alarm otherwise).
     exchangedAt: null,
-    // TSP's own outsourced book lives on /command/tsp-outsourced, never the main
-    // Command Centre — exclude it here (external progression businesses stay).
-    NOT: { serviceType: "outsourced" as const, progressionBusinessId: null },
+    ...bizTx,
     milestoneCompletions: { none: { state: "complete" as const, completedAt: { gte: stuckBefore } } },
   };
 
+  const sinceSpark = sevenCompletedStart;                 // 7 completed days + today = 8 day-buckets
+  const priorWin = { gte: prior7Start, lt: last7Start };  // the 7 days before the current window
+
   const [
-    currentTx, previousTx,
-    currentUser, previousUser,
-    today,
+    createdDates, createdPrior,
+    exchangedDates, exchangedPrior,
+    milestoneDates, milestonePrior,
+    chaseDates, chasePrior,
+    agencySignupDates, agencySignupPrior,
+    bizSignupDates, bizSignupPrior,
     signalCounts, unacknowledgedSignals,
     activeExperimentsCount, proposedExperimentsCount,
-    txDailyRows, signupDailyRows,
     stuckCount, stuckList,
     draftRows,
   ] = await Promise.all([
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: last7Start, lt: todayKey }, ...txScope },
-      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, transactionsExchanged: true },
-    }),
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: prior7Start, lt: last7Start }, ...txScope },
-      _sum: { transactionsCreated: true, milestonesConfirmed: true, chasesSent: true, transactionsExchanged: true },
-    }),
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: last7Start, lt: todayKey }, ...userScope },
-      _sum: { signups: true },
-    }),
-    commandDb.dailyMetric.aggregate({
-      where: { date: { gte: prior7Start, lt: last7Start }, ...userScope },
-      _sum: { signups: true },
-    }),
-    // Today, computed live from the main DB (the nightly rollup only writes
-    // yesterday, so a "today" rollup row never exists during the day).
-    computeTodayLive(mode, agencyIds),
-    // Signal health = situations open right now (living signals: unresolved,
-    // not snoozed, not yet acknowledged — same filter as the Briefing tally,
-    // so the badge number matches the list it links to).
+    // Transactions created.
+    prisma.propertyTransaction.findMany({ where: { ...txWhere, createdAt: { gte: sinceSpark } }, select: { createdAt: true } }),
+    prisma.propertyTransaction.count({ where: { ...txWhere, createdAt: priorWin } }),
+    // Exchanges.
+    prisma.propertyTransaction.findMany({ where: { ...txWhere, exchangedAt: { gte: sinceSpark } }, select: { exchangedAt: true } }),
+    prisma.propertyTransaction.count({ where: { ...txWhere, exchangedAt: priorWin } }),
+    // Milestones confirmed (reconciled-at-claim excluded, matching every other count here).
+    prisma.milestoneCompletion.findMany({ where: { state: "complete", reconciledAtClaim: false, completedAt: { gte: sinceSpark }, ...txRel }, select: { completedAt: true } }),
+    prisma.milestoneCompletion.count({ where: { state: "complete", reconciledAtClaim: false, completedAt: priorWin, ...txRel } }),
+    // Chases sent (real dispatched chase emails).
+    prisma.outboundMessage.findMany({ where: { purpose: "chase", sentAt: { gte: sinceSpark }, ...txRel }, select: { sentAt: true } }),
+    prisma.outboundMessage.count({ where: { purpose: "chase", sentAt: priorWin, ...txRel } }),
+    // Signups — agencies and/or progression companies per the lens.
+    wantAgencySignups ? prisma.agency.findMany({ where: { isInternal: false, createdAt: { gte: sinceSpark } }, select: { createdAt: true } }) : Promise.resolve([] as { createdAt: Date }[]),
+    wantAgencySignups ? prisma.agency.count({ where: { isInternal: false, createdAt: priorWin } }) : Promise.resolve(0),
+    wantBizSignups ? prisma.progressionBusiness.findMany({ where: { isTsp: false, createdAt: { gte: sinceSpark } }, select: { createdAt: true } }) : Promise.resolve([] as { createdAt: Date }[]),
+    wantBizSignups ? prisma.progressionBusiness.count({ where: { isTsp: false, createdAt: priorWin } }) : Promise.resolve(0),
+    // Signal health = situations open right now (living signals: unresolved, not
+    // snoozed, not yet acknowledged). Platform-wide: signals carry no business
+    // dimension, so they can't follow the lens (TSP is already excluded at the
+    // detector level).
     commandDb.signal.groupBy({
       by: ["severity"],
       where: { acknowledged: false, resolvedAt: null, OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
@@ -156,22 +166,7 @@ export default async function OverviewPage({
     }),
     commandDb.experiment.count({ where: { status: "active" } }),
     commandDb.experiment.count({ where: { status: "proposed" } }),
-    // Per-day breakdown (7 completed days) for the pulse strip + averages.
-    // Follows the sidebar scope like the tiles (it compared a SCOPED today bar
-    // against GLOBAL history before — systematically misleading in SP/PM or
-    // agency views). Transaction metrics come from the serviceType-scoped rows;
-    // signups from the modeProfile-scoped rows; merged by date below.
-    commandDb.dailyMetric.findMany({
-      where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...txScope },
-      orderBy: { date: "asc" },
-      select: { date: true, milestonesConfirmed: true, transactionsCreated: true, chasesSent: true, transactionsExchanged: true },
-    }),
-    commandDb.dailyMetric.findMany({
-      where: { date: { gte: sevenCompletedStart, lt: todayKey }, ...userScope },
-      orderBy: { date: "asc" },
-      select: { date: true, signups: true },
-    }),
-    // Stuck files — count + the actual list (identical filter).
+    // Stuck files — count + list (identical filter, lens-aware).
     prisma.propertyTransaction.count({ where: stuckWhere }),
     prisma.propertyTransaction.findMany({
       where: stuckWhere,
@@ -193,16 +188,44 @@ export default async function OverviewPage({
         },
       },
     }),
-    // Agent drafts across the platform — used to compute the potential pipeline
-    // widget below. Excludes demo + internal-agency files to match the rest of
-    // the page. We deduplicate (agencyId, propertyAddress) pairs in JS so case
-    // variants of the same address don't double-count, and exclude drafts where
-    // the same agency already has a non-draft transaction at that address.
+    // Agent drafts for the potential-pipeline widget — lens-aware, deduped in JS below.
     prisma.propertyTransaction.findMany({
-      where: { status: "draft", isDemo: false, isMigrated: false, agency: { isInternal: false } },
+      where: { status: "draft", ...txWhere },
       select: { id: true, propertyAddress: true, agencyId: true, createdAt: true, agency: { select: { name: true } } },
     }),
   ]);
+
+  // Bucket live timestamps into 8 days (7 completed + today), then derive totals.
+  const SPARK_DAYS = 8;
+  const bucketStart = sinceSpark.getTime();
+  const toSeries = (dates: Date[]): number[] => {
+    const b = new Array<number>(SPARK_DAYS).fill(0);
+    for (const d of dates) {
+      const i = Math.floor((new Date(d).getTime() - bucketStart) / dayMs);
+      if (i >= 0 && i < SPARK_DAYS) b[i] += 1;
+    }
+    return b;
+  };
+  const addSeries = (a: number[], b: number[]): number[] => a.map((v, i) => v + b[i]);
+  const series: Record<string, number[]> = {
+    signups:      addSeries(toSeries(agencySignupDates.map((d) => d.createdAt)), toSeries(bizSignupDates.map((d) => d.createdAt))),
+    transactions: toSeries(createdDates.map((d) => d.createdAt)),
+    milestones:   toSeries(milestoneDates.map((d) => d.completedAt as Date)),
+    chases:       toSeries(chaseDates.map((d) => d.sentAt as Date)),
+    exchanges:    toSeries(exchangedDates.map((d) => d.exchangedAt as Date)),
+  };
+  const priorOf: Record<string, number> = {
+    signups:      agencySignupPrior + bizSignupPrior,
+    transactions: createdPrior,
+    milestones:   milestonePrior,
+    chases:       chasePrior,
+    exchanges:    exchangedPrior,
+  };
+  // Current window = the last 7 days (buckets 1-7); today = bucket 7; the average
+  // is over the 7 completed days (buckets 0-6).
+  const currOf  = (m: string) => series[m].slice(1).reduce((a, b) => a + b, 0);
+  const todayOf = (m: string) => series[m][SPARK_DAYS - 1];
+  const avgOf   = (m: string) => Math.round(series[m].slice(0, 7).reduce((a, b) => a + b, 0) / 7);
 
   // Progression businesses are platform-wide (not agency-scoped), so the tile
   // only shows on the unscoped view. Slimmed to FLOW (sales today, actions
@@ -211,8 +234,10 @@ export default async function OverviewPage({
   // this page used to re-run on every 60s auto-refresh. "Sales today" now
   // excludes TSP like every other figure here (it previously included TSP
   // against a TSP-excluded denominator).
-  const wholeView = mode === "all" && agencyIds.length === 0;
-  const [bizCount, businessSalesToday, bizPulse, bizPaymentIssues] = wholeView
+  // External progression companies — show under Show-all and Sales-prog-companies
+  // (it IS the external book), hidden under Estate agents. Agency select hides it.
+  const showBizCard = (mode === "all" || mode === "external") && agencyIds.length === 0;
+  const [bizCount, businessSalesToday, bizPulse, bizPaymentIssues] = showBizCard
     ? await Promise.all([
         commandDb.progressionBusiness.count({ where: { isTsp: false } }),
         commandDb.propertyTransaction.count({
@@ -334,62 +359,23 @@ export default async function OverviewPage({
     return Math.round(((curr - prev) / prev) * 100);
   }
 
-  // Current window = rolled-up history (last 7 days excl today) + today live.
-  // "New signups" = new agencies; "Transactions created" = new files — both
-  // drill through to the matching list, filtered to the last 7 days.
+  // Tiles: current 7-day total vs the prior 7 days, each drilling through to its
+  // matching list. All live and lens-aware (see the data block above).
   const statRows: {
     label: string; metric: string; curr: number; prev: number; good: boolean; href?: string;
   }[] = [
-    { label: "New signups",          metric: "signups",      curr: (currentUser._sum.signups ?? 0)            + today.signups,             prev: previousUser._sum.signups ?? 0,           good: true, href: `/command/agencies?since=7d${scopeQs}` },
-    { label: "Transactions created", metric: "transactions", curr: (currentTx._sum.transactionsCreated ?? 0)  + today.transactionsCreated, prev: previousTx._sum.transactionsCreated ?? 0,  good: true, href: "/command/files?created=7d" },
-    { label: "Milestones confirmed", metric: "milestones",   curr: (currentTx._sum.milestonesConfirmed ?? 0)  + today.milestonesConfirmed, prev: previousTx._sum.milestonesConfirmed ?? 0,  good: true, href: `/command/activity${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
-    { label: "Chases sent",          metric: "chases",       curr: (currentTx._sum.chasesSent ?? 0)           + today.chasesSent,          prev: previousTx._sum.chasesSent ?? 0,           good: true, href: `/command/outbound?from=${last7Start.toISOString().slice(0, 10)}${scopeQs}` },
-    // Exchanges replaced the "AI drafts" tile: AI drafts counted every
-    // AI-generated outbound message (overlapping Chases) with no destination,
-    // while exchanges — the number the business runs on — was computed nightly
-    // and shown nowhere.
-    { label: "Exchanges",            metric: "exchanges",    curr: (currentTx._sum.transactionsExchanged ?? 0) + today.transactionsExchanged, prev: previousTx._sum.transactionsExchanged ?? 0, good: true, href: `/command/revenue${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
+    { label: "New signups",          metric: "signups",      curr: currOf("signups"),      prev: priorOf.signups,      good: true, href: `/command/agencies?since=7d${scopeQs}` },
+    { label: "Transactions created", metric: "transactions", curr: currOf("transactions"), prev: priorOf.transactions, good: true, href: "/command/files?created=7d" },
+    { label: "Milestones confirmed", metric: "milestones",   curr: currOf("milestones"),   prev: priorOf.milestones,   good: true, href: `/command/activity${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
+    { label: "Chases sent",          metric: "chases",       curr: currOf("chases"),       prev: priorOf.chases,       good: true, href: `/command/outbound?from=${last7Start.toISOString().slice(0, 10)}${scopeQs}` },
+    { label: "Exchanges",            metric: "exchanges",    curr: currOf("exchanges"),    prev: priorOf.exchanges,    good: true, href: `/command/revenue${scopeQs ? `?${scopeQs.slice(1)}` : ""}` },
   ];
 
-  // Merge the two scoped row sets into one fixed 7-day series. Under an agency
-  // multi-select the rollup has one row per agency per day, so sum by date; a
-  // day with no rows is a real zero, so the average divides by 7, not by
-  // however many rows happened to exist.
-  const dayAgg = new Map<number, { milestones: number; txns: number; chases: number; signups: number; exch: number }>();
-  for (let i = 0; i < 7; i++) {
-    dayAgg.set(sevenCompletedStart.getTime() + i * dayMs, { milestones: 0, txns: 0, chases: 0, signups: 0, exch: 0 });
-  }
-  for (const r of txDailyRows) {
-    const d = dayAgg.get(new Date(r.date).getTime());
-    if (!d) continue;
-    d.milestones += r.milestonesConfirmed;
-    d.txns += r.transactionsCreated;
-    d.chases += r.chasesSent;
-    d.exch += r.transactionsExchanged;
-  }
-  for (const r of signupDailyRows) {
-    const d = dayAgg.get(new Date(r.date).getTime());
-    if (d) d.signups += r.signups;
-  }
-  const dailySeries = [...dayAgg.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([ts, v]) => ({ date: new Date(ts), ...v }));
-
-  // Today vs 7-day average (average over the 7 completed days).
-  const avgMilestones = Math.round(dailySeries.reduce((a, r) => a + r.milestones, 0) / 7);
-  const avgTxns       = Math.round(dailySeries.reduce((a, r) => a + r.txns, 0) / 7);
-  const avgSignups    = Math.round(dailySeries.reduce((a, r) => a + r.signups, 0) / 7);
-
-  // Per-metric 7-day + today-live series, one micro-trend per stat tile. This
-  // replaces the old shared "activity pulse" bar strips: the same daily data,
-  // but read as each metric's own trend inside its tile.
-  const sparkSeries: Record<string, number[]> = {
-    signups:      [...dailySeries.map((r) => r.signups),    today.signups],
-    transactions: [...dailySeries.map((r) => r.txns),       today.transactionsCreated],
-    milestones:   [...dailySeries.map((r) => r.milestones), today.milestonesConfirmed],
-    chases:       [...dailySeries.map((r) => r.chases),     today.chasesSent],
-    exchanges:    [...dailySeries.map((r) => r.exch),       today.transactionsExchanged],
-  };
+  // Today vs the 7-completed-day average, and one micro-trend per tile.
+  const avgMilestones = avgOf("milestones");
+  const avgTxns       = avgOf("transactions");
+  const avgSignups    = avgOf("signups");
+  const sparkSeries = series;
 
   const signalByKey = Object.fromEntries(signalCounts.map((r) => [r.severity, r._count.id]));
   const modeLabel = mode === "agents" ? " · Estate agents" : mode === "external" ? " · Sales prog companies" : "";
@@ -453,7 +439,7 @@ export default async function OverviewPage({
       </section>
 
       {/* Progression businesses — flow only; the full picture is the Businesses page */}
-      {wholeView && bizCount > 0 && (
+      {showBizCard && bizCount > 0 && (
         <section>
           <h2 className="text-xs font-semibold text-neutral-400 mb-4 flex items-center gap-1.5">
             Progression businesses
@@ -489,9 +475,9 @@ export default async function OverviewPage({
           </h2>
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-5 py-4 space-y-3">
             {[
-              { label: "Milestones", today: today.milestonesConfirmed, avg: avgMilestones },
-              { label: "Transactions created", today: today.transactionsCreated, avg: avgTxns },
-              { label: "Signups", today: today.signups, avg: avgSignups },
+              { label: "Milestones", today: todayOf("milestones"), avg: avgMilestones },
+              { label: "Transactions created", today: todayOf("transactions"), avg: avgTxns },
+              { label: "Signups", today: todayOf("signups"), avg: avgSignups },
             ].map((row) => {
               const diff = row.today - row.avg;
               return (

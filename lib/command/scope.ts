@@ -1,4 +1,4 @@
-import type { ServiceType, AgencyModeProfile } from "@prisma/client";
+import type { ServiceType, AgencyModeProfile, Prisma } from "@prisma/client";
 
 // The Command Centre's primary lens is BUSINESS TYPE, not the old SP/PM axis:
 //
@@ -65,6 +65,24 @@ export function modeProfileScope(mode: CommandMode, agencyIds: string[] = []): {
   if (mode === "agents")   return { agencyId: null, serviceType: null, modeProfile: "self_progressed"   };
   if (mode === "external") return { agencyId: null, serviceType: null, modeProfile: "progressor_managed" };
   return { agencyId: null, serviceType: null, modeProfile: null };
+}
+
+// Live-transaction counterpart to serviceTypeScope, for base-table reads that
+// must honour the business-type lens AND cleanly exclude TSP's own outsourced
+// book (the DailyMetric rollup can't — it has no business dimension). Compose
+// with the caller's own base excludes (demo / internal / migrated etc.):
+//   `{ ...txBase, ...businessTxWhere(mode, agencyIds) }`
+// or, for a related model: `transaction: { ...txBase, ...businessTxWhere(...) }`.
+export function businessTxWhere(mode: CommandMode, agencyIds: string[] = []): Prisma.PropertyTransactionWhereInput {
+  // A selected agency wins over the mode toggle (same precedence as the rollup
+  // helpers); TSP's own book is excluded regardless.
+  if (agencyIds.length > 0) {
+    return { agencyId: { in: agencyIds }, NOT: { serviceType: "outsourced", progressionBusinessId: null } };
+  }
+  if (mode === "agents")   return { serviceType: "self_managed", progressionBusinessId: null };
+  if (mode === "external") return { progressionBusinessId: { not: null } };
+  // all: everything except TSP's own outsourced book.
+  return { NOT: { serviceType: "outsourced", progressionBusinessId: null } };
 }
 
 // WeeklyCohort modeProfile filter
