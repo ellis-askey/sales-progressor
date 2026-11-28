@@ -2435,6 +2435,9 @@ model MilestoneCompletion {
   // timeframes analytics (lib/command/timeframes.ts) so the ~0-day gaps between
   // these don't drag the stage/step averages down.
   backfilledCompletion          Boolean        @default(false)
+  // Emoji reactions on this milestone row in the Activity feed, aggregated as
+  // [{ emoji, users[] }] (user ids who reacted). Mirrors OutboundMessage.reactions.
+  reactions                     Json?
   createdAt                     DateTime       @default(now())
   updatedAt                     DateTime       @updatedAt
 
@@ -2456,6 +2459,9 @@ model MilestoneCompletion {
   confirmedBySolicitorContact SolicitorContact?   @relation("MilestoneConfirmedByContact", fields: [confirmedBySolicitorContactId], references: [id])
   confirmedByBrokerFirm       BrokerFirm?         @relation("MilestoneConfirmedByBrokerFirm", fields: [confirmedByBrokerFirmId], references: [id])
   confirmedByBrokerContact    BrokerContact?      @relation("MilestoneConfirmedByBrokerContact", fields: [confirmedByBrokerContactId], references: [id])
+  // Internal comments threaded under this milestone in the Activity feed. Each
+  // is an OutboundMessage (type internal_note) anchored via parentMilestoneId.
+  comments                    OutboundMessage[]   @relation("MilestoneComments")
 
   @@index([transactionId, milestoneDefinitionId])
   @@index([transactionId, completedAt])
@@ -2876,6 +2882,11 @@ model OutboundMessage {
   // RFC message-ids, not a foreign key). The activity feed lists top-level notes
   // (parentNoteId null) and hangs their replies underneath. See lib/services/comms.ts.
   parentNoteId String?
+  // A comment anchored to a MILESTONE row (rather than another comm). Set on an
+  // internal_note whose parent is a MilestoneCompletion; parentNoteId is null in
+  // that case. Mutually exclusive with parentNoteId. The feed excludes rows with
+  // either anchor set from the top level and nests them under their target.
+  parentMilestoneId String?
 
   // WhatsApp sender display name, resolved at ingest (contact name, else agent
   // name, else the formatted number). Rendered on the timeline so the row shows
@@ -2928,6 +2939,7 @@ model OutboundMessage {
   // this rarely fires in practice.
   parentNote  OutboundMessage?     @relation("NoteThread", fields: [parentNoteId], references: [id], onDelete: Cascade)
   noteReplies OutboundMessage[]    @relation("NoteThread")
+  parentMilestone MilestoneCompletion? @relation("MilestoneComments", fields: [parentMilestoneId], references: [id], onDelete: Cascade)
 
   @@index([threadId])
   @@index([transactionId, createdAt])
@@ -2943,6 +2955,7 @@ model OutboundMessage {
   @@index([internetMessageId])
   @@index([inReplyTo])
   @@index([parentNoteId])
+  @@index([parentMilestoneId])
 }
 
 enum CommType {

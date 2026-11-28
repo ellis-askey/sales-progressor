@@ -520,6 +520,8 @@ const TIMELINE_MILESTONE: ActivityEntry = {
   actorName: "Jordan Hayes",
   actorImage: null,
   subtext: null,
+  reactions: [],
+  replies: [],
 };
 
 const TIMELINE_SUBJECT = `Subject: Searches update, ${ADDRESS}`;

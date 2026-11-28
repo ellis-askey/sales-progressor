@@ -16,6 +16,7 @@ import {
   importWhatsAppChat,
   undoWhatsAppImport,
   toggleCommReaction,
+  toggleMilestoneReaction,
   type SenderMapping,
   type ImportMessageInput,
   type ImportResult,
@@ -107,7 +108,10 @@ export async function addNoteAction(transactionId: string, content: string) {
 // Fire-and-forget: a bell/push failure never fails the reply.
 export async function replyToNoteAction(input: {
   transactionId: string;
-  parentNoteId: string;
+  // Exactly one anchor: a comm row (parentNoteId) or a milestone row
+  // (parentMilestoneId). The milestone path carries no author to notify.
+  parentNoteId?: string;
+  parentMilestoneId?: string;
   content: string;
   notify?: boolean;
   // Internal users @mentioned in the body — each is pinged (bell + push),
@@ -118,6 +122,7 @@ export async function replyToNoteAction(input: {
   const { reply, noteAuthorId, notePreview, propertyAddress } = await addNoteReply({
     transactionId: input.transactionId,
     parentNoteId: input.parentNoteId,
+    parentMilestoneId: input.parentMilestoneId,
     content: input.content,
     userId: session.user.id,
     userRole: session.user.role,
@@ -238,6 +243,14 @@ export async function editCommAction(input: {
 export async function reactToCommAction(input: { id: string; transactionId: string; emoji: string }) {
   const session = await requireSession();
   const reactions = await toggleCommReaction(input.id, input.emoji, session.user.id, getAccessScope(session));
+  revalidateTx(input.transactionId);
+  return reactions;
+}
+
+// Same as reactToCommAction, but the target is a milestone row.
+export async function reactToMilestoneAction(input: { id: string; transactionId: string; emoji: string }) {
+  const session = await requireSession();
+  const reactions = await toggleMilestoneReaction(input.id, input.emoji, session.user.id, getAccessScope(session));
   revalidateTx(input.transactionId);
   return reactions;
 }

@@ -17,7 +17,7 @@ import { notFound } from "next/navigation";
 // A bare /dev page gets neither, so pull them in and drive the theme ourselves.
 import "@/app/agent/styles/themes.css";
 import "@/app/agent/styles/agent-system.css";
-import type { ActivityEntry, NoteReply } from "@/lib/services/comms";
+import type { ActivityEntry, NoteReply, CommReaction } from "@/lib/services/comms";
 import type { CommType, CommMethod } from "@prisma/client";
 import type { ActorRole } from "@/components/ui/Avatar";
 import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
@@ -104,6 +104,8 @@ function milestone(
     actorName: string;
     confirmedByClient?: boolean;
     skipped?: boolean;
+    reactions?: CommReaction[];
+    replies?: NoteReply[];
   },
   i: number,
 ): ActivityEntry {
@@ -137,6 +139,8 @@ function milestone(
     actorName: opts.actorName,
     actorImage: null,
     subtext,
+    reactions: opts.reactions ?? [],
+    replies: opts.replies ?? [],
   };
 }
 
@@ -229,6 +233,17 @@ const reply = (content: string, name: string, role: ActorRole): NoteReply => ({
   editableByAuthor: false,
   reactions: [],
 });
+
+// Milestone with reactions + a threaded comment (Phase D) — the "searches
+// ordered, spoke to the solicitor" example. Defined after `reply`.
+const MS_THREAD = [
+  milestone({
+    code: "PM8", name: "Searches ordered", side: "purchaser",
+    confirmer: { kind: "agent", name: AGENT }, actorRole: "progressor", actorName: AGENT,
+    reactions: [{ emoji: "👍", users: ["dev-user", "u-laura"], names: ["Ellis Askey", "Laura Smith"] }],
+    replies: [reply("Spoke to the solicitor today, these are due back on the 13th.", AGENT, "agent")],
+  }, 0),
+];
 
 const out = (method: CommMethod): Partial<CommEntry> => ({ type: "outbound" as CommType, method });
 
@@ -386,6 +401,7 @@ const GROUPS: Group[] = [
   { id: "ms-solicitor", label: "Step confirmed · by solicitor", desc: `Solicitor confirmer (firm name + solicitor avatar). Only codes with a solicitor clause (${MS_CONFIRMED_SOLICITOR.length}).`, entries: MS_CONFIRMED_SOLICITOR },
   { id: "ms-system", label: "Step confirmed · system / auto", desc: `Twin-close / auto confirm (no named confirmer), TSP brand avatar. One per code (${MS_CONFIRMED_SYSTEM.length}).`, entries: MS_CONFIRMED_SYSTEM },
   { id: "ms-skipped", label: "Step skipped (not required)", desc: `"Skipped" pill, muted dot, TSP avatar. Sentence is the stored summary (milestone name shown here). One per code (${MS_SKIPPED.length}).`, entries: MS_SKIPPED },
+  { id: "ms-thread", label: "Milestone with reactions + comments", desc: "A milestone row carrying an emoji reaction (hover to see who) and a threaded comment. Milestones are always 'Comment', never 'Reply'. Anchored via OutboundMessage.parentMilestoneId.", entries: MS_THREAD },
   { id: "notes", label: "Notes & manual logs", desc: "Free-typed notes, setup note, client-visible note, logged call / SMS, edited.", entries: G_NOTES.map(comm) },
   { id: "note-thread", label: "Note with replies (thread)", desc: "An internal note with threaded replies + the inline reply composer.", entries: G_NOTE_THREAD.map(comm) },
   { id: "email", label: "Outbound email · delivery states", desc: "Sent / delivered / bounced dots, subject heading, the byte-for-byte “View” link, and filed attachments.", entries: G_EMAIL.map(comm) },

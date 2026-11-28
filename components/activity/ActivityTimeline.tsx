@@ -5,7 +5,7 @@ import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { EnvelopeSimple, DotsThree, MagnifyingGlass, FunnelSimple, Eye, EyeSlash, CaretRight, ArrowBendDownRight, Check, NotePencil, Phone, ChatText, Minus, Megaphone, Globe, WhatsappLogo, Smiley } from "@phosphor-icons/react";
 import { formatTimestamp, ordinal, relativeDate } from "@/lib/utils";
 import type { ActivityEntry, NoteReply, CommReaction } from "@/lib/services/comms";
-import { deleteCommAction, editCommAction, replyToNoteAction, reactToCommAction } from "@/app/actions/comms";
+import { deleteCommAction, editCommAction, replyToNoteAction, reactToCommAction, reactToMilestoneAction } from "@/app/actions/comms";
 import { extractFirstName } from "@/lib/contacts/displayName";
 import { ActorAvatar, UserAvatar, type ActorRole } from "@/components/ui/Avatar";
 import { LinkArrow } from "@/components/ui/LinkArrow";
@@ -441,13 +441,15 @@ const REACTION_EMOJI = ["👍", "❤️", "🎉", "👀", "🚀", "✅"];
 // (revalidate caught up), when it's dropped. Rendered native in agent tokens so
 // it reads identically in light + dark, matching the rest of the Activity feed.
 function NoteReactions({
-  commId, transactionId, reactions, currentUserId, currentUserName, actions,
+  commId, transactionId, reactions, currentUserId, currentUserName, actions, targetKind = "comm",
 }: {
   commId: string;
   transactionId: string;
   reactions: CommReaction[];
   currentUserId?: string;
   currentUserName?: string;
+  // Whether the row is a comm row or a milestone row — picks the server action.
+  targetKind?: "comm" | "milestone";
   // Text actions (Reply / Edit / Remove, or the note's Hide-replies + Reply)
   // rendered inline on the same row as the reaction pills + picker, so the
   // emoji sits in line with the actions rather than on a row of its own.
@@ -488,7 +490,8 @@ function NoteReactions({
     setOverlay(next);
     startReactTransition(async () => {
       try {
-        await reactToCommAction({ id: commId, transactionId, emoji });
+        const react = targetKind === "milestone" ? reactToMilestoneAction : reactToCommAction;
+        await react({ id: commId, transactionId, emoji });
       } catch {
         setOverlay(current);
       }
@@ -566,16 +569,29 @@ function NoteReactions({
   );
 }
 
+// The minimal shape the thread needs — satisfied by both a comm entry and a
+// milestone entry, so the same thread renders under either.
+type ThreadTarget = {
+  id: string;
+  replies: NoteReply[];
+  reactions: CommReaction[];
+  createdById?: string | null;
+  createdByName?: string | null;
+};
+
 function NoteThread({
-  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole, label = "Reply", teamMembers,
+  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole, label = "Reply", teamMembers, targetKind = "comm",
 }: {
-  note: Extract<ActivityEntry, { kind: "comm" }>;
+  note: ThreadTarget;
   transactionId: string;
   currentUserId?: string;
   currentUserName?: string;
   currentUserImage?: string | null;
   currentUserRole?: string;
   teamMembers?: MentionPerson[];
+  // Whether this thread hangs off a comm row or a milestone row — selects the
+  // anchor (parentNoteId vs parentMilestoneId) when posting a comment.
+  targetKind?: "comm" | "milestone";
   // The action word for this row's thread: "Reply" on things a person wrote,
   // "Comment" on everything else. Drives the button, placeholder and the
   // show/hide count noun.
@@ -657,7 +673,12 @@ function NoteThread({
     setLocalReplies((prev) => [...prev, placeholder]);
     setCollapsed(false);
     try {
-      const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify, mentionedUserIds });
+      const created = await replyToNoteAction({
+        transactionId,
+        parentNoteId: targetKind === "comm" ? note.id : undefined,
+        parentMilestoneId: targetKind === "milestone" ? note.id : undefined,
+        content, notify, mentionedUserIds,
+      });
       // Swap the placeholder for the real resolved reply (correct id + identity).
       setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
       window.setTimeout(() => { setDraft(""); setNotifyAuthor(false); setComposerOpen(false); }, 850);
@@ -824,6 +845,7 @@ function NoteThread({
         reactions={note.reactions}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
+        targetKind={targetKind}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             {replies.length > 0 && (
@@ -1157,6 +1179,20 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                   {entry.subtext}
                 </p>
               )}
+              {/* Reactions + comments on the milestone (same thread as a comm
+                  row). Milestones are never something a person wrote, so the
+                  action word is always "Comment". */}
+              <NoteThread
+                note={entry}
+                label="Comment"
+                targetKind="milestone"
+                transactionId={transactionId}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                currentUserImage={currentUserImage}
+                currentUserRole={currentUserRole}
+                teamMembers={teamMembers}
+              />
             </div>
           ) : (
             // ── Comm card ───────────────────────────────────────────

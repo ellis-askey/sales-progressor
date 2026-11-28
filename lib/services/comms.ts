@@ -83,6 +83,11 @@ export type ActivityEntry =
       // code/confirmer pairing with no supplied line. See
       // lib/milestone-confirmation-subtext.ts.
       subtext: string | null;
+      // Emoji reactions + threaded internal comments on this milestone row (the
+      // same discussion affordance as a comm row). Comments anchor to the
+      // MilestoneCompletion via OutboundMessage.parentMilestoneId.
+      reactions: CommReaction[];
+      replies: NoteReply[];
     }
   | {
       kind: "comm";
@@ -445,10 +450,11 @@ export async function getActivityTimeline(
           activeRoundCreatedAt: tx.activeBuyerRound?.createdAt ?? null,
         }),
         // Note threading (Phase 2): the top-level feed lists only parent notes
-        // and non-note comms. Reply rows (parentNoteId set) are fetched
-        // separately below and nested under their parent, never shown as their
-        // own feed row.
+        // and non-note comms. Reply rows (parentNoteId set) and milestone
+        // comments (parentMilestoneId set) are fetched separately and nested
+        // under their target, never shown as their own feed row.
         parentNoteId: null,
+        parentMilestoneId: null,
       },
       orderBy: { createdAt: "desc" },
       include: {
@@ -522,6 +528,9 @@ export async function getActivityTimeline(
       subtext: c.state === "not_required"
         ? null
         : confirmationSubtext(c.milestoneDefinition.code, confirmerBucket(confirmer)),
+      // Reactions + comments are enriched after the reactor-name map is built.
+      reactions: [],
+      replies: [],
     };
   });
 
@@ -663,18 +672,31 @@ export async function getActivityTimeline(
   // The anchor is still parentNoteId → the parent OutboundMessage; the child is
   // itself an internal_note, excluded from the top-level feed (parentNoteId:null).
   const commentableIds = comms.map((c) => c.id);
-  const replyRows = commentableIds.length
-    ? await prisma.outboundMessage.findMany({
-        where: { transactionId, type: "internal_note", parentNoteId: { in: commentableIds } },
-        orderBy: { createdAt: "asc" },
-        include: { createdBy: { select: { name: true, image: true } } },
-      })
-    : [];
+  const milestoneIds = completions.map((c) => c.id);
+  const [replyRows, milestoneCommentRows] = await Promise.all([
+    commentableIds.length
+      ? prisma.outboundMessage.findMany({
+          where: { transactionId, type: "internal_note", parentNoteId: { in: commentableIds } },
+          orderBy: { createdAt: "asc" },
+          include: { createdBy: { select: { name: true, image: true } } },
+        })
+      : Promise.resolve([]),
+    // Comments threaded under a MILESTONE row — anchored via parentMilestoneId.
+    milestoneIds.length
+      ? prisma.outboundMessage.findMany({
+          where: { transactionId, type: "internal_note", parentMilestoneId: { in: milestoneIds } },
+          orderBy: { createdAt: "asc" },
+          include: { createdBy: { select: { name: true, image: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
   // Resolve every reactor's id → display name once (who-reacted hover). Reactors
   // are internal staff / agency users, so one User lookup covers the whole feed.
   const reactorIds = new Set<string>();
   for (const c of comms) for (const rx of parseReactions(c.reactions)) for (const u of rx.users) reactorIds.add(u);
   for (const r of replyRows) for (const rx of parseReactions(r.reactions)) for (const u of rx.users) reactorIds.add(u);
+  for (const c of completions) for (const rx of parseReactions(c.reactions)) for (const u of rx.users) reactorIds.add(u);
+  for (const r of milestoneCommentRows) for (const rx of parseReactions(r.reactions)) for (const u of rx.users) reactorIds.add(u);
   const reactorNames = new Map<string, string>();
   if (reactorIds.size) {
     const users = await prisma.user.findMany({ where: { id: { in: [...reactorIds] } }, select: { id: true, name: true } });
@@ -682,6 +704,40 @@ export async function getActivityTimeline(
   }
   const namedReactions = (raw: unknown): CommReaction[] =>
     parseReactions(raw).map((rx) => ({ ...rx, names: rx.users.map((u) => reactorNames.get(u) ?? null) }));
+
+  // Group milestone comments by their milestone, as NoteReply rows (same shape /
+  // identity resolution as a comm reply), then enrich each milestone entry with
+  // its comments + reactions (names resolved above).
+  const milestoneRepliesById = new Map<string, NoteReply[]>();
+  for (const r of milestoneCommentRows) {
+    if (!r.parentMilestoneId) continue;
+    const actor = resolveCommActor(r);
+    const reply: NoteReply = {
+      id: r.id,
+      content: r.content,
+      at: r.sentAt ?? r.createdAt,
+      createdById: r.createdById ?? null,
+      createdByName: r.createdBy?.name ?? null,
+      createdByImage: r.createdBy?.image ?? null,
+      createdByRole: r.createdByRole ?? null,
+      actorRole: actor.role,
+      actorName: actor.name,
+      actorImage: actor.image,
+      wasEdited: r.wasEdited,
+      editedAt: r.editedAt ?? (r.wasEdited ? r.updatedAt : null),
+      editableByAuthor: isAuthorEditableComm(r),
+      reactions: namedReactions(r.reactions),
+    };
+    const arr = milestoneRepliesById.get(r.parentMilestoneId) ?? [];
+    arr.push(reply);
+    milestoneRepliesById.set(r.parentMilestoneId, arr);
+  }
+  const completionReactionsById = new Map(completions.map((c) => [c.id, c.reactions]));
+  for (const e of milestoneEntries) {
+    if (e.kind !== "milestone") continue;
+    e.reactions = namedReactions(completionReactionsById.get(e.id));
+    e.replies = milestoneRepliesById.get(e.id) ?? [];
+  }
 
   const repliesByParent = new Map<string, NoteReply[]>();
   for (const r of replyRows) {
@@ -1631,24 +1687,45 @@ export function parseReactions(raw: unknown): CommReaction[] {
  * access the file can react; the row must be in scope (same scope `where` as
  * delete/edit). Returns the next reactions array.
  */
-export async function toggleCommReaction(id: string, emoji: string, userId: string, scope: AccessScope): Promise<CommReaction[]> {
-  const where =
+// Toggle one user's emoji in a reactions list (add if absent, remove if present;
+// drop an emoji once nobody holds it). Shared by comm + milestone reactions.
+function nextReactionList(current: CommReaction[], emoji: string, userId: string): CommReaction[] {
+  const existing = current.find((r) => r.emoji === emoji);
+  return existing
+    ? current
+        .map((r) => (r.emoji !== emoji ? r : { ...r, users: r.users.includes(userId) ? r.users.filter((u) => u !== userId) : [...r.users, userId] }))
+        .filter((r) => r.users.length > 0)
+    : [...current, { emoji, users: [userId] }];
+}
+
+// Scope `where` that resolves a row of model `T` iff its transaction is in scope.
+// The same shape works for OutboundMessage and MilestoneCompletion (both have a
+// `transaction` relation), so reaction/comment guards stay identical across them.
+function scopeByTransactionWhere(id: string, scope: AccessScope) {
+  return (
     scope.kind === "all"      ? { id, transaction: TSP_ONLY_TX_WHERE } :
     scope.kind === "platform" ? { id } :
     scope.kind === "assigned" ? { id, transaction: { assignedUserId: scope.userId } } :
     scope.kind === "business" ? { id, transaction: { progressionBusinessId: scope.businessId } } :
     scope.kind === "demo"     ? { id, transaction: { id: { in: scope.transactionIds }, isDemo: true } } :
-                                { id, transaction: { agencyId: scope.agencyIds[0] } };
-  const comm = await prisma.outboundMessage.findFirst({ where, select: { id: true, reactions: true } });
+                                { id, transaction: { agencyId: scope.agencyIds[0] } }
+  );
+}
+
+export async function toggleCommReaction(id: string, emoji: string, userId: string, scope: AccessScope): Promise<CommReaction[]> {
+  const comm = await prisma.outboundMessage.findFirst({ where: scopeByTransactionWhere(id, scope), select: { id: true, reactions: true } });
   if (!comm) throw new Error("Not found");
-  const current = parseReactions(comm.reactions);
-  const existing = current.find((r) => r.emoji === emoji);
-  const next: CommReaction[] = existing
-    ? current
-        .map((r) => (r.emoji !== emoji ? r : { ...r, users: r.users.includes(userId) ? r.users.filter((u) => u !== userId) : [...r.users, userId] }))
-        .filter((r) => r.users.length > 0)
-    : [...current, { emoji, users: [userId] }];
+  const next = nextReactionList(parseReactions(comm.reactions), emoji, userId);
   await prisma.outboundMessage.update({ where: { id }, data: { reactions: next } });
+  return next;
+}
+
+// Same as toggleCommReaction, but the target is a MilestoneCompletion row.
+export async function toggleMilestoneReaction(id: string, emoji: string, userId: string, scope: AccessScope): Promise<CommReaction[]> {
+  const milestone = await prisma.milestoneCompletion.findFirst({ where: scopeByTransactionWhere(id, scope), select: { id: true, reactions: true } });
+  if (!milestone) throw new Error("Not found");
+  const next = nextReactionList(parseReactions(milestone.reactions), emoji, userId);
+  await prisma.milestoneCompletion.update({ where: { id }, data: { reactions: next } });
   return next;
 }
 
@@ -1715,7 +1792,10 @@ export async function updateCommunicationRecord(input: UpdateCommInput) {
 
 export type AddNoteReplyInput = {
   transactionId: string;
-  parentNoteId: string;
+  // Exactly one anchor: parentNoteId (comment under a comm row) OR
+  // parentMilestoneId (comment under a milestone row).
+  parentNoteId?: string;
+  parentMilestoneId?: string;
   content: string;
   userId: string;
   userRole: string | null;
@@ -1748,6 +1828,60 @@ export async function addNoteReply(
     select: { id: true, propertyAddress: true },
   });
   if (!tx) throw new Error("Transaction not found");
+
+  // Resolve a freshly-created comment row into a NoteReply with the same actor
+  // identity the timeline uses (internal staff → progressor/agent; a superadmin
+  // is masked to the team, never named).
+  const buildReply = (record: {
+    id: string; content: string; sentAt: Date | null; createdAt: Date; createdById: string | null;
+    createdByRole: string | null; wasEdited: boolean; editedAt: Date | null;
+    createdBy: { name: string | null; image: string | null } | null;
+  }): NoteReply => ({
+    id: record.id,
+    content: record.content,
+    at: record.sentAt ?? record.createdAt,
+    createdById: record.createdById ?? null,
+    createdByName: record.createdBy?.name ?? null,
+    createdByImage: record.createdBy?.image ?? null,
+    createdByRole: record.createdByRole ?? null,
+    actorRole: userRoleToActor(input.userRole),
+    actorName: input.userRole === "superadmin" ? "The Sales Progressor team" : (record.createdBy?.name ?? "Team"),
+    actorImage: input.userRole === "superadmin" ? null : (record.createdBy?.image ?? null),
+    wasEdited: record.wasEdited,
+    editedAt: record.editedAt ?? null,
+    // A freshly-created reply/comment is always a manual internal_note → the
+    // author can always edit it (same result isAuthorEditableComm would give).
+    editableByAuthor: true,
+    reactions: [],
+  });
+
+  // Milestone-anchored comment: a comment hung under a MilestoneCompletion row
+  // (via parentMilestoneId). No flatten, no author-notify (a milestone has no
+  // single author); the preview is the milestone's name.
+  if (input.parentMilestoneId) {
+    const milestone = await prisma.milestoneCompletion.findFirst({
+      where: { id: input.parentMilestoneId, transactionId: input.transactionId },
+      select: { id: true, milestoneDefinition: { select: { name: true } } },
+    });
+    if (!milestone) throw new Error("Milestone not found");
+    const record = await prisma.outboundMessage.create({
+      data: {
+        transactionId: input.transactionId,
+        type: "internal_note",
+        parentMilestoneId: milestone.id,
+        content: input.content,
+        createdById: input.userId,
+        createdByRole: input.userRole ?? null,
+        visibleToClient: false,
+        contactIds: [],
+      },
+      include: { createdBy: { select: { name: true, image: true } } },
+    });
+    touchLastActivity(input.transactionId).catch(() => {});
+    return { reply: buildReply(record), noteAuthorId: null, notePreview: milestone.milestoneDefinition.name, propertyAddress: tx.propertyAddress };
+  }
+
+  if (!input.parentNoteId) throw new Error("No reply target");
 
   // The target row must exist and live on this transaction. It can be ANY comm
   // row — a note, an email, a logged call/text, WhatsApp — so the whole feed is
@@ -1797,32 +1931,7 @@ export async function addNoteReply(
 
   touchLastActivity(input.transactionId).catch(() => {});
 
-  // Resolve the author exactly as the timeline's resolveCommActor does for a
-  // human-authored internal_note (the createdById branch): internal staff map to
-  // progressor/agent; a superadmin is masked to the team, never surfaced by name.
-  const actorRole = userRoleToActor(input.userRole);
-  const actorName =
-    input.userRole === "superadmin"
-      ? "The Sales Progressor team"
-      : (record.createdBy?.name ?? "Team");
-  const actorImage = input.userRole === "superadmin" ? null : (record.createdBy?.image ?? null);
-
-  const reply: NoteReply = {
-    id: record.id,
-    content: record.content,
-    at: record.sentAt ?? record.createdAt,
-    createdById: record.createdById ?? null,
-    createdByName: record.createdBy?.name ?? null,
-    createdByImage: record.createdBy?.image ?? null,
-    createdByRole: record.createdByRole ?? null,
-    actorRole,
-    actorName,
-    actorImage,
-    wasEdited: record.wasEdited,
-    editedAt: record.editedAt ?? null,
-    editableByAuthor: isAuthorEditableComm(record),
-    reactions: [],
-  };
+  const reply = buildReply(record);
 
   // Short, single-line preview of the note being replied to (for the bell/feed
   // payload). Ellipsis, not three dots, so no voice-gate concern.
