@@ -573,6 +573,10 @@ export function bellNotificationSentence(type: string, payload: Record<string, u
     const replier = String(payload.replierName ?? "A colleague");
     return `${replier} replied to your note`;
   }
+  if (type === "note_mention") {
+    const who = String(payload.mentionerName ?? "A colleague");
+    return `${who} mentioned you`;
+  }
   // enquiries_stalled + solicitor_update carry a ready-made `message`;
   // portal_chain_agent_updated + others carry a pre-rendered body/title.
   return String(payload.message ?? payload.body ?? payload.title ?? "Update on your file");
@@ -594,6 +598,7 @@ export const BELL_NOTIFICATION_TYPES = [
   "mortgage_offer_expiring",
   "checkpoint_confirmed",
   "note_reply",
+  "note_mention",
 ];
 
 // The small pill shown on a bell/feed item, per notification type. "Paused" for
@@ -605,5 +610,6 @@ export function pillLabelForType(type: string): string {
   if (type === "mortgage_offer_expiring") return "Expiring";
   if (type === "checkpoint_confirmed") return "Confirmed";
   if (type === "note_reply") return "Reply";
+  if (type === "note_mention") return "Mention";
   return "Update";
 }

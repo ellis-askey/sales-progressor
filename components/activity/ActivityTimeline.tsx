@@ -15,6 +15,7 @@ import { Popover, PopoverMenuItem } from "@/components/ui/Popover";
 import { Button } from "@/components/arc/button/button";
 import { SuccessButton } from "@/components/ui/SuccessButton";
 import { Drawer } from "@/components/ui/Drawer";
+import { MentionTextarea, MentionText, extractMentions, type MentionPerson } from "@/components/activity/MentionTextarea";
 import { EmailAiSuggestions } from "@/components/activity/EmailAiSuggestions";
 import { EmailContactSuggestion } from "@/components/activity/EmailContactSuggestion";
 import { SentEmailModal, type OpenEmail } from "@/components/transaction/SentEmailModal";
@@ -42,6 +43,8 @@ type Props = {
   // add/remove solicitors after the fact. When omitted, the edit form
   // only renders the contacts row (matches the pre-fix behaviour).
   solicitors?: { id: string; name: string; role: string }[];
+  // The file's internal team, mentionable with "@" in a note/comment composer.
+  teamMembers?: MentionPerson[];
   // ── Catalogue/preview hooks (the /dev timeline catalogue) ──────────────────
   // All optional + backward-compatible. hideChrome drops the filter/search bar
   // so a single kind can be shown bare; initialShowPortalVisits seeds the
@@ -564,7 +567,7 @@ function NoteReactions({
 }
 
 function NoteThread({
-  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole, label = "Reply",
+  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole, label = "Reply", teamMembers,
 }: {
   note: Extract<ActivityEntry, { kind: "comm" }>;
   transactionId: string;
@@ -572,6 +575,7 @@ function NoteThread({
   currentUserName?: string;
   currentUserImage?: string | null;
   currentUserRole?: string;
+  teamMembers?: MentionPerson[];
   // The action word for this row's thread: "Reply" on things a person wrote,
   // "Comment" on everything else. Drives the button, placeholder and the
   // show/hide count noun.
@@ -649,10 +653,11 @@ function NoteThread({
       reactions: [],
     };
     const notify = canNotifyAuthor && notifyAuthor;
+    const mentionedUserIds = extractMentions(content, teamMembers ?? []);
     setLocalReplies((prev) => [...prev, placeholder]);
     setCollapsed(false);
     try {
-      const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify });
+      const created = await replyToNoteAction({ transactionId, parentNoteId: note.id, content, notify, mentionedUserIds });
       // Swap the placeholder for the real resolved reply (correct id + identity).
       setLocalReplies((prev) => prev.map((r) => (r.id === tempId ? created : r)));
       window.setTimeout(() => { setDraft(""); setNotifyAuthor(false); setComposerOpen(false); }, 850);
@@ -745,7 +750,7 @@ function NoteThread({
           ) : (
             <>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-wrap" }}>
-                {content}
+                <MentionText text={content} people={teamMembers ?? []} />
               </p>
               {/* One row: reaction pills + picker in line with the text actions.
                   "Reply" on a comment is muted text like Edit / Remove (it adds
@@ -866,13 +871,12 @@ function NoteThread({
             <UserAvatar user={{ name: currentUserName ?? "You", image: currentUserImage ?? null }} size={24} />
           </div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-          <textarea
+          <MentionTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={Math.max(2, Math.min(8, draft.split("\n").length + 1))}
-            placeholder={`Write a ${noun}…`}
-            className="glass-input w-full px-3 py-2.5 text-sm resize-none"
-            aria-label={`Write a ${noun}`}
+            onChange={setDraft}
+            people={teamMembers ?? []}
+            placeholder={`Write a ${noun}… use @ to mention a colleague`}
+            ariaLabel={`Write a ${noun}`}
             autoFocus
           />
           <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -903,7 +907,7 @@ function NoteThread({
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
-export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, currentUserName, currentUserImage, currentUserRole, contacts, solicitors, hideChrome = false, initialShowPortalVisits = false, initialLimit }: Props) {
+export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntries, currentUserId, currentUserName, currentUserImage, currentUserRole, contacts, solicitors, teamMembers, hideChrome = false, initialShowPortalVisits = false, initialLimit }: Props) {
   const searchTag = useGlassTag("activity-searchbar", "Activity · search bar", { light: "cs-b7c9ec28", dark: "cs-053799eb" });
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -1358,7 +1362,9 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                           </p>
                         )}
                         <p style={{ fontSize: 12, color: "var(--agent-text-primary)", lineHeight: 1.45, whiteSpace: "pre-line" }}>
-                          {displayBody}
+                          {entry.type === "internal_note"
+                            ? <MentionText text={displayBody} people={teamMembers ?? []} />
+                            : displayBody}
                         </p>
                         <EmailBodyControls
                           isLong={isLong}
@@ -1500,6 +1506,7 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                       currentUserName={currentUserName}
                       currentUserImage={currentUserImage}
                       currentUserRole={currentUserRole}
+                      teamMembers={teamMembers}
                     />
                   )}
                 </div>

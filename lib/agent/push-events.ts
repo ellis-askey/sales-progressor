@@ -306,3 +306,21 @@ export async function pushNoteReply(args: {
     console.error(`[push-events] noteReply failed for tx ${args.transactionId}:`, err);
   }
 }
+
+export async function pushNoteMention(args: {
+  userId: string;
+  transactionId: string;
+  mentionerName: string;
+  propertyAddress: string;
+}): Promise<void> {
+  try {
+    const base = process.env.NEXTAUTH_URL ?? "";
+    await pushToUser(args.userId, {
+      title: "You were mentioned",
+      body:  `${args.mentionerName} mentioned you on ${args.propertyAddress}`,
+      url:   `${base}/agent/transactions/${args.transactionId}`,
+    });
+  } catch (err) {
+    console.error(`[push-events] noteMention failed for tx ${args.transactionId}:`, err);
+  }
+}

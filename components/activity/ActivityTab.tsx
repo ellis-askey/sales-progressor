@@ -36,6 +36,8 @@ type Props = {
   currentUserName: string;
   currentUserImage: string | null;
   currentUserRole: string;
+  // The file's internal team, mentionable in a note/comment composer.
+  teamMembers?: { id: string; name: string; image?: string | null; role?: "agent" | "progressor" }[];
 };
 
 export function ActivityTab(props: Props) {
@@ -123,6 +125,7 @@ export function ActivityTab(props: Props) {
       currentUserRole={props.currentUserRole}
       contacts={props.contacts}
       solicitors={props.solicitors}
+      teamMembers={props.teamMembers}
     />
   );
 }

@@ -53,7 +53,7 @@ export async function ActivityPanel({
 }: Props) {
   // MOS doc + signed URL chain. Same shape as the page used to do,
   // just relocated into the panel that consumes it.
-  const [activityEntries, mosDocBundle, me, emailConn] = await Promise.all([
+  const [activityEntries, mosDocBundle, me, emailConn, teamMembers] = await Promise.all([
     getActivityTimelineCached(transactionId, agencyId).catch(() => []),
     (async () => {
       const doc = await prisma.transactionDocument.findFirst({
@@ -72,6 +72,25 @@ export async function ActivityPanel({
     // Mailbox connected? Then sent email is ingested automatically, so the
     // manual "Log an email" option is hidden in the composer.
     prisma.imapConnection.findFirst({ where: { userId: currentUserId }, select: { id: true } }).catch(() => null),
+    // The file's internal team — mentionable in a note/comment: the agency's
+    // own users plus the assigned progressor (if the file is outsourced). These
+    // are the people who can see internal notes, so the only ones worth pinging.
+    (async () => {
+      const [agencyUsers, tx] = await Promise.all([
+        prisma.user.findMany({ where: { agencyId }, select: { id: true, name: true, image: true, role: true } }).catch(() => []),
+        prisma.propertyTransaction.findFirst({
+          where: { id: transactionId },
+          select: { assignedUser: { select: { id: true, name: true, image: true, role: true } } },
+        }).catch(() => null),
+      ]);
+      const toActor = (r: string): "agent" | "progressor" =>
+        r === "sales_progressor" || r === "admin" || r === "superadmin" ? "progressor" : "agent";
+      const map = new Map<string, { id: string; name: string; image: string | null; role: "agent" | "progressor" }>();
+      for (const u of agencyUsers) if (u.name) map.set(u.id, { id: u.id, name: u.name, image: u.image ?? null, role: toActor(u.role) });
+      const a = tx?.assignedUser;
+      if (a?.name) map.set(a.id, { id: a.id, name: a.name, image: a.image ?? null, role: toActor(a.role) });
+      return [...map.values()];
+    })(),
   ]);
 
   return (
@@ -92,6 +111,7 @@ export async function ActivityPanel({
         currentUserName={currentUserName}
         currentUserImage={me?.image ?? null}
         currentUserRole={currentUserRole}
+        teamMembers={teamMembers}
       />
       {/* isInternalStaff fed for future use; currently parallel to ActivityTab's
         * own surface guards. Kept in the props shape to mirror the page's

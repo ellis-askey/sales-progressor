@@ -110,6 +110,9 @@ export async function replyToNoteAction(input: {
   parentNoteId: string;
   content: string;
   notify?: boolean;
+  // Internal users @mentioned in the body — each is pinged (bell + push),
+  // never the mentioner themselves. Resolved client-side from the file's team.
+  mentionedUserIds?: string[];
 }) {
   const session = await requireSession();
   const { reply, noteAuthorId, notePreview, propertyAddress } = await addNoteReply({
@@ -153,6 +156,31 @@ export async function replyToNoteAction(input: {
         console.error("[replyToNoteAction] web push failed", err);
       }
     })();
+  }
+
+  // @mention pings: every mentioned internal user (never the mentioner), a bell
+  // + device push, fire-and-forget so a notify failure never fails the reply.
+  const mentioned = [...new Set(input.mentionedUserIds ?? [])].filter((uid) => uid && uid !== session.user.id);
+  if (mentioned.length) {
+    const mentionerName = session.user.name ?? "A colleague";
+    for (const uid of mentioned) {
+      void (async () => {
+        try {
+          const { notifyNoteMention } = await import("@/lib/services/notifications");
+          await notifyNoteMention({ userId: uid, transactionId: input.transactionId, mentionerName, notePreview, propertyAddress });
+        } catch (err) {
+          console.error("[replyToNoteAction] mention bell failed", err);
+        }
+      })();
+      void (async () => {
+        try {
+          const { pushNoteMention } = await import("@/lib/agent/push-events");
+          await pushNoteMention({ userId: uid, transactionId: input.transactionId, mentionerName, propertyAddress });
+        } catch (err) {
+          console.error("[replyToNoteAction] mention push failed", err);
+        }
+      })();
+    }
   }
 
   revalidateTx(input.transactionId);

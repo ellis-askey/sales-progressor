@@ -173,6 +173,28 @@ export async function notifyNoteReply(args: {
   });
 }
 
+/** Someone @mentioned this user in a note or comment on the file. */
+export async function notifyNoteMention(args: {
+  userId: string;
+  transactionId: string;
+  mentionerName: string;
+  notePreview: string;
+  propertyAddress: string;
+}): Promise<void> {
+  await createNotification({
+    userId: args.userId,
+    type: "note_mention",
+    transactionId: args.transactionId,
+    payload: {
+      mentionerName: args.mentionerName,
+      notePreview: args.notePreview,
+      propertyAddress: args.propertyAddress,
+      title: "You were mentioned",
+      body: `${args.mentionerName} mentioned you on ${args.propertyAddress}`,
+    },
+  });
+}
+
 /** Event A: an agency-side user confirmed a milestone on an outsourced file. */
 export async function notifyOutsourcedMilestoneConfirmed(args: {
   spUserId: string;

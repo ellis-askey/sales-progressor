@@ -252,7 +252,7 @@ const G_NOTE_THREAD: CommSpec[] = [
     ],
     replies: [
       { ...reply("Thanks, seller's solicitor acknowledged, says replies by early next week.", "Laura Smith", "progressor"), reactions: [{ emoji: "❤️", users: ["dev-user"], names: ["Ellis Askey"] }] },
-      reply("Great, I'll chase if nothing lands by Wednesday.", AGENT, "agent"),
+      reply("Great, thanks @Laura Smith, I'll chase if nothing lands by Wednesday.", AGENT, "agent"),
     ],
   },
 ];
@@ -497,6 +497,11 @@ export default function TimelineCataloguePage() {
             currentUserName={AGENT}
             currentUserRole="sales_progressor"
             contacts={[{ id: "c1", name: VENDOR_CONTACT }, { id: "c2", name: PURCHASER_CONTACT }]}
+            teamMembers={[
+              { id: "dev-user", name: AGENT, role: "agent" },
+              { id: "u-laura", name: "Laura Smith", role: "progressor" },
+              { id: "u-ruby", name: "Ruby Patel", role: "progressor" },
+            ]}
           />
         )}
       </main>
