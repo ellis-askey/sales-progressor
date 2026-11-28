@@ -438,12 +438,13 @@ const REACTION_EMOJI = ["👍", "❤️", "🎉", "👀", "🚀", "✅"];
 // (revalidate caught up), when it's dropped. Rendered native in agent tokens so
 // it reads identically in light + dark, matching the rest of the Activity feed.
 function NoteReactions({
-  commId, transactionId, reactions, currentUserId, actions,
+  commId, transactionId, reactions, currentUserId, currentUserName, actions,
 }: {
   commId: string;
   transactionId: string;
   reactions: CommReaction[];
   currentUserId?: string;
+  currentUserName?: string;
   // Text actions (Reply / Edit / Remove, or the note's Hide-replies + Reply)
   // rendered inline on the same row as the reaction pills + picker, so the
   // emoji sits in line with the actions rather than on a row of its own.
@@ -463,12 +464,24 @@ function NoteReactions({
     if (!canReact) return;
     const current = overlay ?? reactions;
     const existing = current.find((r) => r.emoji === emoji);
-    const added = !existing?.users.includes(me);
+    // Keep names index-aligned with users through the optimistic edit, so the
+    // who-reacted hover stays correct before the server list lands.
     const next: CommReaction[] = existing
       ? current
-          .map((r) => (r.emoji !== emoji ? r : { ...r, users: added ? [...r.users, me] : r.users.filter((u) => u !== me) }))
+          .map((r) => {
+            if (r.emoji !== emoji) return r;
+            const names = r.names ?? r.users.map(() => null);
+            if (r.users.includes(me)) {
+              return {
+                ...r,
+                users: r.users.filter((u) => u !== me),
+                names: names.filter((_, i) => r.users[i] !== me),
+              };
+            }
+            return { ...r, users: [...r.users, me], names: [...names, currentUserName ?? null] };
+          })
           .filter((r) => r.users.length > 0)
-      : [...current, { emoji, users: [me] }];
+      : [...current, { emoji, users: [me], names: [currentUserName ?? null] }];
     setOverlay(next);
     startReactTransition(async () => {
       try {
@@ -477,6 +490,16 @@ function NoteReactions({
         setOverlay(current);
       }
     });
+  }
+
+  // "You, Laura Smith" / "Ellis, Laura and 2 others" — who reacted, for the hover.
+  function reactorLabel(rx: CommReaction): string {
+    const names = rx.users.map((u, i) => (u === me ? "You" : rx.names?.[i] ?? "Someone"));
+    names.sort((a, b) => (a === "You" ? -1 : b === "You" ? 1 : 0));
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+    if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]}`;
+    return `${names[0]}, ${names[1]} and ${names.length - 2} others`;
   }
 
   if (list.length === 0 && !canReact && !actions) return null;
@@ -495,6 +518,8 @@ function NoteReactions({
             className="act-reaction"
             data-pressed={pressed || undefined}
             aria-pressed={pressed}
+            title={reactorLabel(r)}
+            aria-label={`${r.emoji} reacted by ${reactorLabel(r)}`}
             onClick={(e) => { e.stopPropagation(); toggle(r.emoji); }}
           >
             <span aria-hidden style={{ fontSize: 12.5, lineHeight: 1 }}>{r.emoji}</span>
@@ -731,6 +756,7 @@ function NoteThread({
                 transactionId={transactionId}
                 reactions={r.reactions}
                 currentUserId={currentUserId}
+                currentUserName={currentUserName}
                 actions={
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <button
@@ -792,6 +818,7 @@ function NoteThread({
         transactionId={transactionId}
         reactions={note.reactions}
         currentUserId={currentUserId}
+        currentUserName={currentUserName}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             {replies.length > 0 && (

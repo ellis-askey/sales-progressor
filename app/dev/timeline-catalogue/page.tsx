@@ -247,11 +247,11 @@ const G_NOTE_THREAD: CommSpec[] = [
     content: "Buyer's solicitor raised three enquiries on the title, forwarding to the seller's side now.",
     createdByName: AGENT,
     reactions: [
-      { emoji: "👍", users: ["dev-user", "u2"] },
-      { emoji: "🎉", users: ["u3"] },
+      { emoji: "👍", users: ["dev-user", "u2"], names: ["Ellis Askey", "Laura Smith"] },
+      { emoji: "🎉", users: ["u3"], names: ["Ruby Patel"] },
     ],
     replies: [
-      { ...reply("Thanks, seller's solicitor acknowledged, says replies by early next week.", "Laura Smith", "progressor"), reactions: [{ emoji: "❤️", users: ["dev-user"] }] },
+      { ...reply("Thanks, seller's solicitor acknowledged, says replies by early next week.", "Laura Smith", "progressor"), reactions: [{ emoji: "❤️", users: ["dev-user"], names: ["Ellis Askey"] }] },
       reply("Great, I'll chase if nothing lands by Wednesday.", AGENT, "agent"),
     ],
   },

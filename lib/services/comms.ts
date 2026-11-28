@@ -670,6 +670,19 @@ export async function getActivityTimeline(
         include: { createdBy: { select: { name: true, image: true } } },
       })
     : [];
+  // Resolve every reactor's id → display name once (who-reacted hover). Reactors
+  // are internal staff / agency users, so one User lookup covers the whole feed.
+  const reactorIds = new Set<string>();
+  for (const c of comms) for (const rx of parseReactions(c.reactions)) for (const u of rx.users) reactorIds.add(u);
+  for (const r of replyRows) for (const rx of parseReactions(r.reactions)) for (const u of rx.users) reactorIds.add(u);
+  const reactorNames = new Map<string, string>();
+  if (reactorIds.size) {
+    const users = await prisma.user.findMany({ where: { id: { in: [...reactorIds] } }, select: { id: true, name: true } });
+    for (const u of users) if (u.name) reactorNames.set(u.id, u.name);
+  }
+  const namedReactions = (raw: unknown): CommReaction[] =>
+    parseReactions(raw).map((rx) => ({ ...rx, names: rx.users.map((u) => reactorNames.get(u) ?? null) }));
+
   const repliesByParent = new Map<string, NoteReply[]>();
   for (const r of replyRows) {
     if (!r.parentNoteId) continue;
@@ -688,7 +701,7 @@ export async function getActivityTimeline(
       wasEdited: r.wasEdited,
       editedAt: r.editedAt ?? (r.wasEdited ? r.updatedAt : null),
       editableByAuthor: isAuthorEditableComm(r),
-      reactions: parseReactions(r.reactions),
+      reactions: namedReactions(r.reactions),
     };
     const arr = repliesByParent.get(r.parentNoteId) ?? [];
     arr.push(reply);
@@ -804,8 +817,9 @@ export async function getActivityTimeline(
     // be edited via editCommAction — always false. Everything else follows the
     // single-source manual-log rule.
     editableByAuthor: !c.id.startsWith("pm_") && isAuthorEditableComm(c),
-    // Emoji reactions (OutboundMessage rows only; portal pm_* rows have none).
-    reactions: parseReactions((c as { reactions?: unknown }).reactions),
+    // Emoji reactions (OutboundMessage rows only; portal pm_* rows have none),
+    // enriched with reactor display names for the who-reacted hover.
+    reactions: namedReactions((c as { reactions?: unknown }).reactions),
     };
   });
 
@@ -1598,7 +1612,10 @@ export async function deleteCommunicationRecord(id: string, scope: AccessScope, 
 }
 
 // ─── Emoji reactions (Activity comment thread) ──────────────────────────────────
-export type CommReaction = { emoji: string; users: string[] };
+// `users` are user ids (what's persisted). `names` is a feed-only enrichment,
+// index-aligned with `users`, resolving each id to a display name for the
+// who-reacted hover (null where a name can't be resolved). Never persisted.
+export type CommReaction = { emoji: string; users: string[]; names?: (string | null)[] };
 
 /** Read the stored reactions JSON into a clean, typed array. */
 export function parseReactions(raw: unknown): CommReaction[] {
