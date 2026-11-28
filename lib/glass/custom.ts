@@ -93,6 +93,22 @@ export const DEFAULT_STYLES: GlassStyle[] = [
     name: "Solid Black · Hero",
     recipe: { blur: 0, bg: "10, 11, 15", bgA: 1, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.11, shadow: 50 },
   },
+  // Inset — the nested-card surface (a card inside a card). A faint translucent
+  // fill + hairline + NO shadow, so it layers on its opaque parent without a
+  // second elevation. Meant for inner panels (fee breakdown tiles, empty-state
+  // feature cards); over the bare background it reads near-transparent, which is
+  // expected. The rest of the /dev/card-system types (status rail, option ring,
+  // interactive states, promo tile) are component chrome, not bakeable surfaces.
+  {
+    id: "cs-501d00e5",
+    name: "Solid White · Inset",
+    recipe: { blur: 0, bg: "16, 20, 34", bgA: 0.028, sat: 1, borderW: 1, borderC: "16, 20, 34", borderA: 0.06, shadow: 0 },
+  },
+  {
+    id: "cs-501d00f6",
+    name: "Solid Black · Inset",
+    recipe: { blur: 0, bg: "255, 255, 255", bgA: 0.045, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.07, shadow: 0 },
+  },
 ];
 
 // The baseline a brand-new custom style starts from — roughly today's plain
