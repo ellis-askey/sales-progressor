@@ -74,7 +74,7 @@ export default function SolidCards() {
           <SectionHead
             kicker="1 · Hero"
             title="The hero card"
-            body="One per page — the file header, the thing you land on. More presence: generous padding, a slightly larger radius, a deeper shadow, and a coral accent earning its place. Two directions."
+            body="One per page: the file header, the thing you land on. More presence: generous padding, a slightly larger radius, a deeper shadow, and a coral accent earning its place. Two directions."
           />
 
           {/* Hero A — Clean */}
@@ -124,7 +124,7 @@ export default function SolidCards() {
           <SectionHead
             kicker="2 · Standard"
             title="The everything-else card"
-            body="The workhorse that wraps most of the app — people, key dates, notes, stats. Three treatments so you can decide how a card separates from the background: a soft shadow, a hairline border, or both."
+            body="The workhorse that wraps most of the app: people, key dates, notes, stats. Three treatments so you can decide how a card separates from the background: a soft shadow, a hairline border, or both."
           />
 
           <div className="sc-std-grid">
@@ -156,7 +156,7 @@ export default function SolidCards() {
           <SectionHead
             kicker="3 · In context"
             title="A row of the standard card"
-            body="How the Elevated workhorse reads as a set — a stat strip, the kind that sits under a hero."
+            body="How the Elevated workhorse reads as a set: a stat strip, the kind that sits under a hero."
           />
           <div className="sc-stat-row">
             {STATS.map((s) => (
@@ -174,7 +174,7 @@ export default function SolidCards() {
           <SectionHead
             kicker="4 · Why"
             title="Glass vs solid, side by side"
-            body="Left is today's Light Main Card (white at 50% + 50px blur). Right is the proposed solid card. Toggle the theme — the glass is where the washed-out feeling comes from, most of all in dark."
+            body="Left is today's Light Main Card (white at 50% + 50px blur). Right is the proposed solid card. Toggle the theme: the glass is where the washed-out feeling comes from, most of all in dark."
           />
           <div className="sc-ba">
             <figure className="sc-figure">
