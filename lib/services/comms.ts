@@ -658,10 +658,14 @@ export async function getActivityTimeline(
   // query (no N+1), then group by parent in memory. Replies resolve their author
   // name/photo/actor through the SAME resolveCommActor as a top-level comm row, so
   // a reply renders with identical identity. Oldest-first within each thread.
-  const noteIds = comms.filter((c) => c.type === "internal_note").map((c) => c.id);
-  const replyRows = noteIds.length
+  // A comment/reply can now anchor to ANY top-level comm row (note, email,
+  // call, text, WhatsApp) — not just notes — so the whole feed is commentable.
+  // The anchor is still parentNoteId → the parent OutboundMessage; the child is
+  // itself an internal_note, excluded from the top-level feed (parentNoteId:null).
+  const commentableIds = comms.map((c) => c.id);
+  const replyRows = commentableIds.length
     ? await prisma.outboundMessage.findMany({
-        where: { transactionId, type: "internal_note", parentNoteId: { in: noteIds } },
+        where: { transactionId, type: "internal_note", parentNoteId: { in: commentableIds } },
         orderBy: { createdAt: "asc" },
         include: { createdBy: { select: { name: true, image: true } } },
       })
@@ -1728,12 +1732,15 @@ export async function addNoteReply(
   });
   if (!tx) throw new Error("Transaction not found");
 
-  // The target note must exist, live on this transaction, and be an internal_note.
+  // The target row must exist and live on this transaction. It can be ANY comm
+  // row — a note, an email, a logged call/text, WhatsApp — so the whole feed is
+  // commentable; the child we create is always an internal_note. (Only a reply's
+  // own parent must resolve; the flatten step below handles replies-of-replies.)
   const parent = await prisma.outboundMessage.findFirst({
     where: { id: input.parentNoteId, transactionId: input.transactionId },
     select: { id: true, type: true, parentNoteId: true, businessOnly: true, createdById: true, content: true },
   });
-  if (!parent || parent.type !== "internal_note") {
+  if (!parent) {
     throw new Error("Note not found");
   }
 

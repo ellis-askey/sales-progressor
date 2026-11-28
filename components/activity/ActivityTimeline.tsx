@@ -423,10 +423,6 @@ function EmailConversationDrawer({
 // native to the Activity tab: same avatars, buttons and optimistic feel as the
 // feed, not the arc comment-thread component.
 
-function pluralReplies(n: number): string {
-  return `${n} ${n === 1 ? "reply" : "replies"}`;
-}
-
 // Session role → activity avatar tint for an optimistic reply (mirrors the
 // service's userRoleToActor so the placeholder matches the server-resolved reply).
 function roleToActorRole(role?: string): ActorRole {
@@ -543,7 +539,7 @@ function NoteReactions({
 }
 
 function NoteThread({
-  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole,
+  note, transactionId, currentUserId, currentUserName, currentUserImage, currentUserRole, label = "Reply",
 }: {
   note: Extract<ActivityEntry, { kind: "comm" }>;
   transactionId: string;
@@ -551,7 +547,13 @@ function NoteThread({
   currentUserName?: string;
   currentUserImage?: string | null;
   currentUserRole?: string;
+  // The action word for this row's thread: "Reply" on things a person wrote,
+  // "Comment" on everything else. Drives the button, placeholder and the
+  // show/hide count noun.
+  label?: "Reply" | "Comment";
 }) {
+  const noun = label === "Comment" ? "comment" : "reply";
+  const nounPlural = label === "Comment" ? "comments" : "replies";
   const [, startThreadTransition] = useTransition();
   // Optimistic replies appended locally (temp id until the server-returned reply
   // swaps in), reply edits (content override + "edited" time), and removed ids —
@@ -739,9 +741,9 @@ function NoteThread({
                       onMouseOut={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
                       onFocus={(e) => (e.currentTarget.style.color = "var(--agent-text-primary)")}
                       onBlur={(e) => (e.currentTarget.style.color = "var(--agent-text-muted)")}
-                      aria-label="Reply in this thread"
+                      aria-label={`${label} in this thread`}
                     >
-                      Reply
+                      {label}
                     </button>
                     {canTouch && (
                       <button
@@ -800,12 +802,12 @@ function NoteThread({
                 style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4, color: "var(--agent-text-muted)" }}
               >
                 <CaretRight size={11} weight="bold" style={{ transform: collapsed ? "none" : "rotate(90deg)", transition: "transform .18s cubic-bezier(.4,0,.2,1)" }} />
-                {collapsed ? `Show ${pluralReplies(replies.length)}` : "Hide replies"}
+                {collapsed ? `Show ${replies.length} ${replies.length === 1 ? noun : nounPlural}` : `Hide ${nounPlural}`}
               </button>
             )}
             {collapsed && replies.length > 0 && lastReply && (
               <span style={{ fontSize: 10, color: "var(--agent-text-muted)" }}>
-                last reply {relativeDate(lastReply.editedAt ?? lastReply.at)}
+                last {noun} {relativeDate(lastReply.editedAt ?? lastReply.at)}
               </span>
             )}
             {!composerOpen && (
@@ -813,10 +815,10 @@ function NoteThread({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setComposerOpen(true); }}
                 style={{ ...LINK_BTN, display: "inline-flex", alignItems: "center", gap: 4 }}
-                aria-label="Reply to note"
+                aria-label={`${label} on this`}
               >
                 <ArrowBendDownRight size={13} weight="bold" />
-                Reply
+                {label}
               </button>
             )}
           </div>
@@ -841,9 +843,9 @@ function NoteThread({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={Math.max(2, Math.min(8, draft.split("\n").length + 1))}
-            placeholder="Write a reply…"
+            placeholder={`Write a ${noun}…`}
             className="glass-input w-full px-3 py-2.5 text-sm resize-none"
-            aria-label="Write a reply"
+            aria-label={`Write a ${noun}`}
             autoFocus
           />
           <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -1456,10 +1458,16 @@ export function ActivityTimeline({ entries, transactionId, mosDocUrl, beforeEntr
                     </div>
                   )}
 
-                  {/* Threaded replies + inline reply composer (notes only). */}
-                  {entry.type === "internal_note" && !entry.isAutomated && (
+                  {/* Reactions + a threaded discussion on every real comm row
+                      (note, email, call, text, WhatsApp). The action word is
+                      "Reply" on things a person wrote (manual notes / logged
+                      calls — editableByAuthor), "Comment" on everything else
+                      (automated or real emails). Portal (pm_*) and optimistic
+                      rows aren't real OutboundMessage rows, so they're excluded. */}
+                  {!entry.id.startsWith("pm_") && !entry.id.startsWith("optimistic") && (
                     <NoteThread
                       note={entry}
+                      label={entry.editableByAuthor ? "Reply" : "Comment"}
                       transactionId={transactionId}
                       currentUserId={currentUserId}
                       currentUserName={currentUserName}
