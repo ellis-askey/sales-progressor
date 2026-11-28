@@ -66,6 +66,33 @@ export const DEFAULT_STYLES: GlassStyle[] = [
     name: "Dark Property Hero",
     recipe: { blur: 50, bg: "255, 255, 255", bgA: 0.06, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.15, shadow: 22 },
   },
+
+  // Solid cards — the move away from frosted glass (which washed out over the
+  // iridescence / aurora). Fully opaque (bgA:1, blur:0): white in light, true
+  // black (#0a0b0f) in dark. Separation comes from a hairline + a soft layered
+  // shadow, not translucency. Prototyped at /dev/solid-cards, 2026-11-28.
+  // Two depths: Card (the workhorse) and Hero (deeper shadow for the one
+  // header card per page). Pair Light + Dark per card in the Design Lab.
+  {
+    id: "cs-501d00a1",
+    name: "Solid White · Card",
+    recipe: { blur: 0, bg: "255, 255, 255", bgA: 1, sat: 1, borderW: 1, borderC: "16, 20, 34", borderA: 0.08, shadow: 30 },
+  },
+  {
+    id: "cs-501d00b2",
+    name: "Solid White · Hero",
+    recipe: { blur: 0, bg: "255, 255, 255", bgA: 1, sat: 1, borderW: 1, borderC: "16, 20, 34", borderA: 0.08, shadow: 46 },
+  },
+  {
+    id: "cs-501d00c3",
+    name: "Solid Black · Card",
+    recipe: { blur: 0, bg: "10, 11, 15", bgA: 1, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.11, shadow: 34 },
+  },
+  {
+    id: "cs-501d00d4",
+    name: "Solid Black · Hero",
+    recipe: { blur: 0, bg: "10, 11, 15", bgA: 1, sat: 1, borderW: 1, borderC: "255, 255, 255", borderA: 0.11, shadow: 50 },
+  },
 ];
 
 // The baseline a brand-new custom style starts from — roughly today's plain
